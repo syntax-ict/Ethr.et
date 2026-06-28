@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
+        \Laravel\Sanctum\Sanctum::usePersonalAccessTokenModel(\App\Models\PersonalAccessToken::class);
+
         Event::listen(TenantCreated::class, ProvisionTenant::class);
 
         RateLimiter::for('api', function (Request $request) {

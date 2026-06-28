@@ -8,6 +8,8 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use Closure;
 use Illuminate\Http\Request;
+use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenant
@@ -43,7 +45,33 @@ class ResolveTenant
             $this->currentTenant->set($tenant);
         }
 
+        if (! $this->currentTenant->resolved()) {
+            $this->resolveFromBearerToken($request);
+        }
+
         return $next($request);
+    }
+
+    private function resolveFromBearerToken(Request $request): void
+    {
+        $bearer = $request->bearerToken();
+        if (! $bearer) {
+            return;
+        }
+
+        $tokenModel = Sanctum::$personalAccessTokenModel;
+        $token = $tokenModel::findToken($bearer);
+        if (! $token) {
+            return;
+        }
+
+        $user = User::withoutGlobalScopes()->find($token->tokenable_id);
+        if ($user?->tenant_id) {
+            $tenant = Tenant::find($user->tenant_id);
+            if ($tenant) {
+                $this->currentTenant->set($tenant);
+            }
+        }
     }
 
     private function extractSubdomain(string $host): ?string

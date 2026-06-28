@@ -43,10 +43,10 @@ class DemoTenantSeeder extends Seeder
         $adminUser = User::create([
             'public_id' => (string) Str::ulid(),
             'tenant_id' => $tenant->id,
-            'name' => 'Admin User',
             'email' => 'admin@demo.ethr.et',
             'password' => bcrypt('password'),
             'role' => UserRole::TENANT_ADMIN,
+            'status' => 'active',
         ]);
 
         $hq = Branch::create([
