@@ -17,13 +17,12 @@ final class EmployeeDashboardService
     public function assemble(User $user): array
     {
         $employee = $user->employee;
-        $today = Carbon::today();
 
         return [
             'attendance_today' => $this->todayAttendance($employee),
             'leave_balances' => $this->leaveBalances($employee),
             'latest_payslip' => $this->latestPayslip($employee),
-            'upcoming_holidays' => $this->upcomingHolidays($employee->tenant_id),
+            'upcoming_holidays' => $this->upcomingHolidays($employee?->tenant_id ?? $user->tenant_id),
             'pending_approvals' => 0,
         ];
     }

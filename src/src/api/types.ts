@@ -39,7 +39,6 @@ export interface User {
   mfa_enabled: boolean;
   locale: string;
   last_login_at: string | null;
-  created_at: string;
 }
 
 export interface Employee {

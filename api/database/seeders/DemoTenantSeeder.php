@@ -77,7 +77,7 @@ class DemoTenantSeeder extends Seeder
             $positions[] = Position::create([
                 'public_id' => (string) Str::ulid(),
                 'tenant_id' => $tenant->id,
-                'name' => $name,
+                'title' => $name,
                 'code' => strtoupper(substr(str_replace(' ', '', $name), 0, 4)),
                 'is_active' => true,
             ]);
@@ -166,9 +166,7 @@ class DemoTenantSeeder extends Seeder
                 'tenant_id' => $tenant->id,
                 'name' => $h['name'],
                 'date' => $h['date'],
-                'is_recurring' => true,
-                'is_national' => true,
-                'source' => 'manual',
+                'recurring' => true,
             ]);
         }
 
@@ -190,8 +188,8 @@ class DemoTenantSeeder extends Seeder
                             'employee_id' => $employee->id,
                             'shift_id' => $shift->id,
                             'date' => $current->format('Y-m-d'),
-                            'check_in' => $checkIn->format('H:i:s'),
-                            'check_out' => $checkOut->format('H:i:s'),
+                            'check_in' => $checkIn->toDateTimeString(),
+                            'check_out' => $checkOut->toDateTimeString(),
                             'source' => fake()->randomElement(['web', 'biometric', 'mobile']),
                             'status' => $late ? 'late' : 'present',
                             'confidence_score' => fake()->numberBetween(80, 100),
