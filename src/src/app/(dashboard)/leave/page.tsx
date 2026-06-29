@@ -19,8 +19,13 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
-import { useLeaveBalance, useMyLeaveRequests, useLeaveTypes, useSubmitLeave } from '@/features/leave/api';
+import { useLeaveBalance, useMyLeaveRequests, useLeaveTypes, useSubmitLeave, type LeaveBalance } from '@/features/leave/api';
 import { toast } from 'sonner';
+
+function leaveTypeName(lt: LeaveBalance['leave_type']): string {
+  if (typeof lt === 'string') return lt;
+  return lt?.name ?? 'Unknown';
+}
 
 export default function LeavePage() {
   const [page, setPage] = useState(1);
@@ -74,7 +79,7 @@ export default function LeavePage() {
           balances.map((b, i) => (
             <Card key={i}>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">{b.leave_type}</p>
+                <p className="text-sm text-muted-foreground">{leaveTypeName(b.leave_type)}</p>
                 <p className="mt-1 text-2xl font-bold text-foreground">{b.remaining_days}</p>
                 <p className="text-xs text-muted-foreground">
                   {b.used_days} used of {b.entitled_days}
@@ -116,7 +121,7 @@ export default function LeavePage() {
                 <tbody>
                   {requests.data.map((req) => (
                     <tr key={req.public_id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">{req.leave_type}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{leaveTypeName(req.leave_type)}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {req.start_date} — {req.end_date}
                       </td>

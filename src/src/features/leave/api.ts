@@ -11,7 +11,7 @@ export interface LeaveType {
 }
 
 export interface LeaveBalance {
-  leave_type: string;
+  leave_type: { name: string; code: string; public_id: string } | string;
   entitled_days: number;
   used_days: number;
   remaining_days: number;
@@ -19,7 +19,7 @@ export interface LeaveBalance {
 
 export interface LeaveRequest {
   public_id: string;
-  leave_type: string;
+  leave_type: { name: string; code: string; public_id: string } | string;
   start_date: string;
   end_date: string;
   days: number;
