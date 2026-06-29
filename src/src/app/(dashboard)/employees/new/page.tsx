@@ -10,11 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateEmployee } from '@/features/employees/api';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { RoleGate } from '@/components/shared/role-gate';
 import { toast } from 'sonner';
 
 export default function NewEmployeePage() {
   const router = useRouter();
   const createEmployee = useCreateEmployee();
+
+  const { data: depts } = useQuery({ queryKey: ['org', 'departments'], queryFn: async () => { const { data } = await apiClient.get('/organization/departments'); return data; } });
+  const { data: branches } = useQuery({ queryKey: ['org', 'branches'], queryFn: async () => { const { data } = await apiClient.get('/organization/branches'); return data; } });
+  const { data: positions } = useQuery({ queryKey: ['org', 'positions'], queryFn: async () => { const { data } = await apiClient.get('/organization/positions'); return data; } });
 
   const [form, setForm] = useState({
     name: '',
@@ -27,6 +34,9 @@ export default function NewEmployeePage() {
     marital_status: 'single',
     hire_date: '',
     salary_cents: '',
+    department_public_id: '',
+    branch_public_id: '',
+    position_public_id: '',
   });
 
   function updateField(field: string, value: string) {
@@ -138,6 +148,39 @@ export default function NewEmployeePage() {
               <div>
                 <Label htmlFor="nationality">Nationality</Label>
                 <Input id="nationality" value={form.nationality} onChange={(e) => updateField('nationality', e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label>Department</Label>
+                <Select value={form.department_public_id} onValueChange={(v) => updateField('department_public_id', v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
+                  <SelectContent>
+                    {depts?.data?.map((d: { public_id: string; name: string }) => (
+                      <SelectItem key={d.public_id} value={d.public_id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Branch</Label>
+                <Select value={form.branch_public_id} onValueChange={(v) => updateField('branch_public_id', v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                  <SelectContent>
+                    {branches?.data?.map((b: { public_id: string; name: string }) => (
+                      <SelectItem key={b.public_id} value={b.public_id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Position</Label>
+                <Select value={form.position_public_id} onValueChange={(v) => updateField('position_public_id', v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select position" /></SelectTrigger>
+                  <SelectContent>
+                    {positions?.data?.map((p: { public_id: string; title: string }) => (
+                      <SelectItem key={p.public_id} value={p.public_id}>{p.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>

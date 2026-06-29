@@ -2,13 +2,17 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
 import { usePayrollRun } from '@/features/payroll/api';
+import { usePermissions } from '@/lib/hooks/usePermissions';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { toast } from 'sonner';
 
 export default function PayrollDetailPage({
   params,
@@ -17,6 +21,23 @@ export default function PayrollDetailPage({
 }) {
   const { id } = use(params);
   const { data: run, isLoading } = usePayrollRun(id);
+  const { isAtLeast } = usePermissions();
+  const queryClient = useQueryClient();
+
+  const approvePayroll = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.put(`/payroll/runs/${id}/approve`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll'] });
+      toast.success('Payroll approved successfully');
+    },
+    onError: (err: unknown) => {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      toast.error(axiosError.response?.data?.detail || 'Failed to approve payroll');
+    },
+  });
 
   if (isLoading) {
     return (
@@ -61,10 +82,26 @@ export default function PayrollDetailPage({
             {run.period_start} to {run.period_end} &middot; {run.employee_count} employees
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+        <div className="flex items-center gap-2">
+          {run.status === 'completed' && isAtLeast('tenant_admin') && (
+            <Button
+              size="sm"
+              onClick={() => approvePayroll.mutate()}
+              disabled={approvePayroll.isPending}
+            >
+              {approvePayroll.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              Approve Payroll
+            </Button>
+          )}
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

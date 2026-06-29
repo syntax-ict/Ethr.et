@@ -2,20 +2,61 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Wallet } from 'lucide-react';
+import { Wallet, Plus, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
 import { EmptyState } from '@/components/shared/empty-state';
 import { RoleGate } from '@/components/shared/role-gate';
 import { usePayrollRuns } from '@/features/payroll/api';
+import { usePermissions } from '@/lib/hooks/usePermissions';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { toast } from 'sonner';
 
 export default function PayrollPage() {
   const [page, setPage] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [periodStart, setPeriodStart] = useState('');
+  const [periodEnd, setPeriodEnd] = useState('');
   const { data, isLoading } = usePayrollRuns({ page });
+  const { can } = usePermissions();
+  const queryClient = useQueryClient();
+
+  const processPayroll = useMutation({
+    mutationFn: async (payload: { period_start: string; period_end: string }) => {
+      const { data } = await apiClient.post('/payroll/process', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll'] });
+      toast.success('Payroll processing started');
+      setDialogOpen(false);
+      setPeriodStart('');
+      setPeriodEnd('');
+    },
+    onError: (err: unknown) => {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      toast.error(axiosError.response?.data?.detail || 'Failed to process payroll');
+    },
+  });
+
+  function handleRunPayroll(e: React.FormEvent) {
+    e.preventDefault();
+    processPayroll.mutate({ period_start: periodStart, period_end: periodEnd });
+  }
 
   return (
     <RoleGate allowedRoles={['finance_admin', 'tenant_admin', 'super_admin']}>
@@ -23,6 +64,14 @@ export default function PayrollPage() {
       <PageHeader
         title="Payroll"
         description="View payroll runs and processing history"
+        actions={
+          can.processPayroll && (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Run Payroll
+            </Button>
+          )
+        }
       />
 
       {isLoading ? (
@@ -83,6 +132,46 @@ export default function PayrollPage() {
           )}
         </>
       )}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Run Payroll</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRunPayroll} className="space-y-4">
+            <div>
+              <Label htmlFor="period_start">Period Start</Label>
+              <Input
+                id="period_start"
+                type="date"
+                value={periodStart}
+                onChange={(e) => setPeriodStart(e.target.value)}
+                required
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="period_end">Period End</Label>
+              <Input
+                id="period_end"
+                type="date"
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+                required
+                className="mt-1"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={processPayroll.isPending}>
+                {processPayroll.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Process Payroll
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
     </RoleGate>
   );

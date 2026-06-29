@@ -3,20 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
-  Users,
-  Clock,
-  CalendarDays,
-  Wallet,
-  BarChart3,
-  Settings,
-  Building2,
-  Bell,
-  Receipt,
-  FilePenLine,
-  Shield,
-  CheckSquare,
-  UserCog,
+  LayoutDashboard, Users, Clock, CalendarDays, Wallet, BarChart3,
+  Settings, Building2, Bell, Receipt, FilePenLine, Shield,
+  CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -39,12 +28,14 @@ interface SidebarNavProps {
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const { can, isSupervisor, isFinanceAdmin, role } = usePermissions();
+  const { can, isSupervisor, isFinanceAdmin } = usePermissions();
 
   const sections: NavSection[] = [
     {
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
+        { label: 'Directory', href: '/directory', icon: Contact, show: true },
+        { label: 'Announcements', href: '/announcements', icon: Megaphone, show: true },
       ],
     },
     {
@@ -67,6 +58,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: 'Finance',
       items: [
         { label: 'Payroll Runs', href: '/payroll', icon: Wallet, show: can.viewPayrollRuns },
+        { label: 'Loans', href: '/payroll/loans', icon: Banknote, show: isFinanceAdmin },
         { label: 'My Payslips', href: '/payroll/payslips', icon: Receipt, show: true },
       ],
     },
@@ -77,10 +69,18 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
+      title: 'Configuration',
+      items: [
+        { label: 'Holidays', href: '/settings/holidays', icon: Calendar, show: can.manageEmployees },
+        { label: 'Leave Types', href: '/settings/leave-types', icon: ListChecks, show: can.manageEmployees },
+        { label: 'Shifts', href: '/settings/shifts', icon: Timer, show: can.manageEmployees },
+        { label: 'Settings', href: '/settings', icon: Settings, show: can.manageSettings },
+      ],
+    },
+    {
       title: 'System',
       items: [
         { label: 'Notifications', href: '/notifications', icon: Bell, show: true },
-        { label: 'Settings', href: '/settings', icon: Settings, show: can.manageSettings },
         { label: 'Admin Console', href: '/admin', icon: Shield, show: can.viewAdminConsole },
       ],
     },
@@ -100,7 +100,9 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             </p>
           )}
           {section.items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = item.href === '/settings'
+              ? pathname === '/settings'
+              : pathname === item.href || pathname.startsWith(item.href + '/');
             const Icon = item.icon;
 
             return (
@@ -122,13 +124,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           })}
         </div>
       ))}
-
-      <div className="mt-4 rounded-lg border border-sidebar-border/50 px-3 py-2">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/40">Role</p>
-        <p className="mt-0.5 text-xs font-medium capitalize text-sidebar-foreground/70">
-          {role.replace(/_/g, ' ')}
-        </p>
-      </div>
     </nav>
   );
 }
