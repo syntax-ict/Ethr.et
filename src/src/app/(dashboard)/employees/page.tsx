@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { PageHeader } from '@/components/shared/page-header';
+import { RoleGate } from '@/components/shared/role-gate';
 import { SearchInput } from '@/components/shared/search-input';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -20,6 +21,7 @@ export default function EmployeesPage() {
   const { data, isLoading } = useEmployees({ page, search, per_page: 25 });
 
   return (
+    <RoleGate minRole="hr_admin">
     <div className="space-y-6">
       <PageHeader
         title="Employees"
@@ -167,5 +169,6 @@ export default function EmployeesPage() {
         </>
       )}
     </div>
+    </RoleGate>
   );
 }

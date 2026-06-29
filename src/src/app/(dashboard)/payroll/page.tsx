@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
 import { EmptyState } from '@/components/shared/empty-state';
+import { RoleGate } from '@/components/shared/role-gate';
 import { usePayrollRuns } from '@/features/payroll/api';
 
 export default function PayrollPage() {
@@ -17,6 +18,7 @@ export default function PayrollPage() {
   const { data, isLoading } = usePayrollRuns({ page });
 
   return (
+    <RoleGate allowedRoles={['finance_admin', 'tenant_admin', 'super_admin']}>
     <div className="space-y-6">
       <PageHeader
         title="Payroll"
@@ -82,5 +84,6 @@ export default function PayrollPage() {
         </>
       )}
     </div>
+    </RoleGate>
   );
 }

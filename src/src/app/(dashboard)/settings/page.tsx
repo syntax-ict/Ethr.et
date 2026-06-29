@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
+import { RoleGate } from '@/components/shared/role-gate';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
@@ -67,6 +68,7 @@ export default function SettingsPage() {
   const hasDirty = Object.keys(dirty).length > 0;
 
   return (
+    <RoleGate minRole="tenant_admin">
     <div className="space-y-6">
       <PageHeader
         title="Settings"
@@ -259,5 +261,6 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </RoleGate>
   );
 }

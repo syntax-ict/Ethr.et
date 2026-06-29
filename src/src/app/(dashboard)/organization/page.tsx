@@ -5,6 +5,7 @@ import { Building2, GitBranch, Users2, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/shared/page-header';
+import { RoleGate } from '@/components/shared/role-gate';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 
@@ -36,6 +37,7 @@ export default function OrganizationPage() {
   const isLoading = branchLoading || deptLoading || posLoading;
 
   return (
+    <RoleGate minRole="hr_admin">
     <div className="space-y-6">
       <PageHeader
         title="Organization"
@@ -109,6 +111,7 @@ export default function OrganizationPage() {
         </Card>
       </div>
     </div>
+    </RoleGate>
   );
 }
 

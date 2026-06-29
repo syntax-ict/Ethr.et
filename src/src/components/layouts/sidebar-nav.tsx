@@ -12,16 +12,20 @@ import {
   Settings,
   Building2,
   Bell,
-  FileText,
   Receipt,
   FilePenLine,
+  Shield,
+  CheckSquare,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  show: boolean;
 }
 
 interface NavSection {
@@ -29,58 +33,66 @@ interface NavSection {
   items: NavItem[];
 }
 
-const sections: NavSection[] = [
-  {
-    items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: 'HR',
-    items: [
-      { label: 'Employees', href: '/employees', icon: Users },
-      { label: 'Organization', href: '/organization', icon: Building2 },
-    ],
-  },
-  {
-    title: 'Operations',
-    items: [
-      { label: 'Attendance', href: '/attendance', icon: Clock },
-      { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine },
-      { label: 'Leave', href: '/leave', icon: CalendarDays },
-    ],
-  },
-  {
-    title: 'Finance',
-    items: [
-      { label: 'Payroll', href: '/payroll', icon: Wallet },
-      { label: 'My Payslips', href: '/payroll/payslips', icon: Receipt },
-    ],
-  },
-  {
-    title: 'Insights',
-    items: [
-      { label: 'Reports', href: '/reports', icon: BarChart3 },
-    ],
-  },
-  {
-    items: [
-      { label: 'Notifications', href: '/notifications', icon: Bell },
-      { label: 'Settings', href: '/settings', icon: Settings },
-    ],
-  },
-];
-
 interface SidebarNavProps {
   onNavigate?: () => void;
 }
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
+  const { can, isSupervisor, isFinanceAdmin, role } = usePermissions();
+
+  const sections: NavSection[] = [
+    {
+      items: [
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
+      ],
+    },
+    {
+      title: 'HR',
+      items: [
+        { label: 'Employees', href: '/employees', icon: Users, show: can.manageEmployees },
+        { label: 'Organization', href: '/organization', icon: Building2, show: can.manageOrg },
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
+        { label: 'Attendance', href: '/attendance', icon: Clock, show: true },
+        { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine, show: true },
+        { label: 'Leave', href: '/leave', icon: CalendarDays, show: true },
+        { label: 'Approvals', href: '/approvals', icon: CheckSquare, show: isSupervisor },
+      ],
+    },
+    {
+      title: 'Finance',
+      items: [
+        { label: 'Payroll Runs', href: '/payroll', icon: Wallet, show: can.viewPayrollRuns },
+        { label: 'My Payslips', href: '/payroll/payslips', icon: Receipt, show: true },
+      ],
+    },
+    {
+      title: 'Insights',
+      items: [
+        { label: 'Reports', href: '/reports', icon: BarChart3, show: can.viewReports },
+      ],
+    },
+    {
+      title: 'System',
+      items: [
+        { label: 'Notifications', href: '/notifications', icon: Bell, show: true },
+        { label: 'Settings', href: '/settings', icon: Settings, show: can.manageSettings },
+        { label: 'Admin Console', href: '/admin', icon: Shield, show: can.viewAdminConsole },
+      ],
+    },
+  ];
+
+  const visibleSections = sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => i.show) }))
+    .filter((s) => s.items.length > 0);
 
   return (
     <nav className="flex flex-col gap-1 px-3 py-2">
-      {sections.map((section, si) => (
+      {visibleSections.map((section, si) => (
         <div key={si}>
           {section.title && (
             <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
@@ -110,6 +122,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           })}
         </div>
       ))}
+
+      <div className="mt-4 rounded-lg border border-sidebar-border/50 px-3 py-2">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/40">Role</p>
+        <p className="mt-0.5 text-xs font-medium capitalize text-sidebar-foreground/70">
+          {role.replace(/_/g, ' ')}
+        </p>
+      </div>
     </nav>
   );
 }

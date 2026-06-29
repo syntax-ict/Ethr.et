@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { apiClient } from '@/api/client';
+import { RoleGate } from '@/components/shared/role-gate';
 import { toast } from 'sonner';
 
 const prebuiltReports = [
@@ -34,6 +35,7 @@ export default function ReportsPage() {
   }
 
   return (
+    <RoleGate minRole="hr_admin">
     <div className="space-y-6">
       <PageHeader
         title="Reports"
@@ -70,5 +72,6 @@ export default function ReportsPage() {
         })}
       </div>
     </div>
+    </RoleGate>
   );
 }

@@ -19,6 +19,7 @@ import { SidebarNav } from './sidebar-nav';
 import { Separator } from '@/components/ui/separator';
 import { NotificationBell } from '@/features/notifications/components/notification-bell';
 import { useCurrentUser, useLogout } from '@/features/auth/api';
+import { Badge } from '@/components/ui/badge';
 
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,6 +29,7 @@ export function AppHeader() {
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? 'U';
   const displayName = user?.email?.split('@')[0] ?? 'User';
+  const roleName = user?.role?.replace(/_/g, ' ') ?? '';
 
   return (
     <>
@@ -83,6 +85,7 @@ export function AppHeader() {
               <DropdownMenuLabel className="font-normal">
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <Badge variant="outline" className="mt-1 text-[10px] capitalize">{roleName}</Badge>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
