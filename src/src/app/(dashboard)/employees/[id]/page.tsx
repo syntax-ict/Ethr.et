@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { useEmployee, useUpdateEmployee } from '@/features/employees/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 import { toast } from 'sonner';
 
 export default function EmployeeDetailPage({
@@ -726,6 +727,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 function LifecycleTab({ employeeId, currentStatus }: { employeeId: string; currentStatus: string }) {
   const queryClient = useQueryClient();
+  const { can } = usePermissions();
+  const canTransition = can.manageEmployees;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ to_status: '', reason: '', effective_date: new Date().toISOString().split('T')[0] });
 
@@ -763,7 +766,7 @@ function LifecycleTab({ employeeId, currentStatus }: { employeeId: string; curre
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Employment Lifecycle</CardTitle>
-        {!isTerminal && (
+        {!isTerminal && canTransition && (
           <Button size="sm" onClick={() => setDialogOpen(true)}>
             <GitCommit className="mr-2 h-3 w-3" /> Transition Status
           </Button>
