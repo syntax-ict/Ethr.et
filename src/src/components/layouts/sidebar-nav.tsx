@@ -99,6 +99,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         { label: 'Notifications', href: '/notifications', icon: Bell, show: true },
         { label: 'Preferences', href: '/notifications/preferences', icon: BellRing, show: true },
         { label: 'Admin Console', href: '/admin', icon: Shield, show: can.viewAdminConsole },
+        { label: 'Tenants', href: '/admin/tenants', icon: Building2, show: can.viewAdminConsole },
       ],
     },
   ];
