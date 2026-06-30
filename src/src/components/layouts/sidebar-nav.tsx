@@ -7,7 +7,7 @@ import {
   Settings, Building2, Bell, Receipt, FilePenLine, Shield,
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
   TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
-  ShieldCheck, BellRing, ScrollText,
+  ShieldCheck, BellRing, ScrollText, CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -66,6 +66,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         { label: 'Payroll Runs', href: '/payroll', icon: Wallet, show: can.viewPayrollRuns },
         { label: 'Loans', href: '/payroll/loans', icon: Banknote, show: isFinanceAdmin },
         { label: 'My Payslips', href: '/payroll/payslips', icon: Receipt, show: true },
+        { label: 'Billing', href: '/billing', icon: CreditCard, show: isTenantAdmin },
       ],
     },
     {
