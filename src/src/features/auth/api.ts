@@ -46,6 +46,8 @@ export function useLogout() {
     },
     onSuccess: () => {
       localStorage.removeItem('access_token');
+      // Keep the 'tenant' key — pre-fills the login form for return visits.
+      // To switch tenants, the user clears it explicitly from the login form.
       queryClient.clear();
       window.location.href = '/login';
     },

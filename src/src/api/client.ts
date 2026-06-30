@@ -18,15 +18,30 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  if (typeof window === 'undefined') return config;
 
+  const token = localStorage.getItem('access_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  const locale = typeof window !== 'undefined' ? localStorage.getItem('locale') || 'en' : 'en';
+  const locale = localStorage.getItem('locale') || 'en';
   if (config.headers) {
     config.headers['Accept-Language'] = locale;
+  }
+
+  // Hybrid tenant resolution: in production the subdomain identifies the tenant,
+  // but for shared-URL flows (local dev, mobile apps, API tools) we send X-Tenant
+  // from the persisted login context.
+  const hostParts = window.location.host.split('.');
+  const hasSubdomain = hostParts.length >= 3
+    || (hostParts.length === 2 && !['localhost', 'test'].includes(hostParts[1].split(':')[0]));
+
+  if (!hasSubdomain) {
+    const tenant = localStorage.getItem('tenant');
+    if (tenant && config.headers) {
+      config.headers['X-Tenant'] = tenant;
+    }
   }
 
   return config;

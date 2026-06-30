@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Services\CurrentTenant;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,10 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            // Tenant identifier may be supplied here as a fallback when the
+            // request isn't already on a tenant subdomain or carrying X-Tenant.
+            // The ResolveTenant middleware reads this field too.
+            'tenant' => ['nullable', 'string'],
         ];
     }
 
@@ -33,8 +38,20 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        $currentTenant = app(CurrentTenant::class);
+
+        if (! $currentTenant->resolved()) {
+            throw ValidationException::withMessages([
+                'tenant' => [__('Organization is required. Provide your subdomain.')],
+            ]);
+        }
+
+        // Scope the user lookup to the resolved tenant. Cross-tenant email
+        // collisions are allowed by design — same email can exist as separate
+        // users in different tenants.
         $user = User::withoutGlobalScopes()
             ->where('email', $this->input('email'))
+            ->where('tenant_id', $currentTenant->id())
             ->first();
 
         if (! $user || ! Hash::check($this->input('password'), $user->password)) {
@@ -67,6 +84,10 @@ class LoginRequest extends FormRequest
 
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        $tenant = app(CurrentTenant::class)->resolved()
+            ? app(CurrentTenant::class)->id()
+            : 'no-tenant';
+
+        return Str::transliterate(Str::lower($this->string('email')).'|'.$tenant.'|'.$this->ip());
     }
 }
