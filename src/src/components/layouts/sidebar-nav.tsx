@@ -7,7 +7,7 @@ import {
   Settings, Building2, Bell, Receipt, FilePenLine, Shield,
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
   TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
-  ShieldCheck, BellRing, ScrollText, CreditCard,
+  ShieldCheck, BellRing, ScrollText, CreditCard, Activity, QrCode, Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -53,8 +53,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: 'Operations',
       items: [
         { label: 'Attendance', href: '/attendance', icon: Clock, show: true },
+        { label: 'Mobile Check-in', href: '/attendance/mobile', icon: Smartphone, show: true },
+        { label: 'Scan QR', href: '/attendance/scan', icon: QrCode, show: true },
         { label: 'Team Attendance', href: '/attendance/team', icon: UsersRound, show: isSupervisor },
         { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine, show: true },
+        { label: 'Intelligence', href: '/attendance/intelligence', icon: Activity, show: can.manageEmployees },
+        { label: 'Overtime', href: '/attendance/overtime', icon: TrendingUp, show: can.manageEmployees },
         { label: 'Leave', href: '/leave', icon: CalendarDays, show: true },
         { label: 'Approvals', href: '/approvals', icon: CheckSquare, show: isSupervisor },
         { label: 'Devices', href: '/devices', icon: Fingerprint, show: can.manageEmployees },

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\Employee\EmployeeBulkController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeDocumentController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeImportController;
+use App\Http\Controllers\Api\V1\Employee\EmployeeAttendanceTimelineController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeTransitionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceIntelligenceController;
@@ -159,6 +160,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('employees/{employee}')->group(function () {
         Route::get('/transitions', [EmployeeTransitionController::class, 'index']);
         Route::post('/transition', [EmployeeTransitionController::class, 'store']);
+        Route::get('/attendance/timeline', EmployeeAttendanceTimelineController::class);
 
         Route::get('/emergency-contacts', [EmergencyContactController::class, 'index']);
         Route::post('/emergency-contacts', [EmergencyContactController::class, 'store']);

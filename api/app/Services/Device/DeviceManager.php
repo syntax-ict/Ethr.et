@@ -13,6 +13,7 @@ final class DeviceManager
     private array $adapters = [
         'hikvision' => HikvisionAdapter::class,
         'zkteco' => ZktecoAdapter::class,
+        'suprema' => SupremaAdapter::class,
     ];
 
     public function adapter(Device $device): DeviceAdapter

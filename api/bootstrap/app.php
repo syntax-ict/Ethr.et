@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\CapPagination;
+use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,9 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
+            SecurityHeaders::class,
             SetLocale::class,
             ResolveTenant::class,
             CapPagination::class,
+            RateLimitLoginAttempts::class,
         ]);
 
         $middleware->statefulApi();
@@ -31,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
+        // Handle HTTP exceptions (4xx, 5xx)
         $exceptions->render(function (HttpException $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
@@ -53,5 +58,48 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => $status,
                 'detail' => $e->getMessage() ?: 'An error occurred.',
             ], $status);
+        });
+
+        // Handle validation exceptions (422)
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => 'The given data was invalid.',
+                'errors' => $e->errors(),
+            ], 422);
+        });
+
+        // Handle authentication exceptions (401)
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/unauthenticated',
+                'title' => 'Unauthenticated',
+                'status' => 401,
+                'detail' => 'You are not authenticated.',
+            ], 401);
+        });
+
+        // Handle authorization exceptions (403)
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/unauthorized',
+                'title' => 'Unauthorized',
+                'status' => 403,
+                'detail' => $e->getMessage() ?: 'You are not authorized to perform this action.',
+            ], 403);
         });
     })->create();
