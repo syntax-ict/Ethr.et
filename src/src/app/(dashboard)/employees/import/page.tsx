@@ -1,0 +1,402 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft, Upload, FileSpreadsheet, Download, AlertTriangle, CheckCircle2,
+  Loader2, Eye, Upload as UploadIcon, ChevronRight, X,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/shared/page-header';
+import { RoleGate } from '@/components/shared/role-gate';
+import { useMutation } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+interface PreviewResult {
+  headers: string[];
+  rows: Array<Record<string, string | null>>;
+  errors: Record<number, string[]>;
+}
+
+interface CommitResult {
+  created: number;
+  skipped: number;
+  errors: Record<number, string[]>;
+}
+
+type Step = 'upload' | 'preview' | 'result';
+
+export default function EmployeeImportPage() {
+  const router = useRouter();
+  const [step, setStep] = useState<Step>('upload');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [result, setResult] = useState<CommitResult | null>(null);
+  const [importKey] = useState(() => `import_${Date.now()}`);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const downloadTemplate = useMutation({
+    mutationFn: async () => {
+      const fd = new FormData();
+      const dummy = new Blob([''], { type: 'text/csv' });
+      fd.append('file', dummy, 'empty.csv');
+      const { data } = await apiClient.post<{ template: string; headers: string[] }>('/employees/import/template', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      const csv = data.template || data.headers.join(',') + '\n';
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'employees-import-template.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Template downloaded');
+    },
+    onError: () => toast.error('Failed to download template'),
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: async (csvFile: File) => {
+      const fd = new FormData();
+      fd.append('file', csvFile);
+      const { data } = await apiClient.post<PreviewResult>('/employees/import/preview', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      setPreview(data);
+      setStep('preview');
+    },
+    onError: () => toast.error('Failed to parse CSV'),
+  });
+
+  const commitMutation = useMutation({
+    mutationFn: async () => {
+      if (!preview) throw new Error('No preview');
+      const { data } = await apiClient.post<CommitResult>('/employees/import/commit', {
+        import_key: importKey,
+        rows: preview.rows,
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      setStep('result');
+      if (data.created > 0) toast.success(`Imported ${data.created} employees`);
+    },
+    onError: () => toast.error('Import failed'),
+  });
+
+  function handleFileSelect(f: File | null) {
+    if (!f) return;
+    if (!f.name.endsWith('.csv') && !f.name.endsWith('.txt') && f.type !== 'text/csv') {
+      toast.error('Please select a CSV file');
+      return;
+    }
+    setFile(f);
+    previewMutation.mutate(f);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFileSelect(f);
+  }
+
+  function reset() {
+    setStep('upload');
+    setFile(null);
+    setPreview(null);
+    setResult(null);
+  }
+
+  const totalRows = preview?.rows?.length ?? 0;
+  const errorRows = preview ? Object.keys(preview.errors).length : 0;
+  const validRows = totalRows - errorRows;
+
+  return (
+    <RoleGate minRole="hr_admin">
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/employees">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Employees
+            </Link>
+          </Button>
+        </div>
+
+        <PageHeader
+          title="Import Employees"
+          description="Bulk import employees from a CSV file"
+        />
+
+        <StepIndicator current={step} />
+
+        {step === 'upload' && (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Upload CSV File</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  ref={dragRef}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  className={cn(
+                    'rounded-xl border-2 border-dashed p-8 text-center transition-colors',
+                    dragOver ? 'border-primary bg-primary/5' : 'border-border'
+                  )}
+                >
+                  {previewMutation.isPending ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Parsing CSV…</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                        <FileSpreadsheet className="h-6 w-6 text-primary" />
+                      </div>
+                      <p className="mt-4 text-sm font-medium">
+                        Drag and drop your CSV file, or
+                      </p>
+                      <input
+                        type="file"
+                        id="csv-input"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+                      />
+                      <label htmlFor="csv-input">
+                        <Button variant="outline" size="sm" className="mt-3" asChild>
+                          <span className="cursor-pointer">Browse files</span>
+                        </Button>
+                      </label>
+                      <p className="mt-4 text-xs text-muted-foreground">
+                        CSV format · max 5 MB · header row required
+                      </p>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Download Template</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Start with our CSV template that includes all required columns and an example row.
+                </p>
+                <Button variant="outline" className="w-full" onClick={() => downloadTemplate.mutate()} disabled={downloadTemplate.isPending}>
+                  {downloadTemplate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  Download CSV Template
+                </Button>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs font-semibold text-foreground">Required columns</p>
+                  <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                    <li>• <code className="font-mono">name</code> (required)</li>
+                    <li>• <code className="font-mono">hire_date</code> (required)</li>
+                    <li>• <code className="font-mono">email</code>, <code className="font-mono">phone</code></li>
+                    <li>• <code className="font-mono">employee_code</code></li>
+                    <li>• <code className="font-mono">gender</code></li>
+                    <li>• <code className="font-mono">department_code</code></li>
+                    <li>• <code className="font-mono">branch_code</code></li>
+                    <li>• <code className="font-mono">position_code</code></li>
+                    <li>• <code className="font-mono">salary_cents</code></li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {step === 'preview' && preview && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard label="Total rows" value={totalRows} color="blue" />
+              <StatCard label="Valid rows" value={validRows} color="green" />
+              <StatCard label="Rows with errors" value={errorRows} color="red" />
+            </div>
+
+            {errorRows > 0 && (
+              <Card className="border-amber-300 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {errorRows} row{errorRows > 1 ? 's' : ''} contain validation errors
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Rows with errors will be skipped during import. Fix the issues below or proceed to import only valid rows.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Preview {file && <span className="text-xs font-normal text-muted-foreground">({file.name})</span>}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={reset}>
+                    <X className="mr-1 h-3 w-3" /> Choose different file
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Row</th>
+                        {preview.headers.map((h) => (
+                          <th key={h} className="px-3 py-2 text-left font-medium uppercase text-muted-foreground whitespace-nowrap">{h}</th>
+                        ))}
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Validation</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.rows.slice(0, 100).map((row, i) => {
+                        const lineNumber = i + 2;
+                        const rowErrors = preview.errors[lineNumber] ?? [];
+                        return (
+                          <tr key={i} className={cn('border-b last:border-0', rowErrors.length > 0 && 'bg-red-50/50 dark:bg-red-950/20')}>
+                            <td className="px-3 py-2 text-muted-foreground">{lineNumber}</td>
+                            {preview.headers.map((h) => (
+                              <td key={h} className="px-3 py-2 text-foreground whitespace-nowrap">{row[h] ?? '—'}</td>
+                            ))}
+                            <td className="px-3 py-2">
+                              {rowErrors.length > 0 ? (
+                                <Badge variant="outline" className="border-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 text-[10px]" title={rowErrors.join('; ')}>
+                                  {rowErrors.length} error{rowErrors.length > 1 ? 's' : ''}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-[10px]">
+                                  Valid
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {totalRows > 100 && (
+                  <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+                    Showing first 100 of {totalRows} rows. Errors apply to all rows.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={reset}>Cancel</Button>
+              <Button onClick={() => commitMutation.mutate()} disabled={commitMutation.isPending || validRows === 0}>
+                {commitMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadIcon className="mr-2 h-4 w-4" />}
+                Import {validRows} valid row{validRows !== 1 ? 's' : ''}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === 'result' && result && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h2 className="mt-4 text-xl font-bold text-foreground">Import Complete</h2>
+              <div className="mt-6 grid gap-4 sm:grid-cols-3 max-w-xl mx-auto">
+                <StatCard label="Created" value={result.created} color="green" />
+                <StatCard label="Skipped" value={result.skipped} color="amber" />
+                <StatCard label="Errors" value={Object.keys(result.errors).length} color="red" />
+              </div>
+              <div className="mt-8 flex justify-center gap-3">
+                <Button variant="outline" onClick={reset}>Import another file</Button>
+                <Button onClick={() => router.push('/employees')}>View Employees</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </RoleGate>
+  );
+}
+
+function StepIndicator({ current }: { current: Step }) {
+  const steps: Array<{ key: Step; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+    { key: 'upload', label: 'Upload', icon: Upload },
+    { key: 'preview', label: 'Preview & Validate', icon: Eye },
+    { key: 'result', label: 'Import', icon: CheckCircle2 },
+  ];
+  const currentIndex = steps.findIndex((s) => s.key === current);
+
+  return (
+    <div className="flex items-center justify-center gap-2 sm:gap-4">
+      {steps.map((s, i) => {
+        const isActive = i === currentIndex;
+        const isComplete = i < currentIndex;
+        const Icon = s.icon;
+        return (
+          <div key={s.key} className="flex items-center gap-2 sm:gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <div className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors',
+                isComplete ? 'border-primary bg-primary text-primary-foreground'
+                  : isActive ? 'border-primary text-primary'
+                  : 'border-muted-foreground/30 text-muted-foreground'
+              )}>
+                {isComplete ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+              </div>
+              <span className={cn(
+                'text-xs font-medium',
+                isActive || isComplete ? 'text-foreground' : 'text-muted-foreground'
+              )}>
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <ChevronRight className={cn('h-4 w-4 mb-5', isComplete ? 'text-primary' : 'text-muted-foreground/30')} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const statColors: Record<string, string> = {
+  blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900',
+  green: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-900',
+  red: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900',
+  amber: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900',
+};
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className={cn('rounded-lg border-2 p-4 text-center', statColors[color])}>
+      <p className="text-3xl font-bold">{value}</p>
+      <p className="mt-1 text-xs font-medium uppercase tracking-wider">{label}</p>
+    </div>
+  );
+}

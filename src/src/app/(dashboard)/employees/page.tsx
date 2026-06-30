@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Download, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,12 +13,35 @@ import { SearchInput } from '@/components/shared/search-input';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { useEmployees } from '@/features/employees/api';
+import { useMutation } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { toast } from 'sonner';
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useEmployees({ page, search, per_page: 25 });
+
+  const exportCsv = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.get<{ csv: string; count: number }>('/employees/export', {
+        params: { search: search || undefined },
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      const blob = new Blob([data.csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `employees-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${data.count} employees`);
+    },
+    onError: () => toast.error('Export failed'),
+  });
 
   return (
     <RoleGate minRole="hr_admin">
@@ -27,12 +50,24 @@ export default function EmployeesPage() {
         title="Employees"
         description="Manage your organization's workforce"
         actions={
-          <Button asChild>
-            <Link href="/employees/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => exportCsv.mutate()} disabled={exportCsv.isPending}>
+              {exportCsv.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Export
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/employees/import">
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/employees/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Employee
+              </Link>
+            </Button>
+          </div>
         }
       />
 
