@@ -63,10 +63,30 @@ export function AppHeader() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
-          <Button variant="ghost" size="icon">
-            <Globe className="h-4 w-4" />
-            <span className="sr-only">Change language</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Globe className="h-4 w-4" />
+                <span className="sr-only">Change language</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Language / ቋንቋ</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'en'); window.location.reload(); }}>
+                🇬🇧 English
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'am'); window.location.reload(); }}>
+                🇪🇹 አማርኛ (Amharic)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'om'); window.location.reload(); }}>
+                🇪🇹 Afaan Oromoo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'ti'); window.location.reload(); }}>
+                🇪🇹 ትግርኛ
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <NotificationBell />
 

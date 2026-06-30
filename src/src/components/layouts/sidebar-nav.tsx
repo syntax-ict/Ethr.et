@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Users, Clock, CalendarDays, Wallet, BarChart3,
   Settings, Building2, Bell, Receipt, FilePenLine, Shield,
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
+  TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -28,12 +29,13 @@ interface SidebarNavProps {
 
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const { can, isSupervisor, isFinanceAdmin } = usePermissions();
+  const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
 
   const sections: NavSection[] = [
     {
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
+        { label: 'My Profile', href: '/profile', icon: UserCircle, show: true },
         { label: 'Directory', href: '/directory', icon: Contact, show: true },
         { label: 'Announcements', href: '/announcements', icon: Megaphone, show: true },
       ],
@@ -49,9 +51,11 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: 'Operations',
       items: [
         { label: 'Attendance', href: '/attendance', icon: Clock, show: true },
+        { label: 'Team Attendance', href: '/attendance/team', icon: UsersRound, show: isSupervisor },
         { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine, show: true },
         { label: 'Leave', href: '/leave', icon: CalendarDays, show: true },
         { label: 'Approvals', href: '/approvals', icon: CheckSquare, show: isSupervisor },
+        { label: 'Devices', href: '/devices', icon: Fingerprint, show: can.manageEmployees },
       ],
     },
     {
@@ -66,6 +70,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: 'Insights',
       items: [
         { label: 'Reports', href: '/reports', icon: BarChart3, show: can.viewReports },
+        { label: 'Analytics', href: '/analytics', icon: TrendingUp, show: isTenantAdmin },
       ],
     },
     {
@@ -75,6 +80,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         { label: 'Leave Types', href: '/settings/leave-types', icon: ListChecks, show: can.manageEmployees },
         { label: 'Shifts', href: '/settings/shifts', icon: Timer, show: can.manageEmployees },
         { label: 'Settings', href: '/settings', icon: Settings, show: can.manageSettings },
+      ],
+    },
+    {
+      title: 'Integrations',
+      items: [
+        { label: 'API Keys', href: '/settings/api-keys', icon: KeyRound, show: isTenantAdmin },
+        { label: 'Webhooks', href: '/settings/webhooks', icon: Webhook, show: isTenantAdmin },
       ],
     },
     {
@@ -100,9 +112,11 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             </p>
           )}
           {section.items.map((item) => {
-            const isActive = item.href === '/settings'
-              ? pathname === '/settings'
-              : pathname === item.href || pathname.startsWith(item.href + '/');
+            const isExactMatch = pathname === item.href;
+            const isPrefixMatch = pathname.startsWith(item.href + '/');
+            // Avoid /settings matching when on /settings/holidays etc.
+            const exactOnly = item.href === '/settings' || item.href === '/payroll' || item.href === '/attendance';
+            const isActive = exactOnly ? isExactMatch : (isExactMatch || isPrefixMatch);
             const Icon = item.icon;
 
             return (

@@ -2,16 +2,20 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
+import { EmptyState } from '@/components/shared/empty-state';
 import { useEmployee, useUpdateEmployee } from '@/features/employees/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
 
 export default function EmployeeDetailPage({
@@ -106,6 +110,9 @@ export default function EmployeeDetailPage({
         <TabsList>
           <TabsTrigger value="info">Information</TabsTrigger>
           <TabsTrigger value="employment">Employment</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="bank">Bank Details</TabsTrigger>
+          <TabsTrigger value="emergency">Emergency Contacts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
@@ -196,8 +203,328 @@ export default function EmployeeDetailPage({
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          <DocumentsTab employeeId={id} />
+        </TabsContent>
+
+        <TabsContent value="bank" className="mt-4">
+          <BankDetailsTab employeeId={id} />
+        </TabsContent>
+
+        <TabsContent value="emergency" className="mt-4">
+          <EmergencyContactsTab employeeId={id} />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+interface Doc { public_id: string; filename: string; mime_type?: string; document_type?: string; uploaded_at?: string; }
+interface BankDetail { public_id: string; bank_name: string; branch_name?: string; account_number: string; account_holder_name?: string; is_primary?: boolean; }
+interface EmergencyContact { public_id: string; name: string; relationship: string; phone: string; }
+
+function DocumentsTab({ employeeId }: { employeeId: string }) {
+  const queryClient = useQueryClient();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [docType, setDocType] = useState('contract');
+  const [file, setFile] = useState<File | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee', employeeId, 'documents'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/documents`);
+      return data;
+    },
+  });
+
+  const uploadDoc = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error('No file');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('document_type', docType);
+      const { data } = await apiClient.post(`/employees/${employeeId}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'documents'] });
+      toast.success('Document uploaded');
+      setUploadOpen(false);
+      setFile(null);
+    },
+    onError: () => toast.error('Upload failed'),
+  });
+
+  const deleteDoc = useMutation({
+    mutationFn: async (docId: string) => { await apiClient.delete(`/employees/${employeeId}/documents/${docId}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'documents'] });
+      toast.success('Document deleted');
+    },
+  });
+
+  const docs: Doc[] = data?.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Documents</CardTitle>
+        <Button size="sm" onClick={() => setUploadOpen(true)}>
+          <Plus className="mr-2 h-3 w-3" /> Upload
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : docs.length === 0 ? (
+          <EmptyState icon={FileText} title="No documents" description="Upload contracts, IDs, and other documents" />
+        ) : (
+          <div className="space-y-2">
+            {docs.map((d) => (
+              <div key={d.public_id} className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{d.filename}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{d.document_type ?? 'document'}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteDoc.mutate(d.public_id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Upload Document</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); uploadDoc.mutate(); }} className="space-y-4">
+            <div>
+              <Label>Document Type</Label>
+              <Input value={docType} onChange={(e) => setDocType(e.target.value)} placeholder="contract, id, certificate..." className="mt-1" />
+            </div>
+            <div>
+              <Label>File</Label>
+              <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required className="mt-1" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={uploadDoc.isPending || !file}>
+                {uploadDoc.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Upload
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function BankDetailsTab({ employeeId }: { employeeId: string }) {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ bank_name: '', branch_name: '', account_number: '', account_holder_name: '', is_primary: true });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee', employeeId, 'bank-details'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/bank-details`);
+      return data;
+    },
+  });
+
+  const addBank = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post(`/employees/${employeeId}/bank-details`, form);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'bank-details'] });
+      toast.success('Bank details added');
+      setAddOpen(false);
+      setForm({ bank_name: '', branch_name: '', account_number: '', account_holder_name: '', is_primary: true });
+    },
+    onError: () => toast.error('Failed to add bank'),
+  });
+
+  const deleteBank = useMutation({
+    mutationFn: async (id: string) => { await apiClient.delete(`/employees/${employeeId}/bank-details/${id}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'bank-details'] });
+      toast.success('Bank deleted');
+    },
+  });
+
+  const banks: BankDetail[] = data?.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Bank Details</CardTitle>
+        <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="mr-2 h-3 w-3" /> Add</Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : banks.length === 0 ? (
+          <EmptyState icon={CreditCard} title="No bank accounts" description="Add bank details for salary deposits" />
+        ) : (
+          <div className="space-y-2">
+            {banks.map((b) => (
+              <div key={b.public_id} className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{b.bank_name} {b.is_primary && <span className="ml-1 text-[10px] text-primary">PRIMARY</span>}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{b.account_number}</p>
+                    {b.branch_name && <p className="text-xs text-muted-foreground">{b.branch_name}</p>}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteBank.mutate(b.public_id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Bank Account</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); addBank.mutate(); }} className="space-y-4">
+            <div>
+              <Label>Bank Name</Label>
+              <Input value={form.bank_name} onChange={(e) => setForm(p => ({ ...p, bank_name: e.target.value }))} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Branch Name</Label>
+              <Input value={form.branch_name} onChange={(e) => setForm(p => ({ ...p, branch_name: e.target.value }))} className="mt-1" />
+            </div>
+            <div>
+              <Label>Account Number</Label>
+              <Input value={form.account_number} onChange={(e) => setForm(p => ({ ...p, account_number: e.target.value }))} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Account Holder Name</Label>
+              <Input value={form.account_holder_name} onChange={(e) => setForm(p => ({ ...p, account_holder_name: e.target.value }))} className="mt-1" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addBank.isPending}>
+                {addBank.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', relationship: '', phone: '' });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee', employeeId, 'emergency-contacts'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/emergency-contacts`);
+      return data;
+    },
+  });
+
+  const addContact = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post(`/employees/${employeeId}/emergency-contacts`, form);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'emergency-contacts'] });
+      toast.success('Contact added');
+      setAddOpen(false);
+      setForm({ name: '', relationship: '', phone: '' });
+    },
+    onError: () => toast.error('Failed to add contact'),
+  });
+
+  const deleteContact = useMutation({
+    mutationFn: async (id: string) => { await apiClient.delete(`/employees/${employeeId}/emergency-contacts/${id}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'emergency-contacts'] });
+      toast.success('Contact deleted');
+    },
+  });
+
+  const contacts: EmergencyContact[] = data?.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Emergency Contacts</CardTitle>
+        <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="mr-2 h-3 w-3" /> Add</Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : contacts.length === 0 ? (
+          <EmptyState icon={Heart} title="No emergency contacts" description="Add people to contact in case of emergency" />
+        ) : (
+          <div className="space-y-2">
+            {contacts.map((c) => (
+              <div key={c.public_id} className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-3">
+                  <Heart className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.relationship} · {c.phone}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteContact.mutate(c.public_id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Emergency Contact</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); addContact.mutate(); }} className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Relationship</Label>
+              <Input value={form.relationship} onChange={(e) => setForm(p => ({ ...p, relationship: e.target.value }))} placeholder="Spouse, Parent..." required className="mt-1" />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={form.phone} onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))} required className="mt-1" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addContact.isPending}>
+                {addContact.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 
