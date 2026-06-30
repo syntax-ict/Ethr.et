@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -113,6 +113,7 @@ export default function EmployeeDetailPage({
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="bank">Bank Details</TabsTrigger>
           <TabsTrigger value="emergency">Emergency Contacts</TabsTrigger>
+          <TabsTrigger value="education">Education</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
@@ -215,6 +216,10 @@ export default function EmployeeDetailPage({
         <TabsContent value="emergency" className="mt-4">
           <EmergencyContactsTab employeeId={id} />
         </TabsContent>
+
+        <TabsContent value="education" className="mt-4">
+          <EducationTab employeeId={id} />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -223,6 +228,127 @@ export default function EmployeeDetailPage({
 interface Doc { public_id: string; filename: string; mime_type?: string; document_type?: string; uploaded_at?: string; }
 interface BankDetail { public_id: string; bank_name: string; branch_name?: string; account_number: string; account_holder_name?: string; is_primary?: boolean; }
 interface EmergencyContact { public_id: string; name: string; relationship: string; phone: string; }
+interface Education { public_id: string; institution: string; degree: string; field_of_study?: string; start_year?: number; end_year?: number; gpa?: string; }
+
+function EducationTab({ employeeId }: { employeeId: string }) {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ institution: '', degree: '', field_of_study: '', start_year: '', end_year: '', gpa: '' });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee', employeeId, 'education'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/education`);
+      return data;
+    },
+  });
+
+  const addEducation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        ...form,
+        start_year: form.start_year ? parseInt(form.start_year) : undefined,
+        end_year: form.end_year ? parseInt(form.end_year) : undefined,
+      };
+      const { data } = await apiClient.post(`/employees/${employeeId}/education`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'education'] });
+      toast.success('Education added');
+      setAddOpen(false);
+      setForm({ institution: '', degree: '', field_of_study: '', start_year: '', end_year: '', gpa: '' });
+    },
+    onError: () => toast.error('Failed to add education'),
+  });
+
+  const deleteEducation = useMutation({
+    mutationFn: async (id: string) => { await apiClient.delete(`/employees/${employeeId}/education/${id}`); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId, 'education'] });
+      toast.success('Education deleted');
+    },
+  });
+
+  const records: Education[] = data?.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Education History</CardTitle>
+        <Button size="sm" onClick={() => setAddOpen(true)}><Plus className="mr-2 h-3 w-3" /> Add</Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : records.length === 0 ? (
+          <EmptyState icon={GraduationCap} title="No education records" description="Add educational qualifications" />
+        ) : (
+          <div className="space-y-2">
+            {records.map((e) => (
+              <div key={e.public_id} className="flex items-start justify-between rounded-lg border p-3">
+                <div className="flex items-start gap-3">
+                  <GraduationCap className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{e.degree}{e.field_of_study && ` — ${e.field_of_study}`}</p>
+                    <p className="text-xs text-muted-foreground">{e.institution}</p>
+                    {(e.start_year || e.end_year) && (
+                      <p className="text-xs text-muted-foreground">{e.start_year ?? ''} – {e.end_year ?? 'Present'}{e.gpa && ` · GPA: ${e.gpa}`}</p>
+                    )}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => deleteEducation.mutate(e.public_id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Education</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); addEducation.mutate(); }} className="space-y-4">
+            <div>
+              <Label>Institution</Label>
+              <Input value={form.institution} onChange={(e) => setForm(p => ({ ...p, institution: e.target.value }))} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Degree</Label>
+              <Input value={form.degree} onChange={(e) => setForm(p => ({ ...p, degree: e.target.value }))} required placeholder="BSc, MSc, MBA..." className="mt-1" />
+            </div>
+            <div>
+              <Label>Field of Study</Label>
+              <Input value={form.field_of_study} onChange={(e) => setForm(p => ({ ...p, field_of_study: e.target.value }))} placeholder="Computer Science..." className="mt-1" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Start Year</Label>
+                <Input type="number" value={form.start_year} onChange={(e) => setForm(p => ({ ...p, start_year: e.target.value }))} placeholder="2015" className="mt-1" />
+              </div>
+              <div>
+                <Label>End Year</Label>
+                <Input type="number" value={form.end_year} onChange={(e) => setForm(p => ({ ...p, end_year: e.target.value }))} placeholder="2019" className="mt-1" />
+              </div>
+              <div>
+                <Label>GPA</Label>
+                <Input value={form.gpa} onChange={(e) => setForm(p => ({ ...p, gpa: e.target.value }))} placeholder="3.8" className="mt-1" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addEducation.isPending}>
+                {addEducation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
 
 function DocumentsTab({ employeeId }: { employeeId: string }) {
   const queryClient = useQueryClient();

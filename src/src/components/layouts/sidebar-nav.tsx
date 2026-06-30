@@ -7,6 +7,7 @@ import {
   Settings, Building2, Bell, Receipt, FilePenLine, Shield,
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
   TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
+  ShieldCheck, BellRing, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -36,6 +37,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       items: [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
         { label: 'My Profile', href: '/profile', icon: UserCircle, show: true },
+        { label: 'Security', href: '/profile/security', icon: ShieldCheck, show: true },
         { label: 'Directory', href: '/directory', icon: Contact, show: true },
         { label: 'Announcements', href: '/announcements', icon: Megaphone, show: true },
       ],
@@ -87,12 +89,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       items: [
         { label: 'API Keys', href: '/settings/api-keys', icon: KeyRound, show: isTenantAdmin },
         { label: 'Webhooks', href: '/settings/webhooks', icon: Webhook, show: isTenantAdmin },
+        { label: 'Audit Log', href: '/settings/audit-logs', icon: ScrollText, show: isTenantAdmin },
       ],
     },
     {
       title: 'System',
       items: [
         { label: 'Notifications', href: '/notifications', icon: Bell, show: true },
+        { label: 'Preferences', href: '/notifications/preferences', icon: BellRing, show: true },
         { label: 'Admin Console', href: '/admin', icon: Shield, show: can.viewAdminConsole },
       ],
     },
