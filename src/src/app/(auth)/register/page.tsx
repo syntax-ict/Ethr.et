@@ -121,8 +121,10 @@ export default function RegisterPage() {
       if (response.data.access_token) {
         localStorage.setItem('access_token', response.data.access_token);
       }
+      // Persist tenant context so all subsequent requests send X-Tenant.
+      localStorage.setItem('tenant', subdomain.toLowerCase());
 
-      router.push('/dashboard');
+      router.push('/setup');
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { errors?: Record<string, string[]>; detail?: string } } };
       if (axiosError.response?.data?.errors) {

@@ -323,6 +323,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::put('/settings', [SettingsController::class, 'update']);
+    Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
+    Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
 
     // Audit logs
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
