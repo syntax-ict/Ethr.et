@@ -2,13 +2,16 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart, GraduationCap, GitCommit, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
@@ -114,6 +117,7 @@ export default function EmployeeDetailPage({
           <TabsTrigger value="bank">Bank Details</TabsTrigger>
           <TabsTrigger value="emergency">Emergency Contacts</TabsTrigger>
           <TabsTrigger value="education">Education</TabsTrigger>
+          <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
@@ -219,6 +223,10 @@ export default function EmployeeDetailPage({
 
         <TabsContent value="education" className="mt-4">
           <EducationTab employeeId={id} />
+        </TabsContent>
+
+        <TabsContent value="lifecycle" className="mt-4">
+          <LifecycleTab employeeId={id} currentStatus={employee.status} />
         </TabsContent>
       </Tabs>
     </div>
@@ -671,5 +679,222 @@ function InfoRow({
       </div>
       <span className="text-sm font-medium text-foreground">{value}</span>
     </div>
+  );
+}
+
+// ── LIFECYCLE TAB ──────────────────────────────────────────────
+
+interface Transition {
+  public_id: string;
+  from_status: string;
+  to_status: string;
+  reason: string | null;
+  effective_date: string;
+  approved_by?: { name?: string; email?: string };
+  created_at: string;
+}
+
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  hired: ['probation', 'confirmed'],
+  probation: ['confirmed', 'terminated'],
+  confirmed: ['suspended', 'resigned', 'terminated', 'retired'],
+  suspended: ['confirmed', 'terminated'],
+  resigned: [],
+  terminated: [],
+  retired: [],
+};
+
+const STATUS_DOT_COLOR: Record<string, string> = {
+  hired: 'bg-blue-500',
+  probation: 'bg-amber-500',
+  confirmed: 'bg-green-500',
+  suspended: 'bg-orange-500',
+  resigned: 'bg-gray-500',
+  terminated: 'bg-red-500',
+  retired: 'bg-purple-500',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  hired: 'Hired',
+  probation: 'Probation',
+  confirmed: 'Confirmed',
+  suspended: 'Suspended',
+  resigned: 'Resigned',
+  terminated: 'Terminated',
+  retired: 'Retired',
+};
+
+function LifecycleTab({ employeeId, currentStatus }: { employeeId: string; currentStatus: string }) {
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({ to_status: '', reason: '', effective_date: new Date().toISOString().split('T')[0] });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['employee', employeeId, 'transitions'],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/transitions`);
+      return data;
+    },
+  });
+
+  const transitionMut = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post(`/employees/${employeeId}/transition`, form);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('Status transitioned');
+      setDialogOpen(false);
+      setForm({ to_status: '', reason: '', effective_date: new Date().toISOString().split('T')[0] });
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      toast.error(axiosErr.response?.data?.detail || 'Transition failed');
+    },
+  });
+
+  const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+  const isTerminal = allowed.length === 0;
+  const transitions: Transition[] = Array.isArray(data) ? data : (data?.data ?? []);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Employment Lifecycle</CardTitle>
+        {!isTerminal && (
+          <Button size="sm" onClick={() => setDialogOpen(true)}>
+            <GitCommit className="mr-2 h-3 w-3" /> Transition Status
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isTerminal && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium">Employee is in a terminal status</p>
+              <p className="text-xs text-muted-foreground">
+                Status &ldquo;{STATUS_LABEL[currentStatus]}&rdquo; cannot be transitioned further. Re-hire would require a new employee record.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Current status as the top of the timeline */}
+          <div className="flex items-center gap-3 rounded-lg border-2 border-primary bg-primary/5 p-3">
+            <div className={cn('h-3 w-3 rounded-full', STATUS_DOT_COLOR[currentStatus])} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold">Currently: {STATUS_LABEL[currentStatus] ?? currentStatus}</p>
+              <p className="text-xs text-muted-foreground">Active status</p>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : transitions.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              No transitions yet. Employee is in initial state.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">History</p>
+              <div className="relative space-y-3">
+                {/* Vertical line through the timeline */}
+                <div className="absolute left-[7px] top-3 bottom-3 w-px bg-border" />
+                {transitions
+                  .slice()
+                  .sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())
+                  .map((t) => (
+                    <div key={t.public_id} className="relative flex gap-3 pl-0">
+                      <div className={cn('z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-background', STATUS_DOT_COLOR[t.to_status])} />
+                      <div className="flex-1 min-w-0 rounded-lg border p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] font-mono">{STATUS_LABEL[t.from_status] ?? t.from_status}</Badge>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <Badge variant="outline" className={cn('text-[10px] font-mono border-0', STATUS_DOT_COLOR[t.to_status], 'text-white')}>
+                            {STATUS_LABEL[t.to_status] ?? t.to_status}
+                          </Badge>
+                          <span className="ml-auto text-xs text-muted-foreground">{t.effective_date}</span>
+                        </div>
+                        {t.reason && (
+                          <p className="mt-2 text-sm text-foreground">{t.reason}</p>
+                        )}
+                        {t.approved_by && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            by {t.approved_by.name ?? t.approved_by.email ?? 'system'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Transition Employee Status</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); transitionMut.mutate(); }} className="space-y-4">
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <p className="text-xs text-muted-foreground">Current status</p>
+              <p className="mt-0.5 font-medium capitalize">{STATUS_LABEL[currentStatus] ?? currentStatus}</p>
+            </div>
+            <div>
+              <Label>New Status *</Label>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {allowed.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, to_status: status }))}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg border-2 p-3 text-left transition-colors',
+                      form.to_status === status
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    )}
+                  >
+                    <div className={cn('h-2.5 w-2.5 rounded-full', STATUS_DOT_COLOR[status])} />
+                    <span className="text-sm font-medium">{STATUS_LABEL[status]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Effective Date *</Label>
+              <Input
+                type="date"
+                value={form.effective_date}
+                onChange={(e) => setForm((p) => ({ ...p, effective_date: e.target.value }))}
+                required
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Reason</Label>
+              <Textarea
+                value={form.reason}
+                onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
+                placeholder="Optional — context for the transition"
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={transitionMut.isPending || !form.to_status}>
+                {transitionMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Apply Transition
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
