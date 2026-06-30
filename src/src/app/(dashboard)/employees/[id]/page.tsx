@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart, GraduationCap, GitCommit, ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Building2, Briefcase, Pencil, Save, X, Loader2, Plus, Trash2, FileText, CreditCard, Heart, GraduationCap, GitCommit, ArrowRight, AlertCircle, CalendarRange, Clock as ClockIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -119,6 +119,7 @@ export default function EmployeeDetailPage({
           <TabsTrigger value="emergency">Emergency Contacts</TabsTrigger>
           <TabsTrigger value="education">Education</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
@@ -228,6 +229,10 @@ export default function EmployeeDetailPage({
 
         <TabsContent value="lifecycle" className="mt-4">
           <LifecycleTab employeeId={id} currentStatus={employee.status} />
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+          <AttendanceTimelineTab employeeId={id} />
         </TabsContent>
       </Tabs>
     </div>
@@ -724,6 +729,214 @@ const STATUS_LABEL: Record<string, string> = {
   terminated: 'Terminated',
   retired: 'Retired',
 };
+
+interface TimelineDay {
+  date: string;
+  status: 'present' | 'late' | 'absent' | 'weekend' | string;
+  check_in: string | null;
+  check_out: string | null;
+  worked_minutes: number | null;
+  source: string | null;
+  is_weekend: boolean;
+}
+
+interface TimelineResponse {
+  employee: { public_id: string; name: string };
+  range: { from: string; to: string };
+  totals: { present: number; late: number; absent: number; total_minutes_worked: number };
+  days: TimelineDay[];
+}
+
+const STATUS_BG: Record<string, string> = {
+  present: 'bg-green-500 hover:bg-green-600',
+  late: 'bg-amber-500 hover:bg-amber-600',
+  absent: 'bg-red-400 hover:bg-red-500',
+  weekend: 'bg-muted hover:bg-muted-foreground/20',
+};
+
+function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
+  const [range, setRange] = useState<{ from: string; to: string }>(() => {
+    const to = new Date().toISOString().split('T')[0];
+    const from = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
+    return { from, to };
+  });
+  const [selectedDay, setSelectedDay] = useState<TimelineDay | null>(null);
+
+  const { data, isLoading } = useQuery<TimelineResponse>({
+    queryKey: ['employee', employeeId, 'timeline', range],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/employees/${employeeId}/attendance/timeline`, {
+        params: { from: range.from, to: range.to },
+      });
+      return data;
+    },
+  });
+
+  if (isLoading || !data) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="h-8 w-48 mb-4" />
+          <Skeleton className="h-40 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const weeks: TimelineDay[][] = [];
+  let currentWeek: TimelineDay[] = [];
+  const firstDate = new Date(data.days[0]?.date ?? range.from);
+  const firstDow = (firstDate.getDay() + 6) % 7;
+  for (let i = 0; i < firstDow; i++) {
+    currentWeek.push({ date: '', status: 'weekend', check_in: null, check_out: null, worked_minutes: null, source: null, is_weekend: true });
+  }
+  for (const day of data.days) {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  }
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push({ date: '', status: 'weekend', check_in: null, check_out: null, worked_minutes: null, source: null, is_weekend: true });
+    }
+    weeks.push(currentWeek);
+  }
+
+  const totalHoursWorked = (data.totals.total_minutes_worked / 60).toFixed(1);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarRange className="h-4 w-4" /> Attendance Timeline
+          </CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">{data.range.from} to {data.range.to}</p>
+        </div>
+        <div className="flex gap-2">
+          <Input type="date" value={range.from} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className="w-36" />
+          <Input type="date" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className="w-36" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-6 grid gap-3 sm:grid-cols-4">
+          <TotalChip color="green" label="Present" value={data.totals.present} />
+          <TotalChip color="amber" label="Late" value={data.totals.late} />
+          <TotalChip color="red" label="Absent" value={data.totals.absent} />
+          <TotalChip color="blue" label="Hours Worked" value={totalHoursWorked} suffix="h" />
+        </div>
+
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-2">
+            <div className="flex flex-col gap-1 pt-0">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                <div key={d} className="h-4 text-[10px] font-medium text-muted-foreground leading-none flex items-center w-6">{d}</div>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-1">
+                  {week.map((day, di) => {
+                    const isEmpty = day.date === '';
+                    const bg = isEmpty ? 'bg-transparent' : STATUS_BG[day.status] ?? 'bg-muted';
+                    return (
+                      <button
+                        key={di}
+                        onClick={() => !isEmpty && setSelectedDay(day)}
+                        disabled={isEmpty}
+                        title={isEmpty ? '' : `${day.date} — ${day.status}`}
+                        className={cn('h-4 w-4 rounded-sm transition-colors', bg, !isEmpty && 'cursor-pointer ring-offset-1 hover:ring-2 hover:ring-primary')}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-4 text-xs">
+          <span className="text-muted-foreground">Legend:</span>
+          <LegendDot color="green" label="Present" />
+          <LegendDot color="amber" label="Late" />
+          <LegendDot color="red" label="Absent" />
+          <LegendDot color="gray" label="Weekend / no data" />
+        </div>
+
+        {selectedDay && (
+          <div className="mt-6 rounded-lg border p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold text-foreground">{selectedDay.date}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {selectedDay.status}{selectedDay.source && ` · ${selectedDay.source}`}
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedDay(null)}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            {selectedDay.check_in && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <ClockIcon className="h-3 w-3 text-green-600" />
+                  <span className="text-muted-foreground">In:</span>
+                  <span className="font-mono">{selectedDay.check_in}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClockIcon className="h-3 w-3 text-orange-600" />
+                  <span className="text-muted-foreground">Out:</span>
+                  <span className="font-mono">{selectedDay.check_out ?? '—'}</span>
+                </div>
+                {selectedDay.worked_minutes != null && (
+                  <div className="flex items-center gap-2">
+                    <CalendarRange className="h-3 w-3 text-blue-600" />
+                    <span className="text-muted-foreground">Worked:</span>
+                    <span className="font-mono">{(selectedDay.worked_minutes / 60).toFixed(1)}h</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const TOTAL_COLORS: Record<string, string> = {
+  green: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
+  amber: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  red: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  blue: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+};
+
+function TotalChip({ color, label, value, suffix }: { color: string; label: string; value: string | number; suffix?: string }) {
+  return (
+    <div className={cn('rounded-lg p-3', TOTAL_COLORS[color])}>
+      <p className="text-xs uppercase tracking-wider opacity-70">{label}</p>
+      <p className="mt-1 text-2xl font-bold">{value}{suffix && <span className="text-sm ml-1">{suffix}</span>}</p>
+    </div>
+  );
+}
+
+const LEGEND_DOT_COLORS: Record<string, string> = {
+  green: 'bg-green-500',
+  amber: 'bg-amber-500',
+  red: 'bg-red-400',
+  gray: 'bg-muted',
+};
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={cn('h-3 w-3 rounded-sm', LEGEND_DOT_COLORS[color])} />
+      <span className="text-muted-foreground">{label}</span>
+    </span>
+  );
+}
 
 function LifecycleTab({ employeeId, currentStatus }: { employeeId: string; currentStatus: string }) {
   const queryClient = useQueryClient();
