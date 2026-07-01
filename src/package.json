@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "typecheck": "tsc --noEmit"
   },
   "type": "module",
@@ -41,6 +43,7 @@
     "pusher-js": "^8.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.47.0",
     "@eslint/eslintrc": "^3.3.5",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^26.0.1",
