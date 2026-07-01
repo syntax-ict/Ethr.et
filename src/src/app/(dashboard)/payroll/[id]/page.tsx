@@ -2,13 +2,16 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Download, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, CheckCircle, Loader2, FileSpreadsheet, Landmark, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CurrencyDisplay } from '@/components/shared/currency-display';
-import { usePayrollRun } from '@/features/payroll/api';
+import { usePayrollRun, type PayrollEntry } from '@/features/payroll/api';
 import { usePermissions } from '@/lib/hooks/usePermissions';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
@@ -38,6 +41,81 @@ export default function PayrollDetailPage({
       toast.error(axiosError.response?.data?.detail || 'Failed to approve payroll');
     },
   });
+
+  function formatCents(cents: number): string {
+    return (cents / 100).toLocaleString('en-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function downloadCsv(filename: string, content: string) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPayrollRegister() {
+    if (!run?.entries) return;
+    const headers = ['Employee', 'Basic Salary', 'Gross', 'Income Tax', 'Employee Pension', 'Employer Pension', 'Other Deductions', 'Net Pay'];
+    const rows = run.entries.map((e: PayrollEntry & { employee?: { name: string } }) => [
+      e.employee?.name ?? '',
+      formatCents(e.basic_salary_cents),
+      formatCents(e.gross_cents),
+      formatCents(e.income_tax_cents),
+      formatCents(e.employee_pension_cents),
+      formatCents(e.employer_pension_cents),
+      formatCents(e.other_deductions_cents),
+      formatCents(e.net_cents),
+    ]);
+    const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n');
+    downloadCsv(`payroll-register-${run.period_label?.replace(/\s/g, '-')}.csv`, csv);
+    toast.success('Payroll register downloaded');
+  }
+
+  async function exportBankFile() {
+    try {
+      const { data } = await apiClient.get(`/payroll/runs/${id}/export/bank`);
+      const headers = ['Employee Name', 'Employee Code', 'Bank', 'Branch', 'Account Number', 'Net Amount (ETB)'];
+      const rows = (data.rows ?? []).map((r: { employee_name: string; employee_code: string; bank_name: string; branch_name: string; account_number: string; net_amount_cents: number }) => [
+        r.employee_name,
+        r.employee_code,
+        r.bank_name,
+        r.branch_name,
+        r.account_number,
+        formatCents(r.net_amount_cents),
+      ]);
+      const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n');
+      downloadCsv(`bank-transfer-${data.period?.replace(/\s/g, '-')}.csv`, csv);
+      toast.success('Bank transfer file downloaded');
+    } catch {
+      toast.error('Failed to generate bank file');
+    }
+  }
+
+  async function exportJournal() {
+    try {
+      const { data } = await apiClient.get(`/accounting/journal/${id}`);
+      const entries = data.entries ?? data.journal?.entries ?? [];
+      if (!entries.length) {
+        toast.error('No journal entries found');
+        return;
+      }
+      const headers = ['Account', 'Description', 'Debit (ETB)', 'Credit (ETB)'];
+      const rows = entries.map((e: { account: string; description: string; debit_cents: number; credit_cents: number }) => [
+        e.account,
+        e.description,
+        e.debit_cents ? formatCents(e.debit_cents) : '',
+        e.credit_cents ? formatCents(e.credit_cents) : '',
+      ]);
+      const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n');
+      downloadCsv(`journal-${run?.period_label?.replace(/\s/g, '-')}.csv`, csv);
+      toast.success('Journal entries downloaded');
+    } catch {
+      toast.error('Failed to generate journal');
+    }
+  }
 
   if (isLoading) {
     return (
@@ -97,10 +175,28 @@ export default function PayrollDetailPage({
               Approve Payroll
             </Button>
           )}
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportPayrollRegister}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Payroll Register (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportBankFile}>
+                <Landmark className="mr-2 h-4 w-4" />
+                Bank Transfer File
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportJournal}>
+                <BookOpen className="mr-2 h-4 w-4" />
+                Journal Entries (CSV)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Wallet, Plus, Loader2 } from 'lucide-react';
+import { Wallet, Plus, Loader2, FileText, HandCoins } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,6 +73,15 @@ export default function PayrollPage() {
           )
         }
       />
+
+      <div className="flex flex-wrap gap-2 border-b pb-3">
+        <Button asChild variant="ghost" size="sm" className="h-8">
+          <Link href="/payroll/payslips"><FileText className="mr-2 h-3 w-3" /> My Payslips</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="h-8">
+          <Link href="/payroll/loans"><HandCoins className="mr-2 h-3 w-3" /> Loans</Link>
+        </Button>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
