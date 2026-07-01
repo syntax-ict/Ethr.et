@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
 use App\Http\Controllers\Api\V1\Dashboard\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\Directory\DirectoryController;
 use App\Http\Controllers\Api\V1\Notification\NotificationController;
+use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -276,6 +277,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/preferences', [NotificationPreferencesController::class, 'index']);
+        Route::put('/preferences', [NotificationPreferencesController::class, 'update']);
         Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
     });
