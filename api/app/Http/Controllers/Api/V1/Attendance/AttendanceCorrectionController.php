@@ -12,7 +12,6 @@ use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Employee;
-use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
 use Illuminate\Http\JsonResponse;

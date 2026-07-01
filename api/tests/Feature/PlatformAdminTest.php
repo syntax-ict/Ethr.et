@@ -6,7 +6,6 @@ use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\Invoice;
-use App\Models\Subscription;
 use App\Models\Tenant;
 
 // ── Super Admin Tenant Management ──

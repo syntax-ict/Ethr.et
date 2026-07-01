@@ -32,7 +32,7 @@ final class AttendanceImporter
         $missing = array_diff($required, $header);
 
         if (! empty($missing)) {
-            return ['rows' => [], 'valid' => 0, 'invalid' => 0, 'errors' => ['Missing columns: ' . implode(', ', $missing)]];
+            return ['rows' => [], 'valid' => 0, 'invalid' => 0, 'errors' => ['Missing columns: '.implode(', ', $missing)]];
         }
 
         $rows = [];
@@ -106,12 +106,14 @@ final class AttendanceImporter
 
             if ($existing) {
                 $skipped++;
+
                 continue;
             }
 
             $employee = Employee::where('employee_code', $row['employee_code'])->first();
             if (! $employee) {
                 $errors[] = "Row {$i}: Employee '{$row['employee_code']}' not found";
+
                 continue;
             }
 

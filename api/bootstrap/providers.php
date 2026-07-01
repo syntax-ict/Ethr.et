@@ -1,9 +1,11 @@
 <?php
 
 use App\Providers\AppServiceProvider;
+use App\Providers\TenantServiceProvider;
+use Laravel\Horizon\HorizonServiceProvider;
 
 return [
     AppServiceProvider::class,
-    App\Providers\TenantServiceProvider::class,
-    Laravel\Horizon\HorizonServiceProvider::class,
+    TenantServiceProvider::class,
+    HorizonServiceProvider::class,
 ];

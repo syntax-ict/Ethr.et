@@ -27,9 +27,9 @@ return [
      * Base path of routes to include.
      */
     'info' => [
-        'title'       => 'ETHR API',
+        'title' => 'ETHR API',
         'description' => 'Ethiopian Workforce Operating System — REST API v1. All endpoints require Bearer token authentication unless noted as public.',
-        'version'     => env('APP_VERSION', '1.0.0'),
+        'version' => env('APP_VERSION', '1.0.0'),
     ],
 
     /*
@@ -43,8 +43,8 @@ return [
 
     'securitySchemes' => [
         'bearerAuth' => [
-            'type'         => 'http',
-            'scheme'       => 'bearer',
+            'type' => 'http',
+            'scheme' => 'bearer',
             'bearerFormat' => 'Sanctum',
         ],
     ],

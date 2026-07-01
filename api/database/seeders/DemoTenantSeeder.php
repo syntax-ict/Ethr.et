@@ -116,8 +116,8 @@ class DemoTenantSeeder extends Seeder
                 'tenant_id' => $tenant->id,
                 'name' => fake()->name(),
                 'email' => fake()->unique()->safeEmail(),
-                'phone' => '+2519' . fake()->numerify('########'),
-                'employee_code' => 'EMP-' . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT),
+                'phone' => '+2519'.fake()->numerify('########'),
+                'employee_code' => 'EMP-'.str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT),
                 'gender' => fake()->randomElement(['male', 'female']),
                 'date_of_birth' => fake()->date('Y-m-d', '-25 years'),
                 'nationality' => 'Ethiopian',
@@ -168,9 +168,9 @@ class DemoTenantSeeder extends Seeder
         }
 
         $holidays = [
-            ['name' => 'Ethiopian New Year', 'date' => Carbon::parse(now()->year . '-09-11')],
-            ['name' => 'Meskel', 'date' => Carbon::parse(now()->year . '-09-27')],
-            ['name' => 'Ethiopian Christmas', 'date' => Carbon::parse(now()->year . '-01-07')],
+            ['name' => 'Ethiopian New Year', 'date' => Carbon::parse(now()->year.'-09-11')],
+            ['name' => 'Meskel', 'date' => Carbon::parse(now()->year.'-09-27')],
+            ['name' => 'Ethiopian Christmas', 'date' => Carbon::parse(now()->year.'-01-07')],
         ];
 
         foreach ($holidays as $h) {
@@ -228,9 +228,9 @@ class DemoTenantSeeder extends Seeder
             ]);
         }
 
-        $this->command->info("Demo tenant seeded: demo.ethr.et (admin@demo.ethr.et / password)");
-        $this->command->info("HR admin: hr@demo.ethr.et / password");
-        $this->command->info("Employee: emp@demo.ethr.et / password");
-        $this->command->info("100 employees, 3 months attendance, leave balances, holidays");
+        $this->command->info('Demo tenant seeded: demo.ethr.et (admin@demo.ethr.et / password)');
+        $this->command->info('HR admin: hr@demo.ethr.et / password');
+        $this->command->info('Employee: emp@demo.ethr.et / password');
+        $this->command->info('100 employees, 3 months attendance, leave balances, holidays');
     }
 }

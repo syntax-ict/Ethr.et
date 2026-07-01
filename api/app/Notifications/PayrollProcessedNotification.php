@@ -6,7 +6,6 @@ namespace App\Notifications;
 
 use App\Models\PayrollRun;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class PayrollProcessedNotification extends Notification
@@ -23,6 +22,7 @@ class PayrollProcessedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -31,7 +31,7 @@ class PayrollProcessedNotification extends Notification
         return [
             'payroll_run_id' => $this->payrollRun->public_id,
             'period' => $this->payrollRun->period_label,
-            'message' => 'Payroll has been processed for ' . $this->payrollRun->period_label,
+            'message' => 'Payroll has been processed for '.$this->payrollRun->period_label,
         ];
     }
 }

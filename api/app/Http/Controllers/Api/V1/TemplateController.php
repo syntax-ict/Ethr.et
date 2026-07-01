@@ -25,7 +25,7 @@ class TemplateController extends Controller
             ->where('is_active', true)
             ->first(['public_id', 'name', 'slug', 'description', 'icon', 'template_data']);
 
-        if (!$template) {
+        if (! $template) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/not-found',
                 'title' => 'Not Found',

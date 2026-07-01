@@ -20,7 +20,7 @@ class AuditLogController extends Controller
             ->orderByDesc('created_at');
 
         if ($request->has('filter.action')) {
-            $query->where('action', 'like', '%' . $request->input('filter.action') . '%');
+            $query->where('action', 'like', '%'.$request->input('filter.action').'%');
         }
 
         if ($request->has('filter.user_id')) {

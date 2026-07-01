@@ -23,6 +23,7 @@ class LeaveRequestedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -43,10 +44,10 @@ class LeaveRequestedNotification extends Notification
     {
         $name = $this->leaveRequest->employee?->name;
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.leave_requested_subject'))
-            ->line("{$name} " . __('notification.leave_requested_body'))
-            ->line($this->leaveRequest->leaveType?->name . ': ' . $this->leaveRequest->start_date->format('M d') . ' - ' . $this->leaveRequest->end_date->format('M d'))
+            ->line("{$name} ".__('notification.leave_requested_body'))
+            ->line($this->leaveRequest->leaveType?->name.': '.$this->leaveRequest->start_date->format('M d').' - '.$this->leaveRequest->end_date->format('M d'))
             ->action(__('notification.review_request'), url('/approvals'));
     }
 }

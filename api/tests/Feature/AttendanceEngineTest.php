@@ -14,7 +14,6 @@ use App\Models\ShiftAssignment;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\ConfidenceScorer;
-use App\Services\Attendance\ShiftMatcher;
 use Carbon\Carbon;
 
 // Reset Carbon mock after every test that uses setTestNow
@@ -452,7 +451,7 @@ test('attendance records are isolated per tenant', function () {
     $user1 = createUser(['role' => UserRole::HR_ADMIN], $tenant1);
     test()->actingAs($user1);
 
-    $response = test()->getJson("http://alpha.ethr.test/api/v1/attendance");
+    $response = test()->getJson('http://alpha.ethr.test/api/v1/attendance');
 
     $response->assertOk()
         ->assertJsonCount(3, 'data');
@@ -463,7 +462,7 @@ test('attendance records are isolated per tenant', function () {
 test('attendance requires authentication', function () {
     $tenant = createTenant(['subdomain' => 'authtest']);
 
-    test()->getJson("http://authtest.ethr.test/api/v1/attendance/my")
+    test()->getJson('http://authtest.ethr.test/api/v1/attendance/my')
         ->assertUnauthorized();
 });
 

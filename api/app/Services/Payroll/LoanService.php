@@ -6,10 +6,11 @@ namespace App\Services\Payroll;
 
 use App\Models\Employee;
 use App\Models\EmployeeLoan;
+use Illuminate\Database\Eloquent\Collection;
 
 final class LoanService
 {
-    public function getActiveLoans(Employee $employee): \Illuminate\Database\Eloquent\Collection
+    public function getActiveLoans(Employee $employee): Collection
     {
         return EmployeeLoan::query()
             ->where('employee_id', $employee->id)

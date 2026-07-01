@@ -23,6 +23,7 @@ class PayslipAvailableNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -31,13 +32,13 @@ class PayslipAvailableNotification extends Notification
         return [
             'period' => $this->entry->payrollRun?->period_label,
             'net_cents' => $this->entry->net_cents,
-            'message' => 'Your payslip is available for ' . ($this->entry->payrollRun?->period_label ?? 'this period'),
+            'message' => 'Your payslip is available for '.($this->entry->payrollRun?->period_label ?? 'this period'),
         ];
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.payslip_available_subject'))
             ->line(__('notification.payslip_available_body'))
             ->action(__('notification.view_payslip'), url('/payslips'));

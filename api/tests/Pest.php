@@ -6,8 +6,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-pest()->extend(Tests\TestCase::class)
+pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 

@@ -6,10 +6,10 @@ use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
-use App\Notifications\LeaveRequestedNotification;
-use App\Notifications\LeaveApprovedNotification;
-use App\Notifications\PayrollProcessedNotification;
 use App\Models\PayrollRun;
+use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LeaveRequestedNotification;
+use App\Notifications\PayrollProcessedNotification;
 use Illuminate\Support\Facades\Notification;
 
 // ── Notification CRUD ──

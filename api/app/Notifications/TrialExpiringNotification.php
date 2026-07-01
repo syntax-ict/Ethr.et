@@ -33,7 +33,7 @@ class TrialExpiringNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.trial_expiring_subject'))
             ->line("Your ETHR trial will expire in {$this->daysRemaining} day(s) on {$this->trialEndsAt}.")
             ->line('Upgrade now to ensure uninterrupted access for your team.')

@@ -41,11 +41,12 @@ class AccountingController extends Controller
 
         $accounts = collect(self::DEFAULT_ACCOUNTS)->map(function ($default) use ($saved) {
             $override = $saved->get($default['key']);
+
             return [
-                'key'          => $default['key'],
+                'key' => $default['key'],
                 'account_code' => $override?->account_code ?? $default['account_code'],
                 'account_name' => $override?->account_name ?? $default['account_name'],
-                'is_custom'    => $override !== null,
+                'is_custom' => $override !== null,
             ];
         });
 
@@ -57,8 +58,8 @@ class AccountingController extends Controller
         Gate::authorize('payroll.viewAll');
 
         $request->validate([
-            'accounts'                => ['required', 'array'],
-            'accounts.*.key'          => ['required', 'string'],
+            'accounts' => ['required', 'array'],
+            'accounts.*.key' => ['required', 'string'],
             'accounts.*.account_code' => ['required', 'string', 'max:20'],
             'accounts.*.account_name' => ['required', 'string', 'max:100'],
         ]);
@@ -94,10 +95,10 @@ class AccountingController extends Controller
 
         $csv = $this->buildCsv($journal);
 
-        $filename = 'journal-' . str_replace(['/', ' '], '-', $journal['period']) . '.csv';
+        $filename = 'journal-'.str_replace(['/', ' '], '-', $journal['period']).'.csv';
 
         return response($csv, 200, [
-            'Content-Type'        => 'text/csv',
+            'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
@@ -123,7 +124,7 @@ class AccountingController extends Controller
                 $journal['period'],
                 $journal['date'] ?? '',
                 $entry['account_code'],
-                '"' . str_replace('"', '""', $entry['account_name']) . '"',
+                '"'.str_replace('"', '""', $entry['account_name']).'"',
                 $entry['debit_cents'] > 0 ? number_format($entry['debit_cents'] / 100, 2) : '',
                 $entry['credit_cents'] > 0 ? number_format($entry['credit_cents'] / 100, 2) : '',
             ]);

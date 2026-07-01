@@ -2,19 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
-use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\Shift;
-use App\Models\ShiftAssignment;
 use App\Services\Attendance\AttendanceIntelligence;
-use App\Services\Attendance\ShiftMatcher;
 use Carbon\Carbon;
 
 // ── Intelligence: Late Detection ──

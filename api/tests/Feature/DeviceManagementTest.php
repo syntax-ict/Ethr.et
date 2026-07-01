@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Enums\AttendanceSource;
 use App\Enums\UserRole;
-use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Services\Device\DeviceManager;
+use App\Services\Device\HikvisionAdapter;
+use App\Services\Device\ZktecoAdapter;
 
 // ── Device CRUD ──
 
@@ -240,7 +240,7 @@ test('device manager returns correct adapter for hikvision', function () {
     $device = Device::factory()->hikvision()->make();
     $adapter = $manager->adapter($device);
 
-    expect($adapter)->toBeInstanceOf(\App\Services\Device\HikvisionAdapter::class);
+    expect($adapter)->toBeInstanceOf(HikvisionAdapter::class);
 });
 
 test('device manager returns correct adapter for zkteco', function () {
@@ -249,7 +249,7 @@ test('device manager returns correct adapter for zkteco', function () {
     $device = Device::factory()->zkteco()->make();
     $adapter = $manager->adapter($device);
 
-    expect($adapter)->toBeInstanceOf(\App\Services\Device\ZktecoAdapter::class);
+    expect($adapter)->toBeInstanceOf(ZktecoAdapter::class);
 });
 
 test('device manager throws for unknown adapter type', function () {
@@ -257,7 +257,7 @@ test('device manager throws for unknown adapter type', function () {
 
     $device = Device::factory()->make(['adapter_type' => 'unknown']);
     $manager->adapter($device);
-})->throws(\InvalidArgumentException::class);
+})->throws(InvalidArgumentException::class);
 
 // ── Webhook Endpoints ──
 

@@ -14,7 +14,7 @@ class MfaService
 
     public function __construct()
     {
-        $this->google2fa = new Google2FA();
+        $this->google2fa = new Google2FA;
     }
 
     public function generateSecret(): string

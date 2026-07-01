@@ -61,6 +61,7 @@ class NotificationTemplateController extends Controller
 
         $templates = collect(self::DEFAULTS)->map(function ($default, $type) use ($customTemplates) {
             $custom = $customTemplates[$type] ?? [];
+
             return [
                 'type' => $type,
                 'subject_en' => $custom['subject_en'] ?? $default['subject_en'],
@@ -112,6 +113,7 @@ class NotificationTemplateController extends Controller
     private function extractVariables(string $template): array
     {
         preg_match_all('/\{(\w+)\}/', $template, $matches);
+
         return $matches[1] ?? [];
     }
 }

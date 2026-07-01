@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\LeaveType;
 use App\Models\PayrollRun;
+use App\Models\User;
 use App\Models\Webhook;
 
 // ── Cross-Tenant Isolation ──
@@ -94,7 +95,7 @@ test('tenant A cannot see tenant B announcements', function () {
     $tenantA = createTenant(['subdomain' => 'alpha']);
     $tenantB = createTenant(['subdomain' => 'beta']);
 
-    $userB = \App\Models\User::factory()->create(['tenant_id' => $tenantB->id, 'role' => UserRole::HR_ADMIN]);
+    $userB = User::factory()->create(['tenant_id' => $tenantB->id, 'role' => UserRole::HR_ADMIN]);
     Announcement::factory()->count(2)->create([
         'tenant_id' => $tenantB->id,
         'published_by' => $userB->id,

@@ -23,6 +23,7 @@ class LeaveApprovedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -39,9 +40,9 @@ class LeaveApprovedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.leave_approved_subject'))
             ->line(__('notification.leave_approved_body'))
-            ->line($this->leaveRequest->leaveType?->name . ': ' . $this->leaveRequest->start_date->format('M d') . ' - ' . $this->leaveRequest->end_date->format('M d'));
+            ->line($this->leaveRequest->leaveType?->name.': '.$this->leaveRequest->start_date->format('M d').' - '.$this->leaveRequest->end_date->format('M d'));
     }
 }

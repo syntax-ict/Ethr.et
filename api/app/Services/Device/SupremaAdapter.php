@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -143,7 +144,7 @@ final class SupremaAdapter implements DeviceAdapter
         }
     }
 
-    private function request(Device $device, string $method, string $path, ?array $body = null): \Illuminate\Http\Client\Response
+    private function request(Device $device, string $method, string $path, ?array $body = null): Response
     {
         $config = $device->connection_config;
         $port = $config['port'] ?? 443;

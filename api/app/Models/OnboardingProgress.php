@@ -42,7 +42,7 @@ class OnboardingProgress extends Model
     public function markStepComplete(int $step, array $data = []): void
     {
         $completed = $this->completed_steps ?? [];
-        if (!in_array($step, $completed, true)) {
+        if (! in_array($step, $completed, true)) {
             $completed[] = $step;
         }
 

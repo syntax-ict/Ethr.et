@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
+use App\Enums\UserRole;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Notifications\TrialExpiringNotification;
@@ -37,7 +38,7 @@ class HandleOverdueInvoicesJob implements ShouldQueue
                     $invoice->update(['status' => 'overdue']);
                     // Notify tenant admin (find admin user)
                     $adminUser = $invoice->tenant?->users()
-                        ->where('role', \App\Enums\UserRole::TENANT_ADMIN)
+                        ->where('role', UserRole::TENANT_ADMIN)
                         ->first();
                     if ($adminUser) {
                         // Reuse TrialExpiringNotification concept for overdue reminder

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Services\MfaService;
+use PragmaRX\Google2FA\Google2FA;
 
 describe('MFA setup', function () {
     it('generates a secret and QR code URL', function () {
@@ -34,7 +35,7 @@ describe('MFA setup', function () {
         $mfaService = app(MfaService::class);
         $secret = $mfaService->generateSecret();
 
-        $google2fa = new PragmaRX\Google2FA\Google2FA();
+        $google2fa = new Google2FA;
         $code = $google2fa->getCurrentOtp($secret);
 
         $response = $this->postJson('/api/v1/auth/mfa/enable', [
@@ -68,7 +69,7 @@ describe('MFA setup', function () {
             'mfa_secret' => encrypt($secret),
         ]);
 
-        $google2fa = new PragmaRX\Google2FA\Google2FA();
+        $google2fa = new Google2FA;
         $code = $google2fa->getCurrentOtp($secret);
 
         $response = $this->postJson('/api/v1/auth/mfa/disable', [
@@ -102,7 +103,7 @@ describe('MFA verify', function () {
             'mfa_secret' => encrypt($secret),
         ]);
 
-        $google2fa = new PragmaRX\Google2FA\Google2FA();
+        $google2fa = new Google2FA;
         $code = $google2fa->getCurrentOtp($secret);
 
         $response = $this->postJson('/api/v1/auth/mfa/verify', [

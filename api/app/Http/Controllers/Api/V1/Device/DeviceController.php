@@ -11,6 +11,7 @@ use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Http\Resources\DeviceResource;
 use App\Http\Resources\DeviceSyncLogResource;
 use App\Jobs\PullDeviceEventsJob;
+use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Device;
@@ -224,7 +225,7 @@ class DeviceController extends Controller
     {
         Gate::authorize('device.view');
 
-        $query = \App\Models\AttendanceRecord::where('device_id', $device->id)
+        $query = AttendanceRecord::where('device_id', $device->id)
             ->with('employee:id,public_id,first_name,last_name,employee_code')
             ->orderByDesc('created_at');
 
@@ -236,7 +237,7 @@ class DeviceController extends Controller
 
         $data = $records->through(fn ($r) => [
             'public_id' => $r->public_id,
-            'employee_name' => trim(($r->employee->first_name ?? '') . ' ' . ($r->employee->last_name ?? '')),
+            'employee_name' => trim(($r->employee->first_name ?? '').' '.($r->employee->last_name ?? '')),
             'employee_code' => $r->employee->employee_code ?? null,
             'date' => $r->date?->format('Y-m-d'),
             'check_in' => $r->check_in?->toIso8601String(),
@@ -256,7 +257,7 @@ class DeviceController extends Controller
 
         $devices = Device::query()->get();
 
-        $totalEvents = \App\Models\AttendanceRecord::query()
+        $totalEvents = AttendanceRecord::query()
             ->where('source', AttendanceSource::BIOMETRIC)
             ->whereDate('date', now()->format('Y-m-d'))
             ->count();
@@ -267,7 +268,7 @@ class DeviceController extends Controller
 
         $recentSyncs = DeviceSyncLog::query()
             ->where('created_at', '>=', now()->subHours(24))
-            ->selectRaw("status, COUNT(*) as count")
+            ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');
 

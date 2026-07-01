@@ -21,7 +21,7 @@ class OnboardingController extends Controller
         $progress = OnboardingProgress::where('tenant_id', $this->currentTenant->id())
             ->first();
 
-        if (!$progress) {
+        if (! $progress) {
             $progress = OnboardingProgress::create([
                 'tenant_id' => $this->currentTenant->id(),
                 'current_step' => 1,

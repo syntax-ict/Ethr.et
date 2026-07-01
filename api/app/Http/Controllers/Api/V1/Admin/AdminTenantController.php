@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Enums\TenantStatus;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Device;
-use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -183,9 +184,9 @@ class AdminTenantController extends Controller
             ->where('public_id', $publicId)
             ->firstOrFail();
 
-        $adminUser = \App\Models\User::withoutGlobalScopes()
+        $adminUser = User::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
-            ->where('role', \App\Enums\UserRole::TENANT_ADMIN)
+            ->where('role', UserRole::TENANT_ADMIN)
             ->first();
 
         if (! $adminUser) {

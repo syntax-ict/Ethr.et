@@ -6,7 +6,6 @@ namespace App\Notifications;
 
 use App\Models\AttendanceCorrection;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class AttendanceCorrectionApprovedNotification extends Notification
@@ -24,6 +23,7 @@ class AttendanceCorrectionApprovedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 

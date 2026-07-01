@@ -18,9 +18,11 @@ class HealthCheckCommand extends Command
         try {
             DB::connection()->getPdo();
             cache()->store('redis')->put('health_check', true, 5);
+
             return self::SUCCESS;
         } catch (\Throwable $e) {
             $this->error($e->getMessage());
+
             return self::FAILURE;
         }
     }

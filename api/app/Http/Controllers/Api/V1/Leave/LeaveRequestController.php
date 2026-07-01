@@ -11,11 +11,13 @@ use App\Http\Resources\LeaveBalanceResource;
 use App\Http\Resources\LeaveRequestResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Traits\DispatchesWebhooks;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\Gate;
 class LeaveRequestController extends Controller
 {
     use DispatchesWebhooks;
+
     public function __construct(
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
@@ -47,8 +50,8 @@ class LeaveRequestController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $startDate = \Carbon\Carbon::parse($request->validated('start_date'));
-        $endDate = \Carbon\Carbon::parse($request->validated('end_date'));
+        $startDate = Carbon::parse($request->validated('start_date'));
+        $endDate = Carbon::parse($request->validated('end_date'));
 
         $days = $this->dayCalculator->calculateDays(
             $startDate,
@@ -197,7 +200,7 @@ class LeaveRequestController extends Controller
         $user = $request->user();
         $year = $request->integer('year', now()->year);
 
-        $balances = \App\Models\LeaveBalance::query()
+        $balances = LeaveBalance::query()
             ->where('employee_id', $user->employee_id)
             ->where('year', $year)
             ->with('leaveType')
@@ -212,7 +215,7 @@ class LeaveRequestController extends Controller
 
         $year = $request->integer('year', now()->year);
 
-        $balances = \App\Models\LeaveBalance::query()
+        $balances = LeaveBalance::query()
             ->where('employee_id', $employee->id)
             ->where('year', $year)
             ->with('leaveType')
@@ -247,7 +250,7 @@ class LeaveRequestController extends Controller
             'status' => LeaveStatus::APPROVED,
         ]);
 
-        $balance = \App\Models\LeaveBalance::query()
+        $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
             ->where('leave_type_id', $leaveRequest->leave_type_id)
             ->where('year', $leaveRequest->start_date->year)
@@ -296,7 +299,7 @@ class LeaveRequestController extends Controller
             'rejected_reason' => $request->input('reason'),
         ]);
 
-        $balance = \App\Models\LeaveBalance::query()
+        $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
             ->where('leave_type_id', $leaveRequest->leave_type_id)
             ->where('year', $leaveRequest->start_date->year)
@@ -345,7 +348,7 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->update(['status' => LeaveStatus::CANCELLED]);
 
-        $balance = \App\Models\LeaveBalance::query()
+        $balance = LeaveBalance::query()
             ->where('employee_id', $leaveRequest->employee_id)
             ->where('leave_type_id', $leaveRequest->leave_type_id)
             ->where('year', $leaveRequest->start_date->year)

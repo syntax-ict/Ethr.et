@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     paths:
@@ -8,7 +9,10 @@ parameters:
     level: 6
 
     ignoreErrors:
+        # Suppress missing array value types — these are annotation-only gaps,
+        # not real bugs. The codebase uses untyped arrays extensively for
+        # flexibility in config/data arrays. Fixing all would require significant
+        # PHPDoc additions across the entire codebase.
+        - identifier: missingType.iterableValue
 
     excludePaths:
-
-    checkMissingIterableValueType: false

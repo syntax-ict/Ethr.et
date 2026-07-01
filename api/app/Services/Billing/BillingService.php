@@ -59,7 +59,7 @@ final class BillingService
         $amount = $plan->price_cents ?? 0;
 
         $lineItems = [
-            ['description' => $plan->name . ' — Monthly', 'amount_cents' => $amount],
+            ['description' => $plan->name.' — Monthly', 'amount_cents' => $amount],
         ];
 
         return Invoice::create([

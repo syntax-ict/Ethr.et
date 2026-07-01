@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\AttendanceSource;
-use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use Illuminate\Http\UploadedFile;
 
 // ── Manual Attendance Entry ──
 
@@ -237,7 +237,7 @@ test('hr admin can preview csv import', function () {
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'CSV001']);
 
     $csv = "employee_code,date,check_in_time,check_out_time\nCSV001,2026-06-28,08:30,17:30\n";
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('attendance.csv', $csv);
+    $file = UploadedFile::fake()->createWithContent('attendance.csv', $csv);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/preview", [
         'file' => $file,
@@ -253,7 +253,7 @@ test('csv preview validates missing columns', function () {
     $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $csv = "employee_code,date\nCSV001,2026-06-28\n";
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('bad.csv', $csv);
+    $file = UploadedFile::fake()->createWithContent('bad.csv', $csv);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/preview", [
         'file' => $file,
@@ -269,7 +269,7 @@ test('csv preview detects invalid employee codes', function () {
     $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $csv = "employee_code,date,check_in_time,check_out_time\nNONEXIST,2026-06-28,08:30,17:30\n";
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('bad-emp.csv', $csv);
+    $file = UploadedFile::fake()->createWithContent('bad-emp.csv', $csv);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/import/preview", [
         'file' => $file,
@@ -390,7 +390,7 @@ test('manual attendance respects tenant isolation', function () {
     $emp2 = Employee::factory()->create(['tenant_id' => $tenant2->id]);
     $user1 = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant1);
 
-    test()->postJson("http://alpha.ethr.test/api/v1/attendance/manual", [
+    test()->postJson('http://alpha.ethr.test/api/v1/attendance/manual', [
         'idempotency_key' => 'iso-001',
         'employee_public_id' => $emp2->public_id,
         'date' => now()->format('Y-m-d'),

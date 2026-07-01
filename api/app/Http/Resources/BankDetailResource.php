@@ -12,7 +12,7 @@ class BankDetailResource extends JsonResource
     public function toArray(Request $request): array
     {
         $accountNumber = $this->account_number;
-        $masked = str_repeat('*', max(0, strlen($accountNumber) - 4)) . substr($accountNumber, -4);
+        $masked = str_repeat('*', max(0, strlen($accountNumber) - 4)).substr($accountNumber, -4);
 
         return [
             'id' => $this->id,

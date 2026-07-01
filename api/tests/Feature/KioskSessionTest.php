@@ -7,6 +7,7 @@ use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\KioskSession;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 // ── Admin CRUD ──
@@ -30,7 +31,7 @@ test('employee cannot list kiosk sessions', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
-    test()->actingAs(\App\Models\User::where('employee_id', $employee->id)->first());
+    test()->actingAs(User::where('employee_id', $employee->id)->first());
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk-sessions")
         ->assertForbidden();
@@ -187,7 +188,7 @@ test('kiosk check-in succeeds with valid token and employee code', function () {
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/check-in", [
         'employee_code' => 'EMP-0001',
         'type' => 'check_in',
-        'idempotency_key' => 'kiosk-test-' . uniqid(),
+        'idempotency_key' => 'kiosk-test-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token]);
 
     $response->assertStatus(201)
@@ -200,7 +201,7 @@ test('kiosk check-in rejects missing token', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/check-in", [
         'employee_code' => 'EMP-0001',
         'type' => 'check_in',
-        'idempotency_key' => 'kiosk-test-' . uniqid(),
+        'idempotency_key' => 'kiosk-test-'.uniqid(),
     ])->assertStatus(401);
 });
 
@@ -216,7 +217,7 @@ test('kiosk check-in rejects unknown employee code', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/check-in", [
         'employee_code' => 'NONEXISTENT',
         'type' => 'check_in',
-        'idempotency_key' => 'kiosk-test-' . uniqid(),
+        'idempotency_key' => 'kiosk-test-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token])
         ->assertStatus(404);
 });
@@ -247,7 +248,7 @@ test('kiosk check-in enforces PIN when required', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/check-in", [
         'employee_code' => 'EMP-PIN1',
         'type' => 'check_in',
-        'idempotency_key' => 'kiosk-pin-' . uniqid(),
+        'idempotency_key' => 'kiosk-pin-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token])
         ->assertStatus(422);
 
@@ -256,7 +257,7 @@ test('kiosk check-in enforces PIN when required', function () {
         'employee_code' => 'EMP-PIN1',
         'type' => 'check_in',
         'pin' => '9999',
-        'idempotency_key' => 'kiosk-pin2-' . uniqid(),
+        'idempotency_key' => 'kiosk-pin2-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token])
         ->assertStatus(401);
 
@@ -265,7 +266,7 @@ test('kiosk check-in enforces PIN when required', function () {
         'employee_code' => 'EMP-PIN1',
         'type' => 'check_in',
         'pin' => '5678',
-        'idempotency_key' => 'kiosk-pin3-' . uniqid(),
+        'idempotency_key' => 'kiosk-pin3-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token])
         ->assertStatus(201);
 });
@@ -294,7 +295,7 @@ test('kiosk check-in rejects disabled kiosk method', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/kiosk/check-in", [
         'employee_code' => 'EMP-NOKIOSK',
         'type' => 'check_in',
-        'idempotency_key' => 'kiosk-disabled-' . uniqid(),
+        'idempotency_key' => 'kiosk-disabled-'.uniqid(),
     ], ['X-Kiosk-Token' => $session->token])
         ->assertStatus(403);
 });

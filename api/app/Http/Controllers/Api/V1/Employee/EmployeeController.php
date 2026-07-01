@@ -17,15 +17,16 @@ use App\Models\Employee;
 use App\Models\Grade;
 use App\Models\Position;
 use App\Models\Team;
+use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use App\Traits\DispatchesWebhooks;
 use Illuminate\Support\Facades\Gate;
 
 class EmployeeController extends Controller
 {
     use DispatchesWebhooks;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('employee.viewAny');
@@ -177,7 +178,7 @@ class EmployeeController extends Controller
     }
 
     /** @param array<string, mixed> $data
-     *  @return array<string, mixed>
+     * @return array<string, mixed>
      */
     private function resolveRelationIds(array $data): array
     {

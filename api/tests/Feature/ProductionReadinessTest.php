@@ -59,7 +59,7 @@ test('webhook accepts valid external url', function () {
 // ── ExternalUrl Rule Unit Tests ──
 
 test('external url rule rejects localhost', function () {
-    $rule = new ExternalUrl();
+    $rule = new ExternalUrl;
     $failed = false;
     $rule->validate('url', 'http://localhost/test', function () use (&$failed) {
         $failed = true;
@@ -68,7 +68,7 @@ test('external url rule rejects localhost', function () {
 });
 
 test('external url rule rejects 0.0.0.0', function () {
-    $rule = new ExternalUrl();
+    $rule = new ExternalUrl;
     $failed = false;
     $rule->validate('url', 'http://0.0.0.0/test', function () use (&$failed) {
         $failed = true;
@@ -77,7 +77,7 @@ test('external url rule rejects 0.0.0.0', function () {
 });
 
 test('external url rule allows valid https', function () {
-    $rule = new ExternalUrl();
+    $rule = new ExternalUrl;
     $failed = false;
     $rule->validate('url', 'https://api.example.com/webhook', function () use (&$failed) {
         $failed = true;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Dashboard;
 
-use App\Models\Announcement;
 use App\Models\AttendanceRecord;
 use App\Models\Holiday;
 use App\Models\LeaveBalance;

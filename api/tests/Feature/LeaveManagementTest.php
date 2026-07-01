@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\AccrualType;
 use App\Enums\LeaveStatus;
 use App\Enums\UserRole;
 use App\Models\Employee;

@@ -90,6 +90,7 @@ class PullDeviceEventsJob implements ShouldQueue
                         'device_id' => $this->device->id,
                         'badge' => $event['employee_badge'],
                     ]);
+
                     continue;
                 }
 

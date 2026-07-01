@@ -10,7 +10,6 @@ use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -44,7 +43,7 @@ class ApiKeyController extends Controller
 
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
-        $plainKey = 'ethr_' . Str::random(40);
+        $plainKey = 'ethr_'.Str::random(40);
 
         $apiKey = ApiKey::create([
             'tenant_id' => $tenant->id,

@@ -25,6 +25,7 @@ class MissingPunchNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -45,7 +46,7 @@ class MissingPunchNotification extends Notification
     {
         $label = $this->type === 'missing_check_out' ? 'check-out' : 'check-in';
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.missing_punch_subject'))
             ->line("{$this->employee->name} is missing a {$label} for {$this->date}.")
             ->line('Review their attendance record and request a correction if needed.')

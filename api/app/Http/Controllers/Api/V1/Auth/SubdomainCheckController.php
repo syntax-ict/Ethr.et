@@ -20,8 +20,8 @@ class SubdomainCheckController extends Controller
         $reserved = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'app', 'staging', 'dev', 'test'];
         $subdomain = $request->input('subdomain');
 
-        $available = !in_array($subdomain, $reserved, true)
-            && !Tenant::withoutGlobalScopes()->where('subdomain', $subdomain)->exists();
+        $available = ! in_array($subdomain, $reserved, true)
+            && ! Tenant::withoutGlobalScopes()->where('subdomain', $subdomain)->exists();
 
         return response()->json([
             'subdomain' => $subdomain,

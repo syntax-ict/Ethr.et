@@ -37,6 +37,7 @@ final class AttendanceImportParser
     private function isBioTimeFormat(string $content): bool
     {
         $firstLine = strtolower(trim(explode("\n", $content)[0] ?? ''));
+
         return str_contains($firstLine, 'verify') || str_contains($firstLine, 'work code');
     }
 
@@ -47,12 +48,12 @@ final class AttendanceImportParser
         $headers = array_map('trim', str_getcsv(array_shift($lines)));
         $headers = array_map('strtolower', $headers);
 
-        $idCol       = $this->findColumn($headers, ['id', 'user id', 'emp_id', 'badge']);
-        $timeCol     = $this->findColumn($headers, ['date/time', 'datetime', 'check time', 'time']);
-        $eventCol    = $this->findColumn($headers, ['event', 'state', 'direction', 'in/out']);
+        $idCol = $this->findColumn($headers, ['id', 'user id', 'emp_id', 'badge']);
+        $timeCol = $this->findColumn($headers, ['date/time', 'datetime', 'check time', 'time']);
+        $eventCol = $this->findColumn($headers, ['event', 'state', 'direction', 'in/out']);
 
         $records = [];
-        $errors  = [];
+        $errors = [];
 
         foreach ($lines as $i => $line) {
             $row = array_map('trim', str_getcsv($line));
@@ -60,24 +61,26 @@ final class AttendanceImportParser
                 continue;
             }
 
-            $badge     = $idCol !== null ? ($row[$idCol] ?? '') : '';
-            $datetime  = $timeCol !== null ? ($row[$timeCol] ?? '') : '';
+            $badge = $idCol !== null ? ($row[$idCol] ?? '') : '';
+            $datetime = $timeCol !== null ? ($row[$timeCol] ?? '') : '';
             $direction = $eventCol !== null ? ($row[$eventCol] ?? '') : 'check_in';
 
             if (empty($badge) || empty($datetime)) {
-                $errors[] = "Line " . ($i + 2) . ": missing badge or datetime";
+                $errors[] = 'Line '.($i + 2).': missing badge or datetime';
+
                 continue;
             }
 
             $parsedTime = $this->parseDateTime($datetime);
             if (! $parsedTime) {
-                $errors[] = "Line " . ($i + 2) . ": unrecognised datetime '{$datetime}'";
+                $errors[] = 'Line '.($i + 2).": unrecognised datetime '{$datetime}'";
+
                 continue;
             }
 
             $records[] = [
-                'badge'     => $badge,
-                'datetime'  => $parsedTime,
+                'badge' => $badge,
+                'datetime' => $parsedTime,
                 'direction' => $this->normaliseDirection($direction),
             ];
         }
@@ -92,21 +95,22 @@ final class AttendanceImportParser
     private function isHikvisionFormat(string $content): bool
     {
         $firstLine = strtolower(trim(explode("\n", $content)[0] ?? ''));
+
         return str_contains($firstLine, 'event type') || str_contains($firstLine, 'hikvision');
     }
 
     /** @return array{format: string, records: list<array{badge: string, datetime: string, direction: string}>, errors: string[]} */
     private function parseHikvision(string $content): array
     {
-        $lines   = array_filter(explode("\n", $content));
+        $lines = array_filter(explode("\n", $content));
         $headers = array_map('strtolower', array_map('trim', str_getcsv(array_shift($lines))));
 
-        $idCol    = $this->findColumn($headers, ['employee id', 'card no.', 'card no', 'id']);
-        $timeCol  = $this->findColumn($headers, ['time', 'date time', 'datetime', 'swipe time']);
-        $typeCol  = $this->findColumn($headers, ['event type', 'type', 'event']);
+        $idCol = $this->findColumn($headers, ['employee id', 'card no.', 'card no', 'id']);
+        $timeCol = $this->findColumn($headers, ['time', 'date time', 'datetime', 'swipe time']);
+        $typeCol = $this->findColumn($headers, ['event type', 'type', 'event']);
 
         $records = [];
-        $errors  = [];
+        $errors = [];
 
         foreach ($lines as $i => $line) {
             $row = array_map('trim', str_getcsv($line));
@@ -114,24 +118,26 @@ final class AttendanceImportParser
                 continue;
             }
 
-            $badge     = $idCol !== null ? ($row[$idCol] ?? '') : '';
-            $datetime  = $timeCol !== null ? ($row[$timeCol] ?? '') : '';
-            $type      = $typeCol !== null ? ($row[$typeCol] ?? '0') : '0';
+            $badge = $idCol !== null ? ($row[$idCol] ?? '') : '';
+            $datetime = $timeCol !== null ? ($row[$timeCol] ?? '') : '';
+            $type = $typeCol !== null ? ($row[$typeCol] ?? '0') : '0';
 
             if (empty($badge) || empty($datetime)) {
-                $errors[] = "Line " . ($i + 2) . ": missing badge or datetime";
+                $errors[] = 'Line '.($i + 2).': missing badge or datetime';
+
                 continue;
             }
 
             $parsedTime = $this->parseDateTime($datetime);
             if (! $parsedTime) {
-                $errors[] = "Line " . ($i + 2) . ": unrecognised datetime '{$datetime}'";
+                $errors[] = 'Line '.($i + 2).": unrecognised datetime '{$datetime}'";
+
                 continue;
             }
 
             $records[] = [
-                'badge'     => $badge,
-                'datetime'  => $parsedTime,
+                'badge' => $badge,
+                'datetime' => $parsedTime,
                 'direction' => $type === '1' ? 'check_out' : 'check_in',
             ];
         }
@@ -145,15 +151,15 @@ final class AttendanceImportParser
     /** @return array{format: string, records: list<array{badge: string, datetime: string, direction: string}>, errors: string[]} */
     private function parseGenericCsv(string $content): array
     {
-        $lines   = array_filter(explode("\n", $content));
+        $lines = array_filter(explode("\n", $content));
         $headers = array_map('strtolower', array_map('trim', str_getcsv(array_shift($lines))));
 
-        $idCol    = $this->findColumn($headers, ['badge', 'badge_number', 'id', 'employee_id', 'card']);
-        $timeCol  = $this->findColumn($headers, ['datetime', 'date_time', 'timestamp', 'time', 'date']);
-        $dirCol   = $this->findColumn($headers, ['direction', 'type', 'event', 'in_out']);
+        $idCol = $this->findColumn($headers, ['badge', 'badge_number', 'id', 'employee_id', 'card']);
+        $timeCol = $this->findColumn($headers, ['datetime', 'date_time', 'timestamp', 'time', 'date']);
+        $dirCol = $this->findColumn($headers, ['direction', 'type', 'event', 'in_out']);
 
         $records = [];
-        $errors  = [];
+        $errors = [];
 
         foreach ($lines as $i => $line) {
             $row = array_map('trim', str_getcsv($line));
@@ -161,24 +167,26 @@ final class AttendanceImportParser
                 continue;
             }
 
-            $badge     = $idCol !== null ? ($row[$idCol] ?? '') : ($row[0] ?? '');
-            $datetime  = $timeCol !== null ? ($row[$timeCol] ?? '') : ($row[1] ?? '');
+            $badge = $idCol !== null ? ($row[$idCol] ?? '') : ($row[0] ?? '');
+            $datetime = $timeCol !== null ? ($row[$timeCol] ?? '') : ($row[1] ?? '');
             $direction = $dirCol !== null ? ($row[$dirCol] ?? 'check_in') : 'check_in';
 
             if (empty($badge) || empty($datetime)) {
-                $errors[] = "Line " . ($i + 2) . ": missing badge or datetime";
+                $errors[] = 'Line '.($i + 2).': missing badge or datetime';
+
                 continue;
             }
 
             $parsedTime = $this->parseDateTime($datetime);
             if (! $parsedTime) {
-                $errors[] = "Line " . ($i + 2) . ": unrecognised datetime '{$datetime}'";
+                $errors[] = 'Line '.($i + 2).": unrecognised datetime '{$datetime}'";
+
                 continue;
             }
 
             $records[] = [
-                'badge'     => $badge,
-                'datetime'  => $parsedTime,
+                'badge' => $badge,
+                'datetime' => $parsedTime,
                 'direction' => $this->normaliseDirection($direction),
             ];
         }
@@ -198,6 +206,7 @@ final class AttendanceImportParser
                 return (int) $idx;
             }
         }
+
         return null;
     }
 
@@ -241,6 +250,7 @@ final class AttendanceImportParser
         if (in_array($lower, ['out', 'check_out', 'checkout', 'exit', '1', 'check out'], true)) {
             return 'check_out';
         }
+
         return 'check_in';
     }
 }

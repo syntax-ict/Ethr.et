@@ -6,8 +6,10 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 final class HikvisionAdapter implements DeviceAdapter
 {
@@ -127,7 +129,7 @@ final class HikvisionAdapter implements DeviceAdapter
         }
     }
 
-    private function request(Device $device, string $method, string $path, ?array $body = null): \Illuminate\Http\Client\Response
+    private function request(Device $device, string $method, string $path, ?array $body = null): Response
     {
         $config = $device->connection_config;
         $baseUrl = "http://{$config['ip']}:{$config['port']}";
@@ -146,7 +148,7 @@ final class HikvisionAdapter implements DeviceAdapter
     {
         $searchBody = [
             'AcsEventCond' => [
-                'searchID' => (string) \Illuminate\Support\Str::uuid(),
+                'searchID' => (string) Str::uuid(),
                 'searchResultPosition' => 0,
                 'maxResults' => 100,
                 'major' => 5,

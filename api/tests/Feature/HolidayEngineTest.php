@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Services\Holiday\HolidayService;
+use App\Services\Leave\LeaveDayCalculator;
 use Carbon\Carbon;
 
 // ── HolidayService ──
@@ -42,8 +44,8 @@ test('holiday service checks if date is holiday', function () {
 
 test('branch-specific holiday only applies to that branch', function () {
     $tenant = createTenant();
-    $branch = \App\Models\Branch::factory()->create(['tenant_id' => $tenant->id]);
-    $otherBranch = \App\Models\Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $otherBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
 
     Holiday::factory()->create([
         'tenant_id' => $tenant->id,
@@ -134,7 +136,7 @@ test('leave day calculation skips auto-detected holidays', function () {
     $service = app(HolidayService::class);
     $service->autoDetect($tenant->id, 2026);
 
-    $calculator = app(\App\Services\Leave\LeaveDayCalculator::class);
+    $calculator = app(LeaveDayCalculator::class);
 
     $labourDay = Carbon::create(2026, 5, 1);
 

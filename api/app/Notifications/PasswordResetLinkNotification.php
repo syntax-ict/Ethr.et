@@ -29,7 +29,7 @@ class PasswordResetLinkNotification extends Notification
 
         $resetUrl = "{$frontendUrl}/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}";
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('Reset your ETHR password'))
             ->line(__('You are receiving this email because we received a password reset request for your account.'))
             ->action(__('Reset Password'), $resetUrl)

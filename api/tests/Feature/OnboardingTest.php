@@ -44,7 +44,7 @@ describe('onboarding progress', function () {
         $tenant = createTenant();
         actingAsUser([], $tenant);
 
-        $response = $this->getJson('http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/progress');
+        $response = $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress');
 
         $response->assertOk()
             ->assertJsonPath('current_step', 1)
@@ -56,7 +56,7 @@ describe('onboarding progress', function () {
         actingAsUser([], $tenant);
 
         $response = $this->putJson(
-            'http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/progress/1',
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress/1',
             ['organization_name' => 'Acme Corp']
         );
 
@@ -71,7 +71,7 @@ describe('onboarding progress', function () {
         actingAsUser([], $tenant);
 
         $response = $this->putJson(
-            'http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/progress/9',
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress/9',
             []
         );
 
@@ -97,7 +97,7 @@ describe('onboarding progress', function () {
         actingAsUser([], $tenant);
 
         $response = $this->postJson(
-            'http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/apply-template',
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/apply-template',
             ['template_slug' => 'government']
         );
 
@@ -110,10 +110,10 @@ describe('onboarding progress', function () {
         $tenant = createTenant();
         actingAsUser([], $tenant);
 
-        $this->getJson('http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/progress');
+        $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress');
 
         $response = $this->postJson(
-            'http://' . $tenant->subdomain . '.ethr.test/api/v1/onboarding/complete'
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/complete'
         );
 
         $response->assertOk()

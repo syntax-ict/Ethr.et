@@ -12,11 +12,13 @@ use Illuminate\Http\Request;
 class RateLimitLoginAttempts
 {
     // Per-minute short-burst throttle (5 attempts / minute)
-    private const BURST_MAX    = 5;
-    private const BURST_DECAY  = 60;   // 1 minute
+    private const BURST_MAX = 5;
+
+    private const BURST_DECAY = 60;   // 1 minute
 
     // Cumulative lockout throttle (10 attempts → 15 min lockout)
-    private const LOCKOUT_MAX   = 10;
+    private const LOCKOUT_MAX = 10;
+
     private const LOCKOUT_DECAY = 900; // 15 minutes
 
     public function __construct(private RateLimiter $limiter) {}
@@ -47,7 +49,7 @@ class RateLimitLoginAttempts
 
         // 3. Count failed logins (401 = unauthenticated, 422 = validation/credentials fail)
         if ($status === 401 || $status === 422) {
-            $this->limiter->hit($burstKey,   self::BURST_DECAY);
+            $this->limiter->hit($burstKey, self::BURST_DECAY);
             $this->limiter->hit($lockoutKey, self::LOCKOUT_DECAY);
         } elseif ($status === 200 || $status === 204) {
             // Successful login: clear counters
@@ -61,8 +63,8 @@ class RateLimitLoginAttempts
     private function tooManyResponse(int $retryAfter): JsonResponse
     {
         return response()->json([
-            'type'   => 'https://ethr.et/errors/rate-limit',
-            'title'  => 'Too Many Login Attempts',
+            'type' => 'https://ethr.et/errors/rate-limit',
+            'title' => 'Too Many Login Attempts',
             'status' => 429,
             'detail' => "Too many failed login attempts. Please try again in {$retryAfter} seconds.",
         ], 429)->header('Retry-After', $retryAfter);
@@ -71,7 +73,8 @@ class RateLimitLoginAttempts
     private function identifier(Request $request): string
     {
         $email = mb_strtolower(trim($request->input('email') ?? 'unknown'));
-        $ip    = $request->ip() ?? '0.0.0.0';
+        $ip = $request->ip() ?? '0.0.0.0';
+
         return "{$email}:{$ip}";
     }
 }

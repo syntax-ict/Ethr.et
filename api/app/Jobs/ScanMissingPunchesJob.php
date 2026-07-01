@@ -62,7 +62,7 @@ class ScanMissingPunchesJob implements ShouldQueue
         ]);
 
         foreach ($missing as $record) {
-            /** @var \App\Models\Employee|null $employee */
+            /** @var Employee|null $employee */
             $employee = $record->employee;
             if (! $employee) {
                 continue;

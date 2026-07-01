@@ -7,8 +7,8 @@ namespace App\Services\Attendance;
 use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
-use App\Models\Shift;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 final class AttendanceIntelligence
 {
@@ -88,7 +88,7 @@ final class AttendanceIntelligence
         return $anomalies;
     }
 
-    public function getLateArrivals(int $tenantId, ?string $date = null): \Illuminate\Support\Collection
+    public function getLateArrivals(int $tenantId, ?string $date = null): Collection
     {
         $date ??= now()->format('Y-m-d');
 
@@ -111,7 +111,7 @@ final class AttendanceIntelligence
             });
     }
 
-    public function getEarlyDepartures(int $tenantId, ?string $date = null): \Illuminate\Support\Collection
+    public function getEarlyDepartures(int $tenantId, ?string $date = null): Collection
     {
         $date ??= now()->format('Y-m-d');
 
@@ -122,7 +122,7 @@ final class AttendanceIntelligence
             ->get();
     }
 
-    public function getMissingPunches(int $tenantId, ?string $date = null): \Illuminate\Support\Collection
+    public function getMissingPunches(int $tenantId, ?string $date = null): Collection
     {
         $date ??= now()->format('Y-m-d');
 

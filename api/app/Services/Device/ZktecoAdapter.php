@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -113,7 +114,7 @@ final class ZktecoAdapter implements DeviceAdapter
         }
     }
 
-    private function request(Device $device, string $method, string $path, ?array $params = null): \Illuminate\Http\Client\Response
+    private function request(Device $device, string $method, string $path, ?array $params = null): Response
     {
         $config = $device->connection_config;
         $baseUrl = "http://{$config['ip']}:{$config['port']}";

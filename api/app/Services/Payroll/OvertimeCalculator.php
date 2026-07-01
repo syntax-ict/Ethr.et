@@ -7,8 +7,11 @@ namespace App\Services\Payroll;
 final class OvertimeCalculator
 {
     private float $normalRate = 1.25;
+
     private float $nightRate = 1.5;
+
     private float $holidayRate = 2.0;
+
     private float $holidayNightRate = 2.5;
 
     public function calculate(

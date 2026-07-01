@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Models\Tenant;
-use App\Models\User;
 
 describe('POST /api/v1/auth/register', function () {
     it('registers a new tenant and admin user', function () {

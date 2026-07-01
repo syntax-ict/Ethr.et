@@ -7,10 +7,13 @@ use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -62,7 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Handle validation exceptions (422)
-        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
+        $exceptions->render(function (ValidationException $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }
@@ -77,7 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Handle authentication exceptions (401)
-        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }
@@ -91,7 +94,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Handle authorization exceptions (403)
-        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, Request $request) {
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }

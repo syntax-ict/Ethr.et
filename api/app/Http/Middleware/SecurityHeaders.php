@@ -27,14 +27,14 @@ class SecurityHeaders
 
         // Content Security Policy (strict, no inline scripts)
         $csp = "default-src 'self'; "
-            . "script-src 'self' 'nonce-" . base64_encode(random_bytes(16)) . "'; "
-            . "style-src 'self' 'nonce-" . base64_encode(random_bytes(16)) . "'; "
-            . "img-src 'self' data: https:; "
-            . "font-src 'self'; "
-            . "connect-src 'self' https:; "
-            . "frame-ancestors 'none'; "
-            . "base-uri 'self'; "
-            . "form-action 'self'";
+            ."script-src 'self' 'nonce-".base64_encode(random_bytes(16))."'; "
+            ."style-src 'self' 'nonce-".base64_encode(random_bytes(16))."'; "
+            ."img-src 'self' data: https:; "
+            ."font-src 'self'; "
+            ."connect-src 'self' https:; "
+            ."frame-ancestors 'none'; "
+            ."base-uri 'self'; "
+            ."form-action 'self'";
 
         $response->header('Content-Security-Policy', $csp);
 

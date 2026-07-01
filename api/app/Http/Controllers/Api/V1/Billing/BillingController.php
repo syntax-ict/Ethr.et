@@ -86,7 +86,7 @@ class BillingController extends Controller
             'line_items' => $invoice->line_items ?? [],
         ]);
 
-        $filename = 'receipt-' . $invoice->public_id . '.pdf';
+        $filename = 'receipt-'.$invoice->public_id.'.pdf';
 
         return $pdf->download($filename);
     }

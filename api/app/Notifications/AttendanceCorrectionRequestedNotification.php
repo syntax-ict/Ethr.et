@@ -22,6 +22,7 @@ class AttendanceCorrectionRequestedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 

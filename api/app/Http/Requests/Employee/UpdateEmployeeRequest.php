@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee;
 
-use App\Enums\EmployeeStatus;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;

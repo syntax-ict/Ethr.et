@@ -12,6 +12,7 @@ use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -166,7 +167,7 @@ class ReportController extends Controller
         return response()->json(null, 204);
     }
 
-    private function calculateNextRun(string $frequency): \Carbon\Carbon
+    private function calculateNextRun(string $frequency): Carbon
     {
         return match ($frequency) {
             'daily' => now()->addDay()->startOfDay()->addHours(6),

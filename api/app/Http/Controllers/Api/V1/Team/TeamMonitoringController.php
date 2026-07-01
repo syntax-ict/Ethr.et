@@ -190,7 +190,7 @@ class TeamMonitoringController extends Controller
         }
 
         try {
-            $from = Carbon::parse($month . '-01')->startOfMonth();
+            $from = Carbon::parse($month.'-01')->startOfMonth();
             $to = $from->copy()->endOfMonth();
         } catch (\Throwable) {
             $from = Carbon::now()->startOfMonth();

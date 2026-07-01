@@ -7,7 +7,6 @@ namespace App\Services\Admin;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -17,15 +16,15 @@ final class SystemHealthService
     {
         return [
             'services' => [
-                'api'      => $this->apiStatus(),
+                'api' => $this->apiStatus(),
                 'database' => $this->databaseStatus(),
-                'redis'    => $this->redisStatus(),
-                'storage'  => $this->storageStatus(),
-                'reverb'   => ['status' => 'unknown', 'note' => 'WebSocket server — check Horizon'],
+                'redis' => $this->redisStatus(),
+                'storage' => $this->storageStatus(),
+                'reverb' => ['status' => 'unknown', 'note' => 'WebSocket server — check Horizon'],
             ],
-            'queue'       => $this->queueStatus(),
+            'queue' => $this->queueStatus(),
             'failed_jobs' => $this->failedJobsCount(),
-            'resources'   => $this->resourceUsage(),
+            'resources' => $this->resourceUsage(),
         ];
     }
 

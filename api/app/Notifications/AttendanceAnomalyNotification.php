@@ -24,6 +24,7 @@ class AttendanceAnomalyNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 

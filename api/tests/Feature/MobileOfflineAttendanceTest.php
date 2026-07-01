@@ -7,7 +7,6 @@ use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Employee;
-use App\Models\Shift;
 use App\Services\Attendance\ConflictResolver;
 use App\Services\Attendance\QrCodeService;
 use Carbon\Carbon;
@@ -213,7 +212,7 @@ test('QR code from different tenant is rejected', function () {
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant1);
     test()->actingAs($user);
 
-    test()->postJson("http://alpha.ethr.test/api/v1/attendance/qr", [
+    test()->postJson('http://alpha.ethr.test/api/v1/attendance/qr', [
         'idempotency_key' => 'qr-cross-001',
         'qr_token' => $qrData['token'],
         'type' => 'check_in',

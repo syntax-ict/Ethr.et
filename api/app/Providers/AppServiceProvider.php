@@ -9,7 +9,9 @@ use App\Events\DeviceOffline;
 use App\Events\TenantCreated;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\ProvisionTenant;
+use App\Models\PersonalAccessToken;
 use App\Models\User;
+use Dedoc\Scramble\Scramble;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -17,13 +19,14 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        if (class_exists(\Dedoc\Scramble\Scramble::class)) {
-            \Dedoc\Scramble\Scramble::ignoreDefaultRoutes();
+        if (class_exists(Scramble::class)) {
+            Scramble::ignoreDefaultRoutes();
         }
     }
 
@@ -31,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
-        \Laravel\Sanctum\Sanctum::usePersonalAccessTokenModel(\App\Models\PersonalAccessToken::class);
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);

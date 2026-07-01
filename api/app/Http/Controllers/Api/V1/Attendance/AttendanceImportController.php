@@ -50,8 +50,8 @@ class AttendanceImportController extends Controller
         ]);
 
         $content = $request->file('file')->getContent();
-        $parser  = new AttendanceImportParser();
-        $result  = $parser->parse($content);
+        $parser = new AttendanceImportParser;
+        $result = $parser->parse($content);
 
         return response()->json($result);
     }

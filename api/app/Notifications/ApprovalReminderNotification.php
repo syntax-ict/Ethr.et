@@ -33,7 +33,7 @@ class ApprovalReminderNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.approval_reminder_subject'))
             ->line("You have {$this->pendingCount} pending approval(s) that require your attention.")
             ->line("The oldest request has been waiting for {$this->oldestHours} hours.")

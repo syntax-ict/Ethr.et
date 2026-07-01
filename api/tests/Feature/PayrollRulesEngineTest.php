@@ -21,47 +21,47 @@ use App\Services\Payroll\TaxCalculator;
 // 10901+ (1090001+): 35% - 150000
 
 test('tax calculator: 0 ETB income', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     expect($calc->calculate(0))->toBe(0);
 });
 
 test('tax calculator: bracket 1 — 500 ETB (exempt)', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     expect($calc->calculate(50000))->toBe(0);
 });
 
 test('tax calculator: bracket 2 — 1000 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 100000 * 10% - 6000 = 4000
     expect($calc->calculate(100000))->toBe(4000);
 });
 
 test('tax calculator: bracket 3 — 2500 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 250000 * 15% - 14250 = 37500 - 14250 = 23250
     expect($calc->calculate(250000))->toBe(23250);
 });
 
 test('tax calculator: bracket 4 — 4000 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 400000 * 20% - 30250 = 80000 - 30250 = 49750
     expect($calc->calculate(400000))->toBe(49750);
 });
 
 test('tax calculator: bracket 5 — 6000 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 600000 * 25% - 56500 = 150000 - 56500 = 93500
     expect($calc->calculate(600000))->toBe(93500);
 });
 
 test('tax calculator: bracket 6 — 9000 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 900000 * 30% - 95500 = 270000 - 95500 = 174500
     expect($calc->calculate(900000))->toBe(174500);
 });
 
 test('tax calculator: bracket 7 — 15000 ETB', function () {
-    $calc = new TaxCalculator();
+    $calc = new TaxCalculator;
     // 1500000 * 35% - 150000 = 525000 - 150000 = 375000
     expect($calc->calculate(1500000))->toBe(375000);
 });
@@ -69,7 +69,7 @@ test('tax calculator: bracket 7 — 15000 ETB', function () {
 // ── Pension Calculator ──
 
 test('pension calculates 7% employee and 11% employer', function () {
-    $calc = new PensionCalculator();
+    $calc = new PensionCalculator;
     $result = $calc->calculate(500000); // 5000 ETB
 
     expect($result['employee_cents'])->toBe(35000); // 7%
@@ -77,7 +77,7 @@ test('pension calculates 7% employee and 11% employer', function () {
 });
 
 test('pension calculates correctly for low salary', function () {
-    $calc = new PensionCalculator();
+    $calc = new PensionCalculator;
     $result = $calc->calculate(100000); // 1000 ETB
 
     expect($result['employee_cents'])->toBe(7000);
@@ -87,7 +87,7 @@ test('pension calculates correctly for low salary', function () {
 // ── Overtime Calculator ──
 
 test('overtime normal rate 1.25x', function () {
-    $calc = new OvertimeCalculator();
+    $calc = new OvertimeCalculator;
     // 5000 ETB basic, 22 working days, 8 hours/day
     // Hourly = 500000 / (22 * 8) = 2841 (approx)
     // 120 min = 2 hours overtime
@@ -98,25 +98,25 @@ test('overtime normal rate 1.25x', function () {
 });
 
 test('overtime night rate 1.5x', function () {
-    $calc = new OvertimeCalculator();
+    $calc = new OvertimeCalculator;
     $amount = $calc->calculate(500000, 22, 8, 120, 'night');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 1.5));
 });
 
 test('overtime holiday rate 2.0x', function () {
-    $calc = new OvertimeCalculator();
+    $calc = new OvertimeCalculator;
     $amount = $calc->calculate(500000, 22, 8, 120, 'holiday');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.0));
 });
 
 test('overtime holiday night rate 2.5x', function () {
-    $calc = new OvertimeCalculator();
+    $calc = new OvertimeCalculator;
     $amount = $calc->calculate(500000, 22, 8, 120, 'holiday_night');
     expect($amount)->toBe((int) round(500000 / (22 * 8) * 2 * 2.5));
 });
 
 test('overtime with zero minutes returns 0', function () {
-    $calc = new OvertimeCalculator();
+    $calc = new OvertimeCalculator;
     expect($calc->calculate(500000, 22, 8, 0))->toBe(0);
 });
 
@@ -138,7 +138,7 @@ test('loan service calculates monthly deduction', function () {
         'monthly_deduction_cents' => 100000,
     ]);
 
-    $service = new LoanService();
+    $service = new LoanService;
     expect($service->calculateMonthlyDeduction($employee))->toBe(300000);
 });
 
@@ -154,7 +154,7 @@ test('loan deduction marks loan completed when fully repaid', function () {
         'monthly_deduction_cents' => 50000,
     ]);
 
-    $service = new LoanService();
+    $service = new LoanService;
     $service->applyDeduction($loan, 50000);
 
     $loan->refresh();
@@ -179,7 +179,7 @@ test('completed loans not included in deduction', function () {
         'monthly_deduction_cents' => 100000,
     ]);
 
-    $service = new LoanService();
+    $service = new LoanService;
     expect($service->calculateMonthlyDeduction($employee))->toBe(200000);
 });
 

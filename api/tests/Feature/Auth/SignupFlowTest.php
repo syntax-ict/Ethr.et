@@ -99,7 +99,7 @@ describe('trial enforcement', function () {
         $tenant = createTenant();
         $user = actingAsUser([], $tenant);
 
-        $response = $this->getJson('http://' . $tenant->subdomain . '.ethr.test/api/v1/auth/me');
+        $response = $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/auth/me');
 
         $response->assertOk();
     });

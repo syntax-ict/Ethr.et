@@ -23,6 +23,7 @@ class DeviceOfflineNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -41,7 +42,7 @@ class DeviceOfflineNotification extends Notification
     {
         $location = $this->device->branch?->name ?? 'Unknown location';
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.device_offline_subject'))
             ->line("Biometric device \"{$this->device->name}\" at {$location} has gone offline.")
             ->action('View Device Status', url('/devices'));

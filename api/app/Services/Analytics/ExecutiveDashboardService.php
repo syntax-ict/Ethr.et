@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
+use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use Carbon\Carbon;
 
@@ -306,7 +307,7 @@ final class ExecutiveDashboardService
             return [];
         }
 
-        return \App\Models\PayrollEntry::withoutGlobalScope('tenant')
+        return PayrollEntry::withoutGlobalScope('tenant')
             ->whereIn('payroll_run_id', $runs)
             ->join('employees', 'payroll_entries.employee_id', '=', 'employees.id')
             ->join('departments', 'employees.department_id', '=', 'departments.id')

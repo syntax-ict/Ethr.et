@@ -15,11 +15,13 @@ class ExternalUrl implements ValidationRule
 
         if (! $host) {
             $fail(__('validation.url'));
+
             return;
         }
 
         if ($this->isInternalHost($host)) {
             $fail('The :attribute must not point to an internal address.');
+
             return;
         }
 

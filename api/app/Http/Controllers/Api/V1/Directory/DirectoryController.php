@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Directory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DirectoryResource;
+use App\Models\Department;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -31,7 +33,7 @@ class DirectoryController extends Controller
         }
 
         if ($request->has('filter.department_id')) {
-            $dep = \App\Models\Department::where('public_id', $request->input('filter.department_id'))->first();
+            $dep = Department::where('public_id', $request->input('filter.department_id'))->first();
             if ($dep) {
                 $query->where('department_id', $dep->id);
             }
@@ -40,6 +42,6 @@ class DirectoryController extends Controller
         $employees = $query->orderBy('name')
             ->paginate($request->integer('per_page', 25));
 
-        return \App\Http\Resources\DirectoryResource::collection($employees);
+        return DirectoryResource::collection($employees);
     }
 }

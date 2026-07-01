@@ -2,15 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\AttendanceSource;
-use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
-use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\EmployeeLoan;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
-use App\Models\Shift;
 use App\Services\Payroll\PayrollEngine;
 use Carbon\Carbon;
 
@@ -23,7 +19,7 @@ test('payroll engine processes employees correctly', function () {
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 1000000, // 10,000 ETB
-            ]);
+    ]);
 
     $engine = app(PayrollEngine::class);
     $run = $engine->process(
@@ -54,7 +50,7 @@ test('payroll engine calculates net = gross - tax - pension - loans', function (
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 500000, // 5,000 ETB
-            ]);
+    ]);
 
     $engine = app(PayrollEngine::class);
     $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
@@ -77,7 +73,7 @@ test('payroll prorates mid-month hire', function () {
         'tenant_id' => $tenant->id,
         'salary_cents' => 1000000,
         'hire_date' => '2026-06-16',
-            ]);
+    ]);
 
     $engine = app(PayrollEngine::class);
     $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
@@ -95,7 +91,7 @@ test('payroll deducts active loan', function () {
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 800000,
-            ]);
+    ]);
 
     $loan = EmployeeLoan::factory()->create([
         'tenant_id' => $tenant->id,
@@ -123,7 +119,7 @@ test('payroll skips employees with zero salary', function () {
     Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 0,
-            ]);
+    ]);
 
     $engine = app(PayrollEngine::class);
     $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
@@ -140,7 +136,7 @@ test('finance admin can process payroll via api', function () {
     Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 500000,
-            ]);
+    ]);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',
@@ -283,7 +279,7 @@ test('payroll processing is audit logged', function () {
     Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'salary_cents' => 500000,
-            ]);
+    ]);
 
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',

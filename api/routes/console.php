@@ -24,7 +24,7 @@ Schedule::call(function () {
 })->dailyAt('15:30')->name('scan-missing-punches')->withoutOverlapping();
 
 // Generate monthly invoices on the 1st of each month at 03:00 UTC (06:00 EAT)
-Schedule::job(new GenerateMonthlyInvoicesJob())->monthlyOn(1, '03:00');
+Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00');
 
 // Handle overdue invoices daily at 04:00 UTC (07:00 EAT)
-Schedule::job(new HandleOverdueInvoicesJob())->dailyAt('04:00');
+Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00');

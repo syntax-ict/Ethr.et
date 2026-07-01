@@ -40,7 +40,7 @@ class ApprovalController extends Controller
                 'public_id' => $lr->public_id,
                 'employee_name' => $lr->employee?->name,
                 'employee_public_id' => $lr->employee?->public_id,
-                'summary' => ($lr->leaveType?->name ?? 'Leave') . ': ' . $lr->start_date->format('M d') . ' - ' . $lr->end_date->format('M d'),
+                'summary' => ($lr->leaveType?->name ?? 'Leave').': '.$lr->start_date->format('M d').' - '.$lr->end_date->format('M d'),
                 'submitted_at' => $lr->created_at,
             ];
         }
@@ -59,7 +59,7 @@ class ApprovalController extends Controller
                     'public_id' => $c->public_id,
                     'employee_name' => $c->employee?->name,
                     'employee_public_id' => $c->employee?->public_id,
-                    'summary' => 'Attendance correction for ' . $c->date->format('M d'),
+                    'summary' => 'Attendance correction for '.$c->date->format('M d'),
                     'submitted_at' => $c->created_at,
                 ];
             }

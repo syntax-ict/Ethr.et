@@ -23,6 +23,7 @@ class LeaveRejectedNotification extends Notification
         if (config('broadcasting.default') === 'reverb') {
             $channels[] = 'broadcast';
         }
+
         return $channels;
     }
 
@@ -40,7 +41,7 @@ class LeaveRejectedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject(__('notification.leave_rejected_subject'))
             ->line(__('notification.leave_rejected_body'))
             ->line($this->leaveRequest->rejected_reason ?? '');

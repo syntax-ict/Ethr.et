@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -82,11 +83,11 @@ return new class extends Migration
 
     private function indexExists(string $table, string $indexName): bool
     {
-        $driver = \Illuminate\Support\Facades\DB::getDriverName();
+        $driver = DB::getDriverName();
 
         if ($driver === 'sqlite') {
             // SQLite: use PRAGMA index_list
-            $indexes = \Illuminate\Support\Facades\DB::select(
+            $indexes = DB::select(
                 "PRAGMA index_list(\"{$table}\")"
             );
             foreach ($indexes as $idx) {
@@ -94,14 +95,16 @@ return new class extends Migration
                     return true;
                 }
             }
+
             return false;
         }
 
         // MySQL / MariaDB
-        $existing = \Illuminate\Support\Facades\DB::select(
+        $existing = DB::select(
             "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
             [$indexName]
         );
+
         return ! empty($existing);
     }
 };

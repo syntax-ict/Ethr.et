@@ -224,7 +224,7 @@ test('dispatcher creates delivery for matching events', function () {
         'events' => ['employee.created'],
     ]);
 
-    $dispatcher = new WebhookDispatcher();
+    $dispatcher = new WebhookDispatcher;
     $dispatcher->dispatch($tenant->id, 'employee.created', ['name' => 'Abebe']);
 
     // The delivery record is created synchronously; the HTTP call is queued
@@ -240,7 +240,7 @@ test('dispatcher skips non-matching events', function () {
         'events' => ['employee.created'],
     ]);
 
-    $dispatcher = new WebhookDispatcher();
+    $dispatcher = new WebhookDispatcher;
     $dispatcher->dispatch($tenant->id, 'leave.approved', ['id' => '123']);
 
     expect(WebhookDelivery::count())->toBe(0);
@@ -408,7 +408,7 @@ test('dispatcher queues DispatchWebhookJob', function () {
         'events' => ['employee.created'],
     ]);
 
-    $dispatcher = new WebhookDispatcher();
+    $dispatcher = new WebhookDispatcher;
     $dispatcher->dispatch($tenant->id, 'employee.created', ['name' => 'Tigist']);
 
     Queue::assertPushed(DispatchWebhookJob::class);
@@ -423,7 +423,7 @@ test('dispatcher does not queue job for non-matching events', function () {
         'events' => ['employee.created'],
     ]);
 
-    $dispatcher = new WebhookDispatcher();
+    $dispatcher = new WebhookDispatcher;
     $dispatcher->dispatch($tenant->id, 'leave.approved', ['id' => '123']);
 
     Queue::assertNothingPushed();
@@ -433,10 +433,10 @@ test('dispatcher does not queue job for non-matching events', function () {
 
 test('parser detects biotime format', function () {
     $csv = "No.,ID,Name,Date/Time,Verify,Event,Work Code\n"
-        . "1,EMP001,Abebe Kebede,2026-07-01 08:05:00,1,In,\n"
-        . "2,EMP001,Abebe Kebede,2026-07-01 17:10:00,1,Out,\n";
+        ."1,EMP001,Abebe Kebede,2026-07-01 08:05:00,1,In,\n"
+        ."2,EMP001,Abebe Kebede,2026-07-01 17:10:00,1,Out,\n";
 
-    $parser = new AttendanceImportParser();
+    $parser = new AttendanceImportParser;
     $result = $parser->parse($csv);
 
     expect($result['format'])->toBe('biotime');
@@ -447,10 +447,10 @@ test('parser detects biotime format', function () {
 
 test('parser detects hikvision format', function () {
     $csv = "Employee ID,Employee Name,Time,Event Type\n"
-        . "001,Sara Tadesse,2026-07-01 09:00:00,0\n"
-        . "001,Sara Tadesse,2026-07-01 18:00:00,1\n";
+        ."001,Sara Tadesse,2026-07-01 09:00:00,0\n"
+        ."001,Sara Tadesse,2026-07-01 18:00:00,1\n";
 
-    $parser = new AttendanceImportParser();
+    $parser = new AttendanceImportParser;
     $result = $parser->parse($csv);
 
     expect($result['format'])->toBe('hikvision');
@@ -461,10 +461,10 @@ test('parser detects hikvision format', function () {
 
 test('parser handles generic csv format', function () {
     $csv = "badge,datetime,direction\n"
-        . "B001,2026-07-01 08:30:00,in\n"
-        . "B001,2026-07-01 17:45:00,out\n";
+        ."B001,2026-07-01 08:30:00,in\n"
+        ."B001,2026-07-01 17:45:00,out\n";
 
-    $parser = new AttendanceImportParser();
+    $parser = new AttendanceImportParser;
     $result = $parser->parse($csv);
 
     expect($result['format'])->toBe('generic_csv');
@@ -475,9 +475,9 @@ test('parser handles generic csv format', function () {
 
 test('parser collects errors for unparseable datetimes', function () {
     $csv = "badge,datetime,direction\n"
-        . "B001,not-a-date,in\n";
+        ."B001,not-a-date,in\n";
 
-    $parser = new AttendanceImportParser();
+    $parser = new AttendanceImportParser;
     $result = $parser->parse($csv);
 
     expect($result['records'])->toHaveCount(0);

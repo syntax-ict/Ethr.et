@@ -20,6 +20,7 @@ class DispatchWebhookJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 5;
+
     public int $timeout = 30;
 
     // Exponential backoff delays in seconds: 1m, 5m, 30m, 2h, 24h
@@ -47,11 +48,12 @@ class DispatchWebhookJob implements ShouldQueue
         // Skip if webhook has been disabled between retries
         if (! $webhook->is_active) {
             $this->markFailed($delivery, null, 'Webhook disabled before delivery', 0);
+
             return;
         }
 
         $payloadJson = json_encode($this->payload);
-        $signature = 'sha256=' . hash_hmac('sha256', $payloadJson, $webhook->secret);
+        $signature = 'sha256='.hash_hmac('sha256', $payloadJson, $webhook->secret);
         $attempt = $this->attempts();
 
         try {
@@ -150,7 +152,7 @@ class DispatchWebhookJob implements ShouldQueue
         $delivery = WebhookDelivery::find($this->deliveryId);
         if ($delivery && ! $delivery->delivered_at) {
             $delivery->update([
-                'response_body' => 'Permanently failed: ' . $exception->getMessage(),
+                'response_body' => 'Permanently failed: '.$exception->getMessage(),
                 'attempt' => $this->attempts(),
             ]);
         }

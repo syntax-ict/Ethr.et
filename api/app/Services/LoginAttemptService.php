@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Tenant;
-use App\Models\User;
 use Illuminate\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 
 class LoginAttemptService
 {
     private const MAX_ATTEMPTS = 10;
+
     private const LOCKOUT_MINUTES = 15;
 
-    public function __construct(private Repository $cache = null)
+    public function __construct(private ?Repository $cache = null)
     {
         $this->cache ??= Cache::store('default');
     }

@@ -34,6 +34,7 @@ class OfflineSyncController extends Controller
                     'status' => 'error',
                     'detail' => 'Employee not found',
                 ];
+
                 continue;
             }
 

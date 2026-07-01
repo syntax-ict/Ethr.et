@@ -9,6 +9,7 @@ use App\Http\Requests\Payroll\ProcessPayrollRequest;
 use App\Http\Resources\PayrollEntryResource;
 use App\Http\Resources\PayrollRunResource;
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Services\CurrentTenant;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Gate;
 class PayrollController extends Controller
 {
     use DispatchesWebhooks;
+
     public function process(ProcessPayrollRequest $request, PayrollEngine $engine): JsonResponse
     {
         Gate::authorize('payroll.process');
@@ -127,7 +129,7 @@ class PayrollController extends Controller
     {
         Gate::authorize('payroll.viewAll');
 
-        $employee = \App\Models\Employee::where('public_id', $employeePublicId)->firstOrFail();
+        $employee = Employee::where('public_id', $employeePublicId)->firstOrFail();
 
         $entries = PayrollEntry::query()
             ->where('employee_id', $employee->id)
