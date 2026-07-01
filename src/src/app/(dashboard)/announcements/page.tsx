@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Megaphone, Plus, Loader2, Trash2 } from "lucide-react";
+import { Megaphone, Plus, Loader2, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,20 @@ export default function AnnouncementsPage() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", body: "", priority: "normal" });
+
+  function openNew() {
+    setEditingId(null);
+    setForm({ title: "", body: "", priority: "normal" });
+    setDialogOpen(true);
+  }
+
+  function openEdit(a: Announcement) {
+    setEditingId(a.public_id);
+    setForm({ title: a.title, body: a.body, priority: a.priority });
+    setDialogOpen(true);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["announcements"],
@@ -77,6 +90,24 @@ export default function AnnouncementsPage() {
     onError: () => toast.error("Failed to create announcement"),
   });
 
+  const updateAnnouncement = useMutation({
+    mutationFn: async (payload: typeof form) => {
+      const { data } = await apiClient.put(
+        `/announcements/${editingId}`,
+        payload,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement updated");
+      setDialogOpen(false);
+      setEditingId(null);
+      setForm({ title: "", body: "", priority: "normal" });
+    },
+    onError: () => toast.error("Failed to update announcement"),
+  });
+
   const deleteAnnouncement = useMutation({
     mutationFn: async (id: string) => {
       await apiClient.delete(`/announcements/${id}`);
@@ -96,7 +127,7 @@ export default function AnnouncementsPage() {
         description="Company-wide announcements and updates"
         actions={
           can.manageEmployees && (
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" /> New Announcement
             </Button>
           )
@@ -143,13 +174,22 @@ export default function AnnouncementsPage() {
                     </p>
                   </div>
                   {can.manageEmployees && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteAnnouncement.mutate(a.public_id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(a)}
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteAnnouncement.mutate(a.public_id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -161,12 +201,18 @@ export default function AnnouncementsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Announcement</DialogTitle>
+            <DialogTitle>
+              {editingId ? "Edit Announcement" : "New Announcement"}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              createAnnouncement.mutate(form);
+              if (editingId) {
+                updateAnnouncement.mutate(form);
+              } else {
+                createAnnouncement.mutate(form);
+              }
             }}
             className="space-y-4"
           >
@@ -218,11 +264,17 @@ export default function AnnouncementsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createAnnouncement.isPending}>
-                {createAnnouncement.isPending && (
+              <Button
+                type="submit"
+                disabled={
+                  createAnnouncement.isPending || updateAnnouncement.isPending
+                }
+              >
+                {(createAnnouncement.isPending ||
+                  updateAnnouncement.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Publish
+                {editingId ? "Save Changes" : "Publish"}
               </Button>
             </DialogFooter>
           </form>

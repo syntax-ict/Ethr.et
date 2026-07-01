@@ -1,6 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { PaginatedResponse } from "@/api/types";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface PayrollRun {
   public_id: string;
@@ -14,12 +16,14 @@ export interface PayrollRun {
   tax_total_cents: number;
   processed_at: string | null;
   approved_at: string | null;
+  approved_by?: number | null;
   entries?: PayrollEntry[];
 }
 
 export interface PayrollEntry {
   public_id: string;
   employee_public_id: string;
+  employee_name?: string;
   basic_salary_cents: number;
   gross_cents: number;
   income_tax_cents: number;
@@ -27,7 +31,22 @@ export interface PayrollEntry {
   employer_pension_cents: number;
   other_deductions_cents: number;
   net_cents: number;
+  period_label?: string;
 }
+
+export interface Loan {
+  public_id: string;
+  employee_public_id: string;
+  employee_name?: string;
+  amount_cents: number;
+  remaining_cents: number;
+  monthly_deduction_cents: number;
+  status: string;
+  disbursed_at: string | null;
+  created_at: string;
+}
+
+// ── Payroll Runs ──────────────────────────────────────────────────────────────
 
 export function usePayrollRuns(params?: { page?: number }) {
   return useQuery<PaginatedResponse<PayrollRun>>({
@@ -50,6 +69,39 @@ export function usePayrollRun(publicId: string) {
   });
 }
 
+export function useProcessPayroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      period_start: string;
+      period_end: string;
+    }) => {
+      const { data } = await apiClient.post("/payroll/process", payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+export function useApprovePayroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.put(`/payroll/runs/${publicId}/approve`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+// ── Payslips ──────────────────────────────────────────────────────────────────
+
 export function useMyPayslips(params?: { page?: number }) {
   return useQuery<PaginatedResponse<PayrollEntry>>({
     queryKey: ["payroll", "payslips", "my", params],
@@ -58,4 +110,70 @@ export function useMyPayslips(params?: { page?: number }) {
       return data;
     },
   });
+}
+
+export function useEmployeePayslips(
+  employeePublicId: string,
+  params?: { page?: number },
+) {
+  return useQuery<PaginatedResponse<PayrollEntry>>({
+    queryKey: ["payroll", "payslips", employeePublicId, params],
+    queryFn: async () => {
+      const { data } = await apiClient.get(
+        `/payroll/payslips/${employeePublicId}`,
+        { params },
+      );
+      return data;
+    },
+    enabled: !!employeePublicId,
+  });
+}
+
+// ── Loans ─────────────────────────────────────────────────────────────────────
+
+export function useLoans(params?: { page?: number }) {
+  return useQuery<PaginatedResponse<Loan>>({
+    queryKey: ["payroll", "loans", params],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/payroll/loans", { params });
+      return data;
+    },
+  });
+}
+
+export function useLoan(publicId: string) {
+  return useQuery<Loan>({
+    queryKey: ["payroll", "loans", publicId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/payroll/loans/${publicId}`);
+      return data;
+    },
+    enabled: !!publicId,
+  });
+}
+
+export function useCreateLoan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      employee_public_id: string;
+      amount_cents: number;
+      monthly_deduction_cents: number;
+      disbursed_at?: string;
+    }) => {
+      const { data } = await apiClient.post("/payroll/loans", payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll", "loans"] });
+    },
+  });
+}
+
+// ── Bank Export ───────────────────────────────────────────────────────────────
+
+export function downloadBankExport(publicId: string) {
+  const url = `/api/v1/payroll/runs/${publicId}/export/bank`;
+  window.open(url, "_blank");
 }

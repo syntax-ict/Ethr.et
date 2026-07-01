@@ -23,6 +23,11 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import {
+  useSubmitCorrection,
+  useApproveCorrection,
+  useRejectCorrection,
+} from "@/features/attendance/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 

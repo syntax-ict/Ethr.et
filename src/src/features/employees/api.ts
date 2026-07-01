@@ -56,6 +56,19 @@ export function useUpdateEmployee(publicId: string) {
   });
 }
 
+export function useDeleteEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      await apiClient.delete(`/employees/${publicId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
+}
+
 export function useEmployeeStats() {
   return useQuery({
     queryKey: ["employees", "stats"],

@@ -45,6 +45,7 @@ import {
   useTeamLeaveRequests,
   useApproveLeave,
   useRejectLeave,
+  useCancelLeave,
   type LeaveBalance,
   type LeaveRequest,
 } from "@/features/leave/api";
@@ -212,6 +213,7 @@ function MyLeaveTab() {
   const { data: requests, isLoading: requestsLoading } = useMyLeaveRequests({
     page,
   });
+  const cancelLeave = useCancelLeave();
 
   return (
     <>
@@ -292,6 +294,28 @@ function MyLeaveTab() {
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={req.status} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {req.status === "pending" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-muted-foreground hover:text-red-600"
+                            onClick={() => {
+                              if (confirm("Withdraw this leave request?")) {
+                                cancelLeave.mutate(req.public_id, {
+                                  onSuccess: () =>
+                                    toast.success("Leave request withdrawn"),
+                                  onError: () =>
+                                    toast.error("Failed to withdraw request"),
+                                });
+                              }
+                            }}
+                            disabled={cancelLeave.isPending}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

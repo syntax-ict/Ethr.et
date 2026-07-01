@@ -122,3 +122,34 @@ export function useRejectLeave() {
     },
   });
 }
+
+export function useCancelLeave() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.put(`/leave/${publicId}/cancel`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
+    },
+  });
+}
+
+export function useLeaveRequest(publicId: string) {
+  return useQuery<LeaveRequest>({
+    queryKey: ["leave", "request", publicId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/leave/${publicId}`);
+      return data;
+    },
+    enabled: !!publicId,
+  });
+}
+
+// Derive display-safe leave type name from either object or string
+export function leaveTypeName(leaveType: LeaveRequest["leave_type"]): string {
+  if (typeof leaveType === "string") return leaveType;
+  return leaveType?.name ?? "Leave";
+}
