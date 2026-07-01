@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -102,7 +103,8 @@ class ResolveTenant
 
     private function lookupTenant(string $subdomain): Tenant|Response
     {
-        $tenant = Tenant::where('subdomain', $subdomain)->first();
+        // Cache tenant for 5 minutes to avoid a DB hit on every request
+        $tenant = Cache::remember("tenant:{$subdomain}", 300, fn () => Tenant::where('subdomain', $subdomain)->first());
 
         if (! $tenant) {
             return response()->json([
