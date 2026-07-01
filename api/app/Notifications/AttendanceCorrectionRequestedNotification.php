@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Models\PayrollRun;
+use App\Models\AttendanceCorrection;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PayrollProcessedNotification extends Notification
+class AttendanceCorrectionRequestedNotification extends Notification
 {
     use Queueable;
 
     public function __construct(
-        private readonly PayrollRun $payrollRun,
+        private readonly AttendanceCorrection $correction,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,9 +28,10 @@ class PayrollProcessedNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'payroll_run_id' => $this->payrollRun->public_id,
-            'period' => $this->payrollRun->period_label,
-            'message' => 'Payroll has been processed for ' . $this->payrollRun->period_label,
+            'correction_id' => $this->correction->public_id,
+            'employee_name' => $this->correction->employee?->name,
+            'date' => $this->correction->date->format('Y-m-d'),
+            'message' => 'Attendance correction request pending your review',
         ];
     }
 }

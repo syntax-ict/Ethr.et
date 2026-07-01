@@ -64,6 +64,8 @@ use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\TemplateController;
+use App\Http\Controllers\Api\V1\Profile\ProfileController;
+use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]));
@@ -261,6 +263,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/schedule', [ReportController::class, 'schedule']);
         Route::get('/scheduled', [ReportController::class, 'scheduledList']);
         Route::delete('/scheduled/{scheduledReport}', [ReportController::class, 'deleteScheduled']);
+    });
+
+    // Profile self-service
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
+
+    // Team monitoring (manager)
+    Route::prefix('team')->group(function () {
+        Route::get('/attendance/today', [TeamMonitoringController::class, 'attendanceToday']);
+        Route::get('/attendance/summary', [TeamMonitoringController::class, 'attendanceSummary']);
+        Route::get('/overtime', [TeamMonitoringController::class, 'overtime']);
+        Route::get('/leave/calendar', [TeamMonitoringController::class, 'leaveCalendar']);
     });
 
     // Directory

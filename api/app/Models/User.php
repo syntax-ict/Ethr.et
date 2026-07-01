@@ -83,4 +83,9 @@ class User extends Authenticatable
     {
         return $this->role === UserRole::TENANT_ADMIN;
     }
+
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'private-user.'.$this->public_id;
+    }
 }

@@ -109,6 +109,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('employee.viewFinancial', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
         Gate::define('employee.updateFinancial', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
 
+        // Profile self-service gates
+        Gate::define('profile.view', fn (User $user): bool => true);
+        Gate::define('profile.update', fn (User $user): bool => true);
+
         // Announcement gates
         Gate::define('announcement.manage', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
 

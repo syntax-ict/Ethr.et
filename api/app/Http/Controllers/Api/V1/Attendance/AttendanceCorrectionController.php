@@ -11,6 +11,10 @@ use App\Http\Resources\AttendanceCorrectionResource;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
+use App\Models\Employee;
+use App\Models\User;
+use App\Notifications\AttendanceCorrectionApprovedNotification;
+use App\Notifications\AttendanceCorrectionRequestedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -38,6 +42,13 @@ class AttendanceCorrectionController extends Controller
         AuditLog::record('correction.submitted', $correction, [
             'attendance_record_public_id' => $record->public_id,
         ]);
+
+        // Notify supervisor
+        $employee = $correction->employee ?? $user->employee;
+        $supervisor = $employee?->supervisor;
+        if ($supervisor?->user) {
+            $supervisor->user->notify(new AttendanceCorrectionRequestedNotification($correction));
+        }
 
         $correction->load('attendanceRecord', 'employee');
 
@@ -123,6 +134,12 @@ class AttendanceCorrectionController extends Controller
             'approved_by' => $user->id,
         ]);
 
+        // Notify employee
+        $empUser = $correction->employee?->user;
+        if ($empUser) {
+            $empUser->notify(new AttendanceCorrectionApprovedNotification($correction, true));
+        }
+
         $correction->load('attendanceRecord', 'employee');
 
         return response()->json(new AttendanceCorrectionResource($correction));
@@ -164,6 +181,12 @@ class AttendanceCorrectionController extends Controller
             'rejected_by' => $user->id,
             'reason' => $request->input('reason'),
         ]);
+
+        // Notify employee of rejection
+        $empUser = $correction->employee?->user;
+        if ($empUser) {
+            $empUser->notify(new AttendanceCorrectionApprovedNotification($correction, false));
+        }
 
         $correction->load('attendanceRecord', 'employee');
 

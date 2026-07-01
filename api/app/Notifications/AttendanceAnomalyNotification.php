@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Models\PayrollRun;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PayrollProcessedNotification extends Notification
+class AttendanceAnomalyNotification extends Notification
 {
     use Queueable;
 
     public function __construct(
-        private readonly PayrollRun $payrollRun,
+        private readonly string $employeeName,
+        private readonly string $anomalyType,
+        private readonly string $date,
+        private readonly ?string $detail = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,9 +30,11 @@ class PayrollProcessedNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'payroll_run_id' => $this->payrollRun->public_id,
-            'period' => $this->payrollRun->period_label,
-            'message' => 'Payroll has been processed for ' . $this->payrollRun->period_label,
+            'employee_name' => $this->employeeName,
+            'anomaly_type' => $this->anomalyType,
+            'date' => $this->date,
+            'detail' => $this->detail,
+            'message' => "Attendance anomaly detected for {$this->employeeName}: {$this->anomalyType}",
         ];
     }
 }

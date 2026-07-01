@@ -36,7 +36,9 @@
     "recharts": "^3.9.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "laravel-echo": "^1.16.1",
+    "pusher-js": "^8.4.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
