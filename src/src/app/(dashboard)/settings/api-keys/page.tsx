@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { KeyRound, Plus, Trash2, Copy, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { KeyRound, Plus, Trash2, Copy, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -91,9 +92,16 @@ export default function ApiKeysPage() {
           title="API Keys"
           description="Manage API keys for external integrations"
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Create Key
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/api/docs" target="_blank">
+                  <ExternalLink className="mr-2 h-4 w-4" /> API Docs
+                </Link>
+              </Button>
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Create Key
+              </Button>
+            </div>
           }
         />
 

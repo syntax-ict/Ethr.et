@@ -124,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/import/template', [AttendanceImportController::class, 'template']);
         Route::post('/import/preview', [AttendanceImportController::class, 'preview']);
         Route::post('/import/commit', [AttendanceImportController::class, 'commit']);
+        Route::post('/import/legacy', [AttendanceImportController::class, 'parseLegacy']);
 
         Route::post('/mobile/check-in', [MobileAttendanceController::class, 'checkIn']);
         Route::post('/mobile/check-out', [MobileAttendanceController::class, 'checkOut']);
@@ -320,6 +321,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Accounting
     Route::prefix('accounting')->group(function () {
+        Route::get('/chart-of-accounts', [AccountingController::class, 'chartOfAccounts']);
+        Route::put('/chart-of-accounts', [AccountingController::class, 'updateChartOfAccounts']);
         Route::get('/journal/{payrollRun}', [AccountingController::class, 'journal']);
         Route::get('/export/{payrollRun}', [AccountingController::class, 'export']);
     });

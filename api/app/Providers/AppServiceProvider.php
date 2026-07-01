@@ -20,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        if (class_exists(\Dedoc\Scramble\Scramble::class)) {
+            \Dedoc\Scramble\Scramble::ignoreDefaultRoutes();
+        }
     }
 
     public function boot(): void
