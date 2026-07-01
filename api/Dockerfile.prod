@@ -1,0 +1,55 @@
+FROM php:8.2-fpm-alpine AS base
+
+RUN apk add --no-cache \
+    icu-dev \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    oniguruma-dev \
+    linux-headers \
+    $PHPIZE_DEPS
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+        pdo_mysql \
+        mbstring \
+        intl \
+        zip \
+        gd \
+        bcmath \
+        pcntl \
+        posix \
+        opcache
+
+RUN pecl install redis && docker-php-ext-enable redis
+
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+
+# Production PHP-FPM tuning
+COPY docker/php/www.prod.conf /usr/local/etc/php-fpm.d/www.conf
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/ethr/api
+
+COPY api/ .
+
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --no-scripts
+
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD php artisan health:check || exit 1
+
+CMD ["php-fpm"]

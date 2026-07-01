@@ -112,5 +112,13 @@ export function useOfflineSync() {
     }
   }, [isOnline, pendingCount, syncNow]);
 
+  // Respond to service worker background sync request
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    function onSwSync() { syncNow(); }
+    window.addEventListener('ethr:sync-attendance', onSwSync);
+    return () => window.removeEventListener('ethr:sync-attendance', onSwSync);
+  }, [syncNow]);
+
   return { isOnline, pendingCount, syncing, syncNow, refreshCount };
 }

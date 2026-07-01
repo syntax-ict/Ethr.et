@@ -55,4 +55,14 @@ class Branch extends Model
     {
         return $this->hasMany(Employee::class);
     }
+
+    public function devices(): HasMany
+    {
+        return $this->hasMany(Device::class);
+    }
+
+    public function kioskSessions(): HasMany
+    {
+        return $this->hasMany(KioskSession::class);
+    }
 }

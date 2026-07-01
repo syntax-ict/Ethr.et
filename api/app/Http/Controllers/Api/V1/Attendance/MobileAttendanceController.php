@@ -36,17 +36,26 @@ class MobileAttendanceController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $result = $this->engine->record(new AttendanceInput(
-            employeeId: $employee->id,
-            tenantId: $employee->tenant_id,
-            source: AttendanceSource::MOBILE,
-            type: 'check_in',
-            idempotencyKey: $request->validated('idempotency_key'),
-            latitude: $request->validated('latitude'),
-            longitude: $request->validated('longitude'),
-            photoPath: $request->validated('photo_path'),
-            ipAddress: $request->ip(),
-        ));
+        try {
+            $result = $this->engine->record(new AttendanceInput(
+                employeeId: $employee->id,
+                tenantId: $employee->tenant_id,
+                source: AttendanceSource::MOBILE,
+                type: 'check_in',
+                idempotencyKey: $request->validated('idempotency_key'),
+                latitude: $request->validated('latitude'),
+                longitude: $request->validated('longitude'),
+                photoPath: $request->validated('photo_path'),
+                ipAddress: $request->ip(),
+            ));
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => $e->getMessage(),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
 
         $result->record->load('employee', 'shift');
 

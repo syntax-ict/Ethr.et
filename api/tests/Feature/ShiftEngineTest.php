@@ -231,7 +231,7 @@ test('shift matcher prioritizes employee over department over branch', function 
     $matcher = new ShiftMatcher;
     $matched = $matcher->match($employee, Carbon::today());
 
-    expect($matched->name)->toBe('Employee Shift');
+    expect($matched?->name)->toBe('Employee Shift');
 });
 
 test('shift matcher falls back to department when no employee assignment', function () {
@@ -253,7 +253,7 @@ test('shift matcher falls back to department when no employee assignment', funct
     $matcher = new ShiftMatcher;
     $matched = $matcher->match($employee, Carbon::today());
 
-    expect($matched->name)->toBe('Dept Shift');
+    expect($matched?->name)->toBe('Dept Shift');
 });
 
 test('shift matcher falls back to default shift', function () {

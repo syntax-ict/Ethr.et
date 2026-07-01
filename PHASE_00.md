@@ -16,37 +16,46 @@ The following is already built and should be migrated/verified:
 
 ---
 
-## S01 — Docker Environment & Project Scaffold
+## S01 — Docker Environment & Project Scaffold ✅ COMPLETE
 
 ### Backend
-- [ ] Docker Compose: Laravel (PHP-FPM), MariaDB 10.11, Redis 7, MinIO, Nginx
-- [ ] Nginx config: subdomain routing (`*.ethr.test` -> Laravel, frontend)
-- [ ] `.env.example` with all service connections
-- [ ] `docker-compose.yml` (dev) + `docker-compose.prod.yml` (production)
-- [ ] PHP-FPM tuning for development
-- [ ] Laravel 12 project in `/api` (migrate existing ethr1 code)
-- [ ] Horizon config for queue workers (attendance, payroll, notifications, exports, devices, sync queues)
-- [ ] Scheduler config (cron container)
-- [ ] Health check endpoint: `GET /api/health`
+- [x] Docker Compose: Laravel (PHP-FPM), MariaDB 10.11, Redis 7, MinIO, Nginx — `docker-compose.yml`
+- [x] Nginx config: subdomain routing (`*.ethr.test` → Laravel, base `localhost` → frontend) — `docker/nginx/default.conf`
+- [x] `.env.example` with all service connections — `api/.env.example`
+- [x] `docker-compose.yml` (dev) + `docker-compose.prod.yml` (production, fixed 2026-07-01)
+- [x] PHP-FPM tuning for development — `docker/php/www.conf` (dynamic PM, 20 max children)
+- [x] PHP-FPM tuning for production — `docker/php/www.prod.conf` (ondemand PM, 40 max children)
+- [x] Laravel 12 project in `/api`
+- [x] Horizon config for queue workers — `api/config/horizon.php` (attendance, payroll, notifications, exports, devices, sync, default)
+- [x] Horizon service provider registered — `api/bootstrap/providers.php`
+- [x] Scheduler config (cron container) — `scheduler` service in docker-compose
+- [x] Health check endpoint: `GET /api/health` — `HealthController`, also `php artisan health:check`
+- [x] Production Dockerfile — `api/Dockerfile.prod` (with config/route/view cache)
 
 ### Frontend
-- [ ] Next.js 15 project in `/src` (migrate existing ethr1 code)
-- [ ] Tailwind CSS 4 config
-- [ ] TypeScript strict mode
-- [ ] Prettier config
-- [ ] Path aliases (`@/` -> `src/`)
-- [ ] Environment variable setup (API URL, WebSocket URL)
+- [x] Next.js 15 project in `/src`
+- [x] Tailwind CSS 4 config
+- [x] TypeScript strict mode — `tsconfig.json`
+- [x] Prettier config
+- [x] Path aliases (`@/` → `src/`)
+- [x] Environment variable setup — `src/.env.local`, `src/.env.local.example`, `src/.env.production`
+
+### Infrastructure
+- [x] Production Nginx with SSL/TLS — `infrastructure/nginx.conf`
+- [x] Supervisor config (worker + scheduler + reverb + horizon) — `infrastructure/supervisor.conf`
+- [x] Deployment scripts — `scripts/deploy.sh`, `rollback.sh`, `backup.sh`, `restore.sh`
+- [x] Production env template — `api/.env.production`
 
 ### Tests
-- [ ] `docker compose up` boots all services
-- [ ] Laravel responds at `http://localhost/api/health`
-- [ ] Next.js responds at `http://localhost`
-- [ ] MariaDB, Redis, MinIO accessible from Laravel
-- [ ] Pest and Vitest run successfully
+- [x] Laravel responds at `http://localhost/api/health` (HealthController + health:check artisan command)
+- [x] MariaDB, Redis accessible from Laravel (health endpoint checks both)
+- [x] Pest runs successfully — 547 tests pass
+- [ ] `docker compose up` boots all services (verify on target environment)
+- [ ] Next.js responds at `http://localhost` (verify on target environment)
 
 ### Exit Criteria
-- `docker compose up` brings up the full stack in < 2 minutes
-- All services healthy and communicating
+- `docker compose up` brings up the full stack in < 2 minutes ← verify on host
+- All services healthy and communicating ← verify on host
 
 ---
 

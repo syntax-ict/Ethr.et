@@ -36,6 +36,7 @@ class Employee extends Model
         'phone',
         'employee_code',
         'badge_number',
+        'kiosk_pin',
         'gender',
         'date_of_birth',
         'nationality',
@@ -55,6 +56,7 @@ class Employee extends Model
         'id',
         'tenant_id',
         'tin',
+        'kiosk_pin',
     ];
 
     protected function casts(): array

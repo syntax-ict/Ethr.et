@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  Fingerprint, Wifi, WifiOff, AlertTriangle, Clock, Activity, ArrowLeft,
+  Fingerprint, Wifi, WifiOff, AlertTriangle, Clock, Activity, ArrowLeft, Plus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,24 +19,33 @@ interface DashboardResponse {
   offline: number;
   error: number;
   pending: number;
+  auto_sync_enabled: number;
   events_today: number;
+  last_sync_at: string | null;
+  sync_stats_24h: {
+    success: number;
+    partial: number;
+    failed: number;
+    offline: number;
+  };
 }
 
 interface Device {
   public_id: string;
   name: string;
-  brand: string;
+  adapter_type: string;
+  serial_number: string | null;
   status: string;
-  last_seen_at: string | null;
-  ip_address?: string;
-  branch?: { name: string };
+  last_sync_at: string | null;
+  branch?: { name: string } | null;
+  attendance_records_count?: number;
 }
 
 export default function DeviceDashboardPage() {
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardResponse>({
     queryKey: ['devices', 'dashboard'],
     queryFn: async () => (await apiClient.get('/devices/dashboard')).data,
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 30000,
   });
 
   const { data: devices, isLoading: devicesLoading } = useQuery({
@@ -50,67 +59,121 @@ export default function DeviceDashboardPage() {
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/devices"><ArrowLeft className="mr-2 h-4 w-4" /> All devices</Link>
+            <Link href="/devices"><ArrowLeft className="mr-2 h-4 w-4" /> All Devices</Link>
+          </Button>
+          <Button size="sm" asChild>
+            <Link href="/devices"><Plus className="mr-2 h-4 w-4" /> Add Device</Link>
           </Button>
         </div>
 
         <PageHeader
           title="Device Health Dashboard"
-          description="Live status of all biometric devices · auto-refresh every 30s"
+          description="Live status of all biometric devices — auto-refresh every 30s"
         />
 
         {statsLoading || !stats ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
-        ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <StatusCard icon={Fingerprint} title="Total Devices" value={stats.total} color="blue" />
-            <StatusCard icon={Wifi} title="Online" value={stats.online} color="green" />
-            <StatusCard icon={WifiOff} title="Offline" value={stats.offline} color="gray" />
-            <StatusCard icon={AlertTriangle} title="Error" value={stats.error} color="red" />
-            <StatusCard icon={Activity} title="Events Today" value={stats.events_today} color="purple" />
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
           </div>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <StatusCard icon={Fingerprint} title="Total Devices" value={stats.total} color="blue" />
+              <StatusCard icon={Wifi} title="Online" value={stats.online} color="green" />
+              <StatusCard icon={WifiOff} title="Offline" value={stats.offline} color="gray" />
+              <StatusCard icon={AlertTriangle} title="Error" value={stats.error} color="red" />
+              <StatusCard icon={Activity} title="Events Today" value={stats.events_today} color="purple" />
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Sync Overview (24h)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Successful</p>
+                    <p className="text-xl font-bold text-green-600">{stats.sync_stats_24h.success}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Partial</p>
+                    <p className="text-xl font-bold text-amber-600">{stats.sync_stats_24h.partial}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Failed</p>
+                    <p className="text-xl font-bold text-red-600">{stats.sync_stats_24h.failed}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Auto-Sync Enabled</p>
+                    <p className="text-xl font-bold text-foreground">{stats.auto_sync_enabled}</p>
+                  </div>
+                </div>
+                {stats.last_sync_at && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Last sync across all devices: {timeAgo(stats.last_sync_at)}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
 
         <Card>
           <CardHeader><CardTitle className="text-base">Device Status</CardTitle></CardHeader>
           <CardContent className="p-0">
             {devicesLoading ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+              <div className="space-y-2 p-4">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)}
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Device</th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">Brand</th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">IP</th>
+                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">Adapter</th>
+                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">Serial</th>
                       <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">Branch</th>
                       <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">Status</th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">Last Seen</th>
+                      <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground lg:table-cell">Records</th>
+                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">Last Sync</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allDevices.length === 0 ? (
-                      <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">No devices registered yet</td></tr>
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                          No devices registered yet
+                        </td>
+                      </tr>
                     ) : (
                       allDevices.map((d) => (
                         <tr key={d.public_id} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="px-4 py-3 text-sm font-medium">{d.name}</td>
-                          <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">{d.brand}</td>
-                          <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground md:table-cell">{d.ip_address ?? '—'}</td>
-                          <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">{d.branch?.name ?? '—'}</td>
+                          <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
+                            {ADAPTER_LABELS[d.adapter_type] ?? d.adapter_type}
+                          </td>
+                          <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground md:table-cell">
+                            {d.serial_number ?? '—'}
+                          </td>
+                          <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">
+                            {d.branch?.name ?? '—'}
+                          </td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className={statusClass(d.status)}>
                               <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dotClass(d.status)}`} />
                               {d.status}
                             </Badge>
                           </td>
+                          <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground lg:table-cell">
+                            {d.attendance_records_count?.toLocaleString() ?? '—'}
+                          </td>
                           <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
-                            {d.last_seen_at ? (
+                            {d.last_sync_at ? (
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> {timeAgo(d.last_seen_at)}
+                                <Clock className="h-3 w-3" /> {timeAgo(d.last_sync_at)}
                               </span>
                             ) : 'Never'}
                           </td>
@@ -127,6 +190,13 @@ export default function DeviceDashboardPage() {
     </RoleGate>
   );
 }
+
+const ADAPTER_LABELS: Record<string, string> = {
+  hikvision: 'Hikvision',
+  zkteco: 'ZKTeco',
+  suprema: 'Suprema',
+  mock: 'Mock',
+};
 
 const colorClass: Record<string, string> = {
   blue: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',

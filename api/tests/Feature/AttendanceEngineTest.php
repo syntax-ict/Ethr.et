@@ -17,6 +17,11 @@ use App\Services\Attendance\ConfidenceScorer;
 use App\Services\Attendance\ShiftMatcher;
 use Carbon\Carbon;
 
+// Reset Carbon mock after every test that uses setTestNow
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
 // ── Attendance Check-in / Check-out ──
 
 test('employee can check in via web', function () {

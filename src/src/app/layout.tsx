@@ -17,6 +17,13 @@ export const metadata: Metadata = {
     'Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.',
   icons: {
     icon: '/favicon.ico',
+    apple: '/icons/icon-192.png',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'ETHR',
   },
 };
 

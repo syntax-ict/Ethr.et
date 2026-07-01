@@ -22,10 +22,14 @@ class Device extends Model
         'tenant_id',
         'branch_id',
         'name',
+        'location_description',
         'serial_number',
         'adapter_type',
         'connection_config',
         'status',
+        'webhook_token',
+        'auto_sync',
+        'sync_interval_minutes',
         'last_sync_at',
     ];
 
@@ -41,6 +45,8 @@ class Device extends Model
         return [
             'connection_config' => 'encrypted:array',
             'last_sync_at' => 'datetime',
+            'auto_sync' => 'boolean',
+            'sync_interval_minutes' => 'integer',
         ];
     }
 
@@ -52,5 +58,34 @@ class Device extends Model
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function syncLogs(): HasMany
+    {
+        return $this->hasMany(DeviceSyncLog::class);
+    }
+
+    public function latestSyncLog(): BelongsTo
+    {
+        return $this->belongsTo(DeviceSyncLog::class, 'id', 'device_id')
+            ->ofMany('created_at', 'max');
+    }
+
+    public function isDueForSync(): bool
+    {
+        if (! $this->auto_sync) {
+            return false;
+        }
+
+        if (! $this->last_sync_at) {
+            return true;
+        }
+
+        return $this->last_sync_at->addMinutes($this->sync_interval_minutes)->isPast();
+    }
+
+    public static function generateWebhookToken(): string
+    {
+        return bin2hex(random_bytes(32));
     }
 }

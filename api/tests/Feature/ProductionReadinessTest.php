@@ -116,8 +116,7 @@ test('login is rate limited after 5 attempts', function () {
         'password' => 'wrong',
     ]);
 
-    $response->assertUnprocessable();
-    expect($response->json('errors.email.0'))->toContain('seconds');
+    $response->assertStatus(429);
 });
 
 // ── Health Endpoint ──

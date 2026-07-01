@@ -62,6 +62,9 @@ use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
+use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use Illuminate\Support\Facades\Route;
@@ -84,6 +87,19 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
 });
 
 Route::get('/register/check-subdomain', SubdomainCheckController::class)->middleware('throttle:auth');
+
+// Device webhooks (public endpoints, verified by webhook_token or serial_number)
+Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () {
+    Route::post('/hikvision', [DeviceController::class, 'webhookHikvision']);
+    Route::post('/zkteco', [DeviceController::class, 'webhookZkteco']);
+    Route::post('/suprema', [DeviceController::class, 'webhookSuprema']);
+});
+
+// Kiosk public endpoints (authenticated by kiosk session token, not user login)
+Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
+    Route::post('/authenticate', [KioskSessionController::class, 'authenticate']);
+    Route::post('/check-in', KioskCheckInController::class);
+});
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -133,6 +149,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/intelligence', [AttendanceIntelligenceController::class, 'dashboard']);
         Route::get('/overtime', [AttendanceIntelligenceController::class, 'overtime']);
+
+        Route::get('/settings', [AttendanceSettingController::class, 'show']);
+        Route::put('/settings', [AttendanceSettingController::class, 'update']);
 
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
@@ -188,17 +207,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/documents/{document}', [EmployeeDocumentController::class, 'destroy']);
     });
 
+    // Kiosk Sessions (admin management)
+    Route::prefix('kiosk-sessions')->group(function () {
+        Route::get('/', [KioskSessionController::class, 'index']);
+        Route::post('/', [KioskSessionController::class, 'store']);
+        Route::get('/{kioskSession}', [KioskSessionController::class, 'show']);
+        Route::post('/{kioskSession}/deactivate', [KioskSessionController::class, 'deactivate']);
+        Route::post('/{kioskSession}/activate', [KioskSessionController::class, 'activate']);
+        Route::post('/{kioskSession}/regenerate-token', [KioskSessionController::class, 'regenerateToken']);
+        Route::delete('/{kioskSession}', [KioskSessionController::class, 'destroy']);
+    });
+
     // Devices
     Route::prefix('devices')->group(function () {
         Route::get('/dashboard', [DeviceController::class, 'dashboard']);
+        Route::post('/sync-all', [DeviceController::class, 'syncAll']);
         Route::get('/{device}/status', [DeviceController::class, 'status']);
         Route::post('/{device}/pull', [DeviceController::class, 'pull']);
+        Route::post('/{device}/regenerate-token', [DeviceController::class, 'regenerateToken']);
+        Route::get('/{device}/sync-logs', [DeviceController::class, 'syncLogs']);
+        Route::get('/{device}/events', [DeviceController::class, 'deviceEvents']);
     });
     Route::apiResource('devices', DeviceController::class);
-
-    // Device webhooks (inside auth for tenant resolution, but also accessible externally)
-    Route::post('/devices/webhook/hikvision', [DeviceController::class, 'webhookHikvision']);
-    Route::post('/devices/webhook/zkteco', [DeviceController::class, 'webhookZkteco']);
 
     // Leave
     Route::prefix('leave')->group(function () {

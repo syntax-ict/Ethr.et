@@ -294,7 +294,7 @@ test('hikvision webhook processes event for known employee', function () {
     ]);
 });
 
-test('hikvision webhook ignores unknown device', function () {
+test('hikvision webhook rejects unknown device', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
@@ -306,8 +306,8 @@ test('hikvision webhook ignores unknown device', function () {
         ],
     ]);
 
-    $response->assertOk()
-        ->assertJsonPath('status', 'device_not_found');
+    $response->assertStatus(401)
+        ->assertJsonPath('status', 'unauthorized');
 });
 
 test('zkteco webhook processes event for known employee', function () {

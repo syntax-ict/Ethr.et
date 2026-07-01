@@ -14,6 +14,7 @@ final class DeviceManager
         'hikvision' => HikvisionAdapter::class,
         'zkteco' => ZktecoAdapter::class,
         'suprema' => SupremaAdapter::class,
+        'mock' => MockAdapter::class,
     ];
 
     public function adapter(Device $device): DeviceAdapter

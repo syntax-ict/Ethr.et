@@ -8,6 +8,7 @@ import {
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
   TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
   ShieldCheck, BellRing, ScrollText, CreditCard, Activity, QrCode, Smartphone,
+  Monitor, Settings2, CalendarRange,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -59,6 +60,10 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine, show: true },
         { label: 'Intelligence', href: '/attendance/intelligence', icon: Activity, show: can.manageEmployees },
         { label: 'Overtime', href: '/attendance/overtime', icon: TrendingUp, show: can.manageEmployees },
+        { label: 'Shifts', href: '/shifts', icon: CalendarRange, show: can.manageEmployees },
+        { label: 'QR Generator', href: '/attendance/qr', icon: QrCode, show: can.manageEmployees },
+        { label: 'Kiosks', href: '/attendance/kiosks', icon: Monitor, show: can.manageEmployees },
+        { label: 'Attendance Settings', href: '/attendance/settings', icon: Settings2, show: can.manageEmployees },
         { label: 'Leave', href: '/leave', icon: CalendarDays, show: true },
         { label: 'Approvals', href: '/approvals', icon: CheckSquare, show: isSupervisor },
         { label: 'Devices', href: '/devices', icon: Fingerprint, show: can.manageEmployees },

@@ -1,0 +1,52 @@
+{
+  "name": "ETHR — Ethiopian Workforce OS",
+  "short_name": "ETHR",
+  "description": "Enterprise HR management for Ethiopian organizations",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait-primary",
+  "lang": "am",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/badge-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Check In",
+      "short_name": "Check In",
+      "description": "Record your attendance",
+      "url": "/attendance/mobile",
+      "icons": [{ "src": "/icons/checkin-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "My Attendance",
+      "short_name": "Attendance",
+      "description": "View your attendance history",
+      "url": "/attendance",
+      "icons": [{ "src": "/icons/calendar-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

@@ -28,18 +28,7 @@ final class ShiftMatcher
 
     private function findEmployeeAssignment(Employee $employee, Carbon $date): ?ShiftAssignment
     {
-        return ShiftAssignment::query()
-            ->where('assignable_type', Employee::class)
-            ->where('assignable_id', $employee->id)
-            ->where('effective_from', '<=', $date->format('Y-m-d'))
-            ->where(function ($q) use ($date) {
-                $q->whereNull('effective_to')
-                    ->orWhere('effective_to', '>=', $date->format('Y-m-d'));
-            })
-            ->whereHas('shift', fn ($q) => $q->where('is_active', true))
-            ->with('shift')
-            ->latest('effective_from')
-            ->first();
+        return $this->buildAssignmentQuery(Employee::class, $employee->id, $date);
     }
 
     private function findDepartmentAssignment(Employee $employee, Carbon $date): ?ShiftAssignment
@@ -48,18 +37,7 @@ final class ShiftMatcher
             return null;
         }
 
-        return ShiftAssignment::query()
-            ->where('assignable_type', Department::class)
-            ->where('assignable_id', $employee->department_id)
-            ->where('effective_from', '<=', $date->format('Y-m-d'))
-            ->where(function ($q) use ($date) {
-                $q->whereNull('effective_to')
-                    ->orWhere('effective_to', '>=', $date->format('Y-m-d'));
-            })
-            ->whereHas('shift', fn ($q) => $q->where('is_active', true))
-            ->with('shift')
-            ->latest('effective_from')
-            ->first();
+        return $this->buildAssignmentQuery(Department::class, $employee->department_id, $date);
     }
 
     private function findBranchAssignment(Employee $employee, Carbon $date): ?ShiftAssignment
@@ -68,13 +46,20 @@ final class ShiftMatcher
             return null;
         }
 
+        return $this->buildAssignmentQuery(Branch::class, $employee->branch_id, $date);
+    }
+
+    private function buildAssignmentQuery(string $type, int $id, Carbon $date): ?ShiftAssignment
+    {
+        $dateStr = $date->format('Y-m-d');
+
         return ShiftAssignment::query()
-            ->where('assignable_type', Branch::class)
-            ->where('assignable_id', $employee->branch_id)
-            ->where('effective_from', '<=', $date->format('Y-m-d'))
-            ->where(function ($q) use ($date) {
+            ->where('assignable_type', $type)
+            ->where('assignable_id', $id)
+            ->whereDate('effective_from', '<=', $dateStr)
+            ->where(function ($q) use ($dateStr) {
                 $q->whereNull('effective_to')
-                    ->orWhere('effective_to', '>=', $date->format('Y-m-d'));
+                    ->orWhereDate('effective_to', '>=', $dateStr);
             })
             ->whereHas('shift', fn ($q) => $q->where('is_active', true))
             ->with('shift')

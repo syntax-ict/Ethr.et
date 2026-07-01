@@ -29,22 +29,43 @@ class QrAttendanceController extends Controller
     {
         Gate::authorize('attendance.manage');
 
+        $tenant = app(CurrentTenant::class)->get();
+
+        if (! $tenant) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/tenant-not-found',
+                'title' => 'Tenant Required',
+                'status' => 400,
+                'detail' => 'Tenant context could not be resolved.',
+            ], 400)->header('Content-Type', 'application/problem+json');
+        }
+
         $request->validate([
-            'branch_public_id' => ['required', 'string', 'exists:branches,public_id'],
-            'shift_public_id' => ['nullable', 'string', 'exists:shifts,public_id'],
+            'branch_public_id' => ['required', 'string'],
+            'shift_public_id' => ['nullable', 'string'],
             'expiry_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
         ]);
 
-        $branch = Branch::where('public_id', $request->input('branch_public_id'))->firstOrFail();
+        $branch = Branch::where('public_id', $request->input('branch_public_id'))->first();
+
+        if (! $branch) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/not-found',
+                'title' => 'Branch Not Found',
+                'status' => 404,
+                'detail' => 'The specified branch was not found.',
+            ], 404)->header('Content-Type', 'application/problem+json');
+        }
+
         $shift = $request->filled('shift_public_id')
             ? Shift::where('public_id', $request->input('shift_public_id'))->first()
             : null;
 
-        $result = $this->qrService->generate(
-            $branch,
-            $shift,
-            $request->integer('expiry_minutes', 30)
-        );
+        $settings = $tenant->attendanceSetting;
+        $expiryMinutes = $request->integer('expiry_minutes', $settings?->qr_expiry_minutes ?? 30);
+
+        $result = $this->qrService->generate($branch, $shift, $expiryMinutes);
+        $result['auto_refresh'] = $settings?->qr_auto_refresh ?? true;
 
         return response()->json($result);
     }
@@ -77,18 +98,27 @@ class QrAttendanceController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $result = $this->engine->record(new AttendanceInput(
-            employeeId: $employee->id,
-            tenantId: $employee->tenant_id,
-            source: AttendanceSource::QR,
-            type: $request->validated('type'),
-            idempotencyKey: $request->validated('idempotency_key'),
-            ipAddress: $request->ip(),
-            metadata: [
-                'qr_branch_id' => $payload['branch_id'],
-                'qr_shift_id' => $payload['shift_id'] ?? null,
-            ],
-        ));
+        try {
+            $result = $this->engine->record(new AttendanceInput(
+                employeeId: $employee->id,
+                tenantId: $employee->tenant_id,
+                source: AttendanceSource::QR,
+                type: $request->validated('type'),
+                idempotencyKey: $request->validated('idempotency_key'),
+                ipAddress: $request->ip(),
+                metadata: [
+                    'qr_branch_id' => $payload['branch_id'],
+                    'qr_shift_id' => $payload['shift_id'] ?? null,
+                ],
+            ));
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => $e->getMessage(),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
 
         $result->record->load('employee', 'shift');
 

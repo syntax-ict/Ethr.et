@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Events\DeviceOffline;
 use App\Events\TenantCreated;
+use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\ProvisionTenant;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
         \Laravel\Sanctum\Sanctum::usePersonalAccessTokenModel(\App\Models\PersonalAccessToken::class);
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
+        Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());

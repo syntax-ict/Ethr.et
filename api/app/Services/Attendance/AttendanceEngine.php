@@ -7,6 +7,7 @@ namespace App\Services\Attendance;
 use App\Enums\AttendanceStatus;
 use App\Events\AttendanceRecorded;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use Carbon\Carbon;
@@ -31,16 +32,24 @@ final class AttendanceEngine
             }
         }
 
+        $settings = AttendanceSetting::withoutGlobalScope('tenant')
+            ->where('tenant_id', $input->tenantId)
+            ->first();
+
+        if ($settings && ! $settings->isMethodEnabled($input->source->value)) {
+            throw new \RuntimeException(__('attendance.method_disabled'));
+        }
+
         $employee = Employee::findOrFail($input->employeeId);
 
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee);
         }
 
-        return $this->processCheckIn($input, $employee);
+        return $this->processCheckIn($input, $employee, $settings);
     }
 
-    private function processCheckIn(AttendanceInput $input, Employee $employee): AttendanceResult
+    private function processCheckIn(AttendanceInput $input, Employee $employee, ?AttendanceSetting $settings = null): AttendanceResult
     {
         $now = Carbon::now();
         $shift = $this->shiftMatcher->match($employee, $now);
@@ -52,6 +61,15 @@ final class AttendanceEngine
                 $input->longitude,
                 $employee->branch,
             );
+        }
+
+        if ($settings?->geofence_required && $input->source->value === 'mobile') {
+            if ($input->latitude === null || $input->longitude === null) {
+                throw new \RuntimeException(__('attendance.geofence_location_required'));
+            }
+            if ($geofenceVerified === false) {
+                throw new \RuntimeException(__('attendance.outside_geofence'));
+            }
         }
 
         $confidence = $this->scorer->calculate($input, $geofenceVerified);

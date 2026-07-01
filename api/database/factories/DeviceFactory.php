@@ -46,4 +46,15 @@ class DeviceFactory extends Factory
     {
         return $this->state(['adapter_type' => 'zkteco']);
     }
+
+    public function mock(): static
+    {
+        return $this->state([
+            'adapter_type' => 'mock',
+            'connection_config' => [
+                'ip' => '127.0.0.1',
+                'port' => 0,
+            ],
+        ]);
+    }
 }

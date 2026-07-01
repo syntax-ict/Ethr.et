@@ -122,6 +122,16 @@ class Tenant extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    public function attendanceSetting(): HasOne
+    {
+        return $this->hasOne(AttendanceSetting::class);
+    }
+
+    public function kioskSessions(): HasMany
+    {
+        return $this->hasMany(KioskSession::class);
+    }
+
     public function holidays(): HasMany
     {
         return $this->hasMany(Holiday::class);

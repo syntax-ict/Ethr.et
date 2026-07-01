@@ -1,31 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Printer, RefreshCw, Loader2 } from 'lucide-react';
+import { QrCode, Printer, RefreshCw, Loader2, Timer, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { PageHeader } from '@/components/shared/page-header';
 import { RoleGate } from '@/components/shared/role-gate';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface QrResult {
   token: string;
-  qr_url?: string;
+  branch_name?: string;
+  shift_name?: string | null;
   expires_at: string;
-  branch?: { name: string };
+  generated_at: string;
+  expiry_minutes: number;
+  auto_refresh?: boolean;
 }
 
 export default function QrGeneratorPage() {
   const [branchId, setBranchId] = useState('');
   const [shiftId, setShiftId] = useState('none');
   const [expiry, setExpiry] = useState(30);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [result, setResult] = useState<QrResult | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: branches } = useQuery({
     queryKey: ['org', 'branches'],
@@ -46,10 +55,61 @@ export default function QrGeneratorPage() {
     },
     onSuccess: (data) => {
       setResult(data);
+      if (data.auto_refresh !== undefined) setAutoRefresh(data.auto_refresh);
+      startCountdown(data.expires_at);
       toast.success('QR code generated');
     },
-    onError: () => toast.error('Failed to generate QR'),
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      toast.error(axiosErr.response?.data?.detail ?? 'Failed to generate QR code');
+    },
   });
+
+  const startCountdown = useCallback((expiresAt: string) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
+    const update = () => {
+      const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(diff);
+      return diff;
+    };
+
+    update();
+    countdownRef.current = setInterval(() => {
+      const remaining = update();
+      if (remaining <= 0 && countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    }, 1000);
+  }, []);
+
+  // Auto-refresh when expired
+  useEffect(() => {
+    if (secondsLeft === 0 && result && autoRefresh && branchId) {
+      const timeout = setTimeout(() => {
+        generate.mutate();
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, autoRefresh, result, branchId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+    };
+  }, []);
+
+  function formatTime(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  const isExpired = result && secondsLeft <= 0;
+  const isLow = secondsLeft > 0 && secondsLeft <= 60;
 
   return (
     <RoleGate minRole="hr_admin">
@@ -60,6 +120,7 @@ export default function QrGeneratorPage() {
         />
 
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+          {/* Config panel */}
           <Card>
             <CardHeader><CardTitle className="text-base">Configuration</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -88,8 +149,22 @@ export default function QrGeneratorPage() {
               </div>
               <div>
                 <Label>Expiry (minutes)</Label>
-                <Input type="number" value={expiry} onChange={(e) => setExpiry(parseInt(e.target.value) || 30)} min={5} max={480} className="mt-1" />
-                <p className="mt-1 text-xs text-muted-foreground">5–480 min. Re-generate when expired.</p>
+                <Input
+                  type="number"
+                  value={expiry}
+                  onChange={(e) => setExpiry(parseInt(e.target.value) || 30)}
+                  min={5}
+                  max={480}
+                  className="mt-1"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">5–480 min</p>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Auto-refresh</p>
+                  <p className="text-xs text-muted-foreground">Regenerate when expired</p>
+                </div>
+                <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
               </div>
               <Button onClick={() => generate.mutate()} disabled={!branchId || generate.isPending} className="w-full">
                 {generate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
@@ -98,14 +173,15 @@ export default function QrGeneratorPage() {
             </CardContent>
           </Card>
 
+          {/* QR display */}
           <Card className="print:shadow-none print:border-0">
             <CardHeader className="print:hidden">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">QR Code</CardTitle>
                 {result && (
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => generate.mutate()}>
-                      <RefreshCw className="mr-2 h-3 w-3" /> Re-generate
+                    <Button size="sm" variant="outline" onClick={() => generate.mutate()} disabled={generate.isPending}>
+                      <RefreshCw className={cn('mr-2 h-3 w-3', generate.isPending && 'animate-spin')} /> Refresh
                     </Button>
                     <Button size="sm" onClick={() => window.print()}>
                       <Printer className="mr-2 h-3 w-3" /> Print
@@ -122,11 +198,41 @@ export default function QrGeneratorPage() {
                 </div>
               ) : (
                 <div className="text-center space-y-4 py-6">
-                  <div className="inline-block rounded-2xl border-4 border-primary p-6 bg-white">
+                  {/* Countdown timer */}
+                  <div className={cn(
+                    'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium',
+                    isExpired
+                      ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                      : isLow
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 animate-pulse'
+                        : 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                  )}>
+                    {isExpired ? (
+                      <>
+                        <Clock className="h-3.5 w-3.5" />
+                        {autoRefresh ? 'Refreshing…' : 'Expired — click Refresh'}
+                      </>
+                    ) : (
+                      <>
+                        <Timer className="h-3.5 w-3.5" />
+                        {formatTime(secondsLeft)} remaining
+                      </>
+                    )}
+                  </div>
+
+                  {/* QR Code */}
+                  <div className={cn(
+                    'inline-block rounded-2xl border-4 p-6 bg-white transition-opacity',
+                    isExpired && !autoRefresh ? 'opacity-30 border-red-300' : 'border-primary'
+                  )}>
                     <QRCodeSVG value={result.token} size={280} level="H" />
                   </div>
+
                   <div>
-                    <p className="text-2xl font-bold">{result.branch?.name ?? 'Attendance Check-in'}</p>
+                    <p className="text-2xl font-bold">{result.branch_name ?? 'Attendance Check-in'}</p>
+                    {result.shift_name && (
+                      <p className="text-sm text-muted-foreground mt-1">Shift: {result.shift_name}</p>
+                    )}
                     <p className="mt-2 text-sm text-muted-foreground">
                       Scan this code with the ETHR app to check in.<br />
                       Valid until <span className="font-medium text-foreground">{new Date(result.expires_at).toLocaleString()}</span>
