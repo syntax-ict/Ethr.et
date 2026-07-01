@@ -69,17 +69,9 @@ class LoginRequest extends FormRequest
 
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
-        }
-
-        event(new Lockout($this));
-
-        $seconds = RateLimiter::availableIn($this->throttleKey());
-
-        throw ValidationException::withMessages([
-            'email' => [__('auth.throttle', ['seconds' => $seconds])],
-        ]);
+        // Rate limiting is handled by the RateLimitLoginAttempts middleware
+        // which returns a proper 429 response. This is a no-op to avoid
+        // a duplicate 422 from firing before the middleware's 429.
     }
 
     public function throttleKey(): string

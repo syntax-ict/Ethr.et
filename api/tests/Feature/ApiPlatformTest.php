@@ -169,6 +169,7 @@ test('tenant admin can delete webhook', function () {
 });
 
 test('tenant admin can send test webhook', function () {
+    Queue::fake(); // Prevent job from making real HTTP call in tests
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
@@ -178,6 +179,7 @@ test('tenant admin can send test webhook', function () {
 
     $response->assertOk()
         ->assertJsonPath('event', 'test');
+    Queue::assertPushed(DispatchWebhookJob::class);
 });
 
 test('tenant admin can view webhook deliveries', function () {
@@ -213,6 +215,8 @@ test('webhook generates hmac signature', function () {
 // ── Webhook Dispatcher ──
 
 test('dispatcher creates delivery for matching events', function () {
+    Queue::fake(); // Prevent DispatchWebhookJob from actually running (and making HTTP calls)
+
     $tenant = createTenant();
 
     $webhook = Webhook::factory()->create([
@@ -223,7 +227,9 @@ test('dispatcher creates delivery for matching events', function () {
     $dispatcher = new WebhookDispatcher();
     $dispatcher->dispatch($tenant->id, 'employee.created', ['name' => 'Abebe']);
 
+    // The delivery record is created synchronously; the HTTP call is queued
     expect(WebhookDelivery::where('webhook_id', $webhook->id)->count())->toBe(1);
+    Queue::assertPushed(DispatchWebhookJob::class);
 });
 
 test('dispatcher skips non-matching events', function () {

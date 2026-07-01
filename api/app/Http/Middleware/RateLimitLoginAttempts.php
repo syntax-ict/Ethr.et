@@ -6,8 +6,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Cache\RateLimiter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 class RateLimitLoginAttempts
 {
@@ -43,11 +43,13 @@ class RateLimitLoginAttempts
 
         $response = $next($request);
 
-        // 3. On failed authentication (401), increment both counters
-        if ($response->getStatusCode() === 401) {
+        $status = $response->getStatusCode();
+
+        // 3. Count failed logins (401 = unauthenticated, 422 = validation/credentials fail)
+        if ($status === 401 || $status === 422) {
             $this->limiter->hit($burstKey,   self::BURST_DECAY);
             $this->limiter->hit($lockoutKey, self::LOCKOUT_DECAY);
-        } else {
+        } elseif ($status === 200 || $status === 204) {
             // Successful login: clear counters
             $this->limiter->clear($burstKey);
             $this->limiter->clear($lockoutKey);
@@ -56,7 +58,7 @@ class RateLimitLoginAttempts
         return $response;
     }
 
-    private function tooManyResponse(int $retryAfter): Response
+    private function tooManyResponse(int $retryAfter): JsonResponse
     {
         return response()->json([
             'type'   => 'https://ethr.et/errors/rate-limit',

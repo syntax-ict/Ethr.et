@@ -102,11 +102,13 @@ class AccountingController extends Controller
         ]);
     }
 
+    /** @return array<string, array{code: string, name: string}> */
     private function getAccountMapping(int $tenantId): array
     {
         return ChartOfAccount::where('tenant_id', $tenantId)
             ->get()
-            ->pluck('account_code', 'key')
+            ->keyBy('key')
+            ->map(fn ($row) => ['code' => $row->account_code, 'name' => $row->account_name])
             ->toArray();
     }
 

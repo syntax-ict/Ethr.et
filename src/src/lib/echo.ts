@@ -1,13 +1,16 @@
-import type Echo from 'laravel-echo';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-let echoInstance: Echo | null = null;
+// laravel-echo and pusher-js are optional runtime dependencies loaded dynamically.
+// Types are declared loosely to avoid tsc errors when they are not yet installed.
 
-export function getEcho(): Echo | null {
+let echoInstance: any = null;
+
+export function getEcho(): any {
   if (typeof window === 'undefined') return null;
   return echoInstance;
 }
 
-export async function initEcho(token: string): Promise<Echo | null> {
+export async function initEcho(token: string): Promise<any> {
   if (typeof window === 'undefined') return null;
 
   const reverbHost = process.env.NEXT_PUBLIC_REVERB_HOST ?? 'localhost';
@@ -17,12 +20,11 @@ export async function initEcho(token: string): Promise<Echo | null> {
 
   try {
     const [{ default: LaravelEcho }, { default: Pusher }] = await Promise.all([
-      import('laravel-echo'),
-      import('pusher-js'),
+      import('laravel-echo' as any),
+      import('pusher-js' as any),
     ]);
 
-    // @ts-expect-error Pusher needs to be on window for Laravel Echo
-    window.Pusher = Pusher;
+    (window as any).Pusher = Pusher;
 
     echoInstance = new LaravelEcho({
       broadcaster: 'reverb',
@@ -34,9 +36,7 @@ export async function initEcho(token: string): Promise<Echo | null> {
       enabledTransports: ['ws', 'wss'],
       authEndpoint: '/api/v1/broadcasting/auth',
       auth: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       },
     });
 

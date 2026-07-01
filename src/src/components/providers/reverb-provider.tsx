@@ -13,7 +13,8 @@ interface ReverbProviderProps {
 
 export function ReverbProvider({ userId, token, children }: ReverbProviderProps) {
   const queryClient = useQueryClient();
-  const channelRef = useRef<ReturnType<import('laravel-echo').default['private']> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (!userId || !token) return;

@@ -73,15 +73,35 @@ return new class extends Migration
             return;
         }
 
-        Schema::table($table, function (Blueprint $t) use ($columns, $name, $table) {
-            // Skip if all columns exist; skip if index already exists
-            $existing = \Illuminate\Support\Facades\DB::select(
-                "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
-                [$name]
+        if ($this->indexExists($table, $name)) {
+            return;
+        }
+
+        Schema::table($table, fn (Blueprint $t) => $t->index($columns, $name));
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $driver = \Illuminate\Support\Facades\DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            // SQLite: use PRAGMA index_list
+            $indexes = \Illuminate\Support\Facades\DB::select(
+                "PRAGMA index_list(\"{$table}\")"
             );
-            if (empty($existing)) {
-                $t->index($columns, $name);
+            foreach ($indexes as $idx) {
+                if (($idx->name ?? '') === $indexName) {
+                    return true;
+                }
             }
-        });
+            return false;
+        }
+
+        // MySQL / MariaDB
+        $existing = \Illuminate\Support\Facades\DB::select(
+            "SHOW INDEX FROM `{$table}` WHERE Key_name = ?",
+            [$indexName]
+        );
+        return ! empty($existing);
     }
 };
