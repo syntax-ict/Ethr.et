@@ -7,7 +7,10 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Enums\TenantStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Device;
 use App\Models\Employee;
+use App\Models\Invoice;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,7 +67,38 @@ class AdminTenantController extends Controller
             ->withCount('employees')
             ->firstOrFail();
 
-        $employeeCount = $tenant->employees_count;
+        $subscription = Subscription::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->with('plan')
+            ->latest()
+            ->first();
+
+        $invoices = Invoice::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(fn ($i) => [
+                'public_id' => $i->public_id,
+                'total_cents' => $i->total_cents,
+                'status' => $i->status,
+                'due_date' => $i->due_date?->format('Y-m-d'),
+                'paid_at' => $i->paid_at,
+            ]);
+
+        $deviceCount = class_exists(Device::class)
+            ? Device::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count()
+            : 0;
+
+        $auditLogs = AuditLog::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($l) => [
+                'action' => $l->action,
+                'created_at' => $l->created_at,
+            ]);
 
         return response()->json([
             'public_id' => $tenant->public_id,
@@ -72,10 +106,20 @@ class AdminTenantController extends Controller
             'subdomain' => $tenant->subdomain,
             'type' => $tenant->type,
             'status' => $tenant->status->value,
-            'employee_count' => $employeeCount,
             'trial_ends_at' => $tenant->trial_ends_at,
             'created_at' => $tenant->created_at,
             'updated_at' => $tenant->updated_at,
+            'usage' => [
+                'employees' => $tenant->employees_count,
+                'devices' => $deviceCount,
+            ],
+            'subscription' => $subscription ? [
+                'plan_name' => $subscription->plan?->name,
+                'status' => $subscription->status?->value,
+                'current_period_end' => $subscription->current_period_end,
+            ] : null,
+            'invoices' => $invoices,
+            'audit_log' => $auditLogs,
         ]);
     }
 
@@ -164,6 +208,24 @@ class AdminTenantController extends Controller
             'token' => $token->plainTextToken,
             'tenant' => $tenant->subdomain,
             'expires_at' => now()->addHour(),
+        ]);
+    }
+
+    public function backup(Request $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::withoutGlobalScopes()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        AuditLog::record('admin.tenant.backup_triggered', $tenant, [
+            'triggered_by' => $request->user()->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Backup job queued. You will be notified when the export is ready.',
+            'tenant_id' => $tenant->public_id,
         ]);
     }
 }

@@ -6,6 +6,7 @@ import { AuthGuard } from '@/components/shared/auth-guard';
 import { ErrorBoundary } from '@/components/shared/error-boundary';
 import { TenantBrandingProvider } from '@/features/branding/TenantBrandingProvider';
 import { ReverbProvider } from '@/components/providers/reverb-provider';
+import { ImpersonationBanner } from '@/components/shared/impersonation-banner';
 import { useCurrentUser } from '@/features/auth/api';
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <ReverbProvider userId={user?.public_id} token={token}>
+      <ImpersonationBanner />
       <div className="flex min-h-screen bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col">

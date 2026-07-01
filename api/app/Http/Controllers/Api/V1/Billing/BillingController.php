@@ -10,8 +10,10 @@ use App\Models\Invoice;
 use App\Models\Plan;
 use App\Services\Billing\BillingService;
 use App\Services\CurrentTenant;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 class BillingController extends Controller
@@ -70,5 +72,22 @@ class BillingController extends Controller
             'status' => 'paid',
             'paid_at' => $invoice->paid_at,
         ]);
+    }
+
+    public function receipt(Invoice $invoice): Response
+    {
+        Gate::authorize('billing.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        $pdf = Pdf::loadView('receipts.invoice', [
+            'invoice' => $invoice,
+            'tenant' => $tenant,
+            'line_items' => $invoice->line_items ?? [],
+        ]);
+
+        $filename = 'receipt-' . $invoice->public_id . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\V1\Notification\NotificationPreferencesController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
@@ -334,6 +335,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
         Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
         Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
+        Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
         Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
         Route::get('/health', [AdminDashboardController::class, 'health']);
         Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
@@ -344,6 +346,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [BillingController::class, 'dashboard']);
         Route::post('/change-plan', [BillingController::class, 'changePlan']);
         Route::put('/invoices/{invoice}/mark-paid', [BillingController::class, 'markPaid']);
+        Route::get('/invoices/{invoice}/receipt', [BillingController::class, 'receipt']);
     });
 
     // Settings
@@ -351,6 +354,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
+    Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
 
     // Audit logs
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
