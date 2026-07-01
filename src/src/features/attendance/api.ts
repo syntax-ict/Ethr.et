@@ -24,7 +24,19 @@ export function useMyAttendance(params?: { page?: number }) {
   });
 }
 
-export function useAttendanceList(params?: { page?: number; per_page?: number }) {
+export interface AttendanceFilters {
+  page?: number;
+  per_page?: number;
+  'filter[date_from]'?: string;
+  'filter[date_to]'?: string;
+  'filter[status]'?: string;
+  'filter[source]'?: string;
+  'filter[employee_public_id]'?: string;
+  'filter[department_public_id]'?: string;
+  'filter[branch_public_id]'?: string;
+}
+
+export function useAttendanceList(params?: AttendanceFilters) {
   return useQuery<PaginatedResponse<AttendanceRecord>>({
     queryKey: ['attendance', params],
     queryFn: async () => {

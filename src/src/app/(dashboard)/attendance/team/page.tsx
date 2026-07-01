@@ -1,7 +1,10 @@
 'use client';
 
-import { Clock, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -21,21 +24,58 @@ interface TeamRecord {
   source: string;
 }
 
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function shiftDate(dateStr: string, days: number) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
 export default function TeamAttendancePage() {
+  const [date, setDate] = useState(todayStr);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance', 'team'],
+    queryKey: ['attendance', 'team', date],
     queryFn: async () => {
-      const { data } = await apiClient.get('/attendance/team', { params: { per_page: 50 } });
+      const { data } = await apiClient.get('/attendance/team', { params: { per_page: 50, date } });
       return data;
     },
   });
 
   const records: TeamRecord[] = data?.data ?? [];
+  const isToday = date === todayStr();
 
   return (
     <RoleGate minRole="supervisor">
       <div className="space-y-6">
-        <PageHeader title="Team Attendance" description="Today's attendance for your direct reports" />
+        <PageHeader
+          title="Team Attendance"
+          description={isToday ? "Today's attendance for your direct reports" : `Attendance for ${date}`}
+          actions={
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDate(shiftDate(date, -1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value || todayStr())}
+                className="w-40 h-8 text-sm"
+              />
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDate(shiftDate(date, 1))} disabled={isToday}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {!isToday && (
+                <Button variant="ghost" size="sm" className="ml-1 text-xs" onClick={() => setDate(todayStr())}>
+                  Today
+                </Button>
+              )}
+            </div>
+          }
+        />
 
         {isLoading ? (
           <div className="space-y-3">

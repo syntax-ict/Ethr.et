@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import {
   Clock, LogIn, LogOut, Plus, Loader2, QrCode, Smartphone,
-  Activity, TrendingUp, FilePenLine, UsersRound,
+  Activity, TrendingUp, FilePenLine, UsersRound, FileSpreadsheet,
+  Filter, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
-import { useAttendanceList, useCheckIn, useCheckOut } from '@/features/attendance/api';
+import { useAttendanceList, useCheckIn, useCheckOut, type AttendanceFilters } from '@/features/attendance/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/api/client';
 import { usePermissions } from '@/lib/hooks/usePermissions';
@@ -26,14 +27,33 @@ import { toast } from 'sonner';
 export default function AttendancePage() {
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const { data, isLoading } = useAttendanceList({ page, per_page: 25 });
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const { can, isSupervisor } = usePermissions();
 
+  const queryParams: AttendanceFilters = { page, per_page: 25 };
+  if (sourceFilter !== 'all') queryParams['filter[source]'] = sourceFilter;
+  if (statusFilter !== 'all') queryParams['filter[status]'] = statusFilter;
+  if (dateFrom) queryParams['filter[date_from]'] = dateFrom;
+  if (dateTo) queryParams['filter[date_to]'] = dateTo;
+
+  const { data, isLoading } = useAttendanceList(queryParams);
   const records = data?.data ?? [];
-  const filteredRecords = sourceFilter === 'all' ? records : records.filter((r) => r.source === sourceFilter);
+
+  const hasActiveFilters = sourceFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo;
+
+  function clearFilters() {
+    setSourceFilter('all');
+    setStatusFilter('all');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  }
 
   function handleCheckIn() {
     checkIn.mutate({ idempotency_key: crypto.randomUUID(), source: 'web' }, {
@@ -78,31 +98,98 @@ export default function AttendancePage() {
         {isSupervisor && <SubNav href="/attendance/team" icon={UsersRound}>Team</SubNav>}
         <SubNav href="/attendance/corrections" icon={FilePenLine}>Corrections</SubNav>
         {can.manageEmployees && <SubNav href="/attendance/qr" icon={QrCode}>QR Generator</SubNav>}
+        {can.manageEmployees && <SubNav href="/attendance/import" icon={FileSpreadsheet}>Import CSV</SubNav>}
         {can.manageEmployees && <SubNav href="/attendance/intelligence" icon={Activity}>Intelligence</SubNav>}
         {can.manageEmployees && <SubNav href="/attendance/overtime" icon={TrendingUp}>Overtime</SubNav>}
       </div>
 
-      {/* Filter */}
-      <div className="flex items-center gap-3">
-        <Label className="text-xs">Filter by source:</Label>
-        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
-            <SelectItem value="web">Web</SelectItem>
-            <SelectItem value="mobile">Mobile</SelectItem>
-            <SelectItem value="biometric">Biometric</SelectItem>
-            <SelectItem value="qr">QR</SelectItem>
-            <SelectItem value="kiosk">Kiosk</SelectItem>
-            <SelectItem value="manual">Manual</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Filters */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showFilters ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-3 w-3" /> Filters
+            {hasActiveFilters && (
+              <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">!</span>
+            )}
+          </Button>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground">
+              <X className="mr-1 h-3 w-3" /> Clear filters
+            </Button>
+          )}
+        </div>
+
+        {showFilters && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <Label className="text-xs">Date From</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Date To</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Source</Label>
+                  <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All sources</SelectItem>
+                      <SelectItem value="web">Web</SelectItem>
+                      <SelectItem value="mobile">Mobile</SelectItem>
+                      <SelectItem value="biometric">Biometric</SelectItem>
+                      <SelectItem value="qr">QR</SelectItem>
+                      <SelectItem value="kiosk">Kiosk</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="csv">CSV Import</SelectItem>
+                      <SelectItem value="offline_mobile">Offline</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="present">Present</SelectItem>
+                      <SelectItem value="late">Late</SelectItem>
+                      <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="early_leave">Early Leave</SelectItem>
+                      <SelectItem value="on_leave">On Leave</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {isLoading ? (
         <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-      ) : filteredRecords.length === 0 ? (
-        <EmptyState icon={Clock} title="No attendance records" description="Check in to start recording your attendance" />
+      ) : records.length === 0 ? (
+        <EmptyState
+          icon={Clock}
+          title={hasActiveFilters ? 'No records match filters' : 'No attendance records'}
+          description={hasActiveFilters ? 'Try adjusting the filters or clearing them' : 'Check in to start recording your attendance'}
+        />
       ) : (
         <>
           <Card>
@@ -111,6 +198,9 @@ export default function AttendancePage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
+                      {can.manageEmployees && (
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Employee</th>
+                      )}
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">In</th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Out</th>
@@ -119,8 +209,11 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRecords.map((record) => (
+                    {records.map((record) => (
                       <tr key={record.public_id} className="border-b last:border-0 hover:bg-muted/30">
+                        {can.manageEmployees && (
+                          <td className="px-4 py-3 text-sm text-foreground">{record.employee_name ?? '—'}</td>
+                        )}
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{record.date}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{record.check_in ?? '—'}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{record.check_out ?? '—'}</td>
