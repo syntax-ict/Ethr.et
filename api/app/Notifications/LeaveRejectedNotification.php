@@ -19,7 +19,11 @@ class LeaveRejectedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        $channels = ['database', 'mail'];
+        if (config('broadcasting.default') === 'reverb') {
+            $channels[] = 'broadcast';
+        }
+        return $channels;
     }
 
     public function toArray(object $notifiable): array

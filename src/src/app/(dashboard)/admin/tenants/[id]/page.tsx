@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Users, Calendar, Globe, Building2, Loader2,
-  Pause, Play, XCircle, CalendarPlus, KeySquare, AlertTriangle,
+  Pause, Play, XCircle, CalendarPlus, KeySquare, AlertTriangle, HardDrive, Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { RoleGate } from '@/components/shared/role-gate';
-import { useAdminTenant, useUpdateTenantStatus, useExtendTrial, useImpersonateTenant } from '@/features/admin/api';
+import { useAdminTenant, useUpdateTenantStatus, useExtendTrial, useImpersonateTenant, useTenantBackup } from '@/features/admin/api';
 import { toast } from 'sonner';
 
 export default function AdminTenantDetailPage({
@@ -28,6 +28,7 @@ export default function AdminTenantDetailPage({
   const updateStatus = useUpdateTenantStatus();
   const extendTrial = useExtendTrial();
   const impersonate = useImpersonateTenant();
+  const backup = useTenantBackup();
 
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState(30);
@@ -163,6 +164,20 @@ export default function AdminTenantDetailPage({
                   : <KeySquare className="mr-2 h-4 w-4 text-purple-600" />}
                 Impersonate Admin
               </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => backup.mutate(tenant.public_id, {
+                  onSuccess: () => toast.success('Backup queued — you will be notified when ready'),
+                  onError: () => toast.error('Failed to queue backup'),
+                })}
+                disabled={backup.isPending}
+              >
+                {backup.isPending
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <HardDrive className="mr-2 h-4 w-4 text-gray-600" />}
+                Backup Data
+              </Button>
             </div>
 
             {isCancelled && (
@@ -189,6 +204,79 @@ export default function AdminTenantDetailPage({
             <Row label="Updated" value={new Date(tenant.updated_at).toLocaleString()} />
           </CardContent>
         </Card>
+
+        {/* Usage + Subscription */}
+        {(tenant.usage || tenant.subscription) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {tenant.usage && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Usage</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <Row label="Employees" value={String(tenant.usage.employees)} />
+                  <Row label="Devices" value={String(tenant.usage.devices)} />
+                </CardContent>
+              </Card>
+            )}
+            {tenant.subscription && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Subscription</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <Row label="Plan" value={tenant.subscription.plan_name ?? '—'} />
+                  <Row label="Status" value={tenant.subscription.status ?? '—'} />
+                  <Row label="Renews" value={tenant.subscription.current_period_end ? new Date(tenant.subscription.current_period_end).toLocaleDateString() : '—'} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Invoice history */}
+        {tenant.invoices && tenant.invoices.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4" /> Invoices</CardTitle></CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr>
+                      <th className="pb-2 text-left">ID</th>
+                      <th className="pb-2 text-left">Amount</th>
+                      <th className="pb-2 text-left">Status</th>
+                      <th className="pb-2 text-left">Due</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {tenant.invoices.map((inv) => (
+                      <tr key={inv.public_id}>
+                        <td className="py-2 font-mono text-xs">{inv.public_id.slice(-8)}</td>
+                        <td className="py-2">{(inv.total_cents / 100).toLocaleString()} ETB</td>
+                        <td className="py-2 capitalize">{inv.status}</td>
+                        <td className="py-2">{inv.due_date ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent audit log */}
+        {tenant.audit_log && tenant.audit_log.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">Recent Activity</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {tenant.audit_log.map((log, i) => (
+                  <div key={i} className="flex items-center justify-between py-1 text-xs border-b last:border-0">
+                    <code className="text-muted-foreground">{log.action}</code>
+                    <span className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Extend Trial dialog */}
         <Dialog open={extendOpen} onOpenChange={setExtendOpen}>

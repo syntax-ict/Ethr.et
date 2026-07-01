@@ -7,7 +7,7 @@ import {
   Settings, Building2, Bell, Receipt, FilePenLine, Shield,
   CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
   TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
-  ShieldCheck, BellRing, ScrollText, CreditCard, Activity, QrCode, Smartphone,
+  ShieldCheck, BellRing, ScrollText, CreditCard, Activity, QrCode, Smartphone, BookOpen,
   Monitor, Settings2, CalendarRange,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -99,6 +99,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       items: [
         { label: 'API Keys', href: '/settings/api-keys', icon: KeyRound, show: isTenantAdmin },
         { label: 'Webhooks', href: '/settings/webhooks', icon: Webhook, show: isTenantAdmin },
+        { label: 'Accounting', href: '/settings/accounting', icon: BookOpen, show: can.manageSettings },
         { label: 'Audit Log', href: '/settings/audit-logs', icon: ScrollText, show: isTenantAdmin },
       ],
     },

@@ -20,10 +20,12 @@ use App\Models\Team;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Traits\DispatchesWebhooks;
 use Illuminate\Support\Facades\Gate;
 
 class EmployeeController extends Controller
 {
+    use DispatchesWebhooks;
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('employee.viewAny');
@@ -91,6 +93,7 @@ class EmployeeController extends Controller
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter']);
 
         AuditLog::record('employee.created', $employee);
+        $this->webhook($employee->tenant_id, 'employee.created', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
         return (new EmployeeResource($employee))
             ->response()
@@ -124,6 +127,7 @@ class EmployeeController extends Controller
             'before' => $before,
             'after' => $employee->only(array_keys($data)),
         ]);
+        $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
         $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter']);
 

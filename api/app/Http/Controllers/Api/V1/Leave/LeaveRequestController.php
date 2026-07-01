@@ -15,6 +15,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Gate;
 
 class LeaveRequestController extends Controller
 {
+    use DispatchesWebhooks;
     public function __construct(
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
@@ -130,6 +132,12 @@ class LeaveRequestController extends Controller
         $balance->increment('pending_days', $days);
 
         AuditLog::record('leave.requested', $leaveRequest, [
+            'leave_type' => $leaveType->code,
+            'days' => $days,
+        ]);
+        $this->webhook($leaveRequest->employee->tenant_id, 'leave.requested', [
+            'public_id' => $leaveRequest->public_id,
+            'employee_name' => $leaveRequest->employee->name,
             'leave_type' => $leaveType->code,
             'days' => $days,
         ]);
@@ -253,6 +261,10 @@ class LeaveRequestController extends Controller
         AuditLog::record('leave.approved', $leaveRequest, [
             'approved_by' => $user->id,
         ]);
+        $this->webhook($leaveRequest->employee->tenant_id, 'leave.approved', [
+            'public_id' => $leaveRequest->public_id,
+            'employee_name' => $leaveRequest->employee->name,
+        ]);
 
         $leaveRequest->load('employee', 'leaveType');
 
@@ -296,6 +308,11 @@ class LeaveRequestController extends Controller
 
         AuditLog::record('leave.rejected', $leaveRequest, [
             'rejected_by' => $user->id,
+            'reason' => $request->input('reason'),
+        ]);
+        $this->webhook($leaveRequest->employee->tenant_id, 'leave.rejected', [
+            'public_id' => $leaveRequest->public_id,
+            'employee_name' => $leaveRequest->employee->name,
             'reason' => $request->input('reason'),
         ]);
 

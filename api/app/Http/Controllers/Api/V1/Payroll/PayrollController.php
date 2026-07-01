@@ -13,6 +13,7 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollEngine;
+use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PayrollController extends Controller
 {
+    use DispatchesWebhooks;
     public function process(ProcessPayrollRequest $request, PayrollEngine $engine): JsonResponse
     {
         Gate::authorize('payroll.process');
@@ -38,6 +40,11 @@ class PayrollController extends Controller
         AuditLog::record('payroll.processed', $run, [
             'period' => $run->period_label,
             'employees' => $run->employee_count,
+        ]);
+        $this->webhook($run->tenant_id, 'payroll.processed', [
+            'public_id' => $run->public_id,
+            'period' => $run->period_label,
+            'employee_count' => $run->employee_count,
         ]);
 
         $run->load('entries.employee');
@@ -93,6 +100,10 @@ class PayrollController extends Controller
         ]);
 
         AuditLog::record('payroll.approved', $payrollRun);
+        $this->webhook($payrollRun->tenant_id, 'payroll.approved', [
+            'public_id' => $payrollRun->public_id,
+            'period' => $payrollRun->period_label,
+        ]);
 
         return response()->json(new PayrollRunResource($payrollRun));
     }

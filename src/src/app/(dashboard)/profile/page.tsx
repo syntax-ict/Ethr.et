@@ -1,32 +1,61 @@
 'use client';
 
-import { User, Mail, Phone, Shield, Briefcase, Building2, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { User, Mail, Phone, Shield, Briefcase, Building2, Calendar, Edit, Save, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
 import { useCurrentUser, useCurrentTenant } from '@/features/auth/api';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import { CurrencyDisplay } from '@/components/shared/currency-display';
+import { useMyProfile, useUpdateProfile } from '@/features/dashboard/profile-api';
+import { toast } from 'sonner';
+
+const editSchema = z.object({
+  phone: z.string().max(20).optional(),
+  emergency_contact_name: z.string().max(255).optional(),
+  emergency_contact_phone: z.string().max(20).optional(),
+  emergency_contact_relationship: z.string().max(100).optional(),
+});
+type EditForm = z.infer<typeof editSchema>;
 
 export default function ProfilePage() {
+  const [editing, setEditing] = useState(false);
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
+  const updateProfile = useUpdateProfile();
 
-  const employeeId = (user as { employee_id?: number } | undefined)?.employee_id;
-  const { data: employee } = useQuery({
-    queryKey: ['profile', 'employee', user?.public_id],
-    queryFn: async () => {
-      if (!employeeId) return null;
-      const { data } = await apiClient.get('/employees/' + employeeId);
-      return data;
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<EditForm>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      phone: profile?.employee?.phone ?? profile?.user.phone ?? '',
     },
-    enabled: !!employeeId,
   });
 
-  if (userLoading || !user) {
+  const employee = profile?.employee;
+
+  async function onSave(values: EditForm) {
+    try {
+      const result = await updateProfile.mutateAsync(values);
+      if (result.pending_approval) {
+        toast.warning(`Changes to ${result.pending_approval.fields.join(', ')} are pending HR approval.`);
+      } else {
+        toast.success('Profile updated successfully.');
+      }
+      setEditing(false);
+    } catch {
+      toast.error('Failed to update profile. Please try again.');
+    }
+  }
+
+  if (userLoading || profileLoading || !user) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -35,11 +64,12 @@ export default function ProfilePage() {
     );
   }
 
-  const initials = user.email?.slice(0, 2).toUpperCase() ?? 'U';
+  const displayName = employee?.name ?? user.email.split('@')[0];
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Profile" description="View your account information" />
+      <PageHeader title="My Profile" description="View and update your personal information" />
 
       <Card>
         <CardContent className="p-6">
@@ -48,73 +78,136 @@ export default function ProfilePage() {
               <AvatarFallback className="text-xl font-semibold">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-xl font-bold text-foreground">
-                {employee?.name ?? user.email.split('@')[0]}
-              </h2>
+              <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Badge variant="outline" className="capitalize">{user.role?.replace(/_/g, ' ')}</Badge>
                 <Badge variant="outline" className="capitalize">{user.status}</Badge>
-                {user.mfa_enabled && <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0">MFA Enabled</Badge>}
+                {user.mfa_enabled && (
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0">
+                    MFA Enabled
+                  </Badge>
+                )}
               </div>
             </div>
+            {!editing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  reset({ phone: employee?.phone ?? user.phone ?? '' });
+                  setEditing(true);
+                }}
+              >
+                <Edit className="mr-1 h-3 w-3" />
+                Edit
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Account Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <InfoRow icon={Mail} label="Email" value={user.email} />
-            {user.phone && <InfoRow icon={Phone} label="Phone" value={user.phone} />}
-            <InfoRow icon={Shield} label="Role" value={user.role?.replace(/_/g, ' ') ?? ''} className="capitalize" />
-            <InfoRow icon={Calendar} label="Locale" value={user.locale ?? 'en'} />
-            {user.last_login_at && (
-              <InfoRow icon={Calendar} label="Last Login" value={new Date(user.last_login_at).toLocaleString()} />
-            )}
-          </CardContent>
-        </Card>
-
-        {tenant && (
+      {editing ? (
+        <form onSubmit={handleSubmit(onSave)}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Organization</CardTitle>
+              <CardTitle className="text-base">Edit Profile</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <InfoRow icon={Building2} label="Organization" value={tenant.name} />
-              <InfoRow icon={Building2} label="Subdomain" value={tenant.subdomain} />
-              <InfoRow icon={Shield} label="Status" value={tenant.status} className="capitalize" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" placeholder="+251 9XX XXX XXX" {...register('phone')} />
+                  {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="ec_name">Emergency Contact Name</Label>
+                  <Input id="ec_name" placeholder="Full name" {...register('emergency_contact_name')} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ec_phone">Emergency Contact Phone</Label>
+                  <Input id="ec_phone" placeholder="+251 9XX XXX XXX" {...register('emergency_contact_phone')} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ec_rel">Relationship</Label>
+                  <Input id="ec_rel" placeholder="e.g. Spouse, Parent" {...register('emergency_contact_relationship')} />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Changes to name or bank details require HR approval before taking effect.
+              </p>
+
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" disabled={updateProfile.isPending}>
+                  <Save className="mr-1 h-3 w-3" />
+                  {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditing(false)}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Cancel
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        )}
-
-        {employee && (
-          <Card className="md:col-span-2">
+        </form>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-base">Employment Details</CardTitle>
+              <CardTitle className="text-base">Account Information</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <InfoRow icon={User} label="Employee Code" value={employee.employee_code ?? '—'} />
-              <InfoRow icon={Calendar} label="Hire Date" value={employee.hire_date ?? '—'} />
-              <InfoRow icon={Building2} label="Department" value={employee.department?.name ?? '—'} />
-              <InfoRow icon={Briefcase} label="Position" value={employee.position?.title ?? employee.position?.name ?? '—'} />
-              <InfoRow icon={Building2} label="Branch" value={employee.branch?.name ?? '—'} />
-              {employee.salary_cents && (
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Salary</span>
-                  </div>
-                  <CurrencyDisplay cents={employee.salary_cents} className="text-sm font-semibold text-foreground" />
-                </div>
+            <CardContent className="space-y-4">
+              <InfoRow icon={Mail} label="Email" value={user.email} />
+              {(user.phone ?? employee?.phone) && (
+                <InfoRow icon={Phone} label="Phone" value={user.phone ?? employee?.phone ?? ''} />
+              )}
+              <InfoRow icon={Shield} label="Role" value={user.role?.replace(/_/g, ' ') ?? ''} className="capitalize" />
+              <InfoRow icon={Calendar} label="Locale" value={user.locale ?? 'en'} />
+              {user.last_login_at && (
+                <InfoRow icon={Calendar} label="Last Login" value={new Date(user.last_login_at).toLocaleString()} />
               )}
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {tenant && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Organization</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <InfoRow icon={Building2} label="Organization" value={tenant.name ?? ''} />
+                <InfoRow icon={Building2} label="Subdomain" value={tenant.subdomain ?? ''} />
+                <InfoRow icon={Shield} label="Status" value={tenant.status ?? ''} className="capitalize" />
+              </CardContent>
+            </Card>
+          )}
+
+          {employee && (
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Employment Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <InfoRow icon={Calendar} label="Hire Date" value={employee.hire_date ?? '—'} />
+                <InfoRow icon={User} label="Gender" value={employee.gender ?? '—'} className="capitalize" />
+                <InfoRow icon={Building2} label="Department" value={employee.department ?? '—'} />
+                <InfoRow icon={Briefcase} label="Position" value={employee.position ?? '—'} />
+                <InfoRow icon={Building2} label="Branch" value={employee.branch ?? '—'} />
+                <InfoRow icon={Building2} label="Grade" value={employee.grade ?? '—'} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

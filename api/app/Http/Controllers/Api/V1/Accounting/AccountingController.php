@@ -5,35 +5,135 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\ChartOfAccount;
 use App\Models\PayrollRun;
 use App\Services\Accounting\AccountingExportService;
+use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 class AccountingController extends Controller
 {
+    private const DEFAULT_ACCOUNTS = [
+        ['key' => 'salary_expense',          'account_code' => '5100', 'account_name' => 'Salary Expense'],
+        ['key' => 'pension_expense',          'account_code' => '5200', 'account_name' => 'Pension Expense (Employer)'],
+        ['key' => 'tax_payable',             'account_code' => '2100', 'account_name' => 'Income Tax Payable'],
+        ['key' => 'pension_payable_employee', 'account_code' => '2200', 'account_name' => 'Pension Payable (Employee)'],
+        ['key' => 'pension_payable_employer', 'account_code' => '2201', 'account_name' => 'Pension Payable (Employer)'],
+        ['key' => 'net_salary_payable',      'account_code' => '2300', 'account_name' => 'Net Salary Payable'],
+    ];
+
     public function __construct(
         private readonly AccountingExportService $service,
     ) {}
+
+    public function chartOfAccounts(): JsonResponse
+    {
+        Gate::authorize('payroll.viewAll');
+
+        $tenantId = app(CurrentTenant::class)->get()->id;
+
+        $saved = ChartOfAccount::where('tenant_id', $tenantId)
+            ->get()
+            ->keyBy('key');
+
+        $accounts = collect(self::DEFAULT_ACCOUNTS)->map(function ($default) use ($saved) {
+            $override = $saved->get($default['key']);
+            return [
+                'key'          => $default['key'],
+                'account_code' => $override?->account_code ?? $default['account_code'],
+                'account_name' => $override?->account_name ?? $default['account_name'],
+                'is_custom'    => $override !== null,
+            ];
+        });
+
+        return response()->json(['accounts' => $accounts]);
+    }
+
+    public function updateChartOfAccounts(Request $request): JsonResponse
+    {
+        Gate::authorize('payroll.viewAll');
+
+        $request->validate([
+            'accounts'                => ['required', 'array'],
+            'accounts.*.key'          => ['required', 'string'],
+            'accounts.*.account_code' => ['required', 'string', 'max:20'],
+            'accounts.*.account_name' => ['required', 'string', 'max:100'],
+        ]);
+
+        $tenantId = app(CurrentTenant::class)->get()->id;
+
+        foreach ($request->input('accounts') as $item) {
+            ChartOfAccount::updateOrCreate(
+                ['tenant_id' => $tenantId, 'key' => $item['key']],
+                ['account_code' => $item['account_code'], 'account_name' => $item['account_name']],
+            );
+        }
+
+        return response()->json(['message' => 'Chart of accounts updated.']);
+    }
 
     public function journal(PayrollRun $payrollRun): JsonResponse
     {
         Gate::authorize('payroll.viewAll');
 
-        $journal = $this->service->journalEntries($payrollRun);
+        $mapping = $this->getAccountMapping($payrollRun->tenant_id);
+        $journal = $this->service->journalEntries($payrollRun, $mapping);
 
         return response()->json($journal);
     }
 
-    public function export(PayrollRun $payrollRun): JsonResponse
+    public function export(PayrollRun $payrollRun): Response
     {
         Gate::authorize('payroll.viewAll');
 
-        $journal = $this->service->journalEntries($payrollRun);
+        $mapping = $this->getAccountMapping($payrollRun->tenant_id);
+        $journal = $this->service->journalEntries($payrollRun, $mapping);
 
-        return response()->json([
-            'format' => 'csv',
-            'journal' => $journal,
+        $csv = $this->buildCsv($journal);
+
+        $filename = 'journal-' . str_replace(['/', ' '], '-', $journal['period']) . '.csv';
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    private function getAccountMapping(int $tenantId): array
+    {
+        return ChartOfAccount::where('tenant_id', $tenantId)
+            ->get()
+            ->pluck('account_code', 'key')
+            ->toArray();
+    }
+
+    private function buildCsv(array $journal): string
+    {
+        $lines = [];
+        $lines[] = implode(',', ['Reference', 'Period', 'Date', 'Account Code', 'Account Name', 'Debit (ETB)', 'Credit (ETB)']);
+
+        foreach ($journal['entries'] as $entry) {
+            $lines[] = implode(',', [
+                $journal['reference'],
+                $journal['period'],
+                $journal['date'] ?? '',
+                $entry['account_code'],
+                '"' . str_replace('"', '""', $entry['account_name']) . '"',
+                $entry['debit_cents'] > 0 ? number_format($entry['debit_cents'] / 100, 2) : '',
+                $entry['credit_cents'] > 0 ? number_format($entry['credit_cents'] / 100, 2) : '',
+            ]);
+        }
+
+        $lines[] = implode(',', [
+            '', 'TOTALS', '',
+            '', '',
+            number_format($journal['total_debits_cents'] / 100, 2),
+            number_format($journal['total_credits_cents'] / 100, 2),
+        ]);
+
+        return implode("\n", $lines);
     }
 }

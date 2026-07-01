@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Device;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class DeviceOfflineNotification extends Notification
@@ -18,19 +19,31 @@ class DeviceOfflineNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        $channels = ['database', 'mail'];
+        if (config('broadcasting.default') === 'reverb') {
+            $channels[] = 'broadcast';
+        }
+        return $channels;
     }
 
     public function toArray(object $notifiable): array
     {
         return [
-            'device_public_id' => $this->device->public_id,
+            'device_id' => $this->device->public_id,
             'device_name' => $this->device->name,
-            'branch_name' => $this->device->branch?->name,
-            'adapter_type' => $this->device->adapter_type,
-            'last_sync_at' => $this->device->last_sync_at?->toIso8601String(),
-            'message' => "Device '{$this->device->name}' is offline",
-            'type' => 'device_offline',
+            'location' => $this->device->branch?->name ?? 'Unknown',
+            'offline_since' => $this->device->last_sync_at?->toIso8601String(),
+            'message' => "Device \"{$this->device->name}\" has gone offline.",
         ];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $location = $this->device->branch?->name ?? 'Unknown location';
+
+        return (new MailMessage())
+            ->subject(__('notification.device_offline_subject'))
+            ->line("Biometric device \"{$this->device->name}\" at {$location} has gone offline.")
+            ->action('View Device Status', url('/devices'));
     }
 }

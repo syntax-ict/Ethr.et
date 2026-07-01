@@ -14,6 +14,10 @@ export interface AdminTenant {
 
 export interface AdminTenantDetail extends AdminTenant {
   updated_at: string;
+  usage: { employees: number; devices: number } | null;
+  subscription: { plan_name: string | null; status: string | null; current_period_end: string | null } | null;
+  invoices: Array<{ public_id: string; total_cents: number; status: string; due_date: string | null; paid_at: string | null }>;
+  audit_log: Array<{ action: string; created_at: string }>;
 }
 
 export interface PaginatedTenants {
@@ -80,6 +84,20 @@ export function useImpersonateTenant() {
       const { data } = await apiClient.post(`/admin/tenants/${publicId}/impersonate`);
       return data;
     },
+    onSuccess: (data) => {
+      // Preserve original credentials for exit
+      const current = localStorage.getItem('access_token');
+      const currentTenant = localStorage.getItem('tenant');
+      if (current) localStorage.setItem('original_access_token', current);
+      if (currentTenant) localStorage.setItem('original_tenant', currentTenant);
+
+      // Switch to impersonated session
+      localStorage.setItem('access_token', data.token);
+      localStorage.setItem('tenant', data.tenant);
+      localStorage.setItem('impersonating', 'true');
+
+      window.location.href = '/dashboard';
+    },
   });
 }
 
@@ -91,6 +109,15 @@ export interface AdminAuditLog {
   user_id?: number;
   ip_address?: string;
   created_at: string;
+}
+
+export function useTenantBackup() {
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.post(`/admin/tenants/${publicId}/backup`);
+      return data;
+    },
+  });
 }
 
 export function useAdminAuditLog(params?: { action?: string; from?: string; to?: string; page?: number }) {

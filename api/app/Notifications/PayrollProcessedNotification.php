@@ -19,7 +19,11 @@ class PayrollProcessedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        $channels = ['database'];
+        if (config('broadcasting.default') === 'reverb') {
+            $channels[] = 'broadcast';
+        }
+        return $channels;
     }
 
     public function toArray(object $notifiable): array

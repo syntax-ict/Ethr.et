@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Services\Admin\PlatformAnalyticsService;
+use App\Services\Admin\SystemHealthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,11 +21,11 @@ class AdminDashboardController extends Controller
         return response()->json($service->revenue());
     }
 
-    public function health(PlatformAnalyticsService $service): JsonResponse
+    public function health(SystemHealthService $health): JsonResponse
     {
         Gate::authorize('admin.manage');
 
-        return response()->json($service->health());
+        return response()->json($health->check());
     }
 
     public function auditLog(Request $request): JsonResponse

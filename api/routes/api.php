@@ -65,8 +65,11 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController;
 use App\Http\Controllers\Api\V1\Kiosk\KioskSessionController;
+use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\TemplateController;
+use App\Http\Controllers\Api\V1\Profile\ProfileController;
+use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]));
@@ -138,6 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/import/template', [AttendanceImportController::class, 'template']);
         Route::post('/import/preview', [AttendanceImportController::class, 'preview']);
         Route::post('/import/commit', [AttendanceImportController::class, 'commit']);
+        Route::post('/import/legacy', [AttendanceImportController::class, 'parseLegacy']);
 
         Route::post('/mobile/check-in', [MobileAttendanceController::class, 'checkIn']);
         Route::post('/mobile/check-out', [MobileAttendanceController::class, 'checkOut']);
@@ -293,6 +297,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/scheduled/{scheduledReport}', [ReportController::class, 'deleteScheduled']);
     });
 
+    // Profile self-service
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
+
+    // Team monitoring (manager)
+    Route::prefix('team')->group(function () {
+        Route::get('/attendance/today', [TeamMonitoringController::class, 'attendanceToday']);
+        Route::get('/attendance/summary', [TeamMonitoringController::class, 'attendanceSummary']);
+        Route::get('/overtime', [TeamMonitoringController::class, 'overtime']);
+        Route::get('/leave/calendar', [TeamMonitoringController::class, 'leaveCalendar']);
+    });
+
     // Directory
     Route::get('/directory', [DirectoryController::class, 'index']);
 
@@ -336,6 +352,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Accounting
     Route::prefix('accounting')->group(function () {
+        Route::get('/chart-of-accounts', [AccountingController::class, 'chartOfAccounts']);
+        Route::put('/chart-of-accounts', [AccountingController::class, 'updateChartOfAccounts']);
         Route::get('/journal/{payrollRun}', [AccountingController::class, 'journal']);
         Route::get('/export/{payrollRun}', [AccountingController::class, 'export']);
     });
@@ -347,6 +365,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
         Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
         Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
+        Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
         Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
         Route::get('/health', [AdminDashboardController::class, 'health']);
         Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
@@ -357,6 +376,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [BillingController::class, 'dashboard']);
         Route::post('/change-plan', [BillingController::class, 'changePlan']);
         Route::put('/invoices/{invoice}/mark-paid', [BillingController::class, 'markPaid']);
+        Route::get('/invoices/{invoice}/receipt', [BillingController::class, 'receipt']);
     });
 
     // Settings
@@ -364,6 +384,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
+    Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
 
     // Audit logs
     Route::get('/audit-logs', [AuditLogController::class, 'index']);

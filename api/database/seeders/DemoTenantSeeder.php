@@ -47,6 +47,19 @@ class DemoTenantSeeder extends Seeder
             'password' => bcrypt('password'),
             'role' => UserRole::TENANT_ADMIN,
             'status' => 'active',
+            'locale' => 'en',
+            'mfa_enabled' => false,
+        ]);
+
+        // HR admin user for E2E tests
+        User::updateOrCreate(['email' => 'hr@demo.ethr.et'], [
+            'public_id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'password' => bcrypt('password'),
+            'role' => UserRole::HR_ADMIN,
+            'status' => 'active',
+            'locale' => 'en',
+            'mfa_enabled' => false,
         ]);
 
         $hq = Branch::create([
@@ -200,7 +213,24 @@ class DemoTenantSeeder extends Seeder
             }
         }
 
+        // Employee self-service user (linked to first employee for E2E tests)
+        if (! empty($employees)) {
+            $firstEmp = $employees[0];
+            User::updateOrCreate(['email' => 'emp@demo.ethr.et'], [
+                'public_id' => (string) Str::ulid(),
+                'tenant_id' => $tenant->id,
+                'employee_id' => $firstEmp->id,
+                'password' => bcrypt('password'),
+                'role' => UserRole::EMPLOYEE,
+                'status' => 'active',
+                'locale' => 'en',
+                'mfa_enabled' => false,
+            ]);
+        }
+
         $this->command->info("Demo tenant seeded: demo.ethr.et (admin@demo.ethr.et / password)");
+        $this->command->info("HR admin: hr@demo.ethr.et / password");
+        $this->command->info("Employee: emp@demo.ethr.et / password");
         $this->command->info("100 employees, 3 months attendance, leave balances, holidays");
     }
 }

@@ -21,7 +21,11 @@ class MissingPunchNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        $channels = ['database', 'mail'];
+        if (config('broadcasting.default') === 'reverb') {
+            $channels[] = 'broadcast';
+        }
+        return $channels;
     }
 
     public function toArray(object $notifiable): array
@@ -39,20 +43,12 @@ class MissingPunchNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $params = ['name' => $this->employee->name, 'date' => $this->date];
-
-        $subject = $this->type === 'missing_check_out'
-            ? __('notification.missing_check_out_subject', $params)
-            : __('notification.missing_check_in_subject', $params);
-
-        $body = $this->type === 'missing_check_out'
-            ? __('notification.missing_check_out_body', $params)
-            : __('notification.missing_check_in_body', $params);
+        $label = $this->type === 'missing_check_out' ? 'check-out' : 'check-in';
 
         return (new MailMessage())
-            ->subject($subject)
-            ->line($body)
-            ->line("Employee: {$this->employee->name}")
-            ->line("Date: {$this->date}");
+            ->subject(__('notification.missing_punch_subject'))
+            ->line("{$this->employee->name} is missing a {$label} for {$this->date}.")
+            ->line('Review their attendance record and request a correction if needed.')
+            ->action('View Attendance', url('/attendance'));
     }
 }
