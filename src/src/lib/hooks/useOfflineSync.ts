@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiClient } from '@/api/client';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { apiClient } from "@/api/client";
 import {
   getPendingRecords,
   markSynced,
   markSyncError,
   getPendingCount,
   type OfflineAttendanceRecord,
-} from '@/lib/offline-queue';
+} from "@/lib/offline-queue";
 
 export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState(true);
@@ -17,17 +17,21 @@ export function useOfflineSync() {
   const syncInProgress = useRef(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     setIsOnline(navigator.onLine);
 
-    function onOnline() { setIsOnline(true); }
-    function onOffline() { setIsOnline(false); }
+    function onOnline() {
+      setIsOnline(true);
+    }
+    function onOffline() {
+      setIsOnline(false);
+    }
 
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
     };
   }, []);
 
@@ -46,7 +50,10 @@ export function useOfflineSync() {
     return () => clearInterval(interval);
   }, [refreshCount]);
 
-  const syncNow = useCallback(async (): Promise<{ synced: number; errors: number }> => {
+  const syncNow = useCallback(async (): Promise<{
+    synced: number;
+    errors: number;
+  }> => {
     if (syncInProgress.current || !navigator.onLine) {
       return { synced: 0, errors: 0 };
     }
@@ -73,26 +80,32 @@ export function useOfflineSync() {
       }));
 
       try {
-        const { data } = await apiClient.post('/attendance/sync', { records: batchPayload });
+        const { data } = await apiClient.post("/attendance/sync", {
+          records: batchPayload,
+        });
 
         for (const result of data.results ?? []) {
           const matchingRecord = pending.find(
-            (r: OfflineAttendanceRecord) => r.idempotency_key === result.idempotency_key,
+            (r: OfflineAttendanceRecord) =>
+              r.idempotency_key === result.idempotency_key,
           );
           if (!matchingRecord?.id) continue;
 
-          if (result.status === 'created' || result.status === 'duplicate') {
+          if (result.status === "created" || result.status === "duplicate") {
             await markSynced(matchingRecord.id);
             synced++;
           } else {
-            await markSyncError(matchingRecord.id, result.detail ?? 'Sync failed');
+            await markSyncError(
+              matchingRecord.id,
+              result.detail ?? "Sync failed",
+            );
             errors++;
           }
         }
       } catch (err: unknown) {
         const e = err as { message?: string };
         for (const r of pending) {
-          if (r.id) await markSyncError(r.id, e.message ?? 'Network error');
+          if (r.id) await markSyncError(r.id, e.message ?? "Network error");
         }
         errors = pending.length;
       }
@@ -114,10 +127,12 @@ export function useOfflineSync() {
 
   // Respond to service worker background sync request
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    function onSwSync() { syncNow(); }
-    window.addEventListener('ethr:sync-attendance', onSwSync);
-    return () => window.removeEventListener('ethr:sync-attendance', onSwSync);
+    if (typeof window === "undefined") return;
+    function onSwSync() {
+      syncNow();
+    }
+    window.addEventListener("ethr:sync-attendance", onSwSync);
+    return () => window.removeEventListener("ethr:sync-attendance", onSwSync);
   }, [syncNow]);
 
   return { isOnline, pendingCount, syncing, syncNow, refreshCount };

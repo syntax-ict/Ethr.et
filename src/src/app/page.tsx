@@ -1,5 +1,5 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Clock,
   Wallet,
@@ -15,65 +15,105 @@ import {
   Hotel,
   Heart,
   Briefcase,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MarketingHeader } from '@/components/layouts/marketing-header';
-import { MarketingFooter } from '@/components/layouts/marketing-footer';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MarketingHeader } from "@/components/layouts/marketing-header";
+import { MarketingFooter } from "@/components/layouts/marketing-footer";
 
 export const metadata: Metadata = {
-  title: 'ETHR — Ethiopian Workforce Operating System',
+  title: "ETHR — Ethiopian Workforce Operating System",
   description:
-    'Enterprise-grade HR platform for Ethiopian organizations. Manage attendance, payroll, leave, and more — offline-first, bilingual, and built for Ethiopian labor law.',
+    "Enterprise-grade HR platform for Ethiopian organizations. Manage attendance, payroll, leave, and more — offline-first, bilingual, and built for Ethiopian labor law.",
   openGraph: {
-    title: 'ETHR — Ethiopian Workforce Operating System',
-    description: 'Enterprise-grade HR platform for Ethiopian organizations.',
-    type: 'website',
+    title: "ETHR — Ethiopian Workforce Operating System",
+    description: "Enterprise-grade HR platform for Ethiopian organizations.",
+    type: "website",
   },
 };
 
 const features = [
   {
     icon: Clock,
-    title: 'Attendance Tracking',
-    description: 'Biometric devices, GPS check-in, and offline sync for reliable time tracking.',
+    title: "Attendance Tracking",
+    description:
+      "Biometric devices, GPS check-in, and offline sync for reliable time tracking.",
   },
   {
     icon: Wallet,
-    title: 'Payroll Management',
-    description: 'Ethiopian tax brackets, pension calculations, and automated payslips.',
+    title: "Payroll Management",
+    description:
+      "Ethiopian tax brackets, pension calculations, and automated payslips.",
   },
   {
     icon: CalendarDays,
-    title: 'Leave Management',
-    description: 'Custom leave types, approval workflows, and balance tracking.',
+    title: "Leave Management",
+    description:
+      "Custom leave types, approval workflows, and balance tracking.",
   },
   {
     icon: WifiOff,
-    title: 'Offline-First',
-    description: 'Works without internet. Syncs automatically when connectivity returns.',
+    title: "Offline-First",
+    description:
+      "Works without internet. Syncs automatically when connectivity returns.",
   },
   {
     icon: Building2,
-    title: 'Multi-Organization',
-    description: 'Each organization gets its own isolated workspace with custom branding.',
+    title: "Multi-Organization",
+    description:
+      "Each organization gets its own isolated workspace with custom branding.",
   },
   {
     icon: Languages,
-    title: 'Amharic + English',
-    description: 'Full bilingual interface with Ethiopian calendar support.',
+    title: "Amharic + English",
+    description: "Full bilingual interface with Ethiopian calendar support.",
   },
 ];
 
 const industries = [
-  { icon: Landmark, name: 'Government', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
-  { icon: Landmark, name: 'Banking', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
-  { icon: Hospital, name: 'Healthcare', color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
-  { icon: Factory, name: 'Manufacturing', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
-  { icon: Heart, name: 'NGO', color: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300' },
-  { icon: Hotel, name: 'Hospitality', color: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
-  { icon: GraduationCap, name: 'Education', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
-  { icon: Briefcase, name: 'General', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
+  {
+    icon: Landmark,
+    name: "Government",
+    color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  },
+  {
+    icon: Landmark,
+    name: "Banking",
+    color:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  {
+    icon: Hospital,
+    name: "Healthcare",
+    color: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  },
+  {
+    icon: Factory,
+    name: "Manufacturing",
+    color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  },
+  {
+    icon: Heart,
+    name: "NGO",
+    color: "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300",
+  },
+  {
+    icon: Hotel,
+    name: "Hospitality",
+    color:
+      "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  },
+  {
+    icon: GraduationCap,
+    name: "Education",
+    color:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
+  },
+  {
+    icon: Briefcase,
+    name: "General",
+    color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  },
 ];
 
 export default function LandingPage() {
@@ -86,12 +126,12 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
               <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                The Complete HR Platform for{' '}
+                The Complete HR Platform for{" "}
                 <span className="text-primary">Ethiopian Organizations</span>
               </h1>
               <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                Manage employees, attendance, payroll, and leave &mdash; offline-first, bilingual,
-                and built for Ethiopian labor law.
+                Manage employees, attendance, payroll, and leave &mdash;
+                offline-first, bilingual, and built for Ethiopian labor law.
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Button size="lg" asChild>
@@ -125,15 +165,22 @@ export default function LandingPage() {
               {features.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                  <Card key={feature.title} className="border-0 bg-background shadow-sm">
+                  <Card
+                    key={feature.title}
+                    className="border-0 bg-background shadow-sm"
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
-                      <CardTitle className="mt-3 text-lg">{feature.title}</CardTitle>
+                      <CardTitle className="mt-3 text-lg">
+                        {feature.title}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {feature.description}
+                      </p>
                     </CardContent>
                   </Card>
                 );
@@ -161,7 +208,9 @@ export default function LandingPage() {
                     key={industry.name}
                     className="flex flex-col items-center gap-3 rounded-xl border bg-card p-6 text-center shadow-sm transition-shadow hover:shadow-md"
                   >
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${industry.color}`}>
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${industry.color}`}
+                    >
                       <Icon className="h-6 w-6" />
                     </div>
                     <span className="text-sm font-medium">{industry.name}</span>

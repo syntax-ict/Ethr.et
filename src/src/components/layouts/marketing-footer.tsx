@@ -1,19 +1,19 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 const footerLinks = {
   product: [
-    { label: 'Features', href: '/features' },
-    { label: 'Pricing', href: '/pricing' },
-    { label: 'Contact', href: '/contact' },
+    { label: "Features", href: "/features" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Contact", href: "/contact" },
   ],
   company: [
-    { label: 'About', href: '#' },
-    { label: 'Blog', href: '#' },
-    { label: 'Careers', href: '#' },
+    { label: "About", href: "#" },
+    { label: "Blog", href: "#" },
+    { label: "Careers", href: "#" },
   ],
   legal: [
-    { label: 'Privacy', href: '#' },
-    { label: 'Terms', href: '#' },
+    { label: "Privacy", href: "#" },
+    { label: "Terms", href: "#" },
   ],
 };
 
@@ -25,12 +25,15 @@ export function MarketingFooter() {
           <div>
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <span className="text-sm font-bold text-primary-foreground">E</span>
+                <span className="text-sm font-bold text-primary-foreground">
+                  E
+                </span>
               </div>
               <span className="text-lg font-bold">ETHR</span>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Ethiopian Workforce Operating System. Enterprise-grade HR for Ethiopian organizations.
+              Ethiopian Workforce Operating System. Enterprise-grade HR for
+              Ethiopian organizations.
             </p>
           </div>
 
@@ -39,7 +42,10 @@ export function MarketingFooter() {
             <ul className="mt-3 space-y-2">
               {footerLinks.product.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -52,7 +58,10 @@ export function MarketingFooter() {
             <ul className="mt-3 space-y-2">
               {footerLinks.company.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -65,7 +74,10 @@ export function MarketingFooter() {
             <ul className="mt-3 space-y-2">
               {footerLinks.legal.map((link) => (
                 <li key={link.href + link.label}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
                     {link.label}
                   </Link>
                 </li>

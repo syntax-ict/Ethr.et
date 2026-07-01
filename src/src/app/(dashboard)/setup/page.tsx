@@ -1,8 +1,8 @@
-import type { Metadata } from 'next';
-import { SetupWizard } from '@/features/onboarding/components/setup-wizard';
+import type { Metadata } from "next";
+import { SetupWizard } from "@/features/onboarding/components/setup-wizard";
 
 export const metadata: Metadata = {
-  title: 'Setup',
+  title: "Setup",
 };
 
 export default function SetupPage() {

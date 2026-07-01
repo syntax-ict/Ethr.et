@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { initEcho, disconnectEcho } from '@/lib/echo';
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { initEcho, disconnectEcho } from "@/lib/echo";
 
 interface ReverbProviderProps {
   userId?: string;
@@ -11,7 +11,11 @@ interface ReverbProviderProps {
   children?: React.ReactNode;
 }
 
-export function ReverbProvider({ userId, token, children }: ReverbProviderProps) {
+export function ReverbProvider({
+  userId,
+  token,
+  children,
+}: ReverbProviderProps) {
   const queryClient = useQueryClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelRef = useRef<any>(null);
@@ -26,17 +30,18 @@ export function ReverbProvider({ userId, token, children }: ReverbProviderProps)
 
       try {
         channelRef.current = echo.private(`user.${userId}`);
-        channelRef.current.listen('.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated', (event: {
-          data?: { message?: string };
-          id?: string;
-        }) => {
-          // Invalidate notification queries to refresh badge + list
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        channelRef.current.listen(
+          ".Illuminate\\Notifications\\Events\\BroadcastNotificationCreated",
+          (event: { data?: { message?: string }; id?: string }) => {
+            // Invalidate notification queries to refresh badge + list
+            queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
-          // Show toast
-          const message = event?.data?.message ?? 'You have a new notification';
-          toast.info(message, { duration: 5000 });
-        });
+            // Show toast
+            const message =
+              event?.data?.message ?? "You have a new notification";
+            toast.info(message, { duration: 5000 });
+          },
+        );
       } catch {
         // Reverb unavailable (dev without reverb running) — fall back to polling
       }
@@ -45,8 +50,12 @@ export function ReverbProvider({ userId, token, children }: ReverbProviderProps)
     return () => {
       mounted = false;
       try {
-        channelRef.current?.stopListening('.Illuminate\\Notifications\\Events\\BroadcastNotificationCreated');
-      } catch { /* noop */ }
+        channelRef.current?.stopListening(
+          ".Illuminate\\Notifications\\Events\\BroadcastNotificationCreated",
+        );
+      } catch {
+        /* noop */
+      }
       disconnectEcho();
     };
   }, [userId, token, queryClient]);

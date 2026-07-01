@@ -4,7 +4,7 @@ interface CurrencyDisplayProps {
 }
 
 export function CurrencyDisplay({ cents, className }: CurrencyDisplayProps) {
-  const formatted = new Intl.NumberFormat('en-ET', {
+  const formatted = new Intl.NumberFormat("en-ET", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);

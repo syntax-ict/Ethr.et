@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface ReportSource {
   label: string;
@@ -14,7 +14,7 @@ export interface ReportConfig {
   filters?: Record<string, string>;
   group_by?: string;
   sort_by?: string;
-  sort_dir?: 'asc' | 'desc';
+  sort_dir?: "asc" | "desc";
 }
 
 export interface ReportResult {
@@ -34,7 +34,7 @@ export interface SavedReport {
 export interface ScheduledReport {
   public_id: string;
   report_name: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: "daily" | "weekly" | "monthly";
   recipients: string[];
   next_run_at: string;
   last_run_at: string | null;
@@ -42,9 +42,9 @@ export interface ScheduledReport {
 
 export function useReportSources() {
   return useQuery<{ sources: ReportSources }>({
-    queryKey: ['reports', 'sources'],
+    queryKey: ["reports", "sources"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/reports/sources');
+      const { data } = await apiClient.get("/reports/sources");
       return data;
     },
     staleTime: 10 * 60 * 1000,
@@ -54,7 +54,7 @@ export function useReportSources() {
 export function useGenerateReport() {
   return useMutation<ReportResult, unknown, ReportConfig>({
     mutationFn: async (config) => {
-      const { data } = await apiClient.post('/reports/generate', config);
+      const { data } = await apiClient.post("/reports/generate", config);
       return data;
     },
   });
@@ -62,9 +62,9 @@ export function useGenerateReport() {
 
 export function useSavedReports() {
   return useQuery<{ reports: SavedReport[] }>({
-    queryKey: ['reports', 'saved'],
+    queryKey: ["reports", "saved"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/reports/saved');
+      const { data } = await apiClient.get("/reports/saved");
       return data;
     },
   });
@@ -73,13 +73,17 @@ export function useSavedReports() {
 export function useSaveReport() {
   const queryClient = useQueryClient();
 
-  return useMutation<SavedReport, unknown, { name: string; config: ReportConfig }>({
+  return useMutation<
+    SavedReport,
+    unknown,
+    { name: string; config: ReportConfig }
+  >({
     mutationFn: async (payload) => {
-      const { data } = await apiClient.post('/reports/save', payload);
+      const { data } = await apiClient.post("/reports/save", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports', 'saved'] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "saved"] });
     },
   });
 }
@@ -92,17 +96,17 @@ export function useDeleteSavedReport() {
       await apiClient.delete(`/reports/saved/${publicId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports', 'saved'] });
-      queryClient.invalidateQueries({ queryKey: ['reports', 'scheduled'] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "saved"] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "scheduled"] });
     },
   });
 }
 
 export function useScheduledReports() {
   return useQuery<{ schedules: ScheduledReport[] }>({
-    queryKey: ['reports', 'scheduled'],
+    queryKey: ["reports", "scheduled"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/reports/scheduled');
+      const { data } = await apiClient.get("/reports/scheduled");
       return data;
     },
   });
@@ -114,14 +118,14 @@ export function useScheduleReport() {
   return useMutation({
     mutationFn: async (payload: {
       saved_report_public_id: string;
-      frequency: 'daily' | 'weekly' | 'monthly';
+      frequency: "daily" | "weekly" | "monthly";
       recipients: string[];
     }) => {
-      const { data } = await apiClient.post('/reports/schedule', payload);
+      const { data } = await apiClient.post("/reports/schedule", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports', 'scheduled'] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "scheduled"] });
     },
   });
 }
@@ -134,7 +138,7 @@ export function useDeleteScheduledReport() {
       await apiClient.delete(`/reports/scheduled/${publicId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports', 'scheduled'] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "scheduled"] });
     },
   });
 }

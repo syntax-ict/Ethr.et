@@ -19,14 +19,17 @@ export default function AuthLayout({
           </p>
           <div className="mt-10 grid grid-cols-2 gap-4 text-left">
             {[
-              'Multi-tenant SaaS',
-              'Offline-first',
-              'Ethiopian tax & pension',
-              'Bilingual (EN + AM)',
-              'Biometric devices',
-              '6-month free trial',
+              "Multi-tenant SaaS",
+              "Offline-first",
+              "Ethiopian tax & pension",
+              "Bilingual (EN + AM)",
+              "Biometric devices",
+              "6-month free trial",
             ].map((feature) => (
-              <div key={feature} className="flex items-center gap-2 text-white/90">
+              <div
+                key={feature}
+                className="flex items-center gap-2 text-white/90"
+              >
                 <div className="h-1.5 w-1.5 rounded-full bg-white/60" />
                 <span className="text-sm">{feature}</span>
               </div>

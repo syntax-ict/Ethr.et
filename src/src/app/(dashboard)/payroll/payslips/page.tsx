@@ -1,22 +1,25 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { FileText, Download } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PageHeader } from '@/components/shared/page-header';
-import { CurrencyDisplay } from '@/components/shared/currency-display';
-import { EmptyState } from '@/components/shared/empty-state';
-import { useMyPayslips, type PayrollEntry } from '@/features/payroll/api';
-import { useCurrentUser } from '@/features/auth/api';
+import { useState } from "react";
+import { FileText, Download } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/page-header";
+import { CurrencyDisplay } from "@/components/shared/currency-display";
+import { EmptyState } from "@/components/shared/empty-state";
+import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
+import { useCurrentUser } from "@/features/auth/api";
 
 function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString('en-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (cents / 100).toLocaleString("en-ET", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function printPayslip(entry: PayrollEntry, employeeName: string) {
-  const w = window.open('', '_blank', 'width=600,height=800');
+  const w = window.open("", "_blank", "width=600,height=800");
   if (!w) return;
 
   const html = `<!DOCTYPE html>
@@ -45,7 +48,7 @@ function printPayslip(entry: PayrollEntry, employeeName: string) {
       <tr><td>Income Tax</td><td class="amount deduction">-${formatCents(entry.income_tax_cents)}</td></tr>
       <tr><td>Employee Pension (7%)</td><td class="amount deduction">-${formatCents(entry.employee_pension_cents)}</td></tr>
       <tr><td>Employer Pension (11%)</td><td class="amount">${formatCents(entry.employer_pension_cents)}</td></tr>
-      ${entry.other_deductions_cents > 0 ? `<tr><td>Other Deductions</td><td class="amount deduction">-${formatCents(entry.other_deductions_cents)}</td></tr>` : ''}
+      ${entry.other_deductions_cents > 0 ? `<tr><td>Other Deductions</td><td class="amount deduction">-${formatCents(entry.other_deductions_cents)}</td></tr>` : ""}
       <tr class="net-row"><td>Net Pay</td><td class="amount">${formatCents(entry.net_cents)}</td></tr>
     </tbody>
   </table>
@@ -68,7 +71,10 @@ export default function MyPayslipsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Payslips" description="View your salary breakdown by period" />
+      <PageHeader
+        title="My Payslips"
+        description="View your salary breakdown by period"
+      />
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -92,7 +98,9 @@ export default function MyPayslipsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => printPayslip(entry, user?.email ?? 'Employee')}
+                    onClick={() =>
+                      printPayslip(entry, user?.email ?? "Employee")
+                    }
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -103,16 +111,33 @@ export default function MyPayslipsPage() {
                   <Row label="Basic Salary" cents={entry.basic_salary_cents} />
                   <Row label="Gross" cents={entry.gross_cents} />
                   <div className="border-t pt-2">
-                    <Row label="Income Tax" cents={entry.income_tax_cents} deduction />
-                    <Row label="Employee Pension" cents={entry.employee_pension_cents} deduction />
+                    <Row
+                      label="Income Tax"
+                      cents={entry.income_tax_cents}
+                      deduction
+                    />
+                    <Row
+                      label="Employee Pension"
+                      cents={entry.employee_pension_cents}
+                      deduction
+                    />
                     {entry.other_deductions_cents > 0 && (
-                      <Row label="Other Deductions" cents={entry.other_deductions_cents} deduction />
+                      <Row
+                        label="Other Deductions"
+                        cents={entry.other_deductions_cents}
+                        deduction
+                      />
                     )}
                   </div>
                   <div className="border-t pt-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">Net Pay</span>
-                      <CurrencyDisplay cents={entry.net_cents} className="text-sm font-bold text-primary" />
+                      <span className="text-sm font-semibold text-foreground">
+                        Net Pay
+                      </span>
+                      <CurrencyDisplay
+                        cents={entry.net_cents}
+                        className="text-sm font-bold text-primary"
+                      />
                     </div>
                   </div>
                 </div>
@@ -125,12 +150,22 @@ export default function MyPayslipsPage() {
   );
 }
 
-function Row({ label, cents, deduction }: { label: string; cents: number; deduction?: boolean }) {
+function Row({
+  label,
+  cents,
+  deduction,
+}: {
+  label: string;
+  cents: number;
+  deduction?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-sm ${deduction ? 'text-red-500' : 'text-foreground'}`}>
-        {deduction && '- '}
+      <span
+        className={`text-sm ${deduction ? "text-red-500" : "text-foreground"}`}
+      >
+        {deduction && "- "}
         <CurrencyDisplay cents={cents} />
       </span>
     </div>

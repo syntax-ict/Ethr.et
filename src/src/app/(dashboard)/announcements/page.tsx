@@ -1,22 +1,34 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Megaphone, Plus, Loader2, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { PageHeader } from '@/components/shared/page-header';
-import { EmptyState } from '@/components/shared/empty-state';
-import { usePermissions } from '@/lib/hooks/usePermissions';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Megaphone, Plus, Loader2, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import { toast } from "sonner";
 
 interface Announcement {
   public_id: string;
@@ -28,38 +40,41 @@ interface Announcement {
 }
 
 const priorityColors: Record<string, string> = {
-  urgent: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-  high: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-  normal: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  low: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  urgent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+  high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+  normal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+  low: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
 };
 
 export default function AnnouncementsPage() {
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', body: '', priority: 'normal' });
+  const [form, setForm] = useState({ title: "", body: "", priority: "normal" });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['announcements'],
+    queryKey: ["announcements"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/announcements');
+      const { data } = await apiClient.get("/announcements");
       return data;
     },
   });
 
   const createAnnouncement = useMutation({
     mutationFn: async (payload: typeof form) => {
-      const { data } = await apiClient.post('/announcements', { ...payload, publish_now: true });
+      const { data } = await apiClient.post("/announcements", {
+        ...payload,
+        publish_now: true,
+      });
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      toast.success('Announcement published');
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement published");
       setDialogOpen(false);
-      setForm({ title: '', body: '', priority: 'normal' });
+      setForm({ title: "", body: "", priority: "normal" });
     },
-    onError: () => toast.error('Failed to create announcement'),
+    onError: () => toast.error("Failed to create announcement"),
   });
 
   const deleteAnnouncement = useMutation({
@@ -67,8 +82,8 @@ export default function AnnouncementsPage() {
       await apiClient.delete(`/announcements/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      toast.success('Announcement deleted');
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement deleted");
     },
   });
 
@@ -90,10 +105,16 @@ export default function AnnouncementsPage() {
 
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
       ) : announcements.length === 0 ? (
-        <EmptyState icon={Megaphone} title="No announcements" description="No announcements published yet" />
+        <EmptyState
+          icon={Megaphone}
+          title="No announcements"
+          description="No announcements published yet"
+        />
       ) : (
         <div className="space-y-3">
           {announcements.map((a) => (
@@ -102,18 +123,31 @@ export default function AnnouncementsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{a.title}</h3>
-                      <Badge variant="outline" className={`border-0 text-[10px] ${priorityColors[a.priority] ?? ''}`}>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {a.title}
+                      </h3>
+                      <Badge
+                        variant="outline"
+                        className={`border-0 text-[10px] ${priorityColors[a.priority] ?? ""}`}
+                      >
                         {a.priority}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{a.body}</p>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                      {a.body}
+                    </p>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {a.published_at ? new Date(a.published_at).toLocaleDateString() : 'Draft'}
+                      {a.published_at
+                        ? new Date(a.published_at).toLocaleDateString()
+                        : "Draft"}
                     </p>
                   </div>
                   {can.manageEmployees && (
-                    <Button variant="ghost" size="sm" onClick={() => deleteAnnouncement.mutate(a.public_id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteAnnouncement.mutate(a.public_id)}
+                    >
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   )}
@@ -126,20 +160,48 @@ export default function AnnouncementsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New Announcement</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); createAnnouncement.mutate(form); }} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>New Announcement</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              createAnnouncement.mutate(form);
+            }}
+            className="space-y-4"
+          >
             <div>
               <Label>Title</Label>
-              <Input value={form.title} onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))} required className="mt-1" />
+              <Input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, title: e.target.value }))
+                }
+                required
+                className="mt-1"
+              />
             </div>
             <div>
               <Label>Content</Label>
-              <Textarea value={form.body} onChange={(e) => setForm(p => ({ ...p, body: e.target.value }))} required rows={4} className="mt-1" />
+              <Textarea
+                value={form.body}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, body: e.target.value }))
+                }
+                required
+                rows={4}
+                className="mt-1"
+              />
             </div>
             <div>
               <Label>Priority</Label>
-              <Select value={form.priority} onValueChange={(v) => setForm(p => ({ ...p, priority: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <Select
+                value={form.priority}
+                onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="normal">Normal</SelectItem>
@@ -149,9 +211,17 @@ export default function AnnouncementsPage() {
               </Select>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+              >
+                Cancel
+              </Button>
               <Button type="submit" disabled={createAnnouncement.isPending}>
-                {createAnnouncement.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {createAnnouncement.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Publish
               </Button>
             </DialogFooter>

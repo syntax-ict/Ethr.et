@@ -1,17 +1,20 @@
-'use client';
+"use client";
 
-import { AppSidebar } from '@/components/layouts/app-sidebar';
-import { AppHeader } from '@/components/layouts/app-header';
-import { AuthGuard } from '@/components/shared/auth-guard';
-import { ErrorBoundary } from '@/components/shared/error-boundary';
-import { TenantBrandingProvider } from '@/features/branding/TenantBrandingProvider';
-import { ReverbProvider } from '@/components/providers/reverb-provider';
-import { ImpersonationBanner } from '@/components/shared/impersonation-banner';
-import { useCurrentUser } from '@/features/auth/api';
+import { AppSidebar } from "@/components/layouts/app-sidebar";
+import { AppHeader } from "@/components/layouts/app-header";
+import { AuthGuard } from "@/components/shared/auth-guard";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
+import { TenantBrandingProvider } from "@/features/branding/TenantBrandingProvider";
+import { ReverbProvider } from "@/components/providers/reverb-provider";
+import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
+import { useCurrentUser } from "@/features/auth/api";
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
-  const token = typeof window !== 'undefined' ? (localStorage.getItem('access_token') ?? undefined) : undefined;
+  const token =
+    typeof window !== "undefined"
+      ? (localStorage.getItem("access_token") ?? undefined)
+      : undefined;
 
   return (
     <ReverbProvider userId={user?.public_id} token={token}>

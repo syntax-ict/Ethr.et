@@ -36,11 +36,11 @@ export interface LeaveTypeTemplate {
 }
 
 export const WIZARD_STEPS = [
-  { number: 1, title: 'Organization Profile', key: 'org_profile' },
-  { number: 2, title: 'Organization Structure', key: 'org_structure' },
-  { number: 3, title: 'Work Schedule', key: 'work_schedule' },
-  { number: 4, title: 'Leave Policies', key: 'leave_policies' },
-  { number: 5, title: 'Payroll Configuration', key: 'payroll_config' },
-  { number: 6, title: 'Employee Import', key: 'employee_import' },
-  { number: 7, title: 'Review & Launch', key: 'review_launch' },
+  { number: 1, title: "Organization Profile", key: "org_profile" },
+  { number: 2, title: "Organization Structure", key: "org_structure" },
+  { number: 3, title: "Work Schedule", key: "work_schedule" },
+  { number: 4, title: "Leave Policies", key: "leave_policies" },
+  { number: 5, title: "Payroll Configuration", key: "payroll_config" },
+  { number: 6, title: "Employee Import", key: "employee_import" },
+  { number: 7, title: "Review & Launch", key: "review_launch" },
 ] as const;

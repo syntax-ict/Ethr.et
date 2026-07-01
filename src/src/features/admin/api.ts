@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface AdminTenant {
   public_id: string;
@@ -15,8 +15,18 @@ export interface AdminTenant {
 export interface AdminTenantDetail extends AdminTenant {
   updated_at: string;
   usage: { employees: number; devices: number } | null;
-  subscription: { plan_name: string | null; status: string | null; current_period_end: string | null } | null;
-  invoices: Array<{ public_id: string; total_cents: number; status: string; due_date: string | null; paid_at: string | null }>;
+  subscription: {
+    plan_name: string | null;
+    status: string | null;
+    current_period_end: string | null;
+  } | null;
+  invoices: Array<{
+    public_id: string;
+    total_cents: number;
+    status: string;
+    due_date: string | null;
+    paid_at: string | null;
+  }>;
   audit_log: Array<{ action: string; created_at: string }>;
 }
 
@@ -29,17 +39,24 @@ export interface PaginatedTenants {
   to?: number;
 }
 
-export function useAdminTenants(params?: { search?: string; status?: string; page?: number; per_page?: number }) {
+export function useAdminTenants(params?: {
+  search?: string;
+  status?: string;
+  page?: number;
+  per_page?: number;
+}) {
   return useQuery<PaginatedTenants>({
-    queryKey: ['admin', 'tenants', params],
+    queryKey: ["admin", "tenants", params],
     queryFn: async () => {
       const queryParams: Record<string, unknown> = {};
       if (params?.search) queryParams.search = params.search;
-      if (params?.status) queryParams['filter[status]'] = params.status;
+      if (params?.status) queryParams["filter[status]"] = params.status;
       if (params?.page) queryParams.page = params.page;
       if (params?.per_page) queryParams.per_page = params.per_page;
 
-      const { data } = await apiClient.get('/admin/tenants', { params: queryParams });
+      const { data } = await apiClient.get("/admin/tenants", {
+        params: queryParams,
+      });
       return data;
     },
   });
@@ -47,7 +64,7 @@ export function useAdminTenants(params?: { search?: string; status?: string; pag
 
 export function useAdminTenant(publicId: string) {
   return useQuery<AdminTenantDetail>({
-    queryKey: ['admin', 'tenants', publicId],
+    queryKey: ["admin", "tenants", publicId],
     queryFn: async () => {
       const { data } = await apiClient.get(`/admin/tenants/${publicId}`);
       return data;
@@ -59,44 +76,68 @@ export function useAdminTenant(publicId: string) {
 export function useUpdateTenantStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ publicId, status }: { publicId: string; status: 'active' | 'suspended' | 'cancelled' }) => {
-      const { data } = await apiClient.put(`/admin/tenants/${publicId}/status`, { status });
+    mutationFn: async ({
+      publicId,
+      status,
+    }: {
+      publicId: string;
+      status: "active" | "suspended" | "cancelled";
+    }) => {
+      const { data } = await apiClient.put(
+        `/admin/tenants/${publicId}/status`,
+        { status },
+      );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
   });
 }
 
 export function useExtendTrial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ publicId, days }: { publicId: string; days: number }) => {
-      const { data } = await apiClient.post(`/admin/tenants/${publicId}/extend-trial`, { days });
+    mutationFn: async ({
+      publicId,
+      days,
+    }: {
+      publicId: string;
+      days: number;
+    }) => {
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/extend-trial`,
+        { days },
+      );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tenants'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
   });
 }
 
 export function useImpersonateTenant() {
-  return useMutation<{ token: string; tenant: string; expires_at: string }, unknown, string>({
+  return useMutation<
+    { token: string; tenant: string; expires_at: string },
+    unknown,
+    string
+  >({
     mutationFn: async (publicId) => {
-      const { data } = await apiClient.post(`/admin/tenants/${publicId}/impersonate`);
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/impersonate`,
+      );
       return data;
     },
     onSuccess: (data) => {
       // Preserve original credentials for exit
-      const current = localStorage.getItem('access_token');
-      const currentTenant = localStorage.getItem('tenant');
-      if (current) localStorage.setItem('original_access_token', current);
-      if (currentTenant) localStorage.setItem('original_tenant', currentTenant);
+      const current = localStorage.getItem("access_token");
+      const currentTenant = localStorage.getItem("tenant");
+      if (current) localStorage.setItem("original_access_token", current);
+      if (currentTenant) localStorage.setItem("original_tenant", currentTenant);
 
       // Switch to impersonated session
-      localStorage.setItem('access_token', data.token);
-      localStorage.setItem('tenant', data.tenant);
-      localStorage.setItem('impersonating', 'true');
+      localStorage.setItem("access_token", data.token);
+      localStorage.setItem("tenant", data.tenant);
+      localStorage.setItem("impersonating", "true");
 
-      window.location.href = '/dashboard';
+      window.location.href = "/dashboard";
     },
   });
 }
@@ -114,23 +155,39 @@ export interface AdminAuditLog {
 export function useTenantBackup() {
   return useMutation({
     mutationFn: async (publicId: string) => {
-      const { data } = await apiClient.post(`/admin/tenants/${publicId}/backup`);
+      const { data } = await apiClient.post(
+        `/admin/tenants/${publicId}/backup`,
+      );
       return data;
     },
   });
 }
 
-export function useAdminAuditLog(params?: { action?: string; from?: string; to?: string; page?: number }) {
-  return useQuery<{ data: AdminAuditLog[]; current_page?: number; last_page?: number; total?: number; from?: number; to?: number }>({
-    queryKey: ['admin', 'audit', params],
+export function useAdminAuditLog(params?: {
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+}) {
+  return useQuery<{
+    data: AdminAuditLog[];
+    current_page?: number;
+    last_page?: number;
+    total?: number;
+    from?: number;
+    to?: number;
+  }>({
+    queryKey: ["admin", "audit", params],
     queryFn: async () => {
       const queryParams: Record<string, unknown> = { per_page: 50 };
-      if (params?.action) queryParams['filter[action]'] = params.action;
-      if (params?.from) queryParams['filter[from]'] = params.from;
-      if (params?.to) queryParams['filter[to]'] = params.to;
+      if (params?.action) queryParams["filter[action]"] = params.action;
+      if (params?.from) queryParams["filter[from]"] = params.from;
+      if (params?.to) queryParams["filter[to]"] = params.to;
       if (params?.page) queryParams.page = params.page;
 
-      const { data } = await apiClient.get('/admin/audit', { params: queryParams });
+      const { data } = await apiClient.get("/admin/audit", {
+        params: queryParams,
+      });
       return data;
     },
   });

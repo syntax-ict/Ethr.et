@@ -1,29 +1,29 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import '@/styles/globals.css';
-import { Providers } from './providers';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "@/styles/globals.css";
+import { Providers } from "./providers";
 
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
+  subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | ETHR',
-    default: 'ETHR — Ethiopian Workforce Operating System',
+    template: "%s | ETHR",
+    default: "ETHR — Ethiopian Workforce Operating System",
   },
   description:
-    'Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.',
+    "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
   icons: {
-    icon: '/favicon.ico',
-    apple: '/icons/icon-192.png',
+    icon: "/favicon.ico",
+    apple: "/icons/icon-192.png",
   },
-  manifest: '/manifest.json',
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'ETHR',
+    statusBarStyle: "default",
+    title: "ETHR",
   },
 };
 

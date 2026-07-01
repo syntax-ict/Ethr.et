@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { WifiOff, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { WifiOff, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function OfflinePage() {
   return (
@@ -11,8 +11,8 @@ export default function OfflinePage() {
       </div>
       <h1 className="mt-6 text-2xl font-bold">You are offline</h1>
       <p className="mt-2 max-w-sm text-muted-foreground">
-        No internet connection. Check your network and try again.
-        Attendance you record offline will sync automatically when you reconnect.
+        No internet connection. Check your network and try again. Attendance you
+        record offline will sync automatically when you reconnect.
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
         ከኢንተርኔት ጋር ግንኙነት የለም። ኔትወርክዎን ያረጋግጡ።

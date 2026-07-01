@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface EmployeeDashboard {
   attendance_today: {
@@ -28,9 +28,9 @@ export interface EmployeeDashboard {
 
 export function useEmployeeDashboard() {
   return useQuery<EmployeeDashboard>({
-    queryKey: ['dashboard', 'employee'],
+    queryKey: ["dashboard", "employee"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/dashboard/employee');
+      const { data } = await apiClient.get("/dashboard/employee");
       return data;
     },
   });
@@ -39,15 +39,19 @@ export function useEmployeeDashboard() {
 export interface ManagerDashboard {
   team_attendance: { present: number; absent: number; late: number };
   pending_approvals: { leave: number; total: number };
-  team_on_leave: Array<{ employee_name: string; start_date: string; end_date: string }>;
+  team_on_leave: Array<{
+    employee_name: string;
+    start_date: string;
+    end_date: string;
+  }>;
   team_size: number;
 }
 
 export function useManagerDashboard() {
   return useQuery<ManagerDashboard>({
-    queryKey: ['dashboard', 'manager'],
+    queryKey: ["dashboard", "manager"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/dashboard/manager');
+      const { data } = await apiClient.get("/dashboard/manager");
       return data;
     },
   });

@@ -1,33 +1,33 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from "react";
+import { AlertTriangle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function ImpersonationBanner() {
   const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
-    const flag = localStorage.getItem('impersonating');
-    setIsImpersonating(flag === 'true');
+    const flag = localStorage.getItem("impersonating");
+    setIsImpersonating(flag === "true");
   }, []);
 
   function exitImpersonation() {
-    const originalToken = localStorage.getItem('original_access_token');
-    const originalTenant = localStorage.getItem('original_tenant');
+    const originalToken = localStorage.getItem("original_access_token");
+    const originalTenant = localStorage.getItem("original_tenant");
 
     if (originalToken) {
-      localStorage.setItem('access_token', originalToken);
-      localStorage.removeItem('original_access_token');
+      localStorage.setItem("access_token", originalToken);
+      localStorage.removeItem("original_access_token");
     }
     if (originalTenant) {
-      localStorage.setItem('tenant', originalTenant);
-      localStorage.removeItem('original_tenant');
+      localStorage.setItem("tenant", originalTenant);
+      localStorage.removeItem("original_tenant");
     }
-    localStorage.removeItem('impersonating');
+    localStorage.removeItem("impersonating");
 
     // Redirect back to admin console
-    window.location.href = '/admin';
+    window.location.href = "/admin";
   }
 
   if (!isImpersonating) return null;

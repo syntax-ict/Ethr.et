@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface Notification {
   id: string;
@@ -11,9 +11,9 @@ export interface Notification {
 
 export function useNotifications(params?: { page?: number }) {
   return useQuery({
-    queryKey: ['notifications', params],
+    queryKey: ["notifications", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/notifications', { params });
+      const { data } = await apiClient.get("/notifications", { params });
       return data;
     },
   });
@@ -21,9 +21,9 @@ export function useNotifications(params?: { page?: number }) {
 
 export function useUnreadCount() {
   return useQuery<{ count: number }>({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: ["notifications", "unread-count"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/notifications/unread-count');
+      const { data } = await apiClient.get("/notifications/unread-count");
       return data;
     },
     refetchInterval: 30000,
@@ -38,7 +38,7 @@ export function useMarkAsRead() {
       await apiClient.put(`/notifications/${id}/read`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -48,10 +48,10 @@ export function useMarkAllAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.put('/notifications/read-all');
+      await apiClient.put("/notifications/read-all");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { Menu, Moon, Sun, Globe, LogOut, Settings, User } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, Moon, Sun, Globe, LogOut, Settings, User } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +13,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Sheet } from '@/components/ui/sheet';
-import { SidebarNav } from './sidebar-nav';
-import { Separator } from '@/components/ui/separator';
-import { NotificationBell } from '@/features/notifications/components/notification-bell';
-import { useCurrentUser, useLogout } from '@/features/auth/api';
-import { TenantLogoBadge } from '@/features/branding/TenantBrandingProvider';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/dropdown-menu";
+import { Sheet } from "@/components/ui/sheet";
+import { SidebarNav } from "./sidebar-nav";
+import { Separator } from "@/components/ui/separator";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { useCurrentUser, useLogout } from "@/features/auth/api";
+import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
+import { Badge } from "@/components/ui/badge";
 
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,9 +28,9 @@ export function AppHeader() {
   const { data: user } = useCurrentUser();
   const logout = useLogout();
 
-  const initials = user?.email?.slice(0, 2).toUpperCase() ?? 'U';
-  const displayName = user?.email?.split('@')[0] ?? 'User';
-  const roleName = user?.role?.replace(/_/g, ' ') ?? '';
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "U";
+  const displayName = user?.email?.split("@")[0] ?? "User";
+  const roleName = user?.role?.replace(/_/g, " ") ?? "";
 
   return (
     <>
@@ -54,7 +54,7 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -71,16 +71,36 @@ export function AppHeader() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Language / ቋንቋ</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'en'); window.location.reload(); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  localStorage.setItem("locale", "en");
+                  window.location.reload();
+                }}
+              >
                 🇬🇧 English
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'am'); window.location.reload(); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  localStorage.setItem("locale", "am");
+                  window.location.reload();
+                }}
+              >
                 🇪🇹 አማርኛ (Amharic)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'om'); window.location.reload(); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  localStorage.setItem("locale", "om");
+                  window.location.reload();
+                }}
+              >
                 🇪🇹 Afaan Oromoo
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { localStorage.setItem('locale', 'ti'); window.location.reload(); }}>
+              <DropdownMenuItem
+                onClick={() => {
+                  localStorage.setItem("locale", "ti");
+                  window.location.reload();
+                }}
+              >
                 🇪🇹 ትግርኛ
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -94,16 +114,25 @@ export function AppHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2 px-2">
                 <Avatar className="h-7 w-7">
-                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                  <AvatarFallback className="text-xs">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm font-medium sm:inline-block">{displayName}</span>
+                <span className="hidden text-sm font-medium sm:inline-block">
+                  {displayName}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="font-normal">
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
-                <Badge variant="outline" className="mt-1 text-[10px] capitalize">{roleName}</Badge>
+                <Badge
+                  variant="outline"
+                  className="mt-1 text-[10px] capitalize"
+                >
+                  {roleName}
+                </Badge>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>

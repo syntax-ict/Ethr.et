@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { SidebarNav } from './sidebar-nav';
-import { Separator } from '@/components/ui/separator';
-import { TenantLogoBadge } from '@/features/branding/TenantBrandingProvider';
+import { SidebarNav } from "./sidebar-nav";
+import { Separator } from "@/components/ui/separator";
+import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 
 export function AppSidebar() {
   return (
@@ -15,7 +15,9 @@ export function AppSidebar() {
       </div>
       <Separator />
       <div className="p-4">
-        <p className="text-xs text-sidebar-foreground/50">Powered by ETHR · v1.0.0</p>
+        <p className="text-xs text-sidebar-foreground/50">
+          Powered by ETHR · v1.0.0
+        </p>
       </div>
     </aside>
   );

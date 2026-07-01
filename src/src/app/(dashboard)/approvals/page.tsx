@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { CheckSquare, Check, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatusBadge } from '@/components/shared/status-badge';
-import { EmptyState } from '@/components/shared/empty-state';
-import { RoleGate } from '@/components/shared/role-gate';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import { toast } from 'sonner';
+import { CheckSquare, Check, X, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/page-header";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { EmptyState } from "@/components/shared/empty-state";
+import { RoleGate } from "@/components/shared/role-gate";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import { toast } from "sonner";
 
 interface PendingItem {
   type: string;
@@ -23,36 +23,54 @@ interface PendingItem {
 export default function ApprovalsPage() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ items: PendingItem[]; total: number }>({
-    queryKey: ['approvals', 'pending'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/approvals/pending');
-      return data;
+  const { data, isLoading } = useQuery<{ items: PendingItem[]; total: number }>(
+    {
+      queryKey: ["approvals", "pending"],
+      queryFn: async () => {
+        const { data } = await apiClient.get("/approvals/pending");
+        return data;
+      },
     },
-  });
+  );
 
   const batchAction = useMutation({
-    mutationFn: async (payload: { actions: Array<{ type: string; public_id: string; action: string; reason?: string }> }) => {
-      const { data } = await apiClient.post('/approvals/batch', payload);
+    mutationFn: async (payload: {
+      actions: Array<{
+        type: string;
+        public_id: string;
+        action: string;
+        reason?: string;
+      }>;
+    }) => {
+      const { data } = await apiClient.post("/approvals/batch", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['leave'] });
-      toast.success('Action completed');
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
+      toast.success("Action completed");
     },
-    onError: () => toast.error('Action failed'),
+    onError: () => toast.error("Action failed"),
   });
 
   function handleApprove(item: PendingItem) {
     batchAction.mutate({
-      actions: [{ type: item.type, public_id: item.public_id, action: 'approve' }],
+      actions: [
+        { type: item.type, public_id: item.public_id, action: "approve" },
+      ],
     });
   }
 
   function handleReject(item: PendingItem) {
     batchAction.mutate({
-      actions: [{ type: item.type, public_id: item.public_id, action: 'reject', reason: 'Rejected by manager' }],
+      actions: [
+        {
+          type: item.type,
+          public_id: item.public_id,
+          action: "reject",
+          reason: "Rejected by manager",
+        },
+      ],
     });
   }
 
@@ -63,7 +81,7 @@ export default function ApprovalsPage() {
       <div className="space-y-6">
         <PageHeader
           title="Pending Approvals"
-          description={`${items.length} item${items.length !== 1 ? 's' : ''} waiting for your review`}
+          description={`${items.length} item${items.length !== 1 ? "s" : ""} waiting for your review`}
         />
 
         {isLoading ? (
@@ -86,8 +104,12 @@ export default function ApprovalsPage() {
                   <div className="flex items-start gap-3">
                     <StatusBadge status={item.type} />
                     <div>
-                      <p className="text-sm font-medium text-foreground">{item.employee_name}</p>
-                      <p className="text-sm text-muted-foreground">{item.summary}</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {item.employee_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.summary}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {new Date(item.submitted_at).toLocaleDateString()}
                       </p>
@@ -101,7 +123,11 @@ export default function ApprovalsPage() {
                       onClick={() => handleApprove(item)}
                       disabled={batchAction.isPending}
                     >
-                      {batchAction.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="mr-1 h-3 w-3" />}
+                      {batchAction.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="mr-1 h-3 w-3" />
+                      )}
                       Approve
                     </Button>
                     <Button

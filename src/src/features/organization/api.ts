@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface Branch {
   public_id: string;
@@ -69,7 +69,7 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
   return {
     useList: () =>
       useQuery<Paginated<T>>({
-        queryKey: ['organization', resource],
+        queryKey: ["organization", resource],
         queryFn: async () => {
           const { data } = await apiClient.get(`/organization/${resource}`);
           return data;
@@ -80,21 +80,35 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
       const qc = useQueryClient();
       return useMutation({
         mutationFn: async (payload: Partial<T>) => {
-          const { data } = await apiClient.post(`/organization/${resource}`, payload);
+          const { data } = await apiClient.post(
+            `/organization/${resource}`,
+            payload,
+          );
           return data;
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['organization', resource] }),
+        onSuccess: () =>
+          qc.invalidateQueries({ queryKey: ["organization", resource] }),
       });
     },
 
     useUpdate: () => {
       const qc = useQueryClient();
       return useMutation({
-        mutationFn: async ({ publicId, payload }: { publicId: string; payload: Partial<T> }) => {
-          const { data } = await apiClient.put(`/organization/${resource}/${publicId}`, payload);
+        mutationFn: async ({
+          publicId,
+          payload,
+        }: {
+          publicId: string;
+          payload: Partial<T>;
+        }) => {
+          const { data } = await apiClient.put(
+            `/organization/${resource}/${publicId}`,
+            payload,
+          );
           return data;
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['organization', resource] }),
+        onSuccess: () =>
+          qc.invalidateQueries({ queryKey: ["organization", resource] }),
       });
     },
 
@@ -104,15 +118,16 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
         mutationFn: async (publicId: string) => {
           await apiClient.delete(`/organization/${resource}/${publicId}`);
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['organization', resource] }),
+        onSuccess: () =>
+          qc.invalidateQueries({ queryKey: ["organization", resource] }),
       });
     },
   };
 }
 
-export const branchesApi = makeHooks<Branch>('branches');
-export const departmentsApi = makeHooks<Department>('departments');
-export const teamsApi = makeHooks<Team>('teams');
-export const positionsApi = makeHooks<Position>('positions');
-export const gradesApi = makeHooks<Grade>('grades');
-export const costCentersApi = makeHooks<CostCenter>('cost-centers');
+export const branchesApi = makeHooks<Branch>("branches");
+export const departmentsApi = makeHooks<Department>("departments");
+export const teamsApi = makeHooks<Team>("teams");
+export const positionsApi = makeHooks<Position>("positions");
+export const gradesApi = makeHooks<Grade>("grades");
+export const costCentersApi = makeHooks<CostCenter>("cost-centers");

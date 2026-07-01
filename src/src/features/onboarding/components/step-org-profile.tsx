@@ -1,14 +1,26 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Building2, Landmark, Hospital, Factory, Heart, Hotel, GraduationCap, Briefcase } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import type { OrganizationTemplate } from '../types';
+import { useState, useEffect } from "react";
+import {
+  Building2,
+  Landmark,
+  Hospital,
+  Factory,
+  Heart,
+  Hotel,
+  GraduationCap,
+  Briefcase,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import type { OrganizationTemplate } from "../types";
 
-const templateIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+const templateIcons: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   government: Landmark,
   bank: Landmark,
   hospital: Hospital,
@@ -25,10 +37,18 @@ interface StepOrgProfileProps {
   onNext: (data: Record<string, unknown>) => void;
 }
 
-export function StepOrgProfile({ templates, data, onNext }: StepOrgProfileProps) {
-  const [orgName, setOrgName] = useState((data.organization_name as string) || '');
-  const [selectedTemplate, setSelectedTemplate] = useState((data.template_slug as string) || '');
-  const [size, setSize] = useState((data.size_range as string) || '1-50');
+export function StepOrgProfile({
+  templates,
+  data,
+  onNext,
+}: StepOrgProfileProps) {
+  const [orgName, setOrgName] = useState(
+    (data.organization_name as string) || "",
+  );
+  const [selectedTemplate, setSelectedTemplate] = useState(
+    (data.template_slug as string) || "",
+  );
+  const [size, setSize] = useState((data.size_range as string) || "1-50");
 
   return (
     <div className="space-y-6">
@@ -69,7 +89,8 @@ export function StepOrgProfile({ templates, data, onNext }: StepOrgProfileProps)
         <div className="space-y-3">
           <Label>Industry Template</Label>
           <p className="text-xs text-muted-foreground">
-            Select a template to pre-populate departments, shifts, and leave types
+            Select a template to pre-populate departments, shifts, and leave
+            types
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {templates.map((template) => {
@@ -80,10 +101,10 @@ export function StepOrgProfile({ templates, data, onNext }: StepOrgProfileProps)
                   type="button"
                   onClick={() => setSelectedTemplate(template.slug)}
                   className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:shadow-md',
+                    "flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:shadow-md",
                     selectedTemplate === template.slug
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border'
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border",
                   )}
                 >
                   <Icon className="h-6 w-6 text-primary" />

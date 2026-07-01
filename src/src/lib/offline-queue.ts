@@ -1,11 +1,11 @@
-const DB_NAME = 'ethr-offline';
+const DB_NAME = "ethr-offline";
 const DB_VERSION = 1;
-const STORE_NAME = 'attendance_queue';
+const STORE_NAME = "attendance_queue";
 
 export interface OfflineAttendanceRecord {
   id?: number;
   employee_public_id: string;
-  type: 'check_in' | 'check_out';
+  type: "check_in" | "check_out";
   idempotency_key: string;
   offline_token: string;
   latitude?: number | null;
@@ -22,8 +22,11 @@ function openDB(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-        store.createIndex('synced', 'synced', { unique: false });
+        const store = db.createObjectStore(STORE_NAME, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        store.createIndex("synced", "synced", { unique: false });
       }
     };
 
@@ -32,10 +35,12 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function enqueueOfflineRecord(record: Omit<OfflineAttendanceRecord, 'id' | 'synced'>): Promise<number> {
+export async function enqueueOfflineRecord(
+  record: Omit<OfflineAttendanceRecord, "id" | "synced">,
+): Promise<number> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const req = store.add({ ...record, synced: 0, sync_error: null });
     req.onsuccess = () => resolve(req.result as number);
@@ -46,9 +51,9 @@ export async function enqueueOfflineRecord(record: Omit<OfflineAttendanceRecord,
 export async function getPendingRecords(): Promise<OfflineAttendanceRecord[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
+    const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const index = store.index('synced');
+    const index = store.index("synced");
     const req = index.getAll(0);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -58,7 +63,7 @@ export async function getPendingRecords(): Promise<OfflineAttendanceRecord[]> {
 export async function getAllRecords(): Promise<OfflineAttendanceRecord[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
+    const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result);
@@ -69,7 +74,7 @@ export async function getAllRecords(): Promise<OfflineAttendanceRecord[]> {
 export async function markSynced(id: number): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const getReq = store.get(id);
     getReq.onsuccess = () => {
@@ -88,7 +93,7 @@ export async function markSynced(id: number): Promise<void> {
 export async function markSyncError(id: number, error: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const getReq = store.get(id);
     getReq.onsuccess = () => {
@@ -106,9 +111,9 @@ export async function markSyncError(id: number, error: string): Promise<void> {
 export async function clearSyncedRecords(): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    const index = store.index('synced');
+    const index = store.index("synced");
     const req = index.openCursor(1);
     req.onsuccess = () => {
       const cursor = req.result;

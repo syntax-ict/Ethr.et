@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface ProfileResponse {
   user: {
@@ -28,9 +28,9 @@ export interface ProfileResponse {
 
 export function useMyProfile() {
   return useQuery<ProfileResponse>({
-    queryKey: ['profile', 'me'],
+    queryKey: ["profile", "me"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/profile');
+      const { data } = await apiClient.get("/profile");
       return data;
     },
   });
@@ -52,11 +52,11 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async (payload: UpdateProfilePayload) => {
-      const { data } = await apiClient.put('/profile', payload);
+      const { data } = await apiClient.put("/profile", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
   });
 }

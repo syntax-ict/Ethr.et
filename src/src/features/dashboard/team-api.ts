@@ -1,12 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface TeamAttendanceEmployee {
   public_id: string;
   name: string;
   department: string | null;
   photo_path: string | null;
-  status: 'present' | 'absent' | 'late' | 'on_leave' | 'checked_in';
+  status: "present" | "absent" | "late" | "on_leave" | "checked_in";
   check_in: string | null;
   check_out: string | null;
 }
@@ -19,9 +19,9 @@ export interface TeamAttendanceTodayResponse {
 
 export function useTeamAttendanceToday() {
   return useQuery<TeamAttendanceTodayResponse>({
-    queryKey: ['team', 'attendance', 'today'],
+    queryKey: ["team", "attendance", "today"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/team/attendance/today');
+      const { data } = await apiClient.get("/team/attendance/today");
       return data;
     },
     refetchInterval: 60000,
@@ -42,11 +42,15 @@ export interface TeamAttendanceSummaryResponse {
   }>;
 }
 
-export function useTeamAttendanceSummary(period: 'weekly' | 'monthly' = 'weekly') {
+export function useTeamAttendanceSummary(
+  period: "weekly" | "monthly" = "weekly",
+) {
   return useQuery<TeamAttendanceSummaryResponse>({
-    queryKey: ['team', 'attendance', 'summary', period],
+    queryKey: ["team", "attendance", "summary", period],
     queryFn: async () => {
-      const { data } = await apiClient.get('/team/attendance/summary', { params: { period } });
+      const { data } = await apiClient.get("/team/attendance/summary", {
+        params: { period },
+      });
       return data;
     },
   });
@@ -66,9 +70,9 @@ export interface TeamOvertimeResponse {
 
 export function useTeamOvertime() {
   return useQuery<TeamOvertimeResponse>({
-    queryKey: ['team', 'overtime'],
+    queryKey: ["team", "overtime"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/team/overtime');
+      const { data } = await apiClient.get("/team/overtime");
       return data;
     },
   });
@@ -81,16 +85,19 @@ export interface TeamLeaveCalendarResponse {
     public_id: string;
     name: string;
     photo_path: string | null;
-    days: Record<string, { on_leave: boolean; leave_type: string; color: string }>;
+    days: Record<
+      string,
+      { on_leave: boolean; leave_type: string; color: string }
+    >;
   }>;
   daily_summary: Record<string, { on_leave_count: number }>;
 }
 
 export function useTeamLeaveCalendar(month?: string) {
   return useQuery<TeamLeaveCalendarResponse>({
-    queryKey: ['team', 'leave', 'calendar', month],
+    queryKey: ["team", "leave", "calendar", month],
     queryFn: async () => {
-      const { data } = await apiClient.get('/team/leave/calendar', {
+      const { data } = await apiClient.get("/team/leave/calendar", {
         params: month ? { month } : undefined,
       });
       return data;

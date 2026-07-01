@@ -1,5 +1,11 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 interface StepPlaceholderProps {
   title: string;
@@ -10,7 +16,14 @@ interface StepPlaceholderProps {
   isLast?: boolean;
 }
 
-export function StepPlaceholder({ title, description, items, onNext, onBack, isLast }: StepPlaceholderProps) {
+export function StepPlaceholder({
+  title,
+  description,
+  items,
+  onNext,
+  onBack,
+  isLast,
+}: StepPlaceholderProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -42,7 +55,7 @@ export function StepPlaceholder({ title, description, items, onNext, onBack, isL
           Back
         </Button>
         <Button onClick={() => onNext({})}>
-          {isLast ? 'Launch Dashboard' : 'Next'}
+          {isLast ? "Launch Dashboard" : "Next"}
         </Button>
       </div>
     </div>

@@ -1,17 +1,47 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Users, Clock, CalendarDays, Wallet, BarChart3,
-  Settings, Building2, Bell, Receipt, FilePenLine, Shield,
-  CheckSquare, Megaphone, Contact, Banknote, Calendar, Timer, ListChecks,
-  TrendingUp, Fingerprint, KeyRound, Webhook, UserCircle, UsersRound,
-  ShieldCheck, BellRing, ScrollText, CreditCard, Activity, QrCode, Smartphone, BookOpen,
-  Monitor, Settings2, CalendarRange,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { usePermissions } from '@/lib/hooks/usePermissions';
+  LayoutDashboard,
+  Users,
+  Clock,
+  CalendarDays,
+  Wallet,
+  BarChart3,
+  Settings,
+  Building2,
+  Bell,
+  Receipt,
+  FilePenLine,
+  Shield,
+  CheckSquare,
+  Megaphone,
+  Contact,
+  Banknote,
+  Calendar,
+  Timer,
+  ListChecks,
+  TrendingUp,
+  Fingerprint,
+  KeyRound,
+  Webhook,
+  UserCircle,
+  UsersRound,
+  ShieldCheck,
+  BellRing,
+  ScrollText,
+  CreditCard,
+  Activity,
+  QrCode,
+  Smartphone,
+  BookOpen,
+  Monitor,
+  Settings2,
+  CalendarRange,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface NavItem {
   label: string;
@@ -36,80 +66,255 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const sections: NavSection[] = [
     {
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
-        { label: 'My Profile', href: '/profile', icon: UserCircle, show: true },
-        { label: 'Security', href: '/profile/security', icon: ShieldCheck, show: true },
-        { label: 'Directory', href: '/directory', icon: Contact, show: true },
-        { label: 'Announcements', href: '/announcements', icon: Megaphone, show: true },
+        {
+          label: "Dashboard",
+          href: "/dashboard",
+          icon: LayoutDashboard,
+          show: true,
+        },
+        { label: "My Profile", href: "/profile", icon: UserCircle, show: true },
+        {
+          label: "Security",
+          href: "/profile/security",
+          icon: ShieldCheck,
+          show: true,
+        },
+        { label: "Directory", href: "/directory", icon: Contact, show: true },
+        {
+          label: "Announcements",
+          href: "/announcements",
+          icon: Megaphone,
+          show: true,
+        },
       ],
     },
     {
-      title: 'HR',
+      title: "HR",
       items: [
-        { label: 'Employees', href: '/employees', icon: Users, show: can.manageEmployees },
-        { label: 'Organization', href: '/organization', icon: Building2, show: can.manageOrg },
+        {
+          label: "Employees",
+          href: "/employees",
+          icon: Users,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Organization",
+          href: "/organization",
+          icon: Building2,
+          show: can.manageOrg,
+        },
       ],
     },
     {
-      title: 'Operations',
+      title: "Operations",
       items: [
-        { label: 'Attendance', href: '/attendance', icon: Clock, show: true },
-        { label: 'Mobile Check-in', href: '/attendance/mobile', icon: Smartphone, show: true },
-        { label: 'Scan QR', href: '/attendance/scan', icon: QrCode, show: true },
-        { label: 'Team Attendance', href: '/attendance/team', icon: UsersRound, show: isSupervisor },
-        { label: 'Corrections', href: '/attendance/corrections', icon: FilePenLine, show: true },
-        { label: 'Intelligence', href: '/attendance/intelligence', icon: Activity, show: can.manageEmployees },
-        { label: 'Overtime', href: '/attendance/overtime', icon: TrendingUp, show: can.manageEmployees },
-        { label: 'Shifts', href: '/shifts', icon: CalendarRange, show: can.manageEmployees },
-        { label: 'QR Generator', href: '/attendance/qr', icon: QrCode, show: can.manageEmployees },
-        { label: 'Kiosks', href: '/attendance/kiosks', icon: Monitor, show: can.manageEmployees },
-        { label: 'Attendance Settings', href: '/attendance/settings', icon: Settings2, show: can.manageEmployees },
-        { label: 'Leave', href: '/leave', icon: CalendarDays, show: true },
-        { label: 'Approvals', href: '/approvals', icon: CheckSquare, show: isSupervisor },
-        { label: 'Devices', href: '/devices', icon: Fingerprint, show: can.manageEmployees },
+        { label: "Attendance", href: "/attendance", icon: Clock, show: true },
+        {
+          label: "Mobile Check-in",
+          href: "/attendance/mobile",
+          icon: Smartphone,
+          show: true,
+        },
+        {
+          label: "Scan QR",
+          href: "/attendance/scan",
+          icon: QrCode,
+          show: true,
+        },
+        {
+          label: "Team Attendance",
+          href: "/attendance/team",
+          icon: UsersRound,
+          show: isSupervisor,
+        },
+        {
+          label: "Corrections",
+          href: "/attendance/corrections",
+          icon: FilePenLine,
+          show: true,
+        },
+        {
+          label: "Intelligence",
+          href: "/attendance/intelligence",
+          icon: Activity,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Overtime",
+          href: "/attendance/overtime",
+          icon: TrendingUp,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Shifts",
+          href: "/shifts",
+          icon: CalendarRange,
+          show: can.manageEmployees,
+        },
+        {
+          label: "QR Generator",
+          href: "/attendance/qr",
+          icon: QrCode,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Kiosks",
+          href: "/attendance/kiosks",
+          icon: Monitor,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Attendance Settings",
+          href: "/attendance/settings",
+          icon: Settings2,
+          show: can.manageEmployees,
+        },
+        { label: "Leave", href: "/leave", icon: CalendarDays, show: true },
+        {
+          label: "Approvals",
+          href: "/approvals",
+          icon: CheckSquare,
+          show: isSupervisor,
+        },
+        {
+          label: "Devices",
+          href: "/devices",
+          icon: Fingerprint,
+          show: can.manageEmployees,
+        },
       ],
     },
     {
-      title: 'Finance',
+      title: "Finance",
       items: [
-        { label: 'Payroll Runs', href: '/payroll', icon: Wallet, show: can.viewPayrollRuns },
-        { label: 'Loans', href: '/payroll/loans', icon: Banknote, show: isFinanceAdmin },
-        { label: 'My Payslips', href: '/payroll/payslips', icon: Receipt, show: true },
-        { label: 'Billing', href: '/billing', icon: CreditCard, show: isTenantAdmin },
+        {
+          label: "Payroll Runs",
+          href: "/payroll",
+          icon: Wallet,
+          show: can.viewPayrollRuns,
+        },
+        {
+          label: "Loans",
+          href: "/payroll/loans",
+          icon: Banknote,
+          show: isFinanceAdmin,
+        },
+        {
+          label: "My Payslips",
+          href: "/payroll/payslips",
+          icon: Receipt,
+          show: true,
+        },
+        {
+          label: "Billing",
+          href: "/billing",
+          icon: CreditCard,
+          show: isTenantAdmin,
+        },
       ],
     },
     {
-      title: 'Insights',
+      title: "Insights",
       items: [
-        { label: 'Reports', href: '/reports', icon: BarChart3, show: can.viewReports },
-        { label: 'Analytics', href: '/analytics', icon: TrendingUp, show: isTenantAdmin },
+        {
+          label: "Reports",
+          href: "/reports",
+          icon: BarChart3,
+          show: can.viewReports,
+        },
+        {
+          label: "Analytics",
+          href: "/analytics",
+          icon: TrendingUp,
+          show: isTenantAdmin,
+        },
       ],
     },
     {
-      title: 'Configuration',
+      title: "Configuration",
       items: [
-        { label: 'Holidays', href: '/settings/holidays', icon: Calendar, show: can.manageEmployees },
-        { label: 'Leave Types', href: '/settings/leave-types', icon: ListChecks, show: can.manageEmployees },
-        { label: 'Shifts', href: '/settings/shifts', icon: Timer, show: can.manageEmployees },
-        { label: 'Settings', href: '/settings', icon: Settings, show: can.manageSettings },
+        {
+          label: "Holidays",
+          href: "/settings/holidays",
+          icon: Calendar,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Leave Types",
+          href: "/settings/leave-types",
+          icon: ListChecks,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Shifts",
+          href: "/settings/shifts",
+          icon: Timer,
+          show: can.manageEmployees,
+        },
+        {
+          label: "Settings",
+          href: "/settings",
+          icon: Settings,
+          show: can.manageSettings,
+        },
       ],
     },
     {
-      title: 'Integrations',
+      title: "Integrations",
       items: [
-        { label: 'API Keys', href: '/settings/api-keys', icon: KeyRound, show: isTenantAdmin },
-        { label: 'Webhooks', href: '/settings/webhooks', icon: Webhook, show: isTenantAdmin },
-        { label: 'Accounting', href: '/settings/accounting', icon: BookOpen, show: can.manageSettings },
-        { label: 'Audit Log', href: '/settings/audit-logs', icon: ScrollText, show: isTenantAdmin },
+        {
+          label: "API Keys",
+          href: "/settings/api-keys",
+          icon: KeyRound,
+          show: isTenantAdmin,
+        },
+        {
+          label: "Webhooks",
+          href: "/settings/webhooks",
+          icon: Webhook,
+          show: isTenantAdmin,
+        },
+        {
+          label: "Accounting",
+          href: "/settings/accounting",
+          icon: BookOpen,
+          show: can.manageSettings,
+        },
+        {
+          label: "Audit Log",
+          href: "/settings/audit-logs",
+          icon: ScrollText,
+          show: isTenantAdmin,
+        },
       ],
     },
     {
-      title: 'System',
+      title: "System",
       items: [
-        { label: 'Notifications', href: '/notifications', icon: Bell, show: true },
-        { label: 'Preferences', href: '/notifications/preferences', icon: BellRing, show: true },
-        { label: 'Admin Console', href: '/admin', icon: Shield, show: can.viewAdminConsole },
-        { label: 'Tenants', href: '/admin/tenants', icon: Building2, show: can.viewAdminConsole },
+        {
+          label: "Notifications",
+          href: "/notifications",
+          icon: Bell,
+          show: true,
+        },
+        {
+          label: "Preferences",
+          href: "/notifications/preferences",
+          icon: BellRing,
+          show: true,
+        },
+        {
+          label: "Admin Console",
+          href: "/admin",
+          icon: Shield,
+          show: can.viewAdminConsole,
+        },
+        {
+          label: "Tenants",
+          href: "/admin/tenants",
+          icon: Building2,
+          show: can.viewAdminConsole,
+        },
       ],
     },
   ];
@@ -129,10 +334,15 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           )}
           {section.items.map((item) => {
             const isExactMatch = pathname === item.href;
-            const isPrefixMatch = pathname.startsWith(item.href + '/');
+            const isPrefixMatch = pathname.startsWith(item.href + "/");
             // Avoid /settings matching when on /settings/holidays etc.
-            const exactOnly = item.href === '/settings' || item.href === '/payroll' || item.href === '/attendance';
-            const isActive = exactOnly ? isExactMatch : (isExactMatch || isPrefixMatch);
+            const exactOnly =
+              item.href === "/settings" ||
+              item.href === "/payroll" ||
+              item.href === "/attendance";
+            const isActive = exactOnly
+              ? isExactMatch
+              : isExactMatch || isPrefixMatch;
             const Icon = item.icon;
 
             return (
@@ -141,10 +351,10 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />

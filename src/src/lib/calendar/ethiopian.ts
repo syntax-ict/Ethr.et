@@ -5,35 +5,35 @@ export interface EthiopianDate {
 }
 
 const ETHIOPIAN_MONTHS = [
-  'Meskerem',
-  'Tikimt',
-  'Hidar',
-  'Tahsas',
-  'Tir',
-  'Yekatit',
-  'Megabit',
-  'Miyazia',
-  'Ginbot',
-  'Sene',
-  'Hamle',
-  'Nehase',
-  'Pagume',
+  "Meskerem",
+  "Tikimt",
+  "Hidar",
+  "Tahsas",
+  "Tir",
+  "Yekatit",
+  "Megabit",
+  "Miyazia",
+  "Ginbot",
+  "Sene",
+  "Hamle",
+  "Nehase",
+  "Pagume",
 ] as const;
 
 const ETHIOPIAN_MONTHS_AM = [
-  'መስከረም',
-  'ጥቅምት',
-  'ኅዳር',
-  'ታኅሣሥ',
-  'ጥር',
-  'የካቲት',
-  'መጋቢት',
-  'ሚያዝያ',
-  'ግንቦት',
-  'ሰኔ',
-  'ሐምሌ',
-  'ነሐሴ',
-  'ጳጉሜ',
+  "መስከረም",
+  "ጥቅምት",
+  "ኅዳር",
+  "ታኅሣሥ",
+  "ጥር",
+  "የካቲት",
+  "መጋቢት",
+  "ሚያዝያ",
+  "ግንቦት",
+  "ሰኔ",
+  "ሐምሌ",
+  "ነሐሴ",
+  "ጳጉሜ",
 ] as const;
 
 const JD_EPOCH_OFFSET_AMETE_MIHRET = 1723856;
@@ -62,7 +62,11 @@ function gregorianToJdn(year: number, month: number, day: number): number {
   );
 }
 
-function jdnToGregorian(jdn: number): { year: number; month: number; day: number } {
+function jdnToGregorian(jdn: number): {
+  year: number;
+  month: number;
+  day: number;
+} {
   const a = jdn + 32044;
   const b = Math.floor((4 * a + 3) / 146097);
   const c = a - Math.floor((146097 * b) / 4);
@@ -77,19 +81,30 @@ function jdnToGregorian(jdn: number): { year: number; month: number; day: number
   };
 }
 
-export function toEthiopian(year: number, month: number, day: number): EthiopianDate {
+export function toEthiopian(
+  year: number,
+  month: number,
+  day: number,
+): EthiopianDate {
   const jdn = gregorianToJdn(year, month, day);
   const r = (jdn - JD_EPOCH_OFFSET_AMETE_MIHRET) % 1461;
   const n = (r % 365) + 365 * Math.floor(r / 1460);
 
-  const ethYear = 4 * Math.floor((jdn - JD_EPOCH_OFFSET_AMETE_MIHRET) / 1461) + Math.floor(r / 365) - Math.floor(r / 1460);
+  const ethYear =
+    4 * Math.floor((jdn - JD_EPOCH_OFFSET_AMETE_MIHRET) / 1461) +
+    Math.floor(r / 365) -
+    Math.floor(r / 1460);
   const ethMonth = Math.floor(n / 30) + 1;
   const ethDay = (n % 30) + 1;
 
   return { year: ethYear, month: ethMonth, day: ethDay };
 }
 
-export function toGregorian(ethYear: number, ethMonth: number, ethDay: number): Date {
+export function toGregorian(
+  ethYear: number,
+  ethMonth: number,
+  ethDay: number,
+): Date {
   const jdn =
     JD_EPOCH_OFFSET_AMETE_MIHRET +
     365 * ethYear +
@@ -102,8 +117,11 @@ export function toGregorian(ethYear: number, ethMonth: number, ethDay: number): 
   return new Date(greg.year, greg.month - 1, greg.day);
 }
 
-export function formatEthiopian(date: EthiopianDate, locale: string = 'en'): string {
-  const months = locale === 'am' ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+export function formatEthiopian(
+  date: EthiopianDate,
+  locale: string = "en",
+): string {
+  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
   const monthName = months[date.month - 1] ?? `Month ${date.month}`;
   return `${monthName} ${date.day}, ${date.year}`;
 }
@@ -113,4 +131,9 @@ export function todayEthiopian(): EthiopianDate {
   return toEthiopian(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
-export { ETHIOPIAN_MONTHS, ETHIOPIAN_MONTHS_AM, isEthiopianLeapYear, isGregorianLeapYear };
+export {
+  ETHIOPIAN_MONTHS,
+  ETHIOPIAN_MONTHS_AM,
+  isEthiopianLeapYear,
+  isGregorianLeapYear,
+};

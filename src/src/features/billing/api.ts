@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
 
 export interface BillingInvoice {
   public_id: string;
@@ -31,9 +31,9 @@ export interface Plan {
 
 export function useBillingDashboard() {
   return useQuery<BillingDashboard>({
-    queryKey: ['billing', 'dashboard'],
+    queryKey: ["billing", "dashboard"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/billing/dashboard');
+      const { data } = await apiClient.get("/billing/dashboard");
       return data;
     },
   });
@@ -41,9 +41,9 @@ export function useBillingDashboard() {
 
 export function usePlans() {
   return useQuery<{ data: Plan[] }>({
-    queryKey: ['plans'],
+    queryKey: ["plans"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/plans');
+      const { data } = await apiClient.get("/plans");
       return data;
     },
   });
@@ -61,11 +61,11 @@ export function useChangePlan() {
 
   return useMutation<PlanChangeResult, unknown, { plan_public_id: string }>({
     mutationFn: async (payload) => {
-      const { data } = await apiClient.post('/billing/change-plan', payload);
+      const { data } = await apiClient.post("/billing/change-plan", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ["billing"] });
     },
   });
 }
@@ -75,11 +75,13 @@ export function useMarkInvoicePaid() {
 
   return useMutation({
     mutationFn: async (invoicePublicId: string) => {
-      const { data } = await apiClient.put(`/billing/invoices/${invoicePublicId}/mark-paid`);
+      const { data } = await apiClient.put(
+        `/billing/invoices/${invoicePublicId}/mark-paid`,
+      );
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ["billing"] });
     },
   });
 }

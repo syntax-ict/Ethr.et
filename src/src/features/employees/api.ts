@@ -1,13 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import type { PaginatedResponse } from '@/api/types';
-import type { Employee, EmployeeFormData } from './types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import type { PaginatedResponse } from "@/api/types";
+import type { Employee, EmployeeFormData } from "./types";
 
-export function useEmployees(params?: { page?: number; search?: string; per_page?: number }) {
+export function useEmployees(params?: {
+  page?: number;
+  search?: string;
+  per_page?: number;
+}) {
   return useQuery<PaginatedResponse<Employee>>({
-    queryKey: ['employees', params],
+    queryKey: ["employees", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/employees', { params });
+      const { data } = await apiClient.get("/employees", { params });
       return data;
     },
   });
@@ -15,7 +19,7 @@ export function useEmployees(params?: { page?: number; search?: string; per_page
 
 export function useEmployee(publicId: string) {
   return useQuery<Employee>({
-    queryKey: ['employees', publicId],
+    queryKey: ["employees", publicId],
     queryFn: async () => {
       const { data } = await apiClient.get(`/employees/${publicId}`);
       return data;
@@ -29,11 +33,11 @@ export function useCreateEmployee() {
 
   return useMutation({
     mutationFn: async (formData: EmployeeFormData) => {
-      const { data } = await apiClient.post('/employees', formData);
+      const { data } = await apiClient.post("/employees", formData);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }
@@ -47,16 +51,16 @@ export function useUpdateEmployee(publicId: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }
 
 export function useEmployeeStats() {
   return useQuery({
-    queryKey: ['employees', 'stats'],
+    queryKey: ["employees", "stats"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/employees/stats');
+      const { data } = await apiClient.get("/employees/stats");
       return data;
     },
   });

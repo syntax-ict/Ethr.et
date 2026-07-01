@@ -1,5 +1,5 @@
-import { MarketingHeader } from '@/components/layouts/marketing-header';
-import { MarketingFooter } from '@/components/layouts/marketing-footer';
+import { MarketingHeader } from "@/components/layouts/marketing-header";
+import { MarketingFooter } from "@/components/layouts/marketing-footer";
 
 export default function MarketingLayout({
   children,

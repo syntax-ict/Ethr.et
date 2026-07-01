@@ -6,35 +6,38 @@
 let echoInstance: any = null;
 
 export function getEcho(): any {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   return echoInstance;
 }
 
 export async function initEcho(token: string): Promise<any> {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
 
-  const reverbHost = process.env.NEXT_PUBLIC_REVERB_HOST ?? 'localhost';
-  const reverbPort = parseInt(process.env.NEXT_PUBLIC_REVERB_PORT ?? '8080', 10);
-  const reverbScheme = process.env.NEXT_PUBLIC_REVERB_SCHEME ?? 'http';
-  const appKey = process.env.NEXT_PUBLIC_REVERB_APP_KEY ?? 'ethr-key';
+  const reverbHost = process.env.NEXT_PUBLIC_REVERB_HOST ?? "localhost";
+  const reverbPort = parseInt(
+    process.env.NEXT_PUBLIC_REVERB_PORT ?? "8080",
+    10,
+  );
+  const reverbScheme = process.env.NEXT_PUBLIC_REVERB_SCHEME ?? "http";
+  const appKey = process.env.NEXT_PUBLIC_REVERB_APP_KEY ?? "ethr-key";
 
   try {
     const [{ default: LaravelEcho }, { default: Pusher }] = await Promise.all([
-      import('laravel-echo' as any),
-      import('pusher-js' as any),
+      import("laravel-echo" as any),
+      import("pusher-js" as any),
     ]);
 
     (window as any).Pusher = Pusher;
 
     echoInstance = new LaravelEcho({
-      broadcaster: 'reverb',
+      broadcaster: "reverb",
       key: appKey,
       wsHost: reverbHost,
       wsPort: reverbPort,
       wssPort: reverbPort,
-      forceTLS: reverbScheme === 'https',
-      enabledTransports: ['ws', 'wss'],
-      authEndpoint: '/api/v1/broadcasting/auth',
+      forceTLS: reverbScheme === "https",
+      enabledTransports: ["ws", "wss"],
+      authEndpoint: "/api/v1/broadcasting/auth",
       auth: {
         headers: { Authorization: `Bearer ${token}` },
       },

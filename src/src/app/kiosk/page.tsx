@@ -1,19 +1,26 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  LogIn, LogOut, CheckCircle2, XCircle, Clock, KeyRound,
-  Maximize, Lock, Loader2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiClient } from '@/api/client';
-import { cn } from '@/lib/utils';
+  LogIn,
+  LogOut,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  KeyRound,
+  Maximize,
+  Lock,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiClient } from "@/api/client";
+import { cn } from "@/lib/utils";
 
-type Screen = 'setup' | 'kiosk' | 'lock';
-type CheckMode = 'idle' | 'checking' | 'success' | 'error';
+type Screen = "setup" | "kiosk" | "lock";
+type CheckMode = "idle" | "checking" | "success" | "error";
 
 interface KioskConfig {
   token: string;
@@ -26,36 +33,36 @@ interface KioskConfig {
 }
 
 export default function KioskPage() {
-  const [screen, setScreen] = useState<Screen>('setup');
+  const [screen, setScreen] = useState<Screen>("setup");
   const [config, setConfig] = useState<KioskConfig | null>(null);
 
   // Setup form
-  const [setupToken, setSetupToken] = useState('');
+  const [setupToken, setSetupToken] = useState("");
   const [setupLoading, setSetupLoading] = useState(false);
-  const [setupError, setSetupError] = useState('');
+  const [setupError, setSetupError] = useState("");
 
   // Kiosk state
-  const [code, setCode] = useState('');
-  const [pin, setPin] = useState('');
+  const [code, setCode] = useState("");
+  const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
-  const [type, setType] = useState<'check_in' | 'check_out'>('check_in');
-  const [mode, setMode] = useState<CheckMode>('idle');
-  const [message, setMessage] = useState('');
+  const [type, setType] = useState<"check_in" | "check_out">("check_in");
+  const [mode, setMode] = useState<CheckMode>("idle");
+  const [message, setMessage] = useState("");
   const [now, setNow] = useState(new Date());
 
   // Lock screen
-  const [adminPin, setAdminPin] = useState('');
-  const [lockError, setLockError] = useState('');
+  const [adminPin, setAdminPin] = useState("");
+  const [lockError, setLockError] = useState("");
 
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-load token from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('kiosk_token');
+    const saved = localStorage.getItem("kiosk_token");
     if (saved) {
       authenticateToken(saved);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live clock
@@ -66,14 +73,17 @@ export default function KioskPage() {
 
   // Auto-reset after result
   useEffect(() => {
-    if (mode === 'success' || mode === 'error') {
-      resetTimerRef.current = setTimeout(() => {
-        setMode('idle');
-        setCode('');
-        setPin('');
-        setShowPin(false);
-        setMessage('');
-      }, (config?.autoResetSeconds ?? 4) * 1000);
+    if (mode === "success" || mode === "error") {
+      resetTimerRef.current = setTimeout(
+        () => {
+          setMode("idle");
+          setCode("");
+          setPin("");
+          setShowPin(false);
+          setMessage("");
+        },
+        (config?.autoResetSeconds ?? 4) * 1000,
+      );
       return () => {
         if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       };
@@ -82,24 +92,24 @@ export default function KioskPage() {
 
   async function authenticateToken(token: string) {
     setSetupLoading(true);
-    setSetupError('');
+    setSetupError("");
     try {
-      const { data } = await apiClient.post('/kiosk/authenticate', { token });
+      const { data } = await apiClient.post("/kiosk/authenticate", { token });
       const cfg: KioskConfig = {
         token,
         tenantName: data.tenant.name,
         subdomain: data.tenant.subdomain,
         logoPath: data.tenant.logo_path,
-        branchName: data.session.branch?.name ?? 'Unknown Branch',
+        branchName: data.session.branch?.name ?? "Unknown Branch",
         pinRequired: data.settings.pin_required,
         autoResetSeconds: data.settings.auto_reset_seconds,
       };
       setConfig(cfg);
-      localStorage.setItem('kiosk_token', token);
-      setScreen('kiosk');
+      localStorage.setItem("kiosk_token", token);
+      setScreen("kiosk");
     } catch {
-      setSetupError('Invalid or inactive kiosk token');
-      localStorage.removeItem('kiosk_token');
+      setSetupError("Invalid or inactive kiosk token");
+      localStorage.removeItem("kiosk_token");
     } finally {
       setSetupLoading(false);
     }
@@ -125,9 +135,9 @@ export default function KioskPage() {
 
   function clear() {
     if (showPin) {
-      setPin('');
+      setPin("");
     } else {
-      setCode('');
+      setCode("");
     }
   }
 
@@ -139,23 +149,29 @@ export default function KioskPage() {
       return;
     }
 
-    setMode('checking');
+    setMode("checking");
     try {
-      const { data } = await apiClient.post('/kiosk/check-in', {
-        employee_code: code,
-        type,
-        pin: config.pinRequired ? pin : undefined,
-        idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      }, {
-        headers: { 'X-Kiosk-Token': config.token },
-      });
-      const empName = data.employee_name ?? data.employee?.name ?? 'Employee';
-      setMode('success');
-      setMessage(`${type === 'check_in' ? 'Welcome' : 'Goodbye'}, ${empName}!`);
+      const { data } = await apiClient.post(
+        "/kiosk/check-in",
+        {
+          employee_code: code,
+          type,
+          pin: config.pinRequired ? pin : undefined,
+          idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        },
+        {
+          headers: { "X-Kiosk-Token": config.token },
+        },
+      );
+      const empName = data.employee_name ?? data.employee?.name ?? "Employee";
+      setMode("success");
+      setMessage(`${type === "check_in" ? "Welcome" : "Goodbye"}, ${empName}!`);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
-      setMessage(axiosErr.response?.data?.detail ?? 'Check-in failed. Please try again.');
-      setMode('error');
+      setMessage(
+        axiosErr.response?.data?.detail ?? "Check-in failed. Please try again.",
+      );
+      setMode("error");
     }
   }, [code, config, pin, showPin, type]);
 
@@ -164,23 +180,23 @@ export default function KioskPage() {
   }
 
   function handleLockExit() {
-    setScreen('lock');
-    setAdminPin('');
-    setLockError('');
+    setScreen("lock");
+    setAdminPin("");
+    setLockError("");
   }
 
   function exitKiosk() {
-    localStorage.removeItem('kiosk_token');
+    localStorage.removeItem("kiosk_token");
     setConfig(null);
-    setScreen('setup');
-    setSetupToken('');
+    setScreen("setup");
+    setSetupToken("");
     if (document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => {});
     }
   }
 
   // Setup screen
-  if (screen === 'setup') {
+  if (screen === "setup") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background to-muted">
         <Card className="max-w-md w-full">
@@ -212,7 +228,9 @@ export default function KioskPage() {
               className="w-full"
               disabled={!setupToken.trim() || setupLoading}
             >
-              {setupLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {setupLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Activate Kiosk
             </Button>
           </CardContent>
@@ -222,7 +240,7 @@ export default function KioskPage() {
   }
 
   // Lock screen (admin PIN to exit)
-  if (screen === 'lock') {
+  if (screen === "lock") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-sm w-full">
@@ -230,20 +248,30 @@ export default function KioskPage() {
             <div className="text-center">
               <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
               <h2 className="mt-3 text-xl font-bold">Admin PIN Required</h2>
-              <p className="text-sm text-muted-foreground mt-1">Enter admin PIN to exit kiosk mode</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter admin PIN to exit kiosk mode
+              </p>
             </div>
             <Input
               type="password"
               value={adminPin}
-              onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ""))}
               placeholder="Admin PIN"
               maxLength={8}
               className="text-center text-2xl tracking-[0.5em] font-mono"
               autoFocus
             />
-            {lockError && <p className="text-sm text-destructive text-center">{lockError}</p>}
+            {lockError && (
+              <p className="text-sm text-destructive text-center">
+                {lockError}
+              </p>
+            )}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setScreen('kiosk')} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={() => setScreen("kiosk")}
+                className="flex-1"
+              >
                 Back
               </Button>
               <Button
@@ -252,7 +280,7 @@ export default function KioskPage() {
                   if (adminPin.length >= 4) {
                     exitKiosk();
                   } else {
-                    setLockError('PIN must be at least 4 digits');
+                    setLockError("PIN must be at least 4 digits");
                   }
                 }}
                 className="flex-1"
@@ -276,24 +304,45 @@ export default function KioskPage() {
             E
           </div>
           <div>
-            <p className="text-lg font-bold">{config?.tenantName ?? 'ETHR Kiosk'}</p>
-            <p className="text-xs text-muted-foreground">{config?.branchName}</p>
+            <p className="text-lg font-bold">
+              {config?.tenantName ?? "ETHR Kiosk"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {config?.branchName}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-3xl font-bold font-mono tabular-nums">
-              {now.toLocaleTimeString('en-ET', { hour: '2-digit', minute: '2-digit' })}
+              {now.toLocaleTimeString("en-ET", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
             <p className="text-xs text-muted-foreground">
-              {now.toLocaleDateString('en-ET', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {now.toLocaleDateString("en-ET", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
           </div>
           <div className="flex flex-col gap-1 ml-4">
-            <Button variant="ghost" size="icon" onClick={enterFullscreen} title="Fullscreen">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={enterFullscreen}
+              title="Fullscreen"
+            >
               <Maximize className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLockExit} title="Exit">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLockExit}
+              title="Exit"
+            >
               <Lock className="h-4 w-4" />
             </Button>
           </div>
@@ -302,15 +351,17 @@ export default function KioskPage() {
 
       {/* Main */}
       <main className="flex-1 flex items-center justify-center p-6">
-        {mode === 'success' ? (
+        {mode === "success" ? (
           <div className="text-center space-y-6 animate-in zoom-in duration-300">
             <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
               <CheckCircle2 className="h-20 w-20 text-green-600 dark:text-green-400" />
             </div>
             <p className="text-4xl font-bold text-foreground">{message}</p>
-            <p className="text-sm text-muted-foreground">Recorded at {now.toLocaleTimeString()}</p>
+            <p className="text-sm text-muted-foreground">
+              Recorded at {now.toLocaleTimeString()}
+            </p>
           </div>
-        ) : mode === 'error' ? (
+        ) : mode === "error" ? (
           <div className="text-center space-y-6 animate-in zoom-in duration-300">
             <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
               <XCircle className="h-20 w-20 text-red-600 dark:text-red-400" />
@@ -323,16 +374,24 @@ export default function KioskPage() {
             {/* Type toggle */}
             <div className="flex rounded-xl border-2 p-1">
               <button
-                onClick={() => setType('check_in')}
-                className={cn('flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2',
-                  type === 'check_in' ? 'bg-green-600 text-white shadow-md' : 'text-muted-foreground')}
+                onClick={() => setType("check_in")}
+                className={cn(
+                  "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
+                  type === "check_in"
+                    ? "bg-green-600 text-white shadow-md"
+                    : "text-muted-foreground",
+                )}
               >
                 <LogIn className="h-4 w-4" /> Check In
               </button>
               <button
-                onClick={() => setType('check_out')}
-                className={cn('flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2',
-                  type === 'check_out' ? 'bg-orange-600 text-white shadow-md' : 'text-muted-foreground')}
+                onClick={() => setType("check_out")}
+                className={cn(
+                  "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
+                  type === "check_out"
+                    ? "bg-orange-600 text-white shadow-md"
+                    : "text-muted-foreground",
+                )}
               >
                 <LogOut className="h-4 w-4" /> Check Out
               </button>
@@ -342,33 +401,45 @@ export default function KioskPage() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-center gap-1">
-                  <KeyRound className="h-3 w-3" /> {showPin ? 'Employee PIN' : 'Employee Code'}
+                  <KeyRound className="h-3 w-3" />{" "}
+                  {showPin ? "Employee PIN" : "Employee Code"}
                 </Label>
                 <div className="mt-3 flex justify-center gap-2">
-                  {showPin ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className={cn(
-                        'h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold',
-                        pin[i] ? 'border-primary bg-primary/5' : 'border-muted'
-                      )}>
-                        {pin[i] ? '•' : ''}
-                      </div>
-                    ))
-                  ) : (
-                    Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className={cn(
-                        'h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold',
-                        code[i] ? 'border-primary bg-primary/5' : 'border-muted'
-                      )}>
-                        {code[i] ?? ''}
-                      </div>
-                    ))
-                  )}
+                  {showPin
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
+                            pin[i]
+                              ? "border-primary bg-primary/5"
+                              : "border-muted",
+                          )}
+                        >
+                          {pin[i] ? "•" : ""}
+                        </div>
+                      ))
+                    : Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
+                            code[i]
+                              ? "border-primary bg-primary/5"
+                              : "border-muted",
+                          )}
+                        >
+                          {code[i] ?? ""}
+                        </div>
+                      ))}
                 </div>
                 {showPin && (
                   <button
                     className="mt-2 text-xs text-muted-foreground underline"
-                    onClick={() => { setShowPin(false); setPin(''); }}
+                    onClick={() => {
+                      setShowPin(false);
+                      setPin("");
+                    }}
                   >
                     Back to code
                   </button>
@@ -378,24 +449,39 @@ export default function KioskPage() {
 
             {/* Number pad */}
             <div className="grid grid-cols-3 gap-3">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
                 <Button
                   key={d}
                   variant="outline"
                   className="h-16 text-2xl font-bold"
                   onClick={() => pressDigit(d)}
-                  disabled={mode === 'checking'}
+                  disabled={mode === "checking"}
                 >
                   {d}
                 </Button>
               ))}
-              <Button variant="outline" className="h-16" onClick={clear} disabled={mode === 'checking'}>
+              <Button
+                variant="outline"
+                className="h-16"
+                onClick={clear}
+                disabled={mode === "checking"}
+              >
                 Clear
               </Button>
-              <Button variant="outline" className="h-16 text-2xl font-bold" onClick={() => pressDigit('0')} disabled={mode === 'checking'}>
+              <Button
+                variant="outline"
+                className="h-16 text-2xl font-bold"
+                onClick={() => pressDigit("0")}
+                disabled={mode === "checking"}
+              >
                 0
               </Button>
-              <Button variant="outline" className="h-16" onClick={backspace} disabled={mode === 'checking'}>
+              <Button
+                variant="outline"
+                className="h-16"
+                onClick={backspace}
+                disabled={mode === "checking"}
+              >
                 ⌫
               </Button>
             </div>
@@ -403,18 +489,23 @@ export default function KioskPage() {
             <Button
               className="w-full h-14 text-lg"
               onClick={submit}
-              disabled={mode === 'checking' || (showPin ? pin.length === 0 : code.length === 0)}
+              disabled={
+                mode === "checking" ||
+                (showPin ? pin.length === 0 : code.length === 0)
+              }
             >
-              {mode === 'checking' ? (
+              {mode === "checking" ? (
                 <span className="flex items-center gap-2">
                   <Clock className="h-5 w-5 animate-spin" /> Processing…
                 </span>
               ) : showPin ? (
-                'Verify PIN'
+                "Verify PIN"
               ) : config?.pinRequired ? (
-                'Next → Enter PIN'
+                "Next → Enter PIN"
+              ) : type === "check_in" ? (
+                "Check In"
               ) : (
-                type === 'check_in' ? 'Check In' : 'Check Out'
+                "Check Out"
               )}
             </Button>
           </div>
@@ -422,7 +513,8 @@ export default function KioskPage() {
       </main>
 
       <footer className="border-t bg-muted/30 px-6 py-2 text-center text-xs text-muted-foreground">
-        Type your employee code{config?.pinRequired ? ' and PIN' : ''} · Kiosk mode
+        Type your employee code{config?.pinRequired ? " and PIN" : ""} · Kiosk
+        mode
       </footer>
     </div>
   );

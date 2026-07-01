@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import type { PaginatedResponse } from '@/api/types';
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import type { PaginatedResponse } from "@/api/types";
 
 export interface PayrollRun {
   public_id: string;
@@ -31,9 +31,9 @@ export interface PayrollEntry {
 
 export function usePayrollRuns(params?: { page?: number }) {
   return useQuery<PaginatedResponse<PayrollRun>>({
-    queryKey: ['payroll', 'runs', params],
+    queryKey: ["payroll", "runs", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/payroll/runs', { params });
+      const { data } = await apiClient.get("/payroll/runs", { params });
       return data;
     },
   });
@@ -41,7 +41,7 @@ export function usePayrollRuns(params?: { page?: number }) {
 
 export function usePayrollRun(publicId: string) {
   return useQuery<PayrollRun>({
-    queryKey: ['payroll', 'runs', publicId],
+    queryKey: ["payroll", "runs", publicId],
     queryFn: async () => {
       const { data } = await apiClient.get(`/payroll/runs/${publicId}`);
       return data;
@@ -52,9 +52,9 @@ export function usePayrollRun(publicId: string) {
 
 export function useMyPayslips(params?: { page?: number }) {
   return useQuery<PaginatedResponse<PayrollEntry>>({
-    queryKey: ['payroll', 'payslips', 'my', params],
+    queryKey: ["payroll", "payslips", "my", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/payroll/payslips/my', { params });
+      const { data } = await apiClient.get("/payroll/payslips/my", { params });
       return data;
     },
   });

@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import type { PaginatedResponse } from '@/api/types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import type { PaginatedResponse } from "@/api/types";
 
 export interface LeaveType {
   public_id: string;
@@ -30,9 +30,9 @@ export interface LeaveRequest {
 
 export function useLeaveBalance() {
   return useQuery<LeaveBalance[]>({
-    queryKey: ['leave', 'balance'],
+    queryKey: ["leave", "balance"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/leave/balance');
+      const { data } = await apiClient.get("/leave/balance");
       return data;
     },
   });
@@ -40,9 +40,9 @@ export function useLeaveBalance() {
 
 export function useMyLeaveRequests(params?: { page?: number }) {
   return useQuery<PaginatedResponse<LeaveRequest>>({
-    queryKey: ['leave', 'my', params],
+    queryKey: ["leave", "my", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/leave/my', { params });
+      const { data } = await apiClient.get("/leave/my", { params });
       return data;
     },
   });
@@ -50,9 +50,9 @@ export function useMyLeaveRequests(params?: { page?: number }) {
 
 export function useTeamLeaveRequests(params?: { page?: number }) {
   return useQuery<PaginatedResponse<LeaveRequest>>({
-    queryKey: ['leave', 'team', params],
+    queryKey: ["leave", "team", params],
     queryFn: async () => {
-      const { data } = await apiClient.get('/leave/team', { params });
+      const { data } = await apiClient.get("/leave/team", { params });
       return data;
     },
   });
@@ -60,9 +60,9 @@ export function useTeamLeaveRequests(params?: { page?: number }) {
 
 export function useLeaveTypes() {
   return useQuery<PaginatedResponse<LeaveType>>({
-    queryKey: ['leave-types'],
+    queryKey: ["leave-types"],
     queryFn: async () => {
-      const { data } = await apiClient.get('/leave-types');
+      const { data } = await apiClient.get("/leave-types");
       return data;
     },
   });
@@ -78,11 +78,11 @@ export function useSubmitLeave() {
       end_date: string;
       reason?: string;
     }) => {
-      const { data } = await apiClient.post('/leave/request', payload);
+      const { data } = await apiClient.post("/leave/request", payload);
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
     },
   });
 }
@@ -96,7 +96,7 @@ export function useApproveLeave() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
     },
   });
 }
@@ -105,12 +105,20 @@ export function useRejectLeave() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ publicId, reason }: { publicId: string; reason: string }) => {
-      const { data } = await apiClient.put(`/leave/${publicId}/reject`, { reason });
+    mutationFn: async ({
+      publicId,
+      reason,
+    }: {
+      publicId: string;
+      reason: string;
+    }) => {
+      const { data } = await apiClient.put(`/leave/${publicId}/reject`, {
+        reason,
+      });
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leave'] });
+      queryClient.invalidateQueries({ queryKey: ["leave"] });
     },
   });
 }

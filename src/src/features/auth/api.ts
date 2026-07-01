@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import type { User } from '@/api/types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/api/client";
+import type { User } from "@/api/types";
 
 interface MeResponse {
   user: User;
@@ -20,9 +20,9 @@ interface MeResponse {
 
 export function useCurrentUser() {
   return useQuery<User>({
-    queryKey: ['auth', 'me'],
+    queryKey: ["auth", "me"],
     queryFn: async () => {
-      const { data } = await apiClient.get<MeResponse>('/auth/me');
+      const { data } = await apiClient.get<MeResponse>("/auth/me");
       return data.user;
     },
     retry: false,
@@ -31,10 +31,10 @@ export function useCurrentUser() {
 }
 
 export function useCurrentTenant() {
-  return useQuery<MeResponse['tenant']>({
-    queryKey: ['auth', 'me'],
+  return useQuery<MeResponse["tenant"]>({
+    queryKey: ["auth", "me"],
     queryFn: async () => {
-      const { data } = await apiClient.get<MeResponse>('/auth/me');
+      const { data } = await apiClient.get<MeResponse>("/auth/me");
       return data.tenant;
     },
     retry: false,
@@ -48,14 +48,14 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.post('/auth/logout');
+      await apiClient.post("/auth/logout");
     },
     onSuccess: () => {
-      localStorage.removeItem('access_token');
+      localStorage.removeItem("access_token");
       // Keep the 'tenant' key — pre-fills the login form for return visits.
       // To switch tenants, the user clears it explicitly from the login form.
       queryClient.clear();
-      window.location.href = '/login';
+      window.location.href = "/login";
     },
   });
 }

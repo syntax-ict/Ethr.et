@@ -1,9 +1,9 @@
 export function formatETB(cents: number): string {
   return (
-    new Intl.NumberFormat('en-ET', {
+    new Intl.NumberFormat("en-ET", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(cents / 100) + ' ETB'
+    }).format(cents / 100) + " ETB"
   );
 }
 

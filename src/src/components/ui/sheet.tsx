@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 interface SheetProps {
   open: boolean;
@@ -13,12 +13,12 @@ interface SheetProps {
 function Sheet({ open, onOpenChange, children }: SheetProps) {
   React.useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [open]);
 
