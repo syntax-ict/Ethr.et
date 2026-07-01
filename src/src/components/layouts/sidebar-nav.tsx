@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 
 interface NavItem {
   label: string;
@@ -62,26 +63,37 @@ interface SidebarNavProps {
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
   const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
+  const { t } = useT();
 
   const sections: NavSection[] = [
     {
       items: [
         {
-          label: "Dashboard",
+          label: t("nav.dashboard", "Dashboard"),
           href: "/dashboard",
           icon: LayoutDashboard,
           show: true,
         },
-        { label: "My Profile", href: "/profile", icon: UserCircle, show: true },
+        {
+          label: t("nav.my_profile", "My Profile"),
+          href: "/profile",
+          icon: UserCircle,
+          show: true,
+        },
         {
           label: "Security",
           href: "/profile/security",
           icon: ShieldCheck,
           show: true,
         },
-        { label: "Directory", href: "/directory", icon: Contact, show: true },
         {
-          label: "Announcements",
+          label: t("nav.directory", "Directory"),
+          href: "/directory",
+          icon: Contact,
+          show: true,
+        },
+        {
+          label: t("nav.announcements", "Announcements"),
           href: "/announcements",
           icon: Megaphone,
           show: true,
@@ -92,13 +104,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "HR",
       items: [
         {
-          label: "Employees",
+          label: t("nav.employees", "Employees"),
           href: "/employees",
           icon: Users,
           show: can.manageEmployees,
         },
         {
-          label: "Organization",
+          label: t("nav.organization", "Organization"),
           href: "/organization",
           icon: Building2,
           show: can.manageOrg,
@@ -108,7 +120,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     {
       title: "Operations",
       items: [
-        { label: "Attendance", href: "/attendance", icon: Clock, show: true },
+        {
+          label: t("nav.attendance", "Attendance"),
+          href: "/attendance",
+          icon: Clock,
+          show: true,
+        },
         {
           label: "Mobile Check-in",
           href: "/attendance/mobile",
@@ -128,7 +145,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: isSupervisor,
         },
         {
-          label: "Corrections",
+          label: t("nav.corrections", "Corrections"),
           href: "/attendance/corrections",
           icon: FilePenLine,
           show: true,
@@ -158,7 +175,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageEmployees,
         },
         {
-          label: "Kiosks",
+          label: t("nav.kiosks", "Kiosks"),
           href: "/attendance/kiosks",
           icon: Monitor,
           show: can.manageEmployees,
@@ -169,15 +186,20 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           icon: Settings2,
           show: can.manageEmployees,
         },
-        { label: "Leave", href: "/leave", icon: CalendarDays, show: true },
         {
-          label: "Approvals",
+          label: t("nav.leave", "Leave"),
+          href: "/leave",
+          icon: CalendarDays,
+          show: true,
+        },
+        {
+          label: t("nav.approvals", "Approvals"),
           href: "/approvals",
           icon: CheckSquare,
           show: isSupervisor,
         },
         {
-          label: "Devices",
+          label: t("nav.devices", "Devices"),
           href: "/devices",
           icon: Fingerprint,
           show: can.manageEmployees,
@@ -188,25 +210,25 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "Finance",
       items: [
         {
-          label: "Payroll Runs",
+          label: t("nav.payroll", "Payroll Runs"),
           href: "/payroll",
           icon: Wallet,
           show: can.viewPayrollRuns,
         },
         {
-          label: "Loans",
+          label: t("nav.loans", "Loans"),
           href: "/payroll/loans",
           icon: Banknote,
           show: isFinanceAdmin,
         },
         {
-          label: "My Payslips",
+          label: t("nav.payslips", "My Payslips"),
           href: "/payroll/payslips",
           icon: Receipt,
           show: true,
         },
         {
-          label: "Billing",
+          label: t("nav.billing", "Billing"),
           href: "/billing",
           icon: CreditCard,
           show: isTenantAdmin,
@@ -217,13 +239,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "Insights",
       items: [
         {
-          label: "Reports",
+          label: t("nav.reports", "Reports"),
           href: "/reports",
           icon: BarChart3,
           show: can.viewReports,
         },
         {
-          label: "Analytics",
+          label: t("nav.analytics", "Analytics"),
           href: "/analytics",
           icon: TrendingUp,
           show: isTenantAdmin,
@@ -234,13 +256,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "Configuration",
       items: [
         {
-          label: "Holidays",
+          label: t("nav.holidays", "Holidays"),
           href: "/settings/holidays",
           icon: Calendar,
           show: can.manageEmployees,
         },
         {
-          label: "Leave Types",
+          label: t("nav.leave_types", "Leave Types"),
           href: "/settings/leave-types",
           icon: ListChecks,
           show: can.manageEmployees,
@@ -252,7 +274,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageEmployees,
         },
         {
-          label: "Settings",
+          label: t("nav.settings", "Settings"),
           href: "/settings",
           icon: Settings,
           show: can.manageSettings,
@@ -263,25 +285,25 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "Integrations",
       items: [
         {
-          label: "API Keys",
+          label: t("nav.api_keys", "API Keys"),
           href: "/settings/api-keys",
           icon: KeyRound,
           show: isTenantAdmin,
         },
         {
-          label: "Webhooks",
+          label: t("nav.webhooks", "Webhooks"),
           href: "/settings/webhooks",
           icon: Webhook,
           show: isTenantAdmin,
         },
         {
-          label: "Accounting",
+          label: t("nav.accounting", "Accounting"),
           href: "/settings/accounting",
           icon: BookOpen,
           show: can.manageSettings,
         },
         {
-          label: "Audit Log",
+          label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
           show: isTenantAdmin,
@@ -292,7 +314,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       title: "System",
       items: [
         {
-          label: "Notifications",
+          label: t("nav.notifications", "Notifications"),
           href: "/notifications",
           icon: Bell,
           show: true,
@@ -304,7 +326,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: true,
         },
         {
-          label: "Admin Console",
+          label: t("nav.admin", "Admin Console"),
           href: "/admin",
           icon: Shield,
           show: can.viewAdminConsole,

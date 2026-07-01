@@ -16,8 +16,10 @@ import {
   useMarkAllAsRead,
 } from "../api";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 export function NotificationBell() {
+  const { t } = useT();
   const { data: unread } = useUnreadCount();
   const { data: notifData } = useNotifications({ page: 1 });
   const markRead = useMarkAsRead();
@@ -36,12 +38,16 @@ export function NotificationBell() {
               {count > 99 ? "99+" : count}
             </span>
           )}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">
+            {t("common.notifications", "Notifications")}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-3">
-          <h4 className="text-sm font-semibold">Notifications</h4>
+          <h4 className="text-sm font-semibold">
+            {t("common.notifications", "Notifications")}
+          </h4>
           {count > 0 && (
             <Button
               variant="ghost"
@@ -50,7 +56,7 @@ export function NotificationBell() {
               onClick={() => markAllRead.mutate()}
             >
               <CheckCheck className="mr-1 h-3 w-3" />
-              Mark all read
+              {t("common.mark_all_read", "Mark all read")}
             </Button>
           )}
         </div>
@@ -59,7 +65,7 @@ export function NotificationBell() {
           <div className="px-4 py-8 text-center">
             <Bell className="mx-auto h-8 w-8 text-muted-foreground/40" />
             <p className="mt-2 text-sm text-muted-foreground">
-              No notifications
+              {t("common.no_notifications", "No notifications")}
             </p>
           </div>
         ) : (
@@ -108,7 +114,9 @@ export function NotificationBell() {
         <Separator />
         <div className="p-2">
           <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
-            <Link href="/notifications">View all notifications</Link>
+            <Link href="/notifications">
+              {t("common.view_all_notifications", "View all notifications")}
+            </Link>
           </Button>
         </div>
       </PopoverContent>
