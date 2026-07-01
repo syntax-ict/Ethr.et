@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Clock, LogIn, LogOut, Plus, Loader2, QrCode, Smartphone,
   Activity, TrendingUp, FilePenLine, UsersRound, FileSpreadsheet,
-  Filter, X,
+  Filter, X, Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -97,6 +97,7 @@ export default function AttendancePage() {
         <SubNav href="/attendance/mobile" icon={Smartphone}>Mobile Check-in</SubNav>
         {isSupervisor && <SubNav href="/attendance/team" icon={UsersRound}>Team</SubNav>}
         <SubNav href="/attendance/corrections" icon={FilePenLine}>Corrections</SubNav>
+        {can.manageEmployees && <SubNav href="/kiosk" icon={Monitor}>Kiosk</SubNav>}
         {can.manageEmployees && <SubNav href="/attendance/qr" icon={QrCode}>QR Generator</SubNav>}
         {can.manageEmployees && <SubNav href="/attendance/import" icon={FileSpreadsheet}>Import CSV</SubNav>}
         {can.manageEmployees && <SubNav href="/attendance/intelligence" icon={Activity}>Intelligence</SubNav>}

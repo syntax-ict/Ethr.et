@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Smartphone, MapPin, Camera, CheckCircle2, XCircle, LogIn, LogOut,
-  AlertCircle, Loader2, RefreshCw,
+  AlertCircle, Loader2, RefreshCw, WifiOff, CloudUpload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,11 +13,16 @@ import { PageHeader } from '@/components/shared/page-header';
 import { apiClient } from '@/api/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useOfflineSync } from '@/lib/hooks/useOfflineSync';
+import { enqueueOfflineRecord } from '@/lib/offline-queue';
+import { useCurrentUser } from '@/features/auth/api';
 
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
 export default function MobileCheckInPage() {
   const router = useRouter();
+  const { data: user } = useCurrentUser();
+  const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
   const [type, setType] = useState<'check_in' | 'check_out'>('check_in');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
@@ -88,10 +93,42 @@ export default function MobileCheckInPage() {
       return;
     }
     setStatus('submitting');
+
+    const idempotencyKey = `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    if (!isOnline) {
+      try {
+        const employeePublicId = (user as { employee?: { public_id?: string } })?.employee?.public_id;
+        if (!employeePublicId) {
+          setMessage('Cannot determine employee identity offline.');
+          setStatus('error');
+          return;
+        }
+        await enqueueOfflineRecord({
+          employee_public_id: employeePublicId,
+          type,
+          idempotency_key: idempotencyKey,
+          offline_token: `offline-${Date.now()}`,
+          latitude: coords.lat,
+          longitude: coords.lng,
+          captured_at: new Date().toISOString(),
+        });
+        setMessage(`${type === 'check_in' ? 'Check-in' : 'Check-out'} saved offline. Will sync when connected.`);
+        setStatus('success');
+        toast.success('Saved offline — will sync automatically');
+        setTimeout(() => router.push('/attendance'), 3000);
+        return;
+      } catch {
+        setMessage('Failed to save offline record.');
+        setStatus('error');
+        return;
+      }
+    }
+
     try {
       const path = type === 'check_in' ? '/attendance/mobile/check-in' : '/attendance/mobile/check-out';
       const payload: Record<string, unknown> = {
-        idempotency_key: `mobile-${Date.now()}-${Math.random()}`,
+        idempotency_key: idempotencyKey,
         latitude: coords.lat,
         longitude: coords.lng,
       };
@@ -120,6 +157,35 @@ export default function MobileCheckInPage() {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <PageHeader title="Mobile Check-in" description="Submit attendance with location and optional selfie" />
+
+      {/* Offline / sync banner */}
+      {!isOnline && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
+          <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-900 dark:text-amber-300">
+            You&apos;re offline. Attendance will be saved locally and synced when you reconnect.
+          </p>
+        </div>
+      )}
+      {pendingCount > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950/30">
+          <div className="flex items-center gap-2">
+            <CloudUpload className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <p className="text-sm text-blue-900 dark:text-blue-300">
+              {pendingCount} record{pendingCount > 1 ? 's' : ''} pending sync
+            </p>
+          </div>
+          {isOnline && (
+            <Button size="sm" variant="outline" onClick={() => syncNow().then((r) => {
+              if (r.synced > 0) toast.success(`Synced ${r.synced} record(s)`);
+              if (r.errors > 0) toast.error(`${r.errors} record(s) failed to sync`);
+            })} disabled={syncing}>
+              {syncing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+              Sync Now
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Type toggle */}
       <div className="flex rounded-xl border-2 p-1">
