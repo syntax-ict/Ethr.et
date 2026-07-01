@@ -9,6 +9,12 @@ interface MeResponse {
     name: string;
     subdomain: string;
     status: string;
+    logo_path?: string | null;
+    theme?: {
+      primary_color?: string;
+      secondary_color?: string;
+      accent_color?: string;
+    } | null;
   } | null;
 }
 

@@ -19,6 +19,7 @@ import { SidebarNav } from './sidebar-nav';
 import { Separator } from '@/components/ui/separator';
 import { NotificationBell } from '@/features/notifications/components/notification-bell';
 import { useCurrentUser, useLogout } from '@/features/auth/api';
+import { TenantLogoBadge } from '@/features/branding/TenantBrandingProvider';
 import { Badge } from '@/components/ui/badge';
 
 export function AppHeader() {
@@ -45,10 +46,7 @@ export function AppHeader() {
             <span className="sr-only">Open menu</span>
           </Button>
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-              <span className="text-xs font-bold text-primary-foreground">E</span>
-            </div>
-            <span className="font-semibold text-foreground">ETHR</span>
+            <TenantLogoBadge size="sm" />
           </div>
         </div>
 
@@ -129,10 +127,7 @@ export function AppHeader() {
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <div className="flex h-16 items-center gap-2 border-b px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">E</span>
-          </div>
-          <span className="text-lg font-bold tracking-tight">ETHR</span>
+          <TenantLogoBadge />
         </div>
         <div className="py-2">
           <SidebarNav onNavigate={() => setMobileOpen(false)} />
