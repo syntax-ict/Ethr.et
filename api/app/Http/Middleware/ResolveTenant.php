@@ -95,6 +95,8 @@ class ResolveTenant
             $request->is('api/v1/auth/login')
             || $request->is('api/v1/auth/register')
             || $request->is('api/v1/auth/mfa/verify')
+            || $request->is('api/v1/auth/password/forgot')
+            || $request->is('api/v1/auth/password/reset')
         );
     }
 

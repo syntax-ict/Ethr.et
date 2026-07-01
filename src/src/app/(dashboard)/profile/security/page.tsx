@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldCheck, ShieldOff, Loader2, Copy, AlertCircle } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Loader2, Copy, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,12 @@ export default function SecurityPage() {
   const [code, setCode] = useState('');
   const [disableOpen, setDisableOpen] = useState(false);
   const [disableCode, setDisableCode] = useState('');
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [changeError, setChangeError] = useState('');
 
   const startSetup = useMutation({
     mutationFn: async () => {
@@ -63,6 +69,49 @@ export default function SecurityPage() {
     },
     onError: () => toast.error('Invalid verification code'),
   });
+
+  const changePassword = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post('/auth/password/change', {
+        current_password: currentPassword,
+        password: newPassword,
+        password_confirmation: confirmPassword,
+      });
+      return data;
+    },
+    onSuccess: (data: { message: string }) => {
+      toast.success(data.message ?? 'Password changed');
+      setChangeOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setChangeError('');
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string; message?: string; errors?: Record<string, string[]> } } };
+      const errors = e.response?.data?.errors;
+      const first = errors ? Object.values(errors)[0]?.[0] : undefined;
+      setChangeError(first || e.response?.data?.detail || e.response?.data?.message || 'Failed to change password');
+    },
+  });
+
+  function submitChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setChangeError('');
+    if (newPassword !== confirmPassword) {
+      setChangeError('New passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setChangeError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setChangeError('New password must be different from your current password.');
+      return;
+    }
+    changePassword.mutate();
+  }
 
   function copyCodes() {
     if (setupData?.recovery_codes) {
@@ -127,7 +176,9 @@ export default function SecurityPage() {
               <p className="font-semibold text-foreground">Account Password</p>
               <p className="mt-1 text-sm text-muted-foreground">Use a strong password unique to ETHR</p>
             </div>
-            <Button variant="outline" disabled>Change Password</Button>
+            <Button variant="outline" onClick={() => setChangeOpen(true)}>
+              <KeyRound className="mr-2 h-4 w-4" /> Change Password
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -190,6 +241,75 @@ export default function SecurityPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={changeOpen} onOpenChange={(o) => { setChangeOpen(o); if (!o) setChangeError(''); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
+          <form onSubmit={submitChangePassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="current_password">Current password</Label>
+              <Input
+                id="current_password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new_password">New password</Label>
+              <div className="relative">
+                <Input
+                  id="new_password"
+                  type={showNew ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">At least 8 characters, different from your current password.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm_password">Confirm new password</Label>
+              <Input
+                id="confirm_password"
+                type={showNew ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+            </div>
+            {changeError && (
+              <div className="rounded-lg bg-destructive/10 p-3">
+                <p className="text-sm text-destructive">{changeError}</p>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Note: Changing your password will sign out all your other active sessions.
+            </p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setChangeOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={changePassword.isPending}>
+                {changePassword.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Change Password
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

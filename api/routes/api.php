@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Auth\MeController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\MfaVerifyController;
 use App\Http\Controllers\Api\V1\Auth\RefreshController;
+use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\SubdomainCheckController;
 use App\Http\Controllers\Api\V1\ContactController;
@@ -78,6 +79,8 @@ Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/register', RegisterController::class);
     Route::post('/login', LoginController::class);
+    Route::post('/password/forgot', [PasswordResetController::class, 'forgot']);
+    Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 });
 
 Route::get('/register/check-subdomain', SubdomainCheckController::class)->middleware('throttle:auth');
@@ -88,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', LogoutController::class);
         Route::post('/refresh', RefreshController::class);
         Route::get('/me', MeController::class);
+        Route::post('/password/change', [PasswordResetController::class, 'change']);
 
         // MFA
         Route::post('/mfa/setup', [MfaSetupController::class, 'setup']);
