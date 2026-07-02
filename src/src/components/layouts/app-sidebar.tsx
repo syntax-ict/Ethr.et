@@ -7,7 +7,10 @@ import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 
 export function AppSidebar() {
   return (
-    <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
+    <aside
+      aria-label="Main navigation"
+      className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col"
+    >
       <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6 text-sidebar-foreground">
         <TenantLogoBadge />
       </div>

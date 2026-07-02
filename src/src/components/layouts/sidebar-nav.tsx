@@ -39,6 +39,7 @@ import {
   Monitor,
   Settings2,
   CalendarRange,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -81,7 +82,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: true,
         },
         {
-          label: "Security",
+          label: t("nav.security", "Security"),
           href: "/profile/security",
           icon: ShieldCheck,
           show: true,
@@ -101,7 +102,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "HR",
+      title: t("nav.section.hr", "HR"),
       items: [
         {
           label: t("nav.employees", "Employees"),
@@ -118,7 +119,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "Operations",
+      title: t("nav.section.operations", "Operations"),
       items: [
         {
           label: t("nav.attendance", "Attendance"),
@@ -127,19 +128,19 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: true,
         },
         {
-          label: "Mobile Check-in",
+          label: t("nav.mobile_checkin", "Mobile Check-in"),
           href: "/attendance/mobile",
           icon: Smartphone,
           show: true,
         },
         {
-          label: "Scan QR",
+          label: t("nav.scan_qr", "Scan QR"),
           href: "/attendance/scan",
           icon: QrCode,
           show: true,
         },
         {
-          label: "Team Attendance",
+          label: t("nav.team_attendance", "Team Attendance"),
           href: "/attendance/team",
           icon: UsersRound,
           show: isSupervisor,
@@ -151,25 +152,25 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: true,
         },
         {
-          label: "Intelligence",
+          label: t("nav.intelligence", "Intelligence"),
           href: "/attendance/intelligence",
           icon: Activity,
           show: can.manageEmployees,
         },
         {
-          label: "Overtime",
+          label: t("nav.overtime", "Overtime"),
           href: "/attendance/overtime",
           icon: TrendingUp,
           show: can.manageEmployees,
         },
         {
-          label: "Shifts",
+          label: t("nav.shifts", "Shifts"),
           href: "/shifts",
           icon: CalendarRange,
           show: can.manageEmployees,
         },
         {
-          label: "QR Generator",
+          label: t("nav.qr_generator", "QR Generator"),
           href: "/attendance/qr",
           icon: QrCode,
           show: can.manageEmployees,
@@ -181,7 +182,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageEmployees,
         },
         {
-          label: "Attendance Settings",
+          label: t("nav.attendance_settings", "Attendance Settings"),
           href: "/attendance/settings",
           icon: Settings2,
           show: can.manageEmployees,
@@ -207,7 +208,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "Finance",
+      title: t("nav.section.finance", "Finance"),
       items: [
         {
           label: t("nav.payroll", "Payroll Runs"),
@@ -236,7 +237,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "Insights",
+      title: t("nav.section.insights", "Insights"),
       items: [
         {
           label: t("nav.reports", "Reports"),
@@ -253,7 +254,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "Configuration",
+      title: t("nav.section.configuration", "Configuration"),
       items: [
         {
           label: t("nav.holidays", "Holidays"),
@@ -268,7 +269,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageEmployees,
         },
         {
-          label: "Shifts",
+          label: t("nav.shift_config", "Shifts"),
           href: "/settings/shifts",
           icon: Timer,
           show: can.manageEmployees,
@@ -288,7 +289,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "Integrations",
+      title: t("nav.section.integrations", "Integrations"),
       items: [
         {
           label: t("nav.api_keys", "API Keys"),
@@ -309,6 +310,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageSettings,
         },
         {
+          label: t("nav.notification_templates", "Notification Templates"),
+          href: "/settings/notification-templates",
+          icon: Mail,
+          show: isTenantAdmin,
+        },
+        {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
@@ -317,7 +324,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       ],
     },
     {
-      title: "System",
+      title: t("nav.section.system", "System"),
       items: [
         {
           label: t("nav.notifications", "Notifications"),
@@ -326,7 +333,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: true,
         },
         {
-          label: "Preferences",
+          label: t("nav.preferences", "Preferences"),
           href: "/notifications/preferences",
           icon: BellRing,
           show: true,
@@ -338,7 +345,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.viewAdminConsole,
         },
         {
-          label: "Tenants",
+          label: t("nav.tenants", "Tenants"),
           href: "/admin/tenants",
           icon: Building2,
           show: can.viewAdminConsole,

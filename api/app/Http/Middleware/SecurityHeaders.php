@@ -41,9 +41,9 @@ class SecurityHeaders
         // Referrer policy
         $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // Permissions policy (disable unnecessary features)
+        // Permissions policy (disable unnecessary features, allow geolocation+camera for mobile check-in)
         $response->header('Permissions-Policy',
-            'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
+            'accelerometer=(), camera=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
         );
 
         return $response;

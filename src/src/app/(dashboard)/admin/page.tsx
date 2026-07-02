@@ -10,6 +10,9 @@ import {
   ScrollText,
   XCircle,
   Pause,
+  RefreshCw,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,8 +22,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import { useAdminAuditLog } from "@/features/admin/api";
+import {
+  useAdminAuditLog,
+  useFailedJobs,
+  useRetryFailedJob,
+  useRetryAllFailedJobs,
+} from "@/features/admin/api";
 import { useT } from "@/lib/i18n/useT";
+import { toast } from "sonner";
 
 export default function AdminConsolePage() {
   const { t } = useT();
@@ -41,6 +50,9 @@ export default function AdminConsolePage() {
   });
 
   const { data: audit } = useAdminAuditLog({ page: 1 });
+  const { data: failedJobsData } = useFailedJobs({ page: 1 });
+  const retryJob = useRetryFailedJob();
+  const retryAll = useRetryAllFailedJobs();
 
   return (
     <RoleGate allowedRoles={["super_admin"]}>
@@ -194,6 +206,87 @@ export default function AdminConsolePage() {
             </Card>
           )}
         </div>
+
+        {/* Failed Jobs */}
+        {failedJobsData && failedJobsData.data.length > 0 && (
+          <Card className="border-destructive/30">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                {t("admin_console_page.failed_jobs")} (
+                {failedJobsData.total ?? failedJobsData.data.length})
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  retryAll.mutate(undefined, {
+                    onSuccess: (d) => toast.success(d.message),
+                    onError: () =>
+                      toast.error(t("admin_console_page.retry_failed")),
+                  })
+                }
+                disabled={retryAll.isPending}
+              >
+                {retryAll.isPending ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                )}
+                {t("admin_console_page.retry_all")}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {failedJobsData.data.slice(0, 10).map((job) => {
+                  const jobName = (() => {
+                    try {
+                      const parsed = JSON.parse(job.payload);
+                      return (parsed.displayName ?? "Unknown")
+                        .split("\\")
+                        .pop();
+                    } catch {
+                      return "Unknown";
+                    }
+                  })();
+                  return (
+                    <div
+                      key={job.uuid}
+                      className="flex items-center justify-between gap-3 rounded-lg border p-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {jobName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {job.queue} &middot;{" "}
+                          {new Date(job.failed_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          retryJob.mutate(job.uuid, {
+                            onSuccess: () =>
+                              toast.success(
+                                t("admin_console_page.job_retried"),
+                              ),
+                            onError: () =>
+                              toast.error(t("admin_console_page.retry_failed")),
+                          })
+                        }
+                        disabled={retryJob.isPending}
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Platform audit activity (cross-tenant) */}
         <Card>

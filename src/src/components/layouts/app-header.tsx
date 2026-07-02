@@ -21,6 +21,7 @@ import { NotificationBell } from "@/features/notifications/components/notificati
 import { useCurrentUser, useLogout } from "@/features/auth/api";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/lib/i18n/useT";
 
 export function AppHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,6 +29,7 @@ export function AppHeader() {
   const { data: user } = useCurrentUser();
   const logout = useLogout();
 
+  const { t } = useT();
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? "U";
   const displayName = user?.email?.split("@")[0] ?? "User";
   const roleName = user?.role?.replace(/_/g, " ") ?? "";
@@ -138,7 +140,7 @@ export function AppHeader() {
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  {t("nav.settings", "Settings")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -147,7 +149,7 @@ export function AppHeader() {
                 onClick={() => logout.mutate()}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out
+                {t("common.logout", "Log Out")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

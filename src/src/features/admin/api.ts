@@ -163,6 +163,61 @@ export function useTenantBackup() {
   });
 }
 
+export interface FailedJob {
+  id: number;
+  uuid: string;
+  connection: string;
+  queue: string;
+  payload: string;
+  exception: string;
+  failed_at: string;
+}
+
+export function useFailedJobs(params?: { page?: number }) {
+  return useQuery<{
+    data: FailedJob[];
+    current_page?: number;
+    last_page?: number;
+    total?: number;
+  }>({
+    queryKey: ["admin", "failed-jobs", params],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/failed-jobs", {
+        params: { page: params?.page ?? 1 },
+      });
+      return data;
+    },
+  });
+}
+
+export function useRetryFailedJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (uuid: string) => {
+      const { data } = await apiClient.post(`/admin/failed-jobs/${uuid}/retry`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "failed-jobs"] });
+      qc.invalidateQueries({ queryKey: ["admin", "health"] });
+    },
+  });
+}
+
+export function useRetryAllFailedJobs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post("/admin/failed-jobs/retry-all");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "failed-jobs"] });
+      qc.invalidateQueries({ queryKey: ["admin", "health"] });
+    },
+  });
+}
+
 export function useAdminAuditLog(params?: {
   action?: string;
   from?: string;
