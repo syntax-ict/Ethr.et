@@ -319,6 +319,12 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                               variant="ghost"
                               size="sm"
                               title="Download receipt"
+                              onClick={() =>
+                                window.open(
+                                  `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
+                                  "_blank",
+                                )
+                              }
                             >
                               <FileText className="h-4 w-4" />
                             </Button>

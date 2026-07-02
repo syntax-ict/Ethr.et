@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Plus, Trash2, Loader2 } from "lucide-react";
+import { FileText, Plus, Trash2, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,12 +41,30 @@ interface LeaveType {
 export default function LeaveTypesPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     code: "",
     default_days: "",
     accrual_type: "monthly",
   });
+
+  function openNew() {
+    setEditingId(null);
+    setForm({ name: "", code: "", default_days: "", accrual_type: "monthly" });
+    setDialogOpen(true);
+  }
+
+  function openEdit(lt: LeaveType) {
+    setEditingId(lt.public_id);
+    setForm({
+      name: lt.name,
+      code: lt.code,
+      default_days: String(lt.default_days),
+      accrual_type: "monthly",
+    });
+    setDialogOpen(true);
+  }
 
   const { data, isLoading } = useQuery<{ data: LeaveType[] }>({
     queryKey: ["leave-types"],
@@ -85,6 +103,28 @@ export default function LeaveTypesPage() {
     },
   });
 
+  const updateLeaveType = useMutation({
+    mutationFn: async (payload: {
+      name: string;
+      code: string;
+      default_days: number;
+      accrual_type: string;
+    }) => {
+      const { data } = await apiClient.put(
+        `/leave-types/${editingId}`,
+        payload,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+      toast.success("Leave type updated");
+      setDialogOpen(false);
+      setEditingId(null);
+    },
+    onError: () => toast.error("Failed to update leave type"),
+  });
+
   const deleteLeaveType = useMutation({
     mutationFn: async (publicId: string) => {
       await apiClient.delete(`/leave-types/${publicId}`);
@@ -96,14 +136,19 @@ export default function LeaveTypesPage() {
     onError: () => toast.error("Failed to delete leave type"),
   });
 
-  function handleCreate(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    createLeaveType.mutate({
+    const payload = {
       name: form.name,
       code: form.code,
       default_days: parseInt(form.default_days, 10),
       accrual_type: form.accrual_type,
-    });
+    };
+    if (editingId) {
+      updateLeaveType.mutate(payload);
+    } else {
+      createLeaveType.mutate(payload);
+    }
   }
 
   const leaveTypes = data?.data ?? [];
@@ -115,7 +160,7 @@ export default function LeaveTypesPage() {
           title="Leave Types"
           description="Configure leave type policies and accrual rules"
           actions={
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" />
               Add Leave Type
             </Button>
@@ -203,6 +248,13 @@ export default function LeaveTypesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => openEdit(lt)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
                             onClick={() => deleteLeaveType.mutate(lt.public_id)}
                             disabled={deleteLeaveType.isPending}
@@ -222,9 +274,11 @@ export default function LeaveTypesPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Leave Type</DialogTitle>
+              <DialogTitle>
+                {editingId ? "Edit Leave Type" : "Add Leave Type"}
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="lt_name">Name</Label>
                 <Input
@@ -293,11 +347,16 @@ export default function LeaveTypesPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createLeaveType.isPending}>
-                  {createLeaveType.isPending && (
+                <Button
+                  type="submit"
+                  disabled={
+                    createLeaveType.isPending || updateLeaveType.isPending
+                  }
+                >
+                  {(createLeaveType.isPending || updateLeaveType.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Add Leave Type
+                  {editingId ? "Save Changes" : "Add Leave Type"}
                 </Button>
               </DialogFooter>
             </form>

@@ -38,9 +38,12 @@ export interface Loan {
   public_id: string;
   employee_public_id: string;
   employee_name?: string;
+  /** Nested employee object — present when API includes the relation */
+  employee?: { name: string; public_id: string } | null;
   amount_cents: number;
   remaining_cents: number;
   monthly_deduction_cents: number;
+  reason?: string | null;
   status: string;
   disbursed_at: string | null;
   created_at: string;

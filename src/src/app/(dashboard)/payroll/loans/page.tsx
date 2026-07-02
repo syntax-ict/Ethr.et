@@ -19,23 +19,10 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useLoans, useCreateLoan, type Loan } from "@/features/payroll/api";
 import { toast } from "sonner";
 
-interface Loan {
-  public_id: string;
-  employee?: { name: string; public_id: string };
-  amount_cents: number;
-  remaining_cents: number;
-  monthly_deduction_cents: number;
-  reason: string | null;
-  status: string;
-  created_at: string;
-}
-
 export default function LoansPage() {
-  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     employee_public_id: "",
@@ -44,37 +31,8 @@ export default function LoansPage() {
     reason: "",
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["loans"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/payroll/loans");
-      return data;
-    },
-  });
-
-  const createLoan = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/payroll/loans", {
-        employee_public_id: form.employee_public_id,
-        amount_cents: parseInt(form.amount_cents) * 100,
-        monthly_deduction_cents: parseInt(form.monthly_deduction_cents) * 100,
-        reason: form.reason || undefined,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loans"] });
-      toast.success("Loan created");
-      setDialogOpen(false);
-      setForm({
-        employee_public_id: "",
-        amount_cents: "",
-        monthly_deduction_cents: "",
-        reason: "",
-      });
-    },
-    onError: () => toast.error("Failed to create loan"),
-  });
+  const { data, isLoading } = useLoans();
+  const createLoan = useCreateLoan();
 
   const loans: Loan[] = data?.data ?? [];
 
@@ -167,7 +125,27 @@ export default function LoansPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                createLoan.mutate();
+                createLoan.mutate(
+                  {
+                    employee_public_id: form.employee_public_id,
+                    amount_cents: parseInt(form.amount_cents) * 100,
+                    monthly_deduction_cents:
+                      parseInt(form.monthly_deduction_cents) * 100,
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success("Loan created");
+                      setDialogOpen(false);
+                      setForm({
+                        employee_public_id: "",
+                        amount_cents: "",
+                        monthly_deduction_cents: "",
+                        reason: "",
+                      });
+                    },
+                    onError: () => toast.error("Failed to create loan"),
+                  },
+                );
               }}
               className="space-y-4"
             >

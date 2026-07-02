@@ -48,6 +48,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDeviceDashboard } from "@/features/devices/api";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 

@@ -20,10 +20,12 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { usePayrollRuns } from "@/features/payroll/api";
+import {
+  usePayrollRuns,
+  useProcessPayroll,
+  useApprovePayroll,
+} from "@/features/payroll/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 
 export default function PayrollPage() {
@@ -33,34 +35,30 @@ export default function PayrollPage() {
   const [periodEnd, setPeriodEnd] = useState("");
   const { data, isLoading } = usePayrollRuns({ page });
   const { can } = usePermissions();
-  const queryClient = useQueryClient();
-
-  const processPayroll = useMutation({
-    mutationFn: async (payload: {
-      period_start: string;
-      period_end: string;
-    }) => {
-      const { data } = await apiClient.post("/payroll/process", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success("Payroll processing started");
-      setDialogOpen(false);
-      setPeriodStart("");
-      setPeriodEnd("");
-    },
-    onError: (err: unknown) => {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosError.response?.data?.detail || "Failed to process payroll",
-      );
-    },
-  });
+  const processPayroll = useProcessPayroll();
+  const approvePayroll = useApprovePayroll();
 
   function handleRunPayroll(e: React.FormEvent) {
     e.preventDefault();
-    processPayroll.mutate({ period_start: periodStart, period_end: periodEnd });
+    processPayroll.mutate(
+      { period_start: periodStart, period_end: periodEnd },
+      {
+        onSuccess: () => {
+          toast.success("Payroll processing started");
+          setDialogOpen(false);
+          setPeriodStart("");
+          setPeriodEnd("");
+        },
+        onError: (err: unknown) => {
+          const axiosError = err as {
+            response?: { data?: { detail?: string } };
+          };
+          toast.error(
+            axiosError.response?.data?.detail || "Failed to process payroll",
+          );
+        },
+      },
+    );
   }
 
   return (

@@ -22,10 +22,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
-import { usePayrollRun, type PayrollEntry } from "@/features/payroll/api";
-import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  usePayrollRun,
+  useApprovePayroll,
+  type PayrollEntry,
+} from "@/features/payroll/api";
 import { apiClient } from "@/api/client";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 
 export default function PayrollDetailPage({
@@ -36,24 +39,7 @@ export default function PayrollDetailPage({
   const { id } = use(params);
   const { data: run, isLoading } = usePayrollRun(id);
   const { isAtLeast } = usePermissions();
-  const queryClient = useQueryClient();
-
-  const approvePayroll = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.put(`/payroll/runs/${id}/approve`);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll"] });
-      toast.success("Payroll approved successfully");
-    },
-    onError: (err: unknown) => {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosError.response?.data?.detail || "Failed to approve payroll",
-      );
-    },
-  });
+  const approvePayroll = useApprovePayroll();
 
   function formatCents(cents: number): string {
     return (cents / 100).toLocaleString("en-ET", {
@@ -229,7 +215,20 @@ export default function PayrollDetailPage({
           {run.status === "completed" && isAtLeast("tenant_admin") && (
             <Button
               size="sm"
-              onClick={() => approvePayroll.mutate()}
+              onClick={() =>
+                approvePayroll.mutate(id, {
+                  onSuccess: () =>
+                    toast.success("Payroll approved successfully"),
+                  onError: (err: unknown) => {
+                    const e = err as {
+                      response?: { data?: { detail?: string } };
+                    };
+                    toast.error(
+                      e.response?.data?.detail || "Failed to approve payroll",
+                    );
+                  },
+                })
+              }
               disabled={approvePayroll.isPending}
             >
               {approvePayroll.isPending ? (
