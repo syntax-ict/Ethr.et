@@ -18,7 +18,7 @@ class StoreDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,txt'],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', Rule::in([
                 'contract', 'certificate', 'id_copy', 'academic', 'medical', 'other',

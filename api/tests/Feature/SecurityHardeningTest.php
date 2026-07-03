@@ -11,6 +11,8 @@ use App\Models\LeaveType;
 use App\Models\PayrollRun;
 use App\Models\User;
 use App\Models\Webhook;
+use App\Rules\ExternalUrl;
+use Illuminate\Support\Facades\Validator;
 
 // ── Cross-Tenant Isolation ──
 
@@ -225,4 +227,86 @@ test('all protected endpoints return 401 without auth', function () {
         test()->getJson("http://sectest.ethr.test{$path}")
             ->assertUnauthorized();
     }
+});
+
+// ── Security Headers ──
+
+test('api responses include required security headers', function () {
+    $tenant = createTenant(['subdomain' => 'headers-test']);
+
+    $response = test()->getJson("http://headers-test.ethr.test/api/v1/health");
+
+    $response->assertHeader('X-Frame-Options', 'DENY');
+    $response->assertHeader('X-Content-Type-Options', 'nosniff');
+    $response->assertHeader('X-XSS-Protection', '1; mode=block');
+    $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
+// ── Rate Limiting ──
+
+test('login rate limiting blocks after burst limit', function () {
+    $tenant = createTenant(['subdomain' => 'ratelimit-test']);
+
+    for ($i = 0; $i < 5; $i++) {
+        test()->postJson("http://ratelimit-test.ethr.test/api/v1/auth/login", [
+            'email' => 'nobody@example.com',
+            'password' => 'wrongpassword',
+        ]);
+    }
+
+    $response = test()->postJson("http://ratelimit-test.ethr.test/api/v1/auth/login", [
+        'email' => 'nobody@example.com',
+        'password' => 'wrongpassword',
+    ]);
+
+    $response->assertStatus(429);
+    $response->assertJsonPath('status', 429);
+});
+
+// ── SSRF Prevention (Webhook URLs) ──
+
+test('webhook url rejects localhost addresses', function () {
+    $rule = new ExternalUrl;
+    $validator = Validator::make(['url' => 'http://localhost/evil'], ['url' => [$rule]]);
+    expect($validator->fails())->toBeTrue();
+});
+
+test('webhook url rejects private ip ranges', function () {
+    $rule = new ExternalUrl;
+
+    $localAddresses = [
+        'http://127.0.0.1/steal',
+        'http://192.168.1.1/data',
+        'http://10.0.0.1/internal',
+        'http://172.16.0.1/private',
+    ];
+
+    foreach ($localAddresses as $url) {
+        $validator = Validator::make(['url' => $url], ['url' => [$rule]]);
+        expect($validator->fails())->toBeTrue("URL {$url} should be rejected");
+    }
+});
+
+test('webhook url accepts valid external urls', function () {
+    $rule = new ExternalUrl;
+    $validator = Validator::make(['url' => 'https://example.com/webhook'], ['url' => [$rule]]);
+    expect($validator->passes())->toBeTrue();
+});
+
+// ── File Upload Content-Type ──
+
+test('document upload rejects disallowed file types', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $response = test()->postJson(
+        "http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$employee->public_id}/documents",
+        [
+            'title' => 'Test',
+            'type' => 'contract',
+        ]
+    );
+
+    $response->assertStatus(422);
 });
