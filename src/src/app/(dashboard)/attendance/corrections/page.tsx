@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileEdit, Plus, Loader2, Check, X, AlertCircle } from "lucide-react";
+import { FileEdit, Plus, Loader2, Check, X, AlertCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -176,6 +176,58 @@ function MyRequestsTab() {
   );
 }
 
+// ── PAYROLL IMPACT BADGE ────────────────────────────────────────
+
+type PayrollImpact = {
+  original_hours: number;
+  proposed_hours: number;
+  difference_minutes: number;
+  estimated_impact_cents: number;
+  hourly_rate_cents: number;
+};
+
+function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
+  const { data, isLoading } = useQuery<PayrollImpact>({
+    queryKey: ["correction-impact", correctionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(
+        `/attendance/corrections/${correctionId}/payroll-impact`,
+      );
+      return data as PayrollImpact;
+    },
+    staleTime: 60_000,
+  });
+
+  if (isLoading || !data) return null;
+
+  const diffMin = data.difference_minutes;
+  const impactEtb = Math.abs(data.estimated_impact_cents) / 100;
+  const isNeutral = diffMin === 0;
+  const isPositive = diffMin > 0;
+
+  const Icon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown;
+  const colorClass = isNeutral
+    ? "text-muted-foreground"
+    : isPositive
+      ? "text-green-600 dark:text-green-400"
+      : "text-red-600 dark:text-red-400";
+  const label = isNeutral
+    ? "No payroll impact"
+    : `${isPositive ? "+" : "−"} ${impactEtb.toLocaleString("en-ET", { minimumFractionDigits: 2 })} ETB`;
+
+  return (
+    <div className={`flex items-center gap-1 text-[10px] font-medium ${colorClass}`}>
+      <Icon className="h-3 w-3" />
+      <span>{label}</span>
+      {!isNeutral && (
+        <span className="text-muted-foreground font-normal">
+          ({Math.abs(diffMin)} min)
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── PENDING REVIEWS (supervisor) ───────────────────────────────
 
 function PendingReviewsTab() {
@@ -302,6 +354,9 @@ function PendingReviewsTab() {
                     <div className="mt-2 flex items-start gap-2 rounded-lg bg-muted/30 p-2">
                       <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
                       <p className="text-xs text-foreground">{c.reason}</p>
+                    </div>
+                    <div className="mt-2">
+                      <PayrollImpactBadge correctionId={c.public_id} />
                     </div>
                   </div>
                   <div className="flex gap-2 sm:flex-col sm:items-stretch">

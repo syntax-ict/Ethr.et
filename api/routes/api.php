@@ -162,6 +162,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
             Route::get('/pending', [AttendanceCorrectionController::class, 'pending']);
             Route::post('/', [AttendanceCorrectionController::class, 'store']);
+            Route::get('/{correction}/payroll-impact', [AttendanceCorrectionController::class, 'payrollImpact']);
             Route::put('/{correction}/approve', [AttendanceCorrectionController::class, 'approve']);
             Route::put('/{correction}/reject', [AttendanceCorrectionController::class, 'reject']);
         });

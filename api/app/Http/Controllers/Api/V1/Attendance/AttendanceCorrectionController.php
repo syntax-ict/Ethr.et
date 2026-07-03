@@ -15,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -143,6 +144,49 @@ class AttendanceCorrectionController extends Controller
         $correction->load('attendanceRecord', 'employee');
 
         return response()->json(new AttendanceCorrectionResource($correction));
+    }
+
+    public function payrollImpact(AttendanceCorrection $correction): JsonResponse
+    {
+        Gate::authorize('correction.viewPending');
+
+        $correction->load('attendanceRecord', 'employee');
+        $record = $correction->attendanceRecord;
+        $employee = $correction->employee;
+
+        $originalMinutes = 0;
+        $proposedMinutes = 0;
+
+        if ($record?->check_in && $record->check_out) {
+            $originalMinutes = (int) Carbon::parse($record->check_in)
+                ->diffInMinutes(Carbon::parse($record->check_out));
+        }
+
+        $proposedIn = $correction->proposed_check_in ?? $record?->check_in;
+        $proposedOut = $correction->proposed_check_out ?? $record?->check_out;
+
+        if ($proposedIn && $proposedOut) {
+            $proposedMinutes = (int) Carbon::parse($proposedIn)
+                ->diffInMinutes(Carbon::parse($proposedOut));
+        }
+
+        // Standard: 176 hours/month (8h × 22 days)
+        $monthlyMinutes = 176 * 60;
+        $salaryCents = $employee?->salary_cents ?? 0;
+        $minuteRateCents = $monthlyMinutes > 0 ? (int) round($salaryCents / $monthlyMinutes) : 0;
+
+        $diffMinutes = $proposedMinutes - $originalMinutes;
+        $impactCents = $minuteRateCents * $diffMinutes;
+
+        return response()->json([
+            'original_hours' => round($originalMinutes / 60, 2),
+            'proposed_hours' => round($proposedMinutes / 60, 2),
+            'difference_minutes' => $diffMinutes,
+            'estimated_impact_cents' => $impactCents,
+            'hourly_rate_cents' => $minuteRateCents * 60,
+            'in_open_payroll_period' => true,
+            'currency' => 'ETB',
+        ]);
     }
 
     public function reject(RejectCorrectionRequest $request, AttendanceCorrection $correction): JsonResponse
