@@ -19,3 +19,10 @@ Broadcast::channel('user.{publicId}', function ($user, string $publicId): bool {
 Broadcast::channel('tenant.{tenantId}', function ($user, string $tenantId): bool {
     return (string) $user->tenant_id === $tenantId;
 });
+
+/*
+ * Device-specific channel for real-time device status updates.
+ */
+Broadcast::channel('device.{devicePublicId}', function ($user, string $devicePublicId): bool {
+    return $user->hasPermission('devices.view');
+});
