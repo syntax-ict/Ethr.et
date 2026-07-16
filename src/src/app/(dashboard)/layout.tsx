@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
 import { AuthGuard } from "@/components/shared/auth-guard";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { TenantBrandingProvider } from "@/features/branding/TenantBrandingProvider";
 import { ReverbProvider } from "@/components/providers/reverb-provider";
@@ -18,6 +19,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <ReverbProvider userId={user?.public_id} token={token}>
+      <CommandPalette />
       <ImpersonationBanner />
       <div className="flex min-h-screen bg-background">
         <AppSidebar />
