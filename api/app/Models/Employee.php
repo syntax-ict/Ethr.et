@@ -8,12 +8,14 @@ use App\Enums\EmployeeStatus;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -71,6 +73,26 @@ class Employee extends Model
             'salary_cents' => 'integer',
             'tin' => 'encrypted',
         ];
+    }
+
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        if (DB::getDriverName() === 'mysql' || DB::getDriverName() === 'mariadb') {
+            $boolean = str_replace(['@', '+', '-', '<', '>', '(', ')', '~', '*', '"'], '', $term);
+
+            return $query->whereRaw(
+                'MATCH (name, name_am, email, employee_code) AGAINST (? IN BOOLEAN MODE)',
+                [$boolean.'*'],
+            );
+        }
+
+        return $query->where(function (Builder $q) use ($term) {
+            $like = "%{$term}%";
+            $q->where('name', 'like', $like)
+                ->orWhere('name_am', 'like', $like)
+                ->orWhere('email', 'like', $like)
+                ->orWhere('employee_code', 'like', $like);
+        });
     }
 
     public function user(): HasOne

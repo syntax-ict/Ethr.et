@@ -35,13 +35,7 @@ class EmployeeController extends Controller
             ->with(['department', 'branch', 'position']);
 
         if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('name_am', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('employee_code', 'like', "%{$search}%");
-            });
+            $query->search($request->input('search'));
         }
 
         if ($request->has('filter.status')) {
