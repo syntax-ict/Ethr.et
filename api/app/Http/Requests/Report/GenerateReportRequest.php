@@ -23,6 +23,7 @@ class GenerateReportRequest extends FormRequest
             'group_by' => ['nullable', 'string'],
             'sort_by' => ['nullable', 'string'],
             'sort_dir' => ['sometimes', 'string', 'in:asc,desc'],
+            'format' => ['sometimes', 'string', 'in:csv,pdf'],
         ];
     }
 }

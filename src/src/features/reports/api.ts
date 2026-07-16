@@ -142,3 +142,20 @@ export function useDeleteScheduledReport() {
     },
   });
 }
+
+export function useExportReport() {
+  return useMutation<
+    Blob,
+    unknown,
+    { config: ReportConfig; format: "csv" | "pdf" }
+  >({
+    mutationFn: async ({ config, format }) => {
+      const { data } = await apiClient.post(
+        `/reports/export`,
+        { ...config, format },
+        { responseType: "blob" },
+      );
+      return data;
+    },
+  });
+}

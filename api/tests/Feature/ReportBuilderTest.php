@@ -18,6 +18,41 @@ test('hr admin can list report sources', function () {
         ->assertJsonStructure(['sources' => ['employees', 'attendance', 'leave', 'payroll']]);
 });
 
+// ── Report Export ──
+
+test('hr admin can export report as csv', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/export", [
+        'source' => 'employees',
+        'columns' => ['name', 'email'],
+        'format' => 'csv',
+    ]);
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('text/csv');
+    expect($response->getContent())->toContain('name,email');
+});
+
+test('hr admin can export report as pdf', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/export", [
+        'source' => 'employees',
+        'columns' => ['name', 'email'],
+        'format' => 'pdf',
+    ]);
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+});
+
 // ── Report Generation ──
 
 test('hr admin can generate employee report', function () {

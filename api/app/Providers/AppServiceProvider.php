@@ -51,6 +51,26 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('otp', function (Request $request) {
+            return Limit::perMinute(3)->by($request->input('phone', $request->ip()));
+        });
+
+        RateLimiter::for('payroll-process', function (Request $request) {
+            return Limit::perHour(2)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
+        });
+
+        RateLimiter::for('imports', function (Request $request) {
+            return Limit::perHour(5)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
+        });
+
+        RateLimiter::for('dashboard', function (Request $request) {
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('webhooks-test', function (Request $request) {
+            return Limit::perHour(10)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
+        });
+
         Gate::define('org.viewAny', fn (User $user): bool => true);
         Gate::define('org.view', fn (User $user): bool => true);
         Gate::define('org.create', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));

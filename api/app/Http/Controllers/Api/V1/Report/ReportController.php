@@ -12,9 +12,11 @@ use App\Models\SavedReport;
 use App\Models\ScheduledReport;
 use App\Services\CurrentTenant;
 use App\Services\Report\ReportEngine;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 class ReportController extends Controller
@@ -40,18 +42,51 @@ class ReportController extends Controller
         return response()->json($result);
     }
 
-    public function export(GenerateReportRequest $request): JsonResponse
+    public function export(GenerateReportRequest $request): Response
     {
         Gate::authorize('report.generate');
 
         $tenantId = app(CurrentTenant::class)->get()->id;
-        $format = $request->input('format', 'csv');
+        $format = $request->validated('format', 'csv');
         $result = $this->engine->generate($tenantId, $request->validated());
+        $filename = 'report-'.now()->format('Y-m-d-His');
 
-        return response()->json([
-            'format' => $format,
-            'total' => $result['total'],
-            'data' => $result['data'],
+        return $format === 'pdf'
+            ? $this->exportPdf($result['data'], $filename)
+            : $this->exportCsv($result['data'], $filename);
+    }
+
+    /** @param array<int, array<string, mixed>> $rows */
+    private function exportCsv(array $rows, string $filename): Response
+    {
+        $lines = [];
+
+        if ($rows !== []) {
+            $lines[] = implode(',', array_keys($rows[0]));
+            foreach ($rows as $row) {
+                $lines[] = implode(',', array_map(
+                    fn ($value) => '"'.str_replace('"', '""', (string) $value).'"',
+                    $row
+                ));
+            }
+        }
+
+        return response(implode("\r\n", $lines), 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
+        ]);
+    }
+
+    /** @param array<int, array<string, mixed>> $rows */
+    private function exportPdf(array $rows, string $filename): Response
+    {
+        $columns = $rows === [] ? [] : array_keys($rows[0]);
+        $pdf = Pdf::loadView('reports.export', ['columns' => $columns, 'rows' => $rows]);
+        $pdf->setPaper('a4', 'landscape');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
         ]);
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\ScanMissingPunchesJob;
@@ -28,3 +29,7 @@ Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00');
 
 // Handle overdue invoices daily at 04:00 UTC (07:00 EAT)
 Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00');
+
+// Cleanup expired data daily at 02:00 UTC (05:00 EAT)
+// Notifications: 90 days, Webhook deliveries: 30 days, Import staging: 7 days
+Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');

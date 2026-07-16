@@ -247,6 +247,24 @@ test('employee cannot view other employees payslips', function () {
         ->assertForbidden();
 });
 
+test('finance admin can download payslip pdf', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+    $entry = PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employee->id,
+    ]);
+
+    $response = test()->get("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/payslips/{$entry->public_id}/pdf");
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+});
+
 // ── Bank Export ──
 
 test('finance admin can export bank file', function () {

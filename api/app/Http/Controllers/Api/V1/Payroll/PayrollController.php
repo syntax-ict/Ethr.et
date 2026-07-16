@@ -13,12 +13,15 @@ use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Services\CurrentTenant;
+use App\Services\Payroll\BankExportService;
 use App\Services\Payroll\PayrollEngine;
+use App\Services\Payroll\PayslipPdfService;
 use App\Traits\DispatchesWebhooks;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
 class PayrollController extends Controller
@@ -138,6 +141,35 @@ class PayrollController extends Controller
             ->paginate($request->integer('per_page', 25));
 
         return PayrollEntryResource::collection($entries);
+    }
+
+    public function downloadPayslip(PayrollEntry $payrollEntry, PayslipPdfService $pdfService): Response
+    {
+        Gate::authorize('payroll.viewAll');
+
+        $pdf = $pdfService->generate($payrollEntry);
+
+        $filename = "payslip-{$payrollEntry->public_id}.pdf";
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    public function downloadBankExport(PayrollRun $payrollRun, BankExportService $bankExportService): Response
+    {
+        Gate::authorize('payroll.viewAll');
+
+        $csv = $bankExportService->generateCsv($payrollRun);
+        $filename = "bank-export-{$payrollRun->public_id}.csv";
+
+        AuditLog::record('payroll.bank_export', $payrollRun);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
     }
 
     public function bankExport(PayrollRun $payrollRun): JsonResponse

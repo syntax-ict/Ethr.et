@@ -180,9 +180,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/export', [EmployeeBulkController::class, 'export']);
     Route::post('/employees/bulk-update', [EmployeeBulkController::class, 'bulkUpdate']);
-    Route::post('/employees/import/template', [EmployeeImportController::class, 'template']);
-    Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview']);
-    Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit']);
+    Route::post('/employees/import/template', [EmployeeImportController::class, 'template'])->middleware('throttle:imports');
+    Route::post('/employees/import/preview', [EmployeeImportController::class, 'preview'])->middleware('throttle:imports');
+    Route::post('/employees/import/commit', [EmployeeImportController::class, 'commit'])->middleware('throttle:imports');
     Route::apiResource('employees', EmployeeController::class);
 
     Route::prefix('employees/{employee}')->group(function () {
@@ -249,13 +249,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Payroll
     Route::prefix('payroll')->group(function () {
-        Route::post('/process', [PayrollController::class, 'process']);
+        Route::post('/process', [PayrollController::class, 'process'])->middleware('throttle:payroll-process');
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
+        Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);
         Route::get('/payslips/{employeePublicId}', [PayrollController::class, 'employeePayslips']);
+        Route::get('/payslips/{payrollEntry}/pdf', [PayrollController::class, 'downloadPayslip']);
 
         Route::get('/loans', [LoanController::class, 'index']);
         Route::post('/loans', [LoanController::class, 'store']);
@@ -267,7 +269,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('holidays', HolidayController::class);
 
     // Dashboards
-    Route::prefix('dashboard')->group(function () {
+    Route::prefix('dashboard')->middleware('throttle:dashboard')->group(function () {
         Route::get('/employee', [DashboardController::class, 'employee']);
         Route::get('/manager', [DashboardController::class, 'manager']);
         Route::get('/executive', [ExecutiveDashboardController::class, 'overview']);
