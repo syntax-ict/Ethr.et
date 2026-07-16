@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Approval;
 
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Approval\BatchApprovalRequest;
 use App\Models\AttendanceCorrection;
 use App\Models\AuditLog;
 use App\Models\Employee;
@@ -73,17 +74,9 @@ class ApprovalController extends Controller
         ]);
     }
 
-    public function batch(Request $request): JsonResponse
+    public function batch(BatchApprovalRequest $request): JsonResponse
     {
         Gate::authorize('leave.approve');
-
-        $request->validate([
-            'actions' => ['required', 'array', 'min:1'],
-            'actions.*.type' => ['required', 'string', 'in:leave,correction'],
-            'actions.*.public_id' => ['required', 'string'],
-            'actions.*.action' => ['required', 'string', 'in:approve,reject'],
-            'actions.*.reason' => ['nullable', 'string'],
-        ]);
 
         $user = $request->user();
         $results = [];

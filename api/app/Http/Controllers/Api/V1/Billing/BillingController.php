@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Billing;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Billing\ChangePlanRequest;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Plan;
@@ -29,13 +30,9 @@ class BillingController extends Controller
         return response()->json($this->service->dashboard($tenant));
     }
 
-    public function changePlan(Request $request): JsonResponse
+    public function changePlan(ChangePlanRequest $request): JsonResponse
     {
         Gate::authorize('billing.manage');
-
-        $request->validate([
-            'plan_public_id' => ['required', 'string'],
-        ]);
 
         $tenant = app(CurrentTenant::class)->get();
         $plan = Plan::where('public_id', $request->input('plan_public_id'))->firstOrFail();

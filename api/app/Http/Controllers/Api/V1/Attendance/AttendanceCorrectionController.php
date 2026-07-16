@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\CorrectionStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Attendance\RejectCorrectionRequest;
 use App\Http\Requests\Attendance\StoreCorrectionRequest;
 use App\Http\Resources\AttendanceCorrectionResource;
 use App\Models\AttendanceCorrection;
@@ -144,13 +145,9 @@ class AttendanceCorrectionController extends Controller
         return response()->json(new AttendanceCorrectionResource($correction));
     }
 
-    public function reject(Request $request, AttendanceCorrection $correction): JsonResponse
+    public function reject(RejectCorrectionRequest $request, AttendanceCorrection $correction): JsonResponse
     {
         Gate::authorize('correction.approve');
-
-        $request->validate([
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
 
         if ($correction->status !== CorrectionStatus::PENDING) {
             return response()->json([

@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ExtendTrialRequest;
+use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Invoice;
@@ -124,13 +126,9 @@ class AdminTenantController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, string $publicId): JsonResponse
+    public function updateStatus(UpdateTenantStatusRequest $request, string $publicId): JsonResponse
     {
         Gate::authorize('admin.manage');
-
-        $request->validate([
-            'status' => ['required', 'string', 'in:active,suspended,cancelled'],
-        ]);
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
@@ -150,13 +148,9 @@ class AdminTenantController extends Controller
         ]);
     }
 
-    public function extendTrial(Request $request, string $publicId): JsonResponse
+    public function extendTrial(ExtendTrialRequest $request, string $publicId): JsonResponse
     {
         Gate::authorize('admin.manage');
-
-        $request->validate([
-            'days' => ['required', 'integer', 'min:1', 'max:180'],
-        ]);
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)

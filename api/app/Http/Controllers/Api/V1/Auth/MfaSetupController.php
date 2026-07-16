@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\DisableMfaRequest;
+use App\Http\Requests\Auth\EnableMfaRequest;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,13 +37,8 @@ class MfaSetupController extends Controller
         ]);
     }
 
-    public function enable(Request $request): JsonResponse
+    public function enable(EnableMfaRequest $request): JsonResponse
     {
-        $request->validate([
-            'secret' => ['required', 'string'],
-            'code' => ['required', 'string', 'size:6'],
-        ]);
-
         $user = $request->user();
 
         if ($user->mfa_enabled) {
@@ -67,12 +64,8 @@ class MfaSetupController extends Controller
         ]);
     }
 
-    public function disable(Request $request): JsonResponse
+    public function disable(DisableMfaRequest $request): JsonResponse
     {
-        $request->validate([
-            'code' => ['required', 'string', 'size:6'],
-        ]);
-
         $user = $request->user();
 
         if (! $user->mfa_enabled) {

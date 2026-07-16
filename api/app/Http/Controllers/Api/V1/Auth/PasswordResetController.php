@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\PasswordResetLinkNotification;
@@ -29,11 +32,8 @@ use Illuminate\Support\Str;
  */
 class PasswordResetController extends Controller
 {
-    public function forgot(Request $request): JsonResponse
+    public function forgot(ForgotPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-        ]);
 
         $tenant = app(CurrentTenant::class);
         if (! $tenant->resolved()) {
@@ -85,13 +85,8 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request): JsonResponse
+    public function reset(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
 
         $tenant = app(CurrentTenant::class);
         if (! $tenant->resolved()) {
@@ -141,12 +136,8 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function change(Request $request): JsonResponse
+    public function change(ChangePasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed', 'different:current_password'],
-        ]);
 
         $user = $request->user();
 

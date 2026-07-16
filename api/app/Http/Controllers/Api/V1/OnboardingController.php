@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Onboarding\ApplyTemplateRequest;
 use App\Models\AuditLog;
 use App\Models\OnboardingProgress;
 use App\Models\OrganizationTemplate;
@@ -58,12 +59,8 @@ class OnboardingController extends Controller
         return response()->json($progress);
     }
 
-    public function applyTemplate(Request $request): JsonResponse
+    public function applyTemplate(ApplyTemplateRequest $request): JsonResponse
     {
-        $request->validate([
-            'template_slug' => ['required', 'string', 'exists:organization_templates,slug'],
-        ]);
-
         $template = OrganizationTemplate::where('slug', $request->input('template_slug'))->firstOrFail();
         $templateData = $template->template_data ?? [];
 

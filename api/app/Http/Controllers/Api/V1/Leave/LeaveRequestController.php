@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Leave;
 
 use App\Enums\LeaveStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Leave\RejectLeaveRequest;
 use App\Http\Requests\Leave\StoreLeaveRequestRequest;
 use App\Http\Resources\LeaveBalanceResource;
 use App\Http\Resources\LeaveRequestResource;
@@ -274,13 +275,9 @@ class LeaveRequestController extends Controller
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
 
-    public function reject(Request $request, LeaveRequest $leaveRequest): JsonResponse
+    public function reject(RejectLeaveRequest $request, LeaveRequest $leaveRequest): JsonResponse
     {
         Gate::authorize('leave.approve');
-
-        $request->validate([
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
 
         if ($leaveRequest->status !== LeaveStatus::PENDING) {
             return response()->json([

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Notification;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Notification\UpdatePreferencesRequest;
 use App\Models\AuditLog;
 use App\Models\NotificationPreference;
 use App\Services\CurrentTenant;
@@ -67,13 +68,9 @@ class NotificationPreferencesController extends Controller
         ]);
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdatePreferencesRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'preferences' => ['required', 'array'],
-            'preferences.*' => ['array'],
-            'preferences.*.*' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
         $tenant = app(CurrentTenant::class)->get();

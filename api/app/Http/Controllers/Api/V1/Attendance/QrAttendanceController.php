@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Attendance\GenerateQrRequest;
 use App\Http\Requests\Attendance\QrAttendanceRequest;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\Branch;
@@ -15,7 +16,6 @@ use App\Services\Attendance\AttendanceInput;
 use App\Services\Attendance\QrCodeService;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class QrAttendanceController extends Controller
@@ -25,7 +25,7 @@ class QrAttendanceController extends Controller
         private readonly QrCodeService $qrService,
     ) {}
 
-    public function generate(Request $request): JsonResponse
+    public function generate(GenerateQrRequest $request): JsonResponse
     {
         Gate::authorize('attendance.manage');
 
@@ -39,12 +39,6 @@ class QrAttendanceController extends Controller
                 'detail' => 'Tenant context could not be resolved.',
             ], 400)->header('Content-Type', 'application/problem+json');
         }
-
-        $request->validate([
-            'branch_public_id' => ['required', 'string'],
-            'shift_public_id' => ['nullable', 'string'],
-            'expiry_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
-        ]);
 
         $branch = Branch::where('public_id', $request->input('branch_public_id'))->first();
 

@@ -7,11 +7,11 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\AttendanceImportCommitRequest;
 use App\Http\Requests\Attendance\AttendanceImportPreviewRequest;
+use App\Http\Requests\Attendance\ImportAttendanceRequest;
 use App\Models\AuditLog;
 use App\Services\Attendance\AttendanceImporter;
 use App\Services\Import\AttendanceImportParser;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class AttendanceImportController extends Controller
@@ -41,13 +41,9 @@ class AttendanceImportController extends Controller
      * Parse a legacy device export (BioTime, Hikvision, generic CSV).
      * Returns detected format + parsed records for review before committing.
      */
-    public function parseLegacy(Request $request): JsonResponse
+    public function parseLegacy(ImportAttendanceRequest $request): JsonResponse
     {
         Gate::authorize('attendance.manage');
-
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
-        ]);
 
         $content = $request->file('file')->getContent();
         $parser = new AttendanceImportParser;

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\VerifyMfaRequest;
 use App\Models\AuditLog;
 use App\Services\AuthService;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class MfaVerifyController extends Controller
 {
@@ -18,12 +18,8 @@ class MfaVerifyController extends Controller
         private readonly AuthService $authService,
     ) {}
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(VerifyMfaRequest $request): JsonResponse
     {
-        $request->validate([
-            'code' => ['required', 'string', 'size:6'],
-        ]);
-
         $user = $request->user();
 
         if (! $user->mfa_enabled) {

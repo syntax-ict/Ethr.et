@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateBrandingRequest;
+use App\Http\Requests\Settings\UpdateOrganizationRequest;
+use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class SettingsController extends Controller
@@ -48,13 +50,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(UpdateSettingsRequest $request): JsonResponse
     {
         Gate::authorize('settings.manage');
-
-        $request->validate([
-            'settings' => ['required', 'array'],
-        ]);
 
         $tenant = app(CurrentTenant::class)->get();
         $currentSettings = $tenant->settings ?? [];
@@ -66,16 +64,11 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Settings updated', 'settings' => $newSettings]);
     }
 
-    public function updateOrganization(Request $request): JsonResponse
+    public function updateOrganization(UpdateOrganizationRequest $request): JsonResponse
     {
         Gate::authorize('settings.manage');
 
-        $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'min:2', 'max:255'],
-            'type' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'timezone' => ['sometimes', 'string', 'max:50'],
-            'locale' => ['sometimes', 'string', 'in:en,am,om,ti,so'],
-        ]);
+        $validated = $request->validated();
 
         $tenant = app(CurrentTenant::class)->get();
 
@@ -94,16 +87,11 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Organization updated']);
     }
 
-    public function updateBranding(Request $request): JsonResponse
+    public function updateBranding(UpdateBrandingRequest $request): JsonResponse
     {
         Gate::authorize('settings.manage');
 
-        $validated = $request->validate([
-            'logo_url' => ['nullable', 'string', 'max:500'],
-            'primary_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'secondary_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'accent_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
-        ]);
+        $validated = $request->validated();
 
         $tenant = app(CurrentTenant::class)->get();
 
