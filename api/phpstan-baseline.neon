@@ -1,6 +1,12 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/AttendanceRecorded.php
+
+		-
 			message: '#^Using nullsafe property access "\?\-\>account_code" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -2245,6 +2251,12 @@ parameters:
 			path: app/Http/Resources/PayrollEntryResource.php
 
 		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$calculation_log\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/PayrollEntryResource.php
+
+		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollEntryResource\:\:\$deductions\.$#'
 			identifier: property.notFound
 			count: 1
@@ -2929,7 +2941,19 @@ parameters:
 			path: app/Models/AuditLog.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
 			message: '#^Method App\\Models\\AuditLog\:\:auditable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/AuditLog.php
+
+		-
+			message: '#^Method App\\Models\\AuditLog\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/AuditLog.php
@@ -3757,6 +3781,18 @@ parameters:
 			path: app/Models/LeaveType.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/LoginHistory.php
+
+		-
+			message: '#^Method App\\Models\\LoginHistory\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/LoginHistory.php
+
+		-
 			message: '#^Method App\\Models\\LoginHistory\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -3785,6 +3821,12 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/NotificationPreference.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/OnboardingProgress.php
 
 		-
 			message: '#^Method App\\Models\\OnboardingProgress\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -4147,8 +4189,20 @@ parameters:
 			path: app/Models/TaxBracket.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/TaxBracket.php
+
+		-
 			message: '#^Method App\\Models\\TaxBracket\:\:findByPublicId\(\) should return static\(App\\Models\\TaxBracket\)\|null but returns App\\Models\\TaxBracket\|null\.$#'
 			identifier: return.type
+			count: 1
+			path: app/Models/TaxBracket.php
+
+		-
+			message: '#^Method App\\Models\\TaxBracket\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
 			count: 1
 			path: app/Models/TaxBracket.php
 
@@ -4439,6 +4493,18 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Webhook.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/WebhookDelivery.php
+
+		-
+			message: '#^Method App\\Models\\WebhookDelivery\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/WebhookDelivery.php
 
 		-
 			message: '#^Method App\\Models\\WebhookDelivery\:\:webhook\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -5119,22 +5185,16 @@ parameters:
 			path: app/Services/LoginAttemptService.php
 
 		-
-			message: '#^Default value of the parameter \#1 \$cache \(null\) of method App\\Services\\LoginAttemptService\:\:__construct\(\) is incompatible with type Illuminate\\Cache\\Repository\.$#'
-			identifier: parameter.defaultValue
-			count: 1
-			path: app/Services/LoginAttemptService.php
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$employee\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Payroll/BankExportService.php
 
 		-
-			message: '#^Property App\\Services\\LoginAttemptService\:\:\$cache \(Illuminate\\Cache\\Repository\) does not accept Illuminate\\Contracts\\Cache\\Repository\.$#'
-			identifier: assign.propertyType
-			count: 1
-			path: app/Services/LoginAttemptService.php
-
-		-
-			message: '#^Property App\\Services\\LoginAttemptService\:\:\$cache on left side of \?\?\= is not nullable nor uninitialized\.$#'
-			identifier: nullCoalesce.initializedProperty
-			count: 1
-			path: app/Services/LoginAttemptService.php
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$net_cents\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Payroll/BankExportService.php
 
 		-
 			message: '#^Method App\\Services\\Payroll\\LoanService\:\:getActiveLoans\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
@@ -5165,6 +5225,18 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Services/Payroll/PayrollEngine.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payroll/PayslipPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/Payroll/PayslipPdfService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
