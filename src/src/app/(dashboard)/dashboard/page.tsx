@@ -73,8 +73,7 @@ function EmployeeSelfServiceCards() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={Clock}
-          iconBg="bg-blue-100 dark:bg-blue-950"
-          iconColor="text-blue-600 dark:text-blue-400"
+          tone="info"
           title="Attendance"
           value={
             attendance?.status === "checked_in"
@@ -91,8 +90,7 @@ function EmployeeSelfServiceCards() {
         />
         <KpiCard
           icon={CalendarDays}
-          iconBg="bg-green-100 dark:bg-green-950"
-          iconColor="text-green-600 dark:text-green-400"
+          tone="success"
           title="Leave Balance"
           value={balances.length > 0 ? `${balances[0].remaining} days` : "—"}
           sub={
@@ -103,16 +101,14 @@ function EmployeeSelfServiceCards() {
         />
         <KpiCard
           icon={Wallet}
-          iconBg="bg-purple-100 dark:bg-purple-950"
-          iconColor="text-purple-600 dark:text-purple-400"
+          tone="primary"
           title="Latest Payslip"
           value={payslip ? formatETB(payslip.net_cents) : "—"}
           sub={payslip?.period ?? "No payslips"}
         />
         <KpiCard
           icon={CalendarDays}
-          iconBg="bg-amber-100 dark:bg-amber-950"
-          iconColor="text-amber-600 dark:text-amber-400"
+          tone="warning"
           title="Next Holiday"
           value={holidays.length > 0 ? holidays[0].name : "—"}
           sub={holidays.length > 0 ? holidays[0].date : "No upcoming"}
@@ -182,32 +178,28 @@ function ManagerCards() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={Users}
-          iconBg="bg-indigo-100 dark:bg-indigo-950"
-          iconColor="text-indigo-600 dark:text-indigo-400"
+          tone="primary"
           title="Team Size"
           value={String(data.team_size)}
           sub="Direct reports"
         />
         <KpiCard
           icon={UserCheck}
-          iconBg="bg-green-100 dark:bg-green-950"
-          iconColor="text-green-600 dark:text-green-400"
+          tone="success"
           title="Present Today"
           value={String(attn.present)}
           sub={`${attn.late} late`}
         />
         <KpiCard
           icon={UserX}
-          iconBg="bg-red-100 dark:bg-red-950"
-          iconColor="text-red-600 dark:text-red-400"
+          tone="error"
           title="Absent Today"
           value={String(attn.absent)}
           sub="Not checked in"
         />
         <KpiCard
           icon={CheckSquare}
-          iconBg="bg-orange-100 dark:bg-orange-950"
-          iconColor="text-orange-600 dark:text-orange-400"
+          tone="warning"
           title="Pending Approvals"
           value={String(data.pending_approvals.total)}
           sub={`${data.pending_approvals.leave} leave requests`}
@@ -248,49 +240,49 @@ function QuickActions() {
       label: "Check In / Out",
       href: "/attendance",
       icon: LogIn,
-      color: "text-blue-500",
+      color: "text-status-info",
       show: true,
     },
     {
       label: "Apply for Leave",
       href: "/leave",
       icon: Plus,
-      color: "text-green-500",
+      color: "text-status-success",
       show: true,
     },
     {
       label: "View Payslips",
       href: "/payroll/payslips",
       icon: FileText,
-      color: "text-purple-500",
+      color: "text-interactive-primary",
       show: true,
     },
     {
       label: "Pending Approvals",
       href: "/approvals",
       icon: CheckSquare,
-      color: "text-orange-500",
+      color: "text-status-warning",
       show: isSupervisor,
     },
     {
       label: "Manage Employees",
       href: "/employees",
       icon: Users,
-      color: "text-indigo-500",
+      color: "text-interactive-primary",
       show: can.manageEmployees,
     },
     {
       label: "Run Payroll",
       href: "/payroll",
       icon: Wallet,
-      color: "text-pink-500",
+      color: "text-brand-accent",
       show: can.processPayroll,
     },
     {
       label: "View Reports",
       href: "/reports",
       icon: TrendingUp,
-      color: "text-teal-500",
+      color: "text-status-info",
       show: can.viewReports,
     },
   ].filter((a) => a.show);
@@ -319,17 +311,33 @@ function QuickActions() {
   );
 }
 
+type KpiTone = "info" | "success" | "warning" | "error" | "primary";
+
+const toneBg: Record<KpiTone, string> = {
+  info: "bg-status-info/10",
+  success: "bg-status-success/10",
+  warning: "bg-status-warning/10",
+  error: "bg-status-error/10",
+  primary: "bg-interactive-primary/10",
+};
+
+const toneText: Record<KpiTone, string> = {
+  info: "text-status-info",
+  success: "text-status-success",
+  warning: "text-status-warning",
+  error: "text-status-error",
+  primary: "text-interactive-primary",
+};
+
 function KpiCard({
   icon: Icon,
-  iconBg,
-  iconColor,
+  tone,
   title,
   value,
   sub,
 }: {
   icon: React.ComponentType<{ className?: string }>;
-  iconBg: string;
-  iconColor: string;
+  tone: KpiTone;
   title: string;
   value: string;
   sub: string;
@@ -344,9 +352,9 @@ function KpiCard({
             <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
           </div>
           <div
-            className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}
+            className={`flex h-11 w-11 items-center justify-center rounded-xl ${toneBg[tone]}`}
           >
-            <Icon className={`h-5 w-5 ${iconColor}`} />
+            <Icon className={`h-5 w-5 ${toneText[tone]}`} />
           </div>
         </div>
       </CardContent>

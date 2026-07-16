@@ -26,10 +26,9 @@ class DemoTenantSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = Tenant::create([
+        $tenant = Tenant::firstOrCreate(['subdomain' => 'demo'], [
             'public_id' => (string) Str::ulid(),
             'name' => 'Ethio Demo Corp',
-            'subdomain' => 'demo',
             'type' => 'private',
             'status' => TenantStatus::ACTIVE,
             'settings' => [
@@ -40,10 +39,9 @@ class DemoTenantSeeder extends Seeder
             'trial_ends_at' => now()->addMonths(6),
         ]);
 
-        $adminUser = User::create([
+        $adminUser = User::updateOrCreate(['email' => 'admin@demo.ethr.et'], [
             'public_id' => (string) Str::ulid(),
             'tenant_id' => $tenant->id,
-            'email' => 'admin@demo.ethr.et',
             'password' => bcrypt('password'),
             'role' => UserRole::TENANT_ADMIN,
             'status' => 'active',
@@ -62,49 +60,59 @@ class DemoTenantSeeder extends Seeder
             'mfa_enabled' => false,
         ]);
 
-        $hq = Branch::create([
-            'public_id' => (string) Str::ulid(),
-            'tenant_id' => $tenant->id,
-            'name' => 'Addis Ababa HQ',
-            'code' => 'HQ',
-            'address' => 'Bole, Addis Ababa',
-            'is_active' => true,
-        ]);
+        $hq = Branch::firstOrCreate(
+            ['tenant_id' => $tenant->id, 'code' => 'HQ'],
+            [
+                'public_id' => (string) Str::ulid(),
+                'name' => 'Addis Ababa HQ',
+                'address' => 'Bole, Addis Ababa',
+                'is_active' => true,
+            ],
+        );
 
         $deptNames = ['Engineering', 'Finance', 'Human Resources', 'Operations', 'Sales'];
         $departments = [];
         foreach ($deptNames as $name) {
-            $departments[] = Department::create([
-                'public_id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->id,
-                'name' => $name,
-                'code' => strtoupper(substr($name, 0, 3)),
-                'branch_id' => $hq->id,
-                'is_active' => true,
-            ]);
+            $departments[] = Department::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'code' => strtoupper(substr($name, 0, 3))],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'name' => $name,
+                    'branch_id' => $hq->id,
+                    'is_active' => true,
+                ],
+            );
         }
 
         $positions = [];
         $posNames = ['Developer', 'Accountant', 'HR Officer', 'Manager', 'Sales Rep'];
         foreach ($posNames as $name) {
-            $positions[] = Position::create([
-                'public_id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->id,
-                'title' => $name,
-                'code' => strtoupper(substr(str_replace(' ', '', $name), 0, 4)),
-                'is_active' => true,
-            ]);
+            $positions[] = Position::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'code' => strtoupper(substr(str_replace(' ', '', $name), 0, 4))],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'title' => $name,
+                    'is_active' => true,
+                ],
+            );
         }
 
-        $shift = Shift::create([
-            'public_id' => (string) Str::ulid(),
-            'tenant_id' => $tenant->id,
-            'name' => 'Regular',
-            'start_time' => '08:30',
-            'end_time' => '17:30',
-            'grace_minutes' => 15,
-            'is_active' => true,
-        ]);
+        $shift = Shift::firstOrCreate(
+            ['tenant_id' => $tenant->id, 'name' => 'Regular'],
+            [
+                'public_id' => (string) Str::ulid(),
+                'start_time' => '08:30',
+                'end_time' => '17:30',
+                'grace_minutes' => 15,
+                'is_active' => true,
+            ],
+        );
+
+        if (Employee::where('tenant_id', $tenant->id)->count() >= 100) {
+            $this->command->info('Demo tenant already seeded — skipping bulk data.');
+
+            return;
+        }
 
         $employees = [];
         for ($i = 0; $i < 100; $i++) {
@@ -132,24 +140,26 @@ class DemoTenantSeeder extends Seeder
         }
 
         $leaveTypes = [
-            LeaveType::create([
-                'public_id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->id,
-                'name' => 'Annual Leave',
-                'code' => 'AL',
-                'default_days' => 20,
-                'accrual_type' => 'monthly',
-                'is_active' => true,
-            ]),
-            LeaveType::create([
-                'public_id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->id,
-                'name' => 'Sick Leave',
-                'code' => 'SL',
-                'default_days' => 10,
-                'accrual_type' => 'annual',
-                'is_active' => true,
-            ]),
+            LeaveType::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'code' => 'AL'],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'name' => 'Annual Leave',
+                    'default_days' => 20,
+                    'accrual_type' => 'monthly',
+                    'is_active' => true,
+                ],
+            ),
+            LeaveType::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'code' => 'SL'],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'name' => 'Sick Leave',
+                    'default_days' => 10,
+                    'accrual_type' => 'annual',
+                    'is_active' => true,
+                ],
+            ),
         ];
 
         foreach ($employees as $employee) {
@@ -174,13 +184,14 @@ class DemoTenantSeeder extends Seeder
         ];
 
         foreach ($holidays as $h) {
-            Holiday::create([
-                'public_id' => (string) Str::ulid(),
-                'tenant_id' => $tenant->id,
-                'name' => $h['name'],
-                'date' => $h['date'],
-                'recurring' => true,
-            ]);
+            Holiday::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'name' => $h['name']],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'date' => $h['date'],
+                    'recurring' => true,
+                ],
+            );
         }
 
         for ($month = 2; $month >= 0; $month--) {
