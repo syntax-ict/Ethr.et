@@ -7,6 +7,7 @@ export function useEmployees(params?: {
   page?: number;
   search?: string;
   per_page?: number;
+  sort?: string;
 }) {
   return useQuery<PaginatedResponse<Employee>>({
     queryKey: ["employees", params],
