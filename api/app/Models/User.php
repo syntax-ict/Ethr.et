@@ -84,6 +84,17 @@ class User extends Authenticatable
         return $this->role === UserRole::TENANT_ADMIN;
     }
 
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->role === UserRole::SUPER_ADMIN) {
+            return true;
+        }
+
+        $permissions = Permission::permissionsForRole($this->role->value);
+
+        return in_array($permission, $permissions, true);
+    }
+
     public function receivesBroadcastNotificationsOn(): string
     {
         return 'private-user.'.$this->public_id;

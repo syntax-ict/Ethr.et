@@ -5,11 +5,15 @@ declare(strict_types=1);
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        $this->seed(PermissionSeeder::class);
+    })
     ->in('Feature');
 
 function createTenant(array $attributes = []): Tenant

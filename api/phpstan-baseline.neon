@@ -4449,6 +4449,12 @@ parameters:
 		-
 			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\UserRole\:\:SUPER_ADMIN will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
+			count: 2
+			path: app/Models/User.php
+
+		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
 			count: 1
 			path: app/Models/User.php
 
@@ -4597,10 +4603,16 @@ parameters:
 			path: app/Notifications/PayslipAvailableNotification.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\UserRole\:\:SUPER_ADMIN will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
+			identifier: property.notFound
 			count: 1
-			path: app/Providers/AppServiceProvider.php
+			path: app/Models/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Permission\:\:findByPublicId\(\) should return static\(App\\Models\\Permission\)\|null but returns App\\Models\\Permission\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Permission.php
 
 		-
 			message: '#^Cannot call method format\(\) on string\.$#'

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Enums\UserRole;
 use App\Events\DeviceOffline;
 use App\Events\TenantCreated;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\ProvisionTenant;
+use App\Models\Permission;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Dedoc\Scramble\Scramble;
@@ -71,98 +71,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(10)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });
 
-        Gate::define('org.viewAny', fn (User $user): bool => true);
-        Gate::define('org.view', fn (User $user): bool => true);
-        Gate::define('org.create', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('org.update', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('org.delete', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
+        Gate::before(function (User $user, string $ability): ?bool {
+            if (Permission::isKnownAbility($ability)) {
+                return $user->hasPermission($ability);
+            }
 
-        Gate::define('attendance.checkIn', fn (User $user): bool => true);
-        Gate::define('attendance.viewOwn', fn (User $user): bool => true);
-        Gate::define('attendance.viewTeam', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('attendance.viewAll', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('attendance.view', fn (User $user): bool => true);
-        Gate::define('attendance.manage', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-
-        Gate::define('shift.viewAny', fn (User $user): bool => true);
-        Gate::define('shift.view', fn (User $user): bool => true);
-        Gate::define('shift.create', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('shift.update', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('shift.delete', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Device gates
-        Gate::define('device.viewAny', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('device.view', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('device.create', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-        Gate::define('device.update', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-        Gate::define('device.delete', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Correction gates
-        Gate::define('correction.create', fn (User $user): bool => true);
-        Gate::define('correction.viewOwn', fn (User $user): bool => true);
-        Gate::define('correction.viewPending', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('correction.viewAll', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('correction.approve', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-
-        // Holiday gates
-        Gate::define('holiday.viewAny', fn (User $user): bool => true);
-        Gate::define('holiday.view', fn (User $user): bool => true);
-        Gate::define('holiday.create', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('holiday.update', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('holiday.delete', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Payroll gates
-        Gate::define('payroll.viewAll', fn (User $user): bool => $user->isAtLeast(UserRole::FINANCE_ADMIN));
-        Gate::define('payroll.process', fn (User $user): bool => $user->isAtLeast(UserRole::FINANCE_ADMIN));
-        Gate::define('payroll.approve', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-        Gate::define('payroll.manageLoan', fn (User $user): bool => $user->isAtLeast(UserRole::FINANCE_ADMIN));
-        Gate::define('payroll.viewOwnPayslip', fn (User $user): bool => true);
-
-        // Leave gates
-        Gate::define('leave.viewTypes', fn (User $user): bool => true);
-        Gate::define('leave.manageTypes', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('leave.request', fn (User $user): bool => true);
-        Gate::define('leave.viewTeam', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('leave.viewAll', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('leave.approve', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('leave.adjustBalance', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-
-        // Employee gates
-        Gate::define('employee.viewAny', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('employee.view', fn (User $user): bool => $user->isAtLeast(UserRole::SUPERVISOR));
-        Gate::define('employee.create', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('employee.update', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('employee.delete', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-        Gate::define('employee.transition', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('employee.viewFinancial', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-        Gate::define('employee.updateFinancial', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-
-        // Profile self-service gates
-        Gate::define('profile.view', fn (User $user): bool => true);
-        Gate::define('profile.update', fn (User $user): bool => true);
-
-        // Announcement gates
-        Gate::define('announcement.manage', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-
-        // Dashboard & analytics gates
-        Gate::define('dashboard.executive', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Report gates
-        Gate::define('report.generate', fn (User $user): bool => $user->isAtLeast(UserRole::HR_ADMIN));
-
-        // API key gates
-        Gate::define('apikey.manage', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Webhook gates
-        Gate::define('webhook.manage', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Admin gates
-        Gate::define('admin.manage', fn (User $user): bool => $user->role === UserRole::SUPER_ADMIN);
-
-        // Billing gates
-        Gate::define('billing.manage', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
-
-        // Settings gates
-        Gate::define('settings.manage', fn (User $user): bool => $user->isAtLeast(UserRole::TENANT_ADMIN));
+            return null;
+        });
     }
 }
