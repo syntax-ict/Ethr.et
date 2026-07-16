@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Services\CurrentTenant;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Request;
 
 class AuditLog extends Model
 {
+    use BelongsToTenant;
+
     public $timestamps = false;
 
     protected $table = 'audit_log';

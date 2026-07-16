@@ -80,6 +80,20 @@ final class PayrollEngine
             return null;
         }
 
+        $log = [
+            'version' => '1.0',
+            'calculated_at' => now()->toIso8601String(),
+            'inputs' => [
+                'employee_id' => $employee->public_id,
+                'basic_salary_cents' => $basicSalary,
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
+                'hire_date' => Carbon::parse($employee->hire_date)->toDateString(),
+                'status' => $employee->status,
+            ],
+            'steps' => [],
+        ];
+
         $hireDate = $employee->hire_date;
         $prorationFactor = 1.0;
         if ($hireDate && $hireDate->gt($periodStart)) {
@@ -90,6 +104,13 @@ final class PayrollEngine
 
         $proratedBasic = (int) round($basicSalary * $prorationFactor);
 
+        $log['steps'][] = [
+            'step' => 'proration',
+            'proration_factor' => $prorationFactor,
+            'original_basic_cents' => $basicSalary,
+            'prorated_basic_cents' => $proratedBasic,
+        ];
+
         $overtimeMinutes = $this->getOvertimeMinutes($employee, $periodStart, $periodEnd);
         $overtimeAmount = $this->overtimeCalculator->calculate(
             $proratedBasic,
@@ -98,15 +119,42 @@ final class PayrollEngine
             $overtimeMinutes,
         );
 
+        $log['steps'][] = [
+            'step' => 'overtime',
+            'overtime_minutes' => $overtimeMinutes,
+            'overtime_amount_cents' => $overtimeAmount,
+        ];
+
         $allowances = [];
         $totalAllowances = 0;
 
         $grossSalary = $proratedBasic + $overtimeAmount + $totalAllowances;
 
+        $log['steps'][] = [
+            'step' => 'gross',
+            'prorated_basic_cents' => $proratedBasic,
+            'overtime_cents' => $overtimeAmount,
+            'allowances_cents' => $totalAllowances,
+            'gross_cents' => $grossSalary,
+        ];
+
         $taxableAmount = $grossSalary;
         $incomeTax = $this->taxCalculator->calculate($taxableAmount);
 
+        $log['steps'][] = [
+            'step' => 'income_tax',
+            'taxable_amount_cents' => $taxableAmount,
+            'income_tax_cents' => $incomeTax,
+        ];
+
         $pension = $this->pensionCalculator->calculate($proratedBasic);
+
+        $log['steps'][] = [
+            'step' => 'pension',
+            'pensionable_basic_cents' => $proratedBasic,
+            'employee_pension_cents' => $pension['employee_cents'],
+            'employer_pension_cents' => $pension['employer_cents'],
+        ];
 
         $loanDeduction = $this->loanService->calculateMonthlyDeduction($employee);
 
@@ -115,8 +163,29 @@ final class PayrollEngine
             $this->loanService->applyDeduction($loan, $loan->monthly_deduction_cents);
         }
 
+        $log['steps'][] = [
+            'step' => 'loan_deductions',
+            'loan_deduction_cents' => $loanDeduction,
+        ];
+
         $totalDeductions = $incomeTax + $pension['employee_cents'] + $loanDeduction;
         $netSalary = $grossSalary - $totalDeductions;
+
+        $log['steps'][] = [
+            'step' => 'net_calculation',
+            'gross_cents' => $grossSalary,
+            'total_deductions_cents' => $totalDeductions,
+            'net_cents' => $netSalary,
+        ];
+
+        $log['outputs'] = [
+            'gross_cents' => $grossSalary,
+            'income_tax_cents' => $incomeTax,
+            'employee_pension_cents' => $pension['employee_cents'],
+            'employer_pension_cents' => $pension['employer_cents'],
+            'loan_deduction_cents' => $loanDeduction,
+            'net_cents' => $netSalary,
+        ];
 
         $deductions = [];
         if ($loanDeduction > 0) {
@@ -136,6 +205,7 @@ final class PayrollEngine
             'employer_pension_cents' => $pension['employer_cents'],
             'other_deductions_cents' => $loanDeduction,
             'net_cents' => $netSalary,
+            'calculation_log' => $log,
         ]);
     }
 

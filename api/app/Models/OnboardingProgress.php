@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OnboardingProgress extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'onboarding_progress';
 
     protected $fillable = [
@@ -32,11 +34,6 @@ class OnboardingProgress extends Model
             'step_data' => 'array',
             'completed_at' => 'datetime',
         ];
-    }
-
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     public function markStepComplete(int $step, array $data = []): void

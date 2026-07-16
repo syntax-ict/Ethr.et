@@ -573,6 +573,8 @@ test('balance service calculates remaining correctly', function () {
 });
 
 test('monthly accrual adds correct amount', function () {
+    Carbon::setTestNow(Carbon::create(2026, 1, 15));
+
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'gender' => 'male']);
 
@@ -580,14 +582,6 @@ test('monthly accrual adds correct amount', function () {
         'tenant_id' => $tenant->id,
         'code' => 'monthly_accrual',
         'default_days' => 12,
-    ]);
-
-    LeaveBalance::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => $employee->id,
-        'leave_type_id' => $leaveType->id,
-        'year' => now()->year,
-        'entitled_days' => 0,
     ]);
 
     $service = app(LeaveBalanceService::class);

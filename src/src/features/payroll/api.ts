@@ -20,6 +20,19 @@ export interface PayrollRun {
   entries?: PayrollEntry[];
 }
 
+export interface CalculationLogStep {
+  step: string;
+  [key: string]: unknown;
+}
+
+export interface CalculationLog {
+  version: string;
+  calculated_at: string;
+  inputs: Record<string, unknown>;
+  steps: CalculationLogStep[];
+  outputs: Record<string, number>;
+}
+
 export interface PayrollEntry {
   public_id: string;
   employee_public_id: string;
@@ -32,6 +45,7 @@ export interface PayrollEntry {
   other_deductions_cents: number;
   net_cents: number;
   period_label?: string;
+  calculation_log?: CalculationLog;
 }
 
 export interface Loan {
@@ -179,4 +193,32 @@ export function useCreateLoan() {
 export function downloadBankExport(publicId: string) {
   const url = `/api/v1/payroll/runs/${publicId}/export/bank`;
   window.open(url, "_blank");
+}
+
+export async function downloadBankExportCsv(publicId: string) {
+  const { data } = await apiClient.get(
+    `/payroll/runs/${publicId}/export/bank-csv`,
+    { responseType: "blob" },
+  );
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bank-export-${publicId}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Payslip PDF ──────────────────────────────────────────────────────────────
+
+export async function downloadPayslipPdf(entryPublicId: string) {
+  const { data } = await apiClient.get(
+    `/payroll/payslips/${entryPublicId}/pdf`,
+    { responseType: "blob" },
+  );
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `payslip-${entryPublicId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

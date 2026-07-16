@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
 class TaxBracket extends Model
 {
-    use HasPublicId;
+    use BelongsToTenant, HasPublicId;
 
     protected $fillable = [
         'public_id',

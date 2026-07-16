@@ -28,6 +28,7 @@ class PayrollEntry extends Model
         'employer_pension_cents',
         'other_deductions_cents',
         'net_cents',
+        'calculation_log',
     ];
 
     protected $hidden = [
@@ -47,7 +48,17 @@ class PayrollEntry extends Model
             'employer_pension_cents' => 'integer',
             'other_deductions_cents' => 'integer',
             'net_cents' => 'integer',
+            'calculation_log' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $entry) {
+            if ($entry->isDirty('calculation_log') && $entry->getOriginal('calculation_log') !== null) {
+                throw new \LogicException('calculation_log is immutable after initial creation.');
+            }
+        });
     }
 
     public function payrollRun(): BelongsTo

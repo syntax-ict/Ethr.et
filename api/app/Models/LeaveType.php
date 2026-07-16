@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/** @property AccrualType $accrual_type */
 class LeaveType extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId;

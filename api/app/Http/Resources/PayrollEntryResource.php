@@ -24,6 +24,7 @@ class PayrollEntryResource extends JsonResource
             'employer_pension_cents' => $this->employer_pension_cents,
             'other_deductions_cents' => $this->other_deductions_cents,
             'net_cents' => $this->net_cents,
+            'calculation_log' => $this->when($request->boolean('include_log'), $this->calculation_log),
         ];
     }
 }

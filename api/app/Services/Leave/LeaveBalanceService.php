@@ -13,6 +13,10 @@ final class LeaveBalanceService
 {
     public function getOrCreateBalance(Employee $employee, LeaveType $leaveType, int $year): LeaveBalance
     {
+        $initialEntitlement = $leaveType->accrual_type === AccrualType::MONTHLY
+            ? 0
+            : $leaveType->default_days;
+
         return LeaveBalance::firstOrCreate(
             [
                 'tenant_id' => $employee->tenant_id,
@@ -21,7 +25,7 @@ final class LeaveBalanceService
                 'year' => $year,
             ],
             [
-                'entitled_days' => $leaveType->default_days,
+                'entitled_days' => $initialEntitlement,
                 'used_days' => 0,
                 'carried_days' => 0,
                 'pending_days' => 0,
@@ -39,15 +43,17 @@ final class LeaveBalanceService
     public function accrueMonthly(int $tenantId): int
     {
         $leaveTypes = LeaveType::query()
+            ->where('tenant_id', $tenantId)
             ->where('accrual_type', AccrualType::MONTHLY)
             ->where('is_active', true)
             ->get();
 
         $accrued = 0;
         $year = now()->year;
+        $currentMonth = now()->month;
 
         foreach ($leaveTypes as $leaveType) {
-            $monthlyAccrual = round((float) $leaveType->default_days / 12, 1);
+            $targetEntitled = round((float) $leaveType->default_days * $currentMonth / 12, 1);
 
             $employees = Employee::query()
                 ->where('tenant_id', $tenantId)
@@ -59,8 +65,12 @@ final class LeaveBalanceService
                 }
 
                 $balance = $this->getOrCreateBalance($employee, $leaveType, $year);
-                $balance->increment('entitled_days', $monthlyAccrual);
-                $accrued++;
+                $increment = round($targetEntitled - (float) $balance->entitled_days, 1);
+
+                if ($increment > 0) {
+                    $balance->increment('entitled_days', $increment);
+                    $accrued++;
+                }
             }
         }
 

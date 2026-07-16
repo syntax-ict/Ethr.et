@@ -32,7 +32,7 @@ class AdminDashboardController extends Controller
     {
         Gate::authorize('admin.manage');
 
-        $query = AuditLog::query()->orderByDesc('created_at');
+        $query = AuditLog::withoutGlobalScopes()->orderByDesc('created_at');
 
         if ($request->has('filter.action')) {
             $query->where('action', $request->input('filter.action'));
