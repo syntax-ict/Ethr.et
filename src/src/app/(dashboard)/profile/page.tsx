@@ -29,6 +29,7 @@ import {
   useMyProfile,
   useUpdateProfile,
 } from "@/features/dashboard/profile-api";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 const editSchema = z.object({
@@ -40,6 +41,7 @@ const editSchema = z.object({
 type EditForm = z.infer<typeof editSchema>;
 
 export default function ProfilePage() {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: tenant } = useCurrentTenant();
@@ -65,14 +67,19 @@ export default function ProfilePage() {
       const result = await updateProfile.mutateAsync(values);
       if (result.pending_approval) {
         toast.warning(
-          `Changes to ${result.pending_approval.fields.join(", ")} are pending HR approval.`,
+          t("profile.pending_approval", "Changes are pending HR approval."),
         );
       } else {
-        toast.success("Profile updated successfully.");
+        toast.success(t("profile.updated", "Profile updated successfully."));
       }
       setEditing(false);
     } catch {
-      toast.error("Failed to update profile. Please try again.");
+      toast.error(
+        t(
+          "profile.update_failed",
+          "Failed to update profile. Please try again.",
+        ),
+      );
     }
   }
 
@@ -91,8 +98,11 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My Profile"
-        description="View and update your personal information"
+        title={t("profile.title", "My Profile")}
+        description={t(
+          "profile.description",
+          "View and update your personal information",
+        )}
       />
 
       <Card>
@@ -117,7 +127,7 @@ export default function ProfilePage() {
                 </Badge>
                 {user.mfa_enabled && (
                   <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0">
-                    MFA Enabled
+                    {t("profile.mfa_enabled", "MFA Enabled")}
                   </Badge>
                 )}
               </div>
@@ -132,7 +142,7 @@ export default function ProfilePage() {
                 }}
               >
                 <Edit className="mr-1 h-3 w-3" />
-                Edit
+                {t("common.edit", "Edit")}
               </Button>
             )}
           </div>
@@ -143,12 +153,16 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit(onSave)}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Edit Profile</CardTitle>
+              <CardTitle className="text-base">
+                {t("profile.edit_title", "Edit Profile")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">
+                    {t("profile.phone_number", "Phone Number")}
+                  </Label>
                   <Input
                     id="phone"
                     placeholder="+251 9XX XXX XXX"
@@ -164,7 +178,9 @@ export default function ProfilePage() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="ec_name">Emergency Contact Name</Label>
+                  <Label htmlFor="ec_name">
+                    {t("profile.ec_name", "Emergency Contact Name")}
+                  </Label>
                   <Input
                     id="ec_name"
                     placeholder="Full name"
@@ -172,7 +188,9 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ec_phone">Emergency Contact Phone</Label>
+                  <Label htmlFor="ec_phone">
+                    {t("profile.ec_phone", "Emergency Contact Phone")}
+                  </Label>
                   <Input
                     id="ec_phone"
                     placeholder="+251 9XX XXX XXX"
@@ -180,7 +198,9 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ec_rel">Relationship</Label>
+                  <Label htmlFor="ec_rel">
+                    {t("employee.emergency.relationship", "Relationship")}
+                  </Label>
                   <Input
                     id="ec_rel"
                     placeholder="e.g. Spouse, Parent"
@@ -190,8 +210,10 @@ export default function ProfilePage() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Changes to name or bank details require HR approval before
-                taking effect.
+                {t(
+                  "profile.hr_approval_note",
+                  "Changes to name or bank details require HR approval before taking effect.",
+                )}
               </p>
 
               <div className="flex gap-2">
@@ -201,7 +223,9 @@ export default function ProfilePage() {
                   disabled={updateProfile.isPending}
                 >
                   <Save className="mr-1 h-3 w-3" />
-                  {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                  {updateProfile.isPending
+                    ? t("profile.saving", "Saving...")
+                    : t("profile.save_changes", "Save Changes")}
                 </Button>
                 <Button
                   type="button"
@@ -210,7 +234,7 @@ export default function ProfilePage() {
                   onClick={() => setEditing(false)}
                 >
                   <X className="mr-1 h-3 w-3" />
-                  Cancel
+                  {t("common.cancel", "Cancel")}
                 </Button>
               </div>
             </CardContent>
@@ -220,32 +244,38 @@ export default function ProfilePage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Account Information</CardTitle>
+              <CardTitle className="text-base">
+                {t("profile.account_info", "Account Information")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <InfoRow icon={Mail} label="Email" value={user.email} />
+              <InfoRow
+                icon={Mail}
+                label={t("common.email", "Email")}
+                value={user.email}
+              />
               {(user.phone ?? employee?.phone) && (
                 <InfoRow
                   icon={Phone}
-                  label="Phone"
+                  label={t("common.phone", "Phone")}
                   value={user.phone ?? employee?.phone ?? ""}
                 />
               )}
               <InfoRow
                 icon={Shield}
-                label="Role"
+                label={t("profile.role", "Role")}
                 value={user.role?.replace(/_/g, " ") ?? ""}
                 className="capitalize"
               />
               <InfoRow
                 icon={Calendar}
-                label="Locale"
+                label={t("profile.locale", "Locale")}
                 value={user.locale ?? "en"}
               />
               {user.last_login_at && (
                 <InfoRow
                   icon={Calendar}
-                  label="Last Login"
+                  label={t("profile.last_login", "Last Login")}
                   value={new Date(user.last_login_at).toLocaleString()}
                 />
               )}
@@ -255,22 +285,24 @@ export default function ProfilePage() {
           {tenant && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Organization</CardTitle>
+                <CardTitle className="text-base">
+                  {t("employee.detail.organization", "Organization")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <InfoRow
                   icon={Building2}
-                  label="Organization"
+                  label={t("employee.detail.organization", "Organization")}
                   value={tenant.name ?? ""}
                 />
                 <InfoRow
                   icon={Building2}
-                  label="Subdomain"
+                  label={t("profile.subdomain", "Subdomain")}
                   value={tenant.subdomain ?? ""}
                 />
                 <InfoRow
                   icon={Shield}
-                  label="Status"
+                  label={t("common.status", "Status")}
                   value={tenant.status ?? ""}
                   className="capitalize"
                 />
@@ -281,38 +313,40 @@ export default function ProfilePage() {
           {employee && (
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Employment Details</CardTitle>
+                <CardTitle className="text-base">
+                  {t("profile.employment_details", "Employment Details")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <InfoRow
                   icon={Calendar}
-                  label="Hire Date"
+                  label={t("employee.detail.hire_date", "Hire Date")}
                   value={employee.hire_date ?? "—"}
                 />
                 <InfoRow
                   icon={User}
-                  label="Gender"
+                  label={t("employee.detail.gender", "Gender")}
                   value={employee.gender ?? "—"}
                   className="capitalize"
                 />
                 <InfoRow
                   icon={Building2}
-                  label="Department"
+                  label={t("common.department", "Department")}
                   value={employee.department ?? "—"}
                 />
                 <InfoRow
                   icon={Briefcase}
-                  label="Position"
+                  label={t("common.position", "Position")}
                   value={employee.position ?? "—"}
                 />
                 <InfoRow
                   icon={Building2}
-                  label="Branch"
+                  label={t("employee.detail.branch", "Branch")}
                   value={employee.branch ?? "—"}
                 />
                 <InfoRow
                   icon={Building2}
-                  label="Grade"
+                  label={t("profile.grade", "Grade")}
                   value={employee.grade ?? "—"}
                 />
               </CardContent>

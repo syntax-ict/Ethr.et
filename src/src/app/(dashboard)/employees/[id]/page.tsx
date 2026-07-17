@@ -48,6 +48,7 @@ import { useEmployee, useUpdateEmployee } from "@/features/employees/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function EmployeeDetailPage({
@@ -56,6 +57,7 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
   const updateEmployee = useUpdateEmployee(id);
   const [editing, setEditing] = useState(false);
@@ -74,10 +76,13 @@ export default function EmployeeDetailPage({
   function handleSave() {
     updateEmployee.mutate(editForm, {
       onSuccess: () => {
-        toast.success("Employee updated");
+        toast.success(t("employee.detail.updated", "Employee updated"));
         setEditing(false);
       },
-      onError: () => toast.error("Failed to update employee"),
+      onError: () =>
+        toast.error(
+          t("employee.detail.update_failed", "Failed to update employee"),
+        ),
     });
   }
 
@@ -97,10 +102,12 @@ export default function EmployeeDetailPage({
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-lg font-medium text-foreground">
-          Employee not found
+          {t("employee.detail.not_found", "Employee not found")}
         </p>
         <Button variant="outline" className="mt-4" asChild>
-          <Link href="/employees">Back to list</Link>
+          <Link href="/employees">
+            {t("employee.detail.back_to_list", "Back to list")}
+          </Link>
         </Button>
       </div>
     );
@@ -112,7 +119,7 @@ export default function EmployeeDetailPage({
         <Button variant="ghost" size="sm" asChild>
           <Link href="/employees">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back", "Back")}
           </Link>
         </Button>
       </div>
@@ -143,7 +150,7 @@ export default function EmployeeDetailPage({
           {!editing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-2 h-3 w-3" />
-              Edit
+              {t("common.edit", "Edit")}
             </Button>
           )}
         </div>
@@ -151,14 +158,30 @@ export default function EmployeeDetailPage({
 
       <Tabs defaultValue="info" className="w-full">
         <TabsList>
-          <TabsTrigger value="info">Information</TabsTrigger>
-          <TabsTrigger value="employment">Employment</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="bank">Bank Details</TabsTrigger>
-          <TabsTrigger value="emergency">Emergency Contacts</TabsTrigger>
-          <TabsTrigger value="education">Education</TabsTrigger>
-          <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="info">
+            {t("employee.detail.tab.info", "Information")}
+          </TabsTrigger>
+          <TabsTrigger value="employment">
+            {t("employee.detail.tab.employment", "Employment")}
+          </TabsTrigger>
+          <TabsTrigger value="documents">
+            {t("employee.detail.tab.documents", "Documents")}
+          </TabsTrigger>
+          <TabsTrigger value="bank">
+            {t("employee.detail.tab.bank", "Bank Details")}
+          </TabsTrigger>
+          <TabsTrigger value="emergency">
+            {t("employee.detail.tab.emergency", "Emergency Contacts")}
+          </TabsTrigger>
+          <TabsTrigger value="education">
+            {t("employee.detail.tab.education", "Education")}
+          </TabsTrigger>
+          <TabsTrigger value="lifecycle">
+            {t("employee.detail.tab.lifecycle", "Lifecycle")}
+          </TabsTrigger>
+          <TabsTrigger value="attendance">
+            {t("employee.detail.tab.attendance", "Attendance")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
@@ -166,7 +189,7 @@ export default function EmployeeDetailPage({
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-base">
-                  Personal Information
+                  {t("employee.detail.personal_info", "Personal Information")}
                 </CardTitle>
                 {editing && (
                   <div className="flex gap-1">
@@ -187,7 +210,7 @@ export default function EmployeeDetailPage({
                       ) : (
                         <Save className="mr-1 h-3 w-3" />
                       )}
-                      Save
+                      {t("common.save", "Save")}
                     </Button>
                   </div>
                 )}
@@ -196,7 +219,7 @@ export default function EmployeeDetailPage({
                 {editing ? (
                   <>
                     <div>
-                      <Label>Name</Label>
+                      <Label>{t("common.name", "Name")}</Label>
                       <Input
                         value={editForm.name}
                         onChange={(e) =>
@@ -206,7 +229,7 @@ export default function EmployeeDetailPage({
                       />
                     </div>
                     <div>
-                      <Label>Email</Label>
+                      <Label>{t("common.email", "Email")}</Label>
                       <Input
                         type="email"
                         value={editForm.email}
@@ -217,7 +240,7 @@ export default function EmployeeDetailPage({
                       />
                     </div>
                     <div>
-                      <Label>Phone</Label>
+                      <Label>{t("common.phone", "Phone")}</Label>
                       <Input
                         value={editForm.phone}
                         onChange={(e) =>
@@ -231,21 +254,24 @@ export default function EmployeeDetailPage({
                   <>
                     <InfoRow
                       icon={Mail}
-                      label="Email"
+                      label={t("common.email", "Email")}
                       value={employee.email ?? "—"}
                     />
                     <InfoRow
                       icon={Phone}
-                      label="Phone"
+                      label={t("common.phone", "Phone")}
                       value={employee.phone ?? "—"}
                     />
                     <InfoRow
                       icon={Calendar}
-                      label="Hire Date"
+                      label={t("employee.detail.hire_date", "Hire Date")}
                       value={employee.hire_date}
                     />
                     {employee.gender && (
-                      <InfoRow label="Gender" value={employee.gender} />
+                      <InfoRow
+                        label={t("employee.detail.gender", "Gender")}
+                        value={employee.gender}
+                      />
                     )}
                   </>
                 )}
@@ -254,24 +280,29 @@ export default function EmployeeDetailPage({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Organization</CardTitle>
+                <CardTitle className="text-base">
+                  {t("employee.detail.organization", "Organization")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <InfoRow
                   icon={Building2}
-                  label="Department"
+                  label={t("common.department", "Department")}
                   value={employee.department?.name ?? "—"}
                 />
                 <InfoRow
                   icon={Briefcase}
-                  label="Position"
+                  label={t("common.position", "Position")}
                   value={employee.position?.name ?? "—"}
                 />
-                <InfoRow label="Branch" value={employee.branch?.name ?? "—"} />
+                <InfoRow
+                  label={t("employee.detail.branch", "Branch")}
+                  value={employee.branch?.name ?? "—"}
+                />
                 {employee.salary_cents !== undefined && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Salary
+                      {t("employee.detail.salary", "Salary")}
                     </span>
                     <CurrencyDisplay
                       cents={employee.salary_cents}
@@ -287,14 +318,21 @@ export default function EmployeeDetailPage({
         <TabsContent value="employment" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Employment Timeline</CardTitle>
+              <CardTitle className="text-base">
+                {t(
+                  "employee.detail.employment_timeline",
+                  "Employment Timeline",
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="h-3 w-3 rounded-full bg-green-500" />
                   <div>
-                    <p className="text-sm font-medium">Hired</p>
+                    <p className="text-sm font-medium">
+                      {t("employee.detail.hired", "Hired")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {employee.hire_date}
                     </p>
@@ -303,7 +341,9 @@ export default function EmployeeDetailPage({
                 <div className="flex items-center gap-4">
                   <div className="h-3 w-3 rounded-full bg-primary" />
                   <div>
-                    <p className="text-sm font-medium">Current Status</p>
+                    <p className="text-sm font-medium">
+                      {t("employee.detail.current_status", "Current Status")}
+                    </p>
                     <StatusBadge status={employee.status} />
                   </div>
                 </div>
@@ -372,6 +412,7 @@ interface Education {
 }
 
 function EducationTab({ employeeId }: { employeeId: string }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
@@ -410,7 +451,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "education"],
       });
-      toast.success("Education added");
+      toast.success(t("employee.education.added", "Education added"));
       setAddOpen(false);
       setForm({
         institution: "",
@@ -421,7 +462,10 @@ function EducationTab({ employeeId }: { employeeId: string }) {
         gpa: "",
       });
     },
-    onError: () => toast.error("Failed to add education"),
+    onError: () =>
+      toast.error(
+        t("employee.education.add_failed", "Failed to add education"),
+      ),
   });
 
   const deleteEducation = useMutation({
@@ -432,7 +476,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "education"],
       });
-      toast.success("Education deleted");
+      toast.success(t("employee.education.deleted", "Education deleted"));
     },
   });
 
@@ -441,9 +485,11 @@ function EducationTab({ employeeId }: { employeeId: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Education History</CardTitle>
+        <CardTitle className="text-base">
+          {t("employee.education.title", "Education History")}
+        </CardTitle>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-3 w-3" /> Add
+          <Plus className="mr-2 h-3 w-3" /> {t("common.add", "Add")}
         </Button>
       </CardHeader>
       <CardContent>
@@ -452,8 +498,11 @@ function EducationTab({ employeeId }: { employeeId: string }) {
         ) : records.length === 0 ? (
           <EmptyState
             icon={GraduationCap}
-            title="No education records"
-            description="Add educational qualifications"
+            title={t("employee.education.empty_title", "No education records")}
+            description={t(
+              "employee.education.empty_desc",
+              "Add educational qualifications",
+            )}
           />
         ) : (
           <div className="space-y-2">
@@ -474,7 +523,9 @@ function EducationTab({ employeeId }: { employeeId: string }) {
                     </p>
                     {(e.start_year || e.end_year) && (
                       <p className="text-xs text-muted-foreground">
-                        {e.start_year ?? ""} – {e.end_year ?? "Present"}
+                        {e.start_year ?? ""} –{" "}
+                        {e.end_year ??
+                          t("employee.education.present", "Present")}
                         {e.gpa && ` · GPA: ${e.gpa}`}
                       </p>
                     )}
@@ -496,7 +547,9 @@ function EducationTab({ employeeId }: { employeeId: string }) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Education</DialogTitle>
+            <DialogTitle>
+              {t("employee.education.add_title", "Add Education")}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -506,7 +559,9 @@ function EducationTab({ employeeId }: { employeeId: string }) {
             className="space-y-4"
           >
             <div>
-              <Label>Institution</Label>
+              <Label>
+                {t("employee.education.institution", "Institution")}
+              </Label>
               <Input
                 value={form.institution}
                 onChange={(e) =>
@@ -517,7 +572,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Degree</Label>
+              <Label>{t("employee.education.degree", "Degree")}</Label>
               <Input
                 value={form.degree}
                 onChange={(e) =>
@@ -529,7 +584,9 @@ function EducationTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Field of Study</Label>
+              <Label>
+                {t("employee.education.field_of_study", "Field of Study")}
+              </Label>
               <Input
                 value={form.field_of_study}
                 onChange={(e) =>
@@ -541,7 +598,9 @@ function EducationTab({ employeeId }: { employeeId: string }) {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label>Start Year</Label>
+                <Label>
+                  {t("employee.education.start_year", "Start Year")}
+                </Label>
                 <Input
                   type="number"
                   value={form.start_year}
@@ -553,7 +612,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
                 />
               </div>
               <div>
-                <Label>End Year</Label>
+                <Label>{t("employee.education.end_year", "End Year")}</Label>
                 <Input
                   type="number"
                   value={form.end_year}
@@ -565,7 +624,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
                 />
               </div>
               <div>
-                <Label>GPA</Label>
+                <Label>{t("employee.education.gpa", "GPA")}</Label>
                 <Input
                   value={form.gpa}
                   onChange={(e) =>
@@ -582,13 +641,13 @@ function EducationTab({ employeeId }: { employeeId: string }) {
                 variant="outline"
                 onClick={() => setAddOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button type="submit" disabled={addEducation.isPending}>
                 {addEducation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Add
+                {t("common.add", "Add")}
               </Button>
             </DialogFooter>
           </form>
@@ -599,6 +658,7 @@ function EducationTab({ employeeId }: { employeeId: string }) {
 }
 
 function DocumentsTab({ employeeId }: { employeeId: string }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [docType, setDocType] = useState("contract");
@@ -633,11 +693,12 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "documents"],
       });
-      toast.success("Document uploaded");
+      toast.success(t("employee.documents.uploaded", "Document uploaded"));
       setUploadOpen(false);
       setFile(null);
     },
-    onError: () => toast.error("Upload failed"),
+    onError: () =>
+      toast.error(t("employee.documents.upload_failed", "Upload failed")),
   });
 
   const deleteDoc = useMutation({
@@ -648,7 +709,7 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "documents"],
       });
-      toast.success("Document deleted");
+      toast.success(t("employee.documents.deleted", "Document deleted"));
     },
   });
 
@@ -657,9 +718,11 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Documents</CardTitle>
+        <CardTitle className="text-base">
+          {t("employee.documents.title", "Documents")}
+        </CardTitle>
         <Button size="sm" onClick={() => setUploadOpen(true)}>
-          <Plus className="mr-2 h-3 w-3" /> Upload
+          <Plus className="mr-2 h-3 w-3" /> {t("common.upload", "Upload")}
         </Button>
       </CardHeader>
       <CardContent>
@@ -668,8 +731,11 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
         ) : docs.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="No documents"
-            description="Upload contracts, IDs, and other documents"
+            title={t("employee.documents.empty_title", "No documents")}
+            description={t(
+              "employee.documents.empty_desc",
+              "Upload contracts, IDs, and other documents",
+            )}
           />
         ) : (
           <div className="space-y-2">
@@ -703,7 +769,9 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
+            <DialogTitle>
+              {t("employee.documents.upload_title", "Upload Document")}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -713,7 +781,9 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
             className="space-y-4"
           >
             <div>
-              <Label>Document Type</Label>
+              <Label>
+                {t("employee.documents.type_label", "Document Type")}
+              </Label>
               <Input
                 value={docType}
                 onChange={(e) => setDocType(e.target.value)}
@@ -722,7 +792,7 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>File</Label>
+              <Label>{t("employee.documents.file_label", "File")}</Label>
               <Input
                 type="file"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -736,13 +806,13 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
                 variant="outline"
                 onClick={() => setUploadOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button type="submit" disabled={uploadDoc.isPending || !file}>
                 {uploadDoc.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Upload
+                {t("common.upload", "Upload")}
               </Button>
             </DialogFooter>
           </form>
@@ -753,6 +823,7 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
 }
 
 function BankDetailsTab({ employeeId }: { employeeId: string }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
@@ -785,7 +856,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "bank-details"],
       });
-      toast.success("Bank details added");
+      toast.success(t("employee.bank.added", "Bank details added"));
       setAddOpen(false);
       setForm({
         bank_name: "",
@@ -806,7 +877,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "bank-details"],
       });
-      toast.success("Bank deleted");
+      toast.success(t("employee.bank.deleted", "Bank deleted"));
     },
   });
 
@@ -815,9 +886,11 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Bank Details</CardTitle>
+        <CardTitle className="text-base">
+          {t("employee.bank.title", "Bank Details")}
+        </CardTitle>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-3 w-3" /> Add
+          <Plus className="mr-2 h-3 w-3" /> {t("common.add", "Add")}
         </Button>
       </CardHeader>
       <CardContent>
@@ -826,8 +899,11 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
         ) : banks.length === 0 ? (
           <EmptyState
             icon={CreditCard}
-            title="No bank accounts"
-            description="Add bank details for salary deposits"
+            title={t("employee.bank.empty_title", "No bank accounts")}
+            description={t(
+              "employee.bank.empty_desc",
+              "Add bank details for salary deposits",
+            )}
           />
         ) : (
           <div className="space-y-2">
@@ -843,7 +919,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
                       {b.bank_name}{" "}
                       {b.is_primary && (
                         <span className="ml-1 text-[10px] text-primary">
-                          PRIMARY
+                          {t("employee.bank.primary", "PRIMARY")}
                         </span>
                       )}
                     </p>
@@ -873,7 +949,9 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Bank Account</DialogTitle>
+            <DialogTitle>
+              {t("employee.bank.add_title", "Add Bank Account")}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -883,7 +961,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
             className="space-y-4"
           >
             <div>
-              <Label>Bank Name</Label>
+              <Label>{t("employee.bank.bank_name", "Bank Name")}</Label>
               <Input
                 value={form.bank_name}
                 onChange={(e) =>
@@ -894,7 +972,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Branch Name</Label>
+              <Label>{t("employee.bank.branch_name", "Branch Name")}</Label>
               <Input
                 value={form.branch_name}
                 onChange={(e) =>
@@ -904,7 +982,9 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Account Number</Label>
+              <Label>
+                {t("employee.bank.account_number", "Account Number")}
+              </Label>
               <Input
                 value={form.account_number}
                 onChange={(e) =>
@@ -915,7 +995,9 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Account Holder Name</Label>
+              <Label>
+                {t("employee.bank.holder_name", "Account Holder Name")}
+              </Label>
               <Input
                 value={form.account_holder_name}
                 onChange={(e) =>
@@ -933,13 +1015,13 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
                 variant="outline"
                 onClick={() => setAddOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button type="submit" disabled={addBank.isPending}>
                 {addBank.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Add
+                {t("common.add", "Add")}
               </Button>
             </DialogFooter>
           </form>
@@ -950,6 +1032,7 @@ function BankDetailsTab({ employeeId }: { employeeId: string }) {
 }
 
 function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: "", relationship: "", phone: "" });
@@ -976,11 +1059,12 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "emergency-contacts"],
       });
-      toast.success("Contact added");
+      toast.success(t("employee.emergency.added", "Contact added"));
       setAddOpen(false);
       setForm({ name: "", relationship: "", phone: "" });
     },
-    onError: () => toast.error("Failed to add contact"),
+    onError: () =>
+      toast.error(t("employee.emergency.add_failed", "Failed to add contact")),
   });
 
   const deleteContact = useMutation({
@@ -993,7 +1077,7 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["employee", employeeId, "emergency-contacts"],
       });
-      toast.success("Contact deleted");
+      toast.success(t("employee.emergency.deleted", "Contact deleted"));
     },
   });
 
@@ -1002,9 +1086,11 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Emergency Contacts</CardTitle>
+        <CardTitle className="text-base">
+          {t("employee.emergency.title", "Emergency Contacts")}
+        </CardTitle>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-3 w-3" /> Add
+          <Plus className="mr-2 h-3 w-3" /> {t("common.add", "Add")}
         </Button>
       </CardHeader>
       <CardContent>
@@ -1013,8 +1099,11 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
         ) : contacts.length === 0 ? (
           <EmptyState
             icon={Heart}
-            title="No emergency contacts"
-            description="Add people to contact in case of emergency"
+            title={t("employee.emergency.empty_title", "No emergency contacts")}
+            description={t(
+              "employee.emergency.empty_desc",
+              "Add people to contact in case of emergency",
+            )}
           />
         ) : (
           <div className="space-y-2">
@@ -1048,7 +1137,9 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Emergency Contact</DialogTitle>
+            <DialogTitle>
+              {t("employee.emergency.add_title", "Add Emergency Contact")}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -1058,7 +1149,7 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
             className="space-y-4"
           >
             <div>
-              <Label>Name</Label>
+              <Label>{t("common.name", "Name")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) =>
@@ -1069,7 +1160,9 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Relationship</Label>
+              <Label>
+                {t("employee.emergency.relationship", "Relationship")}
+              </Label>
               <Input
                 value={form.relationship}
                 onChange={(e) =>
@@ -1081,7 +1174,7 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               />
             </div>
             <div>
-              <Label>Phone</Label>
+              <Label>{t("common.phone", "Phone")}</Label>
               <Input
                 value={form.phone}
                 onChange={(e) =>
@@ -1097,13 +1190,13 @@ function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
                 variant="outline"
                 onClick={() => setAddOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button type="submit" disabled={addContact.isPending}>
                 {addContact.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Add
+                {t("common.add", "Add")}
               </Button>
             </DialogFooter>
           </form>
@@ -1205,6 +1298,7 @@ const STATUS_BG: Record<string, string> = {
 };
 
 function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
+  const { t } = useT();
   const [range, setRange] = useState<{ from: string; to: string }>(() => {
     const to = new Date().toISOString().split("T")[0];
     const from = new Date(Date.now() - 90 * 86400000)
@@ -1282,7 +1376,8 @@ function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-base flex items-center gap-2">
-            <CalendarRange className="h-4 w-4" /> Attendance Timeline
+            <CalendarRange className="h-4 w-4" />{" "}
+            {t("employee.attendance.timeline_title", "Attendance Timeline")}
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             {data.range.from} to {data.range.to}
@@ -1307,14 +1402,22 @@ function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
         <div className="mb-6 grid gap-3 sm:grid-cols-4">
           <TotalChip
             color="green"
-            label="Present"
+            label={t("employee.attendance.present", "Present")}
             value={data.totals.present}
           />
-          <TotalChip color="amber" label="Late" value={data.totals.late} />
-          <TotalChip color="red" label="Absent" value={data.totals.absent} />
+          <TotalChip
+            color="amber"
+            label={t("employee.attendance.late", "Late")}
+            value={data.totals.late}
+          />
+          <TotalChip
+            color="red"
+            label={t("employee.attendance.absent", "Absent")}
+            value={data.totals.absent}
+          />
           <TotalChip
             color="blue"
-            label="Hours Worked"
+            label={t("employee.attendance.hours_worked", "Hours Worked")}
             value={totalHoursWorked}
             suffix="h"
           />
@@ -1362,11 +1465,25 @@ function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-4 text-xs">
-          <span className="text-muted-foreground">Legend:</span>
-          <LegendDot color="green" label="Present" />
-          <LegendDot color="amber" label="Late" />
-          <LegendDot color="red" label="Absent" />
-          <LegendDot color="gray" label="Weekend / no data" />
+          <span className="text-muted-foreground">
+            {t("employee.attendance.legend", "Legend:")}
+          </span>
+          <LegendDot
+            color="green"
+            label={t("employee.attendance.present", "Present")}
+          />
+          <LegendDot
+            color="amber"
+            label={t("employee.attendance.late", "Late")}
+          />
+          <LegendDot
+            color="red"
+            label={t("employee.attendance.absent", "Absent")}
+          />
+          <LegendDot
+            color="gray"
+            label={t("employee.attendance.weekend", "Weekend / no data")}
+          />
         </div>
 
         {selectedDay && (
@@ -1393,12 +1510,16 @@ function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
               <div className="mt-3 grid gap-2 sm:grid-cols-3 text-sm">
                 <div className="flex items-center gap-2">
                   <ClockIcon className="h-3 w-3 text-green-600" />
-                  <span className="text-muted-foreground">In:</span>
+                  <span className="text-muted-foreground">
+                    {t("employee.attendance.in", "In:")}
+                  </span>
                   <span className="font-mono">{selectedDay.check_in}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ClockIcon className="h-3 w-3 text-orange-600" />
-                  <span className="text-muted-foreground">Out:</span>
+                  <span className="text-muted-foreground">
+                    {t("employee.attendance.out", "Out:")}
+                  </span>
                   <span className="font-mono">
                     {selectedDay.check_out ?? "—"}
                   </span>
@@ -1406,7 +1527,9 @@ function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                 {selectedDay.worked_minutes != null && (
                   <div className="flex items-center gap-2">
                     <CalendarRange className="h-3 w-3 text-blue-600" />
-                    <span className="text-muted-foreground">Worked:</span>
+                    <span className="text-muted-foreground">
+                      {t("employee.attendance.worked", "Worked:")}
+                    </span>
                     <span className="font-mono">
                       {(selectedDay.worked_minutes / 60).toFixed(1)}h
                     </span>
@@ -1473,6 +1596,7 @@ function LifecycleTab({
   employeeId: string;
   currentStatus: string;
 }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const canTransition = can.manageEmployees;
@@ -1504,7 +1628,9 @@ function LifecycleTab({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success("Status transitioned");
+      toast.success(
+        t("employee.lifecycle.transitioned", "Status transitioned"),
+      );
       setDialogOpen(false);
       setForm({
         to_status: "",
@@ -1514,7 +1640,10 @@ function LifecycleTab({
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(axiosErr.response?.data?.detail || "Transition failed");
+      toast.error(
+        axiosErr.response?.data?.detail ||
+          t("employee.lifecycle.transition_failed", "Transition failed"),
+      );
     },
   });
 
@@ -1527,10 +1656,13 @@ function LifecycleTab({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Employment Lifecycle</CardTitle>
+        <CardTitle className="text-base">
+          {t("employee.lifecycle.title", "Employment Lifecycle")}
+        </CardTitle>
         {!isTerminal && canTransition && (
           <Button size="sm" onClick={() => setDialogOpen(true)}>
-            <GitCommit className="mr-2 h-3 w-3" /> Transition Status
+            <GitCommit className="mr-2 h-3 w-3" />{" "}
+            {t("employee.lifecycle.transition_btn", "Transition Status")}
           </Button>
         )}
       </CardHeader>
@@ -1540,7 +1672,10 @@ function LifecycleTab({
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <div>
               <p className="text-sm font-medium">
-                Employee is in a terminal status
+                {t(
+                  "employee.lifecycle.terminal_title",
+                  "Employee is in a terminal status",
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 Status &ldquo;{STATUS_LABEL[currentStatus]}&rdquo; cannot be
@@ -1562,9 +1697,12 @@ function LifecycleTab({
             />
             <div className="flex-1">
               <p className="text-sm font-semibold">
-                Currently: {STATUS_LABEL[currentStatus] ?? currentStatus}
+                {t("employee.lifecycle.currently", "Currently:")}{" "}
+                {STATUS_LABEL[currentStatus] ?? currentStatus}
               </p>
-              <p className="text-xs text-muted-foreground">Active status</p>
+              <p className="text-xs text-muted-foreground">
+                {t("employee.lifecycle.active_status", "Active status")}
+              </p>
             </div>
           </div>
 
@@ -1576,12 +1714,15 @@ function LifecycleTab({
             </div>
           ) : transitions.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-4">
-              No transitions yet. Employee is in initial state.
+              {t(
+                "employee.lifecycle.no_transitions",
+                "No transitions yet. Employee is in initial state.",
+              )}
             </p>
           ) : (
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                History
+                {t("employee.lifecycle.history", "History")}
               </p>
               <div className="relative space-y-3">
                 {/* Vertical line through the timeline */}
@@ -1649,7 +1790,12 @@ function LifecycleTab({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Transition Employee Status</DialogTitle>
+            <DialogTitle>
+              {t(
+                "employee.lifecycle.transition_title",
+                "Transition Employee Status",
+              )}
+            </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -1659,13 +1805,17 @@ function LifecycleTab({
             className="space-y-4"
           >
             <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-              <p className="text-xs text-muted-foreground">Current status</p>
+              <p className="text-xs text-muted-foreground">
+                {t("employee.lifecycle.current_status_label", "Current status")}
+              </p>
               <p className="mt-0.5 font-medium capitalize">
                 {STATUS_LABEL[currentStatus] ?? currentStatus}
               </p>
             </div>
             <div>
-              <Label>New Status *</Label>
+              <Label>
+                {t("employee.lifecycle.new_status", "New Status")} *
+              </Label>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {allowed.map((status) => (
                   <button
@@ -1695,7 +1845,9 @@ function LifecycleTab({
               </div>
             </div>
             <div>
-              <Label>Effective Date *</Label>
+              <Label>
+                {t("employee.lifecycle.effective_date", "Effective Date")} *
+              </Label>
               <Input
                 type="date"
                 value={form.effective_date}
@@ -1707,7 +1859,7 @@ function LifecycleTab({
               />
             </div>
             <div>
-              <Label>Reason</Label>
+              <Label>{t("employee.lifecycle.reason", "Reason")}</Label>
               <Textarea
                 value={form.reason}
                 onChange={(e) =>
@@ -1724,7 +1876,7 @@ function LifecycleTab({
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button
                 type="submit"
@@ -1733,7 +1885,7 @@ function LifecycleTab({
                 {transitionMut.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Apply Transition
+                {t("employee.lifecycle.apply_transition", "Apply Transition")}
               </Button>
             </DialogFooter>
           </form>

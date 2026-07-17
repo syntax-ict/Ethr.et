@@ -54,35 +54,46 @@ import {
   type CostCenter,
 } from "@/features/organization/api";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/useT";
 
 export default function OrganizationPage() {
+  const { t } = useT();
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Organization"
-          description="Manage your organizational structure"
+          title={t("org.title", "Organization")}
+          description={t(
+            "org.description",
+            "Manage your organizational structure",
+          )}
         />
 
         <Tabs defaultValue="branches">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="branches">
-              <Building2 className="mr-1.5 h-3.5 w-3.5" /> Branches
+              <Building2 className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.branches", "Branches")}
             </TabsTrigger>
             <TabsTrigger value="departments">
-              <GitBranch className="mr-1.5 h-3.5 w-3.5" /> Departments
+              <GitBranch className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.departments", "Departments")}
             </TabsTrigger>
             <TabsTrigger value="teams">
-              <Users2 className="mr-1.5 h-3.5 w-3.5" /> Teams
+              <Users2 className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.teams", "Teams")}
             </TabsTrigger>
             <TabsTrigger value="positions">
-              <Briefcase className="mr-1.5 h-3.5 w-3.5" /> Positions
+              <Briefcase className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.positions", "Positions")}
             </TabsTrigger>
             <TabsTrigger value="grades">
-              <Award className="mr-1.5 h-3.5 w-3.5" /> Grades
+              <Award className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.grades", "Grades")}
             </TabsTrigger>
             <TabsTrigger value="cost-centers">
-              <Wallet className="mr-1.5 h-3.5 w-3.5" /> Cost Centers
+              <Wallet className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.cost_centers", "Cost Centers")}
             </TabsTrigger>
           </TabsList>
 
@@ -113,6 +124,7 @@ export default function OrganizationPage() {
 // ── BRANCHES ───────────────────────────────────────────────────
 
 function BranchesTab() {
+  const { t } = useT();
   const { data, isLoading } = branchesApi.useList();
   const createMut = branchesApi.useCreate();
   const updateMut = branchesApi.useUpdate();
@@ -176,29 +188,36 @@ function BranchesTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Branch updated" : "Branch created");
+      toast.success(
+        editing
+          ? t("org.branch.updated", "Branch updated")
+          : t("org.branch.created", "Branch created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
   function handleDelete(b: Branch) {
     if (!confirm(`Delete branch "${b.name}"?`)) return;
     deleteMut.mutate(b.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
   const items = data?.data ?? [];
   return (
     <ResourceLayout
-      title="Branches"
+      title={t("org.tab.branches", "Branches")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={Building2}
-      emptyTitle="No branches"
-      emptyDescription="Add your first branch to organize multi-location operations"
+      emptyTitle={t("org.branch.empty_title", "No branches")}
+      emptyDescription={t(
+        "org.branch.empty_desc",
+        "Add your first branch to organize multi-location operations",
+      )}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((b) => (
@@ -222,7 +241,7 @@ function BranchesTab() {
                   <div className="mt-2 flex flex-wrap gap-1">
                     {!b.is_active && (
                       <Badge variant="outline" className="text-[10px]">
-                        Inactive
+                        {t("org.inactive", "Inactive")}
                       </Badge>
                     )}
                     {b.departments_count != null && (
@@ -250,11 +269,15 @@ function BranchesTab() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Branch" : "New Branch"}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? t("org.branch.edit_title", "Edit Branch")
+                : t("org.branch.new_title", "New Branch")}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Name *">
+              <Field label={t("org.field.name", "Name") + " *"}>
                 <Input
                   value={form.name}
                   onChange={(e) =>
@@ -263,7 +286,7 @@ function BranchesTab() {
                   required
                 />
               </Field>
-              <Field label="Name (Amharic)">
+              <Field label={t("org.field.name_am", "Name (Amharic)")}>
                 <Input
                   value={form.name_am}
                   onChange={(e) =>
@@ -271,7 +294,7 @@ function BranchesTab() {
                   }
                 />
               </Field>
-              <Field label="Code">
+              <Field label={t("org.field.code", "Code")}>
                 <Input
                   value={form.code}
                   onChange={(e) =>
@@ -280,7 +303,7 @@ function BranchesTab() {
                   placeholder="HQ, BR01..."
                 />
               </Field>
-              <Field label="Phone">
+              <Field label={t("common.phone", "Phone")}>
                 <Input
                   value={form.phone}
                   onChange={(e) =>
@@ -289,7 +312,7 @@ function BranchesTab() {
                 />
               </Field>
             </div>
-            <Field label="Address">
+            <Field label={t("org.field.address", "Address")}>
               <Input
                 value={form.address}
                 onChange={(e) =>
@@ -297,7 +320,7 @@ function BranchesTab() {
                 }
               />
             </Field>
-            <Field label="City">
+            <Field label={t("org.field.city", "City")}>
               <Input
                 value={form.city}
                 onChange={(e) =>
@@ -306,7 +329,7 @@ function BranchesTab() {
               />
             </Field>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Latitude">
+              <Field label={t("org.field.latitude", "Latitude")}>
                 <Input
                   type="number"
                   step="any"
@@ -316,7 +339,7 @@ function BranchesTab() {
                   }
                 />
               </Field>
-              <Field label="Longitude">
+              <Field label={t("org.field.longitude", "Longitude")}>
                 <Input
                   type="number"
                   step="any"
@@ -326,7 +349,7 @@ function BranchesTab() {
                   }
                 />
               </Field>
-              <Field label="Geofence (m)">
+              <Field label={t("org.field.geofence", "Geofence (m)")}>
                 <Input
                   type="number"
                   value={form.geofence_radius_meters}
@@ -349,7 +372,7 @@ function BranchesTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -365,6 +388,7 @@ function BranchesTab() {
 // ── DEPARTMENTS ────────────────────────────────────────────────
 
 function DepartmentsTab() {
+  const { t } = useT();
   const { data, isLoading } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
   const createMut = departmentsApi.useCreate();
@@ -417,34 +441,47 @@ function DepartmentsTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Department updated" : "Department created");
+      toast.success(
+        editing
+          ? t("org.department.updated", "Department updated")
+          : t("org.department.created", "Department created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
   function handleDelete(d: Department) {
     if (!confirm(`Delete department "${d.name}"?`)) return;
     deleteMut.mutate(d.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
   const items = data?.data ?? [];
   return (
     <ResourceLayout
-      title="Departments"
+      title={t("org.tab.departments", "Departments")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={GitBranch}
-      emptyTitle="No departments"
-      emptyDescription="Create departments to organize your workforce"
+      emptyTitle={t("org.department.empty_title", "No departments")}
+      emptyDescription={t(
+        "org.department.empty_desc",
+        "Create departments to organize your workforce",
+      )}
     >
       <Card>
         <CardContent className="p-0">
           <ResourceTable
-            headers={["Name", "Code", "Branch", "Parent", "Status"]}
+            headers={[
+              t("org.field.name", "Name"),
+              t("org.field.code", "Code"),
+              t("org.tab.branches", "Branches"),
+              t("org.field.parent", "Parent"),
+              t("common.status", "Status"),
+            ]}
             rows={items.map((d) => ({
               key: d.public_id,
               cells: [
@@ -461,7 +498,9 @@ function DepartmentsTab() {
                       : ""
                   }
                 >
-                  {d.is_active ? "Active" : "Inactive"}
+                  {d.is_active
+                    ? t("org.active", "Active")
+                    : t("org.inactive", "Inactive")}
                 </Badge>,
               ],
               onEdit: () => openEdit(d),
@@ -475,12 +514,14 @@ function DepartmentsTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Department" : "New Department"}
+              {editing
+                ? t("org.department.edit_title", "Edit Department")
+                : t("org.department.new_title", "New Department")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Name *">
+              <Field label={t("org.field.name", "Name") + " *"}>
                 <Input
                   value={form.name}
                   onChange={(e) =>
@@ -489,7 +530,7 @@ function DepartmentsTab() {
                   required
                 />
               </Field>
-              <Field label="Name (Amharic)">
+              <Field label={t("org.field.name_am", "Name (Amharic)")}>
                 <Input
                   value={form.name_am}
                   onChange={(e) =>
@@ -497,7 +538,7 @@ function DepartmentsTab() {
                   }
                 />
               </Field>
-              <Field label="Code">
+              <Field label={t("org.field.code", "Code")}>
                 <Input
                   value={form.code}
                   onChange={(e) =>
@@ -506,7 +547,7 @@ function DepartmentsTab() {
                   placeholder="ENG, HR..."
                 />
               </Field>
-              <Field label="Branch">
+              <Field label={t("org.field.branch", "Branch")}>
                 <Select
                   value={form.branch_public_id}
                   onValueChange={(v) =>
@@ -517,7 +558,9 @@ function DepartmentsTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">
+                      {t("common.none", "None")}
+                    </SelectItem>
                     {branches?.data?.map((b) => (
                       <SelectItem key={b.public_id} value={b.public_id}>
                         {b.name}
@@ -526,7 +569,9 @@ function DepartmentsTab() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Parent Department">
+              <Field
+                label={t("org.field.parent_department", "Parent Department")}
+              >
                 <Select
                   value={form.parent_public_id}
                   onValueChange={(v) =>
@@ -537,7 +582,9 @@ function DepartmentsTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None (top-level)</SelectItem>
+                    <SelectItem value="none">
+                      {t("org.field.none_top_level", "None (top-level)")}
+                    </SelectItem>
                     {items
                       .filter((d) => d.public_id !== editing?.public_id)
                       .map((d) => (
@@ -559,7 +606,7 @@ function DepartmentsTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -575,6 +622,7 @@ function DepartmentsTab() {
 // ── TEAMS ──────────────────────────────────────────────────────
 
 function TeamsTab() {
+  const { t } = useT();
   const { data, isLoading } = teamsApi.useList();
   const { data: departments } = departmentsApi.useList();
   const createMut = teamsApi.useCreate();
@@ -596,13 +644,13 @@ function TeamsTab() {
     setForm(empty);
     setIsOpen(true);
   }
-  function openEdit(t: Team) {
-    setEditing(t);
+  function openEdit(tm: Team) {
+    setEditing(tm);
     setForm({
-      name: t.name,
-      name_am: t.name_am ?? "",
-      department_public_id: t.department?.public_id ?? "none",
-      is_active: t.is_active,
+      name: tm.name,
+      name_am: tm.name_am ?? "",
+      department_public_id: tm.department?.public_id ?? "none",
+      is_active: tm.is_active,
     });
     setIsOpen(true);
   }
@@ -620,53 +668,66 @@ function TeamsTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Team updated" : "Team created");
+      toast.success(
+        editing
+          ? t("org.team.updated", "Team updated")
+          : t("org.team.created", "Team created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
-  function handleDelete(t: Team) {
-    if (!confirm(`Delete team "${t.name}"?`)) return;
-    deleteMut.mutate(t.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+  function handleDelete(tm: Team) {
+    if (!confirm(`Delete team "${tm.name}"?`)) return;
+    deleteMut.mutate(tm.public_id, {
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
   const items = data?.data ?? [];
   return (
     <ResourceLayout
-      title="Teams"
+      title={t("org.tab.teams", "Teams")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={Users2}
-      emptyTitle="No teams"
-      emptyDescription="Create teams within departments for finer-grained reporting"
+      emptyTitle={t("org.team.empty_title", "No teams")}
+      emptyDescription={t(
+        "org.team.empty_desc",
+        "Create teams within departments for finer-grained reporting",
+      )}
     >
       <Card>
         <CardContent className="p-0">
           <ResourceTable
-            headers={["Name", "Department", "Status"]}
-            rows={items.map((t) => ({
-              key: t.public_id,
+            headers={[
+              t("org.field.name", "Name"),
+              t("common.department", "Department"),
+              t("common.status", "Status"),
+            ]}
+            rows={items.map((tm) => ({
+              key: tm.public_id,
               cells: [
-                t.name,
-                t.department?.name ?? "—",
+                tm.name,
+                tm.department?.name ?? "—",
                 <Badge
                   key="s"
                   variant="outline"
                   className={
-                    t.is_active
+                    tm.is_active
                       ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
                       : ""
                   }
                 >
-                  {t.is_active ? "Active" : "Inactive"}
+                  {tm.is_active
+                    ? t("org.active", "Active")
+                    : t("org.inactive", "Inactive")}
                 </Badge>,
               ],
-              onEdit: () => openEdit(t),
-              onDelete: () => handleDelete(t),
+              onEdit: () => openEdit(tm),
+              onDelete: () => handleDelete(tm),
             }))}
           />
         </CardContent>
@@ -675,10 +736,14 @@ function TeamsTab() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Team" : "New Team"}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? t("org.team.edit_title", "Edit Team")
+                : t("org.team.new_title", "New Team")}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <Field label="Name *">
+            <Field label={t("org.field.name", "Name") + " *"}>
               <Input
                 value={form.name}
                 onChange={(e) =>
@@ -687,7 +752,7 @@ function TeamsTab() {
                 required
               />
             </Field>
-            <Field label="Name (Amharic)">
+            <Field label={t("org.field.name_am", "Name (Amharic)")}>
               <Input
                 value={form.name_am}
                 onChange={(e) =>
@@ -695,7 +760,7 @@ function TeamsTab() {
                 }
               />
             </Field>
-            <Field label="Department">
+            <Field label={t("common.department", "Department")}>
               <Select
                 value={form.department_public_id}
                 onValueChange={(v) =>
@@ -706,7 +771,9 @@ function TeamsTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">
+                    {t("common.none", "None")}
+                  </SelectItem>
                   {departments?.data?.map((d) => (
                     <SelectItem key={d.public_id} value={d.public_id}>
                       {d.name}
@@ -725,7 +792,7 @@ function TeamsTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -741,6 +808,7 @@ function TeamsTab() {
 // ── POSITIONS ──────────────────────────────────────────────────
 
 function PositionsTab() {
+  const { t } = useT();
   const { data, isLoading } = positionsApi.useList();
   const createMut = positionsApi.useCreate();
   const updateMut = positionsApi.useUpdate();
@@ -787,34 +855,46 @@ function PositionsTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Position updated" : "Position created");
+      toast.success(
+        editing
+          ? t("org.position.updated", "Position updated")
+          : t("org.position.created", "Position created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
   function handleDelete(p: Position) {
     if (!confirm(`Delete position "${p.title}"?`)) return;
     deleteMut.mutate(p.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
   const items = data?.data ?? [];
   return (
     <ResourceLayout
-      title="Positions"
+      title={t("org.tab.positions", "Positions")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={Briefcase}
-      emptyTitle="No positions"
-      emptyDescription="Define job titles employees can be assigned to"
+      emptyTitle={t("org.position.empty_title", "No positions")}
+      emptyDescription={t(
+        "org.position.empty_desc",
+        "Define job titles employees can be assigned to",
+      )}
     >
       <Card>
         <CardContent className="p-0">
           <ResourceTable
-            headers={["Title", "Code", "Employees", "Status"]}
+            headers={[
+              t("org.field.title", "Title"),
+              t("org.field.code", "Code"),
+              t("org.field.employees", "Employees"),
+              t("common.status", "Status"),
+            ]}
             rows={items.map((p) => ({
               key: p.public_id,
               cells: [
@@ -837,7 +917,9 @@ function PositionsTab() {
                       : ""
                   }
                 >
-                  {p.is_active ? "Active" : "Inactive"}
+                  {p.is_active
+                    ? t("org.active", "Active")
+                    : t("org.inactive", "Inactive")}
                 </Badge>,
               ],
               onEdit: () => openEdit(p),
@@ -851,12 +933,14 @@ function PositionsTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Position" : "New Position"}
+              {editing
+                ? t("org.position.edit_title", "Edit Position")
+                : t("org.position.new_title", "New Position")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Title *">
+              <Field label={t("org.field.title", "Title") + " *"}>
                 <Input
                   value={form.title}
                   onChange={(e) =>
@@ -865,7 +949,7 @@ function PositionsTab() {
                   required
                 />
               </Field>
-              <Field label="Title (Amharic)">
+              <Field label={t("org.field.title_am", "Title (Amharic)")}>
                 <Input
                   value={form.title_am}
                   onChange={(e) =>
@@ -874,7 +958,7 @@ function PositionsTab() {
                 />
               </Field>
             </div>
-            <Field label="Code">
+            <Field label={t("org.field.code", "Code")}>
               <Input
                 value={form.code}
                 onChange={(e) =>
@@ -883,7 +967,7 @@ function PositionsTab() {
                 placeholder="DEV, MGR..."
               />
             </Field>
-            <Field label="Description">
+            <Field label={t("org.field.description", "Description")}>
               <Textarea
                 value={form.description}
                 onChange={(e) =>
@@ -902,7 +986,7 @@ function PositionsTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -918,6 +1002,7 @@ function PositionsTab() {
 // ── GRADES ─────────────────────────────────────────────────────
 
 function GradesTab() {
+  const { t } = useT();
   const { data, isLoading } = gradesApi.useList();
   const createMut = gradesApi.useCreate();
   const updateMut = gradesApi.useUpdate();
@@ -956,16 +1041,20 @@ function GradesTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Grade updated" : "Grade created");
+      toast.success(
+        editing
+          ? t("org.grade.updated", "Grade updated")
+          : t("org.grade.created", "Grade created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
   function handleDelete(g: Grade) {
     if (!confirm(`Delete grade "${g.name}"?`)) return;
     deleteMut.mutate(g.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
@@ -974,18 +1063,26 @@ function GradesTab() {
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   return (
     <ResourceLayout
-      title="Grades"
+      title={t("org.tab.grades", "Grades")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={Award}
-      emptyTitle="No grades"
-      emptyDescription="Define salary grade bands for your organization"
+      emptyTitle={t("org.grade.empty_title", "No grades")}
+      emptyDescription={t(
+        "org.grade.empty_desc",
+        "Define salary grade bands for your organization",
+      )}
     >
       <Card>
         <CardContent className="p-0">
           <ResourceTable
-            headers={["Grade", "Min Salary", "Max Salary", "Order"]}
+            headers={[
+              t("org.tab.grades", "Grades"),
+              t("org.field.min_salary", "Min Salary"),
+              t("org.field.max_salary", "Max Salary"),
+              t("org.field.order", "Order"),
+            ]}
             rows={items.map((g) => ({
               key: g.public_id,
               cells: [
@@ -1004,10 +1101,14 @@ function GradesTab() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Grade" : "New Grade"}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? t("org.grade.edit_title", "Edit Grade")
+                : t("org.grade.new_title", "New Grade")}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <Field label="Grade Name *">
+            <Field label={t("org.field.grade_name", "Grade Name") + " *"}>
               <Input
                 value={form.name}
                 onChange={(e) =>
@@ -1018,7 +1119,9 @@ function GradesTab() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Min Salary (ETB) *">
+              <Field
+                label={t("org.field.min_salary", "Min Salary (ETB)") + " *"}
+              >
                 <Input
                   type="number"
                   step="0.01"
@@ -1029,7 +1132,9 @@ function GradesTab() {
                   required
                 />
               </Field>
-              <Field label="Max Salary (ETB) *">
+              <Field
+                label={t("org.field.max_salary", "Max Salary (ETB)") + " *"}
+              >
                 <Input
                   type="number"
                   step="0.01"
@@ -1041,7 +1146,7 @@ function GradesTab() {
                 />
               </Field>
             </div>
-            <Field label="Sort Order">
+            <Field label={t("org.field.sort_order", "Sort Order")}>
               <Input
                 type="number"
                 value={form.sort_order}
@@ -1056,7 +1161,7 @@ function GradesTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -1072,6 +1177,7 @@ function GradesTab() {
 // ── COST CENTERS ───────────────────────────────────────────────
 
 function CostCentersTab() {
+  const { t } = useT();
   const { data, isLoading } = costCentersApi.useList();
   const createMut = costCentersApi.useCreate();
   const updateMut = costCentersApi.useUpdate();
@@ -1104,34 +1210,45 @@ function CostCentersTab() {
       ? updateMut.mutateAsync({ publicId: editing.public_id, payload })
       : createMut.mutateAsync(payload);
     op.then(() => {
-      toast.success(editing ? "Cost center updated" : "Cost center created");
+      toast.success(
+        editing
+          ? t("org.cost_center.updated", "Cost center updated")
+          : t("org.cost_center.created", "Cost center created"),
+      );
       setIsOpen(false);
-    }).catch(() => toast.error("Save failed"));
+    }).catch(() => toast.error(t("org.save_failed", "Save failed")));
   }
 
   function handleDelete(c: CostCenter) {
     if (!confirm(`Delete cost center "${c.name}"?`)) return;
     deleteMut.mutate(c.public_id, {
-      onSuccess: () => toast.success("Deleted"),
-      onError: () => toast.error("Delete failed"),
+      onSuccess: () => toast.success(t("org.deleted", "Deleted")),
+      onError: () => toast.error(t("org.delete_failed", "Delete failed")),
     });
   }
 
   const items = data?.data ?? [];
   return (
     <ResourceLayout
-      title="Cost Centers"
+      title={t("org.tab.cost_centers", "Cost Centers")}
       onAdd={openCreate}
       isLoading={isLoading}
       isEmpty={items.length === 0}
       emptyIcon={Wallet}
-      emptyTitle="No cost centers"
-      emptyDescription="Cost centers help allocate payroll expenses across the organization"
+      emptyTitle={t("org.cost_center.empty_title", "No cost centers")}
+      emptyDescription={t(
+        "org.cost_center.empty_desc",
+        "Cost centers help allocate payroll expenses across the organization",
+      )}
     >
       <Card>
         <CardContent className="p-0">
           <ResourceTable
-            headers={["Name", "Code", "Status"]}
+            headers={[
+              t("org.field.name", "Name"),
+              t("org.field.code", "Code"),
+              t("common.status", "Status"),
+            ]}
             rows={items.map((c) => ({
               key: c.public_id,
               cells: [
@@ -1146,7 +1263,9 @@ function CostCentersTab() {
                       : ""
                   }
                 >
-                  {c.is_active ? "Active" : "Inactive"}
+                  {c.is_active
+                    ? t("org.active", "Active")
+                    : t("org.inactive", "Inactive")}
                 </Badge>,
               ],
               onEdit: () => openEdit(c),
@@ -1160,11 +1279,13 @@ function CostCentersTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Cost Center" : "New Cost Center"}
+              {editing
+                ? t("org.cost_center.edit_title", "Edit Cost Center")
+                : t("org.cost_center.new_title", "New Cost Center")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <Field label="Name *">
+            <Field label={t("org.field.name", "Name") + " *"}>
               <Input
                 value={form.name}
                 onChange={(e) =>
@@ -1173,7 +1294,7 @@ function CostCentersTab() {
                 required
               />
             </Field>
-            <Field label="Code">
+            <Field label={t("org.field.code", "Code")}>
               <Input
                 value={form.code}
                 onChange={(e) =>
@@ -1192,7 +1313,7 @@ function CostCentersTab() {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <SaveButton
                 isPending={createMut.isPending || updateMut.isPending}
@@ -1226,12 +1347,13 @@ function ResourceLayout({
   emptyDescription: string;
   children: React.ReactNode;
 }) {
+  const { t } = useT();
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">{title}</h2>
         <Button size="sm" onClick={onAdd}>
-          <Plus className="mr-2 h-4 w-4" /> Add
+          <Plus className="mr-2 h-4 w-4" /> {t("common.add", "Add")}
         </Button>
       </div>
 
@@ -1248,7 +1370,8 @@ function ResourceLayout({
           description={emptyDescription}
           action={
             <Button onClick={onAdd}>
-              <Plus className="mr-2 h-4 w-4" /> Add first one
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("org.add_first", "Add first one")}
             </Button>
           }
         />
@@ -1271,6 +1394,7 @@ function ResourceTable({
     onDelete: () => void;
   }>;
 }) {
+  const { t } = useT();
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -1285,7 +1409,7 @@ function ResourceTable({
               </th>
             ))}
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Actions
+              {t("common.actions", "Actions")}
             </th>
           </tr>
         </thead>
@@ -1362,6 +1486,7 @@ function ActiveToggle({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const { t } = useT();
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 hover:bg-muted/50">
       <input
@@ -1370,19 +1495,23 @@ function ActiveToggle({
         onChange={(e) => onChange(e.target.checked)}
         className="h-4 w-4 rounded"
       />
-      <span className="text-sm font-medium">Active</span>
+      <span className="text-sm font-medium">{t("org.active", "Active")}</span>
       <span className="text-xs text-muted-foreground">
-        — inactive items are hidden from selection menus
+        {t(
+          "org.active_desc",
+          "— inactive items are hidden from selection menus",
+        )}
       </span>
     </label>
   );
 }
 
 function SaveButton({ isPending }: { isPending: boolean }) {
+  const { t } = useT();
   return (
     <Button type="submit" disabled={isPending}>
       {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Save
+      {t("common.save", "Save")}
     </Button>
   );
 }
