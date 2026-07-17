@@ -93,8 +93,11 @@ export function useProcessPayroll() {
     mutationFn: async (payload: {
       period_start: string;
       period_end: string;
+      idempotency_key: string;
     }) => {
-      const { data } = await apiClient.post("/payroll/process", payload);
+      const { data } = await apiClient.post("/payroll/process", payload, {
+        headers: { "Idempotency-Key": payload.idempotency_key },
+      });
       return data;
     },
     onSuccess: () => {

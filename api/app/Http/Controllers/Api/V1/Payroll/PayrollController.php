@@ -36,30 +36,36 @@ class PayrollController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
 
-        $run = $engine->process(
+        $result = $engine->process(
             $tenant->id,
             Carbon::parse($request->validated('period_start')),
             Carbon::parse($request->validated('period_end')),
             $user->id,
+            $request->validated('idempotency_key'),
         );
 
-        AuditLog::record('payroll.processed', $run, [
-            'period' => $run->period_label,
-            'employees' => $run->employee_count,
-        ]);
-        $this->webhook($run->tenant_id, 'payroll.processed', [
-            'public_id' => $run->public_id,
-            'period' => $run->period_label,
-            'employee_count' => $run->employee_count,
-        ]);
+        $run = $result->run;
 
-        PayrollProcessed::dispatch($run);
+        if (! $result->wasDuplicate) {
+            AuditLog::record('payroll.processed', $run, [
+                'period' => $run->period_label,
+                'employees' => $run->employee_count,
+            ]);
+            $this->webhook($run->tenant_id, 'payroll.processed', [
+                'public_id' => $run->public_id,
+                'period' => $run->period_label,
+                'employee_count' => $run->employee_count,
+            ]);
+
+            PayrollProcessed::dispatch($run);
+        }
 
         $run->load('entries.employee');
 
-        return (new PayrollRunResource($run))
-            ->response()
-            ->setStatusCode(201);
+        $data = (new PayrollRunResource($run))->resolve();
+        $data['was_duplicate'] = $result->wasDuplicate;
+
+        return response()->json($data, $result->wasDuplicate ? 200 : 201);
     }
 
     public function index(Request $request): AnonymousResourceCollection

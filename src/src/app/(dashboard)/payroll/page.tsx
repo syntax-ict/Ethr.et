@@ -43,7 +43,11 @@ export default function PayrollPage() {
   function handleRunPayroll(e: React.FormEvent) {
     e.preventDefault();
     processPayroll.mutate(
-      { period_start: periodStart, period_end: periodEnd },
+      {
+        period_start: periodStart,
+        period_end: periodEnd,
+        idempotency_key: crypto.randomUUID(),
+      },
       {
         onSuccess: () => {
           toast.success(

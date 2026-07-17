@@ -18,6 +18,7 @@ class ProcessPayrollRequest extends FormRequest
         return [
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after:period_start'],
+            'idempotency_key' => ['required', 'string', 'max:64'],
         ];
     }
 }

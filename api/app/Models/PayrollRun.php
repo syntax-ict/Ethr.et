@@ -21,6 +21,7 @@ class PayrollRun extends Model
         'period_label',
         'period_start',
         'period_end',
+        'idempotency_key',
         'status',
         'employee_count',
         'gross_total_cents',

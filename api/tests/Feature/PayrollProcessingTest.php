@@ -27,7 +27,7 @@ test('payroll engine processes employees correctly', function () {
         Carbon::parse('2026-06-01'),
         Carbon::parse('2026-06-30'),
         $user->id,
-    );
+    )->run;
 
     expect($run->status)->toBe('completed');
     expect($run->employee_count)->toBe(1);
@@ -53,7 +53,7 @@ test('payroll engine calculates net = gross - tax - pension - loans', function (
     ]);
 
     $engine = app(PayrollEngine::class);
-    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
+    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
 
     $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
 
@@ -76,7 +76,7 @@ test('payroll prorates mid-month hire', function () {
     ]);
 
     $engine = app(PayrollEngine::class);
-    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
+    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
 
     $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
 
@@ -102,7 +102,7 @@ test('payroll deducts active loan', function () {
     ]);
 
     $engine = app(PayrollEngine::class);
-    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
+    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
 
     $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
 
@@ -122,7 +122,7 @@ test('payroll skips employees with zero salary', function () {
     ]);
 
     $engine = app(PayrollEngine::class);
-    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id);
+    $run = $engine->process($tenant->id, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30'), $user->id)->run;
 
     expect($run->employee_count)->toBe(0);
 });
@@ -141,11 +141,13 @@ test('finance admin can process payroll via api', function () {
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-alpha',
     ]);
 
     $response->assertStatus(201)
         ->assertJsonPath('status', 'completed')
         ->assertJsonPath('employee_count', 1)
+        ->assertJsonPath('was_duplicate', false)
         ->assertJsonMissingPath('id');
 });
 
@@ -158,7 +160,70 @@ test('employee cannot process payroll', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-forbidden',
     ])->assertForbidden();
+});
+
+test('processing payroll requires an idempotency key', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+    ])->assertStatus(422);
+});
+
+test('replaying the same idempotency key does not double-process payroll', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 500000,
+    ]);
+
+    $payload = [
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-replay',
+    ];
+
+    $first = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", $payload);
+    $first->assertStatus(201)->assertJsonPath('was_duplicate', false);
+
+    $second = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", $payload);
+    $second->assertStatus(200)
+        ->assertJsonPath('was_duplicate', true)
+        ->assertJsonPath('public_id', $first->json('public_id'));
+
+    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(1);
+    expect(PayrollEntry::where('tenant_id', $tenant->id)->count())->toBe(1);
+    $this->assertDatabaseCount('audit_log', 1);
+});
+
+test('different idempotency keys allow separate payroll runs for the same period', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 500000,
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-first',
+    ])->assertStatus(201);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-second',
+    ])->assertStatus(201);
+
+    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(2);
 });
 
 test('finance admin can list payroll runs', function () {
@@ -302,6 +367,7 @@ test('payroll processing is audit logged', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
+        'idempotency_key' => 'run-2026-06-audit',
     ])->assertStatus(201);
 
     $this->assertDatabaseHas('audit_log', [

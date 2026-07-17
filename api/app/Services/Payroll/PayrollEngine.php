@@ -20,13 +20,30 @@ final class PayrollEngine
         private readonly LoanService $loanService,
     ) {}
 
-    public function process(int $tenantId, Carbon $periodStart, Carbon $periodEnd, int $processedBy): PayrollRun
-    {
+    public function process(
+        int $tenantId,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        int $processedBy,
+        ?string $idempotencyKey = null,
+    ): PayrollProcessResult {
+        if ($idempotencyKey) {
+            $existing = PayrollRun::query()
+                ->where('tenant_id', $tenantId)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing) {
+                return new PayrollProcessResult($existing, wasDuplicate: true);
+            }
+        }
+
         $run = PayrollRun::create([
             'tenant_id' => $tenantId,
             'period_label' => $periodStart->format('F Y'),
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'idempotency_key' => $idempotencyKey,
             'status' => 'processing',
             'processed_by' => $processedBy,
             'processed_at' => now(),
@@ -65,7 +82,7 @@ final class PayrollEngine
             'tax_total_cents' => $totalTax,
         ]);
 
-        return $run;
+        return new PayrollProcessResult($run);
     }
 
     private function processEmployee(
