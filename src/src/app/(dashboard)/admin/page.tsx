@@ -20,8 +20,10 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useAdminAuditLog } from "@/features/admin/api";
+import { useT } from "@/lib/i18n/useT";
 
 export default function AdminConsolePage() {
+  const { t } = useT();
   const { data: revenue, isLoading: revLoading } = useQuery({
     queryKey: ["admin", "revenue"],
     queryFn: async () => {
@@ -44,12 +46,13 @@ export default function AdminConsolePage() {
     <RoleGate allowedRoles={["super_admin"]}>
       <div className="space-y-6">
         <PageHeader
-          title="Admin Console"
-          description="Platform administration and monitoring"
+          title={t("admin_console_page.title")}
+          description={t("admin_console_page.description")}
           actions={
             <Button asChild>
               <Link href="/admin/tenants">
-                Manage Tenants <ArrowRight className="ml-2 h-4 w-4" />
+                {t("admin_console_page.manage_tenants")}{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           }
@@ -66,25 +69,25 @@ export default function AdminConsolePage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard
                 icon={Building2}
-                title="Total Tenants"
+                title={t("admin_console_page.total_tenants")}
                 value={String(revenue.total_tenants)}
                 color="blue"
               />
               <MetricCard
                 icon={Users}
-                title="Active"
+                title={t("webhooks_page.active")}
                 value={String(revenue.active_tenants)}
                 color="green"
               />
               <MetricCard
                 icon={TrendingUp}
-                title="Trial"
+                title={t("admin_console_page.trial")}
                 value={String(revenue.trial_tenants)}
                 color="amber"
               />
               <MetricCard
                 icon={Activity}
-                title="Conversion"
+                title={t("admin_console_page.conversion")}
                 value={`${revenue.conversion_rate}%`}
                 color="purple"
               />
@@ -94,13 +97,13 @@ export default function AdminConsolePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <MetricCard
                   icon={Pause}
-                  title="Suspended"
+                  title={t("admin_console_page.suspended")}
                   value={String(revenue.suspended_tenants ?? 0)}
                   color="amber"
                 />
                 <MetricCard
                   icon={XCircle}
-                  title="Cancelled"
+                  title={t("admin_console_page.cancelled")}
                   value={String(revenue.cancelled_tenants ?? 0)}
                   color="red"
                 />
@@ -112,7 +115,9 @@ export default function AdminConsolePage() {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">System Health</CardTitle>
+              <CardTitle className="text-base">
+                {t("admin_console_page.system_health")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {healthLoading ? (
@@ -140,7 +145,9 @@ export default function AdminConsolePage() {
                     </div>
                   ))}
                   <div className="flex items-center justify-between border-t pt-3">
-                    <span className="text-sm text-foreground">Failed Jobs</span>
+                    <span className="text-sm text-foreground">
+                      {t("admin_console_page.failed_jobs")}
+                    </span>
                     <span className="text-sm font-medium text-foreground">
                       {health.failed_jobs}
                     </span>
@@ -154,7 +161,7 @@ export default function AdminConsolePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Monthly Revenue Trend
+                  {t("admin_console_page.monthly_revenue_trend")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -193,7 +200,7 @@ export default function AdminConsolePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <ScrollText className="h-4 w-4" />
-              Recent Platform Activity
+              {t("admin_console_page.recent_activity")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -201,7 +208,7 @@ export default function AdminConsolePage() {
               <Skeleton className="h-20 w-full" />
             ) : audit.data.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No recent activity
+                {t("admin_console_page.no_recent_activity")}
               </p>
             ) : (
               <div className="space-y-2">

@@ -41,6 +41,7 @@ import {
   useImpersonateTenant,
   useTenantBackup,
 } from "@/features/admin/api";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function AdminTenantDetailPage({
@@ -48,6 +49,7 @@ export default function AdminTenantDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useT();
   const { id } = use(params);
   const { data: tenant, isLoading } = useAdminTenant(id);
   const updateStatus = useUpdateTenantStatus();
@@ -68,16 +70,18 @@ export default function AdminTenantDetailPage({
     if (!tenant) return;
     const action =
       newStatus === "active"
-        ? "Activate"
+        ? t("admin_tenant_detail_page.activate")
         : newStatus === "suspended"
-          ? "Suspend"
-          : "Cancel";
-    if (!confirm(`${action} tenant "${tenant.name}"?`)) return;
+          ? t("admin_tenant_detail_page.suspend")
+          : t("admin_tenant_detail_page.cancel");
+    if (!confirm(`${action} ${t("admin_tenant_detail_page.tenant_lc")} "${tenant.name}"?`))
+      return;
     updateStatus.mutate(
       { publicId: tenant.public_id, status: newStatus },
       {
-        onSuccess: () => toast.success(`Tenant ${newStatus}`),
-        onError: () => toast.error("Status update failed"),
+        onSuccess: () =>
+          toast.success(`${t("admin_tenant_detail_page.tenant_cap")} ${newStatus}`),
+        onError: () => toast.error(t("admin_tenant_detail_page.status_update_failed")),
       },
     );
   }
@@ -89,10 +93,12 @@ export default function AdminTenantDetailPage({
       { publicId: tenant.public_id, days: extendDays },
       {
         onSuccess: () => {
-          toast.success(`Trial extended by ${extendDays} days`);
+          toast.success(
+            `${t("admin_tenant_detail_page.trial_extended_prefix")} ${extendDays} ${t("admin_tenant_detail_page.days")}`,
+          );
           setExtendOpen(false);
         },
-        onError: () => toast.error("Extend failed"),
+        onError: () => toast.error(t("admin_tenant_detail_page.extend_failed")),
       },
     );
   }
@@ -106,7 +112,10 @@ export default function AdminTenantDetailPage({
       },
       onError: (err: unknown) => {
         const axiosErr = err as { response?: { data?: { detail?: string } } };
-        toast.error(axiosErr.response?.data?.detail || "Impersonation failed");
+        toast.error(
+          axiosErr.response?.data?.detail ||
+            t("admin_tenant_detail_page.impersonation_failed"),
+        );
       },
     });
   }
@@ -114,7 +123,7 @@ export default function AdminTenantDetailPage({
   function copyToken() {
     if (impersonationResult) {
       navigator.clipboard.writeText(impersonationResult.token);
-      toast.success("Token copied to clipboard");
+      toast.success(t("admin_tenant_detail_page.token_copied"));
     }
   }
 
@@ -131,7 +140,9 @@ export default function AdminTenantDetailPage({
   if (!tenant) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Tenant not found</p>
+        <p className="text-muted-foreground">
+          {t("admin_tenant_detail_page.not_found")}
+        </p>
       </div>
     );
   }
@@ -147,7 +158,8 @@ export default function AdminTenantDetailPage({
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/admin/tenants">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tenants
+              <ArrowLeft className="mr-2 h-4 w-4" />{" "}
+              {t("admin_tenant_detail_page.back_to_tenants")}
             </Link>
           </Button>
         </div>
@@ -162,13 +174,13 @@ export default function AdminTenantDetailPage({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={Users}
-            label="Employees"
+            label={t("payroll_detail_page.employees")}
             value={String(tenant.employee_count)}
           />
-          <StatCard icon={Globe} label="Subdomain" value={tenant.subdomain} />
+          <StatCard icon={Globe} label={t("admin_tenants_page.subdomain")} value={tenant.subdomain} />
           <StatCard
             icon={Calendar}
-            label="Trial Ends"
+            label={t("admin_tenants_page.trial_ends")}
             value={
               tenant.trial_ends_at
                 ? new Date(tenant.trial_ends_at).toLocaleDateString()
@@ -177,15 +189,17 @@ export default function AdminTenantDetailPage({
           />
           <StatCard
             icon={Building2}
-            label="Type"
-            value={tenant.type ?? "Unspecified"}
+            label={t("admin_tenant_detail_page.type")}
+            value={tenant.type ?? t("admin_tenant_detail_page.unspecified")}
           />
         </div>
 
         {/* Actions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Administrative Actions</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.admin_actions")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -196,7 +210,8 @@ export default function AdminTenantDetailPage({
                   onClick={() => handleStatusChange("active")}
                   disabled={updateStatus.isPending}
                 >
-                  <Play className="mr-2 h-4 w-4 text-green-600" /> Activate
+                  <Play className="mr-2 h-4 w-4 text-green-600" />{" "}
+                  {t("admin_tenant_detail_page.activate")}
                 </Button>
               )}
               {!isSuspended && !isCancelled && (
@@ -205,7 +220,8 @@ export default function AdminTenantDetailPage({
                   onClick={() => handleStatusChange("suspended")}
                   disabled={updateStatus.isPending}
                 >
-                  <Pause className="mr-2 h-4 w-4 text-amber-600" /> Suspend
+                  <Pause className="mr-2 h-4 w-4 text-amber-600" />{" "}
+                  {t("admin_tenant_detail_page.suspend")}
                 </Button>
               )}
               {!isCancelled && (
@@ -214,13 +230,14 @@ export default function AdminTenantDetailPage({
                   onClick={() => handleStatusChange("cancelled")}
                   disabled={updateStatus.isPending}
                 >
-                  <XCircle className="mr-2 h-4 w-4 text-red-600" /> Cancel
+                  <XCircle className="mr-2 h-4 w-4 text-red-600" />{" "}
+                  {t("admin_tenant_detail_page.cancel")}
                 </Button>
               )}
 
               <Button variant="outline" onClick={() => setExtendOpen(true)}>
-                <CalendarPlus className="mr-2 h-4 w-4 text-blue-600" /> Extend
-                Trial
+                <CalendarPlus className="mr-2 h-4 w-4 text-blue-600" />{" "}
+                {t("admin_tenant_detail_page.extend_trial")}
               </Button>
 
               <Button
@@ -233,7 +250,7 @@ export default function AdminTenantDetailPage({
                 ) : (
                   <KeySquare className="mr-2 h-4 w-4 text-purple-600" />
                 )}
-                Impersonate Admin
+                {t("admin_tenant_detail_page.impersonate_admin")}
               </Button>
 
               <Button
@@ -241,10 +258,9 @@ export default function AdminTenantDetailPage({
                 onClick={() =>
                   backup.mutate(tenant.public_id, {
                     onSuccess: () =>
-                      toast.success(
-                        "Backup queued — you will be notified when ready",
-                      ),
-                    onError: () => toast.error("Failed to queue backup"),
+                      toast.success(t("admin_tenant_detail_page.backup_queued")),
+                    onError: () =>
+                      toast.error(t("admin_tenant_detail_page.backup_failed")),
                   })
                 }
                 disabled={backup.isPending}
@@ -254,7 +270,7 @@ export default function AdminTenantDetailPage({
                 ) : (
                   <HardDrive className="mr-2 h-4 w-4 text-gray-600" />
                 )}
-                Backup Data
+                {t("admin_tenant_detail_page.backup_data")}
               </Button>
             </div>
 
@@ -262,9 +278,11 @@ export default function AdminTenantDetailPage({
               <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
                 <p className="text-sm text-foreground">
-                  This tenant is{" "}
-                  <span className="font-semibold">cancelled</span>. Most actions
-                  are disabled.
+                  {t("admin_tenant_detail_page.cancelled_notice_prefix")}{" "}
+                  <span className="font-semibold">
+                    {t("admin_console_page.cancelled").toLowerCase()}
+                  </span>
+                  . {t("admin_tenant_detail_page.cancelled_notice_suffix")}
                 </p>
               </div>
             )}
@@ -274,25 +292,33 @@ export default function AdminTenantDetailPage({
         {/* Profile */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Tenant Profile</CardTitle>
+            <CardTitle className="text-base">
+              {t("admin_tenant_detail_page.tenant_profile")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Row
-              label="Public ID"
+              label={t("admin_tenant_detail_page.public_id")}
               value={
                 <code className="font-mono text-xs">{tenant.public_id}</code>
               }
             />
-            <Row label="Name" value={tenant.name} />
-            <Row label="Subdomain" value={`${tenant.subdomain}.ethr.et`} />
-            <Row label="Type" value={tenant.type ?? "—"} />
+            <Row label={t("common.name")} value={tenant.name} />
             <Row
-              label="Status"
+              label={t("admin_tenants_page.subdomain")}
+              value={`${tenant.subdomain}.ethr.et`}
+            />
+            <Row label={t("admin_tenant_detail_page.type")} value={tenant.type ?? "—"} />
+            <Row
+              label={t("common.status")}
               value={<StatusBadge status={tenant.status} />}
             />
-            <Row label="Employees" value={String(tenant.employee_count)} />
             <Row
-              label="Trial Ends"
+              label={t("payroll_detail_page.employees")}
+              value={String(tenant.employee_count)}
+            />
+            <Row
+              label={t("admin_tenants_page.trial_ends")}
               value={
                 tenant.trial_ends_at
                   ? new Date(tenant.trial_ends_at).toLocaleString()
@@ -300,11 +326,11 @@ export default function AdminTenantDetailPage({
               }
             />
             <Row
-              label="Created"
+              label={t("attendance.kiosks_page.created")}
               value={new Date(tenant.created_at).toLocaleString()}
             />
             <Row
-              label="Updated"
+              label={t("admin_tenant_detail_page.updated")}
               value={new Date(tenant.updated_at).toLocaleString()}
             />
           </CardContent>
@@ -316,33 +342,40 @@ export default function AdminTenantDetailPage({
             {tenant.usage && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Usage</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("admin_tenant_detail_page.usage")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Row
-                    label="Employees"
+                    label={t("payroll_detail_page.employees")}
                     value={String(tenant.usage.employees)}
                   />
-                  <Row label="Devices" value={String(tenant.usage.devices)} />
+                  <Row
+                    label={t("admin_tenant_detail_page.devices")}
+                    value={String(tenant.usage.devices)}
+                  />
                 </CardContent>
               </Card>
             )}
             {tenant.subscription && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Subscription</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("admin_tenant_detail_page.subscription")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Row
-                    label="Plan"
+                    label={t("admin_tenant_detail_page.plan")}
                     value={tenant.subscription.plan_name ?? "—"}
                   />
                   <Row
-                    label="Status"
+                    label={t("common.status")}
                     value={tenant.subscription.status ?? "—"}
                   />
                   <Row
-                    label="Renews"
+                    label={t("admin_tenant_detail_page.renews")}
                     value={
                       tenant.subscription.current_period_end
                         ? new Date(
@@ -362,7 +395,7 @@ export default function AdminTenantDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-4 w-4" /> Invoices
+                <Receipt className="h-4 w-4" /> {t("admin_tenant_detail_page.invoices")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -371,9 +404,9 @@ export default function AdminTenantDetailPage({
                   <thead className="text-xs text-muted-foreground">
                     <tr>
                       <th className="pb-2 text-left">ID</th>
-                      <th className="pb-2 text-left">Amount</th>
-                      <th className="pb-2 text-left">Status</th>
-                      <th className="pb-2 text-left">Due</th>
+                      <th className="pb-2 text-left">{t("payroll_page.loans_page.amount")}</th>
+                      <th className="pb-2 text-left">{t("common.status")}</th>
+                      <th className="pb-2 text-left">{t("admin_tenant_detail_page.due")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -400,7 +433,9 @@ export default function AdminTenantDetailPage({
         {tenant.audit_log && tenant.audit_log.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Recent Activity</CardTitle>
+              <CardTitle className="text-base">
+                {t("admin_tenant_detail_page.recent_activity")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -424,19 +459,19 @@ export default function AdminTenantDetailPage({
         <Dialog open={extendOpen} onOpenChange={setExtendOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Extend Trial Period</DialogTitle>
+              <DialogTitle>{t("admin_tenant_detail_page.extend_trial_period")}</DialogTitle>
               <DialogDescription>
-                Current trial ends:{" "}
+                {t("admin_tenant_detail_page.current_trial_ends")}:{" "}
                 <span className="font-medium">
                   {tenant.trial_ends_at
                     ? new Date(tenant.trial_ends_at).toLocaleDateString()
-                    : "no trial set"}
+                    : t("admin_tenant_detail_page.no_trial_set")}
                 </span>
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleExtendTrial} className="space-y-4">
               <div>
-                <Label>Additional days</Label>
+                <Label>{t("admin_tenant_detail_page.additional_days")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -449,7 +484,7 @@ export default function AdminTenantDetailPage({
                   required
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Maximum 180 days per extension.
+                  {t("admin_tenant_detail_page.max_180_days")}
                 </p>
               </div>
               <DialogFooter>
@@ -458,13 +493,13 @@ export default function AdminTenantDetailPage({
                   variant="outline"
                   onClick={() => setExtendOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={extendTrial.isPending}>
                   {extendTrial.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Extend
+                  {t("admin_tenant_detail_page.extend")}
                 </Button>
               </DialogFooter>
             </form>
@@ -481,9 +516,9 @@ export default function AdminTenantDetailPage({
         >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Impersonation Token Issued</DialogTitle>
+              <DialogTitle>{t("admin_tenant_detail_page.token_issued")}</DialogTitle>
               <DialogDescription>
-                You can now act as a Tenant Admin in{" "}
+                {t("admin_tenant_detail_page.act_as_admin_prefix")}{" "}
                 <span className="font-medium">
                   {impersonationResult?.tenant}
                 </span>
@@ -496,10 +531,10 @@ export default function AdminTenantDetailPage({
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      This action is fully audit-logged.
+                      {t("admin_tenant_detail_page.audit_logged_notice")}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Token expires:{" "}
+                      {t("admin_tenant_detail_page.token_expires")}:{" "}
                       {impersonationResult &&
                         new Date(
                           impersonationResult.expires_at,
@@ -509,7 +544,7 @@ export default function AdminTenantDetailPage({
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Bearer Token</Label>
+                <Label className="text-xs">{t("admin_tenant_detail_page.bearer_token")}</Label>
                 <div className="mt-1 flex gap-2">
                   <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all border">
                     {impersonationResult?.token}
@@ -521,17 +556,19 @@ export default function AdminTenantDetailPage({
                   className="mt-2"
                   onClick={copyToken}
                 >
-                  Copy Token
+                  {t("admin_tenant_detail_page.copy_token")}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use this token in an <code>Authorization: Bearer ...</code>{" "}
-                header to access the tenant&apos;s data on their behalf. The
-                token grants Tenant Admin privileges and expires in 1 hour.
+                {t("admin_tenant_detail_page.token_usage_hint_1")}{" "}
+                <code>Authorization: Bearer ...</code>{" "}
+                {t("admin_tenant_detail_page.token_usage_hint_2")}
               </p>
             </div>
             <DialogFooter>
-              <Button onClick={() => setImpersonateOpen(false)}>Done</Button>
+              <Button onClick={() => setImpersonateOpen(false)}>
+                {t("attendance.kiosks_page.done")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

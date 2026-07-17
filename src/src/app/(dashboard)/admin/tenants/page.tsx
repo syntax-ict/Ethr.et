@@ -19,8 +19,10 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useAdminTenants } from "@/features/admin/api";
+import { useT } from "@/lib/i18n/useT";
 
 export default function AdminTenantsPage() {
+  const { t } = useT();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -38,8 +40,8 @@ export default function AdminTenantsPage() {
     <RoleGate allowedRoles={["super_admin"]}>
       <div className="space-y-6">
         <PageHeader
-          title="Tenant Management"
-          description="View and manage all tenant organizations on the platform"
+          title={t("admin_tenants_page.title")}
+          description={t("admin_tenants_page.description")}
         />
 
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -50,7 +52,7 @@ export default function AdminTenantsPage() {
                 setSearch(v);
                 setPage(1);
               }}
-              placeholder="Search by name or subdomain..."
+              placeholder={t("admin_tenants_page.search_placeholder")}
             />
           </div>
           <Select
@@ -64,11 +66,11 @@ export default function AdminTenantsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="trial">Trial</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="all">{t("admin_tenants_page.all_statuses")}</SelectItem>
+              <SelectItem value="trial">{t("admin_console_page.trial")}</SelectItem>
+              <SelectItem value="active">{t("webhooks_page.active")}</SelectItem>
+              <SelectItem value="suspended">{t("admin_console_page.suspended")}</SelectItem>
+              <SelectItem value="cancelled">{t("admin_console_page.cancelled")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -82,11 +84,11 @@ export default function AdminTenantsPage() {
         ) : tenants.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title="No tenants found"
+            title={t("admin_tenants_page.no_tenants")}
             description={
               search
-                ? "Try a different search term"
-                : "No tenants match the current filters"
+                ? t("admin_tenants_page.try_different_search")
+                : t("admin_tenants_page.no_tenants_match")
             }
           />
         ) : (
@@ -98,62 +100,62 @@ export default function AdminTenantsPage() {
                     <thead>
                       <tr className="border-b bg-muted/50">
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          Tenant
+                          {t("admin_tenants_page.tenant")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                          Subdomain
+                          {t("admin_tenants_page.subdomain")}
                         </th>
                         <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                          Employees
+                          {t("attendance.employee")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          Trial Ends
+                          {t("admin_tenants_page.trial_ends")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          Created
+                          {t("attendance.kiosks_page.created")}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          Status
+                          {t("common.status")}
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {tenants.map((t) => (
+                      {tenants.map((tenant) => (
                         <tr
-                          key={t.public_id}
+                          key={tenant.public_id}
                           className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
                         >
                           <td className="px-4 py-3">
                             <Link
-                              href={`/admin/tenants/${t.public_id}`}
+                              href={`/admin/tenants/${tenant.public_id}`}
                               className="text-sm font-medium text-foreground hover:text-primary hover:underline"
                             >
-                              {t.name}
+                              {tenant.name}
                             </Link>
-                            {t.type && (
+                            {tenant.type && (
                               <p className="text-xs text-muted-foreground capitalize">
-                                {t.type}
+                                {tenant.type}
                               </p>
                             )}
                           </td>
                           <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground sm:table-cell">
-                            {t.subdomain}.ethr.et
+                            {tenant.subdomain}.ethr.et
                           </td>
                           <td className="hidden px-4 py-3 text-right md:table-cell">
                             <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                              <Users className="h-3 w-3" /> {t.employee_count}
+                              <Users className="h-3 w-3" /> {tenant.employee_count}
                             </span>
                           </td>
                           <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
-                            {t.trial_ends_at
-                              ? new Date(t.trial_ends_at).toLocaleDateString()
+                            {tenant.trial_ends_at
+                              ? new Date(tenant.trial_ends_at).toLocaleDateString()
                               : "—"}
                           </td>
                           <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
-                            {new Date(t.created_at).toLocaleDateString()}
+                            {new Date(tenant.created_at).toLocaleDateString()}
                           </td>
                           <td className="px-4 py-3">
-                            <StatusBadge status={t.status} />
+                            <StatusBadge status={tenant.status} />
                           </td>
                         </tr>
                       ))}
@@ -166,7 +168,8 @@ export default function AdminTenantsPage() {
             {data?.last_page && data.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Showing {data.from}–{data.to} of {data.total}
+                  {t("audit_logs_page.showing")} {data.from}–{data.to}{" "}
+                  {t("audit_logs_page.of")} {data.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -175,7 +178,7 @@ export default function AdminTenantsPage() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    Previous
+                    {t("audit_logs_page.previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -183,7 +186,7 @@ export default function AdminTenantsPage() {
                     disabled={page >= data.last_page}
                     onClick={() => setPage(page + 1)}
                   >
-                    Next
+                    {t("audit_logs_page.next")}
                   </Button>
                 </div>
               </div>
