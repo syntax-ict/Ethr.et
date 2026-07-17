@@ -1372,7 +1372,11 @@ const translations: Record<string, Record<string, string>> = {
     "admin_tenant_detail_page.copy_token": "Copy Token",
     "admin_tenant_detail_page.token_usage_hint_1": "Use this token in an",
     "admin_tenant_detail_page.token_usage_hint_2":
-      "header to access the tenant's data on their behalf. The token grants Tenant Admin privileges and expires in 1 hour.",
+      "header to access the tenant's data on their behalf. The token grants Tenant Admin privileges and expires in 30 minutes.",
+    "admin_tenant_detail_page.mfa_confirm_title": "Confirm Your Identity",
+    "admin_tenant_detail_page.mfa_confirm_description":
+      "Enter your MFA code to start an impersonation session. This action is audit-logged.",
+    "admin_tenant_detail_page.mfa_code_label": "MFA Code",
     "analytics_page.title": "Executive Analytics",
     "analytics_page.description": "Organization-wide insights and trends",
     "analytics_page.overview": "Overview",
@@ -3061,7 +3065,11 @@ const translations: Record<string, Record<string, string>> = {
     "admin_tenant_detail_page.copy_token": "ቶከን ገልብጥ",
     "admin_tenant_detail_page.token_usage_hint_1": "ይህን ቶከን በ",
     "admin_tenant_detail_page.token_usage_hint_2":
-      "ራስጌ ውስጥ ተጠቅመው የተከራዩን ውሂብ በእነሱ ስም ለመድረስ ይጠቀሙ። ቶከኑ የተከራይ አስተዳዳሪ ልዩ መብቶችን ይሰጣል እና በ1 ሰዓት ውስጥ ያበቃል።",
+      "ራስጌ ውስጥ ተጠቅመው የተከራዩን ውሂብ በእነሱ ስም ለመድረስ ይጠቀሙ። ቶከኑ የተከራይ አስተዳዳሪ ልዩ መብቶችን ይሰጣል እና በ30 ደቂቃዎች ውስጥ ያበቃል።",
+    "admin_tenant_detail_page.mfa_confirm_title": "ማንነትዎን ያረጋግጡ",
+    "admin_tenant_detail_page.mfa_confirm_description":
+      "የመወከል ክፍለ ጊዜ ለመጀመር የMFA ኮድዎን ያስገቡ። ይህ ተግባር ሙሉ በሙሉ በክትትል መዝገብ ውስጥ ተመዝግቧል።",
+    "admin_tenant_detail_page.mfa_code_label": "የMFA ኮድ",
     "analytics_page.title": "የስራ አስፈጻሚ ትንተና",
     "analytics_page.description": "በድርጅት አቀፍ ደረጃ ግንዛቤዎች እና አዝማሚያዎች",
     "analytics_page.overview": "አጠቃላይ እይታ",

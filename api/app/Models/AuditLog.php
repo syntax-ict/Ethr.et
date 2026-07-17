@@ -59,6 +59,11 @@ class AuditLog extends Model
         $tenant = app(CurrentTenant::class);
         $user = auth()->user();
 
+        $tokenName = (string) ($user?->currentAccessToken()->name ?? '');
+        if (str_starts_with($tokenName, 'impersonation:')) {
+            $payload['impersonated_by'] = (int) substr($tokenName, strlen('impersonation:'));
+        }
+
         return self::create([
             'tenant_id' => $tenant->id(),
             'user_id' => $user?->id,

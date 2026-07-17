@@ -8,6 +8,7 @@ use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExtendTrialRequest;
+use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Models\AuditLog;
 use App\Models\Device;
@@ -15,6 +16,7 @@ use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -170,9 +172,33 @@ class AdminTenantController extends Controller
         ]);
     }
 
-    public function impersonate(Request $request, string $publicId): JsonResponse
+    public function impersonate(ImpersonateTenantRequest $request, string $publicId, MfaService $mfaService): JsonResponse
     {
         Gate::authorize('admin.manage');
+
+        $actor = $request->user();
+
+        if (! $actor->mfa_enabled) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/mfa-required',
+                'title' => 'MFA Required',
+                'status' => 409,
+                'detail' => __('auth.mfa_required'),
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
+        if (! $mfaService->verify($actor->mfa_secret, $request->validated('code'))) {
+            AuditLog::record('admin.tenant.impersonation_mfa_failed', null, [
+                'target_tenant_public_id' => $publicId,
+            ]);
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-mfa-code',
+                'title' => 'Invalid Code',
+                'status' => 422,
+                'detail' => __('auth.mfa_invalid'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
 
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
@@ -192,17 +218,19 @@ class AdminTenantController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $token = $adminUser->createToken('impersonation', ['*'], now()->addHour());
+        $expiresAt = now()->addMinutes(30);
+        $token = $adminUser->createToken("impersonation:{$actor->id}", ['*', 'impersonation'], $expiresAt);
 
         AuditLog::record('admin.tenant.impersonated', $tenant, [
             'impersonated_user_id' => $adminUser->id,
-            'admin_user_id' => $request->user()->id,
+            'admin_user_id' => $actor->id,
+            'expires_at' => $expiresAt->toIso8601String(),
         ]);
 
         return response()->json([
             'token' => $token->plainTextToken,
             'tenant' => $tenant->subdomain,
-            'expires_at' => now()->addHour(),
+            'expires_at' => $expiresAt,
         ]);
     }
 

@@ -15,4 +15,5 @@ return [
     'unauthorized' => 'ይህን ተግባር ለማከናወን ስልጣን የለዎትም።',
     'tenant_inactive' => 'የድርጅትዎ መለያ ንቁ አይደለም።',
     'account_suspended' => 'መለያዎ ታግዷል።',
+    'impersonation_restricted' => 'ተከራይን በመወከል ላይ ሳሉ ይህን ተግባር ማከናወን አይቻልም።',
 ];

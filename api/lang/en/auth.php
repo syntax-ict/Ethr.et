@@ -15,4 +15,5 @@ return [
     'unauthorized' => 'You are not authorized to perform this action.',
     'tenant_inactive' => 'Your organization account is not active.',
     'account_suspended' => 'Your account has been suspended.',
+    'impersonation_restricted' => 'This action is not allowed while impersonating a tenant.',
 ];

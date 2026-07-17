@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\ResolveTenant;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -35,6 +37,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->statefulApi();
+
+        // Must run before route-model binding, otherwise a blocked delete on a
+        // missing resource leaks a 404 (existence oracle) instead of a 403.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: BlockImpersonatedActions::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());

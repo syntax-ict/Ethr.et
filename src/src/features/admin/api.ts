@@ -117,11 +117,12 @@ export function useImpersonateTenant() {
   return useMutation<
     { token: string; tenant: string; expires_at: string },
     unknown,
-    string
+    { publicId: string; code: string }
   >({
-    mutationFn: async (publicId) => {
+    mutationFn: async ({ publicId, code }) => {
       const { data } = await apiClient.post(
         `/admin/tenants/${publicId}/impersonate`,
+        { code },
       );
       return data;
     },

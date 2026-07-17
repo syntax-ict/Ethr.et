@@ -71,6 +71,7 @@ use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Team\TeamMonitoringController;
 use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
+use App\Http\Middleware\BlockImpersonatedActions;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]));
@@ -106,7 +107,7 @@ Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
 });
 
 // Authenticated routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', BlockImpersonatedActions::class])->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/logout', LogoutController::class);
         Route::post('/refresh', RefreshController::class);

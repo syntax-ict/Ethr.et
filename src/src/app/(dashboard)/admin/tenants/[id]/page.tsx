@@ -60,6 +60,8 @@ export default function AdminTenantDetailPage({
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState(30);
   const [impersonateOpen, setImpersonateOpen] = useState(false);
+  const [mfaDialogOpen, setMfaDialogOpen] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [impersonationResult, setImpersonationResult] = useState<{
     token: string;
     tenant: string;
@@ -110,21 +112,29 @@ export default function AdminTenantDetailPage({
     );
   }
 
-  function handleImpersonate() {
+  function handleConfirmImpersonate(e: React.FormEvent) {
+    e.preventDefault();
     if (!tenant) return;
-    impersonate.mutate(tenant.public_id, {
-      onSuccess: (data) => {
-        setImpersonationResult(data);
-        setImpersonateOpen(true);
+    impersonate.mutate(
+      { publicId: tenant.public_id, code: mfaCode },
+      {
+        onSuccess: (data) => {
+          setMfaDialogOpen(false);
+          setMfaCode("");
+          setImpersonationResult(data);
+          setImpersonateOpen(true);
+        },
+        onError: (err: unknown) => {
+          const axiosErr = err as {
+            response?: { data?: { detail?: string } };
+          };
+          toast.error(
+            axiosErr.response?.data?.detail ||
+              t("admin_tenant_detail_page.impersonation_failed"),
+          );
+        },
       },
-      onError: (err: unknown) => {
-        const axiosErr = err as { response?: { data?: { detail?: string } } };
-        toast.error(
-          axiosErr.response?.data?.detail ||
-            t("admin_tenant_detail_page.impersonation_failed"),
-        );
-      },
-    });
+    );
   }
 
   function copyToken() {
@@ -253,7 +263,7 @@ export default function AdminTenantDetailPage({
 
               <Button
                 variant="outline"
-                onClick={handleImpersonate}
+                onClick={() => setMfaDialogOpen(true)}
                 disabled={impersonate.isPending}
               >
                 {impersonate.isPending ? (
@@ -523,6 +533,59 @@ export default function AdminTenantDetailPage({
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("admin_tenant_detail_page.extend")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* MFA code dialog (required before impersonating) */}
+        <Dialog
+          open={mfaDialogOpen}
+          onOpenChange={(open) => {
+            setMfaDialogOpen(open);
+            if (!open) setMfaCode("");
+          }}
+        >
+          <DialogContent>
+            <form onSubmit={handleConfirmImpersonate}>
+              <DialogHeader>
+                <DialogTitle>
+                  {t("admin_tenant_detail_page.mfa_confirm_title")}
+                </DialogTitle>
+                <DialogDescription>
+                  {t("admin_tenant_detail_page.mfa_confirm_description")}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Label htmlFor="impersonate-mfa-code">
+                  {t("admin_tenant_detail_page.mfa_code_label")}
+                </Label>
+                <Input
+                  id="impersonate-mfa-code"
+                  className="mt-1"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  required
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  placeholder="000000"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMfaDialogOpen(false)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" disabled={impersonate.isPending}>
+                  {impersonate.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("admin_tenant_detail_page.impersonate_admin")}
                 </Button>
               </DialogFooter>
             </form>
