@@ -2431,6 +2431,12 @@ parameters:
 			path: app/Http/Resources/PayrollRunResource.php
 
 		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$reprocessedFrom\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/PayrollRunResource.php
+
+		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
@@ -2438,6 +2444,18 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$tax_total_cents\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/PayrollRunResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$void_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/PayrollRunResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\PayrollRunResource\:\:\$voided_at\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Resources/PayrollRunResource.php
@@ -4039,7 +4057,25 @@ parameters:
 			path: app/Models/PayrollRun.php
 
 		-
+			message: '#^Method App\\Models\\PayrollRun\:\:reprocessedFrom\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/PayrollRun.php
+
+		-
+			message: '#^Method App\\Models\\PayrollRun\:\:reprocessedInto\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasOne does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/PayrollRun.php
+
+		-
 			message: '#^Method App\\Models\\PayrollRun\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/PayrollRun.php
+
+		-
+			message: '#^Method App\\Models\\PayrollRun\:\:voidedByUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/PayrollRun.php
@@ -5354,6 +5390,12 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payroll/PayslipPdfService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Payroll/PayslipPdfService.php

@@ -17,6 +17,9 @@ export interface PayrollRun {
   processed_at: string | null;
   approved_at: string | null;
   approved_by?: number | null;
+  voided_at: string | null;
+  void_reason: string | null;
+  reprocessed_from_public_id?: string | null;
   entries?: PayrollEntry[];
 }
 
@@ -112,6 +115,53 @@ export function useApprovePayroll() {
   return useMutation({
     mutationFn: async (publicId: string) => {
       const { data } = await apiClient.put(`/payroll/runs/${publicId}/approve`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+export function useVoidPayroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      reason,
+    }: {
+      publicId: string;
+      reason: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/payroll/runs/${publicId}/void`,
+        { reason },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+export function useReprocessPayroll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      idempotency_key,
+    }: {
+      publicId: string;
+      idempotency_key: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/payroll/runs/${publicId}/reprocess`,
+        { idempotency_key },
+        { headers: { "Idempotency-Key": idempotency_key } },
+      );
       return data;
     },
     onSuccess: () => {

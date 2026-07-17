@@ -864,6 +864,20 @@ const translations: Record<string, Record<string, string>> = {
     "payroll_detail_page.approved_success": "Payroll approved successfully",
     "payroll_detail_page.approve_failed": "Failed to approve payroll",
     "payroll_detail_page.approve_payroll": "Approve Payroll",
+    "payroll_detail_page.void_payroll": "Void Payroll",
+    "payroll_detail_page.voided_success": "Payroll run voided successfully",
+    "payroll_detail_page.void_failed": "Failed to void payroll run",
+    "payroll_detail_page.void_dialog_description":
+      "This marks the run as voided for audit purposes. It cannot be undone, but you can reprocess a corrected run afterward.",
+    "payroll_detail_page.void_reason_label": "Reason for voiding",
+    "payroll_detail_page.voided_notice": "This payroll run has been voided.",
+    "payroll_detail_page.reprocess_payroll": "Reprocess",
+    "payroll_detail_page.reprocess_confirm":
+      "Reprocess this payroll period? A new payroll run will be created with corrected data.",
+    "payroll_detail_page.reprocessed_success": "Payroll reprocessed successfully",
+    "payroll_detail_page.reprocess_failed": "Failed to reprocess payroll",
+    "payroll_detail_page.reprocessed_from_notice":
+      "This run replaces a voided run:",
     "payroll_detail_page.export_register": "Payroll Register (CSV)",
     "payroll_detail_page.export_bank": "Bank Transfer File",
     "payroll_detail_page.export_journal": "Journal Entries (CSV)",
@@ -2579,6 +2593,20 @@ const translations: Record<string, Record<string, string>> = {
     "payroll_detail_page.approved_success": "ደመወዝ በተሳካ ሁኔታ ጸድቋል",
     "payroll_detail_page.approve_failed": "ደመወዝ ማጽደቅ አልተሳካም",
     "payroll_detail_page.approve_payroll": "ደመወዝ አጽድቅ",
+    "payroll_detail_page.void_payroll": "ደመወዝ ሰርዝ",
+    "payroll_detail_page.voided_success": "የደመወዝ አሂድ በተሳካ ሁኔታ ተሰርዟል",
+    "payroll_detail_page.void_failed": "የደመወዝ አሂድ መሰረዝ አልተሳካም",
+    "payroll_detail_page.void_dialog_description":
+      "ይህ አሂዱን ለክትትል ዓላማ እንደተሰረዘ ምልክት ያደርጋል። መቀልበስ አይቻልም፣ ነገር ግን በኋላ የተስተካከለ አሂድ እንደገና ማስኬድ ይችላሉ።",
+    "payroll_detail_page.void_reason_label": "የመሰረዝ ምክንያት",
+    "payroll_detail_page.voided_notice": "ይህ የደመወዝ አሂድ ተሰርዟል።",
+    "payroll_detail_page.reprocess_payroll": "እንደገና አስኪድ",
+    "payroll_detail_page.reprocess_confirm":
+      "ይህን የደመወዝ ጊዜ እንደገና ማስኬድ ይፈልጋሉ? በተስተካከለ ውሂብ አዲስ የደመወዝ አሂድ ይፈጠራል።",
+    "payroll_detail_page.reprocessed_success": "ደመወዝ በተሳካ ሁኔታ እንደገና ተሰርቷል",
+    "payroll_detail_page.reprocess_failed": "ደመወዝ እንደገና ማስኬድ አልተሳካም",
+    "payroll_detail_page.reprocessed_from_notice":
+      "ይህ አሂድ የተሰረዘን አሂድ ይተካል፦",
     "payroll_detail_page.export_register": "የደመወዝ መዝገብ (CSV)",
     "payroll_detail_page.export_bank": "የባንክ ዝውውር ፋይል",
     "payroll_detail_page.export_journal": "የመዝገብ ግቤቶች (CSV)",

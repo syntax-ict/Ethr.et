@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PayrollRun extends Model
 {
@@ -31,6 +32,10 @@ class PayrollRun extends Model
         'approved_by',
         'processed_at',
         'approved_at',
+        'voided_at',
+        'voided_by',
+        'void_reason',
+        'reprocessed_from_id',
     ];
 
     protected $hidden = [
@@ -49,6 +54,7 @@ class PayrollRun extends Model
             'tax_total_cents' => 'integer',
             'processed_at' => 'datetime',
             'approved_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -65,5 +71,20 @@ class PayrollRun extends Model
     public function approvedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function voidedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
+    public function reprocessedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reprocessed_from_id');
+    }
+
+    public function reprocessedInto(): HasOne
+    {
+        return $this->hasOne(self::class, 'reprocessed_from_id');
     }
 }

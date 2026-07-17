@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -10,10 +10,22 @@ import {
   FileSpreadsheet,
   Landmark,
   BookOpen,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +37,8 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import {
   usePayrollRun,
   useApprovePayroll,
+  useVoidPayroll,
+  useReprocessPayroll,
   type PayrollEntry,
 } from "@/features/payroll/api";
 import { apiClient } from "@/api/client";
@@ -42,6 +56,47 @@ export default function PayrollDetailPage({
   const { data: run, isLoading } = usePayrollRun(id);
   const { isAtLeast } = usePermissions();
   const approvePayroll = useApprovePayroll();
+  const voidPayroll = useVoidPayroll();
+  const reprocessPayroll = useReprocessPayroll();
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+
+  function handleVoid(e: React.FormEvent) {
+    e.preventDefault();
+    voidPayroll.mutate(
+      { publicId: id, reason: voidReason },
+      {
+        onSuccess: () => {
+          toast.success(t("payroll_detail_page.voided_success"));
+          setVoidDialogOpen(false);
+          setVoidReason("");
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { detail?: string } } };
+          toast.error(
+            e.response?.data?.detail || t("payroll_detail_page.void_failed"),
+          );
+        },
+      },
+    );
+  }
+
+  function handleReprocess() {
+    if (!confirm(t("payroll_detail_page.reprocess_confirm"))) return;
+    reprocessPayroll.mutate(
+      { publicId: id, idempotency_key: crypto.randomUUID() },
+      {
+        onSuccess: () => toast.success(t("payroll_detail_page.reprocessed_success")),
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { detail?: string } } };
+          toast.error(
+            e.response?.data?.detail ||
+              t("payroll_detail_page.reprocess_failed"),
+          );
+        },
+      },
+    );
+  }
 
   function formatCents(cents: number): string {
     return (cents / 100).toLocaleString("en-ET", {
@@ -245,6 +300,32 @@ export default function PayrollDetailPage({
               {t("payroll_detail_page.approve_payroll")}
             </Button>
           )}
+          {(run.status === "completed" || run.status === "approved") &&
+            isAtLeast("tenant_admin") && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setVoidDialogOpen(true)}
+              >
+                <Ban className="mr-2 h-4 w-4 text-destructive" />
+                {t("payroll_detail_page.void_payroll")}
+              </Button>
+            )}
+          {run.status === "voided" && isAtLeast("tenant_admin") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleReprocess}
+              disabled={reprocessPayroll.isPending}
+            >
+              {reprocessPayroll.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              {t("payroll_detail_page.reprocess_payroll")}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -269,6 +350,29 @@ export default function PayrollDetailPage({
           </DropdownMenu>
         </div>
       </div>
+
+      {run.status === "voided" && (
+        <div className="rounded-lg border-2 border-destructive/30 bg-destructive/5 p-3 text-sm">
+          <p className="font-semibold text-destructive">
+            {t("payroll_detail_page.voided_notice")}
+          </p>
+          {run.void_reason && (
+            <p className="mt-1 text-muted-foreground">{run.void_reason}</p>
+          )}
+        </div>
+      )}
+
+      {run.reprocessed_from_public_id && (
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+          {t("payroll_detail_page.reprocessed_from_notice")}{" "}
+          <Link
+            href={`/payroll/${run.reprocessed_from_public_id}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {run.reprocessed_from_public_id}
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
@@ -372,6 +476,51 @@ export default function PayrollDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleVoid}>
+            <DialogHeader>
+              <DialogTitle>{t("payroll_detail_page.void_payroll")}</DialogTitle>
+              <DialogDescription>
+                {t("payroll_detail_page.void_dialog_description")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="void-reason">
+                {t("payroll_detail_page.void_reason_label")}
+              </Label>
+              <Textarea
+                id="void-reason"
+                className="mt-1"
+                required
+                maxLength={500}
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVoidDialogOpen(false)}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={voidPayroll.isPending}
+              >
+                {voidPayroll.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("payroll_detail_page.void_payroll")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

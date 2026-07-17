@@ -33,6 +33,7 @@ final class PayslipPdfService
             'deductions' => $entry->deductions ?? [],
             'net_cents' => $entry->net_cents,
             'generated_at' => now()->timezone('Africa/Addis_Ababa')->format('d/m/Y H:i'),
+            'is_voided' => $entry->payrollRun->status === 'voided',
         ];
 
         $pdf = Pdf::loadView('payslip', $data);

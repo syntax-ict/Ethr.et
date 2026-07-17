@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Api\V1\Payroll;
 use App\Events\PayrollProcessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
+use App\Http\Requests\Payroll\ReprocessPayrollRunRequest;
+use App\Http\Requests\Payroll\VoidPayrollRunRequest;
 use App\Http\Resources\PayrollEntryResource;
 use App\Http\Resources\PayrollRunResource;
 use App\Models\AuditLog;
@@ -88,7 +90,7 @@ class PayrollController extends Controller
     {
         Gate::authorize('payroll.viewAll');
 
-        $payrollRun->load('entries.employee');
+        $payrollRun->load('entries.employee', 'reprocessedFrom');
 
         return new PayrollRunResource($payrollRun);
     }
@@ -120,6 +122,76 @@ class PayrollController extends Controller
         ]);
 
         return response()->json(new PayrollRunResource($payrollRun));
+    }
+
+    public function void(VoidPayrollRunRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
+    {
+        Gate::authorize('payroll.void');
+
+        if (! in_array($payrollRun->status, ['completed', 'approved'], true)) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('payroll.cannot_void'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $payrollRun = $engine->void($payrollRun, $request->user()->id, $request->validated('reason'));
+
+        AuditLog::record('payroll.voided', $payrollRun, [
+            'period' => $payrollRun->period_label,
+            'reason' => $payrollRun->void_reason,
+        ]);
+        $this->webhook($payrollRun->tenant_id, 'payroll.voided', [
+            'public_id' => $payrollRun->public_id,
+            'period' => $payrollRun->period_label,
+        ]);
+
+        return response()->json(new PayrollRunResource($payrollRun));
+    }
+
+    public function reprocess(ReprocessPayrollRunRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
+    {
+        Gate::authorize('payroll.reprocess');
+
+        if ($payrollRun->status !== 'voided') {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/invalid-state',
+                'title' => 'Invalid State',
+                'status' => 422,
+                'detail' => __('payroll.cannot_reprocess'),
+            ], 422)->header('Content-Type', 'application/problem+json');
+        }
+
+        $result = $engine->reprocess(
+            $payrollRun,
+            $request->user()->id,
+            $request->validated('idempotency_key'),
+        );
+
+        $run = $result->run;
+
+        if (! $result->wasDuplicate) {
+            AuditLog::record('payroll.reprocessed', $run, [
+                'period' => $run->period_label,
+                'reprocessed_from' => $payrollRun->public_id,
+            ]);
+            $this->webhook($run->tenant_id, 'payroll.reprocessed', [
+                'public_id' => $run->public_id,
+                'period' => $run->period_label,
+                'reprocessed_from' => $payrollRun->public_id,
+            ]);
+
+            PayrollProcessed::dispatch($run);
+        }
+
+        $run->load('entries.employee', 'reprocessedFrom');
+
+        $data = (new PayrollRunResource($run))->resolve();
+        $data['was_duplicate'] = $result->wasDuplicate;
+
+        return response()->json($data, $result->wasDuplicate ? 200 : 201);
     }
 
     public function myPayslips(Request $request): AnonymousResourceCollection

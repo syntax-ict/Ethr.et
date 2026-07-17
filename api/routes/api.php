@@ -256,6 +256,8 @@ Route::middleware(['auth:sanctum', BlockImpersonatedActions::class])->group(func
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
         Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve']);
+        Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void']);
+        Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])->middleware('throttle:payroll-process');
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);

@@ -26,6 +26,7 @@ const statusStyles: Record<string, string> = {
   late: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
   absent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
   paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+  voided: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
 };
 
 interface StatusBadgeProps {

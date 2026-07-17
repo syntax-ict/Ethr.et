@@ -20,9 +20,22 @@
         .total-row td { font-weight: 700; border-top: 2px solid #0F4C75; border-bottom: none; }
         .net-row td { font-size: 12px; background: #F1F5F9; color: #0F4C75; }
         .footer { text-align: center; margin-top: 20px; font-size: 8px; color: #94A3B8; border-top: 1px solid #E2E8F0; padding-top: 8px; }
+        .voided-watermark {
+            position: fixed;
+            top: 300px;
+            left: 60px;
+            font-size: 70px;
+            font-weight: 700;
+            color: #DC2626;
+            opacity: 0.25;
+            transform: rotate(-30deg);
+        }
     </style>
 </head>
 <body>
+    @if($is_voided)
+    <div class="voided-watermark">VOIDED</div>
+    @endif
     <div class="header">
         <h1>{{ $tenant_name }}</h1>
         <p>Payslip for {{ $period }}</p>

@@ -102,6 +102,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'payroll.viewAll', 'module' => 'payroll', 'action' => 'viewAll', 'description' => 'View all payroll data'],
             ['name' => 'payroll.process', 'module' => 'payroll', 'action' => 'process', 'description' => 'Process payroll runs'],
             ['name' => 'payroll.approve', 'module' => 'payroll', 'action' => 'approve', 'description' => 'Approve payroll runs'],
+            ['name' => 'payroll.void', 'module' => 'payroll', 'action' => 'void', 'description' => 'Void an approved payroll run'],
+            ['name' => 'payroll.reprocess', 'module' => 'payroll', 'action' => 'reprocess', 'description' => 'Reprocess a voided payroll run'],
             ['name' => 'payroll.manageLoan', 'module' => 'payroll', 'action' => 'manageLoan', 'description' => 'Manage employee loans'],
             ['name' => 'payroll.viewOwnPayslip', 'module' => 'payroll', 'action' => 'viewOwnPayslip', 'description' => 'View own payslip'],
 
@@ -209,6 +211,8 @@ class PermissionSeeder extends Seeder
             'device.create', 'device.update', 'device.delete',
             'holiday.delete',
             'payroll.approve',
+            'payroll.void',
+            'payroll.reprocess',
             'employee.delete',
             'dashboard.executive',
             'apikey.manage',

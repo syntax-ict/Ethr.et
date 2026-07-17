@@ -24,6 +24,12 @@ class PayrollRunResource extends JsonResource
             'entries' => PayrollEntryResource::collection($this->whenLoaded('entries')),
             'processed_at' => $this->processed_at,
             'approved_at' => $this->approved_at,
+            'voided_at' => $this->voided_at,
+            'void_reason' => $this->void_reason,
+            'reprocessed_from_public_id' => $this->whenLoaded(
+                'reprocessedFrom',
+                fn () => $this->reprocessedFrom?->public_id,
+            ),
             'created_at' => $this->created_at,
         ];
     }

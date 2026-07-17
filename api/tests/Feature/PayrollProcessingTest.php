@@ -280,6 +280,208 @@ test('cannot approve draft payroll run', function () {
         ->assertStatus(422);
 });
 
+// ── Void ──
+
+test('tenant admin can void a completed payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'completed',
+    ]);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [
+        'reason' => 'Incorrect tax bracket applied',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('status', 'voided')
+        ->assertJsonPath('void_reason', 'Incorrect tax bracket applied');
+
+    $run->refresh();
+    expect($run->status)->toBe('voided');
+    expect($run->voided_at)->not->toBeNull();
+    expect($run->voided_by)->not->toBeNull();
+
+    $this->assertDatabaseHas('audit_log', ['action' => 'payroll.voided']);
+});
+
+test('tenant admin can void an approved payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'approved',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [
+        'reason' => 'Employee terminated before period end',
+    ])->assertOk()->assertJsonPath('status', 'voided');
+});
+
+test('finance admin cannot void a payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'completed',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [
+        'reason' => 'Not allowed',
+    ])->assertForbidden();
+});
+
+test('cannot void a draft payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'draft',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [
+        'reason' => 'Attempted early void',
+    ])->assertStatus(422);
+});
+
+test('cannot void an already-voided payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'voided',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [
+        'reason' => 'Double void attempt',
+    ])->assertStatus(422);
+});
+
+test('void requires a reason', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'completed',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/void", [])
+        ->assertStatus(422);
+});
+
+// ── Reprocess ──
+
+test('tenant admin can reprocess a voided payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 700000,
+    ]);
+
+    $voidedRun = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'voided',
+        'period_start' => '2026-06-01',
+        'period_end' => '2026-06-30',
+    ]);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$voidedRun->public_id}/reprocess", [
+        'idempotency_key' => 'reprocess-key-1',
+    ]);
+
+    $response->assertStatus(201)
+        ->assertJsonPath('status', 'completed')
+        ->assertJsonPath('employee_count', 1)
+        ->assertJsonPath('reprocessed_from_public_id', $voidedRun->public_id)
+        ->assertJsonPath('was_duplicate', false);
+
+    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(2);
+
+    $newRun = PayrollRun::where('public_id', $response->json('public_id'))->first();
+    expect($newRun->reprocessed_from_id)->toBe($voidedRun->id);
+    expect($newRun->period_start->toDateString())->toBe('2026-06-01');
+
+    $this->assertDatabaseHas('audit_log', ['action' => 'payroll.reprocessed']);
+});
+
+test('finance admin cannot reprocess a payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $voidedRun = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'voided',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$voidedRun->public_id}/reprocess", [
+        'idempotency_key' => 'reprocess-key-2',
+    ])->assertForbidden();
+});
+
+test('cannot reprocess a non-voided payroll run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'completed',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$run->public_id}/reprocess", [
+        'idempotency_key' => 'reprocess-key-3',
+    ])->assertStatus(422);
+});
+
+test('reprocess requires an idempotency key', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $voidedRun = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'voided',
+    ]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$voidedRun->public_id}/reprocess", [])
+        ->assertStatus(422);
+});
+
+test('replaying the same reprocess idempotency key does not create a second run', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 500000,
+    ]);
+
+    $voidedRun = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'voided',
+    ]);
+
+    $payload = ['idempotency_key' => 'reprocess-replay-key'];
+
+    $first = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$voidedRun->public_id}/reprocess", $payload);
+    $first->assertStatus(201)->assertJsonPath('was_duplicate', false);
+
+    $second = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/runs/{$voidedRun->public_id}/reprocess", $payload);
+    $second->assertStatus(200)
+        ->assertJsonPath('was_duplicate', true)
+        ->assertJsonPath('public_id', $first->json('public_id'));
+
+    // Only the reprocessed run should exist alongside the original voided one.
+    expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(2);
+});
+
 // ── Payslips ──
 
 test('employee can view own payslips', function () {
@@ -328,6 +530,49 @@ test('finance admin can download payslip pdf', function () {
 
     $response->assertOk();
     expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+});
+
+test('payslip pdf for a voided run still downloads successfully', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'voided']);
+    $entry = PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employee->id,
+    ]);
+
+    $response = test()->get("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/payslips/{$entry->public_id}/pdf");
+
+    $response->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+});
+
+test('payslip view renders a VOIDED watermark only for voided runs', function () {
+    $data = [
+        'tenant_name' => 'Acme Corp',
+        'period' => 'June 2026',
+        'employee_name' => 'Abebe Kebede',
+        'employee_code' => 'EMP001',
+        'department' => 'Engineering',
+        'position' => 'Developer',
+        'basic_salary_cents' => 1000000,
+        'allowances' => [],
+        'gross_cents' => 1000000,
+        'income_tax_cents' => 100000,
+        'employee_pension_cents' => 70000,
+        'employer_pension_cents' => 110000,
+        'other_deductions_cents' => 0,
+        'deductions' => [],
+        'net_cents' => 830000,
+        'generated_at' => now()->format('d/m/Y H:i'),
+        'is_voided' => true,
+    ];
+
+    test()->view('payslip', $data)->assertSee('VOIDED');
+    test()->view('payslip', [...$data, 'is_voided' => false])->assertDontSee('VOIDED');
 });
 
 // ── Bank Export ──

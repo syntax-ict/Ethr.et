@@ -85,6 +85,35 @@ final class PayrollEngine
         return new PayrollProcessResult($run);
     }
 
+    public function void(PayrollRun $run, int $voidedBy, string $reason): PayrollRun
+    {
+        $run->update([
+            'status' => 'voided',
+            'voided_at' => now(),
+            'voided_by' => $voidedBy,
+            'void_reason' => $reason,
+        ]);
+
+        return $run->fresh();
+    }
+
+    public function reprocess(PayrollRun $voidedRun, int $processedBy, ?string $idempotencyKey = null): PayrollProcessResult
+    {
+        $result = $this->process(
+            $voidedRun->tenant_id,
+            Carbon::parse($voidedRun->period_start),
+            Carbon::parse($voidedRun->period_end),
+            $processedBy,
+            $idempotencyKey,
+        );
+
+        if (! $result->wasDuplicate) {
+            $result->run->update(['reprocessed_from_id' => $voidedRun->id]);
+        }
+
+        return $result;
+    }
+
     private function processEmployee(
         Employee $employee,
         PayrollRun $run,
