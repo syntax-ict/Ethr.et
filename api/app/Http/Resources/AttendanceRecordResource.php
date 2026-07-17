@@ -29,6 +29,10 @@ class AttendanceRecordResource extends JsonResource
             'status_label' => $this->status?->label(),
             'worked_minutes' => $this->workedMinutes(),
             'overtime_minutes' => $this->overtimeMinutes(),
+            'conflict' => isset($this->metadata['conflict_action']) ? [
+                'action' => $this->metadata['conflict_action'],
+                'with_record_public_id' => $this->metadata['conflict_with'] ?? $this->metadata['resolved_with'] ?? null,
+            ] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

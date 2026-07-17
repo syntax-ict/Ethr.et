@@ -5035,9 +5035,15 @@ parameters:
 			path: app/Services/Attendance/ConfidenceScorer.php
 
 		-
-			message: '#^Cannot call method copy\(\) on string\.$#'
+			message: '#^Cannot call method diffInMinutes\(\) on string\.$#'
 			identifier: method.nonObject
-			count: 2
+			count: 1
+			path: app/Services/Attendance/ConflictResolver.php
+
+		-
+			message: '#^Cannot call method diffInSeconds\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
 			path: app/Services/Attendance/ConflictResolver.php
 
 		-
@@ -5053,13 +5059,13 @@ parameters:
 			path: app/Services/Attendance/ConflictResolver.php
 
 		-
-			message: '#^Parameter \#1 \$a of method App\\Services\\Attendance\\ConflictResolver\:\:isSameMinute\(\) expects Carbon\\Carbon\|null, string\|null given\.$#'
+			message: '#^Parameter \#1 \$a of method App\\Services\\Attendance\\ConflictResolver\:\:latestCheckOut\(\) expects Carbon\\Carbon\|null, string\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Services/Attendance/ConflictResolver.php
 
 		-
-			message: '#^Parameter \#2 \$b of method App\\Services\\Attendance\\ConflictResolver\:\:isSameMinute\(\) expects Carbon\\Carbon\|null, string\|null given\.$#'
+			message: '#^Parameter \#2 \$b of method App\\Services\\Attendance\\ConflictResolver\:\:latestCheckOut\(\) expects Carbon\\Carbon\|null, string\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Services/Attendance/ConflictResolver.php

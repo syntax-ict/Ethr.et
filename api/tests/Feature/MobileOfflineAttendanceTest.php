@@ -361,7 +361,7 @@ test('offline sync has confidence score 88', function () {
 
 // ── Conflict Resolver ──
 
-test('conflict resolver merges same-minute records keeping higher confidence', function () {
+test('conflict resolver dedupes same-minute records keeping higher confidence', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
@@ -385,9 +385,165 @@ test('conflict resolver merges same-minute records keeping higher confidence', f
     $resolver = new ConflictResolver;
     $result = $resolver->resolve($newRecord);
 
-    expect($result)->toBe('merged');
+    expect($result->action)->toBe('deduped');
+    expect($result->record->id)->toBe($newRecord->id);
     expect(AttendanceRecord::find($existing->id))->toBeNull();
     expect(AttendanceRecord::find($newRecord->id))->not->toBeNull();
+});
+
+test('conflict resolver dedupes same-minute records keeping the first on a confidence tie', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    $existing = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(8, 30),
+        'confidence_score' => 75,
+        'source' => AttendanceSource::WEB,
+    ]);
+
+    $newRecord = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $existing->date,
+        'check_in' => Carbon::today()->setTime(8, 30),
+        'confidence_score' => 75,
+        'source' => AttendanceSource::WEB,
+    ]);
+
+    $result = (new ConflictResolver)->resolve($newRecord);
+
+    expect($result->action)->toBe('deduped');
+    expect(AttendanceRecord::find($existing->id))->not->toBeNull();
+    expect(AttendanceRecord::find($newRecord->id))->toBeNull();
+});
+
+test('conflict resolver merges records 1-5 minutes apart into one spanning record', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    $existing = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(8, 30),
+        'check_out' => null,
+        'confidence_score' => 75,
+        'source' => AttendanceSource::WEB,
+    ]);
+
+    $newRecord = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $existing->date,
+        'check_in' => Carbon::today()->setTime(8, 33),
+        'check_out' => Carbon::today()->setTime(17, 0),
+        'confidence_score' => 100,
+        'source' => AttendanceSource::BIOMETRIC,
+    ]);
+
+    $result = (new ConflictResolver)->resolve($newRecord);
+
+    expect($result->action)->toBe('merged');
+    expect(AttendanceRecord::find($existing->id))->toBeNull();
+    $survivor = AttendanceRecord::find($newRecord->id);
+    expect($survivor)->not->toBeNull();
+    expect($survivor->check_in->format('H:i'))->toBe('08:30');
+    expect($survivor->check_out->format('H:i'))->toBe('17:00');
+});
+
+test('conflict resolver flags records more than 5 minutes apart for review, keeping both', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    $existing = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(8, 30),
+        'confidence_score' => 75,
+        'source' => AttendanceSource::WEB,
+    ]);
+
+    $newRecord = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $existing->date,
+        'check_in' => Carbon::today()->setTime(8, 40),
+        'confidence_score' => 100,
+        'source' => AttendanceSource::BIOMETRIC,
+    ]);
+
+    $result = (new ConflictResolver)->resolve($newRecord);
+
+    expect($result->action)->toBe('flagged');
+    expect(AttendanceRecord::find($existing->id))->not->toBeNull();
+    expect(AttendanceRecord::find($newRecord->id))->not->toBeNull();
+    expect($result->record->metadata['conflict_with'])->toBe($existing->public_id);
+});
+
+test('conflict resolver reports no conflict for an unrelated first check-in', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    $newRecord = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(8, 30),
+    ]);
+
+    $result = (new ConflictResolver)->resolve($newRecord);
+
+    expect($result->action)->toBe('created');
+});
+
+// ── Conflict Resolver wired into the live check-in pipeline ──
+
+test('a second web check-in within a minute of the first is deduped automatically', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/check-in", [
+        'idempotency_key' => 'web-ci-conflict-1',
+        'source' => 'web',
+    ])->assertCreated();
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/check-in", [
+        'idempotency_key' => 'web-ci-conflict-2',
+        'source' => 'web',
+    ])->assertCreated();
+
+    expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe(1);
+    $this->assertDatabaseHas('audit_log', ['action' => 'attendance.conflict_deduped']);
+});
+
+test('a flagged conflict is visible in the attendance record API response', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    $existing = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(8, 30),
+    ]);
+
+    $newRecord = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $existing->date,
+        'check_in' => Carbon::today()->setTime(8, 40),
+    ]);
+
+    (new ConflictResolver)->resolve($newRecord);
+
+    $response = test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant))
+        ->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance");
+
+    $response->assertOk();
+    $flagged = collect($response->json('data'))->firstWhere('public_id', $newRecord->public_id);
+    expect($flagged['conflict']['action'])->toBe('flagged');
+    expect($flagged['conflict']['with_record_public_id'])->toBe($existing->public_id);
 });
 
 // ── Authentication ──

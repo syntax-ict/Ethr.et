@@ -7,76 +7,99 @@ namespace App\Services\Attendance;
 use App\Models\AttendanceRecord;
 use Carbon\Carbon;
 
+/**
+ * Resolves duplicate/conflicting check-ins for the same employee on the same
+ * day, arriving from different sources (web, mobile, biometric, kiosk...).
+ * Decision table, based on the gap between check-in times:
+ *   < 1 min   → dedupe: keep the higher-confidence record (ties keep the first)
+ *   1-5 min   → merge: one surviving record spanning the earliest check-in and
+ *               latest check-out, keeping the higher-confidence record's identity
+ *   > 5 min   → flag: both records are kept, tagged for HR review
+ */
 final class ConflictResolver
 {
-    /**
-     * Check for and resolve conflicts when a new record arrives.
-     * Returns: 'created', 'merged', or 'flagged'.
-     */
-    public function resolve(AttendanceRecord $newRecord): string
-    {
-        $dateStr = $newRecord->date->format('Y-m-d');
+    private const DEDUPE_THRESHOLD_MINUTES = 1;
 
-        $existing = AttendanceRecord::withoutGlobalScope('tenant')
+    private const MERGE_THRESHOLD_MINUTES = 5;
+
+    public function resolve(AttendanceRecord $newRecord): ConflictResolution
+    {
+        if (! $newRecord->check_in) {
+            return new ConflictResolution($newRecord, 'created');
+        }
+
+        $conflict = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $newRecord->tenant_id)
             ->where('employee_id', $newRecord->employee_id)
-            ->whereDate('date', $dateStr)
+            ->whereDate('date', $newRecord->date->format('Y-m-d'))
             ->where('id', '!=', $newRecord->id)
             ->whereNotNull('check_in')
-            ->get();
+            ->get()
+            ->sortBy(fn (AttendanceRecord $r) => abs($r->check_in->diffInSeconds($newRecord->check_in)))
+            ->first();
 
-        if ($existing->isEmpty()) {
-            return 'created';
+        if (! $conflict) {
+            return new ConflictResolution($newRecord, 'created');
         }
 
-        foreach ($existing as $record) {
-            if ($this->isSameMinute($newRecord->check_in, $record->check_in)) {
-                if ($newRecord->confidence_score > $record->confidence_score) {
-                    $record->delete();
+        $gapMinutes = abs($conflict->check_in->diffInMinutes($newRecord->check_in, true));
 
-                    return 'merged';
-                }
-
-                $newRecord->delete();
-
-                return 'merged';
-            }
-
-            if ($this->hasOverlap($newRecord, $record)) {
-                $newRecord->update([
-                    'metadata' => array_merge($newRecord->metadata ?? [], [
-                        'conflict_with' => $record->public_id,
-                        'flagged_at' => now()->toIso8601String(),
-                    ]),
-                ]);
-
-                return 'flagged';
-            }
+        if ($gapMinutes < self::DEDUPE_THRESHOLD_MINUTES) {
+            return $this->combine($newRecord, $conflict, 'deduped');
         }
 
-        return 'created';
+        if ($gapMinutes <= self::MERGE_THRESHOLD_MINUTES) {
+            return $this->combine($newRecord, $conflict, 'merged');
+        }
+
+        return $this->flag($newRecord, $conflict);
     }
 
-    private function isSameMinute(?Carbon $a, ?Carbon $b): bool
+    private function combine(AttendanceRecord $newRecord, AttendanceRecord $existing, string $action): ConflictResolution
     {
-        if (! $a || ! $b) {
-            return false;
-        }
+        // Ties keep the existing (first-arrived) record.
+        $survivor = $newRecord->confidence_score > $existing->confidence_score ? $newRecord : $existing;
+        $loser = $survivor->is($newRecord) ? $existing : $newRecord;
 
-        return $a->format('Y-m-d H:i') === $b->format('Y-m-d H:i');
+        $survivor->update([
+            'check_in' => $newRecord->check_in->lt($existing->check_in) ? $newRecord->check_in : $existing->check_in,
+            'check_out' => $this->latestCheckOut($newRecord->check_out, $existing->check_out),
+            'confidence_score' => max($newRecord->confidence_score, $existing->confidence_score),
+            'metadata' => array_merge($survivor->metadata ?? [], [
+                'conflict_action' => $action,
+                'resolved_with' => $loser->public_id,
+                'resolved_at' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        $loser->delete();
+
+        return new ConflictResolution($survivor->fresh(), $action);
     }
 
-    private function hasOverlap(AttendanceRecord $a, AttendanceRecord $b): bool
+    private function flag(AttendanceRecord $newRecord, AttendanceRecord $existing): ConflictResolution
     {
-        if (! $a->check_in || ! $b->check_in) {
-            return false;
+        $newRecord->update([
+            'metadata' => array_merge($newRecord->metadata ?? [], [
+                'conflict_action' => 'flagged',
+                'conflict_with' => $existing->public_id,
+                'flagged_at' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        return new ConflictResolution($newRecord->fresh(), 'flagged');
+    }
+
+    private function latestCheckOut(?Carbon $a, ?Carbon $b): ?Carbon
+    {
+        if (! $a) {
+            return $b;
         }
 
-        $aStart = $a->check_in;
-        $aEnd = $a->check_out ?? $aStart->copy()->addHours(8);
-        $bStart = $b->check_in;
-        $bEnd = $b->check_out ?? $bStart->copy()->addHours(8);
+        if (! $b) {
+            return $a;
+        }
 
-        return $aStart->lt($bEnd) && $aEnd->gt($bStart);
+        return $a->gt($b) ? $a : $b;
     }
 }

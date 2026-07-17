@@ -17,6 +17,7 @@ final class AttendanceEngine
     public function __construct(
         private readonly ConfidenceScorer $scorer,
         private readonly ShiftMatcher $shiftMatcher,
+        private readonly ConflictResolver $conflictResolver,
     ) {}
 
     public function record(AttendanceInput $input): AttendanceResult
@@ -104,6 +105,15 @@ final class AttendanceEngine
 
         if ($input->source->value === 'manual') {
             AuditLog::record('attendance.manual_entry', $record);
+        }
+
+        $resolution = $this->conflictResolver->resolve($record);
+        $record = $resolution->record;
+
+        if ($resolution->action !== 'created') {
+            AuditLog::record('attendance.conflict_'.$resolution->action, $record, [
+                'source' => $input->source->value,
+            ]);
         }
 
         AttendanceRecorded::dispatch($record);
