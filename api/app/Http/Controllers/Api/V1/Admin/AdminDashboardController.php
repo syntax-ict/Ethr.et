@@ -10,9 +10,9 @@ use App\Services\Admin\PlatformAnalyticsService;
 use App\Services\Admin\SystemHealthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Queue;
 
 class AdminDashboardController extends Controller
 {
@@ -79,7 +79,7 @@ class AdminDashboardController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => [$uuid]]);
+        Artisan::call('queue:retry', ['id' => [$uuid]]);
 
         return response()->json(['message' => 'Job queued for retry.', 'uuid' => $uuid]);
     }
@@ -94,7 +94,7 @@ class AdminDashboardController extends Controller
             return response()->json(['message' => 'No failed jobs to retry.', 'count' => 0]);
         }
 
-        \Illuminate\Support\Facades\Artisan::call('queue:retry', ['id' => ['all']]);
+        Artisan::call('queue:retry', ['id' => ['all']]);
 
         return response()->json(['message' => "Retrying {$count} failed jobs.", 'count' => $count]);
     }

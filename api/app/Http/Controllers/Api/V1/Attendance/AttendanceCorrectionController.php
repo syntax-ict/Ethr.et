@@ -156,14 +156,21 @@ class AttendanceCorrectionController extends Controller
 
         $originalMinutes = 0;
         $proposedMinutes = 0;
+        $recordCheckIn = null;
+        $recordCheckOut = null;
 
-        if ($record?->check_in && $record->check_out) {
-            $originalMinutes = (int) Carbon::parse($record->check_in)
-                ->diffInMinutes(Carbon::parse($record->check_out));
+        if ($record !== null) {
+            $recordCheckIn = $record->check_in;
+            $recordCheckOut = $record->check_out;
         }
 
-        $proposedIn = $correction->proposed_check_in ?? $record?->check_in;
-        $proposedOut = $correction->proposed_check_out ?? $record?->check_out;
+        if ($recordCheckIn && $recordCheckOut) {
+            $originalMinutes = (int) Carbon::parse($recordCheckIn)
+                ->diffInMinutes(Carbon::parse($recordCheckOut));
+        }
+
+        $proposedIn = $correction->proposed_check_in ?? $recordCheckIn;
+        $proposedOut = $correction->proposed_check_out ?? $recordCheckOut;
 
         if ($proposedIn && $proposedOut) {
             $proposedMinutes = (int) Carbon::parse($proposedIn)
@@ -172,8 +179,8 @@ class AttendanceCorrectionController extends Controller
 
         // Standard: 176 hours/month (8h × 22 days)
         $monthlyMinutes = 176 * 60;
-        $salaryCents = $employee?->salary_cents ?? 0;
-        $minuteRateCents = $monthlyMinutes > 0 ? (int) round($salaryCents / $monthlyMinutes) : 0;
+        $salaryCents = $employee !== null ? $employee->salary_cents : 0;
+        $minuteRateCents = (int) round($salaryCents / $monthlyMinutes);
 
         $diffMinutes = $proposedMinutes - $originalMinutes;
         $impactCents = $minuteRateCents * $diffMinutes;

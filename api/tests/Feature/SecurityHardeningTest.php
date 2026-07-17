@@ -234,7 +234,7 @@ test('all protected endpoints return 401 without auth', function () {
 test('api responses include required security headers', function () {
     $tenant = createTenant(['subdomain' => 'headers-test']);
 
-    $response = test()->getJson("http://headers-test.ethr.test/api/v1/health");
+    $response = test()->getJson('http://headers-test.ethr.test/api/v1/health');
 
     $response->assertHeader('X-Frame-Options', 'DENY');
     $response->assertHeader('X-Content-Type-Options', 'nosniff');
@@ -248,13 +248,13 @@ test('login rate limiting blocks after burst limit', function () {
     $tenant = createTenant(['subdomain' => 'ratelimit-test']);
 
     for ($i = 0; $i < 5; $i++) {
-        test()->postJson("http://ratelimit-test.ethr.test/api/v1/auth/login", [
+        test()->postJson('http://ratelimit-test.ethr.test/api/v1/auth/login', [
             'email' => 'nobody@example.com',
             'password' => 'wrongpassword',
         ]);
     }
 
-    $response = test()->postJson("http://ratelimit-test.ethr.test/api/v1/auth/login", [
+    $response = test()->postJson('http://ratelimit-test.ethr.test/api/v1/auth/login', [
         'email' => 'nobody@example.com',
         'password' => 'wrongpassword',
     ]);
