@@ -63,6 +63,7 @@ use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Report\ReportController;
+use App\Http\Controllers\Api\V1\Role\CustomRoleController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
@@ -391,6 +392,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Audit logs
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
+
+    // Custom roles
+    Route::get('/permissions', [CustomRoleController::class, 'permissions']);
+    Route::apiResource('roles', CustomRoleController::class)->parameters(['roles' => 'customRole']);
 
     // Organization structure
     Route::prefix('organization')->group(function () {

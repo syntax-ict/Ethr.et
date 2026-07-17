@@ -27,6 +27,7 @@ class User extends Authenticatable
         'phone',
         'password',
         'role',
+        'custom_role_id',
         'status',
         'mfa_enabled',
         'mfa_secret',
@@ -84,10 +85,21 @@ class User extends Authenticatable
         return $this->role === UserRole::TENANT_ADMIN;
     }
 
+    public function customRole(): BelongsTo
+    {
+        return $this->belongsTo(CustomRole::class);
+    }
+
     public function hasPermission(string $permission): bool
     {
         if ($this->role === UserRole::SUPER_ADMIN) {
             return true;
+        }
+
+        if ($this->custom_role_id) {
+            $permissions = Permission::permissionsForCustomRole($this->custom_role_id);
+
+            return in_array($permission, $permissions, true);
         }
 
         $permissions = Permission::permissionsForRole($this->role->value);

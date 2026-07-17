@@ -46,6 +46,17 @@ class Permission extends Model
         });
     }
 
+    public static function permissionsForCustomRole(int $customRoleId): array
+    {
+        return Cache::remember("custom_role_permissions:{$customRoleId}", 3600, function () use ($customRoleId) {
+            return DB::table('custom_role_permissions')
+                ->join('permissions', 'permissions.id', '=', 'custom_role_permissions.permission_id')
+                ->where('custom_role_permissions.custom_role_id', $customRoleId)
+                ->pluck('permissions.name')
+                ->all();
+        });
+    }
+
     public static function clearCache(?string $role = null): void
     {
         Cache::forget('permissions:known_abilities');
@@ -57,5 +68,10 @@ class Permission extends Model
                 Cache::forget("role_permissions:{$case->value}");
             }
         }
+    }
+
+    public static function clearCacheForCustomRole(int $customRoleId): void
+    {
+        Cache::forget("custom_role_permissions:{$customRoleId}");
     }
 }
