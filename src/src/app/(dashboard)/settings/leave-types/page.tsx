@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface LeaveType {
@@ -39,6 +40,7 @@ interface LeaveType {
 }
 
 export default function LeaveTypesPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export default function LeaveTypesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-types"] });
-      toast.success("Leave type created");
+      toast.success(t("leave_types_page.created"));
       setDialogOpen(false);
       setForm({
         name: "",
@@ -98,7 +100,7 @@ export default function LeaveTypesPage() {
     onError: (err: unknown) => {
       const axiosError = err as { response?: { data?: { detail?: string } } };
       toast.error(
-        axiosError.response?.data?.detail || "Failed to create leave type",
+        axiosError.response?.data?.detail || t("leave_types_page.create_failed"),
       );
     },
   });
@@ -118,11 +120,11 @@ export default function LeaveTypesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-types"] });
-      toast.success("Leave type updated");
+      toast.success(t("leave_types_page.updated"));
       setDialogOpen(false);
       setEditingId(null);
     },
-    onError: () => toast.error("Failed to update leave type"),
+    onError: () => toast.error(t("leave_types_page.update_failed")),
   });
 
   const deleteLeaveType = useMutation({
@@ -131,9 +133,9 @@ export default function LeaveTypesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-types"] });
-      toast.success("Leave type deleted");
+      toast.success(t("leave_types_page.deleted"));
     },
-    onError: () => toast.error("Failed to delete leave type"),
+    onError: () => toast.error(t("leave_types_page.delete_failed")),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -157,12 +159,12 @@ export default function LeaveTypesPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Leave Types"
-          description="Configure leave type policies and accrual rules"
+          title={t("leave_types_page.title")}
+          description={t("leave_types_page.description")}
           actions={
             <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Leave Type
+              {t("leave_types_page.add")}
             </Button>
           }
         />
@@ -176,13 +178,15 @@ export default function LeaveTypesPage() {
         ) : leaveTypes.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="No leave types configured"
-            description="Add leave types to enable leave management"
+            title={t("leave_types_page.no_leave_types")}
+            description={t("leave_types_page.no_leave_types_desc")}
           />
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Leave Types</CardTitle>
+              <CardTitle className="text-base">
+                {t("leave_types_page.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -190,22 +194,22 @@ export default function LeaveTypesPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Name
+                        {t("common.name")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Code
+                        {t("leave_types_page.code")}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        Default Days
+                        {t("leave_types_page.default_days")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Accrual Type
+                        {t("leave_types_page.accrual_type")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Status
+                        {t("common.status")}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        Actions
+                        {t("common.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -233,14 +237,14 @@ export default function LeaveTypesPage() {
                               variant="outline"
                               className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                             >
-                              Active
+                              {t("webhooks_page.active")}
                             </Badge>
                           ) : (
                             <Badge
                               variant="outline"
                               className="border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                             >
-                              Inactive
+                              {t("roles_page.inactive")}
                             </Badge>
                           )}
                         </td>
@@ -275,38 +279,42 @@ export default function LeaveTypesPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingId ? "Edit Leave Type" : "Add Leave Type"}
+                {editingId
+                  ? t("leave_types_page.edit")
+                  : t("leave_types_page.add")}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="lt_name">Name</Label>
+                <Label htmlFor="lt_name">{t("common.name")}</Label>
                 <Input
                   id="lt_name"
                   value={form.name}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="e.g. Annual Leave"
+                  placeholder={t("leave_types_page.name_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="lt_code">Code</Label>
+                <Label htmlFor="lt_code">{t("leave_types_page.code")}</Label>
                 <Input
                   id="lt_code"
                   value={form.code}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, code: e.target.value }))
                   }
-                  placeholder="e.g. ANNUAL"
+                  placeholder={t("leave_types_page.code_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="lt_days">Default Days</Label>
+                <Label htmlFor="lt_days">
+                  {t("leave_types_page.default_days")}
+                </Label>
                 <Input
                   id="lt_days"
                   type="number"
@@ -315,13 +323,13 @@ export default function LeaveTypesPage() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, default_days: e.target.value }))
                   }
-                  placeholder="e.g. 20"
+                  placeholder={t("leave_types_page.days_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label>Accrual Type</Label>
+                <Label>{t("leave_types_page.accrual_type")}</Label>
                 <Select
                   value={form.accrual_type}
                   onValueChange={(v) =>
@@ -329,13 +337,23 @@ export default function LeaveTypesPage() {
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select accrual type" />
+                    <SelectValue
+                      placeholder={t("leave_types_page.select_accrual_type")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                    <SelectItem value="immediate">Immediate</SelectItem>
-                    <SelectItem value="one_time">One Time</SelectItem>
+                    <SelectItem value="monthly">
+                      {t("leave_types_page.monthly")}
+                    </SelectItem>
+                    <SelectItem value="annual">
+                      {t("leave_types_page.annual")}
+                    </SelectItem>
+                    <SelectItem value="immediate">
+                      {t("leave_types_page.immediate")}
+                    </SelectItem>
+                    <SelectItem value="one_time">
+                      {t("leave_types_page.one_time")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -345,7 +363,7 @@ export default function LeaveTypesPage() {
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -356,7 +374,9 @@ export default function LeaveTypesPage() {
                   {(createLeaveType.isPending || updateLeaveType.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {editingId ? "Save Changes" : "Add Leave Type"}
+                  {editingId
+                    ? t("leave_types_page.save_changes")
+                    : t("leave_types_page.add")}
                 </Button>
               </DialogFooter>
             </form>

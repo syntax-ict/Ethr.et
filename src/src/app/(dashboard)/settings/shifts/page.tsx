@@ -37,6 +37,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface Shift {
@@ -58,7 +59,19 @@ interface ShiftAssignment {
   created_at: string;
 }
 
+function assignableTypeLabel(
+  type: string,
+  t: (key: string, fallback?: string) => string,
+): string {
+  const lower = type.toLowerCase();
+  if (lower === "employee") return t("shifts_settings_page.employee");
+  if (lower === "department") return t("shifts_settings_page.department");
+  if (lower === "branch") return t("shifts_settings_page.branch");
+  return type;
+}
+
 export default function ShiftsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -125,13 +138,15 @@ export default function ShiftsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success("Shift created");
+      toast.success(t("shifts_settings_page.created"));
       setDialogOpen(false);
       setForm({ name: "", start_time: "", end_time: "", grace_minutes: "15" });
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail || "Failed to create shift");
+      toast.error(
+        e.response?.data?.detail || t("shifts_settings_page.create_failed"),
+      );
     },
   });
 
@@ -141,11 +156,13 @@ export default function ShiftsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success("Shift deleted");
+      toast.success(t("shifts_settings_page.deleted"));
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail || "Failed to delete shift");
+      toast.error(
+        e.response?.data?.detail || t("shifts_settings_page.delete_failed"),
+      );
     },
   });
 
@@ -159,7 +176,7 @@ export default function ShiftsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success("Shift assigned");
+      toast.success(t("shifts_settings_page.assigned"));
       setAssignOpen(false);
       setAssignForm({
         shift_public_id: "",
@@ -171,7 +188,9 @@ export default function ShiftsPage() {
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail || "Failed to assign shift");
+      toast.error(
+        e.response?.data?.detail || t("shifts_settings_page.assign_failed"),
+      );
     },
   });
 
@@ -224,15 +243,16 @@ export default function ShiftsPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Shifts"
-          description="Manage work shift schedules and assign shifts to employees, departments, or branches"
+          title={t("shifts_settings_page.title")}
+          description={t("shifts_settings_page.description")}
           actions={
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setAssignOpen(true)}>
-                <CalendarDays className="mr-2 h-4 w-4" /> Assign Shift
+                <CalendarDays className="mr-2 h-4 w-4" />{" "}
+                {t("shifts_settings_page.assign_shift")}
               </Button>
               <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Add Shift
+                <Plus className="mr-2 h-4 w-4" /> {t("shifts_settings_page.add_shift")}
               </Button>
             </div>
           }
@@ -240,8 +260,8 @@ export default function ShiftsPage() {
 
         <Tabs defaultValue="shifts">
           <TabsList>
-            <TabsTrigger value="shifts">Shifts</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="shifts">{t("shifts_settings_page.title")}</TabsTrigger>
+            <TabsTrigger value="schedule">{t("shifts_settings_page.schedule")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="shifts" className="mt-4">
@@ -254,8 +274,8 @@ export default function ShiftsPage() {
             ) : shifts.length === 0 ? (
               <EmptyState
                 icon={Clock}
-                title="No shifts configured"
-                description="Add shifts to define work schedules"
+                title={t("shifts_settings_page.no_shifts")}
+                description={t("shifts_settings_page.no_shifts_desc")}
               />
             ) : (
               <Card>
@@ -265,22 +285,22 @@ export default function ShiftsPage() {
                       <thead>
                         <tr className="border-b bg-muted/50">
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Name
+                            {t("common.name")}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Start
+                            {t("shifts_settings_page.start")}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            End
+                            {t("shifts_settings_page.end")}
                           </th>
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                            Grace
+                            {t("shifts_settings_page.grace")}
                           </th>
                           <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                            Assignments
+                            {t("shifts_settings_page.assignments")}
                           </th>
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                            Actions
+                            {t("common.actions")}
                           </th>
                         </tr>
                       </thead>
@@ -297,7 +317,7 @@ export default function ShiftsPage() {
                                   variant="outline"
                                   className="ml-2 text-xs"
                                 >
-                                  Default
+                                  {t("shifts_settings_page.default")}
                                 </Badge>
                               )}
                             </td>
@@ -321,14 +341,14 @@ export default function ShiftsPage() {
                                   onClick={() => openAssignFor(shift.public_id)}
                                 >
                                   <CalendarDays className="h-3 w-3 mr-1" />{" "}
-                                  Assign
+                                  {t("shifts_settings_page.assign")}
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="text-destructive hover:text-destructive"
                                   onClick={() => {
-                                    if (confirm("Delete this shift?"))
+                                    if (confirm(t("shifts_settings_page.delete_confirm")))
                                       deleteShift.mutate(shift.public_id);
                                   }}
                                 >
@@ -356,13 +376,15 @@ export default function ShiftsPage() {
             ) : schedule.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
-                title="No shift assignments"
-                description="Assign shifts to employees, departments, or branches to populate the schedule"
+                title={t("shifts_settings_page.no_assignments")}
+                description={t("shifts_settings_page.no_assignments_desc")}
               />
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Active Schedule</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("shifts_settings_page.active_schedule")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -370,16 +392,16 @@ export default function ShiftsPage() {
                       <thead>
                         <tr className="border-b bg-muted/50">
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Shift
+                            {t("shifts_settings_page.shift")}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Assigned To
+                            {t("shifts_settings_page.assigned_to")}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            From
+                            {t("shifts_settings_page.from")}
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            To
+                            {t("shifts_settings_page.to")}
                           </th>
                         </tr>
                       </thead>
@@ -408,7 +430,10 @@ export default function ShiftsPage() {
                                     variant="outline"
                                     className="text-xs capitalize"
                                   >
-                                    {assignment.assignable_type}
+                                    {assignableTypeLabel(
+                                      assignment.assignable_type,
+                                      t,
+                                    )}
                                   </Badge>
                                 </div>
                               </td>
@@ -418,7 +443,7 @@ export default function ShiftsPage() {
                               <td className="px-4 py-3 text-sm text-muted-foreground">
                                 {assignment.effective_to ?? (
                                   <span className="text-xs italic">
-                                    Ongoing
+                                    {t("shifts_settings_page.ongoing")}
                                   </span>
                                 )}
                               </td>
@@ -438,25 +463,27 @@ export default function ShiftsPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Shift</DialogTitle>
+              <DialogTitle>{t("shifts_settings_page.add_shift")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <Label htmlFor="shift_name">Name</Label>
+                <Label htmlFor="shift_name">{t("common.name")}</Label>
                 <Input
                   id="shift_name"
                   value={form.name}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="e.g. Morning Shift"
+                  placeholder={t("shifts_settings_page.name_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="shift_start">Start Time</Label>
+                  <Label htmlFor="shift_start">
+                    {t("shifts_settings_page.start_time")}
+                  </Label>
                   <Input
                     id="shift_start"
                     type="time"
@@ -469,7 +496,9 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="shift_end">End Time</Label>
+                  <Label htmlFor="shift_end">
+                    {t("shifts_settings_page.end_time")}
+                  </Label>
                   <Input
                     id="shift_end"
                     type="time"
@@ -483,7 +512,9 @@ export default function ShiftsPage() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="shift_grace">Grace Period (minutes)</Label>
+                <Label htmlFor="shift_grace">
+                  {t("shifts_settings_page.grace_period")}
+                </Label>
                 <Input
                   id="shift_grace"
                   type="number"
@@ -502,13 +533,13 @@ export default function ShiftsPage() {
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={createShift.isPending}>
                   {createShift.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Add Shift
+                  {t("shifts_settings_page.add_shift")}
                 </Button>
               </DialogFooter>
             </form>
@@ -519,11 +550,11 @@ export default function ShiftsPage() {
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Assign Shift</DialogTitle>
+              <DialogTitle>{t("shifts_settings_page.assign_shift")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAssign} className="space-y-4">
               <div>
-                <Label>Shift</Label>
+                <Label>{t("shifts_settings_page.shift")}</Label>
                 <Select
                   value={assignForm.shift_public_id}
                   onValueChange={(v) =>
@@ -531,7 +562,7 @@ export default function ShiftsPage() {
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select shift" />
+                    <SelectValue placeholder={t("shifts_settings_page.select_shift")} />
                   </SelectTrigger>
                   <SelectContent>
                     {shifts.map((s) => (
@@ -544,7 +575,7 @@ export default function ShiftsPage() {
               </div>
 
               <div>
-                <Label>Assign To</Label>
+                <Label>{t("shifts_settings_page.assign_to")}</Label>
                 <Select
                   value={assignForm.assignable_type}
                   onValueChange={(v) =>
@@ -560,9 +591,15 @@ export default function ShiftsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Employee</SelectItem>
-                    <SelectItem value="department">Department</SelectItem>
-                    <SelectItem value="branch">Branch</SelectItem>
+                    <SelectItem value="employee">
+                      {t("shifts_settings_page.employee")}
+                    </SelectItem>
+                    <SelectItem value="department">
+                      {t("shifts_settings_page.department")}
+                    </SelectItem>
+                    <SelectItem value="branch">
+                      {t("shifts_settings_page.branch")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -570,10 +607,10 @@ export default function ShiftsPage() {
               <div>
                 <Label>
                   {assignForm.assignable_type === "employee"
-                    ? "Employee"
+                    ? t("shifts_settings_page.employee")
                     : assignForm.assignable_type === "department"
-                      ? "Department"
-                      : "Branch"}
+                      ? t("shifts_settings_page.department")
+                      : t("shifts_settings_page.branch")}
                 </Label>
                 <Select
                   value={assignForm.assignable_public_id}
@@ -582,7 +619,7 @@ export default function ShiftsPage() {
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select…" />
+                    <SelectValue placeholder={t("shifts_settings_page.select_ellipsis")} />
                   </SelectTrigger>
                   <SelectContent>
                     {assignableOptions.map((opt) => (
@@ -596,7 +633,7 @@ export default function ShiftsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Effective From</Label>
+                  <Label>{t("shifts_settings_page.effective_from")}</Label>
                   <Input
                     type="date"
                     value={assignForm.effective_from}
@@ -612,9 +649,9 @@ export default function ShiftsPage() {
                 </div>
                 <div>
                   <Label>
-                    Effective To{" "}
+                    {t("shifts_settings_page.effective_to")}{" "}
                     <span className="text-xs text-muted-foreground">
-                      (optional)
+                      ({t("leave_page.optional")})
                     </span>
                   </Label>
                   <Input
@@ -637,7 +674,7 @@ export default function ShiftsPage() {
                   variant="outline"
                   onClick={() => setAssignOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -650,7 +687,7 @@ export default function ShiftsPage() {
                   {assignShift.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Assign
+                  {t("shifts_settings_page.assign")}
                 </Button>
               </DialogFooter>
             </form>

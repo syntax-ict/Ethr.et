@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface Holiday {
@@ -30,6 +31,7 @@ interface Holiday {
 }
 
 export default function HolidaysPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", date: "", recurring: false });
@@ -53,13 +55,15 @@ export default function HolidaysPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success("Holiday added");
+      toast.success(t("holidays_page.added"));
       setDialogOpen(false);
       setForm({ name: "", date: "", recurring: false });
     },
     onError: (err: unknown) => {
       const axiosError = err as { response?: { data?: { detail?: string } } };
-      toast.error(axiosError.response?.data?.detail || "Failed to add holiday");
+      toast.error(
+        axiosError.response?.data?.detail || t("holidays_page.add_failed"),
+      );
     },
   });
 
@@ -69,9 +73,9 @@ export default function HolidaysPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success("Holiday deleted");
+      toast.success(t("holidays_page.deleted"));
     },
-    onError: () => toast.error("Failed to delete holiday"),
+    onError: () => toast.error(t("holidays_page.delete_failed")),
   });
 
   const autoDetect = useMutation({
@@ -81,9 +85,9 @@ export default function HolidaysPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success("Ethiopian holidays detected and added");
+      toast.success(t("holidays_page.auto_detected"));
     },
-    onError: () => toast.error("Failed to auto-detect holidays"),
+    onError: () => toast.error(t("holidays_page.auto_detect_failed")),
   });
 
   function handleCreate(e: React.FormEvent) {
@@ -97,8 +101,8 @@ export default function HolidaysPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Holidays"
-          description="Manage public holidays and non-working days"
+          title={t("holidays_page.title")}
+          description={t("holidays_page.description")}
           actions={
             <div className="flex items-center gap-2">
               <Button
@@ -111,11 +115,11 @@ export default function HolidaysPage() {
                 ) : (
                   <Wand2 className="mr-2 h-4 w-4" />
                 )}
-                Auto-Detect Ethiopian Holidays
+                {t("holidays_page.auto_detect")}
               </Button>
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Holiday
+                {t("holidays_page.add_holiday")}
               </Button>
             </div>
           }
@@ -130,13 +134,15 @@ export default function HolidaysPage() {
         ) : holidays.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
-            title="No holidays configured"
-            description="Add holidays manually or auto-detect Ethiopian holidays"
+            title={t("holidays_page.no_holidays")}
+            description={t("holidays_page.no_holidays_desc")}
           />
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Holidays</CardTitle>
+              <CardTitle className="text-base">
+                {t("holidays_page.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -144,16 +150,16 @@ export default function HolidaysPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Name
+                        {t("common.name")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Date
+                        {t("common.date")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Recurring
+                        {t("holidays_page.recurring")}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        Actions
+                        {t("common.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -175,14 +181,14 @@ export default function HolidaysPage() {
                               variant="outline"
                               className="border-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                             >
-                              Recurring
+                              {t("holidays_page.recurring")}
                             </Badge>
                           ) : (
                             <Badge
                               variant="outline"
                               className="border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                             >
-                              One-time
+                              {t("holidays_page.one_time")}
                             </Badge>
                           )}
                         </td>
@@ -211,24 +217,24 @@ export default function HolidaysPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Holiday</DialogTitle>
+              <DialogTitle>{t("holidays_page.add_holiday")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <Label htmlFor="holiday_name">Name</Label>
+                <Label htmlFor="holiday_name">{t("common.name")}</Label>
                 <Input
                   id="holiday_name"
                   value={form.name}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="e.g. Ethiopian New Year"
+                  placeholder={t("holidays_page.name_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="holiday_date">Date</Label>
+                <Label htmlFor="holiday_date">{t("common.date")}</Label>
                 <Input
                   id="holiday_date"
                   type="date"
@@ -251,7 +257,7 @@ export default function HolidaysPage() {
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <Label htmlFor="holiday_recurring" className="cursor-pointer">
-                  Recurring every year
+                  {t("holidays_page.recurring_every_year")}
                 </Label>
               </div>
               <DialogFooter>
@@ -260,13 +266,13 @@ export default function HolidaysPage() {
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={createHoliday.isPending}>
                   {createHoliday.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Add Holiday
+                  {t("holidays_page.add_holiday")}
                 </Button>
               </DialogFooter>
             </form>

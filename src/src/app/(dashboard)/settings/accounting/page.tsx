@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface AccountEntry {
@@ -40,12 +41,13 @@ interface PayrollRun {
 }
 
 export default function AccountingSettingsPage() {
+  const { t } = useT();
   return (
     <RoleGate minRole="finance_admin">
       <div className="space-y-8">
         <PageHeader
-          title="Accounting Integration"
-          description="Configure chart of accounts and export payroll journal entries"
+          title={t("accounting_page.title")}
+          description={t("accounting_page.description")}
         />
         <ChartOfAccountsSection />
         <JournalExportSection />
@@ -55,6 +57,7 @@ export default function AccountingSettingsPage() {
 }
 
 function ChartOfAccountsSection() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -77,9 +80,9 @@ function ChartOfAccountsSection() {
         queryKey: ["accounting", "chart-of-accounts"],
       });
       setDirty(false);
-      toast.success("Chart of accounts saved.");
+      toast.success(t("accounting_page.chart_saved"));
     },
-    onError: () => toast.error("Failed to save chart of accounts."),
+    onError: () => toast.error(t("accounting_page.chart_save_failed")),
   });
 
   function updateAccount(
@@ -96,12 +99,12 @@ function ChartOfAccountsSection() {
   }
 
   const keyLabels: Record<string, string> = {
-    salary_expense: "Salary Expense",
-    pension_expense: "Pension Expense (Employer)",
-    tax_payable: "Income Tax Payable",
-    pension_payable_employee: "Pension Payable (Employee)",
-    pension_payable_employer: "Pension Payable (Employer)",
-    net_salary_payable: "Net Salary Payable",
+    salary_expense: t("accounting_page.key_salary_expense"),
+    pension_expense: t("accounting_page.key_pension_expense"),
+    tax_payable: t("accounting_page.key_tax_payable"),
+    pension_payable_employee: t("accounting_page.key_pension_payable_employee"),
+    pension_payable_employer: t("accounting_page.key_pension_payable_employer"),
+    net_salary_payable: t("accounting_page.key_net_salary_payable"),
   };
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -111,17 +114,17 @@ function ChartOfAccountsSection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BookOpen className="h-5 w-5" />
-          Chart of Accounts
+          {t("accounting_page.chart_of_accounts")}
         </CardTitle>
         <CardDescription>
-          Map payroll components to your accounting system account codes.
+          {t("accounting_page.chart_desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground pb-1 border-b">
-          <span>Payroll Component</span>
-          <span>Account Code</span>
-          <span>Account Name</span>
+          <span>{t("accounting_page.payroll_component")}</span>
+          <span>{t("accounting_page.account_code")}</span>
+          <span>{t("accounting_page.account_name")}</span>
         </div>
         {accounts.map((account) => (
           <div
@@ -160,7 +163,7 @@ function ChartOfAccountsSection() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save Changes
+              {t("leave_types_page.save_changes")}
             </Button>
           </div>
         )}
@@ -170,6 +173,7 @@ function ChartOfAccountsSection() {
 }
 
 function JournalExportSection() {
+  const { t } = useT();
   const [selectedRun, setSelectedRun] = useState<string>("");
 
   const { data: runsData, isLoading: runsLoading } = useQuery({
@@ -202,22 +206,21 @@ function JournalExportSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Journal Entry Export</CardTitle>
+        <CardTitle>{t("accounting_page.journal_export")}</CardTitle>
         <CardDescription>
-          Generate accounting journal entries for a payroll run and export to
-          CSV.
+          {t("accounting_page.journal_export_desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-end gap-4">
           <div className="flex-1 space-y-2">
-            <Label>Payroll Run</Label>
+            <Label>{t("accounting_page.payroll_run")}</Label>
             {runsLoading ? (
               <Skeleton className="h-9 w-full" />
             ) : (
               <Select value={selectedRun} onValueChange={setSelectedRun}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a payroll run..." />
+                  <SelectValue placeholder={t("accounting_page.select_run")} />
                 </SelectTrigger>
                 <SelectContent>
                   {runs.map((run) => (
@@ -235,7 +238,7 @@ function JournalExportSection() {
             variant="outline"
           >
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            {t("audit_logs_page.export_csv")}
           </Button>
         </div>
 
@@ -245,16 +248,16 @@ function JournalExportSection() {
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
               <span className="font-medium">
-                Reference: {journalData.reference}
+                {t("accounting_page.reference")}: {journalData.reference}
               </span>
               <span className="text-muted-foreground">{journalData.date}</span>
               {journalData.is_balanced ? (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-                  Balanced ✓
+                  {t("accounting_page.balanced")}
                 </span>
               ) : (
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-300">
-                  Unbalanced ✗
+                  {t("accounting_page.unbalanced")}
                 </span>
               )}
             </div>
@@ -263,10 +266,18 @@ function JournalExportSection() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs font-medium text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 text-left">Account Code</th>
-                    <th className="px-3 py-2 text-left">Account Name</th>
-                    <th className="px-3 py-2 text-right">Debit (ETB)</th>
-                    <th className="px-3 py-2 text-right">Credit (ETB)</th>
+                    <th className="px-3 py-2 text-left">
+                      {t("accounting_page.account_code")}
+                    </th>
+                    <th className="px-3 py-2 text-left">
+                      {t("accounting_page.account_name")}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {t("accounting_page.debit_etb")}
+                    </th>
+                    <th className="px-3 py-2 text-right">
+                      {t("accounting_page.credit_etb")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -302,7 +313,7 @@ function JournalExportSection() {
                 <tfoot className="border-t bg-muted/50 font-medium">
                   <tr>
                     <td className="px-3 py-2" colSpan={2}>
-                      Totals
+                      {t("accounting_page.totals")}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {formatCents(journalData.total_debits_cents)}
