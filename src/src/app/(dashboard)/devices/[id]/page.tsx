@@ -48,6 +48,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 const ADAPTER_LABELS: Record<string, string> = {
@@ -127,6 +128,7 @@ export default function DeviceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useT();
   const { id } = use(params);
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -164,31 +166,31 @@ export default function DeviceDetailPage({
   const pullMutation = useMutation({
     mutationFn: async () => (await apiClient.post(`/devices/${id}/pull`)).data,
     onSuccess: () => {
-      toast.success("Pull initiated — events will sync shortly");
+      toast.success(t("devices_page.pull_initiated"));
       queryClient.invalidateQueries({ queryKey: ["devices", id] });
     },
-    onError: () => toast.error("Pull failed"),
+    onError: () => toast.error(t("devices_page.pull_failed")),
   });
 
   const testMutation = useMutation({
     mutationFn: async () => (await apiClient.get(`/devices/${id}/status`)).data,
     onSuccess: (data) => {
       const s = (data as { status?: string })?.status;
-      if (s === "online") toast.success("Device is online and responding");
-      else toast.error(`Device is ${s}`);
+      if (s === "online") toast.success(t("devices_page.online_responding"));
+      else toast.error(`${t("devices_page.device_is")} ${s}`);
       queryClient.invalidateQueries({ queryKey: ["devices", id] });
     },
-    onError: () => toast.error("Connection test failed"),
+    onError: () => toast.error(t("devices_page.test_failed")),
   });
 
   const regenTokenMutation = useMutation({
     mutationFn: async () =>
       (await apiClient.post(`/devices/${id}/regenerate-token`)).data,
     onSuccess: () => {
-      toast.success("Webhook token regenerated");
+      toast.success(t("device_detail_page.token_regenerated"));
       queryClient.invalidateQueries({ queryKey: ["devices", id] });
     },
-    onError: () => toast.error("Failed to regenerate token"),
+    onError: () => toast.error(t("device_detail_page.regenerate_failed")),
   });
 
   const deleteMutation = useMutation({
@@ -196,21 +198,21 @@ export default function DeviceDetailPage({
       await apiClient.delete(`/devices/${id}`);
     },
     onSuccess: () => {
-      toast.success("Device deleted");
+      toast.success(t("devices_page.deleted"));
       window.location.href = "/devices";
     },
-    onError: () => toast.error("Failed to delete device"),
+    onError: () => toast.error(t("devices_page.delete_failed")),
   });
 
   const updateMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) =>
       (await apiClient.put(`/devices/${id}`, data)).data,
     onSuccess: () => {
-      toast.success("Device updated");
+      toast.success(t("devices_page.updated"));
       setEditOpen(false);
       queryClient.invalidateQueries({ queryKey: ["devices", id] });
     },
-    onError: () => toast.error("Failed to update"),
+    onError: () => toast.error(t("device_detail_page.update_failed")),
   });
 
   if (isLoading) {
@@ -232,7 +234,7 @@ export default function DeviceDetailPage({
   if (!device) {
     return (
       <div className="py-16 text-center text-muted-foreground">
-        Device not found
+        {t("device_detail_page.not_found")}
       </div>
     );
   }
@@ -247,7 +249,8 @@ export default function DeviceDetailPage({
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/devices">
-              <ArrowLeft className="mr-2 h-4 w-4" /> All Devices
+              <ArrowLeft className="mr-2 h-4 w-4" />{" "}
+              {t("devices_dashboard_page.all_devices")}
             </Link>
           </Button>
         </div>
@@ -265,11 +268,13 @@ export default function DeviceDetailPage({
                 <span
                   className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isOnline ? "bg-green-500 animate-pulse" : device.status === "error" ? "bg-red-500" : "bg-gray-400"}`}
                 />
-                {device.status}
+                {statusLabel(device.status, t)}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type}
+              {device.adapter_type === "mock"
+                ? t("devices_page.mock_simulator")
+                : (ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type)}
               {device.location_description &&
                 ` — ${device.location_description}`}
               {device.branch?.name && ` — ${device.branch.name}`}
@@ -287,7 +292,7 @@ export default function DeviceDetailPage({
               ) : (
                 <Signal className="mr-2 h-4 w-4" />
               )}
-              Test
+              {t("devices_page.test")}
             </Button>
             <Button
               variant="outline"
@@ -300,21 +305,21 @@ export default function DeviceDetailPage({
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Pull
+              {t("devices_page.pull")}
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setEditOpen(true)}
             >
-              <Pencil className="mr-2 h-4 w-4" /> Edit
+              <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
             </Button>
             <Button
               variant="destructive"
               size="sm"
               onClick={() => setDeleteOpen(true)}
             >
-              <Trash2 className="mr-2 h-4 w-4" /> Delete
+              <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
             </Button>
           </div>
         </div>
@@ -323,26 +328,30 @@ export default function DeviceDetailPage({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <InfoCard
             icon={Activity}
-            label="Total Records"
+            label={t("device_detail_page.total_records")}
             value={device.attendance_records_count?.toLocaleString() ?? "0"}
           />
           <InfoCard
             icon={RefreshCw}
-            label="Total Syncs"
+            label={t("device_detail_page.total_syncs")}
             value={device.sync_logs_count?.toLocaleString() ?? "0"}
           />
           <InfoCard
             icon={Clock}
-            label="Last Sync"
-            value={device.last_sync_at ? timeAgo(device.last_sync_at) : "Never"}
+            label={t("devices_dashboard_page.last_sync")}
+            value={
+              device.last_sync_at
+                ? timeAgo(device.last_sync_at, t)
+                : t("devices_page.never")
+            }
           />
           <InfoCard
             icon={isOnline ? Wifi : WifiOff}
-            label="Auto-Sync"
+            label={t("device_detail_page.auto_sync")}
             value={
               device.auto_sync
-                ? `Every ${device.sync_interval_minutes}m`
-                : "Disabled"
+                ? `${t("devices_page.every")} ${device.sync_interval_minutes}m`
+                : t("device_detail_page.disabled")
             }
           />
         </div>
@@ -351,13 +360,15 @@ export default function DeviceDetailPage({
         {device.webhook_token && device.adapter_type !== "mock" && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Webhook Configuration</CardTitle>
+              <CardTitle className="text-sm">
+                {t("device_detail_page.webhook_config")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    Webhook URL (configure this in your device)
+                    {t("device_detail_page.webhook_url_hint")}
                   </Label>
                   <div className="mt-1 flex items-center gap-2">
                     <code className="flex-1 rounded border bg-muted/50 px-3 py-2 text-xs font-mono break-all">
@@ -369,7 +380,7 @@ export default function DeviceDetailPage({
                       className="h-8 w-8 shrink-0"
                       onClick={() => {
                         navigator.clipboard.writeText(device.webhook_url ?? "");
-                        toast.success("Copied");
+                        toast.success(t("attendance.kiosks_page.copied"));
                       }}
                     >
                       <Copy className="h-3 w-3" />
@@ -384,10 +395,10 @@ export default function DeviceDetailPage({
                     disabled={regenTokenMutation.isPending}
                   >
                     <RotateCw className="mr-2 h-3 w-3" />
-                    Regenerate Token
+                    {t("device_detail_page.regenerate_token")}
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    This will invalidate the current URL
+                    {t("device_detail_page.regenerate_hint")}
                   </span>
                 </div>
               </div>
@@ -398,8 +409,12 @@ export default function DeviceDetailPage({
         {/* Tabs: Sync History + Events */}
         <Tabs defaultValue="syncs">
           <TabsList>
-            <TabsTrigger value="syncs">Sync History</TabsTrigger>
-            <TabsTrigger value="events">Attendance Events</TabsTrigger>
+            <TabsTrigger value="syncs">
+              {t("device_detail_page.sync_history")}
+            </TabsTrigger>
+            <TabsTrigger value="events">
+              {t("device_detail_page.attendance_events")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="syncs" className="mt-4">
@@ -413,7 +428,7 @@ export default function DeviceDetailPage({
                   </div>
                 ) : syncLogItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    No sync history yet — pull records or wait for auto-sync
+                    {t("device_detail_page.no_sync_history")}
                   </div>
                 ) : (
                   <>
@@ -422,25 +437,25 @@ export default function DeviceDetailPage({
                         <thead>
                           <tr className="border-b bg-muted/50">
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Status
+                              {t("common.status")}
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Trigger
+                              {t("device_detail_page.trigger")}
                             </th>
                             <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              Found
+                              {t("device_detail_page.found")}
                             </th>
                             <th className="px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground">
-                              Processed
+                              {t("device_detail_page.processed")}
                             </th>
                             <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              Failed
+                              {t("devices_dashboard_page.failed")}
                             </th>
                             <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              Duration
+                              {t("device_detail_page.duration")}
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Time
+                              {t("device_detail_page.time")}
                             </th>
                           </tr>
                         </thead>
@@ -454,7 +469,7 @@ export default function DeviceDetailPage({
                                 <div className="flex items-center gap-2 text-sm">
                                   {SYNC_STATUS_ICON[log.status] ?? null}
                                   <span className="capitalize">
-                                    {log.status}
+                                    {syncStatusLabel(log.status, t)}
                                   </span>
                                 </div>
                               </td>
@@ -480,7 +495,7 @@ export default function DeviceDetailPage({
                                 {log.duration_ms ? `${log.duration_ms}ms` : "—"}
                               </td>
                               <td className="px-4 py-3 text-xs text-muted-foreground">
-                                {timeAgo(log.started_at)}
+                                {timeAgo(log.started_at, t)}
                               </td>
                             </tr>
                           ))}
@@ -490,7 +505,7 @@ export default function DeviceDetailPage({
                     {syncLogs?.meta?.last_page > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
-                          Page {syncLogPage}
+                          {t("device_detail_page.page")} {syncLogPage}
                         </span>
                         <div className="flex gap-1">
                           <Button
@@ -531,7 +546,7 @@ export default function DeviceDetailPage({
                   </div>
                 ) : eventItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-muted-foreground">
-                    No attendance events from this device yet
+                    {t("device_detail_page.no_events")}
                   </div>
                 ) : (
                   <>
@@ -540,22 +555,22 @@ export default function DeviceDetailPage({
                         <thead>
                           <tr className="border-b bg-muted/50">
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Employee
+                              {t("attendance.employee")}
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Date
+                              {t("common.date")}
                             </th>
                             <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              Check In
+                              {t("common.check_in")}
                             </th>
                             <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              Check Out
+                              {t("common.check_out")}
                             </th>
                             <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              Status
+                              {t("common.status")}
                             </th>
                             <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              Confidence
+                              {t("device_detail_page.confidence")}
                             </th>
                           </tr>
                         </thead>
@@ -609,7 +624,7 @@ export default function DeviceDetailPage({
                     {events?.meta?.last_page > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
-                          Page {eventPage}
+                          {t("device_detail_page.page")} {eventPage}
                         </span>
                         <div className="flex gap-1">
                           <Button
@@ -655,16 +670,16 @@ export default function DeviceDetailPage({
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete Device</DialogTitle>
+              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete <strong>{device.name}</strong>?
-                Attendance records from this device will be preserved but
-                unlinked.
+                {t("devices_page.delete_confirm_prefix")}{" "}
+                <strong>{device.name}</strong>?{" "}
+                {t("device_detail_page.delete_desc_suffix")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -674,7 +689,7 @@ export default function DeviceDetailPage({
                 {deleteMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Delete
+                {t("common.delete")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -719,6 +734,7 @@ function EditDeviceDialog({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const { t } = useT();
   const [form, setForm] = useState({
     name: device.name,
     location_description: device.location_description ?? "",
@@ -734,7 +750,7 @@ function EditDeviceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Device</DialogTitle>
+          <DialogTitle>{t("devices_page.edit_device")}</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -751,7 +767,7 @@ function EditDeviceDialog({
           className="space-y-4"
         >
           <div>
-            <Label>Device Name</Label>
+            <Label>{t("devices_page.device_name")}</Label>
             <Input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
@@ -760,16 +776,16 @@ function EditDeviceDialog({
             />
           </div>
           <div>
-            <Label>Location Description</Label>
+            <Label>{t("device_detail_page.location_description")}</Label>
             <Input
               value={form.location_description}
               onChange={(e) => set("location_description", e.target.value)}
-              placeholder="e.g. Ground floor, east wing"
+              placeholder={t("device_detail_page.location_placeholder")}
               className="mt-1"
             />
           </div>
           <div>
-            <Label>Serial Number</Label>
+            <Label>{t("devices_page.serial_number")}</Label>
             <Input
               value={form.serial_number}
               onChange={(e) => set("serial_number", e.target.value)}
@@ -778,9 +794,11 @@ function EditDeviceDialog({
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <p className="text-sm font-medium">Auto-Sync</p>
+              <p className="text-sm font-medium">
+                {t("device_detail_page.auto_sync")}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Automatically pull records on schedule
+                {t("device_detail_page.auto_sync_hint")}
               </p>
             </div>
             <Switch
@@ -790,7 +808,7 @@ function EditDeviceDialog({
           </div>
           {form.auto_sync && (
             <div>
-              <Label>Sync Interval</Label>
+              <Label>{t("device_detail_page.sync_interval")}</Label>
               <Select
                 value={form.sync_interval_minutes}
                 onValueChange={(v) => set("sync_interval_minutes", v)}
@@ -799,12 +817,24 @@ function EditDeviceDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">Every 1 minute</SelectItem>
-                  <SelectItem value="5">Every 5 minutes</SelectItem>
-                  <SelectItem value="10">Every 10 minutes</SelectItem>
-                  <SelectItem value="15">Every 15 minutes</SelectItem>
-                  <SelectItem value="30">Every 30 minutes</SelectItem>
-                  <SelectItem value="60">Every 1 hour</SelectItem>
+                  <SelectItem value="1">
+                    {t("device_detail_page.every_1_min")}
+                  </SelectItem>
+                  <SelectItem value="5">
+                    {t("device_detail_page.every_5_min")}
+                  </SelectItem>
+                  <SelectItem value="10">
+                    {t("device_detail_page.every_10_min")}
+                  </SelectItem>
+                  <SelectItem value="15">
+                    {t("device_detail_page.every_15_min")}
+                  </SelectItem>
+                  <SelectItem value="30">
+                    {t("device_detail_page.every_30_min")}
+                  </SelectItem>
+                  <SelectItem value="60">
+                    {t("device_detail_page.every_1_hour")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -815,11 +845,11 @@ function EditDeviceDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Changes
+              {t("leave_types_page.save_changes")}
             </Button>
           </DialogFooter>
         </form>
@@ -828,12 +858,42 @@ function EditDeviceDialog({
   );
 }
 
-function timeAgo(iso: string): string {
+function statusLabel(
+  status: string,
+  t: (key: string, fallback?: string) => string,
+): string {
+  const map: Record<string, string> = {
+    online: t("devices_page.online"),
+    offline: t("devices_page.offline"),
+    error: t("devices_page.error"),
+    pending: t("devices_page.pending"),
+  };
+  return map[status] ?? status;
+}
+
+function syncStatusLabel(
+  status: string,
+  t: (key: string, fallback?: string) => string,
+): string {
+  const map: Record<string, string> = {
+    success: t("device_detail_page.sync_success"),
+    partial: t("device_detail_page.sync_partial"),
+    failed: t("devices_dashboard_page.failed"),
+    offline: t("devices_page.offline"),
+    running: t("device_detail_page.sync_running"),
+  };
+  return map[status] ?? status;
+}
+
+function timeAgo(
+  iso: string,
+  t: (key: string, fallback?: string) => string,
+): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diffMs / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t("devices_dashboard_page.just_now");
+  if (m < 60) return `${m}${t("devices_dashboard_page.m_ago")}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return `${h}${t("devices_dashboard_page.h_ago")}`;
+  return `${Math.floor(h / 24)}${t("devices_dashboard_page.d_ago")}`;
 }

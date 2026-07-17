@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 
 interface DashboardResponse {
   total: number;
@@ -49,6 +50,7 @@ interface Device {
 }
 
 export default function DeviceDashboardPage() {
+  const { t } = useT();
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardResponse>({
     queryKey: ["devices", "dashboard"],
     queryFn: async () => (await apiClient.get("/devices/dashboard")).data,
@@ -69,19 +71,19 @@ export default function DeviceDashboardPage() {
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/devices">
-              <ArrowLeft className="mr-2 h-4 w-4" /> All Devices
+              <ArrowLeft className="mr-2 h-4 w-4" /> {t("devices_dashboard_page.all_devices")}
             </Link>
           </Button>
           <Button size="sm" asChild>
             <Link href="/devices">
-              <Plus className="mr-2 h-4 w-4" /> Add Device
+              <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
             </Link>
           </Button>
         </div>
 
         <PageHeader
-          title="Device Health Dashboard"
-          description="Live status of all biometric devices — auto-refresh every 30s"
+          title={t("devices_dashboard_page.title")}
+          description={t("devices_dashboard_page.description")}
         />
 
         {statsLoading || !stats ? (
@@ -95,31 +97,31 @@ export default function DeviceDashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <StatusCard
                 icon={Fingerprint}
-                title="Total Devices"
+                title={t("devices_dashboard_page.total_devices")}
                 value={stats.total}
                 color="blue"
               />
               <StatusCard
                 icon={Wifi}
-                title="Online"
+                title={t("devices_page.online")}
                 value={stats.online}
                 color="green"
               />
               <StatusCard
                 icon={WifiOff}
-                title="Offline"
+                title={t("devices_page.offline")}
                 value={stats.offline}
                 color="gray"
               />
               <StatusCard
                 icon={AlertTriangle}
-                title="Error"
+                title={t("devices_page.error")}
                 value={stats.error}
                 color="red"
               />
               <StatusCard
                 icon={Activity}
-                title="Events Today"
+                title={t("devices_dashboard_page.events_today")}
                 value={stats.events_today}
                 color="purple"
               />
@@ -127,31 +129,39 @@ export default function DeviceDashboardPage() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Sync Overview (24h)</CardTitle>
+                <CardTitle className="text-sm">
+                  {t("devices_dashboard_page.sync_overview")}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Successful</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("devices_dashboard_page.successful")}
+                    </p>
                     <p className="text-xl font-bold text-green-600">
                       {stats.sync_stats_24h.success}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Partial</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("devices_dashboard_page.partial")}
+                    </p>
                     <p className="text-xl font-bold text-amber-600">
                       {stats.sync_stats_24h.partial}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Failed</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("devices_dashboard_page.failed")}
+                    </p>
                     <p className="text-xl font-bold text-red-600">
                       {stats.sync_stats_24h.failed}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      Auto-Sync Enabled
+                      {t("devices_dashboard_page.auto_sync_enabled")}
                     </p>
                     <p className="text-xl font-bold text-foreground">
                       {stats.auto_sync_enabled}
@@ -160,7 +170,8 @@ export default function DeviceDashboardPage() {
                 </div>
                 {stats.last_sync_at && (
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Last sync across all devices: {timeAgo(stats.last_sync_at)}
+                    {t("devices_dashboard_page.last_sync_across")}:{" "}
+                    {timeAgo(stats.last_sync_at, t)}
                   </p>
                 )}
               </CardContent>
@@ -170,7 +181,9 @@ export default function DeviceDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Device Status</CardTitle>
+            <CardTitle className="text-base">
+              {t("devices_dashboard_page.device_status")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {devicesLoading ? (
@@ -185,25 +198,25 @@ export default function DeviceDashboardPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Device
+                        {t("devices_page.device_name")}
                       </th>
                       <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        Adapter
+                        {t("devices_dashboard_page.adapter")}
                       </th>
                       <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        Serial
+                        {t("devices_dashboard_page.serial")}
                       </th>
                       <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        Branch
+                        {t("attendance.kiosks_page.branch").replace(" *", "")}
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Status
+                        {t("common.status")}
                       </th>
                       <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                        Records
+                        {t("devices_page.records")}
                       </th>
                       <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                        Last Sync
+                        {t("devices_dashboard_page.last_sync")}
                       </th>
                     </tr>
                   </thead>
@@ -214,7 +227,7 @@ export default function DeviceDashboardPage() {
                           colSpan={7}
                           className="px-4 py-12 text-center text-sm text-muted-foreground"
                         >
-                          No devices registered yet
+                          {t("devices_dashboard_page.no_devices_yet")}
                         </td>
                       </tr>
                     ) : (
@@ -227,7 +240,9 @@ export default function DeviceDashboardPage() {
                             {d.name}
                           </td>
                           <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
-                            {ADAPTER_LABELS[d.adapter_type] ?? d.adapter_type}
+                            {d.adapter_type === "mock"
+                              ? t("devices_page.mock_simulator")
+                              : (ADAPTER_LABELS[d.adapter_type] ?? d.adapter_type)}
                           </td>
                           <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground md:table-cell">
                             {d.serial_number ?? "—"}
@@ -243,7 +258,7 @@ export default function DeviceDashboardPage() {
                               <span
                                 className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dotClass(d.status)}`}
                               />
-                              {d.status}
+                              {statusLabel(d.status, t)}
                             </Badge>
                           </td>
                           <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground lg:table-cell">
@@ -254,10 +269,10 @@ export default function DeviceDashboardPage() {
                             {d.last_sync_at ? (
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />{" "}
-                                {timeAgo(d.last_sync_at)}
+                                {timeAgo(d.last_sync_at, t)}
                               </span>
                             ) : (
-                              "Never"
+                              t("devices_page.never")
                             )}
                           </td>
                         </tr>
@@ -341,12 +356,28 @@ function dotClass(status: string): string {
   return map[status] ?? "bg-gray-400";
 }
 
-function timeAgo(iso: string): string {
+function statusLabel(
+  status: string,
+  t: (key: string, fallback?: string) => string,
+): string {
+  const map: Record<string, string> = {
+    online: t("devices_page.online"),
+    offline: t("devices_page.offline"),
+    error: t("devices_page.error"),
+    pending: t("devices_page.pending"),
+  };
+  return map[status] ?? status;
+}
+
+function timeAgo(
+  iso: string,
+  t: (key: string, fallback?: string) => string,
+): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diffMs / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t("devices_dashboard_page.just_now");
+  if (m < 60) return `${m}${t("devices_dashboard_page.m_ago")}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return `${h}${t("devices_dashboard_page.h_ago")}`;
+  return `${Math.floor(h / 24)}${t("devices_dashboard_page.d_ago")}`;
 }

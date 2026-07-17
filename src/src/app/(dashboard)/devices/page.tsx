@@ -50,6 +50,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDeviceDashboard } from "@/features/devices/api";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface Device {
@@ -119,6 +120,7 @@ function buildPayload(form: DeviceFormData) {
 }
 
 export default function DevicesPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
@@ -150,14 +152,14 @@ export default function DevicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Device registered");
+      toast.success(t("devices_page.registered"));
       setCreateOpen(false);
       setForm({ ...EMPTY_FORM });
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
-      toast.error(msg || "Failed to add device");
+      toast.error(msg || t("devices_page.add_failed"));
     },
   });
 
@@ -172,10 +174,10 @@ export default function DevicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Device updated");
+      toast.success(t("devices_page.updated"));
       setEditDevice(null);
     },
-    onError: () => toast.error("Failed to update device"),
+    onError: () => toast.error(t("devices_page.update_failed")),
   });
 
   const deleteMutation = useMutation({
@@ -184,10 +186,10 @@ export default function DevicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success("Device deleted");
+      toast.success(t("devices_page.deleted"));
       setDeleteDevice(null);
     },
-    onError: () => toast.error("Failed to delete device"),
+    onError: () => toast.error(t("devices_page.delete_failed")),
   });
 
   const pullMutation = useMutation({
@@ -195,8 +197,8 @@ export default function DevicesPage() {
       const { data } = await apiClient.post(`/devices/${id}/pull`);
       return data;
     },
-    onSuccess: () => toast.success("Pull initiated — events will sync shortly"),
-    onError: () => toast.error("Pull failed"),
+    onSuccess: () => toast.success(t("devices_page.pull_initiated")),
+    onError: () => toast.error(t("devices_page.pull_failed")),
   });
 
   const syncAllMutation = useMutation({
@@ -206,10 +208,12 @@ export default function DevicesPage() {
     },
     onSuccess: (data) => {
       const d = data as { dispatched?: number };
-      toast.success(`Sync dispatched for ${d.dispatched ?? 0} device(s)`);
+      toast.success(
+        `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched ?? 0} ${t("devices_page.device_s")}`,
+      );
       queryClient.invalidateQueries({ queryKey: ["devices"] });
     },
-    onError: () => toast.error("Bulk sync failed"),
+    onError: () => toast.error(t("devices_page.bulk_sync_failed")),
   });
 
   const testMutation = useMutation({
@@ -220,13 +224,13 @@ export default function DevicesPage() {
     onSuccess: (data) => {
       const status = (data as { status?: string })?.status;
       if (status === "online") {
-        toast.success("Device is online and responding");
+        toast.success(t("devices_page.online_responding"));
       } else {
-        toast.error(`Device is ${status}`);
+        toast.error(`${t("devices_page.device_is")} ${status}`);
       }
       queryClient.invalidateQueries({ queryKey: ["devices"] });
     },
-    onError: () => toast.error("Connection test failed"),
+    onError: () => toast.error(t("devices_page.test_failed")),
   });
 
   function openEdit(device: Device) {
@@ -252,13 +256,14 @@ export default function DevicesPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Devices"
-          description="Biometric attendance devices and integrations"
+          title={t("devices_page.title")}
+          description={t("devices_page.description")}
           actions={
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" asChild>
                 <Link href="/devices/dashboard">
-                  <Activity className="mr-2 h-4 w-4" /> Health Dashboard
+                  <Activity className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.health_dashboard")}
                 </Link>
               </Button>
               <Button
@@ -272,7 +277,7 @@ export default function DevicesPage() {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                Sync All
+                {t("devices_page.sync_all")}
               </Button>
               <Button
                 onClick={() => {
@@ -280,7 +285,7 @@ export default function DevicesPage() {
                   setCreateOpen(true);
                 }}
               >
-                <Plus className="mr-2 h-4 w-4" /> Add Device
+                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
               </Button>
             </div>
           }
@@ -288,21 +293,21 @@ export default function DevicesPage() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input
-            placeholder="Search devices..."
+            placeholder={t("devices_page.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs"
           />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t("common.status")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="online">Online</SelectItem>
-              <SelectItem value="offline">Offline</SelectItem>
-              <SelectItem value="error">Error</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="all">{t("devices_page.all_status")}</SelectItem>
+              <SelectItem value="online">{t("devices_page.online")}</SelectItem>
+              <SelectItem value="offline">{t("devices_page.offline")}</SelectItem>
+              <SelectItem value="error">{t("devices_page.error")}</SelectItem>
+              <SelectItem value="pending">{t("devices_page.pending")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -316,8 +321,8 @@ export default function DevicesPage() {
         ) : devices.length === 0 ? (
           <EmptyState
             icon={Fingerprint}
-            title="No devices registered"
-            description="Add a biometric device or a mock simulator to start syncing attendance"
+            title={t("devices_page.no_devices")}
+            description={t("devices_page.no_devices_desc")}
             action={
               <Button
                 onClick={() => {
@@ -325,7 +330,7 @@ export default function DevicesPage() {
                   setCreateOpen(true);
                 }}
               >
-                <Plus className="mr-2 h-4 w-4" /> Add Device
+                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
               </Button>
             }
           />
@@ -350,7 +355,7 @@ export default function DevicesPage() {
         <DeviceFormDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
-          title="Register Device"
+          title={t("devices_page.register_device")}
           form={form}
           setForm={setForm}
           branches={branches?.data ?? []}
@@ -360,7 +365,7 @@ export default function DevicesPage() {
             createMutation.mutate();
           }}
           isPending={createMutation.isPending}
-          submitLabel="Register"
+          submitLabel={t("devices_page.register")}
         />
 
         {/* Edit Dialog */}
@@ -369,7 +374,7 @@ export default function DevicesPage() {
           onOpenChange={(open) => {
             if (!open) setEditDevice(null);
           }}
-          title="Edit Device"
+          title={t("devices_page.edit_device")}
           form={form}
           setForm={setForm}
           branches={branches?.data ?? []}
@@ -379,7 +384,7 @@ export default function DevicesPage() {
             updateMutation.mutate();
           }}
           isPending={updateMutation.isPending}
-          submitLabel="Save Changes"
+          submitLabel={t("leave_types_page.save_changes")}
         />
 
         {/* Delete Confirmation */}
@@ -391,16 +396,16 @@ export default function DevicesPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete Device</DialogTitle>
+              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete{" "}
-                <strong>{deleteDevice?.name}</strong>? This action cannot be
-                undone.
+                {t("devices_page.delete_confirm_prefix")}{" "}
+                <strong>{deleteDevice?.name}</strong>?{" "}
+                {t("devices_page.delete_confirm_suffix")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteDevice(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -412,7 +417,7 @@ export default function DevicesPage() {
                 {deleteMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Delete
+                {t("common.delete")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -439,6 +444,7 @@ function DeviceCard({
   pulling: boolean;
   testing: boolean;
 }) {
+  const { t } = useT();
   const isOnline = device.status === "online";
   const isError = device.status === "error";
 
@@ -474,7 +480,9 @@ function DeviceCard({
                 {device.name}
               </Link>
               <p className="text-xs text-muted-foreground capitalize">
-                {ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type}
+                {device.adapter_type === "mock"
+                  ? t("devices_page.mock_simulator")
+                  : (ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type)}
               </p>
             </div>
           </div>
@@ -488,17 +496,19 @@ function DeviceCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onTest} disabled={testing}>
-                  <Signal className="mr-2 h-4 w-4" /> Test Connection
+                  <Signal className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.test_connection")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onPull} disabled={pulling}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Pull Records
+                  <RefreshCw className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.pull_records")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                  <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDelete} className="text-red-600">
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -508,24 +518,33 @@ function DeviceCard({
         <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
           {device.serial_number && (
             <p>
-              S/N: <span className="font-mono">{device.serial_number}</span>
+              {t("devices_page.sn")}:{" "}
+              <span className="font-mono">{device.serial_number}</span>
             </p>
           )}
-          {device.branch?.name && <p>Branch: {device.branch.name}</p>}
+          {device.branch?.name && (
+            <p>
+              {t("attendance.kiosks_page.branch").replace(" *", "")}:{" "}
+              {device.branch.name}
+            </p>
+          )}
           {device.attendance_records_count !== undefined && (
-            <p>Records: {device.attendance_records_count.toLocaleString()}</p>
+            <p>
+              {t("devices_page.records")}:{" "}
+              {device.attendance_records_count.toLocaleString()}
+            </p>
           )}
           <p>
-            Sync:{" "}
+            {t("devices_page.sync")}:{" "}
             {device.auto_sync
-              ? `Every ${device.sync_interval_minutes}m`
-              : "Manual only"}
+              ? `${t("devices_page.every")} ${device.sync_interval_minutes}m`
+              : t("devices_page.manual_only")}
           </p>
           <p>
-            Last sync:{" "}
+            {t("attendance.kiosks_page.last_active")}:{" "}
             {device.last_sync_at
               ? new Date(device.last_sync_at).toLocaleString()
-              : "Never"}
+              : t("devices_page.never")}
           </p>
         </div>
 
@@ -541,7 +560,7 @@ function DeviceCard({
             ) : (
               <Signal className="mr-1 h-3 w-3" />
             )}
-            Test
+            {t("devices_page.test")}
           </Button>
           <Button
             variant="outline"
@@ -554,7 +573,7 @@ function DeviceCard({
             ) : (
               <RefreshCw className="mr-1 h-3 w-3" />
             )}
-            Pull
+            {t("devices_page.pull")}
           </Button>
         </div>
       </CardContent>
@@ -563,6 +582,13 @@ function DeviceCard({
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useT();
+  const labels: Record<string, string> = {
+    online: t("devices_page.online"),
+    offline: t("devices_page.offline"),
+    error: t("devices_page.error"),
+    pending: t("devices_page.pending"),
+  };
   const styles: Record<string, string> = {
     online:
       "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0",
@@ -585,7 +611,7 @@ function StatusBadge({ status }: { status: string }) {
       <span
         className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dots[status] ?? "bg-gray-400"}`}
       />
-      {status}
+      {labels[status] ?? status}
     </Badge>
   );
 }
@@ -613,6 +639,7 @@ function DeviceFormDialog({
   isPending: boolean;
   submitLabel: string;
 }) {
+  const { t } = useT();
   const set = (key: keyof DeviceFormData, value: string) =>
     setForm((p) => ({ ...p, [key]: value }));
 
@@ -624,19 +651,19 @@ function DeviceFormDialog({
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <Label>Device Name</Label>
+            <Label>{t("devices_page.device_name")}</Label>
             <Input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               required
-              placeholder="e.g. Main Entrance Terminal"
+              placeholder={t("devices_page.device_name_placeholder")}
               className="mt-1"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Adapter Type</Label>
+              <Label>{t("devices_page.adapter_type")}</Label>
               <Select
                 value={form.adapter_type}
                 onValueChange={(v) => set("adapter_type", v)}
@@ -648,16 +675,18 @@ function DeviceFormDialog({
                   <SelectItem value="hikvision">Hikvision</SelectItem>
                   <SelectItem value="zkteco">ZKTeco</SelectItem>
                   <SelectItem value="suprema">Suprema</SelectItem>
-                  <SelectItem value="mock">Mock (Simulator)</SelectItem>
+                  <SelectItem value="mock">
+                    {t("devices_page.mock_simulator")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Serial Number</Label>
+              <Label>{t("devices_page.serial_number")}</Label>
               <Input
                 value={form.serial_number}
                 onChange={(e) => set("serial_number", e.target.value)}
-                placeholder="Optional"
+                placeholder={t("leave_page.optional")}
                 className="mt-1"
               />
             </div>
@@ -665,20 +694,18 @@ function DeviceFormDialog({
 
           {isMock && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-              Mock adapter simulates a device locally. No real hardware needed —
-              it will generate test attendance events from your employees when
-              you pull records.
+              {t("devices_page.mock_hint")}
             </div>
           )}
 
           {!isMock && (
             <div className="space-y-4 rounded-lg border p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase">
-                Connection Settings
+                {t("devices_page.connection_settings")}
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <Label>IP Address</Label>
+                  <Label>{t("devices_page.ip_address")}</Label>
                   <Input
                     value={form.ip}
                     onChange={(e) => set("ip", e.target.value)}
@@ -688,7 +715,7 @@ function DeviceFormDialog({
                   />
                 </div>
                 <div>
-                  <Label>Port</Label>
+                  <Label>{t("devices_page.port")}</Label>
                   <Input
                     value={form.port}
                     onChange={(e) => set("port", e.target.value)}
@@ -702,32 +729,32 @@ function DeviceFormDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Username</Label>
+                  <Label>{t("devices_page.username")}</Label>
                   <Input
                     value={form.username}
                     onChange={(e) => set("username", e.target.value)}
-                    placeholder="Optional"
+                    placeholder={t("leave_page.optional")}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Password</Label>
+                  <Label>{t("auth.password")}</Label>
                   <Input
                     type="password"
                     value={form.password}
                     onChange={(e) => set("password", e.target.value)}
-                    placeholder="Optional"
+                    placeholder={t("leave_page.optional")}
                     className="mt-1"
                   />
                 </div>
               </div>
               {form.adapter_type === "suprema" && (
                 <div>
-                  <Label>API Key</Label>
+                  <Label>{t("devices_page.api_key")}</Label>
                   <Input
                     value={form.api_key}
                     onChange={(e) => set("api_key", e.target.value)}
-                    placeholder="BioStar 2 API key"
+                    placeholder={t("devices_page.api_key_placeholder")}
                     className="mt-1"
                   />
                 </div>
@@ -737,13 +764,13 @@ function DeviceFormDialog({
 
           {branches.length > 0 && (
             <div>
-              <Label>Branch</Label>
+              <Label>{t("attendance.kiosks_page.branch").replace(" *", "")}</Label>
               <Select
                 value={form.branch_public_id}
                 onValueChange={(v) => set("branch_public_id", v)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select branch" />
+                  <SelectValue placeholder={t("attendance.kiosks_page.select_branch")} />
                 </SelectTrigger>
                 <SelectContent>
                   {branches.map((b) => (
@@ -762,7 +789,7 @@ function DeviceFormDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
