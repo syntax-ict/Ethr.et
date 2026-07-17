@@ -7,6 +7,8 @@ use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 // ── Super Admin Tenant Management ──
 
@@ -128,6 +130,58 @@ test('super admin can view platform audit log', function () {
 
     $response->assertOk()
         ->assertJsonStructure(['data']);
+});
+
+// ── Failed Jobs ──
+
+test('super admin can list failed jobs', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    test()->actingAs($user);
+
+    DB::table('failed_jobs')->insert([
+        'uuid' => (string) Str::uuid(),
+        'connection' => 'database',
+        'queue' => 'default',
+        'payload' => json_encode(['displayName' => 'App\\Jobs\\ExampleJob']),
+        'exception' => 'Exception: something broke',
+        'failed_at' => now(),
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs");
+
+    $response->assertOk()
+        ->assertJsonStructure(['data']);
+    expect($response->json('data'))->toHaveCount(1);
+});
+
+test('tenant admin cannot list failed jobs', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs")
+        ->assertForbidden();
+});
+
+test('retrying an unknown failed job returns 404', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    test()->actingAs($user);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs/".Str::uuid().'/retry');
+
+    $response->assertNotFound();
+});
+
+test('retrying all failed jobs when none exist reports zero', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    test()->actingAs($user);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs/retry-all");
+
+    $response->assertOk()
+        ->assertJsonPath('count', 0);
 });
 
 // ── Billing ──
