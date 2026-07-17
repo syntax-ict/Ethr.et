@@ -119,7 +119,9 @@ export default function AttendanceIntelligencePage() {
                   <EmptyState
                     icon={Activity}
                     title={t("attendance.intelligence_page.no_late_arrivals")}
-                    description={t("attendance.intelligence_page.everyone_on_time")}
+                    description={t(
+                      "attendance.intelligence_page.everyone_on_time",
+                    )}
                   />
                 ) : (
                   <div className="overflow-x-auto">

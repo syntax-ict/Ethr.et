@@ -54,7 +54,10 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-function leaveTypeName(lt: LeaveBalance["leave_type"], unknown: string): string {
+function leaveTypeName(
+  lt: LeaveBalance["leave_type"],
+  unknown: string,
+): string {
   if (typeof lt === "string") return lt;
   return lt?.name ?? unknown;
 }
@@ -141,7 +144,9 @@ export default function LeavePage() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={t("leave_page.select_leave_type")} />
+                  <SelectValue
+                    placeholder={t("leave_page.select_leave_type")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {leaveTypes?.data?.map((lt) => (
@@ -312,7 +317,9 @@ function MyLeaveTab() {
                                   onSuccess: () =>
                                     toast.success(t("leave_page.withdrawn")),
                                   onError: () =>
-                                    toast.error(t("leave_page.withdraw_failed")),
+                                    toast.error(
+                                      t("leave_page.withdraw_failed"),
+                                    ),
                                 });
                               }
                             }}
@@ -432,7 +439,10 @@ function TeamLeaveTab() {
                             "—"}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
+                          {leaveTypeName(
+                            req.leave_type,
+                            t("leave_page.unknown"),
+                          )}
                         </td>
                         <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
                           {req.start_date} — {req.end_date}

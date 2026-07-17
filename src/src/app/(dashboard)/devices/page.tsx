@@ -303,11 +303,17 @@ export default function DevicesPage() {
               <SelectValue placeholder={t("common.status")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("devices_page.all_status")}</SelectItem>
+              <SelectItem value="all">
+                {t("devices_page.all_status")}
+              </SelectItem>
               <SelectItem value="online">{t("devices_page.online")}</SelectItem>
-              <SelectItem value="offline">{t("devices_page.offline")}</SelectItem>
+              <SelectItem value="offline">
+                {t("devices_page.offline")}
+              </SelectItem>
               <SelectItem value="error">{t("devices_page.error")}</SelectItem>
-              <SelectItem value="pending">{t("devices_page.pending")}</SelectItem>
+              <SelectItem value="pending">
+                {t("devices_page.pending")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -482,7 +488,8 @@ function DeviceCard({
               <p className="text-xs text-muted-foreground capitalize">
                 {device.adapter_type === "mock"
                   ? t("devices_page.mock_simulator")
-                  : (ADAPTER_LABELS[device.adapter_type] ?? device.adapter_type)}
+                  : (ADAPTER_LABELS[device.adapter_type] ??
+                    device.adapter_type)}
               </p>
             </div>
           </div>
@@ -764,13 +771,17 @@ function DeviceFormDialog({
 
           {branches.length > 0 && (
             <div>
-              <Label>{t("attendance.kiosks_page.branch").replace(" *", "")}</Label>
+              <Label>
+                {t("attendance.kiosks_page.branch").replace(" *", "")}
+              </Label>
               <Select
                 value={form.branch_public_id}
                 onValueChange={(v) => set("branch_public_id", v)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={t("attendance.kiosks_page.select_branch")} />
+                  <SelectValue
+                    placeholder={t("attendance.kiosks_page.select_branch")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {branches.map((b) => (

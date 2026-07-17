@@ -144,9 +144,7 @@ export default function ShiftsPage() {
       invalidate();
       setShowDialog(false);
       toast.success(
-        editing
-          ? t("shifts_page.updated")
-          : t("shifts_settings_page.created"),
+        editing ? t("shifts_page.updated") : t("shifts_settings_page.created"),
       );
     },
     onError: (err: unknown) => {
@@ -211,10 +209,14 @@ export default function ShiftsPage() {
           actions={
             <div className="flex gap-2">
               <Link href="/shifts/roster">
-                <Button variant="outline">{t("shifts_page.view_roster")}</Button>
+                <Button variant="outline">
+                  {t("shifts_page.view_roster")}
+                </Button>
               </Link>
               <Link href="/shifts/assignments">
-                <Button variant="outline">{t("shifts_page.assignments")}</Button>
+                <Button variant="outline">
+                  {t("shifts_page.assignments")}
+                </Button>
               </Link>
               <Button onClick={openCreate}>
                 <Plus className="mr-2 h-4 w-4" /> {t("shifts_page.new_shift")}
@@ -252,7 +254,8 @@ export default function ShiftsPage() {
               </p>
               {!search && (
                 <Button className="mt-4" onClick={openCreate}>
-                  <Plus className="mr-2 h-4 w-4" /> {t("shifts_page.create_shift")}
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("shifts_page.create_shift")}
                 </Button>
               )}
             </CardContent>
@@ -315,7 +318,8 @@ export default function ShiftsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(shift)}>
-                          <Pencil className="mr-2 h-3.5 w-3.5" /> {t("common.edit")}
+                          <Pencil className="mr-2 h-3.5 w-3.5" />{" "}
+                          {t("common.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link
@@ -330,7 +334,8 @@ export default function ShiftsPage() {
                           className="text-destructive"
                           onClick={() => destroy.mutate(shift.public_id)}
                         >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> {t("common.delete")}
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
+                          {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -377,7 +382,9 @@ export default function ShiftsPage() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
-                {editing ? t("shifts_page.edit_shift") : t("shifts_page.create_shift")}
+                {editing
+                  ? t("shifts_page.edit_shift")
+                  : t("shifts_page.create_shift")}
               </DialogTitle>
               <DialogDescription>
                 {editing

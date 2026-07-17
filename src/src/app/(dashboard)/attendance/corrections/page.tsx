@@ -57,7 +57,8 @@ export default function CorrectionsPage() {
         description={t("attendance.corrections.description")}
         actions={
           <Button onClick={() => setRequestOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> {t("attendance.corrections.request")}
+            <Plus className="mr-2 h-4 w-4" />{" "}
+            {t("attendance.corrections.request")}
           </Button>
         }
       />
@@ -349,10 +350,13 @@ function PendingReviewsTab() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("attendance.corrections.reject_title")}</DialogTitle>
+            <DialogTitle>
+              {t("attendance.corrections.reject_title")}
+            </DialogTitle>
             <DialogDescription>
               {t("attendance.corrections.reject_desc_prefix")}{" "}
-              {rejectFor?.employee?.name ?? t("attendance.corrections.the_employee")}{" "}
+              {rejectFor?.employee?.name ??
+                t("attendance.corrections.the_employee")}{" "}
               {t("attendance.corrections.reject_desc_suffix")}
             </DialogDescription>
           </DialogHeader>

@@ -157,7 +157,8 @@ function AssignmentsContent() {
               setShowDialog(true);
             }}
           >
-            <Plus className="mr-2 h-4 w-4" /> {t("shifts_settings_page.assign_shift")}
+            <Plus className="mr-2 h-4 w-4" />{" "}
+            {t("shifts_settings_page.assign_shift")}
           </Button>
         }
       />
@@ -219,7 +220,8 @@ function AssignmentsContent() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">
-                          {a.shift?.name ?? t("shift_assignments_page.unknown_shift")}
+                          {a.shift?.name ??
+                            t("shift_assignments_page.unknown_shift")}
                         </p>
                         <Badge variant="outline" className="text-xs">
                           {TYPE_LABEL[a.assignable_type] ?? a.assignable_type}
@@ -271,7 +273,9 @@ function AssignmentsContent() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={t("shifts_settings_page.select_shift")} />
+                  <SelectValue
+                    placeholder={t("shifts_settings_page.select_shift")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {shiftList.map(

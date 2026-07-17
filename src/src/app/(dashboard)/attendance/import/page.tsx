@@ -56,48 +56,51 @@ export default function AttendanceImportPage() {
     errors: string[];
   } | null>(null);
 
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith(".csv") && !file.name.endsWith(".txt")) {
-      toast.error(t("attendance.import_page.upload_csv_or_txt"));
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t("attendance.import_page.file_too_large"));
-      return;
-    }
-
-    setFileName(file.name);
-    setUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const { data } = await apiClient.post(
-        "/attendance/import/preview",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-
-      if (data.errors?.length) {
-        toast.error(data.errors.join(", "));
-        setUploading(false);
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (!file.name.endsWith(".csv") && !file.name.endsWith(".txt")) {
+        toast.error(t("attendance.import_page.upload_csv_or_txt"));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(t("attendance.import_page.file_too_large"));
         return;
       }
 
-      setPreview(data as PreviewResult);
-      setStep("preview");
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail ?? t("attendance.import_page.parse_failed"),
-      );
-    } finally {
-      setUploading(false);
-    }
-  }, [t]);
+      setFileName(file.name);
+      setUploading(true);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const { data } = await apiClient.post(
+          "/attendance/import/preview",
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
+
+        if (data.errors?.length) {
+          toast.error(data.errors.join(", "));
+          setUploading(false);
+          return;
+        }
+
+        setPreview(data as PreviewResult);
+        setStep("preview");
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { detail?: string } } };
+        toast.error(
+          e.response?.data?.detail ?? t("attendance.import_page.parse_failed"),
+        );
+      } finally {
+        setUploading(false);
+      }
+    },
+    [t],
+  );
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -157,7 +160,9 @@ export default function AttendanceImportPage() {
       );
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail ?? t("attendance.import_page.import_failed"));
+      toast.error(
+        e.response?.data?.detail ?? t("attendance.import_page.import_failed"),
+      );
       setStep("preview");
     }
   }

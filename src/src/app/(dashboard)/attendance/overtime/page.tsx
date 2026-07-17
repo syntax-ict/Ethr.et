@@ -175,7 +175,9 @@ export default function OvertimePage() {
                                     variant="outline"
                                     className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0"
                                   >
-                                    {t("attendance.overtime_page.over_threshold_badge")}
+                                    {t(
+                                      "attendance.overtime_page.over_threshold_badge",
+                                    )}
                                   </Badge>
                                 ) : (
                                   <Badge

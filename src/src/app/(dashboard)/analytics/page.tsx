@@ -49,10 +49,14 @@ export default function AnalyticsPage() {
 
         <Tabs defaultValue="overview">
           <TabsList>
-            <TabsTrigger value="overview">{t("analytics_page.overview")}</TabsTrigger>
+            <TabsTrigger value="overview">
+              {t("analytics_page.overview")}
+            </TabsTrigger>
             <TabsTrigger value="attendance">{t("nav.attendance")}</TabsTrigger>
             <TabsTrigger value="payroll">{t("nav.payroll")}</TabsTrigger>
-            <TabsTrigger value="workforce">{t("analytics_page.workforce")}</TabsTrigger>
+            <TabsTrigger value="workforce">
+              {t("analytics_page.workforce")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">

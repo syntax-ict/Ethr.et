@@ -71,7 +71,11 @@ const CHANNEL_META: Record<
     alwaysOn?: boolean;
   }
 > = {
-  in_app: { labelKey: "notification_prefs_page.channel_in_app", icon: Bell, alwaysOn: true },
+  in_app: {
+    labelKey: "notification_prefs_page.channel_in_app",
+    icon: Bell,
+    alwaysOn: true,
+  },
   email: { labelKey: "notification_prefs_page.channel_email", icon: Mail },
   sms: { labelKey: "notification_prefs_page.channel_sms", icon: MessageSquare },
 };
@@ -159,7 +163,8 @@ export default function NotificationPreferencesPage() {
                 onClick={reset}
                 disabled={save.isPending}
               >
-                <RotateCcw className="mr-2 h-4 w-4" /> {t("notification_prefs_page.reset")}
+                <RotateCcw className="mr-2 h-4 w-4" />{" "}
+                {t("notification_prefs_page.reset")}
               </Button>
             )}
             <Button

@@ -252,7 +252,8 @@ export default function ShiftsPage() {
                 {t("shifts_settings_page.assign_shift")}
               </Button>
               <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> {t("shifts_settings_page.add_shift")}
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("shifts_settings_page.add_shift")}
               </Button>
             </div>
           }
@@ -260,8 +261,12 @@ export default function ShiftsPage() {
 
         <Tabs defaultValue="shifts">
           <TabsList>
-            <TabsTrigger value="shifts">{t("shifts_settings_page.title")}</TabsTrigger>
-            <TabsTrigger value="schedule">{t("shifts_settings_page.schedule")}</TabsTrigger>
+            <TabsTrigger value="shifts">
+              {t("shifts_settings_page.title")}
+            </TabsTrigger>
+            <TabsTrigger value="schedule">
+              {t("shifts_settings_page.schedule")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="shifts" className="mt-4">
@@ -348,7 +353,13 @@ export default function ShiftsPage() {
                                   size="sm"
                                   className="text-destructive hover:text-destructive"
                                   onClick={() => {
-                                    if (confirm(t("shifts_settings_page.delete_confirm")))
+                                    if (
+                                      confirm(
+                                        t(
+                                          "shifts_settings_page.delete_confirm",
+                                        ),
+                                      )
+                                    )
                                       deleteShift.mutate(shift.public_id);
                                   }}
                                 >
@@ -550,7 +561,9 @@ export default function ShiftsPage() {
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("shifts_settings_page.assign_shift")}</DialogTitle>
+              <DialogTitle>
+                {t("shifts_settings_page.assign_shift")}
+              </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAssign} className="space-y-4">
               <div>
@@ -562,7 +575,9 @@ export default function ShiftsPage() {
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder={t("shifts_settings_page.select_shift")} />
+                    <SelectValue
+                      placeholder={t("shifts_settings_page.select_shift")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {shifts.map((s) => (
@@ -619,7 +634,9 @@ export default function ShiftsPage() {
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder={t("shifts_settings_page.select_ellipsis")} />
+                    <SelectValue
+                      placeholder={t("shifts_settings_page.select_ellipsis")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {assignableOptions.map((opt) => (

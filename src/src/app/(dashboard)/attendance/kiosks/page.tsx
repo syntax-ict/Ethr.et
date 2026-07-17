@@ -146,8 +146,7 @@ export default function KioskSessionsPage() {
       if (data.token) setShowToken(data.token);
       toast.success(t("attendance.kiosks_page.token_regenerated"));
     },
-    onError: () =>
-      toast.error(t("attendance.kiosks_page.regenerate_failed")),
+    onError: () => toast.error(t("attendance.kiosks_page.regenerate_failed")),
   });
 
   const remove = useMutation({
@@ -213,7 +212,8 @@ export default function KioskSessionsPage() {
                       <div>
                         <CardTitle className="text-sm">{k.name}</CardTitle>
                         <p className="text-xs text-muted-foreground">
-                          {k.branch?.name ?? t("attendance.kiosks_page.no_branch")}
+                          {k.branch?.name ??
+                            t("attendance.kiosks_page.no_branch")}
                         </p>
                       </div>
                     </div>
@@ -297,7 +297,9 @@ export default function KioskSessionsPage() {
         <Dialog open={showRegister} onOpenChange={setShowRegister}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("attendance.kiosks_page.register_title")}</DialogTitle>
+              <DialogTitle>
+                {t("attendance.kiosks_page.register_title")}
+              </DialogTitle>
               <DialogDescription>
                 {t("attendance.kiosks_page.register_desc")}
               </DialogDescription>
@@ -308,7 +310,9 @@ export default function KioskSessionsPage() {
                 <Input
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder={t("attendance.kiosks_page.kiosk_name_placeholder")}
+                  placeholder={t(
+                    "attendance.kiosks_page.kiosk_name_placeholder",
+                  )}
                   className="mt-1"
                 />
               </div>
@@ -339,7 +343,9 @@ export default function KioskSessionsPage() {
                   onChange={(e) =>
                     setRegPin(e.target.value.replace(/\D/g, "").slice(0, 8))
                   }
-                  placeholder={t("attendance.kiosks_page.admin_pin_placeholder")}
+                  placeholder={t(
+                    "attendance.kiosks_page.admin_pin_placeholder",
+                  )}
                   maxLength={8}
                   className="mt-1 font-mono tracking-widest"
                 />
@@ -349,7 +355,9 @@ export default function KioskSessionsPage() {
                 <Input
                   value={regDevice}
                   onChange={(e) => setRegDevice(e.target.value)}
-                  placeholder={t("attendance.kiosks_page.device_identifier_placeholder")}
+                  placeholder={t(
+                    "attendance.kiosks_page.device_identifier_placeholder",
+                  )}
                   className="mt-1"
                 />
               </div>

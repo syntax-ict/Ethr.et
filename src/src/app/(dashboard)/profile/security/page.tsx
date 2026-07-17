@@ -236,7 +236,8 @@ export default function SecurityPage() {
               </p>
             </div>
             <Button variant="outline" onClick={() => setChangeOpen(true)}>
-              <KeyRound className="mr-2 h-4 w-4" /> {t("security_page.change_password")}
+              <KeyRound className="mr-2 h-4 w-4" />{" "}
+              {t("security_page.change_password")}
             </Button>
           </div>
         </CardContent>
@@ -300,7 +301,8 @@ export default function SecurityPage() {
                           className="mt-2"
                           onClick={copyCodes}
                         >
-                          <Copy className="mr-2 h-3 w-3" /> {t("security_page.copy_all")}
+                          <Copy className="mr-2 h-3 w-3" />{" "}
+                          {t("security_page.copy_all")}
                         </Button>
                       </div>
                     </div>
@@ -354,7 +356,9 @@ export default function SecurityPage() {
           </DialogHeader>
           <form onSubmit={submitChangePassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="current_password">{t("security_page.current_password")}</Label>
+              <Label htmlFor="current_password">
+                {t("security_page.current_password")}
+              </Label>
               <Input
                 id="current_password"
                 type="password"
@@ -365,7 +369,9 @@ export default function SecurityPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new_password">{t("security_page.new_password")}</Label>
+              <Label htmlFor="new_password">
+                {t("security_page.new_password")}
+              </Label>
               <div className="relative">
                 <Input
                   id="new_password"
@@ -395,7 +401,9 @@ export default function SecurityPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm_password">{t("security_page.confirm_new_password")}</Label>
+              <Label htmlFor="confirm_password">
+                {t("security_page.confirm_new_password")}
+              </Label>
               <Input
                 id="confirm_password"
                 type={showNew ? "text" : "password"}

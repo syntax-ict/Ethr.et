@@ -82,7 +82,8 @@ export default function QrGeneratorPage() {
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
       toast.error(
-        axiosErr.response?.data?.detail ?? t("attendance.qr_page.generate_failed"),
+        axiosErr.response?.data?.detail ??
+          t("attendance.qr_page.generate_failed"),
       );
     },
   });

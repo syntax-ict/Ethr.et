@@ -74,14 +74,21 @@ export default function AdminTenantDetailPage({
         : newStatus === "suspended"
           ? t("admin_tenant_detail_page.suspend")
           : t("admin_tenant_detail_page.cancel");
-    if (!confirm(`${action} ${t("admin_tenant_detail_page.tenant_lc")} "${tenant.name}"?`))
+    if (
+      !confirm(
+        `${action} ${t("admin_tenant_detail_page.tenant_lc")} "${tenant.name}"?`,
+      )
+    )
       return;
     updateStatus.mutate(
       { publicId: tenant.public_id, status: newStatus },
       {
         onSuccess: () =>
-          toast.success(`${t("admin_tenant_detail_page.tenant_cap")} ${newStatus}`),
-        onError: () => toast.error(t("admin_tenant_detail_page.status_update_failed")),
+          toast.success(
+            `${t("admin_tenant_detail_page.tenant_cap")} ${newStatus}`,
+          ),
+        onError: () =>
+          toast.error(t("admin_tenant_detail_page.status_update_failed")),
       },
     );
   }
@@ -177,7 +184,11 @@ export default function AdminTenantDetailPage({
             label={t("payroll_detail_page.employees")}
             value={String(tenant.employee_count)}
           />
-          <StatCard icon={Globe} label={t("admin_tenants_page.subdomain")} value={tenant.subdomain} />
+          <StatCard
+            icon={Globe}
+            label={t("admin_tenants_page.subdomain")}
+            value={tenant.subdomain}
+          />
           <StatCard
             icon={Calendar}
             label={t("admin_tenants_page.trial_ends")}
@@ -258,7 +269,9 @@ export default function AdminTenantDetailPage({
                 onClick={() =>
                   backup.mutate(tenant.public_id, {
                     onSuccess: () =>
-                      toast.success(t("admin_tenant_detail_page.backup_queued")),
+                      toast.success(
+                        t("admin_tenant_detail_page.backup_queued"),
+                      ),
                     onError: () =>
                       toast.error(t("admin_tenant_detail_page.backup_failed")),
                   })
@@ -308,7 +321,10 @@ export default function AdminTenantDetailPage({
               label={t("admin_tenants_page.subdomain")}
               value={`${tenant.subdomain}.ethr.et`}
             />
-            <Row label={t("admin_tenant_detail_page.type")} value={tenant.type ?? "—"} />
+            <Row
+              label={t("admin_tenant_detail_page.type")}
+              value={tenant.type ?? "—"}
+            />
             <Row
               label={t("common.status")}
               value={<StatusBadge status={tenant.status} />}
@@ -395,7 +411,8 @@ export default function AdminTenantDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Receipt className="h-4 w-4" /> {t("admin_tenant_detail_page.invoices")}
+                <Receipt className="h-4 w-4" />{" "}
+                {t("admin_tenant_detail_page.invoices")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -404,9 +421,13 @@ export default function AdminTenantDetailPage({
                   <thead className="text-xs text-muted-foreground">
                     <tr>
                       <th className="pb-2 text-left">ID</th>
-                      <th className="pb-2 text-left">{t("payroll_page.loans_page.amount")}</th>
+                      <th className="pb-2 text-left">
+                        {t("payroll_page.loans_page.amount")}
+                      </th>
                       <th className="pb-2 text-left">{t("common.status")}</th>
-                      <th className="pb-2 text-left">{t("admin_tenant_detail_page.due")}</th>
+                      <th className="pb-2 text-left">
+                        {t("admin_tenant_detail_page.due")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -459,7 +480,9 @@ export default function AdminTenantDetailPage({
         <Dialog open={extendOpen} onOpenChange={setExtendOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("admin_tenant_detail_page.extend_trial_period")}</DialogTitle>
+              <DialogTitle>
+                {t("admin_tenant_detail_page.extend_trial_period")}
+              </DialogTitle>
               <DialogDescription>
                 {t("admin_tenant_detail_page.current_trial_ends")}:{" "}
                 <span className="font-medium">
@@ -516,7 +539,9 @@ export default function AdminTenantDetailPage({
         >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>{t("admin_tenant_detail_page.token_issued")}</DialogTitle>
+              <DialogTitle>
+                {t("admin_tenant_detail_page.token_issued")}
+              </DialogTitle>
               <DialogDescription>
                 {t("admin_tenant_detail_page.act_as_admin_prefix")}{" "}
                 <span className="font-medium">
@@ -544,7 +569,9 @@ export default function AdminTenantDetailPage({
                 </div>
               </div>
               <div>
-                <Label className="text-xs">{t("admin_tenant_detail_page.bearer_token")}</Label>
+                <Label className="text-xs">
+                  {t("admin_tenant_detail_page.bearer_token")}
+                </Label>
                 <div className="mt-1 flex gap-2">
                   <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all border">
                     {impersonationResult?.token}

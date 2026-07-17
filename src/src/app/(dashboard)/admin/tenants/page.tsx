@@ -66,11 +66,21 @@ export default function AdminTenantsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("admin_tenants_page.all_statuses")}</SelectItem>
-              <SelectItem value="trial">{t("admin_console_page.trial")}</SelectItem>
-              <SelectItem value="active">{t("webhooks_page.active")}</SelectItem>
-              <SelectItem value="suspended">{t("admin_console_page.suspended")}</SelectItem>
-              <SelectItem value="cancelled">{t("admin_console_page.cancelled")}</SelectItem>
+              <SelectItem value="all">
+                {t("admin_tenants_page.all_statuses")}
+              </SelectItem>
+              <SelectItem value="trial">
+                {t("admin_console_page.trial")}
+              </SelectItem>
+              <SelectItem value="active">
+                {t("webhooks_page.active")}
+              </SelectItem>
+              <SelectItem value="suspended">
+                {t("admin_console_page.suspended")}
+              </SelectItem>
+              <SelectItem value="cancelled">
+                {t("admin_console_page.cancelled")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -143,12 +153,15 @@ export default function AdminTenantsPage() {
                           </td>
                           <td className="hidden px-4 py-3 text-right md:table-cell">
                             <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                              <Users className="h-3 w-3" /> {tenant.employee_count}
+                              <Users className="h-3 w-3" />{" "}
+                              {tenant.employee_count}
                             </span>
                           </td>
                           <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
                             {tenant.trial_ends_at
-                              ? new Date(tenant.trial_ends_at).toLocaleDateString()
+                              ? new Date(
+                                  tenant.trial_ends_at,
+                                ).toLocaleDateString()
                               : "—"}
                           </td>
                           <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">

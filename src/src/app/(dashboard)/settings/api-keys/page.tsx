@@ -118,7 +118,8 @@ export default function ApiKeysPage() {
                 </Link>
               </Button>
               <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> {t("api_keys_page.create_key")}
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("api_keys_page.create_key")}
               </Button>
             </div>
           }

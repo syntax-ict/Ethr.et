@@ -288,7 +288,9 @@ export default function RosterPage() {
                 </Button>
               </Link>
               <Link href="/shifts">
-                <Button variant="outline">{t("shift_roster_page.edit_shifts")}</Button>
+                <Button variant="outline">
+                  {t("shift_roster_page.edit_shifts")}
+                </Button>
               </Link>
             </div>
           }
@@ -347,7 +349,8 @@ export default function RosterPage() {
               </SelectItem>
               <SelectItem value="week">
                 <span className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5" /> {t("shift_roster_page.week")}
+                  <Clock className="h-3.5 w-3.5" />{" "}
+                  {t("shift_roster_page.week")}
                 </span>
               </SelectItem>
             </SelectContent>

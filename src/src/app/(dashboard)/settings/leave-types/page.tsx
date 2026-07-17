@@ -100,7 +100,8 @@ export default function LeaveTypesPage() {
     onError: (err: unknown) => {
       const axiosError = err as { response?: { data?: { detail?: string } } };
       toast.error(
-        axiosError.response?.data?.detail || t("leave_types_page.create_failed"),
+        axiosError.response?.data?.detail ||
+          t("leave_types_page.create_failed"),
       );
     },
   });

@@ -123,7 +123,9 @@ export default function LoansPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("payroll_page.loans_page.new_employee_loan")}</DialogTitle>
+              <DialogTitle>
+                {t("payroll_page.loans_page.new_employee_loan")}
+              </DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -182,7 +184,9 @@ export default function LoansPage() {
                   />
                 </div>
                 <div>
-                  <Label>{t("payroll_page.loans_page.monthly_deduction")}</Label>
+                  <Label>
+                    {t("payroll_page.loans_page.monthly_deduction")}
+                  </Label>
                   <Input
                     type="number"
                     value={form.monthly_deduction_cents}

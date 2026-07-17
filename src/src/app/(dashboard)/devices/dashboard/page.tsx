@@ -71,7 +71,8 @@ export default function DeviceDashboardPage() {
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/devices">
-              <ArrowLeft className="mr-2 h-4 w-4" /> {t("devices_dashboard_page.all_devices")}
+              <ArrowLeft className="mr-2 h-4 w-4" />{" "}
+              {t("devices_dashboard_page.all_devices")}
             </Link>
           </Button>
           <Button size="sm" asChild>
@@ -242,7 +243,8 @@ export default function DeviceDashboardPage() {
                           <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
                             {d.adapter_type === "mock"
                               ? t("devices_page.mock_simulator")
-                              : (ADAPTER_LABELS[d.adapter_type] ?? d.adapter_type)}
+                              : (ADAPTER_LABELS[d.adapter_type] ??
+                                d.adapter_type)}
                           </td>
                           <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground md:table-cell">
                             {d.serial_number ?? "—"}

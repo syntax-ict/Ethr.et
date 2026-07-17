@@ -109,7 +109,8 @@ export default function AuditLogsPage() {
               onClick={exportCsv}
               disabled={logs.length === 0}
             >
-              <Download className="mr-2 h-4 w-4" /> {t("audit_logs_page.export_csv")}
+              <Download className="mr-2 h-4 w-4" />{" "}
+              {t("audit_logs_page.export_csv")}
             </Button>
           }
         />
@@ -238,8 +239,8 @@ export default function AuditLogsPage() {
             {data.meta && data.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {t("audit_logs_page.showing")} {data.meta.from}–
-                  {data.meta.to} {t("audit_logs_page.of")} {data.meta.total}
+                  {t("audit_logs_page.showing")} {data.meta.from}–{data.meta.to}{" "}
+                  {t("audit_logs_page.of")} {data.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button

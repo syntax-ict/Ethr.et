@@ -116,9 +116,7 @@ function ChartOfAccountsSection() {
           <BookOpen className="h-5 w-5" />
           {t("accounting_page.chart_of_accounts")}
         </CardTitle>
-        <CardDescription>
-          {t("accounting_page.chart_desc")}
-        </CardDescription>
+        <CardDescription>{t("accounting_page.chart_desc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground pb-1 border-b">

@@ -76,7 +76,8 @@ export default function EmployeeImportPage() {
       URL.revokeObjectURL(url);
       toast.success(t("employees_import_page.template_downloaded"));
     },
-    onError: () => toast.error(t("employees_import_page.template_download_failed")),
+    onError: () =>
+      toast.error(t("employees_import_page.template_download_failed")),
   });
 
   const previewMutation = useMutation({
@@ -438,7 +439,8 @@ export default function EmployeeImportPage() {
                 {totalRows > 100 && (
                   <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
                     {t("employees_import_page.showing_first_100_prefix")}{" "}
-                    {totalRows} {t("employees_import_page.showing_first_100_suffix")}
+                    {totalRows}{" "}
+                    {t("employees_import_page.showing_first_100_suffix")}
                   </div>
                 )}
               </CardContent>
@@ -515,7 +517,11 @@ function StepIndicator({ current }: { current: Step }) {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = [
-    { key: "upload", label: t("employees_import_page.step_upload"), icon: Upload },
+    {
+      key: "upload",
+      label: t("employees_import_page.step_upload"),
+      icon: Upload,
+    },
     {
       key: "preview",
       label: t("employees_import_page.step_preview"),

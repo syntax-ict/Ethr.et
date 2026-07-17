@@ -113,10 +113,16 @@ export default function ReportsPage() {
 
         <Tabs defaultValue="builder">
           <TabsList>
-            <TabsTrigger value="builder">{t("reports_page.builder")}</TabsTrigger>
-            <TabsTrigger value="quick">{t("reports_page.quick_reports")}</TabsTrigger>
+            <TabsTrigger value="builder">
+              {t("reports_page.builder")}
+            </TabsTrigger>
+            <TabsTrigger value="quick">
+              {t("reports_page.quick_reports")}
+            </TabsTrigger>
             <TabsTrigger value="saved">{t("reports_page.saved")}</TabsTrigger>
-            <TabsTrigger value="scheduled">{t("reports_page.scheduled")}</TabsTrigger>
+            <TabsTrigger value="scheduled">
+              {t("reports_page.scheduled")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="builder" className="mt-4">
@@ -398,7 +404,9 @@ function BuilderTab() {
                 <SelectValue placeholder={t("reports_page.no_grouping")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">{t("reports_page.no_grouping")}</SelectItem>
+                <SelectItem value="__none__">
+                  {t("reports_page.no_grouping")}
+                </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
                     {field}
@@ -429,7 +437,9 @@ function BuilderTab() {
                 <SelectValue placeholder={t("reports_page.no_sorting")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">{t("reports_page.no_sorting")}</SelectItem>
+                <SelectItem value="__none__">
+                  {t("reports_page.no_sorting")}
+                </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
                     {field}
@@ -448,8 +458,12 @@ function BuilderTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="asc">{t("reports_page.ascending")}</SelectItem>
-                  <SelectItem value="desc">{t("reports_page.descending")}</SelectItem>
+                  <SelectItem value="asc">
+                    {t("reports_page.ascending")}
+                  </SelectItem>
+                  <SelectItem value="desc">
+                    {t("reports_page.descending")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -468,10 +482,12 @@ function BuilderTab() {
           {generate.data && (
             <>
               <Button variant="outline" onClick={downloadCsv}>
-                <Download className="mr-2 h-4 w-4" /> {t("reports_page.download_csv")}
+                <Download className="mr-2 h-4 w-4" />{" "}
+                {t("reports_page.download_csv")}
               </Button>
               <Button variant="outline" onClick={() => setSaveOpen(true)}>
-                <Save className="mr-2 h-4 w-4" /> {t("reports_page.save_as_template")}
+                <Save className="mr-2 h-4 w-4" />{" "}
+                {t("reports_page.save_as_template")}
               </Button>
             </>
           )}
@@ -486,7 +502,9 @@ function BuilderTab() {
               <FileSpreadsheet className="mx-auto h-12 w-12 opacity-30" />
               <p className="mt-4 text-sm">
                 {t("reports_page.configure_hint")}{" "}
-                <span className="font-semibold">{t("reports_page.run_preview")}</span>
+                <span className="font-semibold">
+                  {t("reports_page.run_preview")}
+                </span>
               </p>
             </CardContent>
           </Card>
@@ -606,7 +624,8 @@ function PreviewResult({
             </div>
             {result.data.length > 200 && (
               <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-                {t("reports_page.showing_first_200_prefix")} {result.data.length}{" "}
+                {t("reports_page.showing_first_200_prefix")}{" "}
+                {result.data.length}{" "}
                 {t("reports_page.showing_first_200_suffix")}
               </div>
             )}
@@ -671,30 +690,40 @@ function SaveReportDialog({
             </p>
             <div className="mt-2 space-y-1 text-xs">
               <p>
-                <span className="text-muted-foreground">{t("reports_page.source")}:</span>{" "}
+                <span className="text-muted-foreground">
+                  {t("reports_page.source")}:
+                </span>{" "}
                 <span className="font-mono">{config.source}</span>
               </p>
               {config.columns && (
                 <p>
-                  <span className="text-muted-foreground">{t("reports_page.columns")}:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("reports_page.columns")}:
+                  </span>{" "}
                   {config.columns.length}
                 </p>
               )}
               {config.filters && (
                 <p>
-                  <span className="text-muted-foreground">{t("reports_page.filters")}:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("reports_page.filters")}:
+                  </span>{" "}
                   {Object.keys(config.filters).length}
                 </p>
               )}
               {config.group_by && (
                 <p>
-                  <span className="text-muted-foreground">{t("reports_page.group_by")}:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("reports_page.group_by")}:
+                  </span>{" "}
                   <span className="font-mono">{config.group_by}</span>
                 </p>
               )}
               {config.sort_by && (
                 <p>
-                  <span className="text-muted-foreground">{t("reports_page.sort")}:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("reports_page.sort")}:
+                  </span>{" "}
                   <span className="font-mono">
                     {config.sort_by} {config.sort_dir ?? "asc"}
                   </span>
@@ -816,7 +845,8 @@ function QuickTab() {
               <span className="capitalize">{generate.data.source}</span>
             </p>
             <Button size="sm" onClick={downloadCsv}>
-              <Download className="mr-2 h-3 w-3" /> {t("reports_page.download_csv")}
+              <Download className="mr-2 h-3 w-3" />{" "}
+              {t("reports_page.download_csv")}
             </Button>
           </div>
           <PreviewResult result={generate.data} />
@@ -849,7 +879,9 @@ function SavedTab() {
   }
 
   function handleDelete(r: SavedReport) {
-    if (!confirm(`${t("reports_page.delete_saved_confirm_prefix")} "${r.name}"?`))
+    if (
+      !confirm(`${t("reports_page.delete_saved_confirm_prefix")} "${r.name}"?`)
+    )
       return;
     deleteReport.mutate(r.public_id, {
       onSuccess: () => toast.success(t("reports_page.template_deleted")),
@@ -884,15 +916,21 @@ function SavedTab() {
                       {r.config.source}
                     </Badge>
                     {r.config.columns && (
-                      <span>· {r.config.columns.length} {t("reports_page.columns_lc")}</span>
+                      <span>
+                        · {r.config.columns.length}{" "}
+                        {t("reports_page.columns_lc")}
+                      </span>
                     )}
                     {r.config.filters && (
                       <span>
-                        · {Object.keys(r.config.filters).length} {t("reports_page.filters_lc")}
+                        · {Object.keys(r.config.filters).length}{" "}
+                        {t("reports_page.filters_lc")}
                       </span>
                     )}
                     {r.config.group_by && (
-                      <span>· {t("reports_page.grouped_by_lc")} {r.config.group_by}</span>
+                      <span>
+                        · {t("reports_page.grouped_by_lc")} {r.config.group_by}
+                      </span>
                     )}
                     <span>
                       · {t("reports_page.saved_lc")}{" "}
@@ -914,7 +952,8 @@ function SavedTab() {
                     variant="outline"
                     onClick={() => setScheduleFor(r)}
                   >
-                    <CalendarClock className="mr-1 h-3 w-3" /> {t("reports_page.schedule")}
+                    <CalendarClock className="mr-1 h-3 w-3" />{" "}
+                    {t("reports_page.schedule")}
                   </Button>
                   <Button
                     size="sm"
@@ -1012,8 +1051,12 @@ function ScheduleDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">{t("reports_page.daily_6am")}</SelectItem>
-                <SelectItem value="weekly">{t("reports_page.weekly_mon_6am")}</SelectItem>
+                <SelectItem value="daily">
+                  {t("reports_page.daily_6am")}
+                </SelectItem>
+                <SelectItem value="weekly">
+                  {t("reports_page.weekly_mon_6am")}
+                </SelectItem>
                 <SelectItem value="monthly">
                   {t("reports_page.monthly_1st_6am")}
                 </SelectItem>
@@ -1088,7 +1131,11 @@ function ScheduledTab() {
   const deleteScheduled = useDeleteScheduledReport();
 
   function handleDelete(publicId: string, name: string) {
-    if (!confirm(`${t("reports_page.cancel_scheduled_confirm_prefix")} "${name}"?`))
+    if (
+      !confirm(
+        `${t("reports_page.cancel_scheduled_confirm_prefix")} "${name}"?`,
+      )
+    )
       return;
     deleteScheduled.mutate(publicId, {
       onSuccess: () => toast.success(t("reports_page.schedule_cancelled")),
@@ -1133,12 +1180,14 @@ function ScheduledTab() {
                         : t("reports_page.recipient_lc")}
                     </span>
                     <span className="flex items-center gap-1">
-                      <CalendarClock className="h-3 w-3" /> {t("reports_page.next")}:{" "}
+                      <CalendarClock className="h-3 w-3" />{" "}
+                      {t("reports_page.next")}:{" "}
                       {new Date(s.next_run_at).toLocaleString()}
                     </span>
                     {s.last_run_at && (
                       <span>
-                        {t("reports_page.last")}: {new Date(s.last_run_at).toLocaleString()}
+                        {t("reports_page.last")}:{" "}
+                        {new Date(s.last_run_at).toLocaleString()}
                       </span>
                     )}
                   </div>

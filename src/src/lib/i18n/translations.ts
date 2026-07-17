@@ -480,19 +480,16 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.settings_page.method_mobile_desc":
       "GPS + selfie from employee phone",
     "attendance.settings_page.method_qr_label": "QR Code Scan",
-    "attendance.settings_page.method_qr_desc":
-      "Scan QR at branch entrance",
+    "attendance.settings_page.method_qr_desc": "Scan QR at branch entrance",
     "attendance.settings_page.method_kiosk_label": "Kiosk",
     "attendance.settings_page.method_kiosk_desc":
       "Shared device with employee code",
     "attendance.settings_page.method_web_label": "Web Portal",
     "attendance.settings_page.method_web_desc": "Check-in from dashboard",
     "attendance.settings_page.method_manual_label": "Manual Entry",
-    "attendance.settings_page.method_manual_desc":
-      "HR/Admin manual recording",
+    "attendance.settings_page.method_manual_desc": "HR/Admin manual recording",
     "attendance.settings_page.method_csv_label": "CSV Import",
-    "attendance.settings_page.method_csv_desc":
-      "Bulk import from spreadsheet",
+    "attendance.settings_page.method_csv_desc": "Bulk import from spreadsheet",
     "attendance.settings_page.saved": "Settings saved",
     "attendance.settings_page.save_failed": "Failed to save settings",
     "attendance.settings_page.at_least_one_method":
@@ -514,8 +511,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.settings_page.gps_accuracy_desc":
       "Reject if GPS accuracy exceeds this",
     "attendance.settings_page.offline_sync": "Offline sync",
-    "attendance.settings_page.offline_sync_desc":
-      "Allow check-in when offline",
+    "attendance.settings_page.offline_sync_desc": "Allow check-in when offline",
     "attendance.settings_page.qr_code": "QR Code",
     "attendance.settings_page.default_expiry": "Default expiry (minutes)",
     "attendance.settings_page.auto_refresh": "Auto-refresh",
@@ -528,8 +524,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.settings_page.require_pin": "Require employee PIN",
     "attendance.settings_page.require_pin_desc":
       "Employees must enter PIN after code",
-    "attendance.settings_page.auto_reset_delay":
-      "Auto-reset delay (seconds)",
+    "attendance.settings_page.auto_reset_delay": "Auto-reset delay (seconds)",
     "attendance.settings_page.auto_reset_desc":
       "Reset kiosk after success/error",
     "attendance.kiosks_page.registered": "Kiosk registered",
@@ -539,8 +534,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.kiosks_page.activated": "Kiosk activated",
     "attendance.kiosks_page.activate_failed": "Failed to activate",
     "attendance.kiosks_page.token_regenerated": "Token regenerated",
-    "attendance.kiosks_page.regenerate_failed":
-      "Failed to regenerate token",
+    "attendance.kiosks_page.regenerate_failed": "Failed to regenerate token",
     "attendance.kiosks_page.deleted": "Kiosk deleted",
     "attendance.kiosks_page.delete_failed": "Failed to delete kiosk",
     "attendance.kiosks_page.title": "Kiosk Devices",
@@ -566,8 +560,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.kiosks_page.admin_pin": "Admin PIN * (4–8 digits)",
     "attendance.kiosks_page.admin_pin_placeholder":
       "Required to exit kiosk mode",
-    "attendance.kiosks_page.device_identifier":
-      "Device Identifier (optional)",
+    "attendance.kiosks_page.device_identifier": "Device Identifier (optional)",
     "attendance.kiosks_page.device_identifier_placeholder":
       "e.g. tablet-lobby-01",
     "attendance.kiosks_page.register": "Register",
@@ -603,8 +596,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.mobile_page.record_pending": "record pending sync",
     "attendance.mobile_page.synced": "Synced",
     "attendance.mobile_page.records_suffix": "record(s)",
-    "attendance.mobile_page.records_failed_suffix":
-      "record(s) failed to sync",
+    "attendance.mobile_page.records_failed_suffix": "record(s) failed to sync",
     "attendance.mobile_page.sync_now": "Sync Now",
     "attendance.mobile_page.your_location": "Your Location",
     "attendance.mobile_page.getting_location": "Getting location…",
@@ -681,10 +673,8 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.import_page.field_employee_code":
       "Employee ID/code in your system (required)",
     "attendance.import_page.field_date": "YYYY-MM-DD format (required)",
-    "attendance.import_page.field_check_in":
-      "HH:MM 24-hour format (required)",
-    "attendance.import_page.field_check_out":
-      "HH:MM 24-hour format (optional)",
+    "attendance.import_page.field_check_in": "HH:MM 24-hour format (required)",
+    "attendance.import_page.field_check_out": "HH:MM 24-hour format (optional)",
     "attendance.import_page.total_rows": "Total Rows",
     "attendance.import_page.valid": "Valid",
     "attendance.import_page.invalid": "Invalid",
@@ -718,10 +708,8 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.intelligence_page.shift_start": "Shift Start",
     "attendance.intelligence_page.late_by": "Late By",
     "attendance.intelligence_page.min": "min",
-    "attendance.intelligence_page.no_early_departures":
-      "No early departures",
-    "attendance.intelligence_page.no_missing_punches":
-      "No missing punches",
+    "attendance.intelligence_page.no_early_departures": "No early departures",
+    "attendance.intelligence_page.no_missing_punches": "No missing punches",
     "leave_page.submitted": "Leave request submitted",
     "leave_page.submit_failed": "Failed to submit leave request",
     "leave_page.description": "Manage leave requests and balances",
@@ -736,8 +724,7 @@ const translations: Record<string, Record<string, string>> = {
     "leave_page.used_of": "used of",
     "leave_page.my_requests": "My Leave Requests",
     "leave_page.no_requests": "No leave requests",
-    "leave_page.no_requests_desc":
-      "Apply for leave to see your requests here",
+    "leave_page.no_requests_desc": "Apply for leave to see your requests here",
     "leave_page.type": "Type",
     "leave_page.dates": "Dates",
     "leave_page.days": "Days",
@@ -767,8 +754,7 @@ const translations: Record<string, Record<string, string>> = {
       "Bulk import employees from a CSV file",
     "employees_import_page.upload_csv": "Upload CSV File",
     "employees_import_page.parsing_csv": "Parsing CSV…",
-    "employees_import_page.drag_drop_hint":
-      "Drag and drop your CSV file, or",
+    "employees_import_page.drag_drop_hint": "Drag and drop your CSV file, or",
     "employees_import_page.browse_files": "Browse files",
     "employees_import_page.format_hint":
       "CSV format · max 5 MB · header row required",
@@ -781,8 +767,10 @@ const translations: Record<string, Record<string, string>> = {
     "employees_import_page.total_rows": "Total rows",
     "employees_import_page.valid_rows": "Valid rows",
     "employees_import_page.rows_with_errors": "Rows with errors",
-    "employees_import_page.rows_contain_errors": "rows contain validation errors",
-    "employees_import_page.row_contains_errors": "row contains validation errors",
+    "employees_import_page.rows_contain_errors":
+      "rows contain validation errors",
+    "employees_import_page.row_contains_errors":
+      "row contains validation errors",
     "employees_import_page.error_rows_skipped_hint":
       "Rows with errors will be skipped during import. Fix the issues below or proceed to import only valid rows.",
     "employees_import_page.preview": "Preview",
@@ -830,10 +818,8 @@ const translations: Record<string, Record<string, string>> = {
     "payroll_page.payslips_page.gross_pay": "Gross Pay",
     "payroll_page.payslips_page.gross": "Gross",
     "payroll_page.payslips_page.income_tax": "Income Tax",
-    "payroll_page.payslips_page.employee_pension_pct":
-      "Employee Pension (7%)",
-    "payroll_page.payslips_page.employer_pension_pct":
-      "Employer Pension (11%)",
+    "payroll_page.payslips_page.employee_pension_pct": "Employee Pension (7%)",
+    "payroll_page.payslips_page.employer_pension_pct": "Employer Pension (11%)",
     "payroll_page.payslips_page.employee_pension": "Employee Pension",
     "payroll_page.payslips_page.other_deductions": "Other Deductions",
     "payroll_page.payslips_page.net_pay": "Net Pay",
@@ -847,8 +833,7 @@ const translations: Record<string, Record<string, string>> = {
     "payroll_page.payslips_page.no_payslips_desc":
       "Your payslips will appear here after payroll is processed",
     "payroll_detail_page.register_downloaded": "Payroll register downloaded",
-    "payroll_detail_page.bank_file_downloaded":
-      "Bank transfer file downloaded",
+    "payroll_detail_page.bank_file_downloaded": "Bank transfer file downloaded",
     "payroll_detail_page.bank_file_failed": "Failed to generate bank file",
     "payroll_detail_page.no_journal_entries": "No journal entries found",
     "payroll_detail_page.journal_downloaded": "Journal entries downloaded",
@@ -984,8 +969,7 @@ const translations: Record<string, Record<string, string>> = {
     "holidays_page.auto_detected": "Ethiopian holidays detected and added",
     "holidays_page.auto_detect_failed": "Failed to auto-detect holidays",
     "holidays_page.title": "Holidays",
-    "holidays_page.description":
-      "Manage public holidays and non-working days",
+    "holidays_page.description": "Manage public holidays and non-working days",
     "holidays_page.auto_detect": "Auto-Detect Ethiopian Holidays",
     "holidays_page.add_holiday": "Add Holiday",
     "holidays_page.no_holidays": "No holidays configured",
@@ -1034,7 +1018,8 @@ const translations: Record<string, Record<string, string>> = {
     "shifts_settings_page.add_shift": "Add Shift",
     "shifts_settings_page.schedule": "Schedule",
     "shifts_settings_page.no_shifts": "No shifts configured",
-    "shifts_settings_page.no_shifts_desc": "Add shifts to define work schedules",
+    "shifts_settings_page.no_shifts_desc":
+      "Add shifts to define work schedules",
     "shifts_settings_page.start": "Start",
     "shifts_settings_page.end": "End",
     "shifts_settings_page.grace": "Grace",
@@ -1183,7 +1168,8 @@ const translations: Record<string, Record<string, string>> = {
     "device_detail_page.webhook_url_hint":
       "Webhook URL (configure this in your device)",
     "device_detail_page.regenerate_token": "Regenerate Token",
-    "device_detail_page.regenerate_hint": "This will invalidate the current URL",
+    "device_detail_page.regenerate_hint":
+      "This will invalidate the current URL",
     "device_detail_page.sync_history": "Sync History",
     "device_detail_page.attendance_events": "Attendance Events",
     "device_detail_page.no_sync_history":
@@ -1200,7 +1186,8 @@ const translations: Record<string, Record<string, string>> = {
       "Attendance records from this device will be preserved but unlinked.",
     "device_detail_page.location_description": "Location Description",
     "device_detail_page.location_placeholder": "e.g. Ground floor, east wing",
-    "device_detail_page.auto_sync_hint": "Automatically pull records on schedule",
+    "device_detail_page.auto_sync_hint":
+      "Automatically pull records on schedule",
     "device_detail_page.sync_interval": "Sync Interval",
     "device_detail_page.every_1_min": "Every 1 minute",
     "device_detail_page.every_5_min": "Every 5 minutes",
@@ -1305,7 +1292,8 @@ const translations: Record<string, Record<string, string>> = {
     "admin_tenants_page.all_statuses": "All statuses",
     "admin_tenants_page.no_tenants": "No tenants found",
     "admin_tenants_page.try_different_search": "Try a different search term",
-    "admin_tenants_page.no_tenants_match": "No tenants match the current filters",
+    "admin_tenants_page.no_tenants_match":
+      "No tenants match the current filters",
     "admin_tenants_page.tenant": "Tenant",
     "admin_tenants_page.subdomain": "Subdomain",
     "admin_tenants_page.trial_ends": "Trial Ends",
@@ -1359,8 +1347,7 @@ const translations: Record<string, Record<string, string>> = {
     "admin_tenant_detail_page.token_expires": "Token expires",
     "admin_tenant_detail_page.bearer_token": "Bearer Token",
     "admin_tenant_detail_page.copy_token": "Copy Token",
-    "admin_tenant_detail_page.token_usage_hint_1":
-      "Use this token in an",
+    "admin_tenant_detail_page.token_usage_hint_1": "Use this token in an",
     "admin_tenant_detail_page.token_usage_hint_2":
       "header to access the tenant's data on their behalf. The token grants Tenant Admin privileges and expires in 1 hour.",
     "analytics_page.title": "Executive Analytics",
@@ -1424,14 +1411,16 @@ const translations: Record<string, Record<string, string>> = {
     "reports_page.run_preview": "Run Preview",
     "reports_page.download_csv": "Download CSV",
     "reports_page.save_as_template": "Save as Template",
-    "reports_page.configure_hint": "Configure your report on the left, then click",
+    "reports_page.configure_hint":
+      "Configure your report on the left, then click",
     "reports_page.generating": "Generating report…",
     "reports_page.records": "records",
     "reports_page.grouped_by": "Grouped by",
     "reports_page.no_data": "No data",
     "reports_page.no_rows": "The query returned no rows",
     "reports_page.showing_first_200_prefix": "Showing first 200 of",
-    "reports_page.showing_first_200_suffix": "rows. Download CSV for full data.",
+    "reports_page.showing_first_200_suffix":
+      "rows. Download CSV for full data.",
     "reports_page.template_saved": "Report template saved",
     "reports_page.save_template_failed": "Failed to save template",
     "reports_page.save_report_template": "Save Report Template",
@@ -1538,11 +1527,13 @@ const translations: Record<string, Record<string, string>> = {
     "security_page.enabled": "Enabled",
     "security_page.mfa_protected":
       "Your account is protected with two-factor authentication",
-    "security_page.mfa_add_layer": "Add an extra layer of security to your account",
+    "security_page.mfa_add_layer":
+      "Add an extra layer of security to your account",
     "security_page.disable": "Disable",
     "security_page.enable_mfa": "Enable MFA",
     "security_page.account_password": "Account Password",
-    "security_page.strong_password_hint": "Use a strong password unique to ETHR",
+    "security_page.strong_password_hint":
+      "Use a strong password unique to ETHR",
     "security_page.change_password": "Change Password",
     "security_page.setup_mfa_title": "Set up Two-Factor Authentication",
     "security_page.scan_qr_hint":
@@ -1552,7 +1543,8 @@ const translations: Record<string, Record<string, string>> = {
     "security_page.recovery_codes_hint":
       "Save these in a secure place. You can use them to access your account if you lose your device.",
     "security_page.copy_all": "Copy all",
-    "security_page.enter_6_digit_code": "2. Enter the 6-digit code from your app:",
+    "security_page.enter_6_digit_code":
+      "2. Enter the 6-digit code from your app:",
     "security_page.verify_and_enable": "Verify & Enable",
     "security_page.current_password": "Current password",
     "security_page.new_password": "New password",
@@ -2142,8 +2134,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.manual_recorded": "የእጅ ግቤት ተመዝግቧል",
     "attendance.manual_failed": "የእጅ ግቤት አልተሳካም",
     "attendance.corrections.title": "የቅጥር ማስተካከያዎች",
-    "attendance.corrections.description":
-      "ለቅጥር መዛግብት ማስተካከያዎችን ያስገቡ እና ይገምግሙ",
+    "attendance.corrections.description": "ለቅጥር መዛግብት ማስተካከያዎችን ያስገቡ እና ይገምግሙ",
     "attendance.corrections.request": "ማስተካከያ ይጠይቁ",
     "attendance.corrections.my_requests": "የእኔ ጥያቄዎች",
     "attendance.corrections.pending_reviews": "በመጠባበቅ ላይ ያሉ ግምገማዎች",
@@ -2156,8 +2147,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.corrections.original": "የመጀመሪያው",
     "attendance.corrections.requested": "የተጠየቀው",
     "attendance.corrections.caught_up": "ሁሉም ተጠናቅቋል",
-    "attendance.corrections.no_pending":
-      "ለግምገማዎ የሚጠብቁ የማስተካከያ ጥያቄዎች የሉም",
+    "attendance.corrections.no_pending": "ለግምገማዎ የሚጠብቁ የማስተካከያ ጥያቄዎች የሉም",
     "attendance.corrections.approved": "ማስተካከያው ጸድቋል",
     "attendance.corrections.approve_failed": "ማጽደቅ አልተሳካም",
     "attendance.corrections.rejected": "ማስተካከያው ውድቅ ተደርጓል",
@@ -2195,8 +2185,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.overtime_page.flagged": "ተለይቷል",
     "attendance.overtime_page.by_employee": "የትርፍ ሰዓት በሰራተኛ",
     "attendance.overtime_page.empty_title": "ምንም የትርፍ ሰዓት አልተመዘገበም",
-    "attendance.overtime_page.empty_desc_prefix":
-      "ምንም ሰራተኛ የትርፍ ሰዓት አልመዘገበም",
+    "attendance.overtime_page.empty_desc_prefix": "ምንም ሰራተኛ የትርፍ ሰዓት አልመዘገበም",
     "attendance.overtime_page.days_with_ot": "ከትርፍ ሰዓት ጋር ያሉ ቀናት",
     "attendance.overtime_page.total_hours": "ጠቅላላ ሰዓቶች",
     "attendance.overtime_page.over_threshold_badge": "ከገደብ በላይ",
@@ -2205,13 +2194,11 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.settings_page.method_biometric_desc":
       "የጣት አሻራ፣ የፊት ለይቶ ማወቂያ መሳሪያዎች",
     "attendance.settings_page.method_mobile_label": "የሞባይል ግብዓት",
-    "attendance.settings_page.method_mobile_desc":
-      "GPS + ከሰራተኛ ስልክ ራስፎቶ",
+    "attendance.settings_page.method_mobile_desc": "GPS + ከሰራተኛ ስልክ ራስፎቶ",
     "attendance.settings_page.method_qr_label": "QR ኮድ ቅኝት",
     "attendance.settings_page.method_qr_desc": "በቅርንጫፍ መግቢያ QR ቃኝ",
     "attendance.settings_page.method_kiosk_label": "ኪዮስክ",
-    "attendance.settings_page.method_kiosk_desc":
-      "በሰራተኛ ኮድ የሚጋራ መሳሪያ",
+    "attendance.settings_page.method_kiosk_desc": "በሰራተኛ ኮድ የሚጋራ መሳሪያ",
     "attendance.settings_page.method_web_label": "የድር ፖርታል",
     "attendance.settings_page.method_web_desc": "ከዳሽቦርድ ግባ",
     "attendance.settings_page.method_manual_label": "የእጅ ግቤት",
@@ -2220,8 +2207,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.settings_page.method_csv_desc": "ከሰንጠረዥ በጅምላ አስመጣ",
     "attendance.settings_page.saved": "ቅንብሮች ተቀምጠዋል",
     "attendance.settings_page.save_failed": "ቅንብሮችን ማስቀመጥ አልተሳካም",
-    "attendance.settings_page.at_least_one_method":
-      "ቢያንስ አንድ ዘዴ መንቃት አለበት",
+    "attendance.settings_page.at_least_one_method": "ቢያንስ አንድ ዘዴ መንቃት አለበት",
     "attendance.settings_page.title": "የቅጥር ቅንብሮች",
     "attendance.settings_page.description":
       "የትኞቹ የቅጥር ዘዴዎች እንደነቁ እና ባህሪያቸውን ያዋቅሩ",
@@ -2233,29 +2219,22 @@ const translations: Record<string, Record<string, string>> = {
       "ከቅርንጫፍ ክልል ውጭ ግቤቶችን ውድቅ አድርግ",
     "attendance.settings_page.require_photo": "ፎቶ ይጠይቁ",
     "attendance.settings_page.require_photo_desc": "ራስፎቶ ለግቤት ያስፈልጋል",
-    "attendance.settings_page.gps_accuracy_threshold":
-      "የGPS ትክክለኛነት ገደብ (ሜትር)",
+    "attendance.settings_page.gps_accuracy_threshold": "የGPS ትክክለኛነት ገደብ (ሜትር)",
     "attendance.settings_page.gps_accuracy_desc":
       "የGPS ትክክለኛነት ይህን ካለፈ ውድቅ አድርግ",
     "attendance.settings_page.offline_sync": "ከመስመር ውጭ ማመሳሰል",
-    "attendance.settings_page.offline_sync_desc":
-      "ከመስመር ውጭ ሆኖ ግቤት ፍቀድ",
+    "attendance.settings_page.offline_sync_desc": "ከመስመር ውጭ ሆኖ ግቤት ፍቀድ",
     "attendance.settings_page.qr_code": "QR ኮድ",
     "attendance.settings_page.default_expiry": "ነባሪ የማብቂያ ጊዜ (ደቂቃዎች)",
     "attendance.settings_page.auto_refresh": "ራስ-አድስ",
-    "attendance.settings_page.auto_refresh_desc":
-      "QR ሲያበቃ በራስ-ሰር አድስ",
+    "attendance.settings_page.auto_refresh_desc": "QR ሲያበቃ በራስ-ሰር አድስ",
     "attendance.settings_page.single_use_limit": "የነጠላ አጠቃቀም ገደብ",
-    "attendance.settings_page.single_use_limit_desc":
-      "0 = ላልተወሰነ ብዛት በQR ቅኝቶች",
+    "attendance.settings_page.single_use_limit_desc": "0 = ላልተወሰነ ብዛት በQR ቅኝቶች",
     "attendance.settings_page.kiosk": "ኪዮስክ",
     "attendance.settings_page.require_pin": "የሰራተኛ ፒን ይጠይቁ",
-    "attendance.settings_page.require_pin_desc":
-      "ሰራተኞች ከኮድ በኋላ ፒን ማስገባት አለባቸው",
-    "attendance.settings_page.auto_reset_delay":
-      "ራስ-ዳግም ማስጀመሪያ መዘግየት (ሰከንዶች)",
-    "attendance.settings_page.auto_reset_desc":
-      "ኪዮስክን ከስኬት/ስህተት በኋላ ዳግም አስጀምር",
+    "attendance.settings_page.require_pin_desc": "ሰራተኞች ከኮድ በኋላ ፒን ማስገባት አለባቸው",
+    "attendance.settings_page.auto_reset_delay": "ራስ-ዳግም ማስጀመሪያ መዘግየት (ሰከንዶች)",
+    "attendance.settings_page.auto_reset_desc": "ኪዮስክን ከስኬት/ስህተት በኋላ ዳግም አስጀምር",
     "attendance.kiosks_page.registered": "ኪዮስክ ተመዝግቧል",
     "attendance.kiosks_page.register_failed": "ኪዮስክ መመዝገብ አልተሳካም",
     "attendance.kiosks_page.deactivated": "ኪዮስክ ቦዝኗል",
@@ -2287,8 +2266,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.kiosks_page.branch": "ቅርንጫፍ *",
     "attendance.kiosks_page.select_branch": "ቅርንጫፍ ይምረጡ",
     "attendance.kiosks_page.admin_pin": "የአስተዳዳሪ ፒን * (4–8 አሃዞች)",
-    "attendance.kiosks_page.admin_pin_placeholder":
-      "ከኪዮስክ ሁነታ ለመውጣት ያስፈልጋል",
+    "attendance.kiosks_page.admin_pin_placeholder": "ከኪዮስክ ሁነታ ለመውጣት ያስፈልጋል",
     "attendance.kiosks_page.device_identifier": "የመሳሪያ መለያ (አማራጭ)",
     "attendance.kiosks_page.device_identifier_placeholder":
       "ለምሳሌ tablet-lobby-01",
@@ -2299,34 +2277,29 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.kiosks_page.copied": "ተገልብጧል",
     "attendance.kiosks_page.copy": "ገልብጥ",
     "attendance.kiosks_page.done": "ተከናውኗል",
-    "attendance.mobile_page.geolocation_unsupported":
-      "ጂኦሎኬሽን በመሳሪያዎ አይደገፍም",
+    "attendance.mobile_page.geolocation_unsupported": "ጂኦሎኬሽን በመሳሪያዎ አይደገፍም",
     "attendance.mobile_page.camera_denied": "የካሜራ ፍቃድ ተከልክሏል",
     "attendance.mobile_page.location_required": "አካባቢ ያስፈልጋል",
     "attendance.mobile_page.cannot_determine_identity":
       "ከመስመር ውጭ ሆኖ የሰራተኛ ማንነት ማወቅ አልተቻለም።",
-    "attendance.mobile_page.saved_offline":
-      "ከመስመር ውጭ ተቀምጧል። ሲገናኝ ይመሳሰላል።",
+    "attendance.mobile_page.saved_offline": "ከመስመር ውጭ ተቀምጧል። ሲገናኝ ይመሳሰላል።",
     "attendance.mobile_page.saved_offline_toast":
       "ከመስመር ውጭ ተቀምጧል — በራስ-ሰር ይመሳሰላል",
-    "attendance.mobile_page.offline_save_failed":
-      "ከመስመር ውጭ መዝገብ ማስቀመጥ አልተሳካም።",
+    "attendance.mobile_page.offline_save_failed": "ከመስመር ውጭ መዝገብ ማስቀመጥ አልተሳካም።",
     "attendance.checked_in_label": "ገብቷል",
     "attendance.checked_out_label": "ወጥቷል",
     "attendance.mobile_page.confidence": "እርግጠኝነት",
     "attendance.mobile_page.submit_failed": "ቅጥር ማስገባት አልተሳካም",
     "attendance.mobile_page.redirecting": "በማዘዋወር ላይ…",
     "attendance.mobile_page.title": "የሞባይል ግብዓት",
-    "attendance.mobile_page.description":
-      "ቅጥርን ከአካባቢ እና አማራጭ ራስፎቶ ጋር ያስገቡ",
+    "attendance.mobile_page.description": "ቅጥርን ከአካባቢ እና አማራጭ ራስፎቶ ጋር ያስገቡ",
     "attendance.mobile_page.offline_banner":
       "ከመስመር ውጭ ነዎት። ቅጥር በአካባቢ ይቀመጣል እና ሲገናኙ ይመሳሰላል።",
     "attendance.mobile_page.records_pending": "መዛግብት ማመሳሰያ በመጠባበቅ ላይ",
     "attendance.mobile_page.record_pending": "መዝገብ ማመሳሰያ በመጠባበቅ ላይ",
     "attendance.mobile_page.synced": "ተመሳስሏል",
     "attendance.mobile_page.records_suffix": "መዝገብ(ዎች)",
-    "attendance.mobile_page.records_failed_suffix":
-      "መዝገብ(ዎች) ማመሳሰል አልተሳካም",
+    "attendance.mobile_page.records_failed_suffix": "መዝገብ(ዎች) ማመሳሰል አልተሳካም",
     "attendance.mobile_page.sync_now": "አሁን አመሳስል",
     "attendance.mobile_page.your_location": "የእርስዎ አካባቢ",
     "attendance.mobile_page.getting_location": "አካባቢን በማግኘት ላይ…",
@@ -2345,8 +2318,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.qr_page.generated": "QR ኮድ ተፈጥሯል",
     "attendance.qr_page.generate_failed": "QR ኮድ መፍጠር አልተሳካም",
     "attendance.qr_page.title": "QR የቅጥር ኮድ",
-    "attendance.qr_page.description":
-      "ሰራተኞች ከስልካቸው እንዲቃኙ የሚያስችል QR ኮድ ይፍጠሩ",
+    "attendance.qr_page.description": "ሰራተኞች ከስልካቸው እንዲቃኙ የሚያስችል QR ኮድ ይፍጠሩ",
     "attendance.qr_page.configuration": "ውቅር",
     "attendance.qr_page.shift_optional": "ፈረቃ (አማራጭ)",
     "attendance.qr_page.any_shift": "ማንኛውም ፈረቃ",
@@ -2365,8 +2337,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.qr_page.shift_label": "ፈረቃ",
     "attendance.qr_page.scan_hint": "ለመግባት ይህን ኮድ በETHR መተግበሪያ ይቃኙ።",
     "attendance.qr_page.valid_until": "እስከ ሚከተለው ድረስ ትክክለኛ",
-    "attendance.scan_page.camera_unavailable":
-      "የካሜራ መዳረሻ ተከልክሏል ወይም አይገኝም",
+    "attendance.scan_page.camera_unavailable": "የካሜራ መዳረሻ ተከልክሏል ወይም አይገኝም",
     "attendance.scan_page.welcome": "እንኳን ደህና መጡ",
     "attendance.scan_page.goodbye": "ደህና ይሁኑ",
     "attendance.scan_page.invalid_or_expired": "QR ኮድ ልክ ያልሆነ ወይም አብቅቷል",
@@ -2378,12 +2349,10 @@ const translations: Record<string, Record<string, string>> = {
       "ካሜራዎን ለመጀመር ከታች ይንኩ። ሲጠየቁ የካሜራ መዳረሻ ይፍቀዱ።",
     "attendance.scan_page.start_scanner": "ቃኝ ጀምር",
     "attendance.scan_page.verifying": "QR ኮድ በማረጋገጥ ላይ…",
-    "attendance.import_page.upload_csv_or_txt":
-      "እባክዎ .csv ወይም .txt ፋይል ይስቀሉ",
+    "attendance.import_page.upload_csv_or_txt": "እባክዎ .csv ወይም .txt ፋይል ይስቀሉ",
     "attendance.import_page.file_too_large": "ፋይሉ ከ5 ሜባ በታች መሆን አለበት",
     "attendance.import_page.parse_failed": "ፋይል መተንተን አልተሳካም",
-    "attendance.import_page.template_download_failed":
-      "አብነት ማውረድ አልተሳካም",
+    "attendance.import_page.template_download_failed": "አብነት ማውረድ አልተሳካም",
     "attendance.import_page.no_valid_rows": "ለማስመጣት ትክክለኛ ረድፎች የሉም",
     "attendance.import_page.imported": "ገብቷል",
     "attendance.import_page.records": "መዛግብት",
@@ -2393,8 +2362,7 @@ const translations: Record<string, Record<string, string>> = {
       "ከCSV ፋይሎች የቅጥር መዛግብትን በጅምላ ያስመጡ (ከባዮሜትሪክ መሳሪያ ውጤቶች)",
     "attendance.import_page.download_template": "አብነት አውርድ",
     "attendance.import_page.parsing": "በመተንተን ላይ",
-    "attendance.import_page.drop_hint":
-      "የCSV ፋይልዎን እዚህ ይጣሉ ወይም ለማሰስ ይጫኑ",
+    "attendance.import_page.drop_hint": "የCSV ፋይልዎን እዚህ ይጣሉ ወይም ለማሰስ ይጫኑ",
     "attendance.import_page.supports_hint":
       "እስከ 5 ሜባ ድረስ .csv እና .txt ፋይሎችን ይደግፋል",
     "attendance.import_page.expected_format": "የሚጠበቅ የCSV ቅርጸት",
@@ -2416,8 +2384,7 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.import_page.skip_hint":
       "ትክክለኛ ረድፎች ብቻ ይገባሉ። CSVን አስተካክለው ሁሉንም ረድፎች ለማካተት እንደገና ይስቀሉ።",
     "attendance.import_page.importing": "መዛግብት በማስመጣት ላይ…",
-    "attendance.import_page.large_file_hint":
-      "ለትላልቅ ፋይሎች ትንሽ ጊዜ ሊወስድ ይችላል",
+    "attendance.import_page.large_file_hint": "ለትላልቅ ፋይሎች ትንሽ ጊዜ ሊወስድ ይችላል",
     "attendance.import_page.complete": "ማስመጣት ተጠናቅቋል",
     "attendance.import_page.created": "ተፈጥሯል",
     "attendance.import_page.skipped_duplicates": "ተዘልሏል (ድግግሞሽ)",
@@ -2436,10 +2403,8 @@ const translations: Record<string, Record<string, string>> = {
     "attendance.intelligence_page.shift_start": "የፈረቃ መጀመሪያ",
     "attendance.intelligence_page.late_by": "የዘገየው በ",
     "attendance.intelligence_page.min": "ደቂቃ",
-    "attendance.intelligence_page.no_early_departures":
-      "ምንም ቀደም ብሎ መውጣት የለም",
-    "attendance.intelligence_page.no_missing_punches":
-      "ምንም የጎደሉ ምልክቶች የሉም",
+    "attendance.intelligence_page.no_early_departures": "ምንም ቀደም ብሎ መውጣት የለም",
+    "attendance.intelligence_page.no_missing_punches": "ምንም የጎደሉ ምልክቶች የሉም",
     "leave_page.submitted": "የፈቃድ ጥያቄ ገብቷል",
     "leave_page.submit_failed": "የፈቃድ ጥያቄ ማስገባት አልተሳካም",
     "leave_page.description": "የፈቃድ ጥያቄዎችን እና ቀሪ ሂሳቦችን ያስተዳድሩ",
@@ -2465,8 +2430,7 @@ const translations: Record<string, Record<string, string>> = {
     "leave_page.requests_singular": "የፈቃድ ጥያቄ",
     "leave_page.team_requests": "የቡድን ፈቃድ ጥያቄዎች",
     "leave_page.no_team_requests": "ምንም የቡድን ፈቃድ ጥያቄዎች የሉም",
-    "leave_page.no_team_requests_desc":
-      "የቡድን አባላትዎ የፈቃድ ጥያቄዎች እዚህ ይታያሉ",
+    "leave_page.no_team_requests_desc": "የቡድን አባላትዎ የፈቃድ ጥያቄዎች እዚህ ይታያሉ",
     "leave_page.more": "ተጨማሪ",
     "leave_page.approved": "ጸድቋል",
     "leave_page.pending": "በመጠባበቅ ላይ",
@@ -2479,13 +2443,13 @@ const translations: Record<string, Record<string, string>> = {
     "employees_import_page.select_csv": "እባክዎ CSV ፋይል ይምረጡ",
     "employees_import_page.back_to_employees": "ወደ ሰራተኞች ተመለስ",
     "employees_import_page.title": "ሰራተኞችን አስመጣ",
-    "employees_import_page.description":
-      "ሰራተኞችን ከCSV ፋይል በጅምላ ያስመጡ",
+    "employees_import_page.description": "ሰራተኞችን ከCSV ፋይል በጅምላ ያስመጡ",
     "employees_import_page.upload_csv": "CSV ፋይል ስቀል",
     "employees_import_page.parsing_csv": "CSV በመተንተን ላይ…",
     "employees_import_page.drag_drop_hint": "የCSV ፋይልዎን እዚህ ይጣሉ ወይም",
     "employees_import_page.browse_files": "ፋይሎችን አስስ",
-    "employees_import_page.format_hint": "CSV ቅርጸት · ከፍተኛ 5 ሜባ · የራስጌ ረድፍ ያስፈልጋል",
+    "employees_import_page.format_hint":
+      "CSV ቅርጸት · ከፍተኛ 5 ሜባ · የራስጌ ረድፍ ያስፈልጋል",
     "employees_import_page.download_template_title": "አብነት አውርድ",
     "employees_import_page.template_hint":
       "ሁሉንም አስፈላጊ አምዶች እና የምሳሌ ረድፍ የያዘ የCSV አብነታችንን ይጠቀሙ።",
@@ -2552,8 +2516,7 @@ const translations: Record<string, Record<string, string>> = {
       "በETHR የተፈጠረ · ይህ በኮምፒውተር የተፈጠረ ሰነድ ነው",
     "payroll_page.payslips_page.print_save": "አትም / እንደ PDF አስቀምጥ",
     "payroll_page.payslips_page.title": "የእኔ ደመወዝ ደረሰኞች",
-    "payroll_page.payslips_page.description":
-      "የደመወዝ ዝርዝርዎን በጊዜ ወቅት ይመልከቱ",
+    "payroll_page.payslips_page.description": "የደመወዝ ዝርዝርዎን በጊዜ ወቅት ይመልከቱ",
     "payroll_page.payslips_page.no_payslips": "እስካሁን ምንም ደመወዝ ደረሰኞች የሉም",
     "payroll_page.payslips_page.no_payslips_desc":
       "ደመወዝ ከተሰራ በኋላ ደረሰኞችዎ እዚህ ይታያሉ",
@@ -2625,8 +2588,7 @@ const translations: Record<string, Record<string, string>> = {
     "roles_page.selected": "ተመርጠዋል",
     "roles_page.update_role": "ሚና አዘምን",
     "leave_page.optional_description": "አማራጭ መግለጫ",
-    "api_keys_page.key_created":
-      "የAPI ቁልፍ ተፈጥሯል — አሁን ይቅዱት፣ እንደገና አይታይም",
+    "api_keys_page.key_created": "የAPI ቁልፍ ተፈጥሯል — አሁን ይቅዱት፣ እንደገና አይታይም",
     "api_keys_page.create_failed": "የAPI ቁልፍ መፍጠር አልተሳካም",
     "api_keys_page.key_revoked": "ቁልፍ ተሽሯል",
     "api_keys_page.key_copied": "ቁልፍ ወደ ቅንጥብ ሰሌዳ ተገልብጧል",
@@ -2637,8 +2599,7 @@ const translations: Record<string, Record<string, string>> = {
     "api_keys_page.save_now_hint": "ይህን ቁልፍ አሁን ያስቀምጡ — እንደገና አይታይም",
     "api_keys_page.dismiss": "አሰናብት",
     "api_keys_page.no_keys": "ምንም የAPI ቁልፎች የሉም",
-    "api_keys_page.no_keys_desc":
-      "ውህደቶችን ለማንቃት የመጀመሪያ የAPI ቁልፍዎን ይፍጠሩ",
+    "api_keys_page.no_keys_desc": "ውህደቶችን ለማንቃት የመጀመሪያ የAPI ቁልፍዎን ይፍጠሩ",
     "api_keys_page.prefix": "ቅድመ ቅጥያ",
     "api_keys_page.abilities": "ችሎታዎች",
     "api_keys_page.key_name": "የቁልፍ ስም",
@@ -2651,14 +2612,11 @@ const translations: Record<string, Record<string, string>> = {
     "webhooks_page.test_failed": "ሙከራ መላክ አልተሳካም",
     "webhooks_page.secret_copied": "ሚስጥር ተገልብጧል",
     "webhooks_page.title": "ዌብሁክ",
-    "webhooks_page.description":
-      "በተከራይዎ ውስጥ ክስተቶች ሲከሰቱ የHTTP ማሳወቂያዎችን ይቀበሉ",
+    "webhooks_page.description": "በተከራይዎ ውስጥ ክስተቶች ሲከሰቱ የHTTP ማሳወቂያዎችን ይቀበሉ",
     "webhooks_page.add_webhook": "ዌብሁክ ጨምር",
-    "webhooks_page.save_secret_hint":
-      "ይህን HMAC ሚስጥር አሁን ያስቀምጡ — እንደገና አይታይም",
+    "webhooks_page.save_secret_hint": "ይህን HMAC ሚስጥር አሁን ያስቀምጡ — እንደገና አይታይም",
     "webhooks_page.no_webhooks": "ምንም ዌብሁክ አልተዋቀረም",
-    "webhooks_page.no_webhooks_desc":
-      "የክስተት ማሳወቂያዎችን ለመቀበል ዌብሁክ ይጨምሩ",
+    "webhooks_page.no_webhooks_desc": "የክስተት ማሳወቂያዎችን ለመቀበል ዌብሁክ ይጨምሩ",
     "webhooks_page.active": "ንቁ",
     "webhooks_page.failures": "ውድቀቶች",
     "webhooks_page.last_triggered": "መጨረሻ የተነሳበት",
@@ -2666,8 +2624,7 @@ const translations: Record<string, Record<string, string>> = {
     "webhooks_page.url": "URL",
     "webhooks_page.events": "ክስተቶች",
     "audit_logs_page.title": "የክትትል መዝገብ",
-    "audit_logs_page.description":
-      "በድርጅትዎ ውስጥ ያሉ ሁሉንም ስሱ ስራዎች ይከታተሉ",
+    "audit_logs_page.description": "በድርጅትዎ ውስጥ ያሉ ሁሉንም ስሱ ስራዎች ይከታተሉ",
     "audit_logs_page.export_csv": "CSV ላክ",
     "audit_logs_page.action": "ተግባር",
     "audit_logs_page.action_placeholder": "ለምሳሌ employee.created",
@@ -2708,8 +2665,7 @@ const translations: Record<string, Record<string, string>> = {
     "leave_types_page.deleted": "የፈቃድ አይነት ተሰርዟል",
     "leave_types_page.delete_failed": "የፈቃድ አይነት መሰረዝ አልተሳካም",
     "leave_types_page.title": "የፈቃድ አይነቶች",
-    "leave_types_page.description":
-      "የፈቃድ አይነት ፖሊሲዎችን እና የክምችት ደንቦችን ያዋቅሩ",
+    "leave_types_page.description": "የፈቃድ አይነት ፖሊሲዎችን እና የክምችት ደንቦችን ያዋቅሩ",
     "leave_types_page.add": "የፈቃድ አይነት ጨምር",
     "leave_types_page.no_leave_types": "ምንም የፈቃድ አይነቶች አልተዋቀሩም",
     "leave_types_page.no_leave_types_desc":
@@ -2770,8 +2726,7 @@ const translations: Record<string, Record<string, string>> = {
     "shifts_settings_page.effective_from": "ከሚፀናበት ቀን",
     "shifts_settings_page.effective_to": "እስከሚፀናበት ቀን",
     "accounting_page.title": "የሂሳብ አያያዝ ውህደት",
-    "accounting_page.description":
-      "የሂሳብ ገበታን ያዋቅሩ እና የደመወዝ መዝገብ ግቤቶችን ላኩ",
+    "accounting_page.description": "የሂሳብ ገበታን ያዋቅሩ እና የደመወዝ መዝገብ ግቤቶችን ላኩ",
     "accounting_page.chart_saved": "የሂሳብ ገበታ ተቀምጧል።",
     "accounting_page.chart_save_failed": "የሂሳብ ገበታ ማስቀመጥ አልተሳካም።",
     "accounting_page.key_salary_expense": "የደመወዝ ወጪ",
@@ -2781,8 +2736,7 @@ const translations: Record<string, Record<string, string>> = {
     "accounting_page.key_pension_payable_employer": "የሚከፈል ጡረታ (አሰሪ)",
     "accounting_page.key_net_salary_payable": "የሚከፈል ተጣራ ደመወዝ",
     "accounting_page.chart_of_accounts": "የሂሳብ ገበታ",
-    "accounting_page.chart_desc":
-      "የደመወዝ አካላትን ከሂሳብ ስርዓትዎ የሂሳብ ኮዶች ጋር ያዛምዱ።",
+    "accounting_page.chart_desc": "የደመወዝ አካላትን ከሂሳብ ስርዓትዎ የሂሳብ ኮዶች ጋር ያዛምዱ።",
     "accounting_page.payroll_component": "የደመወዝ አካል",
     "accounting_page.account_code": "የሂሳብ ኮድ",
     "accounting_page.account_name": "የሂሳብ ስም",
@@ -2951,8 +2905,7 @@ const translations: Record<string, Record<string, string>> = {
     "shifts_page.crosses_midnight": "እኩለ ሌሊትን ያልፋል",
     "shifts_page.crosses_midnight_desc": "የሌሊት ፈረቃ በሚቀጥለው ቀን ያበቃል",
     "shifts_page.default_shift": "ነባሪ ፈረቃ",
-    "shifts_page.default_shift_desc":
-      "ምንም ፈረቃ በግልጽ ካልተመደበ ጥቅም ላይ ይውላል",
+    "shifts_page.default_shift_desc": "ምንም ፈረቃ በግልጽ ካልተመደበ ጥቅም ላይ ይውላል",
     "shifts_page.active": "ንቁ",
     "shifts_page.active_desc": "ንቁ ያልሆኑ ፈረቃዎች አይዛመዱም",
     "shift_assignments_page.assigned_success": "ፈረቃ በተሳካ ሁኔታ ተመድቧል",
@@ -3030,13 +2983,11 @@ const translations: Record<string, Record<string, string>> = {
     "admin_tenant_detail_page.admin_actions": "የአስተዳደር ተግባራት",
     "admin_tenant_detail_page.extend_trial": "ሙከራ አራዝም",
     "admin_tenant_detail_page.impersonate_admin": "አስተዳዳሪን ወክል",
-    "admin_tenant_detail_page.backup_queued":
-      "ምትኬ ተሰልፏል — ዝግጁ ሲሆን ይነገርዎታል",
+    "admin_tenant_detail_page.backup_queued": "ምትኬ ተሰልፏል — ዝግጁ ሲሆን ይነገርዎታል",
     "admin_tenant_detail_page.backup_failed": "ምትኬ ማሰለፍ አልተሳካም",
     "admin_tenant_detail_page.backup_data": "ውሂብ ምትኬ",
     "admin_tenant_detail_page.cancelled_notice_prefix": "ይህ ተከራይ ነው",
-    "admin_tenant_detail_page.cancelled_notice_suffix":
-      "አብዛኛዎቹ ተግባራት ተሰናክለዋል።",
+    "admin_tenant_detail_page.cancelled_notice_suffix": "አብዛኛዎቹ ተግባራት ተሰናክለዋል።",
     "admin_tenant_detail_page.tenant_profile": "የተከራይ መገለጫ",
     "admin_tenant_detail_page.public_id": "የህዝብ መታወቂያ",
     "admin_tenant_detail_page.updated": "ተዘምኗል",
@@ -3133,8 +3084,7 @@ const translations: Record<string, Record<string, string>> = {
     "reports_page.no_data": "ምንም ውሂብ የለም",
     "reports_page.no_rows": "ጥያቄው ምንም ረድፎች አላመጣም",
     "reports_page.showing_first_200_prefix": "የመጀመሪያዎቹን 200 ከ",
-    "reports_page.showing_first_200_suffix":
-      "ረድፎች እያሳየ ነው። ለሙሉ ውሂብ CSV ያውርዱ።",
+    "reports_page.showing_first_200_suffix": "ረድፎች እያሳየ ነው። ለሙሉ ውሂብ CSV ያውርዱ።",
     "reports_page.template_saved": "የሪፖርት አብነት ተቀምጧል",
     "reports_page.save_template_failed": "አብነት ማስቀመጥ አልተሳካም",
     "reports_page.save_report_template": "የሪፖርት አብነት አስቀምጥ",
@@ -3171,8 +3121,7 @@ const translations: Record<string, Record<string, string>> = {
     "reports_page.recipients": "ተቀባዮች",
     "reports_page.add": "ጨምር",
     "reports_page.no_scheduled": "ምንም የታቀዱ ሪፖርቶች የሉም",
-    "reports_page.no_scheduled_desc":
-      "አብነት ያስቀምጡ፣ ከዚያ ከተቀመጡ ትር ያቅዱት",
+    "reports_page.no_scheduled_desc": "አብነት ያስቀምጡ፣ ከዚያ ከተቀመጡ ትር ያቅዱት",
     "reports_page.recipients_lc": "ተቀባዮች",
     "reports_page.recipient_lc": "ተቀባይ",
     "reports_page.next": "ቀጣይ",
@@ -3180,26 +3129,20 @@ const translations: Record<string, Record<string, string>> = {
     "reports_page.cancel_scheduled_confirm_prefix": "የታቀደ ሪፖርት ሰርዝ",
     "reports_page.schedule_cancelled": "እቅድ ተሰርዟል",
     "notification_prefs_page.type_leave_requested": "ፈቃድ ተጠይቋል",
-    "notification_prefs_page.desc_leave_requested":
-      "የቡድን አባል የፈቃድ ጥያቄ ሲያስገባ",
+    "notification_prefs_page.desc_leave_requested": "የቡድን አባል የፈቃድ ጥያቄ ሲያስገባ",
     "notification_prefs_page.type_leave_approved": "ፈቃድ ጸድቋል",
-    "notification_prefs_page.desc_leave_approved":
-      "የፈቃድ ጥያቄዎ ሲጸድቅ",
+    "notification_prefs_page.desc_leave_approved": "የፈቃድ ጥያቄዎ ሲጸድቅ",
     "notification_prefs_page.type_leave_rejected": "ፈቃድ ውድቅ ተደርጓል",
-    "notification_prefs_page.desc_leave_rejected":
-      "የፈቃድ ጥያቄዎ ውድቅ ሲደረግ",
+    "notification_prefs_page.desc_leave_rejected": "የፈቃድ ጥያቄዎ ውድቅ ሲደረግ",
     "notification_prefs_page.type_correction_request": "የማስተካከያ ጥያቄ",
-    "notification_prefs_page.desc_correction_request":
-      "ማስተካከያ ማጽደቅዎን ሲፈልግ",
+    "notification_prefs_page.desc_correction_request": "ማስተካከያ ማጽደቅዎን ሲፈልግ",
     "notification_prefs_page.type_attendance_anomaly": "የቅጥር ያልተለመደ ሁኔታ",
     "notification_prefs_page.desc_attendance_anomaly":
       "የመዘግየት ግቤቶች፣ የጎደሉ ምልክቶች",
     "notification_prefs_page.type_payslip_available": "ደመወዝ ደረሰኝ ዝግጁ ነው",
-    "notification_prefs_page.desc_payslip_available":
-      "ደመወዝ ደረሰኝዎ ሲፈጠር",
+    "notification_prefs_page.desc_payslip_available": "ደመወዝ ደረሰኝዎ ሲፈጠር",
     "notification_prefs_page.type_payroll_processed": "ደመወዝ ተሰርቷል",
-    "notification_prefs_page.desc_payroll_processed":
-      "ደመወዝ ለወቅቱ ሲሰራ",
+    "notification_prefs_page.desc_payroll_processed": "ደመወዝ ለወቅቱ ሲሰራ",
     "notification_prefs_page.type_announcement": "ማስታወቂያዎች",
     "notification_prefs_page.desc_announcement": "የድርጅት አቀፍ ማስታወቂያዎች",
     "notification_prefs_page.type_approval_reminder": "የማጽደቅ ማስታወሻ",
@@ -3211,8 +3154,7 @@ const translations: Record<string, Record<string, string>> = {
     "notification_prefs_page.saved": "የማሳወቂያ ምርጫዎች ተቀምጠዋል",
     "notification_prefs_page.save_failed": "ምርጫዎችን ማስቀመጥ አልተሳካም",
     "notification_prefs_page.title": "የማሳወቂያ ምርጫዎች",
-    "notification_prefs_page.description_short":
-      "እንዴት ማሳወቂያ እንደሚደርስዎ ይምረጡ",
+    "notification_prefs_page.description_short": "እንዴት ማሳወቂያ እንደሚደርስዎ ይምረጡ",
     "notification_prefs_page.description":
       "ለእያንዳንዱ የክስተት አይነት እንዴት ማሳወቂያ እንደሚደርስዎ ይምረጡ",
     "notification_prefs_page.reset": "ዳግም አስጀምር",
@@ -3232,8 +3174,7 @@ const translations: Record<string, Record<string, string>> = {
       "አዲስ የይለፍ ቃል ከአሁኑ የይለፍ ቃልዎ የተለየ መሆን አለበት።",
     "security_page.recovery_codes_copied": "የማገገሚያ ኮዶች ተገልብጠዋል",
     "security_page.title": "ደህንነት",
-    "security_page.description":
-      "የመለያዎን ደህንነት እና ባለሁለት ደረጃ ማረጋገጫ ያስተዳድሩ",
+    "security_page.description": "የመለያዎን ደህንነት እና ባለሁለት ደረጃ ማረጋገጫ ያስተዳድሩ",
     "security_page.two_factor_auth": "ባለሁለት ደረጃ ማረጋገጫ",
     "security_page.authenticator_app": "የማረጋገጫ መተግበሪያ",
     "security_page.enabled": "ነቅቷል",
@@ -3256,14 +3197,12 @@ const translations: Record<string, Record<string, string>> = {
     "security_page.verify_and_enable": "አረጋግጥ እና አንቃ",
     "security_page.current_password": "የአሁኑ የይለፍ ቃል",
     "security_page.new_password": "አዲስ የይለፍ ቃል",
-    "security_page.new_password_hint":
-      "ቢያንስ 8 ቁምፊዎች፣ ከአሁኑ የይለፍ ቃልዎ የተለየ።",
+    "security_page.new_password_hint": "ቢያንስ 8 ቁምፊዎች፣ ከአሁኑ የይለፍ ቃልዎ የተለየ።",
     "security_page.confirm_new_password": "አዲስ የይለፍ ቃል ያረጋግጡ",
     "security_page.sign_out_sessions_note":
       "ማስታወሻ፦ የይለፍ ቃልዎን መቀየር ሌሎች ንቁ ክፍለ ጊዜዎችዎን ሁሉ ያስወጣል።",
     "security_page.disable_mfa_title": "ባለሁለት ደረጃ ማረጋገጫ አሰናክል",
-    "security_page.disable_confirm_hint":
-      "ለማረጋገጥ የአሁኑን የማረጋገጫ ኮድ ያስገቡ፦",
+    "security_page.disable_confirm_hint": "ለማረጋገጥ የአሁኑን የማረጋገጫ ኮድ ያስገቡ፦",
     "security_page.disable_mfa": "MFA አሰናክል",
     "payroll.title": "ደመወዝ",
     "payroll.description": "የደመወዝ ሂደቶችን ይመልከቱ",

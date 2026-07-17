@@ -141,7 +141,9 @@ function RoleCard({
       return;
     deleteRole.mutate(role.public_id, {
       onSuccess: () =>
-        toast.success(`${t("roles_page.role_lc")} "${role.name}" ${t("roles_page.deleted")}`),
+        toast.success(
+          `${t("roles_page.role_lc")} "${role.name}" ${t("roles_page.deleted")}`,
+        ),
       onError: (err) => toastError(err, t("roles_page.delete_failed")),
     });
   }
@@ -295,7 +297,9 @@ function RoleDialog({
         { name, description, permissions },
         {
           onSuccess: () => {
-            toast.success(`${t("roles_page.role_lc")} "${name}" ${t("roles_page.updated")}`);
+            toast.success(
+              `${t("roles_page.role_lc")} "${name}" ${t("roles_page.updated")}`,
+            );
             onClose();
           },
           onError: (err) => toastError(err, t("roles_page.update_failed")),
@@ -306,7 +310,9 @@ function RoleDialog({
         { name, description, permissions },
         {
           onSuccess: () => {
-            toast.success(`${t("roles_page.role_lc")} "${name}" ${t("roles_page.created")}`);
+            toast.success(
+              `${t("roles_page.role_lc")} "${name}" ${t("roles_page.created")}`,
+            );
             onClose();
           },
           onError: (err) => toastError(err, t("roles_page.create_failed")),
@@ -322,7 +328,9 @@ function RoleDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? t("roles_page.edit_role") : t("roles_page.create_role")}
+            {isEditing
+              ? t("roles_page.edit_role")
+              : t("roles_page.create_role")}
           </DialogTitle>
           <DialogDescription>
             {isEditing

@@ -165,9 +165,7 @@ export default function AttendanceSettingsPage() {
                           onCheckedChange={() => toggleMethod(m.key)}
                         />
                         <div>
-                          <p className="text-sm font-medium">
-                            {t(m.labelKey)}
-                          </p>
+                          <p className="text-sm font-medium">{t(m.labelKey)}</p>
                           <p className="text-xs text-muted-foreground">
                             {t(m.descriptionKey)}
                           </p>
