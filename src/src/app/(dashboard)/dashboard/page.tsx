@@ -24,22 +24,27 @@ import {
   useManagerDashboard,
 } from "@/features/dashboard/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 
 export default function DashboardPage() {
+  const { t } = useT();
   const { role, isSupervisor, can } = usePermissions();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Dashboard
+          {t("dashboard.title", "Dashboard")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {can.viewExecutiveDashboard
-            ? "Executive overview of your organization"
+            ? t(
+                "dashboard.executive_overview",
+                "Executive overview of your organization",
+              )
             : isSupervisor
-              ? "Your team at a glance"
-              : "Your personal overview"}
+              ? t("dashboard.team_glance", "Your team at a glance")
+              : t("dashboard.personal_overview", "Your personal overview")}
         </p>
       </div>
 
@@ -51,6 +56,7 @@ export default function DashboardPage() {
 }
 
 function EmployeeSelfServiceCards() {
+  const { t } = useT();
   const { data, isLoading } = useEmployeeDashboard();
 
   if (isLoading) {
@@ -74,54 +80,61 @@ function EmployeeSelfServiceCards() {
         <KpiCard
           icon={Clock}
           tone="info"
-          title="Attendance"
+          title={t("dashboard.attendance", "Attendance")}
           value={
             attendance?.status === "checked_in"
-              ? "Checked In"
+              ? t("dashboard.checked_in", "Checked In")
               : attendance?.status === "checked_out"
-                ? "Checked Out"
-                : "Not Checked In"
+                ? t("dashboard.checked_out", "Checked Out")
+                : t("dashboard.not_checked_in", "Not Checked In")
           }
           sub={
             attendance?.check_in
-              ? `Since ${attendance.check_in}`
-              : "No record today"
+              ? t("dashboard.since", `Since ${attendance.check_in}`)
+              : t("dashboard.no_record_today", "No record today")
           }
         />
         <KpiCard
           icon={CalendarDays}
           tone="success"
-          title="Leave Balance"
+          title={t("dashboard.leave_balance", "Leave Balance")}
           value={balances.length > 0 ? `${balances[0].remaining} days` : "—"}
           sub={
             balances.length > 0
               ? String(balances[0].type)
-              : "No leave configured"
+              : t("dashboard.no_leave_configured", "No leave configured")
           }
         />
         <KpiCard
           icon={Wallet}
           tone="primary"
-          title="Latest Payslip"
+          title={t("dashboard.latest_payslip", "Latest Payslip")}
           value={payslip ? formatETB(payslip.net_cents) : "—"}
-          sub={payslip?.period ?? "No payslips"}
+          sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
         />
         <KpiCard
           icon={CalendarDays}
           tone="warning"
-          title="Next Holiday"
+          title={t("dashboard.next_holiday", "Next Holiday")}
           value={holidays.length > 0 ? holidays[0].name : "—"}
-          sub={holidays.length > 0 ? holidays[0].date : "No upcoming"}
+          sub={
+            holidays.length > 0
+              ? holidays[0].date
+              : t("dashboard.no_upcoming", "No upcoming")
+          }
         />
       </div>
 
       {balances.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Leave Balances</CardTitle>
+            <CardTitle className="text-base">
+              {t("dashboard.leave_balances", "Leave Balances")}
+            </CardTitle>
             <Button variant="ghost" size="sm" className="text-xs" asChild>
               <Link href="/leave">
-                View all <ArrowRight className="ml-1 h-3 w-3" />
+                {t("common.view_all", "View all")}{" "}
+                <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
             </Button>
           </CardHeader>
@@ -137,7 +150,10 @@ function EmployeeSelfServiceCards() {
                         {String(b.type)}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {b.remaining} of {b.entitled} remaining
+                        {t(
+                          "dashboard.remaining_of",
+                          `${b.remaining} of ${b.entitled} remaining`,
+                        )}
                       </span>
                     </div>
                     <Progress value={pct} className="h-2" />
@@ -153,6 +169,7 @@ function EmployeeSelfServiceCards() {
 }
 
 function ManagerCards() {
+  const { t } = useT();
   const { data, isLoading } = useManagerDashboard();
 
   if (isLoading) {
@@ -172,55 +189,66 @@ function ManagerCards() {
   return (
     <>
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Team Overview</h2>
-        <p className="text-sm text-muted-foreground">Your direct reports</p>
+        <h2 className="text-lg font-semibold text-foreground">
+          {t("dashboard.team_overview", "Team Overview")}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {t("dashboard.your_direct_reports", "Your direct reports")}
+        </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={Users}
           tone="primary"
-          title="Team Size"
+          title={t("dashboard.team_size", "Team Size")}
           value={String(data.team_size)}
-          sub="Direct reports"
+          sub={t("dashboard.direct_reports", "Direct reports")}
         />
         <KpiCard
           icon={UserCheck}
           tone="success"
-          title="Present Today"
+          title={t("dashboard.present_today", "Present Today")}
           value={String(attn.present)}
-          sub={`${attn.late} late`}
+          sub={t("dashboard.late_count", `${attn.late} late`)}
         />
         <KpiCard
           icon={UserX}
           tone="error"
-          title="Absent Today"
+          title={t("dashboard.absent_today", "Absent Today")}
           value={String(attn.absent)}
-          sub="Not checked in"
+          sub={t("dashboard.not_checked_in", "Not checked in")}
         />
         <KpiCard
           icon={CheckSquare}
           tone="warning"
-          title="Pending Approvals"
+          title={t("dashboard.pending_approvals", "Pending Approvals")}
           value={String(data.pending_approvals.total)}
-          sub={`${data.pending_approvals.leave} leave requests`}
+          sub={t(
+            "dashboard.leave_requests_count",
+            `${data.pending_approvals.leave} leave requests`,
+          )}
         />
       </div>
 
       {data.team_on_leave.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">On Leave This Week</CardTitle>
+            <CardTitle className="text-base">
+              {t("dashboard.on_leave_this_week", "On Leave This Week")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {data.team_on_leave.map((t, i) => (
+              {data.team_on_leave.map((member, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <span className="text-sm font-medium">{t.employee_name}</span>
+                  <span className="text-sm font-medium">
+                    {member.employee_name}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    {t.start_date} — {t.end_date}
+                    {member.start_date} — {member.end_date}
                   </span>
                 </div>
               ))}
@@ -233,53 +261,57 @@ function ManagerCards() {
 }
 
 function QuickActions() {
+  const { t } = useT();
   const { can, isSupervisor } = usePermissions();
 
   const actions = [
     {
-      label: "Check In / Out",
+      label:
+        t("common.check_in", "Check In") +
+        " / " +
+        t("common.check_out", "Check Out"),
       href: "/attendance",
       icon: LogIn,
       color: "text-status-info",
       show: true,
     },
     {
-      label: "Apply for Leave",
+      label: t("common.apply_leave", "Apply for Leave"),
       href: "/leave",
       icon: Plus,
       color: "text-status-success",
       show: true,
     },
     {
-      label: "View Payslips",
+      label: t("dashboard.view_payslips", "View Payslips"),
       href: "/payroll/payslips",
       icon: FileText,
       color: "text-interactive-primary",
       show: true,
     },
     {
-      label: "Pending Approvals",
+      label: t("dashboard.pending_approvals", "Pending Approvals"),
       href: "/approvals",
       icon: CheckSquare,
       color: "text-status-warning",
       show: isSupervisor,
     },
     {
-      label: "Manage Employees",
+      label: t("dashboard.manage_employees", "Manage Employees"),
       href: "/employees",
       icon: Users,
       color: "text-interactive-primary",
       show: can.manageEmployees,
     },
     {
-      label: "Run Payroll",
+      label: t("command.run_payroll", "Run Payroll"),
       href: "/payroll",
       icon: Wallet,
       color: "text-brand-accent",
       show: can.processPayroll,
     },
     {
-      label: "View Reports",
+      label: t("dashboard.view_reports", "View Reports"),
       href: "/reports",
       icon: TrendingUp,
       color: "text-status-info",
@@ -290,7 +322,9 @@ function QuickActions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Quick Actions</CardTitle>
+        <CardTitle className="text-base">
+          {t("dashboard.quick_actions", "Quick Actions")}
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((a) => (

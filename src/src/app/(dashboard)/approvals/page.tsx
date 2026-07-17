@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface PendingItem {
@@ -21,6 +22,7 @@ interface PendingItem {
 }
 
 export default function ApprovalsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<{ items: PendingItem[]; total: number }>(
@@ -48,9 +50,9 @@ export default function ApprovalsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
       queryClient.invalidateQueries({ queryKey: ["leave"] });
-      toast.success("Action completed");
+      toast.success(t("approvals.action_completed", "Action completed"));
     },
-    onError: () => toast.error("Action failed"),
+    onError: () => toast.error(t("approvals.action_failed", "Action failed")),
   });
 
   function handleApprove(item: PendingItem) {
@@ -80,8 +82,8 @@ export default function ApprovalsPage() {
     <RoleGate minRole="supervisor">
       <div className="space-y-6">
         <PageHeader
-          title="Pending Approvals"
-          description={`${items.length} item${items.length !== 1 ? "s" : ""} waiting for your review`}
+          title={t("approvals.title", "Pending Approvals")}
+          description={`${items.length} ${t("approvals.items_waiting", "item(s) waiting for your review")}`}
         />
 
         {isLoading ? (
@@ -93,8 +95,11 @@ export default function ApprovalsPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={CheckSquare}
-            title="All caught up!"
-            description="No pending approvals at this time"
+            title={t("approvals.empty_title", "All caught up!")}
+            description={t(
+              "approvals.empty_desc",
+              "No pending approvals at this time",
+            )}
           />
         ) : (
           <div className="space-y-3">
@@ -128,7 +133,7 @@ export default function ApprovalsPage() {
                       ) : (
                         <Check className="mr-1 h-3 w-3" />
                       )}
-                      Approve
+                      {t("common.approve", "Approve")}
                     </Button>
                     <Button
                       size="sm"
@@ -138,7 +143,7 @@ export default function ApprovalsPage() {
                       disabled={batchAction.isPending}
                     >
                       <X className="mr-1 h-3 w-3" />
-                      Reject
+                      {t("common.reject", "Reject")}
                     </Button>
                   </div>
                 </CardContent>

@@ -11,17 +11,22 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
 } from "@/features/notifications/api";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
+  const { t } = useT();
   const { data, isLoading } = useNotifications();
   const markRead = useMarkAsRead();
   const markAllRead = useMarkAllAsRead();
 
   function handleMarkAllRead() {
     markAllRead.mutate(undefined, {
-      onSuccess: () => toast.success("All notifications marked as read"),
+      onSuccess: () =>
+        toast.success(
+          t("notifications.all_read", "All notifications marked as read"),
+        ),
     });
   }
 
@@ -30,8 +35,11 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
-        description="Stay updated on your activities"
+        title={t("common.notifications", "Notifications")}
+        description={t(
+          "notifications.description",
+          "Stay updated on your activities",
+        )}
         actions={
           notifications.length > 0 && (
             <Button
@@ -41,7 +49,7 @@ export default function NotificationsPage() {
               disabled={markAllRead.isPending}
             >
               <CheckCheck className="mr-2 h-4 w-4" />
-              Mark all as read
+              {t("common.mark_all_read", "Mark all read")}
             </Button>
           )
         }
@@ -56,8 +64,8 @@ export default function NotificationsPage() {
       ) : notifications.length === 0 ? (
         <EmptyState
           icon={Bell}
-          title="No notifications"
-          description="You're all caught up!"
+          title={t("common.no_notifications", "No notifications")}
+          description={t("notifications.caught_up", "You're all caught up!")}
         />
       ) : (
         <div className="space-y-2">

@@ -26,9 +26,11 @@ import {
   useApprovePayroll,
 } from "@/features/payroll/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function PayrollPage() {
+  const { t } = useT();
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [periodStart, setPeriodStart] = useState("");
@@ -44,7 +46,9 @@ export default function PayrollPage() {
       { period_start: periodStart, period_end: periodEnd },
       {
         onSuccess: () => {
-          toast.success("Payroll processing started");
+          toast.success(
+            t("payroll.processing_started", "Payroll processing started"),
+          );
           setDialogOpen(false);
           setPeriodStart("");
           setPeriodEnd("");
@@ -54,7 +58,8 @@ export default function PayrollPage() {
             response?: { data?: { detail?: string } };
           };
           toast.error(
-            axiosError.response?.data?.detail || "Failed to process payroll",
+            axiosError.response?.data?.detail ||
+              t("payroll.process_failed", "Failed to process payroll"),
           );
         },
       },
@@ -65,13 +70,16 @@ export default function PayrollPage() {
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
       <div className="space-y-6">
         <PageHeader
-          title="Payroll"
-          description="View payroll runs and processing history"
+          title={t("payroll.title", "Payroll")}
+          description={t(
+            "payroll.description",
+            "View payroll runs and processing history",
+          )}
           actions={
             can.processPayroll && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Run Payroll
+                {t("payroll.run", "Run Payroll")}
               </Button>
             )
           }
@@ -80,12 +88,14 @@ export default function PayrollPage() {
         <div className="flex flex-wrap gap-2 border-b pb-3">
           <Button asChild variant="ghost" size="sm" className="h-8">
             <Link href="/payroll/payslips">
-              <FileText className="mr-2 h-3 w-3" /> My Payslips
+              <FileText className="mr-2 h-3 w-3" />{" "}
+              {t("payroll.my_payslips", "My Payslips")}
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm" className="h-8">
             <Link href="/payroll/loans">
-              <HandCoins className="mr-2 h-3 w-3" /> Loans
+              <HandCoins className="mr-2 h-3 w-3" />{" "}
+              {t("payroll.loans", "Loans")}
             </Link>
           </Button>
         </div>
@@ -99,8 +109,11 @@ export default function PayrollPage() {
         ) : !data?.data?.length ? (
           <EmptyState
             icon={Wallet}
-            title="No payroll runs"
-            description="Payroll runs will appear here once processed"
+            title={t("payroll.empty_title", "No payroll runs")}
+            description={t(
+              "payroll.empty_desc",
+              "Payroll runs will appear here once processed",
+            )}
           />
         ) : (
           <>
@@ -122,21 +135,27 @@ export default function PayrollPage() {
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Gross</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("payroll.gross", "Gross")}
+                        </p>
                         <CurrencyDisplay
                           cents={run.gross_total_cents}
                           className="text-sm font-medium"
                         />
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Net</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t("payroll.net", "Net")}
+                        </p>
                         <CurrencyDisplay
                           cents={run.net_total_cents}
                           className="text-sm font-semibold text-foreground"
                         />
                       </div>
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/payroll/${run.public_id}`}>View</Link>
+                        <Link href={`/payroll/${run.public_id}`}>
+                          {t("common.view_all", "View")}
+                        </Link>
                       </Button>
                     </div>
                   </CardContent>
@@ -147,7 +166,8 @@ export default function PayrollPage() {
             {data.meta && data.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Showing {data.meta.from}–{data.meta.to} of {data.meta.total}
+                  {t("table.showing", "Showing")} {data.meta.from}–
+                  {data.meta.to} {t("table.of", "of")} {data.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -156,7 +176,7 @@ export default function PayrollPage() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    Previous
+                    {t("table.previous", "Previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -164,7 +184,7 @@ export default function PayrollPage() {
                     disabled={page >= data.meta.last_page}
                     onClick={() => setPage(page + 1)}
                   >
-                    Next
+                    {t("common.next", "Next")}
                   </Button>
                 </div>
               </div>
@@ -174,11 +194,13 @@ export default function PayrollPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Run Payroll</DialogTitle>
+              <DialogTitle>{t("payroll.run", "Run Payroll")}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleRunPayroll} className="space-y-4">
               <div>
-                <Label htmlFor="period_start">Period Start</Label>
+                <Label htmlFor="period_start">
+                  {t("payroll.period_start", "Period Start")}
+                </Label>
                 <Input
                   id="period_start"
                   type="date"
@@ -189,7 +211,9 @@ export default function PayrollPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="period_end">Period End</Label>
+                <Label htmlFor="period_end">
+                  {t("payroll.period_end", "Period End")}
+                </Label>
                 <Input
                   id="period_end"
                   type="date"
@@ -205,13 +229,13 @@ export default function PayrollPage() {
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel", "Cancel")}
                 </Button>
                 <Button type="submit" disabled={processPayroll.isPending}>
                   {processPayroll.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Process Payroll
+                  {t("payroll.process", "Process Payroll")}
                 </Button>
               </DialogFooter>
             </form>

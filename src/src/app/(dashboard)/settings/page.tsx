@@ -10,6 +10,7 @@ import {
   Building2,
   Wallet,
 } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import { apiClient } from "@/api/client";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -50,9 +52,10 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setDirty({});
-      toast.success("Settings saved");
+      toast.success(t("settings.saved", "Settings saved"));
     },
-    onError: () => toast.error("Failed to save settings"),
+    onError: () =>
+      toast.error(t("settings.save_failed", "Failed to save settings")),
   });
 
   function updateField(key: string, value: unknown) {
@@ -85,8 +88,8 @@ export default function SettingsPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Settings"
-          description="Configure your organization"
+          title={t("settings.title", "Settings")}
+          description={t("settings.description", "Configure your organization")}
           actions={
             hasDirty && (
               <Button
@@ -98,7 +101,7 @@ export default function SettingsPage() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Save Changes
+                {t("common.save", "Save Changes")}
               </Button>
             )
           }
@@ -106,11 +109,21 @@ export default function SettingsPage() {
 
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="leave">Leave</TabsTrigger>
-            <TabsTrigger value="payroll">Payroll</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="general">
+              {t("settings.tab_general", "General")}
+            </TabsTrigger>
+            <TabsTrigger value="attendance">
+              {t("settings.tab_attendance", "Attendance")}
+            </TabsTrigger>
+            <TabsTrigger value="leave">
+              {t("settings.tab_leave", "Leave")}
+            </TabsTrigger>
+            <TabsTrigger value="payroll">
+              {t("settings.tab_payroll", "Payroll")}
+            </TabsTrigger>
+            <TabsTrigger value="security">
+              {t("settings.tab_security", "Security")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="mt-6">
@@ -118,23 +131,27 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Organization</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("settings.organization", "Organization")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Organization Name</Label>
+                  <Label>
+                    {t("settings.organization_name", "Organization Name")}
+                  </Label>
                   <Input
                     value={data?.organization?.name ?? ""}
                     disabled
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Contact support to change
+                    {t("settings.contact_support", "Contact support to change")}
                   </p>
                 </div>
                 <div>
-                  <Label>Subdomain</Label>
+                  <Label>{t("settings.subdomain", "Subdomain")}</Label>
                   <div className="mt-1 flex items-center gap-2">
                     <Input
                       value={data?.organization?.subdomain ?? ""}
@@ -146,7 +163,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>Timezone</Label>
+                  <Label>{t("settings.timezone", "Timezone")}</Label>
                   <Input
                     value={data?.organization?.timezone ?? "Africa/Addis_Ababa"}
                     disabled
@@ -154,7 +171,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Language</Label>
+                  <Label>{t("settings.language", "Language")}</Label>
                   <Select
                     value={getValue("locale", "en")}
                     onValueChange={(v) => updateField("locale", v)}
@@ -163,8 +180,12 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="am">Amharic</SelectItem>
+                      <SelectItem value="en">
+                        {t("settings.english", "English")}
+                      </SelectItem>
+                      <SelectItem value="am">
+                        {t("settings.amharic", "Amharic")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -177,12 +198,16 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Attendance Rules</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("settings.attendance_rules", "Attendance Rules")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Grace Period (minutes)</Label>
+                  <Label>
+                    {t("settings.grace_period", "Grace Period (minutes)")}
+                  </Label>
                   <Input
                     type="number"
                     value={getValue("grace_period_minutes", "15")}
@@ -195,11 +220,16 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Minutes after shift start before marking late
+                    {t(
+                      "settings.grace_period_help",
+                      "Minutes after shift start before marking late",
+                    )}
                   </p>
                 </div>
                 <div>
-                  <Label>OT Daily Cap (minutes)</Label>
+                  <Label>
+                    {t("settings.ot_daily_cap", "OT Daily Cap (minutes)")}
+                  </Label>
                   <Input
                     type="number"
                     value={getValue("ot_daily_cap_minutes", "120")}
@@ -213,7 +243,12 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Confidence Threshold (%)</Label>
+                  <Label>
+                    {t(
+                      "settings.confidence_threshold",
+                      "Confidence Threshold (%)",
+                    )}
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -228,7 +263,10 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Minimum confidence score for attendance records
+                    {t(
+                      "settings.confidence_threshold_help",
+                      "Minimum confidence score for attendance records",
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -240,15 +278,19 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Leave Policies</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("settings.leave_policies", "Leave Policies")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <div>
-                  <Label>Working Days</Label>
+                  <Label>{t("settings.working_days", "Working Days")}</Label>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Monday through Friday (default). Configure leave types under
-                    Leave Types management.
+                    {t(
+                      "settings.working_days_help",
+                      "Monday through Friday (default). Configure leave types under Leave Types management.",
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -261,13 +303,16 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
                   <CardTitle className="text-base">
-                    Payroll Configuration
+                    {t(
+                      "settings.payroll_configuration",
+                      "Payroll Configuration",
+                    )}
                   </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Pay Period</Label>
+                  <Label>{t("settings.pay_period", "Pay Period")}</Label>
                   <Input
                     value={data?.payroll?.pay_period ?? "monthly"}
                     disabled
@@ -275,7 +320,9 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Payroll Run Day</Label>
+                  <Label>
+                    {t("settings.payroll_run_day", "Payroll Run Day")}
+                  </Label>
                   <Input
                     type="number"
                     min="1"
@@ -287,7 +334,10 @@ export default function SettingsPage() {
                     className="mt-1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Day of month to run payroll
+                    {t(
+                      "settings.payroll_run_day_help",
+                      "Day of month to run payroll",
+                    )}
                   </p>
                 </div>
               </CardContent>
@@ -299,12 +349,14 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">Security Settings</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("settings.security_settings", "Security Settings")}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>MFA Policy</Label>
+                  <Label>{t("settings.mfa_policy", "MFA Policy")}</Label>
                   <Select
                     value={getValue("mfa_policy", "optional")}
                     onValueChange={(v) => updateField("mfa_policy", v)}
@@ -313,14 +365,22 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="disabled">Disabled</SelectItem>
-                      <SelectItem value="optional">Optional</SelectItem>
-                      <SelectItem value="required">Required</SelectItem>
+                      <SelectItem value="disabled">
+                        {t("settings.mfa_disabled", "Disabled")}
+                      </SelectItem>
+                      <SelectItem value="optional">
+                        {t("settings.mfa_optional", "Optional")}
+                      </SelectItem>
+                      <SelectItem value="required">
+                        {t("settings.mfa_required", "Required")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Session Timeout (minutes)</Label>
+                  <Label>
+                    {t("settings.session_timeout", "Session Timeout (minutes)")}
+                  </Label>
                   <Input
                     type="number"
                     value={getValue("session_timeout_minutes", "480")}

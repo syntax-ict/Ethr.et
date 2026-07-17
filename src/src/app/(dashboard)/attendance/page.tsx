@@ -51,9 +51,11 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function AttendancePage() {
+  const { t } = useT();
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -89,8 +91,10 @@ export default function AttendancePage() {
     checkIn.mutate(
       { idempotency_key: crypto.randomUUID(), source: "web" },
       {
-        onSuccess: () => toast.success("Checked in successfully"),
-        onError: () => toast.error("Failed to check in"),
+        onSuccess: () =>
+          toast.success(t("attendance.checked_in", "Checked in successfully")),
+        onError: () =>
+          toast.error(t("attendance.check_in_failed", "Failed to check in")),
       },
     );
   }
@@ -99,8 +103,12 @@ export default function AttendancePage() {
     checkOut.mutate(
       { idempotency_key: crypto.randomUUID() },
       {
-        onSuccess: () => toast.success("Checked out successfully"),
-        onError: () => toast.error("Failed to check out"),
+        onSuccess: () =>
+          toast.success(
+            t("attendance.checked_out", "Checked out successfully"),
+          ),
+        onError: () =>
+          toast.error(t("attendance.check_out_failed", "Failed to check out")),
       },
     );
   }
@@ -108,23 +116,29 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Attendance"
-        description="Track and manage attendance records"
+        title={t("nav.attendance", "Attendance")}
+        description={t(
+          "attendance.description",
+          "Track and manage attendance records",
+        )}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleCheckIn} disabled={checkIn.isPending}>
-              <LogIn className="mr-2 h-4 w-4" /> Check In
+              <LogIn className="mr-2 h-4 w-4" />{" "}
+              {t("common.check_in", "Check In")}
             </Button>
             <Button
               variant="outline"
               onClick={handleCheckOut}
               disabled={checkOut.isPending}
             >
-              <LogOut className="mr-2 h-4 w-4" /> Check Out
+              <LogOut className="mr-2 h-4 w-4" />{" "}
+              {t("common.check_out", "Check Out")}
             </Button>
             {can.manageEmployees && (
               <Button variant="outline" onClick={() => setManualOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Manual Entry
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
           </div>
@@ -134,42 +148,42 @@ export default function AttendancePage() {
       {/* Sub-nav */}
       <div className="flex flex-wrap gap-2 border-b pb-3">
         <SubNav href="/attendance/scan" icon={QrCode}>
-          Scan QR
+          {t("attendance.scan_qr", "Scan QR")}
         </SubNav>
         <SubNav href="/attendance/mobile" icon={Smartphone}>
-          Mobile Check-in
+          {t("attendance.mobile_checkin", "Mobile Check-in")}
         </SubNav>
         {isSupervisor && (
           <SubNav href="/attendance/team" icon={UsersRound}>
-            Team
+            {t("attendance.team", "Team")}
           </SubNav>
         )}
         <SubNav href="/attendance/corrections" icon={FilePenLine}>
-          Corrections
+          {t("nav.corrections", "Corrections")}
         </SubNav>
         {can.manageEmployees && (
           <SubNav href="/kiosk" icon={Monitor}>
-            Kiosk
+            {t("nav.kiosks", "Kiosk")}
           </SubNav>
         )}
         {can.manageEmployees && (
           <SubNav href="/attendance/qr" icon={QrCode}>
-            QR Generator
+            {t("attendance.qr_generator", "QR Generator")}
           </SubNav>
         )}
         {can.manageEmployees && (
           <SubNav href="/attendance/import" icon={FileSpreadsheet}>
-            Import CSV
+            {t("attendance.import_csv", "Import CSV")}
           </SubNav>
         )}
         {can.manageEmployees && (
           <SubNav href="/attendance/intelligence" icon={Activity}>
-            Intelligence
+            {t("attendance.intelligence", "Intelligence")}
           </SubNav>
         )}
         {can.manageEmployees && (
           <SubNav href="/attendance/overtime" icon={TrendingUp}>
-            Overtime
+            {t("attendance.overtime", "Overtime")}
           </SubNav>
         )}
       </div>
@@ -182,7 +196,8 @@ export default function AttendancePage() {
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter className="mr-2 h-3 w-3" /> Filters
+            <Filter className="mr-2 h-3 w-3" />{" "}
+            {t("attendance.filters", "Filters")}
             {hasActiveFilters && (
               <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                 !
@@ -196,7 +211,8 @@ export default function AttendancePage() {
               onClick={clearFilters}
               className="text-xs text-muted-foreground"
             >
-              <X className="mr-1 h-3 w-3" /> Clear filters
+              <X className="mr-1 h-3 w-3" />{" "}
+              {t("attendance.clear_filters", "Clear filters")}
             </Button>
           )}
         </div>
@@ -206,7 +222,9 @@ export default function AttendancePage() {
             <CardContent className="p-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <Label className="text-xs">Date From</Label>
+                  <Label className="text-xs">
+                    {t("attendance.date_from", "Date From")}
+                  </Label>
                   <Input
                     type="date"
                     value={dateFrom}
@@ -218,7 +236,9 @@ export default function AttendancePage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Date To</Label>
+                  <Label className="text-xs">
+                    {t("attendance.date_to", "Date To")}
+                  </Label>
                   <Input
                     type="date"
                     value={dateTo}
@@ -230,7 +250,9 @@ export default function AttendancePage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Source</Label>
+                  <Label className="text-xs">
+                    {t("attendance.source", "Source")}
+                  </Label>
                   <Select
                     value={sourceFilter}
                     onValueChange={(v) => {
@@ -242,20 +264,40 @@ export default function AttendancePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All sources</SelectItem>
-                      <SelectItem value="web">Web</SelectItem>
-                      <SelectItem value="mobile">Mobile</SelectItem>
-                      <SelectItem value="biometric">Biometric</SelectItem>
-                      <SelectItem value="qr">QR</SelectItem>
-                      <SelectItem value="kiosk">Kiosk</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
-                      <SelectItem value="csv">CSV Import</SelectItem>
-                      <SelectItem value="offline_mobile">Offline</SelectItem>
+                      <SelectItem value="all">
+                        {t("attendance.all_sources", "All sources")}
+                      </SelectItem>
+                      <SelectItem value="web">
+                        {t("attendance.source_web", "Web")}
+                      </SelectItem>
+                      <SelectItem value="mobile">
+                        {t("attendance.source_mobile", "Mobile")}
+                      </SelectItem>
+                      <SelectItem value="biometric">
+                        {t("attendance.source_biometric", "Biometric")}
+                      </SelectItem>
+                      <SelectItem value="qr">
+                        {t("attendance.source_qr", "QR")}
+                      </SelectItem>
+                      <SelectItem value="kiosk">
+                        {t("attendance.source_kiosk", "Kiosk")}
+                      </SelectItem>
+                      <SelectItem value="manual">
+                        {t("attendance.source_manual", "Manual")}
+                      </SelectItem>
+                      <SelectItem value="csv">
+                        {t("attendance.source_csv", "CSV Import")}
+                      </SelectItem>
+                      <SelectItem value="offline_mobile">
+                        {t("attendance.source_offline", "Offline")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Status</Label>
+                  <Label className="text-xs">
+                    {t("common.status", "Status")}
+                  </Label>
                   <Select
                     value={statusFilter}
                     onValueChange={(v) => {
@@ -267,12 +309,24 @@ export default function AttendancePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="late">Late</SelectItem>
-                      <SelectItem value="absent">Absent</SelectItem>
-                      <SelectItem value="early_leave">Early Leave</SelectItem>
-                      <SelectItem value="on_leave">On Leave</SelectItem>
+                      <SelectItem value="all">
+                        {t("attendance.all_statuses", "All statuses")}
+                      </SelectItem>
+                      <SelectItem value="present">
+                        {t("attendance.status_present", "Present")}
+                      </SelectItem>
+                      <SelectItem value="late">
+                        {t("attendance.status_late", "Late")}
+                      </SelectItem>
+                      <SelectItem value="absent">
+                        {t("attendance.status_absent", "Absent")}
+                      </SelectItem>
+                      <SelectItem value="early_leave">
+                        {t("attendance.status_early_leave", "Early Leave")}
+                      </SelectItem>
+                      <SelectItem value="on_leave">
+                        {t("attendance.status_on_leave", "On Leave")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -293,13 +347,19 @@ export default function AttendancePage() {
           icon={Clock}
           title={
             hasActiveFilters
-              ? "No records match filters"
-              : "No attendance records"
+              ? t("attendance.no_match", "No records match filters")
+              : t("attendance.empty_title", "No attendance records")
           }
           description={
             hasActiveFilters
-              ? "Try adjusting the filters or clearing them"
-              : "Check in to start recording your attendance"
+              ? t(
+                  "attendance.no_match_desc",
+                  "Try adjusting the filters or clearing them",
+                )
+              : t(
+                  "attendance.empty_desc",
+                  "Check in to start recording your attendance",
+                )
           }
         />
       ) : (
@@ -312,23 +372,23 @@ export default function AttendancePage() {
                     <tr className="border-b bg-muted/50">
                       {can.manageEmployees && (
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          Employee
+                          {t("attendance.employee", "Employee")}
                         </th>
                       )}
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Date
+                        {t("common.date", "Date")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        In
+                        {t("attendance.in", "In")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Out
+                        {t("attendance.out", "Out")}
                       </th>
                       <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        Source
+                        {t("attendance.source", "Source")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Status
+                        {t("common.status", "Status")}
                       </th>
                     </tr>
                   </thead>
@@ -369,7 +429,8 @@ export default function AttendancePage() {
           {data?.meta && data.meta.last_page > 1 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing {data.meta.from}–{data.meta.to} of {data.meta.total}
+                {t("table.showing", "Showing")} {data.meta.from}–{data.meta.to}{" "}
+                {t("table.of", "of")} {data.meta.total}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -378,7 +439,7 @@ export default function AttendancePage() {
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                 >
-                  Previous
+                  {t("table.previous", "Previous")}
                 </Button>
                 <Button
                   variant="outline"
@@ -386,7 +447,7 @@ export default function AttendancePage() {
                   disabled={page >= data.meta.last_page}
                   onClick={() => setPage(page + 1)}
                 >
-                  Next
+                  {t("common.next", "Next")}
                 </Button>
               </div>
             </div>
@@ -427,6 +488,7 @@ function ManualEntryDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     employee_public_id: "",
@@ -453,7 +515,7 @@ function ManualEntryDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast.success("Manual entry recorded");
+      toast.success(t("attendance.manual_recorded", "Manual entry recorded"));
       onClose();
       setForm({
         employee_public_id: "",
@@ -465,7 +527,10 @@ function ManualEntryDialog({
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(axiosErr.response?.data?.detail ?? "Manual entry failed");
+      toast.error(
+        axiosErr.response?.data?.detail ??
+          t("attendance.manual_failed", "Manual entry failed"),
+      );
     },
   });
 
@@ -473,7 +538,9 @@ function ManualEntryDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manual Attendance Entry</DialogTitle>
+          <DialogTitle>
+            {t("attendance.manual_title", "Manual Attendance Entry")}
+          </DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -483,7 +550,7 @@ function ManualEntryDialog({
           className="space-y-3"
         >
           <div>
-            <Label>Employee *</Label>
+            <Label>{t("attendance.employee_required", "Employee *")}</Label>
             <Select
               value={form.employee_public_id}
               onValueChange={(v) =>
@@ -491,7 +558,12 @@ function ManualEntryDialog({
               }
             >
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select employee" />
+                <SelectValue
+                  placeholder={t(
+                    "attendance.select_employee",
+                    "Select employee",
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {employees?.data?.map(
@@ -515,7 +587,7 @@ function ManualEntryDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label>Date *</Label>
+              <Label>{t("attendance.date_required", "Date *")}</Label>
               <Input
                 type="date"
                 value={form.date}
@@ -527,7 +599,7 @@ function ManualEntryDialog({
               />
             </div>
             <div>
-              <Label>Check In *</Label>
+              <Label>{t("attendance.check_in_required", "Check In *")}</Label>
               <Input
                 type="time"
                 value={form.check_in}
@@ -539,7 +611,7 @@ function ManualEntryDialog({
               />
             </div>
             <div>
-              <Label>Check Out</Label>
+              <Label>{t("common.check_out", "Check Out")}</Label>
               <Input
                 type="time"
                 value={form.check_out}
@@ -551,13 +623,16 @@ function ManualEntryDialog({
             </div>
           </div>
           <div>
-            <Label>Reason *</Label>
+            <Label>{t("attendance.reason_required", "Reason *")}</Label>
             <Textarea
               value={form.reason}
               onChange={(e) =>
                 setForm((p) => ({ ...p, reason: e.target.value }))
               }
-              placeholder="Why is this manual entry needed?"
+              placeholder={t(
+                "attendance.reason_placeholder",
+                "Why is this manual entry needed?",
+              )}
               required
               rows={2}
               className="mt-1"
@@ -565,7 +640,7 @@ function ManualEntryDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t("common.cancel", "Cancel")}
             </Button>
             <Button
               type="submit"
@@ -574,7 +649,7 @@ function ManualEntryDialog({
               {submit.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Record Entry
+              {t("attendance.record_entry", "Record Entry")}
             </Button>
           </DialogFooter>
         </form>
