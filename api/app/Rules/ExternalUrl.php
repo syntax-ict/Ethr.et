@@ -41,6 +41,10 @@ class ExternalUrl implements ValidationRule
             return true;
         }
 
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return $this->isPrivateIp($host);
+        }
+
         $ip = gethostbyname($host);
         if ($ip === $host) {
             return false;
