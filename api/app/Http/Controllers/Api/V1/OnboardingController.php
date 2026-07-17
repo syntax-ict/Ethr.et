@@ -12,6 +12,7 @@ use App\Models\OrganizationTemplate;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class OnboardingController extends Controller
 {
@@ -36,6 +37,8 @@ class OnboardingController extends Controller
 
     public function updateStep(Request $request, int $step): JsonResponse
     {
+        Gate::authorize('settings.manage');
+
         if ($step < 1 || $step > 7) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/validation',
@@ -61,6 +64,8 @@ class OnboardingController extends Controller
 
     public function applyTemplate(ApplyTemplateRequest $request): JsonResponse
     {
+        Gate::authorize('settings.manage');
+
         $template = OrganizationTemplate::where('slug', $request->input('template_slug'))->firstOrFail();
         $templateData = $template->template_data ?? [];
 
@@ -93,6 +98,8 @@ class OnboardingController extends Controller
 
     public function complete(): JsonResponse
     {
+        Gate::authorize('settings.manage');
+
         $progress = OnboardingProgress::where('tenant_id', $this->currentTenant->id())->first();
 
         if ($progress) {

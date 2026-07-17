@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\OnboardingProgress;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -53,7 +54,7 @@ describe('onboarding progress', function () {
 
     it('updates step progress', function () {
         $tenant = createTenant();
-        actingAsUser([], $tenant);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $response = $this->putJson(
             'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress/1',
@@ -68,7 +69,7 @@ describe('onboarding progress', function () {
 
     it('rejects invalid step numbers', function () {
         $tenant = createTenant();
-        actingAsUser([], $tenant);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $response = $this->putJson(
             'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress/9',
@@ -94,7 +95,7 @@ describe('onboarding progress', function () {
         ]);
 
         $tenant = createTenant();
-        actingAsUser([], $tenant);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $response = $this->postJson(
             'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/apply-template',
@@ -108,7 +109,7 @@ describe('onboarding progress', function () {
 
     it('completes onboarding', function () {
         $tenant = createTenant();
-        actingAsUser([], $tenant);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress');
 
@@ -121,5 +122,19 @@ describe('onboarding progress', function () {
 
         $progress = OnboardingProgress::where('tenant_id', $tenant->id)->first();
         expect($progress->completed_at)->not->toBeNull();
+    });
+
+    it('denies onboarding mutations to non-admin roles', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $this->putJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress/1',
+            ['organization_name' => 'Acme Corp']
+        )->assertForbidden();
+
+        $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/complete'
+        )->assertForbidden();
     });
 });
