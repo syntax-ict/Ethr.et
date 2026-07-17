@@ -274,6 +274,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
           show: can.manageEmployees,
         },
         {
+          label: t("nav.roles", "Roles"),
+          href: "/settings/roles",
+          icon: ShieldCheck,
+          show: isTenantAdmin,
+        },
+        {
           label: t("nav.settings", "Settings"),
           href: "/settings",
           icon: Settings,

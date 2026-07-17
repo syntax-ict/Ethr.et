@@ -221,6 +221,13 @@ export function CommandPalette() {
             show: isTenantAdmin,
           },
           {
+            label: t("nav.roles", "Roles"),
+            href: "/settings/roles",
+            icon: Shield,
+            keywords: "permissions custom role",
+            show: isTenantAdmin,
+          },
+          {
             label: t("nav.admin", "Admin Console"),
             href: "/admin",
             icon: Shield,
