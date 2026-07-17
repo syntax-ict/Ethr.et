@@ -11,7 +11,7 @@ return [
     /*
      * URL path for the API docs UI.
      */
-    'api_path' => 'api/docs',
+    'api_path' => 'api/v1',
 
     /*
      * The path prefix that all API routes share — used to auto-discover routes.
