@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
+use App\Events\PayrollProcessed;
 use App\Events\TenantCreated;
+use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\ProvisionTenant;
 use App\Models\Permission;
@@ -38,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
+        Event::listen(AttendanceRecorded::class, [InvalidateDashboardCache::class, 'handleAttendance']);
+        Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());

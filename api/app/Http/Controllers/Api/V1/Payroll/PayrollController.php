@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Payroll;
 
+use App\Events\PayrollProcessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
 use App\Http\Resources\PayrollEntryResource;
@@ -51,6 +52,8 @@ class PayrollController extends Controller
             'period' => $run->period_label,
             'employee_count' => $run->employee_count,
         ]);
+
+        PayrollProcessed::dispatch($run);
 
         $run->load('entries.employee');
 
