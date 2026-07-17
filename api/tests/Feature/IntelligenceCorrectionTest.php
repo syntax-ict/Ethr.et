@@ -252,6 +252,38 @@ test('supervisor can approve correction', function () {
     expect($record->check_in->format('H:i'))->toBe('08:15');
 });
 
+test('supervisor can preview payroll impact of a pending correction', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_760_000]);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+        'check_out' => Carbon::today()->setTime(17, 0),
+    ]);
+
+    $correction = AttendanceCorrection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'attendance_record_id' => $record->id,
+        'employee_id' => $employee->id,
+        'proposed_check_in' => Carbon::today()->setTime(8, 0),
+        'proposed_check_out' => Carbon::today()->setTime(17, 0),
+        'status' => CorrectionStatus::PENDING,
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/payroll-impact");
+
+    $response->assertOk()
+        ->assertJsonPath('original_hours', 8)
+        ->assertJsonPath('proposed_hours', 9)
+        ->assertJsonPath('difference_minutes', 60)
+        ->assertJsonPath('currency', 'ETB');
+
+    expect($response->json('estimated_impact_cents'))->toBeGreaterThan(0);
+});
+
 test('employee cannot approve correction', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
