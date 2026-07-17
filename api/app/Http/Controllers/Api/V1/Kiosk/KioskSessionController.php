@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Kiosk;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Kiosk\AuthenticateKioskRequest;
 use App\Http\Requests\Kiosk\RegisterKioskRequest;
 use App\Http\Resources\KioskSessionResource;
 use App\Models\AuditLog;
@@ -12,7 +13,6 @@ use App\Models\Branch;
 use App\Models\KioskSession;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 
@@ -118,12 +118,8 @@ class KioskSessionController extends Controller
         return response()->json(null, 204);
     }
 
-    public function authenticate(Request $request): JsonResponse
+    public function authenticate(AuthenticateKioskRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required', 'string'],
-        ]);
-
         $session = KioskSession::where('token', $request->input('token'))
             ->where('status', 'active')
             ->with('branch')

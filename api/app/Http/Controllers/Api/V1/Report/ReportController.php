@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Report;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\GenerateReportRequest;
 use App\Http\Requests\Report\SaveReportRequest;
+use App\Http\Requests\Report\ScheduleReportRequest;
 use App\Models\AuditLog;
 use App\Models\SavedReport;
 use App\Models\ScheduledReport;
@@ -141,16 +142,9 @@ class ReportController extends Controller
         return response()->json(null, 204);
     }
 
-    public function schedule(Request $request): JsonResponse
+    public function schedule(ScheduleReportRequest $request): JsonResponse
     {
         Gate::authorize('report.generate');
-
-        $request->validate([
-            'saved_report_public_id' => ['required', 'string'],
-            'frequency' => ['required', 'string', 'in:daily,weekly,monthly'],
-            'recipients' => ['required', 'array', 'min:1'],
-            'recipients.*' => ['email'],
-        ]);
 
         $tenant = app(CurrentTenant::class)->get();
         $report = SavedReport::where('public_id', $request->input('saved_report_public_id'))->firstOrFail();

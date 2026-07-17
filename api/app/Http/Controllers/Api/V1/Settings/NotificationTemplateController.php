@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateNotificationTemplateRequest;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class NotificationTemplateController extends Controller
@@ -76,7 +76,7 @@ class NotificationTemplateController extends Controller
         return response()->json(['templates' => $templates->values()]);
     }
 
-    public function update(Request $request, string $type): JsonResponse
+    public function update(UpdateNotificationTemplateRequest $request, string $type): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -88,13 +88,6 @@ class NotificationTemplateController extends Controller
                 'detail' => "No template with type '{$type}'",
             ], 404)->header('Content-Type', 'application/problem+json');
         }
-
-        $request->validate([
-            'subject_en' => ['nullable', 'string', 'max:200'],
-            'subject_am' => ['nullable', 'string', 'max:200'],
-            'body_en' => ['nullable', 'string', 'max:2000'],
-            'body_am' => ['nullable', 'string', 'max:2000'],
-        ]);
 
         $tenant = app(CurrentTenant::class)->get();
         $settings = $tenant->settings ?? [];

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Accounting\UpdateChartOfAccountsRequest;
 use App\Models\ChartOfAccount;
 use App\Models\PayrollRun;
 use App\Services\Accounting\AccountingExportService;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
@@ -53,16 +53,9 @@ class AccountingController extends Controller
         return response()->json(['accounts' => $accounts]);
     }
 
-    public function updateChartOfAccounts(Request $request): JsonResponse
+    public function updateChartOfAccounts(UpdateChartOfAccountsRequest $request): JsonResponse
     {
         Gate::authorize('payroll.viewAll');
-
-        $request->validate([
-            'accounts' => ['required', 'array'],
-            'accounts.*.key' => ['required', 'string'],
-            'accounts.*.account_code' => ['required', 'string', 'max:20'],
-            'accounts.*.account_name' => ['required', 'string', 'max:100'],
-        ]);
 
         $tenantId = app(CurrentTenant::class)->get()->id;
 

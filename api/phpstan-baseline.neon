@@ -1249,6 +1249,48 @@ parameters:
 			path: app/Http/Resources/CostCenterResource.php
 
 		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$permissions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$public_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\CustomRoleResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/CustomRoleResource.php
+
+		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\DepartmentResource\:\:\$code\.$#'
 			identifier: property.notFound
 			count: 1
@@ -3070,6 +3112,42 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
 			identifier: property.notFound
 			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Method App\\Models\\CustomRole\:\:findByPublicId\(\) should return static\(App\\Models\\CustomRole\)\|null but returns App\\Models\\CustomRole\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Method App\\Models\\CustomRole\:\:permissions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany does not specify its types\: TRelatedModel, TDeclaringModel, TPivotModel, TAccessor \(2\-4 required\)$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Method App\\Models\\CustomRole\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Method App\\Models\\CustomRole\:\:users\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/CustomRole.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
+			identifier: property.notFound
+			count: 1
 			path: app/Models/Department.php
 
 		-
@@ -3308,6 +3386,18 @@ parameters:
 
 		-
 			message: '#^Method App\\Models\\Employee\:\:position\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Employee.php
+
+		-
+			message: '#^Method App\\Models\\Employee\:\:scopeSearch\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Employee.php
+
+		-
+			message: '#^Method App\\Models\\Employee\:\:scopeSearch\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Employee.php
@@ -3937,6 +4027,18 @@ parameters:
 			path: app/Models/PayrollRun.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Permission\:\:findByPublicId\(\) should return static\(App\\Models\\Permission\)\|null but returns App\\Models\\Permission\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Permission.php
+
+		-
 			message: '#^Method App\\Models\\PersonalAccessToken\:\:tokenable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -4411,6 +4513,12 @@ parameters:
 			path: app/Models/User.php
 
 		-
+			message: '#^Cannot access property \$value on string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Models/User.php
+
+		-
 			message: '#^Cannot call method isAtLeast\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 1
@@ -4418,6 +4526,12 @@ parameters:
 
 		-
 			message: '#^Class App\\Models\\User uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:customRole\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/User.php
@@ -4450,12 +4564,6 @@ parameters:
 			message: '#^Strict comparison using \=\=\= between string and App\\Enums\\UserRole\:\:SUPER_ADMIN will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 2
-			path: app/Models/User.php
-
-		-
-			message: '#^Cannot access property \$value on string\.$#'
-			identifier: property.nonObject
-			count: 1
 			path: app/Models/User.php
 
 		-
@@ -4601,18 +4709,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Notifications/PayslipAvailableNotification.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Permission.php
-
-		-
-			message: '#^Method App\\Models\\Permission\:\:findByPublicId\(\) should return static\(App\\Models\\Permission\)\|null but returns App\\Models\\Permission\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Permission.php
 
 		-
 			message: '#^Cannot call method format\(\) on string\.$#'
