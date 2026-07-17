@@ -45,6 +45,16 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET and non-http(s) requests
   if (request.method !== 'GET' || !url.protocol.startsWith('http')) return;
 
+  // Never intercept in local development — let the dev server handle everything.
+  // Otherwise a slow dev server or unreachable backend gets misread as "offline".
+  if (
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname === '0.0.0.0'
+  ) {
+    return;
+  }
+
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstWithCache(request, API_CACHE));
