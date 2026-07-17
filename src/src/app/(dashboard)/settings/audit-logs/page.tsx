@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 
 interface AuditLog {
   id: number;
@@ -44,6 +45,7 @@ function getActionColor(action: string): string {
 }
 
 export default function AuditLogsPage() {
+  const { t } = useT();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ action: "", from: "", to: "" });
 
@@ -98,8 +100,8 @@ export default function AuditLogsPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Audit Log"
-          description="Track all sensitive operations across your organization"
+          title={t("audit_logs_page.title")}
+          description={t("audit_logs_page.description")}
           actions={
             <Button
               variant="outline"
@@ -107,7 +109,7 @@ export default function AuditLogsPage() {
               onClick={exportCsv}
               disabled={logs.length === 0}
             >
-              <Download className="mr-2 h-4 w-4" /> Export CSV
+              <Download className="mr-2 h-4 w-4" /> {t("audit_logs_page.export_csv")}
             </Button>
           }
         />
@@ -116,7 +118,7 @@ export default function AuditLogsPage() {
           <CardContent className="p-4">
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="sm:col-span-2">
-                <Label className="text-xs">Action</Label>
+                <Label className="text-xs">{t("audit_logs_page.action")}</Label>
                 <div className="relative mt-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -125,13 +127,13 @@ export default function AuditLogsPage() {
                       setFilters((p) => ({ ...p, action: e.target.value }));
                       setPage(1);
                     }}
-                    placeholder="e.g. employee.created"
+                    placeholder={t("audit_logs_page.action_placeholder")}
                     className="pl-9"
                   />
                 </div>
               </div>
               <div>
-                <Label className="text-xs">From</Label>
+                <Label className="text-xs">{t("audit_logs_page.from")}</Label>
                 <Input
                   type="date"
                   value={filters.from}
@@ -143,7 +145,7 @@ export default function AuditLogsPage() {
                 />
               </div>
               <div>
-                <Label className="text-xs">To</Label>
+                <Label className="text-xs">{t("audit_logs_page.to")}</Label>
                 <Input
                   type="date"
                   value={filters.to}
@@ -167,8 +169,8 @@ export default function AuditLogsPage() {
         ) : logs.length === 0 ? (
           <EmptyState
             icon={Activity}
-            title="No audit logs"
-            description="No log entries match your filters"
+            title={t("audit_logs_page.no_logs")}
+            description={t("audit_logs_page.no_logs_desc")}
           />
         ) : (
           <>
@@ -179,19 +181,19 @@ export default function AuditLogsPage() {
                     <thead>
                       <tr className="border-b bg-muted/50">
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          Time
+                          {t("audit_logs_page.time")}
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          Action
+                          {t("audit_logs_page.action")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                          Entity
+                          {t("audit_logs_page.entity")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          User
+                          {t("audit_logs_page.user")}
                         </th>
                         <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          IP
+                          {t("audit_logs_page.ip")}
                         </th>
                       </tr>
                     </thead>
@@ -218,7 +220,9 @@ export default function AuditLogsPage() {
                               : "—"}
                           </td>
                           <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
-                            {log.user_id ? `User #${log.user_id}` : "—"}
+                            {log.user_id
+                              ? `${t("audit_logs_page.user_hash")}${log.user_id}`
+                              : "—"}
                           </td>
                           <td className="hidden px-4 py-3 text-xs font-mono text-muted-foreground lg:table-cell">
                             {log.ip_address ?? "—"}
@@ -234,7 +238,8 @@ export default function AuditLogsPage() {
             {data.meta && data.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Showing {data.meta.from}–{data.meta.to} of {data.meta.total}
+                  {t("audit_logs_page.showing")} {data.meta.from}–
+                  {data.meta.to} {t("audit_logs_page.of")} {data.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -243,7 +248,7 @@ export default function AuditLogsPage() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    Previous
+                    {t("audit_logs_page.previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -251,7 +256,7 @@ export default function AuditLogsPage() {
                     disabled={page >= data.meta.last_page}
                     onClick={() => setPage(page + 1)}
                   >
-                    Next
+                    {t("audit_logs_page.next")}
                   </Button>
                 </div>
               </div>

@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface ApiKey {
@@ -42,6 +43,7 @@ interface ApiKey {
 }
 
 export default function ApiKeysPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -68,9 +70,9 @@ export default function ApiKeysPage() {
       setNewKey(data.key);
       setCreateOpen(false);
       setForm({ name: "", abilities: ["read"] });
-      toast.success("API key created — copy it now, it won't be shown again");
+      toast.success(t("api_keys_page.key_created"));
     },
-    onError: () => toast.error("Failed to create API key"),
+    onError: () => toast.error(t("api_keys_page.create_failed")),
   });
 
   const revokeKey = useMutation({
@@ -79,7 +81,7 @@ export default function ApiKeysPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-      toast.success("Key revoked");
+      toast.success(t("api_keys_page.key_revoked"));
     },
   });
 
@@ -97,7 +99,7 @@ export default function ApiKeysPage() {
   function copyKey() {
     if (newKey) {
       navigator.clipboard.writeText(newKey);
-      toast.success("Key copied to clipboard");
+      toast.success(t("api_keys_page.key_copied"));
     }
   }
 
@@ -105,17 +107,18 @@ export default function ApiKeysPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="API Keys"
-          description="Manage API keys for external integrations"
+          title={t("api_keys_page.title")}
+          description={t("api_keys_page.description")}
           actions={
             <div className="flex gap-2">
               <Button variant="outline" asChild>
                 <Link href="/api/docs" target="_blank">
-                  <ExternalLink className="mr-2 h-4 w-4" /> API Docs
+                  <ExternalLink className="mr-2 h-4 w-4" />{" "}
+                  {t("api_keys_page.api_docs")}
                 </Link>
               </Button>
               <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Create Key
+                <Plus className="mr-2 h-4 w-4" /> {t("api_keys_page.create_key")}
               </Button>
             </div>
           }
@@ -125,7 +128,7 @@ export default function ApiKeysPage() {
           <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <CardContent className="p-4">
               <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">
-                Save this key now — it will not be shown again
+                {t("api_keys_page.save_now_hint")}
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
@@ -139,7 +142,7 @@ export default function ApiKeysPage() {
                   variant="ghost"
                   onClick={() => setNewKey(null)}
                 >
-                  Dismiss
+                  {t("api_keys_page.dismiss")}
                 </Button>
               </div>
             </CardContent>
@@ -155,8 +158,8 @@ export default function ApiKeysPage() {
         ) : keys.length === 0 ? (
           <EmptyState
             icon={KeyRound}
-            title="No API keys"
-            description="Create your first API key to enable integrations"
+            title={t("api_keys_page.no_keys")}
+            description={t("api_keys_page.no_keys_desc")}
           />
         ) : (
           <Card>
@@ -166,19 +169,19 @@ export default function ApiKeysPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Name
+                        {t("common.name")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Prefix
+                        {t("api_keys_page.prefix")}
                       </th>
                       <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        Abilities
+                        {t("api_keys_page.abilities")}
                       </th>
                       <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        Created
+                        {t("attendance.kiosks_page.created")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                        Actions
+                        {t("common.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -231,7 +234,7 @@ export default function ApiKeysPage() {
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create API Key</DialogTitle>
+              <DialogTitle>{t("api_keys_page.create_key")}</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -241,19 +244,19 @@ export default function ApiKeysPage() {
               className="space-y-4"
             >
               <div>
-                <Label>Key Name</Label>
+                <Label>{t("api_keys_page.key_name")}</Label>
                 <Input
                   value={form.name}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, name: e.target.value }))
                   }
                   required
-                  placeholder="e.g. Mobile App Integration"
+                  placeholder={t("api_keys_page.key_name_placeholder")}
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label>Abilities</Label>
+                <Label>{t("api_keys_page.abilities")}</Label>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {[
                     "read",
@@ -285,7 +288,7 @@ export default function ApiKeysPage() {
                   variant="outline"
                   onClick={() => setCreateOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -294,7 +297,7 @@ export default function ApiKeysPage() {
                   {createKey.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Create
+                  {t("api_keys_page.create")}
                 </Button>
               </DialogFooter>
             </form>

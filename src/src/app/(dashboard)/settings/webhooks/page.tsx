@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface WebhookEntry {
@@ -48,6 +49,7 @@ const ALL_EVENTS = [
 ];
 
 export default function WebhooksPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
@@ -71,9 +73,9 @@ export default function WebhooksPage() {
       setNewSecret(data.secret);
       setCreateOpen(false);
       setForm({ url: "", events: [] });
-      toast.success("Webhook created — save the secret now");
+      toast.success(t("webhooks_page.created"));
     },
-    onError: () => toast.error("Failed to create webhook"),
+    onError: () => toast.error(t("webhooks_page.create_failed")),
   });
 
   const deleteWebhook = useMutation({
@@ -82,7 +84,7 @@ export default function WebhooksPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-      toast.success("Webhook deleted");
+      toast.success(t("webhooks_page.deleted"));
     },
   });
 
@@ -91,8 +93,8 @@ export default function WebhooksPage() {
       const { data } = await apiClient.post(`/webhooks/${id}/test`);
       return data;
     },
-    onSuccess: () => toast.success("Test event dispatched"),
-    onError: () => toast.error("Failed to send test"),
+    onSuccess: () => toast.success(t("webhooks_page.test_dispatched")),
+    onError: () => toast.error(t("webhooks_page.test_failed")),
   });
 
   const webhooks: WebhookEntry[] = data?.webhooks ?? [];
@@ -109,7 +111,7 @@ export default function WebhooksPage() {
   function copySecret() {
     if (newSecret) {
       navigator.clipboard.writeText(newSecret);
-      toast.success("Secret copied");
+      toast.success(t("webhooks_page.secret_copied"));
     }
   }
 
@@ -117,11 +119,11 @@ export default function WebhooksPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Webhooks"
-          description="Receive HTTP notifications when events happen in your tenant"
+          title={t("webhooks_page.title")}
+          description={t("webhooks_page.description")}
           actions={
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Webhook
+              <Plus className="mr-2 h-4 w-4" /> {t("webhooks_page.add_webhook")}
             </Button>
           }
         />
@@ -130,7 +132,7 @@ export default function WebhooksPage() {
           <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <CardContent className="p-4">
               <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">
-                Save this HMAC secret now — it won&apos;t be shown again
+                {t("webhooks_page.save_secret_hint")}
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono break-all">
@@ -144,7 +146,7 @@ export default function WebhooksPage() {
                   variant="ghost"
                   onClick={() => setNewSecret(null)}
                 >
-                  Dismiss
+                  {t("api_keys_page.dismiss")}
                 </Button>
               </div>
             </CardContent>
@@ -160,8 +162,8 @@ export default function WebhooksPage() {
         ) : webhooks.length === 0 ? (
           <EmptyState
             icon={Webhook}
-            title="No webhooks configured"
-            description="Add a webhook to receive event notifications"
+            title={t("webhooks_page.no_webhooks")}
+            description={t("webhooks_page.no_webhooks_desc")}
           />
         ) : (
           <div className="space-y-3">
@@ -182,14 +184,16 @@ export default function WebhooksPage() {
                               : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0"
                           }
                         >
-                          {w.is_active ? "Active" : "Inactive"}
+                          {w.is_active
+                            ? t("webhooks_page.active")
+                            : t("roles_page.inactive")}
                         </Badge>
                         {w.failure_count > 0 && (
                           <Badge
                             variant="outline"
                             className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0"
                           >
-                            {w.failure_count} failures
+                            {w.failure_count} {t("webhooks_page.failures")}
                           </Badge>
                         )}
                       </div>
@@ -206,7 +210,7 @@ export default function WebhooksPage() {
                       </div>
                       {w.last_triggered_at && (
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Last triggered:{" "}
+                          {t("webhooks_page.last_triggered")}:{" "}
                           {new Date(w.last_triggered_at).toLocaleString()}
                         </p>
                       )}
@@ -238,7 +242,7 @@ export default function WebhooksPage() {
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Create Webhook</DialogTitle>
+              <DialogTitle>{t("webhooks_page.create_webhook")}</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -248,7 +252,7 @@ export default function WebhooksPage() {
               className="space-y-4"
             >
               <div>
-                <Label>URL</Label>
+                <Label>{t("webhooks_page.url")}</Label>
                 <Input
                   type="url"
                   value={form.url}
@@ -261,7 +265,7 @@ export default function WebhooksPage() {
                 />
               </div>
               <div>
-                <Label>Events</Label>
+                <Label>{t("webhooks_page.events")}</Label>
                 <div className="mt-2 max-h-60 overflow-y-auto space-y-1 rounded-lg border p-2">
                   {ALL_EVENTS.map((event) => (
                     <label
@@ -285,7 +289,7 @@ export default function WebhooksPage() {
                   variant="outline"
                   onClick={() => setCreateOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -294,7 +298,7 @@ export default function WebhooksPage() {
                   {createWebhook.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Create
+                  {t("api_keys_page.create")}
                 </Button>
               </DialogFooter>
             </form>

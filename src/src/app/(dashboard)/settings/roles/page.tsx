@@ -36,30 +36,32 @@ import {
   type CustomRole,
   type PermissionsByModule,
 } from "@/features/roles/api";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 
-const MODULE_LABELS: Record<string, string> = {
-  org: "Organization",
-  employee: "Employees",
-  attendance: "Attendance",
-  shift: "Shifts",
-  device: "Devices",
-  correction: "Corrections",
-  holiday: "Holidays",
-  leave: "Leave",
-  payroll: "Payroll",
-  report: "Reports",
-  announcement: "Announcements",
-  profile: "Profile",
-  dashboard: "Dashboard",
-  apikey: "API Keys",
-  webhook: "Webhooks",
-  billing: "Billing",
-  settings: "Settings",
+const MODULE_LABEL_KEYS: Record<string, string> = {
+  org: "roles_page.module_org",
+  employee: "roles_page.module_employee",
+  attendance: "roles_page.module_attendance",
+  shift: "roles_page.module_shift",
+  device: "roles_page.module_device",
+  correction: "roles_page.module_correction",
+  holiday: "roles_page.module_holiday",
+  leave: "roles_page.module_leave",
+  payroll: "roles_page.module_payroll",
+  report: "roles_page.module_report",
+  announcement: "roles_page.module_announcement",
+  profile: "roles_page.module_profile",
+  dashboard: "roles_page.module_dashboard",
+  apikey: "roles_page.module_apikey",
+  webhook: "roles_page.module_webhook",
+  billing: "roles_page.module_billing",
+  settings: "roles_page.module_settings",
 };
 
 export default function RolesPage() {
+  const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
 
@@ -85,11 +87,11 @@ export default function RolesPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Custom Roles"
-          description="Create and manage custom permission roles for your organization"
+          title={t("roles_page.title")}
+          description={t("roles_page.description")}
           actions={
             <Button onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Create Role
+              <Plus className="mr-2 h-4 w-4" /> {t("roles_page.create_role")}
             </Button>
           }
         />
@@ -103,8 +105,8 @@ export default function RolesPage() {
         ) : roles.length === 0 ? (
           <EmptyState
             icon={ShieldCheck}
-            title="No custom roles"
-            description="Create custom roles to assign specific permissions to users beyond the default role hierarchy"
+            title={t("roles_page.no_roles")}
+            description={t("roles_page.no_roles_desc")}
           />
         ) : (
           <div className="space-y-3">
@@ -131,13 +133,16 @@ function RoleCard({
   role: CustomRole;
   onEdit: (role: CustomRole) => void;
 }) {
+  const { t } = useT();
   const deleteRole = useDeleteCustomRole();
 
   function handleDelete() {
-    if (!confirm(`Delete role "${role.name}"?`)) return;
+    if (!confirm(`${t("roles_page.delete_confirm_prefix")} "${role.name}"?`))
+      return;
     deleteRole.mutate(role.public_id, {
-      onSuccess: () => toast.success(`Role "${role.name}" deleted`),
-      onError: (err) => toastError(err, "Failed to delete role"),
+      onSuccess: () =>
+        toast.success(`${t("roles_page.role_lc")} "${role.name}" ${t("roles_page.deleted")}`),
+      onError: (err) => toastError(err, t("roles_page.delete_failed")),
     });
   }
 
@@ -149,7 +154,7 @@ function RoleCard({
             <h3 className="text-sm font-medium text-foreground">{role.name}</h3>
             {!role.is_active && (
               <Badge variant="secondary" className="text-xs">
-                Inactive
+                {t("roles_page.inactive")}
               </Badge>
             )}
           </div>
@@ -159,10 +164,12 @@ function RoleCard({
             </p>
           )}
           <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-            <span>{role.permissions.length} permissions</span>
+            <span>
+              {role.permissions.length} {t("roles_page.permissions_lc")}
+            </span>
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {role.users_count ?? 0} users
+              {role.users_count ?? 0} {t("roles_page.users_lc")}
             </span>
           </div>
         </div>
@@ -171,7 +178,7 @@ function RoleCard({
             variant="ghost"
             size="sm"
             onClick={() => onEdit(role)}
-            aria-label={`Edit ${role.name}`}
+            aria-label={`${t("common.edit")} ${role.name}`}
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
@@ -181,7 +188,7 @@ function RoleCard({
             className="text-destructive hover:text-destructive"
             onClick={handleDelete}
             disabled={deleteRole.isPending}
-            aria-label={`Delete ${role.name}`}
+            aria-label={`${t("common.delete")} ${role.name}`}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -200,6 +207,7 @@ function RoleDialog({
   onClose: () => void;
   editingRole: CustomRole | null;
 }) {
+  const { t } = useT();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -268,17 +276,17 @@ function RoleDialog({
   const moduleOrder = useMemo(() => {
     if (!permsByModule) return [];
     return Object.keys(permsByModule).sort((a, b) => {
-      const la = MODULE_LABELS[a] ?? a;
-      const lb = MODULE_LABELS[b] ?? b;
+      const la = MODULE_LABEL_KEYS[a] ? t(MODULE_LABEL_KEYS[a]) : a;
+      const lb = MODULE_LABEL_KEYS[b] ? t(MODULE_LABEL_KEYS[b]) : b;
       return la.localeCompare(lb);
     });
-  }, [permsByModule]);
+  }, [permsByModule, t]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const permissions = Array.from(selected);
     if (permissions.length === 0) {
-      toast.error("Select at least one permission");
+      toast.error(t("roles_page.select_at_least_one"));
       return;
     }
 
@@ -287,10 +295,10 @@ function RoleDialog({
         { name, description, permissions },
         {
           onSuccess: () => {
-            toast.success(`Role "${name}" updated`);
+            toast.success(`${t("roles_page.role_lc")} "${name}" ${t("roles_page.updated")}`);
             onClose();
           },
-          onError: (err) => toastError(err, "Failed to update role"),
+          onError: (err) => toastError(err, t("roles_page.update_failed")),
         },
       );
     } else {
@@ -298,10 +306,10 @@ function RoleDialog({
         { name, description, permissions },
         {
           onSuccess: () => {
-            toast.success(`Role "${name}" created`);
+            toast.success(`${t("roles_page.role_lc")} "${name}" ${t("roles_page.created")}`);
             onClose();
           },
-          onError: (err) => toastError(err, "Failed to create role"),
+          onError: (err) => toastError(err, t("roles_page.create_failed")),
         },
       );
     }
@@ -313,11 +321,13 @@ function RoleDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Role" : "Create Role"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t("roles_page.edit_role") : t("roles_page.create_role")}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update role details and permissions"
-              : "Define a new role with specific permissions"}
+              ? t("roles_page.update_role_desc")
+              : t("roles_page.define_role_desc")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -327,23 +337,25 @@ function RoleDialog({
           <div className="space-y-4 px-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="role_name">Name</Label>
+                <Label htmlFor="role_name">{t("common.name")}</Label>
                 <Input
                   id="role_name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Junior HR"
+                  placeholder={t("roles_page.name_placeholder")}
                   required
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="role_desc">Description</Label>
+                <Label htmlFor="role_desc">
+                  {t("roles_page.role_description")}
+                </Label>
                 <Input
                   id="role_desc"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional description"
+                  placeholder={t("leave_page.optional_description")}
                   className="mt-1"
                 />
               </div>
@@ -351,9 +363,9 @@ function RoleDialog({
 
             <div>
               <Label>
-                Permissions{" "}
+                {t("roles_page.permissions")}{" "}
                 <span className="text-muted-foreground">
-                  ({selected.size} selected)
+                  ({selected.size} {t("roles_page.selected")})
                 </span>
               </Label>
             </div>
@@ -392,7 +404,9 @@ function RoleDialog({
                           htmlFor={`module-${module}`}
                           className="text-sm font-medium cursor-pointer"
                         >
-                          {MODULE_LABELS[module] ?? module}
+                          {MODULE_LABEL_KEYS[module]
+                            ? t(MODULE_LABEL_KEYS[module])
+                            : module}
                         </label>
                         <Badge variant="outline" className="ml-auto text-xs">
                           {perms.filter((p) => selected.has(p.name)).length}/
@@ -438,11 +452,13 @@ function RoleDialog({
 
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isPending || selected.size === 0}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? "Update Role" : "Create Role"}
+              {isEditing
+                ? t("roles_page.update_role")
+                : t("roles_page.create_role")}
             </Button>
           </DialogFooter>
         </form>
