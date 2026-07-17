@@ -51,14 +51,16 @@ import {
 } from "@/features/leave/api";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-function leaveTypeName(lt: LeaveBalance["leave_type"]): string {
+function leaveTypeName(lt: LeaveBalance["leave_type"], unknown: string): string {
   if (typeof lt === "string") return lt;
-  return lt?.name ?? "Unknown";
+  return lt?.name ?? unknown;
 }
 
 export default function LeavePage() {
+  const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const { isSupervisor } = usePermissions();
   const { data: leaveTypes } = useLeaveTypes();
@@ -75,7 +77,7 @@ export default function LeavePage() {
     e.preventDefault();
     submitLeave.mutate(leaveForm, {
       onSuccess: () => {
-        toast.success("Leave request submitted");
+        toast.success(t("leave_page.submitted"));
         setDialogOpen(false);
         setLeaveForm({
           leave_type_public_id: "",
@@ -87,7 +89,7 @@ export default function LeavePage() {
       onError: (err: unknown) => {
         const axiosError = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          axiosError.response?.data?.detail || "Failed to submit leave request",
+          axiosError.response?.data?.detail || t("leave_page.submit_failed"),
         );
       },
     });
@@ -96,19 +98,21 @@ export default function LeavePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Leave"
-        description="Manage leave requests and balances"
+        title={t("nav.leave")}
+        description={t("leave_page.description")}
         actions={
           <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Apply for Leave
+            <Plus className="mr-2 h-4 w-4" /> {t("common.apply_leave")}
           </Button>
         }
       />
 
       <Tabs defaultValue="my-leave">
         <TabsList>
-          <TabsTrigger value="my-leave">My Leave</TabsTrigger>
-          {isSupervisor && <TabsTrigger value="team">Team Leave</TabsTrigger>}
+          <TabsTrigger value="my-leave">{t("leave_page.my_leave")}</TabsTrigger>
+          {isSupervisor && (
+            <TabsTrigger value="team">{t("leave_page.team_leave")}</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="my-leave" className="mt-4 space-y-6">
@@ -125,11 +129,11 @@ export default function LeavePage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Apply for Leave</DialogTitle>
+            <DialogTitle>{t("common.apply_leave")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmitLeave} className="space-y-4">
             <div>
-              <Label>Leave Type</Label>
+              <Label>{t("leave_page.leave_type")}</Label>
               <Select
                 value={leaveForm.leave_type_public_id}
                 onValueChange={(v) =>
@@ -137,7 +141,7 @@ export default function LeavePage() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select leave type" />
+                  <SelectValue placeholder={t("leave_page.select_leave_type")} />
                 </SelectTrigger>
                 <SelectContent>
                   {leaveTypes?.data?.map((lt) => (
@@ -150,7 +154,7 @@ export default function LeavePage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Start Date</Label>
+                <Label>{t("leave_page.start_date")}</Label>
                 <Input
                   type="date"
                   value={leaveForm.start_date}
@@ -162,7 +166,7 @@ export default function LeavePage() {
                 />
               </div>
               <div>
-                <Label>End Date</Label>
+                <Label>{t("leave_page.end_date")}</Label>
                 <Input
                   type="date"
                   value={leaveForm.end_date}
@@ -175,13 +179,13 @@ export default function LeavePage() {
               </div>
             </div>
             <div>
-              <Label>Reason</Label>
+              <Label>{t("attendance.corrections.reason")}</Label>
               <Textarea
                 value={leaveForm.reason}
                 onChange={(e) =>
                   setLeaveForm((p) => ({ ...p, reason: e.target.value }))
                 }
-                placeholder="Optional"
+                placeholder={t("leave_page.optional")}
                 className="mt-1"
               />
             </div>
@@ -191,13 +195,13 @@ export default function LeavePage() {
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={submitLeave.isPending}>
                 {submitLeave.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Submit
+                {t("common.submit")}
               </Button>
             </DialogFooter>
           </form>
@@ -208,6 +212,7 @@ export default function LeavePage() {
 }
 
 function MyLeaveTab() {
+  const { t } = useT();
   const [page, setPage] = useState(1);
   const { data: balances, isLoading: balancesLoading } = useLeaveBalance();
   const { data: requests, isLoading: requestsLoading } = useMyLeaveRequests({
@@ -227,13 +232,13 @@ function MyLeaveTab() {
                 <Card key={i}>
                   <CardContent className="p-4">
                     <p className="text-sm text-muted-foreground">
-                      {leaveTypeName(b.leave_type)}
+                      {leaveTypeName(b.leave_type, t("leave_page.unknown"))}
                     </p>
                     <p className="mt-1 text-2xl font-bold text-foreground">
                       {b.remaining_days}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {b.used_days} used of {b.entitled_days}
+                      {b.used_days} {t("leave_page.used_of")} {b.entitled_days}
                     </p>
                   </CardContent>
                 </Card>
@@ -243,7 +248,7 @@ function MyLeaveTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>My Leave Requests</CardTitle>
+          <CardTitle>{t("leave_page.my_requests")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {requestsLoading ? (
@@ -255,8 +260,8 @@ function MyLeaveTab() {
           ) : !requests?.data?.length ? (
             <EmptyState
               icon={CalendarDays}
-              title="No leave requests"
-              description="Apply for leave to see your requests here"
+              title={t("leave_page.no_requests")}
+              description={t("leave_page.no_requests_desc")}
             />
           ) : (
             <div className="overflow-x-auto">
@@ -264,16 +269,16 @@ function MyLeaveTab() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      Type
+                      {t("leave_page.type")}
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      Dates
+                      {t("leave_page.dates")}
                     </th>
                     <th className="hidden px-4 py-3 text-left text-sm font-medium text-muted-foreground sm:table-cell">
-                      Days
+                      {t("leave_page.days")}
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      Status
+                      {t("common.status")}
                     </th>
                   </tr>
                 </thead>
@@ -284,7 +289,7 @@ function MyLeaveTab() {
                       className="border-b last:border-0 hover:bg-muted/30"
                     >
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        {leaveTypeName(req.leave_type)}
+                        {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
                         {req.start_date} — {req.end_date}
@@ -302,12 +307,12 @@ function MyLeaveTab() {
                             variant="ghost"
                             className="h-7 text-muted-foreground hover:text-red-600"
                             onClick={() => {
-                              if (confirm("Withdraw this leave request?")) {
+                              if (confirm(t("leave_page.withdraw_confirm"))) {
                                 cancelLeave.mutate(req.public_id, {
                                   onSuccess: () =>
-                                    toast.success("Leave request withdrawn"),
+                                    toast.success(t("leave_page.withdrawn")),
                                   onError: () =>
-                                    toast.error("Failed to withdraw request"),
+                                    toast.error(t("leave_page.withdraw_failed")),
                                 });
                               }
                             }}
@@ -330,6 +335,7 @@ function MyLeaveTab() {
 }
 
 function TeamLeaveTab() {
+  const { t } = useT();
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "calendar">("list");
   const { data, isLoading } = useTeamLeaveRequests({ page, per_page: 100 } as {
@@ -344,7 +350,10 @@ function TeamLeaveTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">
-          {requests.length} leave request{requests.length !== 1 ? "s" : ""}
+          {requests.length}{" "}
+          {requests.length !== 1
+            ? t("leave_page.requests_plural")
+            : t("leave_page.requests_singular")}
         </h3>
         <div className="flex rounded-lg border p-0.5">
           <Button
@@ -373,7 +382,9 @@ function TeamLeaveTab() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Team Leave Requests</CardTitle>
+            <CardTitle className="text-base">
+              {t("leave_page.team_requests")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
@@ -385,8 +396,8 @@ function TeamLeaveTab() {
             ) : requests.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
-                title="No team leave requests"
-                description="Your team members' leave requests will appear here"
+                title={t("leave_page.no_team_requests")}
+                description={t("leave_page.no_team_requests_desc")}
               />
             ) : (
               <div className="overflow-x-auto">
@@ -394,19 +405,19 @@ function TeamLeaveTab() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Employee
+                        {t("attendance.employee")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Type
+                        {t("leave_page.type")}
                       </th>
                       <th className="hidden px-4 py-3 text-left text-sm font-medium text-muted-foreground sm:table-cell">
-                        Dates
+                        {t("leave_page.dates")}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        Status
+                        {t("common.status")}
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        Actions
+                        {t("common.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -421,7 +432,7 @@ function TeamLeaveTab() {
                             "—"}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {leaveTypeName(req.leave_type)}
+                          {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
                         </td>
                         <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
                           {req.start_date} — {req.end_date}
@@ -488,6 +499,7 @@ function TeamLeaveCalendar({
 }: {
   requests: (LeaveRequest & { employee_name?: string })[];
 }) {
+  const { t } = useT();
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -613,7 +625,7 @@ function TeamLeaveCalendar({
                           "block truncate px-1 py-0 text-[10px] leading-4 border-0 font-normal",
                           STATUS_COLORS[leave.status] ?? STATUS_COLORS.pending,
                         )}
-                        title={`${name} — ${leaveTypeName(leave.leave_type)} (${leave.status})`}
+                        title={`${name} — ${leaveTypeName(leave.leave_type, t("leave_page.unknown"))} (${leave.status})`}
                       >
                         {firstName}
                       </Badge>
@@ -621,7 +633,7 @@ function TeamLeaveCalendar({
                   })}
                   {leaves.length > 3 && (
                     <span className="block text-[10px] text-muted-foreground px-1">
-                      +{leaves.length - 3} more
+                      +{leaves.length - 3} {t("leave_page.more")}
                     </span>
                   )}
                 </div>
@@ -632,11 +644,11 @@ function TeamLeaveCalendar({
         <div className="mt-3 flex flex-wrap gap-3 text-xs">
           <span className="flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded-sm bg-green-200 dark:bg-green-900" />{" "}
-            Approved
+            {t("leave_page.approved")}
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-200 dark:bg-amber-900" />{" "}
-            Pending
+            {t("leave_page.pending")}
           </span>
         </div>
       </CardContent>

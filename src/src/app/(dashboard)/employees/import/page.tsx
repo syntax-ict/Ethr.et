@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ interface CommitResult {
 type Step = "upload" | "preview" | "result";
 
 export default function EmployeeImportPage() {
+  const { t } = useT();
   const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -72,9 +74,9 @@ export default function EmployeeImportPage() {
       link.download = "employees-import-template.csv";
       link.click();
       URL.revokeObjectURL(url);
-      toast.success("Template downloaded");
+      toast.success(t("employees_import_page.template_downloaded"));
     },
-    onError: () => toast.error("Failed to download template"),
+    onError: () => toast.error(t("employees_import_page.template_download_failed")),
   });
 
   const previewMutation = useMutation({
@@ -94,7 +96,7 @@ export default function EmployeeImportPage() {
       setPreview(data);
       setStep("preview");
     },
-    onError: () => toast.error("Failed to parse CSV"),
+    onError: () => toast.error(t("employees_import_page.parse_failed")),
   });
 
   const commitMutation = useMutation({
@@ -112,9 +114,12 @@ export default function EmployeeImportPage() {
     onSuccess: (data) => {
       setResult(data);
       setStep("result");
-      if (data.created > 0) toast.success(`Imported ${data.created} employees`);
+      if (data.created > 0)
+        toast.success(
+          `${t("employees_import_page.imported")} ${data.created} ${t("employees_import_page.employees")}`,
+        );
     },
-    onError: () => toast.error("Import failed"),
+    onError: () => toast.error(t("employees_import_page.import_failed")),
   });
 
   function handleFileSelect(f: File | null) {
@@ -124,7 +129,7 @@ export default function EmployeeImportPage() {
       !f.name.endsWith(".txt") &&
       f.type !== "text/csv"
     ) {
-      toast.error("Please select a CSV file");
+      toast.error(t("employees_import_page.select_csv"));
       return;
     }
     setFile(f);
@@ -156,14 +161,14 @@ export default function EmployeeImportPage() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/employees">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Employees
+              {t("employees_import_page.back_to_employees")}
             </Link>
           </Button>
         </div>
 
         <PageHeader
-          title="Import Employees"
-          description="Bulk import employees from a CSV file"
+          title={t("employees_import_page.title")}
+          description={t("employees_import_page.description")}
         />
 
         <StepIndicator current={step} />
@@ -172,7 +177,9 @@ export default function EmployeeImportPage() {
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Upload CSV File</CardTitle>
+                <CardTitle className="text-base">
+                  {t("employees_import_page.upload_csv")}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div
@@ -192,7 +199,7 @@ export default function EmployeeImportPage() {
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
                       <p className="text-sm text-muted-foreground">
-                        Parsing CSV…
+                        {t("employees_import_page.parsing_csv")}
                       </p>
                     </div>
                   ) : (
@@ -201,7 +208,7 @@ export default function EmployeeImportPage() {
                         <FileSpreadsheet className="h-6 w-6 text-primary" />
                       </div>
                       <p className="mt-4 text-sm font-medium">
-                        Drag and drop your CSV file, or
+                        {t("employees_import_page.drag_drop_hint")}
                       </p>
                       <input
                         type="file"
@@ -219,11 +226,13 @@ export default function EmployeeImportPage() {
                           className="mt-3"
                           asChild
                         >
-                          <span className="cursor-pointer">Browse files</span>
+                          <span className="cursor-pointer">
+                            {t("employees_import_page.browse_files")}
+                          </span>
                         </Button>
                       </label>
                       <p className="mt-4 text-xs text-muted-foreground">
-                        CSV format · max 5 MB · header row required
+                        {t("employees_import_page.format_hint")}
                       </p>
                     </>
                   )}
@@ -233,12 +242,13 @@ export default function EmployeeImportPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Download Template</CardTitle>
+                <CardTitle className="text-base">
+                  {t("employees_import_page.download_template_title")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Start with our CSV template that includes all required columns
-                  and an example row.
+                  {t("employees_import_page.template_hint")}
                 </p>
                 <Button
                   variant="outline"
@@ -251,18 +261,20 @@ export default function EmployeeImportPage() {
                   ) : (
                     <Download className="mr-2 h-4 w-4" />
                   )}
-                  Download CSV Template
+                  {t("employees_import_page.download_csv_template")}
                 </Button>
                 <div className="rounded-lg border bg-muted/30 p-3">
                   <p className="text-xs font-semibold text-foreground">
-                    Required columns
+                    {t("employees_import_page.required_columns")}
                   </p>
                   <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                     <li>
-                      • <code className="font-mono">name</code> (required)
+                      • <code className="font-mono">name</code> (
+                      {t("employees_import_page.required")})
                     </li>
                     <li>
-                      • <code className="font-mono">hire_date</code> (required)
+                      • <code className="font-mono">hire_date</code> (
+                      {t("employees_import_page.required")})
                     </li>
                     <li>
                       • <code className="font-mono">email</code>,{" "}
@@ -296,10 +308,18 @@ export default function EmployeeImportPage() {
         {step === "preview" && preview && (
           <>
             <div className="grid gap-4 sm:grid-cols-3">
-              <StatCard label="Total rows" value={totalRows} color="blue" />
-              <StatCard label="Valid rows" value={validRows} color="green" />
               <StatCard
-                label="Rows with errors"
+                label={t("employees_import_page.total_rows")}
+                value={totalRows}
+                color="blue"
+              />
+              <StatCard
+                label={t("employees_import_page.valid_rows")}
+                value={validRows}
+                color="green"
+              />
+              <StatCard
+                label={t("employees_import_page.rows_with_errors")}
                 value={errorRows}
                 color="red"
               />
@@ -312,12 +332,13 @@ export default function EmployeeImportPage() {
                     <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">
-                        {errorRows} row{errorRows > 1 ? "s" : ""} contain
-                        validation errors
+                        {errorRows}{" "}
+                        {errorRows > 1
+                          ? t("employees_import_page.rows_contain_errors")
+                          : t("employees_import_page.row_contains_errors")}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Rows with errors will be skipped during import. Fix the
-                        issues below or proceed to import only valid rows.
+                        {t("employees_import_page.error_rows_skipped_hint")}
                       </p>
                     </div>
                   </div>
@@ -329,7 +350,7 @@ export default function EmployeeImportPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    Preview{" "}
+                    {t("employees_import_page.preview")}{" "}
                     {file && (
                       <span className="text-xs font-normal text-muted-foreground">
                         ({file.name})
@@ -337,7 +358,8 @@ export default function EmployeeImportPage() {
                     )}
                   </CardTitle>
                   <Button variant="ghost" size="sm" onClick={reset}>
-                    <X className="mr-1 h-3 w-3" /> Choose different file
+                    <X className="mr-1 h-3 w-3" />{" "}
+                    {t("employees_import_page.choose_different_file")}
                   </Button>
                 </div>
               </CardHeader>
@@ -347,7 +369,7 @@ export default function EmployeeImportPage() {
                     <thead>
                       <tr className="border-b bg-muted/50">
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                          Row
+                          {t("employees_import_page.row")}
                         </th>
                         {preview.headers.map((h) => (
                           <th
@@ -358,7 +380,7 @@ export default function EmployeeImportPage() {
                           </th>
                         ))}
                         <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                          Validation
+                          {t("employees_import_page.validation")}
                         </th>
                       </tr>
                     </thead>
@@ -393,15 +415,17 @@ export default function EmployeeImportPage() {
                                   className="border-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 text-[10px]"
                                   title={rowErrors.join("; ")}
                                 >
-                                  {rowErrors.length} error
-                                  {rowErrors.length > 1 ? "s" : ""}
+                                  {rowErrors.length}{" "}
+                                  {rowErrors.length > 1
+                                    ? t("employees_import_page.errors")
+                                    : t("employees_import_page.error")}
                                 </Badge>
                               ) : (
                                 <Badge
                                   variant="outline"
                                   className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-[10px]"
                                 >
-                                  Valid
+                                  {t("employees_import_page.valid")}
                                 </Badge>
                               )}
                             </td>
@@ -413,8 +437,8 @@ export default function EmployeeImportPage() {
                 </div>
                 {totalRows > 100 && (
                   <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-                    Showing first 100 of {totalRows} rows. Errors apply to all
-                    rows.
+                    {t("employees_import_page.showing_first_100_prefix")}{" "}
+                    {totalRows} {t("employees_import_page.showing_first_100_suffix")}
                   </div>
                 )}
               </CardContent>
@@ -422,7 +446,7 @@ export default function EmployeeImportPage() {
 
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={reset}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 onClick={() => commitMutation.mutate()}
@@ -433,7 +457,10 @@ export default function EmployeeImportPage() {
                 ) : (
                   <UploadIcon className="mr-2 h-4 w-4" />
                 )}
-                Import {validRows} valid row{validRows !== 1 ? "s" : ""}
+                {t("employees_import_page.import_prefix")} {validRows}{" "}
+                {validRows !== 1
+                  ? t("employees_import_page.valid_rows_lc")
+                  : t("employees_import_page.valid_row_lc")}
               </Button>
             </div>
           </>
@@ -446,31 +473,31 @@ export default function EmployeeImportPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
               </div>
               <h2 className="mt-4 text-xl font-bold text-foreground">
-                Import Complete
+                {t("employees_import_page.import_complete")}
               </h2>
               <div className="mt-6 grid gap-4 sm:grid-cols-3 max-w-xl mx-auto">
                 <StatCard
-                  label="Created"
+                  label={t("attendance.import_page.created")}
                   value={result.created}
                   color="green"
                 />
                 <StatCard
-                  label="Skipped"
+                  label={t("employees_import_page.skipped")}
                   value={result.skipped}
                   color="amber"
                 />
                 <StatCard
-                  label="Errors"
+                  label={t("employees_import_page.errors_label")}
                   value={Object.keys(result.errors).length}
                   color="red"
                 />
               </div>
               <div className="mt-8 flex justify-center gap-3">
                 <Button variant="outline" onClick={reset}>
-                  Import another file
+                  {t("employees_import_page.import_another_file")}
                 </Button>
                 <Button onClick={() => router.push("/employees")}>
-                  View Employees
+                  {t("employees_import_page.view_employees")}
                 </Button>
               </div>
             </CardContent>
@@ -482,14 +509,23 @@ export default function EmployeeImportPage() {
 }
 
 function StepIndicator({ current }: { current: Step }) {
+  const { t } = useT();
   const steps: Array<{
     key: Step;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = [
-    { key: "upload", label: "Upload", icon: Upload },
-    { key: "preview", label: "Preview & Validate", icon: Eye },
-    { key: "result", label: "Import", icon: CheckCircle2 },
+    { key: "upload", label: t("employees_import_page.step_upload"), icon: Upload },
+    {
+      key: "preview",
+      label: t("employees_import_page.step_preview"),
+      icon: Eye,
+    },
+    {
+      key: "result",
+      label: t("employees_import_page.step_import"),
+      icon: CheckCircle2,
+    },
   ];
   const currentIndex = steps.findIndex((s) => s.key === current);
 
