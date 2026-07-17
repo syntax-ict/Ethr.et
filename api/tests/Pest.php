@@ -14,7 +14,7 @@ pest()->extend(TestCase::class)
     ->beforeEach(function () {
         $this->seed(PermissionSeeder::class);
     })
-    ->in('Feature');
+    ->in('Feature', 'Performance');
 
 function createTenant(array $attributes = []): Tenant
 {
