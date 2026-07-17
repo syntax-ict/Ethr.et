@@ -66,6 +66,7 @@ import {
 } from "@/features/reports/api";
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -73,48 +74,49 @@ const prebuilt = [
   {
     key: "employees",
     icon: Users,
-    title: "Employee Directory",
-    description: "Full employee listing",
+    titleKey: "reports_page.prebuilt_employees_title",
+    descKey: "reports_page.prebuilt_employees_desc",
     color: "text-blue-600",
   },
   {
     key: "attendance",
     icon: Clock,
-    title: "Attendance Summary",
-    description: "Attendance records",
+    titleKey: "reports_page.prebuilt_attendance_title",
+    descKey: "reports_page.prebuilt_attendance_desc",
     color: "text-green-600",
   },
   {
     key: "leave",
     icon: CalendarDays,
-    title: "Leave Balance Report",
-    description: "Leave balances for all",
+    titleKey: "reports_page.prebuilt_leave_title",
+    descKey: "reports_page.prebuilt_leave_desc",
     color: "text-purple-600",
   },
   {
     key: "payroll",
     icon: Wallet,
-    title: "Payroll Register",
-    description: "Detailed payroll entries",
+    titleKey: "reports_page.prebuilt_payroll_title",
+    descKey: "reports_page.prebuilt_payroll_desc",
     color: "text-amber-600",
   },
 ];
 
 export default function ReportsPage() {
+  const { t } = useT();
   return (
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Reports"
-          description="Build custom reports, save templates, and schedule recurring delivery"
+          title={t("reports_page.title")}
+          description={t("reports_page.description")}
         />
 
         <Tabs defaultValue="builder">
           <TabsList>
-            <TabsTrigger value="builder">Builder</TabsTrigger>
-            <TabsTrigger value="quick">Quick Reports</TabsTrigger>
-            <TabsTrigger value="saved">Saved</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="builder">{t("reports_page.builder")}</TabsTrigger>
+            <TabsTrigger value="quick">{t("reports_page.quick_reports")}</TabsTrigger>
+            <TabsTrigger value="saved">{t("reports_page.saved")}</TabsTrigger>
+            <TabsTrigger value="scheduled">{t("reports_page.scheduled")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="builder" className="mt-4">
@@ -143,6 +145,7 @@ interface FilterRow {
 }
 
 function BuilderTab() {
+  const { t } = useT();
   const { data: sourcesData, isLoading: sourcesLoading } = useReportSources();
   const generate = useGenerateReport();
   const [config, setConfig] = useState<ReportConfig>({ source: "employees" });
@@ -206,7 +209,7 @@ function BuilderTab() {
 
   function handlePreview() {
     generate.mutate(buildPayload(), {
-      onError: () => toast.error("Failed to generate report"),
+      onError: () => toast.error(t("reports_page.generate_failed")),
     });
   }
 
@@ -246,7 +249,7 @@ function BuilderTab() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Database className="h-4 w-4" /> Data Source
+              <Database className="h-4 w-4" /> {t("reports_page.data_source")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -263,7 +266,7 @@ function BuilderTab() {
               </SelectContent>
             </Select>
             <p className="mt-2 text-xs text-muted-foreground">
-              {availableFields.length} available fields
+              {availableFields.length} {t("reports_page.available_fields")}
             </p>
           </CardContent>
         </Card>
@@ -271,9 +274,9 @@ function BuilderTab() {
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Columns3 className="h-4 w-4" /> Columns
+              <Columns3 className="h-4 w-4" /> {t("reports_page.columns")}
               <Badge variant="outline" className="ml-1 text-[10px]">
-                {selectedColumns.length || "All"}
+                {selectedColumns.length || t("reports_page.all")}
               </Badge>
             </CardTitle>
             <div className="flex gap-1">
@@ -283,7 +286,7 @@ function BuilderTab() {
                 className="h-6 text-xs px-2"
                 onClick={selectAllColumns}
               >
-                All
+                {t("reports_page.all")}
               </Button>
               <Button
                 size="sm"
@@ -291,7 +294,7 @@ function BuilderTab() {
                 className="h-6 text-xs px-2"
                 onClick={clearColumns}
               >
-                Clear
+                {t("reports_page.clear")}
               </Button>
             </div>
           </CardHeader>
@@ -321,7 +324,7 @@ function BuilderTab() {
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ListFilter className="h-4 w-4" /> Filters
+              <ListFilter className="h-4 w-4" /> {t("reports_page.filters")}
             </CardTitle>
             <Button
               size="sm"
@@ -335,7 +338,7 @@ function BuilderTab() {
           <CardContent className="space-y-2">
             {filters.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No filters. Click + to add one.
+                {t("reports_page.no_filters")}
               </p>
             ) : (
               filters.map((f, i) => (
@@ -358,7 +361,7 @@ function BuilderTab() {
                   <Input
                     value={f.value}
                     onChange={(e) => updateFilter(i, { value: e.target.value })}
-                    placeholder="value"
+                    placeholder={t("reports_page.value")}
                     className="h-8 flex-1"
                   />
                   <Button
@@ -378,7 +381,7 @@ function BuilderTab() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Group className="h-4 w-4" /> Group By
+              <Group className="h-4 w-4" /> {t("reports_page.group_by")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -392,10 +395,10 @@ function BuilderTab() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="No grouping" />
+                <SelectValue placeholder={t("reports_page.no_grouping")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">No grouping</SelectItem>
+                <SelectItem value="__none__">{t("reports_page.no_grouping")}</SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
                     {field}
@@ -409,7 +412,7 @@ function BuilderTab() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ArrowDownUp className="h-4 w-4" /> Sort
+              <ArrowDownUp className="h-4 w-4" /> {t("reports_page.sort")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -423,10 +426,10 @@ function BuilderTab() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="No sorting" />
+                <SelectValue placeholder={t("reports_page.no_sorting")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">No sorting</SelectItem>
+                <SelectItem value="__none__">{t("reports_page.no_sorting")}</SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
                     {field}
@@ -445,8 +448,8 @@ function BuilderTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="asc">Ascending</SelectItem>
-                  <SelectItem value="desc">Descending</SelectItem>
+                  <SelectItem value="asc">{t("reports_page.ascending")}</SelectItem>
+                  <SelectItem value="desc">{t("reports_page.descending")}</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -460,15 +463,15 @@ function BuilderTab() {
             ) : (
               <Eye className="mr-2 h-4 w-4" />
             )}
-            Run Preview
+            {t("reports_page.run_preview")}
           </Button>
           {generate.data && (
             <>
               <Button variant="outline" onClick={downloadCsv}>
-                <Download className="mr-2 h-4 w-4" /> Download CSV
+                <Download className="mr-2 h-4 w-4" /> {t("reports_page.download_csv")}
               </Button>
               <Button variant="outline" onClick={() => setSaveOpen(true)}>
-                <Save className="mr-2 h-4 w-4" /> Save as Template
+                <Save className="mr-2 h-4 w-4" /> {t("reports_page.save_as_template")}
               </Button>
             </>
           )}
@@ -482,8 +485,8 @@ function BuilderTab() {
             <CardContent className="p-12 text-center text-muted-foreground">
               <FileSpreadsheet className="mx-auto h-12 w-12 opacity-30" />
               <p className="mt-4 text-sm">
-                Configure your report on the left, then click{" "}
-                <span className="font-semibold">Run Preview</span>
+                {t("reports_page.configure_hint")}{" "}
+                <span className="font-semibold">{t("reports_page.run_preview")}</span>
               </p>
             </CardContent>
           </Card>
@@ -494,7 +497,7 @@ function BuilderTab() {
             <CardContent className="p-12 text-center">
               <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
               <p className="mt-3 text-sm text-muted-foreground">
-                Generating report…
+                {t("reports_page.generating")}
               </p>
             </CardContent>
           </Card>
@@ -522,6 +525,7 @@ function PreviewResult({
     summary: { grouped_by?: string; groups?: Record<string, number> };
   };
 }) {
+  const { t } = useT();
   const headers = useMemo(
     () => (result.data.length > 0 ? Object.keys(result.data[0]) : []),
     [result.data],
@@ -534,7 +538,7 @@ function PreviewResult({
         <div>
           <p className="text-sm text-muted-foreground">
             <span className="capitalize">{result.source}</span> · {result.total}{" "}
-            records
+            {t("reports_page.records")}
           </p>
         </div>
       </div>
@@ -543,7 +547,7 @@ function PreviewResult({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">
-              Grouped by {result.summary.grouped_by}
+              {t("reports_page.grouped_by")} {result.summary.grouped_by}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -561,8 +565,8 @@ function PreviewResult({
       {result.data.length === 0 ? (
         <EmptyState
           icon={FileSpreadsheet}
-          title="No data"
-          description="The query returned no rows"
+          title={t("reports_page.no_data")}
+          description={t("reports_page.no_rows")}
         />
       ) : (
         <Card>
@@ -602,8 +606,8 @@ function PreviewResult({
             </div>
             {result.data.length > 200 && (
               <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-                Showing first 200 of {result.data.length} rows. Download CSV for
-                full data.
+                {t("reports_page.showing_first_200_prefix")} {result.data.length}{" "}
+                {t("reports_page.showing_first_200_suffix")}
               </div>
             )}
           </CardContent>
@@ -622,6 +626,7 @@ function SaveReportDialog({
   onClose: () => void;
   config: ReportConfig;
 }) {
+  const { t } = useT();
   const [name, setName] = useState("");
   const save = useSaveReport();
 
@@ -631,11 +636,11 @@ function SaveReportDialog({
       { name: name.trim(), config },
       {
         onSuccess: () => {
-          toast.success("Report template saved");
+          toast.success(t("reports_page.template_saved"));
           setName("");
           onClose();
         },
-        onError: () => toast.error("Failed to save template"),
+        onError: () => toast.error(t("reports_page.save_template_failed")),
       },
     );
   }
@@ -644,52 +649,52 @@ function SaveReportDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save Report Template</DialogTitle>
+          <DialogTitle>{t("reports_page.save_report_template")}</DialogTitle>
           <DialogDescription>
-            Saved templates can be re-run and scheduled for automatic delivery.
+            {t("reports_page.save_template_desc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Template Name</Label>
+            <Label>{t("reports_page.template_name")}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Monthly Active Employees"
+              placeholder={t("reports_page.template_name_placeholder")}
               className="mt-1"
               autoFocus
             />
           </div>
           <div className="rounded-lg border bg-muted/30 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Configuration
+              {t("reports_page.configuration")}
             </p>
             <div className="mt-2 space-y-1 text-xs">
               <p>
-                <span className="text-muted-foreground">Source:</span>{" "}
+                <span className="text-muted-foreground">{t("reports_page.source")}:</span>{" "}
                 <span className="font-mono">{config.source}</span>
               </p>
               {config.columns && (
                 <p>
-                  <span className="text-muted-foreground">Columns:</span>{" "}
+                  <span className="text-muted-foreground">{t("reports_page.columns")}:</span>{" "}
                   {config.columns.length}
                 </p>
               )}
               {config.filters && (
                 <p>
-                  <span className="text-muted-foreground">Filters:</span>{" "}
+                  <span className="text-muted-foreground">{t("reports_page.filters")}:</span>{" "}
                   {Object.keys(config.filters).length}
                 </p>
               )}
               {config.group_by && (
                 <p>
-                  <span className="text-muted-foreground">Group by:</span>{" "}
+                  <span className="text-muted-foreground">{t("reports_page.group_by")}:</span>{" "}
                   <span className="font-mono">{config.group_by}</span>
                 </p>
               )}
               {config.sort_by && (
                 <p>
-                  <span className="text-muted-foreground">Sort:</span>{" "}
+                  <span className="text-muted-foreground">{t("reports_page.sort")}:</span>{" "}
                   <span className="font-mono">
                     {config.sort_by} {config.sort_dir ?? "asc"}
                   </span>
@@ -700,7 +705,7 @@ function SaveReportDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSave}
@@ -709,7 +714,7 @@ function SaveReportDialog({
             {save.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Save Template
+            {t("reports_page.save_template")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -720,6 +725,7 @@ function SaveReportDialog({
 // ── QUICK REPORTS TAB ──────────────────────────────────────────
 
 function QuickTab() {
+  const { t } = useT();
   const generate = useGenerateReport();
 
   function handleGenerate(source: string) {
@@ -727,8 +733,10 @@ function QuickTab() {
       { source },
       {
         onSuccess: () =>
-          toast.success(`Generated ${generate.data?.total ?? 0} records`),
-        onError: () => toast.error("Failed to generate report"),
+          toast.success(
+            `${t("reports_page.generated_prefix")} ${generate.data?.total ?? 0} ${t("reports_page.records")}`,
+          ),
+        onError: () => toast.error(t("reports_page.generate_failed")),
       },
     );
   }
@@ -774,12 +782,12 @@ function QuickTab() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                     <Icon className={cn("h-5 w-5", r.color)} />
                   </div>
-                  <CardTitle className="text-base">{r.title}</CardTitle>
+                  <CardTitle className="text-base">{t(r.titleKey)}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  {r.description}
+                  {t(r.descKey)}
                 </p>
                 <Button
                   size="sm"
@@ -792,7 +800,7 @@ function QuickTab() {
                   ) : (
                     <Play className="mr-2 h-3 w-3" />
                   )}
-                  Run
+                  {t("reports_page.run")}
                 </Button>
               </CardContent>
             </Card>
@@ -804,11 +812,11 @@ function QuickTab() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {generate.data.total} records ·{" "}
+              {generate.data.total} {t("reports_page.records")} ·{" "}
               <span className="capitalize">{generate.data.source}</span>
             </p>
             <Button size="sm" onClick={downloadCsv}>
-              <Download className="mr-2 h-3 w-3" /> Download CSV
+              <Download className="mr-2 h-3 w-3" /> {t("reports_page.download_csv")}
             </Button>
           </div>
           <PreviewResult result={generate.data} />
@@ -821,6 +829,7 @@ function QuickTab() {
 // ── SAVED TAB ──────────────────────────────────────────────────
 
 function SavedTab() {
+  const { t } = useT();
   const { data, isLoading } = useSavedReports();
   const deleteReport = useDeleteSavedReport();
   const runReport = useGenerateReport();
@@ -831,16 +840,19 @@ function SavedTab() {
     runReport.mutate(r.config, {
       onSuccess: () => {
         setResultFor(r.public_id);
-        toast.success(`Generated ${runReport.data?.total ?? 0} records`);
+        toast.success(
+          `${t("reports_page.generated_prefix")} ${runReport.data?.total ?? 0} ${t("reports_page.records")}`,
+        );
       },
-      onError: () => toast.error("Failed to run report"),
+      onError: () => toast.error(t("reports_page.run_failed")),
     });
   }
 
   function handleDelete(r: SavedReport) {
-    if (!confirm(`Delete saved report "${r.name}"?`)) return;
+    if (!confirm(`${t("reports_page.delete_saved_confirm_prefix")} "${r.name}"?`))
+      return;
     deleteReport.mutate(r.public_id, {
-      onSuccess: () => toast.success("Template deleted"),
+      onSuccess: () => toast.success(t("reports_page.template_deleted")),
     });
   }
 
@@ -857,8 +869,8 @@ function SavedTab() {
       ) : reports.length === 0 ? (
         <EmptyState
           icon={Bookmark}
-          title="No saved templates"
-          description="Build a report and save it as a template to reuse it later"
+          title={t("reports_page.no_saved_templates")}
+          description={t("reports_page.no_saved_templates_desc")}
         />
       ) : (
         <div className="grid gap-3">
@@ -872,18 +884,19 @@ function SavedTab() {
                       {r.config.source}
                     </Badge>
                     {r.config.columns && (
-                      <span>· {r.config.columns.length} columns</span>
+                      <span>· {r.config.columns.length} {t("reports_page.columns_lc")}</span>
                     )}
                     {r.config.filters && (
                       <span>
-                        · {Object.keys(r.config.filters).length} filters
+                        · {Object.keys(r.config.filters).length} {t("reports_page.filters_lc")}
                       </span>
                     )}
                     {r.config.group_by && (
-                      <span>· grouped by {r.config.group_by}</span>
+                      <span>· {t("reports_page.grouped_by_lc")} {r.config.group_by}</span>
                     )}
                     <span>
-                      · saved {new Date(r.created_at).toLocaleDateString()}
+                      · {t("reports_page.saved_lc")}{" "}
+                      {new Date(r.created_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -894,14 +907,14 @@ function SavedTab() {
                     onClick={() => handleRun(r)}
                     disabled={runReport.isPending}
                   >
-                    <Play className="mr-1 h-3 w-3" /> Run
+                    <Play className="mr-1 h-3 w-3" /> {t("reports_page.run")}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setScheduleFor(r)}
                   >
-                    <CalendarClock className="mr-1 h-3 w-3" /> Schedule
+                    <CalendarClock className="mr-1 h-3 w-3" /> {t("reports_page.schedule")}
                   </Button>
                   <Button
                     size="sm"
@@ -939,6 +952,7 @@ function ScheduleDialog({
   report: SavedReport;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const schedule = useScheduleReport();
   const [frequency, setFrequency] = useState<"daily" | "weekly" | "monthly">(
     "weekly",
@@ -949,7 +963,7 @@ function ScheduleDialog({
   function addEmail() {
     const e = emailInput.trim().toLowerCase();
     if (!e || !e.includes("@")) {
-      toast.error("Enter a valid email");
+      toast.error(t("reports_page.enter_valid_email"));
       return;
     }
     if (recipients.includes(e)) return;
@@ -959,17 +973,17 @@ function ScheduleDialog({
 
   function handleSchedule() {
     if (recipients.length === 0) {
-      toast.error("Add at least one recipient");
+      toast.error(t("reports_page.add_recipient"));
       return;
     }
     schedule.mutate(
       { saved_report_public_id: report.public_id, frequency, recipients },
       {
         onSuccess: () => {
-          toast.success("Report scheduled");
+          toast.success(t("reports_page.report_scheduled"));
           onClose();
         },
-        onError: () => toast.error("Failed to schedule report"),
+        onError: () => toast.error(t("reports_page.schedule_failed")),
       },
     );
   }
@@ -978,16 +992,16 @@ function ScheduleDialog({
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Schedule Report</DialogTitle>
+          <DialogTitle>{t("reports_page.schedule_report")}</DialogTitle>
           <DialogDescription>
-            <span className="font-medium">{report.name}</span> will be sent
-            automatically.
+            <span className="font-medium">{report.name}</span>{" "}
+            {t("reports_page.will_be_sent")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Frequency</Label>
+            <Label>{t("reports_page.frequency")}</Label>
             <Select
               value={frequency}
               onValueChange={(v) =>
@@ -998,17 +1012,17 @@ function ScheduleDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily — 6:00 AM</SelectItem>
-                <SelectItem value="weekly">Weekly — Monday 6:00 AM</SelectItem>
+                <SelectItem value="daily">{t("reports_page.daily_6am")}</SelectItem>
+                <SelectItem value="weekly">{t("reports_page.weekly_mon_6am")}</SelectItem>
                 <SelectItem value="monthly">
-                  Monthly — 1st of month 6:00 AM
+                  {t("reports_page.monthly_1st_6am")}
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label>Recipients</Label>
+            <Label>{t("reports_page.recipients")}</Label>
             <div className="mt-1 flex gap-2">
               <Input
                 type="email"
@@ -1020,7 +1034,7 @@ function ScheduleDialog({
                 placeholder="hr@example.com"
               />
               <Button type="button" variant="outline" onClick={addEmail}>
-                Add
+                {t("reports_page.add")}
               </Button>
             </div>
             {recipients.length > 0 && (
@@ -1049,7 +1063,7 @@ function ScheduleDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSchedule}
@@ -1058,7 +1072,7 @@ function ScheduleDialog({
             {schedule.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Schedule
+            {t("reports_page.schedule")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1069,13 +1083,15 @@ function ScheduleDialog({
 // ── SCHEDULED TAB ──────────────────────────────────────────────
 
 function ScheduledTab() {
+  const { t } = useT();
   const { data, isLoading } = useScheduledReports();
   const deleteScheduled = useDeleteScheduledReport();
 
   function handleDelete(publicId: string, name: string) {
-    if (!confirm(`Cancel scheduled report "${name}"?`)) return;
+    if (!confirm(`${t("reports_page.cancel_scheduled_confirm_prefix")} "${name}"?`))
+      return;
     deleteScheduled.mutate(publicId, {
-      onSuccess: () => toast.success("Schedule cancelled"),
+      onSuccess: () => toast.success(t("reports_page.schedule_cancelled")),
     });
   }
 
@@ -1092,8 +1108,8 @@ function ScheduledTab() {
       ) : schedules.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
-          title="No scheduled reports"
-          description="Save a template, then schedule it from the Saved tab"
+          title={t("reports_page.no_scheduled")}
+          description={t("reports_page.no_scheduled_desc")}
         />
       ) : (
         <div className="grid gap-3">
@@ -1112,15 +1128,17 @@ function ScheduledTab() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Mail className="h-3 w-3" /> {s.recipients.length}{" "}
-                      recipient{s.recipients.length > 1 ? "s" : ""}
+                      {s.recipients.length > 1
+                        ? t("reports_page.recipients_lc")
+                        : t("reports_page.recipient_lc")}
                     </span>
                     <span className="flex items-center gap-1">
-                      <CalendarClock className="h-3 w-3" /> next:{" "}
+                      <CalendarClock className="h-3 w-3" /> {t("reports_page.next")}:{" "}
                       {new Date(s.next_run_at).toLocaleString()}
                     </span>
                     {s.last_run_at && (
                       <span>
-                        last: {new Date(s.last_run_at).toLocaleString()}
+                        {t("reports_page.last")}: {new Date(s.last_run_at).toLocaleString()}
                       </span>
                     )}
                   </div>

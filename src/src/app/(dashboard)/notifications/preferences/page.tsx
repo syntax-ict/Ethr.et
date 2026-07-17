@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface PreferencesResponse {
@@ -23,59 +24,60 @@ interface PreferencesResponse {
   preferences: Record<string, Record<string, boolean>>;
 }
 
-const TYPE_LABELS: Record<string, { label: string; description: string }> = {
+const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey: string }> = {
   leave_requested: {
-    label: "Leave Requested",
-    description: "When a team member submits a leave request",
+    labelKey: "notification_prefs_page.type_leave_requested",
+    descKey: "notification_prefs_page.desc_leave_requested",
   },
   leave_approved: {
-    label: "Leave Approved",
-    description: "When your leave request is approved",
+    labelKey: "notification_prefs_page.type_leave_approved",
+    descKey: "notification_prefs_page.desc_leave_approved",
   },
   leave_rejected: {
-    label: "Leave Rejected",
-    description: "When your leave request is rejected",
+    labelKey: "notification_prefs_page.type_leave_rejected",
+    descKey: "notification_prefs_page.desc_leave_rejected",
   },
   attendance_correction: {
-    label: "Correction Request",
-    description: "When a correction needs your approval",
+    labelKey: "notification_prefs_page.type_correction_request",
+    descKey: "notification_prefs_page.desc_correction_request",
   },
   attendance_anomaly: {
-    label: "Attendance Anomaly",
-    description: "Late arrivals, missing punches",
+    labelKey: "notification_prefs_page.type_attendance_anomaly",
+    descKey: "notification_prefs_page.desc_attendance_anomaly",
   },
   payslip_available: {
-    label: "Payslip Available",
-    description: "When your payslip is generated",
+    labelKey: "notification_prefs_page.type_payslip_available",
+    descKey: "notification_prefs_page.desc_payslip_available",
   },
   payroll_processed: {
-    label: "Payroll Processed",
-    description: "When payroll has been run for the period",
+    labelKey: "notification_prefs_page.type_payroll_processed",
+    descKey: "notification_prefs_page.desc_payroll_processed",
   },
   announcement: {
-    label: "Announcements",
-    description: "Organization-wide announcements",
+    labelKey: "notification_prefs_page.type_announcement",
+    descKey: "notification_prefs_page.desc_announcement",
   },
   approval_reminder: {
-    label: "Approval Reminder",
-    description: "Reminders for items pending your approval",
+    labelKey: "notification_prefs_page.type_approval_reminder",
+    descKey: "notification_prefs_page.desc_approval_reminder",
   },
 };
 
 const CHANNEL_META: Record<
   string,
   {
-    label: string;
+    labelKey: string;
     icon: React.ComponentType<{ className?: string }>;
     alwaysOn?: boolean;
   }
 > = {
-  in_app: { label: "In-app", icon: Bell, alwaysOn: true },
-  email: { label: "Email", icon: Mail },
-  sms: { label: "SMS", icon: MessageSquare },
+  in_app: { labelKey: "notification_prefs_page.channel_in_app", icon: Bell, alwaysOn: true },
+  email: { labelKey: "notification_prefs_page.channel_email", icon: Mail },
+  sms: { labelKey: "notification_prefs_page.channel_sms", icon: MessageSquare },
 };
 
 export default function NotificationPreferencesPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [local, setLocal] = useState<Record<
     string,
@@ -108,9 +110,9 @@ export default function NotificationPreferencesPage() {
       queryClient.setQueryData(["notifications", "preferences"], result);
       setLocal(result.preferences);
       setDirty(false);
-      toast.success("Notification preferences saved");
+      toast.success(t("notification_prefs_page.saved"));
     },
-    onError: () => toast.error("Failed to save preferences"),
+    onError: () => toast.error(t("notification_prefs_page.save_failed")),
   });
 
   function toggle(typeKey: string, channelKey: string) {
@@ -136,8 +138,8 @@ export default function NotificationPreferencesPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Notification Preferences"
-          description="Choose how you want to be notified"
+          title={t("notification_prefs_page.title")}
+          description={t("notification_prefs_page.description_short")}
         />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -147,8 +149,8 @@ export default function NotificationPreferencesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notification Preferences"
-        description="Choose how you want to be notified about each event type"
+        title={t("notification_prefs_page.title")}
+        description={t("notification_prefs_page.description")}
         actions={
           <div className="flex gap-2">
             {dirty && (
@@ -157,7 +159,7 @@ export default function NotificationPreferencesPage() {
                 onClick={reset}
                 disabled={save.isPending}
               >
-                <RotateCcw className="mr-2 h-4 w-4" /> Reset
+                <RotateCcw className="mr-2 h-4 w-4" /> {t("notification_prefs_page.reset")}
               </Button>
             )}
             <Button
@@ -169,7 +171,7 @@ export default function NotificationPreferencesPage() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save Changes
+              {t("leave_types_page.save_changes")}
             </Button>
           </div>
         }
@@ -177,7 +179,9 @@ export default function NotificationPreferencesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Notification Types</CardTitle>
+          <CardTitle className="text-base">
+            {t("notification_prefs_page.notification_types")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -185,7 +189,7 @@ export default function NotificationPreferencesPage() {
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                    Event
+                    {t("notification_prefs_page.event")}
                   </th>
                   {data.channels.map((ch) => {
                     const meta = CHANNEL_META[ch];
@@ -197,7 +201,7 @@ export default function NotificationPreferencesPage() {
                       >
                         <div className="flex flex-col items-center gap-1">
                           <Icon className="h-4 w-4" />
-                          <span>{meta?.label ?? ch}</span>
+                          <span>{meta ? t(meta.labelKey) : ch}</span>
                         </div>
                       </th>
                     );
@@ -206,10 +210,9 @@ export default function NotificationPreferencesPage() {
               </thead>
               <tbody>
                 {data.notification_types.map((type) => {
-                  const meta = TYPE_LABELS[type] ?? {
-                    label: type,
-                    description: "",
-                  };
+                  const meta = TYPE_LABEL_KEYS[type];
+                  const label = meta ? t(meta.labelKey) : type;
+                  const description = meta ? t(meta.descKey) : "";
                   return (
                     <tr
                       key={type}
@@ -217,10 +220,10 @@ export default function NotificationPreferencesPage() {
                     >
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-foreground">
-                          {meta.label}
+                          {label}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {meta.description}
+                          {description}
                         </p>
                       </td>
                       {data.channels.map((ch) => {
@@ -247,8 +250,7 @@ export default function NotificationPreferencesPage() {
             </table>
           </div>
           <div className="border-t bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-            In-app notifications cannot be disabled. SMS notifications may incur
-            charges depending on your plan.
+            {t("notification_prefs_page.footer_notice")}
           </div>
         </CardContent>
       </Card>

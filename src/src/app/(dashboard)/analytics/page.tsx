@@ -8,6 +8,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { Users, TrendingUp, Wallet, UserCheck, Building2 } from "lucide-react";
 import {
   BarChart,
@@ -37,20 +38,21 @@ const COLORS = [
 ];
 
 export default function AnalyticsPage() {
+  const { t } = useT();
   return (
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Executive Analytics"
-          description="Organization-wide insights and trends"
+          title={t("analytics_page.title")}
+          description={t("analytics_page.description")}
         />
 
         <Tabs defaultValue="overview">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="payroll">Payroll</TabsTrigger>
-            <TabsTrigger value="workforce">Workforce</TabsTrigger>
+            <TabsTrigger value="overview">{t("analytics_page.overview")}</TabsTrigger>
+            <TabsTrigger value="attendance">{t("nav.attendance")}</TabsTrigger>
+            <TabsTrigger value="payroll">{t("nav.payroll")}</TabsTrigger>
+            <TabsTrigger value="workforce">{t("analytics_page.workforce")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">
@@ -72,6 +74,7 @@ export default function AnalyticsPage() {
 }
 
 function OverviewTab() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "overview"],
     queryFn: async () => {
@@ -87,30 +90,30 @@ function OverviewTab() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiBox
           icon={Users}
-          title="Headcount"
+          title={t("analytics_page.headcount")}
           value={data.headcount?.active ?? 0}
-          sub={`${data.headcount?.total ?? 0} total`}
+          sub={`${data.headcount?.total ?? 0} ${t("analytics_page.total_lc")}`}
           color="blue"
         />
         <KpiBox
           icon={UserCheck}
-          title="Attendance Rate"
+          title={t("analytics_page.attendance_rate")}
           value={`${data.attendance_rate?.today ?? 0}%`}
-          sub="Today"
+          sub={t("analytics_page.today")}
           color="green"
         />
         <KpiBoxCurrency
           icon={Wallet}
-          title="Payroll (Net)"
+          title={t("analytics_page.payroll_net")}
           cents={data.payroll_summary?.net_cents ?? 0}
-          sub="Current month"
+          sub={t("analytics_page.current_month")}
           color="purple"
         />
         <KpiBox
           icon={TrendingUp}
-          title="Turnover"
+          title={t("analytics_page.turnover")}
           value={`${data.turnover?.rate ?? 0}%`}
-          sub={`${data.turnover?.exits ?? 0} exits`}
+          sub={`${data.turnover?.exits ?? 0} ${t("analytics_page.exits")}`}
           color="amber"
         />
       </div>
@@ -118,7 +121,7 @@ function OverviewTab() {
       <div className="grid gap-6 lg:grid-cols-2">
         {data.headcount?.by_department &&
           data.headcount.by_department.length > 0 && (
-            <ChartCard title="Headcount by Department">
+            <ChartCard title={t("analytics_page.headcount_by_department")}>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart
                   data={data.headcount.by_department.map(
@@ -139,7 +142,7 @@ function OverviewTab() {
           )}
 
         {data.workforce_growth && (
-          <ChartCard title="Hires Over Time (Last 6 Months)">
+          <ChartCard title={t("analytics_page.hires_over_time")}>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={data.workforce_growth}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -160,18 +163,18 @@ function OverviewTab() {
       </div>
 
       {data.leave_utilization && (
-        <ChartCard title="Leave Utilization">
+        <ChartCard title={t("analytics_page.leave_utilization")}>
           <div className="flex items-center justify-around py-6">
             <Metric
-              label="Entitled Days"
+              label={t("analytics_page.entitled_days")}
               value={data.leave_utilization.entitled_days}
             />
             <Metric
-              label="Used Days"
+              label={t("analytics_page.used_days")}
               value={data.leave_utilization.used_days}
             />
             <Metric
-              label="Utilization"
+              label={t("analytics_page.utilization")}
               value={`${data.leave_utilization.utilization_rate}%`}
               highlight
             />
@@ -183,6 +186,7 @@ function OverviewTab() {
 }
 
 function AttendanceTab() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "attendance"],
     queryFn: async () => {
@@ -196,7 +200,7 @@ function AttendanceTab() {
   return (
     <div className="space-y-6">
       {data.daily_trend && data.daily_trend.length > 0 && (
-        <ChartCard title="Daily Attendance Trend">
+        <ChartCard title={t("analytics_page.daily_attendance_trend")}>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={data.daily_trend}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -216,7 +220,7 @@ function AttendanceTab() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {data.by_source && data.by_source.length > 0 && (
-          <ChartCard title="By Source">
+          <ChartCard title={t("analytics_page.by_source")}>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
@@ -240,7 +244,9 @@ function AttendanceTab() {
         {data.top_late && data.top_late.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Top Late Arrivals</CardTitle>
+              <CardTitle className="text-base">
+                {t("analytics_page.top_late_arrivals")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -272,6 +278,7 @@ function AttendanceTab() {
 }
 
 function PayrollTab() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "payroll"],
     queryFn: async () => {
@@ -285,7 +292,7 @@ function PayrollTab() {
   return (
     <div className="space-y-6">
       {data.monthly_trend && data.monthly_trend.length > 0 && (
-        <ChartCard title="Monthly Payroll Cost (Net)">
+        <ChartCard title={t("analytics_page.monthly_payroll_cost")}>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={data.monthly_trend.map(
@@ -313,7 +320,7 @@ function PayrollTab() {
       )}
 
       {data.by_department && data.by_department.length > 0 && (
-        <ChartCard title="Payroll by Department">
+        <ChartCard title={t("analytics_page.payroll_by_department")}>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               layout="vertical"
@@ -343,19 +350,19 @@ function PayrollTab() {
         <div className="grid gap-4 sm:grid-cols-3">
           <KpiBoxCurrency
             icon={Wallet}
-            title="Total Gross"
+            title={t("analytics_page.total_gross")}
             cents={data.totals.total_gross_cents}
             color="blue"
           />
           <KpiBoxCurrency
             icon={Wallet}
-            title="Total Net"
+            title={t("analytics_page.total_net")}
             cents={data.totals.total_net_cents}
             color="green"
           />
           <KpiBoxCurrency
             icon={Wallet}
-            title="Total Tax"
+            title={t("payroll_detail_page.total_tax")}
             cents={data.totals.total_tax_cents}
             color="amber"
           />
@@ -366,6 +373,7 @@ function PayrollTab() {
 }
 
 function WorkforceTab() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", "workforce"],
     queryFn: async () => {
@@ -379,7 +387,7 @@ function WorkforceTab() {
   return (
     <div className="space-y-6">
       {data.headcount_trend && data.headcount_trend.length > 0 && (
-        <ChartCard title="Headcount Trend (12 Months)">
+        <ChartCard title={t("analytics_page.headcount_trend")}>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={data.headcount_trend}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -400,7 +408,7 @@ function WorkforceTab() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {data.by_gender && data.by_gender.length > 0 && (
-          <ChartCard title="Gender Distribution">
+          <ChartCard title={t("analytics_page.gender_distribution")}>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
@@ -422,7 +430,7 @@ function WorkforceTab() {
         )}
 
         {data.by_tenure && data.by_tenure.length > 0 && (
-          <ChartCard title="Tenure Distribution">
+          <ChartCard title={t("analytics_page.tenure_distribution")}>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={data.by_tenure}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />

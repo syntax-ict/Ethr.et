@@ -27,9 +27,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { useCurrentUser } from "@/features/auth/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function SecurityPage() {
+  const { t } = useT();
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const [setupOpen, setSetupOpen] = useState(false);
@@ -57,7 +59,7 @@ export default function SecurityPage() {
       setSetupData(data);
       setSetupOpen(true);
     },
-    onError: () => toast.error("Failed to initiate MFA setup"),
+    onError: () => toast.error(t("security_page.mfa_setup_failed")),
   });
 
   const enableMfa = useMutation({
@@ -67,12 +69,12 @@ export default function SecurityPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success("Two-factor authentication enabled");
+      toast.success(t("security_page.mfa_enabled"));
       setSetupOpen(false);
       setSetupData(null);
       setCode("");
     },
-    onError: () => toast.error("Invalid verification code"),
+    onError: () => toast.error(t("security_page.invalid_code")),
   });
 
   const disableMfa = useMutation({
@@ -84,11 +86,11 @@ export default function SecurityPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success("Two-factor authentication disabled");
+      toast.success(t("security_page.mfa_disabled"));
       setDisableOpen(false);
       setDisableCode("");
     },
-    onError: () => toast.error("Invalid verification code"),
+    onError: () => toast.error(t("security_page.invalid_code")),
   });
 
   const changePassword = useMutation({
@@ -101,7 +103,7 @@ export default function SecurityPage() {
       return data;
     },
     onSuccess: (data: { message: string }) => {
-      toast.success(data.message ?? "Password changed");
+      toast.success(data.message ?? t("security_page.password_changed"));
       setChangeOpen(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -124,7 +126,7 @@ export default function SecurityPage() {
         first ||
           e.response?.data?.detail ||
           e.response?.data?.message ||
-          "Failed to change password",
+          t("security_page.change_failed"),
       );
     },
   });
@@ -133,17 +135,15 @@ export default function SecurityPage() {
     e.preventDefault();
     setChangeError("");
     if (newPassword !== confirmPassword) {
-      setChangeError("New passwords do not match.");
+      setChangeError(t("security_page.passwords_no_match"));
       return;
     }
     if (newPassword.length < 8) {
-      setChangeError("New password must be at least 8 characters.");
+      setChangeError(t("security_page.password_min_length"));
       return;
     }
     if (newPassword === currentPassword) {
-      setChangeError(
-        "New password must be different from your current password.",
-      );
+      setChangeError(t("security_page.password_must_differ"));
       return;
     }
     changePassword.mutate();
@@ -152,20 +152,22 @@ export default function SecurityPage() {
   function copyCodes() {
     if (setupData?.recovery_codes) {
       navigator.clipboard.writeText(setupData.recovery_codes.join("\n"));
-      toast.success("Recovery codes copied");
+      toast.success(t("security_page.recovery_codes_copied"));
     }
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Security"
-        description="Manage your account security and two-factor authentication"
+        title={t("security_page.title")}
+        description={t("security_page.description")}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Two-Factor Authentication</CardTitle>
+          <CardTitle className="text-base">
+            {t("security_page.two_factor_auth")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-start justify-between gap-4">
@@ -182,27 +184,27 @@ export default function SecurityPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-foreground">
-                    Authenticator App
+                    {t("security_page.authenticator_app")}
                   </p>
                   {user?.mfa_enabled && (
                     <Badge
                       variant="outline"
                       className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
                     >
-                      Enabled
+                      {t("security_page.enabled")}
                     </Badge>
                   )}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {user?.mfa_enabled
-                    ? "Your account is protected with two-factor authentication"
-                    : "Add an extra layer of security to your account"}
+                    ? t("security_page.mfa_protected")
+                    : t("security_page.mfa_add_layer")}
                 </p>
               </div>
             </div>
             {user?.mfa_enabled ? (
               <Button variant="outline" onClick={() => setDisableOpen(true)}>
-                Disable
+                {t("security_page.disable")}
               </Button>
             ) : (
               <Button
@@ -212,7 +214,7 @@ export default function SecurityPage() {
                 {startSetup.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Enable MFA
+                {t("security_page.enable_mfa")}
               </Button>
             )}
           </div>
@@ -221,18 +223,20 @@ export default function SecurityPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Password</CardTitle>
+          <CardTitle className="text-base">{t("auth.password")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-foreground">Account Password</p>
+              <p className="font-semibold text-foreground">
+                {t("security_page.account_password")}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Use a strong password unique to ETHR
+                {t("security_page.strong_password_hint")}
               </p>
             </div>
             <Button variant="outline" onClick={() => setChangeOpen(true)}>
-              <KeyRound className="mr-2 h-4 w-4" /> Change Password
+              <KeyRound className="mr-2 h-4 w-4" /> {t("security_page.change_password")}
             </Button>
           </div>
         </CardContent>
@@ -241,15 +245,14 @@ export default function SecurityPage() {
       <Dialog open={setupOpen} onOpenChange={setSetupOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Set up Two-Factor Authentication</DialogTitle>
+            <DialogTitle>{t("security_page.setup_mfa_title")}</DialogTitle>
           </DialogHeader>
 
           {setupData && (
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  1. Scan this QR code with Google Authenticator, Authy, or
-                  another TOTP app:
+                  {t("security_page.scan_qr_hint")}
                 </p>
                 {setupData.qr_code_url && (
                   <div className="mt-3 flex justify-center rounded-lg border bg-white p-4">
@@ -262,7 +265,7 @@ export default function SecurityPage() {
                   </div>
                 )}
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Or enter this secret manually:
+                  {t("security_page.enter_secret_manually")}
                 </p>
                 <code className="mt-1 block rounded bg-muted px-3 py-2 text-xs font-mono break-all">
                   {setupData.secret}
@@ -276,11 +279,10 @@ export default function SecurityPage() {
                       <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
-                          Recovery Codes
+                          {t("security_page.recovery_codes")}
                         </p>
                         <p className="mt-1 text-xs text-amber-900 dark:text-amber-300/80">
-                          Save these in a secure place. You can use them to
-                          access your account if you lose your device.
+                          {t("security_page.recovery_codes_hint")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">
                           {setupData.recovery_codes.map((c) => (
@@ -298,7 +300,7 @@ export default function SecurityPage() {
                           className="mt-2"
                           onClick={copyCodes}
                         >
-                          <Copy className="mr-2 h-3 w-3" /> Copy all
+                          <Copy className="mr-2 h-3 w-3" /> {t("security_page.copy_all")}
                         </Button>
                       </div>
                     </div>
@@ -306,7 +308,7 @@ export default function SecurityPage() {
                 )}
 
               <div>
-                <Label>2. Enter the 6-digit code from your app:</Label>
+                <Label>{t("security_page.enter_6_digit_code")}</Label>
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
@@ -322,7 +324,7 @@ export default function SecurityPage() {
                   variant="outline"
                   onClick={() => setSetupOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   onClick={() => enableMfa.mutate()}
@@ -331,7 +333,7 @@ export default function SecurityPage() {
                   {enableMfa.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Verify & Enable
+                  {t("security_page.verify_and_enable")}
                 </Button>
               </DialogFooter>
             </div>
@@ -348,11 +350,11 @@ export default function SecurityPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{t("security_page.change_password")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitChangePassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="current_password">Current password</Label>
+              <Label htmlFor="current_password">{t("security_page.current_password")}</Label>
               <Input
                 id="current_password"
                 type="password"
@@ -363,7 +365,7 @@ export default function SecurityPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new_password">New password</Label>
+              <Label htmlFor="new_password">{t("security_page.new_password")}</Label>
               <div className="relative">
                 <Input
                   id="new_password"
@@ -389,11 +391,11 @@ export default function SecurityPage() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                At least 8 characters, different from your current password.
+                {t("security_page.new_password_hint")}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm_password">Confirm new password</Label>
+              <Label htmlFor="confirm_password">{t("security_page.confirm_new_password")}</Label>
               <Input
                 id="confirm_password"
                 type={showNew ? "text" : "password"}
@@ -409,8 +411,7 @@ export default function SecurityPage() {
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Note: Changing your password will sign out all your other active
-              sessions.
+              {t("security_page.sign_out_sessions_note")}
             </p>
             <DialogFooter>
               <Button
@@ -418,13 +419,13 @@ export default function SecurityPage() {
                 variant="outline"
                 onClick={() => setChangeOpen(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={changePassword.isPending}>
                 {changePassword.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Change Password
+                {t("security_page.change_password")}
               </Button>
             </DialogFooter>
           </form>
@@ -434,10 +435,10 @@ export default function SecurityPage() {
       <Dialog open={disableOpen} onOpenChange={setDisableOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+            <DialogTitle>{t("security_page.disable_mfa_title")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Enter your current authenticator code to confirm:
+            {t("security_page.disable_confirm_hint")}
           </p>
           <Input
             value={disableCode}
@@ -452,7 +453,7 @@ export default function SecurityPage() {
               variant="outline"
               onClick={() => setDisableOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -462,7 +463,7 @@ export default function SecurityPage() {
               {disableMfa.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Disable MFA
+              {t("security_page.disable_mfa")}
             </Button>
           </DialogFooter>
         </DialogContent>
