@@ -46,6 +46,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface KioskSession {
@@ -62,6 +63,7 @@ interface KioskSession {
 }
 
 export default function KioskSessionsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [showRegister, setShowRegister] = useState(false);
   const [showToken, setShowToken] = useState<string | null>(null);
@@ -107,9 +109,9 @@ export default function KioskSessionsPage() {
       if (data.token) {
         setShowToken(data.token);
       }
-      toast.success("Kiosk registered");
+      toast.success(t("attendance.kiosks_page.registered"));
     },
-    onError: () => toast.error("Failed to register kiosk"),
+    onError: () => toast.error(t("attendance.kiosks_page.register_failed")),
   });
 
   const deactivate = useMutation({
@@ -117,9 +119,9 @@ export default function KioskSessionsPage() {
       apiClient.post(`/kiosk-sessions/${id}/deactivate`),
     onSuccess: () => {
       invalidate();
-      toast.success("Kiosk deactivated");
+      toast.success(t("attendance.kiosks_page.deactivated"));
     },
-    onError: () => toast.error("Failed to deactivate"),
+    onError: () => toast.error(t("attendance.kiosks_page.deactivate_failed")),
   });
 
   const activate = useMutation({
@@ -127,9 +129,9 @@ export default function KioskSessionsPage() {
       apiClient.post(`/kiosk-sessions/${id}/activate`),
     onSuccess: () => {
       invalidate();
-      toast.success("Kiosk activated");
+      toast.success(t("attendance.kiosks_page.activated"));
     },
-    onError: () => toast.error("Failed to activate"),
+    onError: () => toast.error(t("attendance.kiosks_page.activate_failed")),
   });
 
   const regenerate = useMutation({
@@ -142,18 +144,19 @@ export default function KioskSessionsPage() {
     onSuccess: (data) => {
       invalidate();
       if (data.token) setShowToken(data.token);
-      toast.success("Token regenerated");
+      toast.success(t("attendance.kiosks_page.token_regenerated"));
     },
-    onError: () => toast.error("Failed to regenerate token"),
+    onError: () =>
+      toast.error(t("attendance.kiosks_page.regenerate_failed")),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => apiClient.delete(`/kiosk-sessions/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success("Kiosk deleted");
+      toast.success(t("attendance.kiosks_page.deleted"));
     },
-    onError: () => toast.error("Failed to delete kiosk"),
+    onError: () => toast.error(t("attendance.kiosks_page.delete_failed")),
   });
 
   function copyToken(token: string) {
@@ -168,11 +171,12 @@ export default function KioskSessionsPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Kiosk Devices"
-          description="Register and manage shared kiosk devices for attendance"
+          title={t("attendance.kiosks_page.title")}
+          description={t("attendance.kiosks_page.description")}
           actions={
             <Button onClick={() => setShowRegister(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Register Kiosk
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("attendance.kiosks_page.register_kiosk")}
             </Button>
           }
         />
@@ -188,10 +192,11 @@ export default function KioskSessionsPage() {
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Monitor className="h-12 w-12 text-muted-foreground/40" />
               <p className="mt-3 text-sm text-muted-foreground">
-                No kiosk devices registered yet
+                {t("attendance.kiosks_page.empty")}
               </p>
               <Button className="mt-4" onClick={() => setShowRegister(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Register First Kiosk
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("attendance.kiosks_page.register_first")}
               </Button>
             </CardContent>
           </Card>
@@ -208,7 +213,7 @@ export default function KioskSessionsPage() {
                       <div>
                         <CardTitle className="text-sm">{k.name}</CardTitle>
                         <p className="text-xs text-muted-foreground">
-                          {k.branch?.name ?? "No branch"}
+                          {k.branch?.name ?? t("attendance.kiosks_page.no_branch")}
                         </p>
                       </div>
                     </div>
@@ -236,27 +241,29 @@ export default function KioskSessionsPage() {
                               onClick={() => deactivate.mutate(k.public_id)}
                             >
                               <PowerOff className="mr-2 h-3.5 w-3.5" />{" "}
-                              Deactivate
+                              {t("attendance.kiosks_page.deactivate")}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
                               onClick={() => activate.mutate(k.public_id)}
                             >
-                              <Power className="mr-2 h-3.5 w-3.5" /> Activate
+                              <Power className="mr-2 h-3.5 w-3.5" />{" "}
+                              {t("attendance.kiosks_page.activate")}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
                             onClick={() => regenerate.mutate(k.public_id)}
                           >
                             <RefreshCw className="mr-2 h-3.5 w-3.5" />{" "}
-                            Regenerate Token
+                            {t("attendance.kiosks_page.regenerate_token")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => remove.mutate(k.public_id)}
                           >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("common.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -266,17 +273,20 @@ export default function KioskSessionsPage() {
                 <CardContent className="space-y-2 text-xs text-muted-foreground">
                   {k.device_identifier && (
                     <p>
-                      Device:{" "}
+                      {t("attendance.kiosks_page.device")}:{" "}
                       <span className="font-mono">{k.device_identifier}</span>
                     </p>
                   )}
                   {k.last_activity_at && (
                     <p>
-                      Last active:{" "}
+                      {t("attendance.kiosks_page.last_active")}:{" "}
                       {new Date(k.last_activity_at).toLocaleString()}
                     </p>
                   )}
-                  <p>Created: {new Date(k.created_at).toLocaleDateString()}</p>
+                  <p>
+                    {t("attendance.kiosks_page.created")}:{" "}
+                    {new Date(k.created_at).toLocaleDateString()}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -287,27 +297,28 @@ export default function KioskSessionsPage() {
         <Dialog open={showRegister} onOpenChange={setShowRegister}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Register Kiosk Device</DialogTitle>
+              <DialogTitle>{t("attendance.kiosks_page.register_title")}</DialogTitle>
               <DialogDescription>
-                Set up a new shared attendance kiosk. The generated token is
-                used to authenticate the kiosk.
+                {t("attendance.kiosks_page.register_desc")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Kiosk Name *</Label>
+                <Label>{t("attendance.kiosks_page.kiosk_name")}</Label>
                 <Input
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="e.g. Front Desk Kiosk"
+                  placeholder={t("attendance.kiosks_page.kiosk_name_placeholder")}
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label>Branch *</Label>
+                <Label>{t("attendance.kiosks_page.branch")}</Label>
                 <Select value={regBranch} onValueChange={setRegBranch}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue
+                      placeholder={t("attendance.kiosks_page.select_branch")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {branches?.data?.map(
@@ -321,31 +332,31 @@ export default function KioskSessionsPage() {
                 </Select>
               </div>
               <div>
-                <Label>Admin PIN * (4–8 digits)</Label>
+                <Label>{t("attendance.kiosks_page.admin_pin")}</Label>
                 <Input
                   type="password"
                   value={regPin}
                   onChange={(e) =>
                     setRegPin(e.target.value.replace(/\D/g, "").slice(0, 8))
                   }
-                  placeholder="Required to exit kiosk mode"
+                  placeholder={t("attendance.kiosks_page.admin_pin_placeholder")}
                   maxLength={8}
                   className="mt-1 font-mono tracking-widest"
                 />
               </div>
               <div>
-                <Label>Device Identifier (optional)</Label>
+                <Label>{t("attendance.kiosks_page.device_identifier")}</Label>
                 <Input
                   value={regDevice}
                   onChange={(e) => setRegDevice(e.target.value)}
-                  placeholder="e.g. tablet-lobby-01"
+                  placeholder={t("attendance.kiosks_page.device_identifier_placeholder")}
                   className="mt-1"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRegister(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 onClick={() => register.mutate()}
@@ -359,7 +370,7 @@ export default function KioskSessionsPage() {
                 {register.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Register
+                {t("attendance.kiosks_page.register")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -373,11 +384,11 @@ export default function KioskSessionsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <KeyRound className="h-5 w-5" /> Kiosk Token
+                <KeyRound className="h-5 w-5" />{" "}
+                {t("attendance.kiosks_page.kiosk_token")}
               </DialogTitle>
               <DialogDescription>
-                Copy this token and paste it into the kiosk setup screen. This
-                token will not be shown again.
+                {t("attendance.kiosks_page.token_desc")}
               </DialogDescription>
             </DialogHeader>
             <div className="relative">
@@ -396,17 +407,20 @@ export default function KioskSessionsPage() {
                 {copiedToken ? (
                   <>
                     <CheckCircle2 className="mr-1 h-3 w-3 text-green-600" />{" "}
-                    Copied
+                    {t("attendance.kiosks_page.copied")}
                   </>
                 ) : (
                   <>
-                    <Copy className="mr-1 h-3 w-3" /> Copy
+                    <Copy className="mr-1 h-3 w-3" />{" "}
+                    {t("attendance.kiosks_page.copy")}
                   </>
                 )}
               </Button>
             </div>
             <DialogFooter>
-              <Button onClick={() => setShowToken(null)}>Done</Button>
+              <Button onClick={() => setShowToken(null)}>
+                {t("attendance.kiosks_page.done")}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -26,10 +26,12 @@ import { cn } from "@/lib/utils";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
 import { enqueueOfflineRecord } from "@/lib/offline-queue";
 import { useCurrentUser } from "@/features/auth/api";
+import { useT } from "@/lib/i18n/useT";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
 export default function MobileCheckInPage() {
+  const { t } = useT();
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const { isOnline, pendingCount, syncing, syncNow } = useOfflineSync();
@@ -57,7 +59,7 @@ export default function MobileCheckInPage() {
   function requestLocation() {
     setCoordsErr("");
     if (!navigator.geolocation) {
-      setCoordsErr("Geolocation not supported by your device");
+      setCoordsErr(t("attendance.mobile_page.geolocation_unsupported"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -84,7 +86,7 @@ export default function MobileCheckInPage() {
       }
       setCameraOn(true);
     } catch {
-      toast.error("Camera permission denied");
+      toast.error(t("attendance.mobile_page.camera_denied"));
     }
   }
 
@@ -110,7 +112,7 @@ export default function MobileCheckInPage() {
 
   async function submit() {
     if (!coords) {
-      toast.error("Location required");
+      toast.error(t("attendance.mobile_page.location_required"));
       return;
     }
     setStatus("submitting");
@@ -122,7 +124,7 @@ export default function MobileCheckInPage() {
         const employeePublicId = (user as { employee?: { public_id?: string } })
           ?.employee?.public_id;
         if (!employeePublicId) {
-          setMessage("Cannot determine employee identity offline.");
+          setMessage(t("attendance.mobile_page.cannot_determine_identity"));
           setStatus("error");
           return;
         }
@@ -136,14 +138,14 @@ export default function MobileCheckInPage() {
           captured_at: new Date().toISOString(),
         });
         setMessage(
-          `${type === "check_in" ? "Check-in" : "Check-out"} saved offline. Will sync when connected.`,
+          `${type === "check_in" ? t("common.check_in") : t("common.check_out")} ${t("attendance.mobile_page.saved_offline")}`,
         );
         setStatus("success");
-        toast.success("Saved offline — will sync automatically");
+        toast.success(t("attendance.mobile_page.saved_offline_toast"));
         setTimeout(() => router.push("/attendance"), 3000);
         return;
       } catch {
-        setMessage("Failed to save offline record.");
+        setMessage(t("attendance.mobile_page.offline_save_failed"));
         setStatus("error");
         return;
       }
@@ -162,14 +164,15 @@ export default function MobileCheckInPage() {
       if (photoDataUrl) payload.photo_path = photoDataUrl;
       const { data } = await apiClient.post(path, payload);
       setMessage(
-        `${type === "check_in" ? "Checked in" : "Checked out"} · confidence ${data.confidence_score ?? "—"}`,
+        `${type === "check_in" ? t("attendance.checked_in_label") : t("attendance.checked_out_label")} · ${t("attendance.mobile_page.confidence")} ${data.confidence_score ?? "—"}`,
       );
       setStatus("success");
       setTimeout(() => router.push("/attendance"), 3000);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
       setMessage(
-        axiosErr.response?.data?.detail ?? "Failed to submit attendance",
+        axiosErr.response?.data?.detail ??
+          t("attendance.mobile_page.submit_failed"),
       );
       setStatus("error");
     }
@@ -180,7 +183,9 @@ export default function MobileCheckInPage() {
       <div className="mx-auto max-w-md py-10 text-center">
         <CheckCircle2 className="mx-auto h-20 w-20 text-green-600 animate-in zoom-in" />
         <p className="mt-4 text-xl font-bold">{message}</p>
-        <p className="mt-1 text-sm text-muted-foreground">Redirecting…</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("attendance.mobile_page.redirecting")}
+        </p>
       </div>
     );
   }
@@ -188,8 +193,8 @@ export default function MobileCheckInPage() {
   return (
     <div className="mx-auto max-w-md space-y-4">
       <PageHeader
-        title="Mobile Check-in"
-        description="Submit attendance with location and optional selfie"
+        title={t("attendance.mobile_page.title")}
+        description={t("attendance.mobile_page.description")}
       />
 
       {/* Offline / sync banner */}
@@ -197,8 +202,7 @@ export default function MobileCheckInPage() {
         <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
           <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-sm text-amber-900 dark:text-amber-300">
-            You&apos;re offline. Attendance will be saved locally and synced
-            when you reconnect.
+            {t("attendance.mobile_page.offline_banner")}
           </p>
         </div>
       )}
@@ -207,7 +211,10 @@ export default function MobileCheckInPage() {
           <div className="flex items-center gap-2">
             <CloudUpload className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <p className="text-sm text-blue-900 dark:text-blue-300">
-              {pendingCount} record{pendingCount > 1 ? "s" : ""} pending sync
+              {pendingCount}{" "}
+              {pendingCount > 1
+                ? t("attendance.mobile_page.records_pending")
+                : t("attendance.mobile_page.record_pending")}
             </p>
           </div>
           {isOnline && (
@@ -217,9 +224,13 @@ export default function MobileCheckInPage() {
               onClick={() =>
                 syncNow().then((r) => {
                   if (r.synced > 0)
-                    toast.success(`Synced ${r.synced} record(s)`);
+                    toast.success(
+                      `${t("attendance.mobile_page.synced")} ${r.synced} ${t("attendance.mobile_page.records_suffix")}`,
+                    );
                   if (r.errors > 0)
-                    toast.error(`${r.errors} record(s) failed to sync`);
+                    toast.error(
+                      `${r.errors} ${t("attendance.mobile_page.records_failed_suffix")}`,
+                    );
                 })
               }
               disabled={syncing}
@@ -227,7 +238,7 @@ export default function MobileCheckInPage() {
               {syncing ? (
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
               ) : null}
-              Sync Now
+              {t("attendance.mobile_page.sync_now")}
             </Button>
           )}
         </div>
@@ -244,7 +255,7 @@ export default function MobileCheckInPage() {
               : "text-muted-foreground",
           )}
         >
-          <LogIn className="h-4 w-4" /> Check In
+          <LogIn className="h-4 w-4" /> {t("common.check_in")}
         </button>
         <button
           onClick={() => setType("check_out")}
@@ -255,7 +266,7 @@ export default function MobileCheckInPage() {
               : "text-muted-foreground",
           )}
         >
-          <LogOut className="h-4 w-4" /> Check Out
+          <LogOut className="h-4 w-4" /> {t("common.check_out")}
         </button>
       </div>
 
@@ -279,7 +290,9 @@ export default function MobileCheckInPage() {
               />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold">Your Location</p>
+              <p className="font-semibold">
+                {t("attendance.mobile_page.your_location")}
+              </p>
               {coords ? (
                 <>
                   <p className="mt-1 text-xs font-mono text-muted-foreground">
@@ -293,7 +306,7 @@ export default function MobileCheckInPage() {
                 <p className="mt-1 text-xs text-destructive">{coordsErr}</p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Getting location…
+                  {t("attendance.mobile_page.getting_location")}
                 </p>
               )}
             </div>
@@ -323,22 +336,22 @@ export default function MobileCheckInPage() {
             </div>
             <div className="flex-1">
               <p className="font-semibold">
-                Selfie{" "}
+                {t("attendance.mobile_page.selfie")}{" "}
                 <span className="text-xs font-normal text-muted-foreground">
-                  (optional)
+                  ({t("attendance.mobile_page.optional")})
                 </span>
               </p>
               <p className="text-xs text-muted-foreground">
                 {photoDataUrl
-                  ? "Captured ✓"
+                  ? t("attendance.mobile_page.captured")
                   : cameraOn
-                    ? "Camera active — tap Capture"
-                    : "Boosts confidence score"}
+                    ? t("attendance.mobile_page.camera_active")
+                    : t("attendance.mobile_page.boosts_confidence")}
               </p>
             </div>
             {!cameraOn && !photoDataUrl && (
               <Button size="sm" variant="outline" onClick={startCamera}>
-                Open
+                {t("attendance.mobile_page.open")}
               </Button>
             )}
             {photoDataUrl && (
@@ -349,7 +362,7 @@ export default function MobileCheckInPage() {
                   setPhotoDataUrl(null);
                 }}
               >
-                Retake
+                {t("attendance.mobile_page.retake")}
               </Button>
             )}
           </div>
@@ -365,10 +378,11 @@ export default function MobileCheckInPage() {
               />
               <div className="flex gap-2">
                 <Button onClick={snapPhoto} className="flex-1">
-                  <Camera className="mr-2 h-4 w-4" /> Capture
+                  <Camera className="mr-2 h-4 w-4" />{" "}
+                  {t("attendance.mobile_page.capture")}
                 </Button>
                 <Button variant="outline" onClick={stopCamera}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </div>
             </div>
@@ -396,7 +410,7 @@ export default function MobileCheckInPage() {
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <p className="text-sm text-foreground">
-            Location is required to submit attendance.
+            {t("attendance.mobile_page.location_required_notice")}
           </p>
         </div>
       )}
@@ -408,12 +422,14 @@ export default function MobileCheckInPage() {
       >
         {status === "submitting" ? (
           <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting…
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />{" "}
+            {t("attendance.mobile_page.submitting")}
           </>
         ) : (
           <>
-            <Smartphone className="mr-2 h-5 w-5" /> Submit{" "}
-            {type === "check_in" ? "Check In" : "Check Out"}
+            <Smartphone className="mr-2 h-5 w-5" />{" "}
+            {t("attendance.mobile_page.submit")}{" "}
+            {type === "check_in" ? t("common.check_in") : t("common.check_out")}
           </>
         )}
       </Button>

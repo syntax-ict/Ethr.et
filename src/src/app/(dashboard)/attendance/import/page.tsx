@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ interface PreviewResult {
 type Step = "upload" | "preview" | "importing" | "done";
 
 export default function AttendanceImportPage() {
+  const { t } = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
   const [dragOver, setDragOver] = useState(false);
@@ -56,11 +58,11 @@ export default function AttendanceImportPage() {
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith(".csv") && !file.name.endsWith(".txt")) {
-      toast.error("Please upload a .csv or .txt file");
+      toast.error(t("attendance.import_page.upload_csv_or_txt"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File must be under 5 MB");
+      toast.error(t("attendance.import_page.file_too_large"));
       return;
     }
 
@@ -89,11 +91,13 @@ export default function AttendanceImportPage() {
       setStep("preview");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail ?? "Failed to parse file");
+      toast.error(
+        e.response?.data?.detail ?? t("attendance.import_page.parse_failed"),
+      );
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [t]);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -119,7 +123,7 @@ export default function AttendanceImportPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Failed to download template");
+      toast.error(t("attendance.import_page.template_download_failed"));
     }
   }
 
@@ -128,7 +132,7 @@ export default function AttendanceImportPage() {
 
     const validRows = preview.rows.filter((r) => r.valid);
     if (validRows.length === 0) {
-      toast.error("No valid rows to import");
+      toast.error(t("attendance.import_page.no_valid_rows"));
       return;
     }
 
@@ -148,10 +152,12 @@ export default function AttendanceImportPage() {
 
       setImportResult(data);
       setStep("done");
-      toast.success(`Imported ${data.created} records`);
+      toast.success(
+        `${t("attendance.import_page.imported")} ${data.created} ${t("attendance.import_page.records")}`,
+      );
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail ?? "Import failed");
+      toast.error(e.response?.data?.detail ?? t("attendance.import_page.import_failed"));
       setStep("preview");
     }
   }
@@ -166,16 +172,17 @@ export default function AttendanceImportPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Import Attendance"
-        description="Bulk import attendance records from CSV files (biometric device exports)"
+        title={t("attendance.import_page.title")}
+        description={t("attendance.import_page.description")}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
-              <Download className="mr-2 h-4 w-4" /> Download Template
+              <Download className="mr-2 h-4 w-4" />{" "}
+              {t("attendance.import_page.download_template")}
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/attendance">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <ArrowLeft className="mr-2 h-4 w-4" /> {t("common.back")}
               </Link>
             </Button>
           </div>
@@ -204,17 +211,17 @@ export default function AttendanceImportPage() {
                 <>
                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
                   <p className="mt-4 text-sm font-medium">
-                    Parsing {fileName}…
+                    {t("attendance.import_page.parsing")} {fileName}…
                   </p>
                 </>
               ) : (
                 <>
                   <Upload className="h-12 w-12 text-muted-foreground" />
                   <p className="mt-4 text-sm font-medium text-foreground">
-                    Drop your CSV file here, or click to browse
+                    {t("attendance.import_page.drop_hint")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Supports .csv and .txt files up to 5 MB
+                    {t("attendance.import_page.supports_hint")}
                   </p>
                 </>
               )}
@@ -229,7 +236,7 @@ export default function AttendanceImportPage() {
 
             <div className="mt-6 rounded-lg bg-muted/50 p-4">
               <h3 className="text-sm font-semibold text-foreground">
-                Expected CSV format
+                {t("attendance.import_page.expected_format")}
               </h3>
               <code className="mt-2 block rounded bg-background p-3 text-xs font-mono text-muted-foreground">
                 employee_code,date,check_in_time,check_out_time{"\n"}
@@ -238,19 +245,20 @@ export default function AttendanceImportPage() {
               </code>
               <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
                 <li>
-                  - <strong>employee_code</strong>: Employee ID/code in your
-                  system (required)
+                  - <strong>employee_code</strong>:{" "}
+                  {t("attendance.import_page.field_employee_code")}
                 </li>
                 <li>
-                  - <strong>date</strong>: YYYY-MM-DD format (required)
+                  - <strong>date</strong>:{" "}
+                  {t("attendance.import_page.field_date")}
                 </li>
                 <li>
-                  - <strong>check_in_time</strong>: HH:MM 24-hour format
-                  (required)
+                  - <strong>check_in_time</strong>:{" "}
+                  {t("attendance.import_page.field_check_in")}
                 </li>
                 <li>
-                  - <strong>check_out_time</strong>: HH:MM 24-hour format
-                  (optional)
+                  - <strong>check_out_time</strong>:{" "}
+                  {t("attendance.import_page.field_check_out")}
                 </li>
               </ul>
             </div>
@@ -263,19 +271,19 @@ export default function AttendanceImportPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <SummaryCard
               icon={FileSpreadsheet}
-              label="Total Rows"
+              label={t("attendance.import_page.total_rows")}
               value={preview.rows.length}
               color="text-foreground"
             />
             <SummaryCard
               icon={CheckCircle2}
-              label="Valid"
+              label={t("attendance.import_page.valid")}
               value={preview.valid}
               color="text-green-600 dark:text-green-400"
             />
             <SummaryCard
               icon={XCircle}
-              label="Invalid"
+              label={t("attendance.import_page.invalid")}
               value={preview.invalid}
               color="text-red-600 dark:text-red-400"
             />
@@ -283,10 +291,13 @@ export default function AttendanceImportPage() {
 
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-base">Preview: {fileName}</CardTitle>
+              <CardTitle className="text-base">
+                {t("attendance.import_page.preview_label")}: {fileName}
+              </CardTitle>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={reset}>
-                  <Trash2 className="mr-2 h-4 w-4" /> Discard
+                  <Trash2 className="mr-2 h-4 w-4" />{" "}
+                  {t("attendance.import_page.discard")}
                 </Button>
                 <Button
                   size="sm"
@@ -294,7 +305,8 @@ export default function AttendanceImportPage() {
                   disabled={preview.valid === 0}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Import {preview.valid} records
+                  {t("attendance.import_page.import_n_records_prefix")}{" "}
+                  {preview.valid} {t("attendance.import_page.records")}
                 </Button>
               </div>
             </CardHeader>
@@ -304,25 +316,25 @@ export default function AttendanceImportPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground w-12">
-                        Line
+                        {t("attendance.import_page.line")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground w-12">
-                        Status
+                        {t("common.status")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Employee
+                        {t("attendance.employee")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Date
+                        {t("common.date")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        In
+                        {t("attendance.in")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Out
+                        {t("attendance.out")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        Issues
+                        {t("attendance.import_page.issues")}
                       </th>
                     </tr>
                   </thead>
@@ -382,12 +394,13 @@ export default function AttendanceImportPage() {
               <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
               <div>
                 <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
-                  {preview.invalid} row{preview.invalid > 1 ? "s" : ""} will be
-                  skipped
+                  {preview.invalid}{" "}
+                  {preview.invalid > 1
+                    ? t("attendance.import_page.rows_will_be_skipped")
+                    : t("attendance.import_page.row_will_be_skipped")}
                 </p>
                 <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/70">
-                  Only valid rows will be imported. Fix the CSV and re-upload to
-                  include all rows.
+                  {t("attendance.import_page.skip_hint")}
                 </p>
               </div>
             </div>
@@ -399,9 +412,11 @@ export default function AttendanceImportPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-sm font-medium">Importing records…</p>
+            <p className="mt-4 text-sm font-medium">
+              {t("attendance.import_page.importing")}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              This may take a moment for large files
+              {t("attendance.import_page.large_file_hint")}
             </p>
           </CardContent>
         </Card>
@@ -414,21 +429,22 @@ export default function AttendanceImportPage() {
               <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <h2 className="mt-4 text-lg font-semibold text-foreground">
-              Import Complete
+              {t("attendance.import_page.complete")}
             </h2>
             <div className="mt-4 flex gap-4">
               <Badge
                 variant="outline"
                 className="px-3 py-1.5 text-sm bg-green-50 dark:bg-green-950/30"
               >
-                {importResult.created} created
+                {importResult.created} {t("attendance.import_page.created")}
               </Badge>
               {importResult.skipped > 0 && (
                 <Badge
                   variant="outline"
                   className="px-3 py-1.5 text-sm bg-amber-50 dark:bg-amber-950/30"
                 >
-                  {importResult.skipped} skipped (duplicates)
+                  {importResult.skipped}{" "}
+                  {t("attendance.import_page.skipped_duplicates")}
                 </Badge>
               )}
             </div>
@@ -443,10 +459,13 @@ export default function AttendanceImportPage() {
             )}
             <div className="mt-6 flex gap-3">
               <Button variant="outline" onClick={reset}>
-                <Upload className="mr-2 h-4 w-4" /> Import Another
+                <Upload className="mr-2 h-4 w-4" />{" "}
+                {t("attendance.import_page.import_another")}
               </Button>
               <Button asChild>
-                <Link href="/attendance">View Attendance</Link>
+                <Link href="/attendance">
+                  {t("attendance.import_page.view_attendance")}
+                </Link>
               </Button>
             </div>
           </CardContent>

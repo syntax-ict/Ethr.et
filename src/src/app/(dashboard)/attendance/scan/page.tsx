@@ -15,11 +15,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
 import { apiClient } from "@/api/client";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 type Status = "idle" | "scanning" | "verifying" | "success" | "error";
 
 export default function QrScanPage() {
+  const { t } = useT();
   const router = useRouter();
   const [type, setType] = useState<"check_in" | "check_out">("check_in");
   const [status, setStatus] = useState<Status>("idle");
@@ -55,7 +57,7 @@ export default function QrScanPage() {
       );
     } catch (err) {
       console.error(err);
-      toast.error("Camera access denied or unavailable");
+      toast.error(t("attendance.scan_page.camera_unavailable"));
       setStatus("idle");
     }
   }
@@ -80,14 +82,17 @@ export default function QrScanPage() {
         type,
         idempotency_key: `qr-${Date.now()}-${Math.random()}`,
       });
-      const empName = data.employee?.name ?? "Employee";
+      const empName = data.employee?.name ?? t("attendance.employee");
       setStatus("success");
-      setMessage(`${type === "check_in" ? "Welcome" : "Goodbye"}, ${empName}!`);
+      setMessage(
+        `${type === "check_in" ? t("attendance.scan_page.welcome") : t("attendance.scan_page.goodbye")}, ${empName}!`,
+      );
       setTimeout(() => router.push("/attendance"), 3000);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
       setMessage(
-        axiosErr.response?.data?.detail ?? "QR code invalid or expired",
+        axiosErr.response?.data?.detail ??
+          t("attendance.scan_page.invalid_or_expired"),
       );
       setStatus("error");
     }
@@ -96,8 +101,8 @@ export default function QrScanPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Scan QR to Check In/Out"
-        description="Point your camera at the QR code at your workplace entrance"
+        title={t("attendance.scan_page.title")}
+        description={t("attendance.scan_page.description")}
       />
 
       <div className="mx-auto max-w-md space-y-4">
@@ -113,7 +118,7 @@ export default function QrScanPage() {
                 : "text-muted-foreground",
             )}
           >
-            <LogIn className="h-4 w-4" /> Check In
+            <LogIn className="h-4 w-4" /> {t("common.check_in")}
           </button>
           <button
             onClick={() => setType("check_out")}
@@ -125,7 +130,7 @@ export default function QrScanPage() {
                 : "text-muted-foreground",
             )}
           >
-            <LogOut className="h-4 w-4" /> Check Out
+            <LogOut className="h-4 w-4" /> {t("common.check_out")}
           </button>
         </div>
 
@@ -135,7 +140,9 @@ export default function QrScanPage() {
             <CardContent className="p-8 text-center space-y-3">
               <CheckCircle2 className="mx-auto h-16 w-16 text-green-600 animate-in zoom-in" />
               <p className="text-xl font-bold">{message}</p>
-              <p className="text-xs text-muted-foreground">Redirecting…</p>
+              <p className="text-xs text-muted-foreground">
+                {t("attendance.mobile_page.redirecting")}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -153,7 +160,7 @@ export default function QrScanPage() {
                   setMessage("");
                 }}
               >
-                Try again
+                {t("attendance.scan_page.try_again")}
               </Button>
             </CardContent>
           </Card>
@@ -178,17 +185,17 @@ export default function QrScanPage() {
                     <Camera className="h-10 w-10 text-primary" />
                   </div>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    Tap below to start your camera. Allow camera access when
-                    prompted.
+                    {t("attendance.scan_page.tap_to_start")}
                   </p>
                   <Button onClick={startScanner}>
-                    <Camera className="mr-2 h-4 w-4" /> Start Scanner
+                    <Camera className="mr-2 h-4 w-4" />{" "}
+                    {t("attendance.scan_page.start_scanner")}
                   </Button>
                 </div>
               )}
               {status === "verifying" && (
                 <p className="text-center text-sm text-muted-foreground py-4">
-                  Verifying QR code…
+                  {t("attendance.scan_page.verifying")}
                 </p>
               )}
             </CardContent>
@@ -201,7 +208,7 @@ export default function QrScanPage() {
           onClick={() => router.back()}
           className="w-full"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          <ArrowLeft className="mr-2 h-4 w-4" /> {t("common.back")}
         </Button>
       </div>
     </div>

@@ -26,6 +26,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ interface QrResult {
 }
 
 export default function QrGeneratorPage() {
+  const { t } = useT();
   const [branchId, setBranchId] = useState("");
   const [shiftId, setShiftId] = useState("none");
   const [expiry, setExpiry] = useState(30);
@@ -75,12 +77,12 @@ export default function QrGeneratorPage() {
       setResult(data);
       if (data.auto_refresh !== undefined) setAutoRefresh(data.auto_refresh);
       startCountdown(data.expires_at);
-      toast.success("QR code generated");
+      toast.success(t("attendance.qr_page.generated"));
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
       toast.error(
-        axiosErr.response?.data?.detail ?? "Failed to generate QR code",
+        axiosErr.response?.data?.detail ?? t("attendance.qr_page.generate_failed"),
       );
     },
   });
@@ -138,22 +140,26 @@ export default function QrGeneratorPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="QR Attendance Code"
-          description="Generate a printable QR code for employees to scan from their phones"
+          title={t("attendance.qr_page.title")}
+          description={t("attendance.qr_page.description")}
         />
 
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
           {/* Config panel */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Configuration</CardTitle>
+              <CardTitle className="text-base">
+                {t("attendance.qr_page.configuration")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Branch *</Label>
+                <Label>{t("attendance.kiosks_page.branch")}</Label>
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue
+                      placeholder={t("attendance.kiosks_page.select_branch")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {branches?.data?.map(
@@ -167,13 +173,15 @@ export default function QrGeneratorPage() {
                 </Select>
               </div>
               <div>
-                <Label>Shift (optional)</Label>
+                <Label>{t("attendance.qr_page.shift_optional")}</Label>
                 <Select value={shiftId} onValueChange={setShiftId}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Any shift</SelectItem>
+                    <SelectItem value="none">
+                      {t("attendance.qr_page.any_shift")}
+                    </SelectItem>
                     {shifts?.data?.map(
                       (s: { public_id: string; name: string }) => (
                         <SelectItem key={s.public_id} value={s.public_id}>
@@ -185,7 +193,7 @@ export default function QrGeneratorPage() {
                 </Select>
               </div>
               <div>
-                <Label>Expiry (minutes)</Label>
+                <Label>{t("attendance.qr_page.expiry_minutes")}</Label>
                 <Input
                   type="number"
                   value={expiry}
@@ -194,13 +202,17 @@ export default function QrGeneratorPage() {
                   max={480}
                   className="mt-1"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">5–480 min</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("attendance.qr_page.expiry_range")}
+                </p>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
-                  <p className="text-sm font-medium">Auto-refresh</p>
+                  <p className="text-sm font-medium">
+                    {t("attendance.settings_page.auto_refresh")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Regenerate when expired
+                    {t("attendance.qr_page.regenerate_when_expired")}
                   </p>
                 </div>
                 <Switch
@@ -218,7 +230,7 @@ export default function QrGeneratorPage() {
                 ) : (
                   <QrCode className="mr-2 h-4 w-4" />
                 )}
-                Generate QR Code
+                {t("attendance.qr_page.generate_qr")}
               </Button>
             </CardContent>
           </Card>
@@ -227,7 +239,9 @@ export default function QrGeneratorPage() {
           <Card className="print:shadow-none print:border-0">
             <CardHeader className="print:hidden">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">QR Code</CardTitle>
+                <CardTitle className="text-base">
+                  {t("attendance.qr_page.qr_code")}
+                </CardTitle>
                 {result && (
                   <div className="flex gap-2">
                     <Button
@@ -242,10 +256,11 @@ export default function QrGeneratorPage() {
                           generate.isPending && "animate-spin",
                         )}
                       />{" "}
-                      Refresh
+                      {t("attendance.qr_page.refresh")}
                     </Button>
                     <Button size="sm" onClick={() => window.print()}>
-                      <Printer className="mr-2 h-3 w-3" /> Print
+                      <Printer className="mr-2 h-3 w-3" />{" "}
+                      {t("attendance.qr_page.print")}
                     </Button>
                   </div>
                 )}
@@ -256,7 +271,7 @@ export default function QrGeneratorPage() {
                 <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
                   <QrCode className="h-12 w-12 opacity-30" />
                   <p className="mt-3 text-sm">
-                    Configure on the left and click Generate
+                    {t("attendance.qr_page.configure_prompt")}
                   </p>
                 </div>
               ) : (
@@ -276,13 +291,14 @@ export default function QrGeneratorPage() {
                       <>
                         <Clock className="h-3.5 w-3.5" />
                         {autoRefresh
-                          ? "Refreshing…"
-                          : "Expired — click Refresh"}
+                          ? t("attendance.qr_page.refreshing")
+                          : t("attendance.qr_page.expired_click_refresh")}
                       </>
                     ) : (
                       <>
                         <Timer className="h-3.5 w-3.5" />
-                        {formatTime(secondsLeft)} remaining
+                        {formatTime(secondsLeft)}{" "}
+                        {t("attendance.qr_page.remaining")}
                       </>
                     )}
                   </div>
@@ -301,17 +317,19 @@ export default function QrGeneratorPage() {
 
                   <div>
                     <p className="text-2xl font-bold">
-                      {result.branch_name ?? "Attendance Check-in"}
+                      {result.branch_name ??
+                        t("attendance.qr_page.attendance_checkin")}
                     </p>
                     {result.shift_name && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Shift: {result.shift_name}
+                        {t("attendance.qr_page.shift_label")}:{" "}
+                        {result.shift_name}
                       </p>
                     )}
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Scan this code with the ETHR app to check in.
+                      {t("attendance.qr_page.scan_hint")}
                       <br />
-                      Valid until{" "}
+                      {t("attendance.qr_page.valid_until")}{" "}
                       <span className="font-medium text-foreground">
                         {new Date(result.expires_at).toLocaleString()}
                       </span>

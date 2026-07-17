@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 
 interface IntelligenceResponse {
   date: string;
@@ -43,6 +44,7 @@ interface IntelligenceResponse {
 }
 
 export default function AttendanceIntelligencePage() {
+  const { t } = useT();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const { data, isLoading } = useQuery<IntelligenceResponse>({
@@ -59,11 +61,13 @@ export default function AttendanceIntelligencePage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Attendance Intelligence"
-          description="Late arrivals, early departures, and missing punches"
+          title={t("attendance.intelligence_page.title")}
+          description={t("attendance.intelligence_page.description")}
           actions={
             <div className="flex items-center gap-2">
-              <Label className="text-xs">Date:</Label>
+              <Label className="text-xs">
+                {t("attendance.intelligence_page.date_label")}:
+              </Label>
               <Input
                 type="date"
                 value={date}
@@ -85,19 +89,19 @@ export default function AttendanceIntelligencePage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <Kpi
                 icon={Clock}
-                title="Late Arrivals"
+                title={t("attendance.intelligence_page.late_arrivals")}
                 value={data?.late_arrivals?.count ?? 0}
                 color="amber"
               />
               <Kpi
                 icon={LogOut}
-                title="Early Departures"
+                title={t("attendance.intelligence_page.early_departures")}
                 value={data?.early_departures?.count ?? 0}
                 color="orange"
               />
               <Kpi
                 icon={AlertCircle}
-                title="Missing Punches"
+                title={t("attendance.intelligence_page.missing_punches")}
                 value={data?.missing_punches?.count ?? 0}
                 color="red"
               />
@@ -106,15 +110,16 @@ export default function AttendanceIntelligencePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-600" /> Late Arrivals
+                  <Clock className="h-4 w-4 text-amber-600" />{" "}
+                  {t("attendance.intelligence_page.late_arrivals")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {(data?.late_arrivals?.records ?? []).length === 0 ? (
                   <EmptyState
                     icon={Activity}
-                    title="No late arrivals"
-                    description="Everyone was on time"
+                    title={t("attendance.intelligence_page.no_late_arrivals")}
+                    description={t("attendance.intelligence_page.everyone_on_time")}
                   />
                 ) : (
                   <div className="overflow-x-auto">
@@ -122,16 +127,16 @@ export default function AttendanceIntelligencePage() {
                       <thead className="border-b bg-muted/50">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Employee
+                            {t("attendance.employee")}
                           </th>
                           <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Check-in
+                            {t("attendance.intelligence_page.check_in_col")}
                           </th>
                           <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Shift Start
+                            {t("attendance.intelligence_page.shift_start")}
                           </th>
                           <th className="px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground">
-                            Late By
+                            {t("attendance.intelligence_page.late_by")}
                           </th>
                         </tr>
                       </thead>
@@ -157,7 +162,8 @@ export default function AttendanceIntelligencePage() {
                                 variant="outline"
                                 className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-0"
                               >
-                                +{r.minutes_late} min
+                                +{r.minutes_late}{" "}
+                                {t("attendance.intelligence_page.min")}
                               </Badge>
                             </td>
                           </tr>
@@ -173,14 +179,14 @@ export default function AttendanceIntelligencePage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <LogOut className="h-4 w-4 text-orange-600" /> Early
-                    Departures
+                    <LogOut className="h-4 w-4 text-orange-600" />{" "}
+                    {t("attendance.intelligence_page.early_departures")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {(data?.early_departures?.records ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">
-                      No early departures
+                      {t("attendance.intelligence_page.no_early_departures")}
                     </p>
                   ) : (
                     <div className="space-y-1">
@@ -207,14 +213,14 @@ export default function AttendanceIntelligencePage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600" /> Missing
-                    Punches
+                    <AlertCircle className="h-4 w-4 text-red-600" />{" "}
+                    {t("attendance.intelligence_page.missing_punches")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {(data?.missing_punches?.records ?? []).length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">
-                      No missing punches
+                      {t("attendance.intelligence_page.no_missing_punches")}
                     </p>
                   ) : (
                     <div className="space-y-1">
