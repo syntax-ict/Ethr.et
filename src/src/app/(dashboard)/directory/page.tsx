@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Users, Phone, Mail } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,6 +23,7 @@ interface DirectoryEntry {
 }
 
 export default function DirectoryPage() {
+  const { t } = useT();
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -39,15 +41,21 @@ export default function DirectoryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Employee Directory"
-        description="Find contact information for colleagues"
+        title={t("directory.title", "Employee Directory")}
+        description={t(
+          "directory.description",
+          "Find contact information for colleagues",
+        )}
       />
 
       <div className="w-full max-w-sm">
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search by name, email, or phone..."
+          placeholder={t(
+            "directory.search_placeholder",
+            "Search by name, email, or phone...",
+          )}
         />
       </div>
 
@@ -60,11 +68,11 @@ export default function DirectoryPage() {
       ) : entries.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No employees found"
+          title={t("directory.empty_title", "No employees found")}
           description={
             search
-              ? "Try a different search"
-              : "No employees in the directory yet"
+              ? t("directory.try_different", "Try a different search")
+              : t("directory.empty_desc", "No employees in the directory yet")
           }
         />
       ) : (

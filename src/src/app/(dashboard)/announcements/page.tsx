@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Megaphone, Plus, Loader2, Trash2, Pencil } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function AnnouncementsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,11 +85,14 @@ export default function AnnouncementsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
-      toast.success("Announcement published");
+      toast.success(t("announcements.published", "Announcement published"));
       setDialogOpen(false);
       setForm({ title: "", body: "", priority: "normal" });
     },
-    onError: () => toast.error("Failed to create announcement"),
+    onError: () =>
+      toast.error(
+        t("announcements.create_failed", "Failed to create announcement"),
+      ),
   });
 
   const updateAnnouncement = useMutation({
@@ -100,12 +105,15 @@ export default function AnnouncementsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
-      toast.success("Announcement updated");
+      toast.success(t("announcements.updated", "Announcement updated"));
       setDialogOpen(false);
       setEditingId(null);
       setForm({ title: "", body: "", priority: "normal" });
     },
-    onError: () => toast.error("Failed to update announcement"),
+    onError: () =>
+      toast.error(
+        t("announcements.update_failed", "Failed to update announcement"),
+      ),
   });
 
   const deleteAnnouncement = useMutation({
@@ -114,7 +122,7 @@ export default function AnnouncementsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
-      toast.success("Announcement deleted");
+      toast.success(t("announcements.deleted", "Announcement deleted"));
     },
   });
 
@@ -123,12 +131,16 @@ export default function AnnouncementsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Announcements"
-        description="Company-wide announcements and updates"
+        title={t("announcements.title", "Announcements")}
+        description={t(
+          "announcements.description",
+          "Company-wide announcements and updates",
+        )}
         actions={
           can.manageEmployees && (
             <Button onClick={openNew}>
-              <Plus className="mr-2 h-4 w-4" /> New Announcement
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("announcements.new", "New Announcement")}
             </Button>
           )
         }
@@ -143,8 +155,11 @@ export default function AnnouncementsPage() {
       ) : announcements.length === 0 ? (
         <EmptyState
           icon={Megaphone}
-          title="No announcements"
-          description="No announcements published yet"
+          title={t("announcements.empty_title", "No announcements")}
+          description={t(
+            "announcements.empty_desc",
+            "No announcements published yet",
+          )}
         />
       ) : (
         <div className="space-y-3">
@@ -170,7 +185,7 @@ export default function AnnouncementsPage() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       {a.published_at
                         ? new Date(a.published_at).toLocaleDateString()
-                        : "Draft"}
+                        : t("common.draft", "Draft")}
                     </p>
                   </div>
                   {can.manageEmployees && (
@@ -202,7 +217,9 @@ export default function AnnouncementsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Edit Announcement" : "New Announcement"}
+              {editingId
+                ? t("announcements.edit", "Edit Announcement")
+                : t("announcements.new", "New Announcement")}
             </DialogTitle>
           </DialogHeader>
           <form
@@ -217,7 +234,7 @@ export default function AnnouncementsPage() {
             className="space-y-4"
           >
             <div>
-              <Label>Title</Label>
+              <Label>{t("common.title", "Title")}</Label>
               <Input
                 value={form.title}
                 onChange={(e) =>
@@ -228,7 +245,7 @@ export default function AnnouncementsPage() {
               />
             </div>
             <div>
-              <Label>Content</Label>
+              <Label>{t("announcements.content", "Content")}</Label>
               <Textarea
                 value={form.body}
                 onChange={(e) =>
@@ -240,7 +257,7 @@ export default function AnnouncementsPage() {
               />
             </div>
             <div>
-              <Label>Priority</Label>
+              <Label>{t("announcements.priority", "Priority")}</Label>
               <Select
                 value={form.priority}
                 onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
@@ -249,10 +266,16 @@ export default function AnnouncementsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="low">{t("common.low", "Low")}</SelectItem>
+                  <SelectItem value="normal">
+                    {t("common.normal", "Normal")}
+                  </SelectItem>
+                  <SelectItem value="high">
+                    {t("common.high", "High")}
+                  </SelectItem>
+                  <SelectItem value="urgent">
+                    {t("common.urgent", "Urgent")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -262,7 +285,7 @@ export default function AnnouncementsPage() {
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
               >
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button
                 type="submit"
@@ -274,7 +297,9 @@ export default function AnnouncementsPage() {
                   updateAnnouncement.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {editingId ? "Save Changes" : "Publish"}
+                {editingId
+                  ? t("common.save_changes", "Save Changes")
+                  : t("announcements.publish", "Publish")}
               </Button>
             </DialogFooter>
           </form>

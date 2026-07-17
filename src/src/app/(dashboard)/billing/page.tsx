@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/useT";
 import {
   Receipt,
   Crown,
@@ -42,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function BillingPage() {
+  const { t } = useT();
   const { data: dashboard, isLoading } = useBillingDashboard();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
@@ -49,11 +51,15 @@ export default function BillingPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Billing"
-          description="Manage your subscription, invoices, and payment history"
+          title={t("billing.title", "Billing")}
+          description={t(
+            "billing.description",
+            "Manage your subscription, invoices, and payment history",
+          )}
           actions={
             <Button onClick={() => setPlanDialogOpen(true)}>
-              <ArrowUpDown className="mr-2 h-4 w-4" /> Change Plan
+              <ArrowUpDown className="mr-2 h-4 w-4" />{" "}
+              {t("billing.change_plan", "Change Plan")}
             </Button>
           }
         />
@@ -66,25 +72,25 @@ export default function BillingPage() {
               <SummaryCard
                 icon={Crown}
                 color="purple"
-                title="Current Plan"
-                value={dashboard?.plan ?? "No plan"}
+                title={t("billing.current_plan", "Current Plan")}
+                value={dashboard?.plan ?? t("billing.no_plan", "No plan")}
                 sub={dashboard?.subscription_status ?? "—"}
               />
               <SummaryCard
                 icon={CreditCard}
                 color="blue"
-                title="Monthly Price"
+                title={t("billing.monthly_price", "Monthly Price")}
                 value={
                   dashboard?.plan_price_cents
                     ? formatCents(dashboard.plan_price_cents)
                     : "—"
                 }
-                sub="ETB / month"
+                sub={t("billing.etb_per_month", "ETB / month")}
               />
               <SummaryCard
                 icon={CalendarClock}
                 color="amber"
-                title="Next Billing"
+                title={t("billing.next_billing", "Next Billing")}
                 value={
                   dashboard?.current_period_end
                     ? new Date(
@@ -92,14 +98,14 @@ export default function BillingPage() {
                       ).toLocaleDateString()
                     : "—"
                 }
-                sub="Period ends"
+                sub={t("billing.period_ends", "Period ends")}
               />
               <SummaryCard
                 icon={Receipt}
                 color="green"
-                title="Invoices"
+                title={t("billing.invoices", "Invoices")}
                 value={String(dashboard?.invoices?.length ?? 0)}
-                sub="Recent records"
+                sub={t("billing.recent_records", "Recent records")}
               />
             </div>
 
@@ -182,6 +188,7 @@ function SummaryCard({
 }
 
 function PaymentInstructions() {
+  const { t } = useT();
   return (
     <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
       <CardContent className="p-5">
@@ -191,28 +198,38 @@ function PaymentInstructions() {
           </div>
           <div className="flex-1">
             <p className="font-semibold text-foreground">
-              Payment Instructions — Manual Bank Transfer
+              {t(
+                "billing.payment_instructions_title",
+                "Payment Instructions — Manual Bank Transfer",
+              )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Transfer the invoice amount to the account below and reference
-              your invoice ID. Your subscription will be marked active once
-              payment is verified.
+              {t(
+                "billing.payment_instructions_desc",
+                "Transfer the invoice amount to the account below and reference your invoice ID. Your subscription will be marked active once payment is verified.",
+              )}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Bank</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("billing.bank", "Bank")}
+                </p>
                 <p className="text-sm font-medium">
-                  Commercial Bank of Ethiopia
+                  {t("billing.bank_name", "Commercial Bank of Ethiopia")}
                 </p>
               </div>
               <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Account Number</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("billing.account_number", "Account Number")}
+                </p>
                 <p className="text-sm font-mono font-medium">
                   1000 1234 5678 90
                 </p>
               </div>
               <div className="rounded-lg border bg-background p-3">
-                <p className="text-xs text-muted-foreground">Account Name</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("billing.account_name", "Account Name")}
+                </p>
                 <p className="text-sm font-medium">ETHR Technologies PLC</p>
               </div>
             </div>
@@ -224,26 +241,38 @@ function PaymentInstructions() {
 }
 
 function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
+  const { t } = useT();
   const markPaid = useMarkInvoicePaid();
 
   function handleMarkPaid(invoice: BillingInvoice) {
     markPaid.mutate(invoice.public_id, {
-      onSuccess: () => toast.success("Invoice marked as paid"),
-      onError: () => toast.error("Failed to mark invoice as paid"),
+      onSuccess: () =>
+        toast.success(
+          t("billing.invoice_marked_paid", "Invoice marked as paid"),
+        ),
+      onError: () =>
+        toast.error(
+          t("billing.mark_paid_failed", "Failed to mark invoice as paid"),
+        ),
     });
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Invoice History</CardTitle>
+        <CardTitle className="text-base">
+          {t("billing.invoice_history", "Invoice History")}
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {invoices.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title="No invoices yet"
-            description="Invoices will appear here once your subscription is billed"
+            title={t("billing.no_invoices", "No invoices yet")}
+            description={t(
+              "billing.invoices_will_appear",
+              "Invoices will appear here once your subscription is billed",
+            )}
           />
         ) : (
           <div className="overflow-x-auto">
@@ -251,22 +280,22 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Invoice ID
+                    {t("billing.invoice_id", "Invoice ID")}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Amount
+                    {t("billing.amount", "Amount")}
                   </th>
                   <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                    Due Date
+                    {t("billing.due_date", "Due Date")}
                   </th>
                   <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                    Paid On
+                    {t("billing.paid_on", "Paid On")}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Status
+                    {t("common.status", "Status")}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Actions
+                    {t("common.actions", "Actions")}
                   </th>
                 </tr>
               </thead>
@@ -318,7 +347,10 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              title="Download receipt"
+                              title={t(
+                                "billing.download_receipt",
+                                "Download receipt",
+                              )}
                               onClick={() =>
                                 window.open(
                                   `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
@@ -342,7 +374,7 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                               ) : (
                                 <Check className="mr-1 h-3 w-3" />
                               )}
-                              Mark Paid
+                              {t("billing.mark_paid", "Mark Paid")}
                             </Button>
                           )}
                         </div>
@@ -368,6 +400,7 @@ function PlanChangeDialog({
   onClose: () => void;
   currentPlanName: string | null;
 }) {
+  const { t } = useT();
   const { data: plansData, isLoading } = usePlans();
   const changePlan = useChangePlan();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -388,12 +421,15 @@ function PlanChangeDialog({
             proration_cents: data.proration_cents,
             new_plan: data.new_plan,
           });
-          toast.success(`Plan changed to ${data.new_plan}`);
+          toast.success(
+            t("billing.plan_changed", "Plan changed to") + ` ${data.new_plan}`,
+          );
         },
         onError: (err: unknown) => {
           const axiosErr = err as { response?: { data?: { detail?: string } } };
           toast.error(
-            axiosErr.response?.data?.detail || "Failed to change plan",
+            axiosErr.response?.data?.detail ||
+              t("billing.change_failed", "Failed to change plan"),
           );
         },
       },
@@ -410,11 +446,19 @@ function PlanChangeDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Change Subscription Plan</DialogTitle>
+          <DialogTitle>
+            {t("billing.change_subscription", "Change Subscription Plan")}
+          </DialogTitle>
           <DialogDescription>
             {prorationResult
-              ? "Your plan has been updated. Proration applied below."
-              : "Select a new plan. Upgrades take effect immediately with prorated charges; downgrades apply at the end of the current period."}
+              ? t(
+                  "billing.plan_updated_proration",
+                  "Your plan has been updated. Proration applied below.",
+                )
+              : t(
+                  "billing.select_new_plan",
+                  "Select a new plan. Upgrades take effect immediately with prorated charges; downgrades apply at the end of the current period.",
+                )}
           </DialogDescription>
         </DialogHeader>
 
@@ -425,14 +469,21 @@ function PlanChangeDialog({
             </div>
             <div>
               <p className="text-lg font-semibold">
-                Plan changed to {prorationResult.new_plan}
+                {t("billing.plan_changed", "Plan changed to")}{" "}
+                {prorationResult.new_plan}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
                 {prorationResult.proration_cents > 0
-                  ? "Prorated charge for this period:"
+                  ? t(
+                      "billing.prorated_charge",
+                      "Prorated charge for this period:",
+                    )
                   : prorationResult.proration_cents < 0
-                    ? "Credit applied to next invoice:"
-                    : "No proration adjustment."}
+                    ? t(
+                        "billing.credit_applied",
+                        "Credit applied to next invoice:",
+                      )
+                    : t("billing.no_proration", "No proration adjustment.")}
               </p>
               {prorationResult.proration_cents !== 0 && (
                 <CurrencyDisplay
@@ -447,7 +498,7 @@ function PlanChangeDialog({
               )}
             </div>
             <DialogFooter className="sm:justify-center">
-              <Button onClick={handleClose}>Done</Button>
+              <Button onClick={handleClose}>{t("common.done", "Done")}</Button>
             </DialogFooter>
           </div>
         ) : isLoading ? (
@@ -484,7 +535,7 @@ function PlanChangeDialog({
                         </p>
                         {isCurrent && (
                           <Badge variant="outline" className="mt-1 text-[10px]">
-                            Current
+                            {t("billing.current", "Current")}
                           </Badge>
                         )}
                       </div>
@@ -499,34 +550,36 @@ function PlanChangeDialog({
                         cents={plan.price_cents}
                         className="text-2xl font-bold"
                       />
-                      <p className="text-xs text-muted-foreground">per month</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("billing.per_month", "per month")}
+                      </p>
                     </div>
                     <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
                       {plan.max_employees != null && (
                         <p>
-                          👥 Up to{" "}
+                          👥 {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_employees}
                           </span>{" "}
-                          employees
+                          {t("billing.employees", "employees")}
                         </p>
                       )}
                       {plan.max_branches != null && (
                         <p>
-                          🏢 Up to{" "}
+                          🏢 {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_branches}
                           </span>{" "}
-                          branches
+                          {t("billing.branches", "branches")}
                         </p>
                       )}
                       {plan.max_devices != null && (
                         <p>
-                          📱 Up to{" "}
+                          📱 {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_devices}
                           </span>{" "}
-                          devices
+                          {t("billing.devices", "devices")}
                         </p>
                       )}
                       {plan.features && plan.features.length > 0 && (
@@ -547,7 +600,7 @@ function PlanChangeDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>
-                Cancel
+                {t("common.cancel", "Cancel")}
               </Button>
               <Button
                 onClick={handleConfirm}
@@ -556,7 +609,7 @@ function PlanChangeDialog({
                 {changePlan.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Confirm Plan Change
+                {t("billing.confirm_change", "Confirm Plan Change")}
               </Button>
             </DialogFooter>
           </>

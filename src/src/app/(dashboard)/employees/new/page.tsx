@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { toast } from "sonner";
 
 export default function NewEmployeePage() {
+  const { t } = useT();
   const router = useRouter();
   const createEmployee = useCreateEmployee();
 
@@ -77,7 +79,7 @@ export default function NewEmployeePage() {
       },
       {
         onSuccess: () => {
-          toast.success("Employee created successfully");
+          toast.success(t("employee.created", "Employee created successfully"));
           router.push("/employees");
         },
         onError: (err: unknown) => {
@@ -85,7 +87,8 @@ export default function NewEmployeePage() {
             response?: { data?: { detail?: string } };
           };
           toast.error(
-            axiosError.response?.data?.detail || "Failed to create employee",
+            axiosError.response?.data?.detail ||
+              t("employee.create_failed", "Failed to create employee"),
           );
         },
       },
@@ -98,21 +101,27 @@ export default function NewEmployeePage() {
         <Button variant="ghost" size="sm" asChild>
           <Link href="/employees">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back", "Back")}
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold text-foreground">Add Employee</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {t("employee.add", "Add Employee")}
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Personal Information</CardTitle>
+              <CardTitle className="text-base">
+                {t("employee.personal_info", "Personal Information")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="name">Full Name *</Label>
+                <Label htmlFor="name">
+                  {t("employee.full_name", "Full Name")} *
+                </Label>
                 <Input
                   id="name"
                   value={form.name}
@@ -122,7 +131,7 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">{t("common.email", "Email")} *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -133,7 +142,7 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t("common.phone", "Phone")}</Label>
                 <Input
                   id="phone"
                   value={form.phone}
@@ -143,22 +152,30 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">{t("employee.gender", "Gender")}</Label>
                 <Select
                   value={form.gender}
                   onValueChange={(v) => updateField("gender", v)}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select gender" />
+                    <SelectValue
+                      placeholder={t("employee.select_gender", "Select gender")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="male">
+                      {t("common.male", "Male")}
+                    </SelectItem>
+                    <SelectItem value="female">
+                      {t("common.female", "Female")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="dob">Date of Birth</Label>
+                <Label htmlFor="dob">
+                  {t("employee.date_of_birth", "Date of Birth")}
+                </Label>
                 <Input
                   id="dob"
                   type="date"
@@ -168,7 +185,9 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="marital">Marital Status</Label>
+                <Label htmlFor="marital">
+                  {t("employee.marital_status", "Marital Status")}
+                </Label>
                 <Select
                   value={form.marital_status}
                   onValueChange={(v) => updateField("marital_status", v)}
@@ -177,10 +196,18 @@ export default function NewEmployeePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="married">Married</SelectItem>
-                    <SelectItem value="divorced">Divorced</SelectItem>
-                    <SelectItem value="widowed">Widowed</SelectItem>
+                    <SelectItem value="single">
+                      {t("common.single", "Single")}
+                    </SelectItem>
+                    <SelectItem value="married">
+                      {t("common.married", "Married")}
+                    </SelectItem>
+                    <SelectItem value="divorced">
+                      {t("common.divorced", "Divorced")}
+                    </SelectItem>
+                    <SelectItem value="widowed">
+                      {t("common.widowed", "Widowed")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -189,11 +216,15 @@ export default function NewEmployeePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Employment Details</CardTitle>
+              <CardTitle className="text-base">
+                {t("employee.employment_details", "Employment Details")}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="code">Employee Code *</Label>
+                <Label htmlFor="code">
+                  {t("employee.code", "Employee Code")} *
+                </Label>
                 <Input
                   id="code"
                   value={form.employee_code}
@@ -204,7 +235,9 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="hire">Hire Date *</Label>
+                <Label htmlFor="hire">
+                  {t("employee.hire_date", "Hire Date")} *
+                </Label>
                 <Input
                   id="hire"
                   type="date"
@@ -215,7 +248,9 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="salary">Monthly Salary (ETB) *</Label>
+                <Label htmlFor="salary">
+                  {t("employee.monthly_salary", "Monthly Salary (ETB)")} *
+                </Label>
                 <Input
                   id="salary"
                   type="number"
@@ -227,7 +262,9 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="nationality">Nationality</Label>
+                <Label htmlFor="nationality">
+                  {t("employee.nationality", "Nationality")}
+                </Label>
                 <Input
                   id="nationality"
                   value={form.nationality}
@@ -236,13 +273,18 @@ export default function NewEmployeePage() {
                 />
               </div>
               <div>
-                <Label>Department</Label>
+                <Label>{t("common.department", "Department")}</Label>
                 <Select
                   value={form.department_public_id}
                   onValueChange={(v) => updateField("department_public_id", v)}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select department" />
+                    <SelectValue
+                      placeholder={t(
+                        "employee.select_department",
+                        "Select department",
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {depts?.data?.map(
@@ -256,13 +298,15 @@ export default function NewEmployeePage() {
                 </Select>
               </div>
               <div>
-                <Label>Branch</Label>
+                <Label>{t("common.branch", "Branch")}</Label>
                 <Select
                   value={form.branch_public_id}
                   onValueChange={(v) => updateField("branch_public_id", v)}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue
+                      placeholder={t("employee.select_branch", "Select branch")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {branches?.data?.map(
@@ -276,13 +320,18 @@ export default function NewEmployeePage() {
                 </Select>
               </div>
               <div>
-                <Label>Position</Label>
+                <Label>{t("common.position", "Position")}</Label>
                 <Select
                   value={form.position_public_id}
                   onValueChange={(v) => updateField("position_public_id", v)}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select position" />
+                    <SelectValue
+                      placeholder={t(
+                        "employee.select_position",
+                        "Select position",
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {positions?.data?.map(
@@ -301,13 +350,13 @@ export default function NewEmployeePage() {
 
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="outline" type="button" asChild>
-            <Link href="/employees">Cancel</Link>
+            <Link href="/employees">{t("common.cancel", "Cancel")}</Link>
           </Button>
           <Button type="submit" disabled={createEmployee.isPending}>
             {createEmployee.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Create Employee
+            {t("employee.create", "Create Employee")}
           </Button>
         </div>
       </form>
