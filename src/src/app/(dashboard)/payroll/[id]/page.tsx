@@ -29,6 +29,7 @@ import {
 } from "@/features/payroll/api";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function PayrollDetailPage({
@@ -36,6 +37,7 @@ export default function PayrollDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useT();
   const { id } = use(params);
   const { data: run, isLoading } = usePayrollRun(id);
   const { isAtLeast } = usePermissions();
@@ -90,7 +92,7 @@ export default function PayrollDetailPage({
       `payroll-register-${run.period_label?.replace(/\s/g, "-")}.csv`,
       csv,
     );
-    toast.success("Payroll register downloaded");
+    toast.success(t("payroll_detail_page.register_downloaded"));
   }
 
   async function exportBankFile() {
@@ -126,9 +128,9 @@ export default function PayrollDetailPage({
         ...rows.map((r: string[]) => r.join(",")),
       ].join("\n");
       downloadCsv(`bank-transfer-${data.period?.replace(/\s/g, "-")}.csv`, csv);
-      toast.success("Bank transfer file downloaded");
+      toast.success(t("payroll_detail_page.bank_file_downloaded"));
     } catch {
-      toast.error("Failed to generate bank file");
+      toast.error(t("payroll_detail_page.bank_file_failed"));
     }
   }
 
@@ -137,7 +139,7 @@ export default function PayrollDetailPage({
       const { data } = await apiClient.get(`/accounting/journal/${id}`);
       const entries = data.entries ?? data.journal?.entries ?? [];
       if (!entries.length) {
-        toast.error("No journal entries found");
+        toast.error(t("payroll_detail_page.no_journal_entries"));
         return;
       }
       const headers = ["Account", "Description", "Debit (ETB)", "Credit (ETB)"];
@@ -159,9 +161,9 @@ export default function PayrollDetailPage({
         ...rows.map((r: string[]) => r.join(",")),
       ].join("\n");
       downloadCsv(`journal-${run?.period_label?.replace(/\s/g, "-")}.csv`, csv);
-      toast.success("Journal entries downloaded");
+      toast.success(t("payroll_detail_page.journal_downloaded"));
     } catch {
-      toast.error("Failed to generate journal");
+      toast.error(t("payroll_detail_page.journal_failed"));
     }
   }
 
@@ -182,7 +184,9 @@ export default function PayrollDetailPage({
   if (!run) {
     return (
       <div className="py-16 text-center">
-        <p className="text-muted-foreground">Payroll run not found</p>
+        <p className="text-muted-foreground">
+          {t("payroll_detail_page.run_not_found")}
+        </p>
       </div>
     );
   }
@@ -193,7 +197,7 @@ export default function PayrollDetailPage({
         <Button variant="ghost" size="sm" asChild>
           <Link href="/payroll">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {t("common.back")}
           </Link>
         </Button>
       </div>
@@ -207,8 +211,9 @@ export default function PayrollDetailPage({
             <StatusBadge status={run.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {run.period_start} to {run.period_end} &middot; {run.employee_count}{" "}
-            employees
+            {run.period_start} {t("payroll_detail_page.to")} {run.period_end}{" "}
+            &middot; {run.employee_count}{" "}
+            {t("payroll_detail_page.employees_lc")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -218,13 +223,14 @@ export default function PayrollDetailPage({
               onClick={() =>
                 approvePayroll.mutate(id, {
                   onSuccess: () =>
-                    toast.success("Payroll approved successfully"),
+                    toast.success(t("payroll_detail_page.approved_success")),
                   onError: (err: unknown) => {
                     const e = err as {
                       response?: { data?: { detail?: string } };
                     };
                     toast.error(
-                      e.response?.data?.detail || "Failed to approve payroll",
+                      e.response?.data?.detail ||
+                        t("payroll_detail_page.approve_failed"),
                     );
                   },
                 })
@@ -236,28 +242,28 @@ export default function PayrollDetailPage({
               ) : (
                 <CheckCircle className="mr-2 h-4 w-4" />
               )}
-              Approve Payroll
+              {t("payroll_detail_page.approve_payroll")}
             </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Download className="mr-2 h-4 w-4" />
-                Export
+                {t("common.export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={exportPayrollRegister}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Payroll Register (CSV)
+                {t("payroll_detail_page.export_register")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportBankFile}>
                 <Landmark className="mr-2 h-4 w-4" />
-                Bank Transfer File
+                {t("payroll_detail_page.export_bank")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportJournal}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Journal Entries (CSV)
+                {t("payroll_detail_page.export_journal")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -265,12 +271,24 @@ export default function PayrollDetailPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="Gross Total" cents={run.gross_total_cents} />
-        <SummaryCard label="Net Total" cents={run.net_total_cents} highlight />
-        <SummaryCard label="Total Tax" cents={run.tax_total_cents} />
+        <SummaryCard
+          label={t("payroll_detail_page.gross_total")}
+          cents={run.gross_total_cents}
+        />
+        <SummaryCard
+          label={t("payroll_detail_page.net_total")}
+          cents={run.net_total_cents}
+          highlight
+        />
+        <SummaryCard
+          label={t("payroll_detail_page.total_tax")}
+          cents={run.tax_total_cents}
+        />
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Employees</p>
+            <p className="text-sm text-muted-foreground">
+              {t("payroll_detail_page.employees")}
+            </p>
             <p className="mt-1 text-2xl font-bold text-foreground">
               {run.employee_count}
             </p>
@@ -281,7 +299,9 @@ export default function PayrollDetailPage({
       {run.entries && run.entries.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Payroll Entries</CardTitle>
+            <CardTitle className="text-base">
+              {t("payroll_detail_page.payroll_entries")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -289,22 +309,22 @@ export default function PayrollDetailPage({
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      Employee
+                      {t("attendance.employee")}
                     </th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                      Basic
+                      {t("payroll_detail_page.basic")}
                     </th>
                     <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground md:table-cell">
-                      Gross
+                      {t("payroll_page.payslips_page.gross")}
                     </th>
                     <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground sm:table-cell">
-                      Tax
+                      {t("payroll_detail_page.tax")}
                     </th>
                     <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground sm:table-cell">
-                      Pension
+                      {t("payroll_detail_page.pension")}
                     </th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                      Net
+                      {t("payroll_detail_page.net")}
                     </th>
                   </tr>
                 </thead>

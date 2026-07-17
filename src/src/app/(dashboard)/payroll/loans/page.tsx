@@ -20,9 +20,11 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useLoans, useCreateLoan, type Loan } from "@/features/payroll/api";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 export default function LoansPage() {
+  const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     employee_public_id: "",
@@ -40,11 +42,12 @@ export default function LoansPage() {
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>
       <div className="space-y-6">
         <PageHeader
-          title="Employee Loans"
-          description="Manage employee loans and deductions"
+          title={t("payroll_page.loans_page.title")}
+          description={t("payroll_page.loans_page.description")}
           actions={
             <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New Loan
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("payroll_page.loans_page.new_loan")}
             </Button>
           }
         />
@@ -58,8 +61,8 @@ export default function LoansPage() {
         ) : loans.length === 0 ? (
           <EmptyState
             icon={Banknote}
-            title="No loans"
-            description="No employee loans recorded"
+            title={t("payroll_page.loans_page.no_loans")}
+            description={t("payroll_page.loans_page.no_loans_desc")}
           />
         ) : (
           <Card>
@@ -69,19 +72,19 @@ export default function LoansPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Employee
+                        {t("attendance.employee")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Amount
+                        {t("payroll_page.loans_page.amount")}
                       </th>
                       <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                        Remaining
+                        {t("payroll_page.loans_page.remaining")}
                       </th>
                       <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                        Monthly
+                        {t("payroll_page.loans_page.monthly")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Status
+                        {t("common.status")}
                       </th>
                     </tr>
                   </thead>
@@ -120,7 +123,7 @@ export default function LoansPage() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>New Employee Loan</DialogTitle>
+              <DialogTitle>{t("payroll_page.loans_page.new_employee_loan")}</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -134,7 +137,7 @@ export default function LoansPage() {
                   },
                   {
                     onSuccess: () => {
-                      toast.success("Loan created");
+                      toast.success(t("payroll_page.loans_page.created"));
                       setDialogOpen(false);
                       setForm({
                         employee_public_id: "",
@@ -143,14 +146,15 @@ export default function LoansPage() {
                         reason: "",
                       });
                     },
-                    onError: () => toast.error("Failed to create loan"),
+                    onError: () =>
+                      toast.error(t("payroll_page.loans_page.create_failed")),
                   },
                 );
               }}
               className="space-y-4"
             >
               <div>
-                <Label>Employee Public ID</Label>
+                <Label>{t("payroll_page.loans_page.employee_public_id")}</Label>
                 <Input
                   value={form.employee_public_id}
                   onChange={(e) =>
@@ -160,13 +164,13 @@ export default function LoansPage() {
                     }))
                   }
                   required
-                  placeholder="Paste employee public_id"
+                  placeholder={t("payroll_page.loans_page.paste_public_id")}
                   className="mt-1"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Loan Amount (ETB)</Label>
+                  <Label>{t("payroll_page.loans_page.loan_amount")}</Label>
                   <Input
                     type="number"
                     value={form.amount_cents}
@@ -178,7 +182,7 @@ export default function LoansPage() {
                   />
                 </div>
                 <div>
-                  <Label>Monthly Deduction (ETB)</Label>
+                  <Label>{t("payroll_page.loans_page.monthly_deduction")}</Label>
                   <Input
                     type="number"
                     value={form.monthly_deduction_cents}
@@ -194,13 +198,13 @@ export default function LoansPage() {
                 </div>
               </div>
               <div>
-                <Label>Reason</Label>
+                <Label>{t("attendance.corrections.reason")}</Label>
                 <Input
                   value={form.reason}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, reason: e.target.value }))
                   }
-                  placeholder="Optional"
+                  placeholder={t("leave_page.optional")}
                   className="mt-1"
                 />
               </div>
@@ -210,13 +214,13 @@ export default function LoansPage() {
                   variant="outline"
                   onClick={() => setDialogOpen(false)}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={createLoan.isPending}>
                   {createLoan.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Create Loan
+                  {t("payroll_page.loans_page.create_loan")}
                 </Button>
               </DialogFooter>
             </form>
