@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -89,6 +90,7 @@ interface Shift {
 }
 
 export default function RosterPage() {
+  const { t } = useT();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -255,7 +257,7 @@ export default function RosterPage() {
         ))}
         {shifts.length > 2 && (
           <p className="text-xs text-muted-foreground">
-            +{shifts.length - 2} more
+            +{shifts.length - 2} {t("leave_page.more")}
           </p>
         )}
         {shifts.length === 0 && defaultShift && (
@@ -276,15 +278,17 @@ export default function RosterPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Shift Roster"
-          description="Monthly and weekly view of shift assignments across your organization"
+          title={t("shift_roster_page.title")}
+          description={t("shift_roster_page.description")}
           actions={
             <div className="flex gap-2">
               <Link href="/shifts/assignments">
-                <Button variant="outline">Manage Assignments</Button>
+                <Button variant="outline">
+                  {t("shift_roster_page.manage_assignments")}
+                </Button>
               </Link>
               <Link href="/shifts">
-                <Button variant="outline">Edit Shifts</Button>
+                <Button variant="outline">{t("shift_roster_page.edit_shifts")}</Button>
               </Link>
             </div>
           }
@@ -323,7 +327,7 @@ export default function RosterPage() {
                 setWeekStart(d);
               }}
             >
-              Today
+              {t("shift_roster_page.today")}
             </Button>
           </div>
 
@@ -337,12 +341,13 @@ export default function RosterPage() {
             <SelectContent>
               <SelectItem value="month">
                 <span className="flex items-center gap-2">
-                  <CalendarDays className="h-3.5 w-3.5" /> Month
+                  <CalendarDays className="h-3.5 w-3.5" />{" "}
+                  {t("shift_roster_page.month")}
                 </span>
               </SelectItem>
               <SelectItem value="week">
                 <span className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5" /> Week
+                  <Clock className="h-3.5 w-3.5" /> {t("shift_roster_page.week")}
                 </span>
               </SelectItem>
             </SelectContent>
@@ -371,7 +376,7 @@ export default function RosterPage() {
                       variant="outline"
                       className="text-[10px] px-1 py-0 h-4"
                     >
-                      default
+                      {t("shift_roster_page.default_lc")}
                     </Badge>
                   )}
                 </div>
@@ -453,12 +458,14 @@ export default function RosterPage() {
                         <p className="opacity-80">
                           {defaultShift.start_time}–{defaultShift.end_time}
                         </p>
-                        <p className="opacity-60">default</p>
+                        <p className="opacity-60">
+                          {t("shift_roster_page.default_lc")}
+                        </p>
                       </div>
                     )}
                     {shifts.length === 0 && !defaultShift && (
                       <p className="text-xs text-muted-foreground py-1">
-                        No assignment
+                        {t("shift_roster_page.no_assignment")}
                       </p>
                     )}
                   </CardContent>

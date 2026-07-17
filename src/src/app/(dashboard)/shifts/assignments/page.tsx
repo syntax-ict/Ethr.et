@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface AssignmentForm {
@@ -52,13 +53,13 @@ const TYPE_ICONS = {
   branch: Building2,
 };
 
-const TYPE_LABEL: Record<string, string> = {
-  Employee: "Employee",
-  Department: "Department",
-  Branch: "Branch",
-};
-
 function AssignmentsContent() {
+  const { t } = useT();
+  const TYPE_LABEL: Record<string, string> = {
+    Employee: t("shifts_settings_page.employee"),
+    Department: t("shifts_settings_page.department"),
+    Branch: t("shifts_settings_page.branch"),
+  };
   const qc = useQueryClient();
   const searchParams = useSearchParams();
   const preselectedShift = searchParams.get("shift") ?? "";
@@ -116,7 +117,7 @@ function AssignmentsContent() {
       qc.invalidateQueries({ queryKey: ["shifts"] });
       setShowDialog(false);
       setForm(EMPTY_FORM);
-      toast.success("Shift assigned successfully");
+      toast.success(t("shift_assignments_page.assigned_success"));
     },
     onError: (err: unknown) => {
       const e = err as {
@@ -127,7 +128,7 @@ function AssignmentsContent() {
       const msg =
         e.response?.data?.detail ??
         Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
-        "Failed to assign shift";
+        t("shifts_settings_page.assign_failed");
       toast.error(msg);
     },
   });
@@ -147,8 +148,8 @@ function AssignmentsContent() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Shift Assignments"
-        description="Assign shifts to employees, departments, or branches with effective date ranges"
+        title={t("shift_assignments_page.title")}
+        description={t("shift_assignments_page.description")}
         actions={
           <Button
             onClick={() => {
@@ -156,7 +157,7 @@ function AssignmentsContent() {
               setShowDialog(true);
             }}
           >
-            <Plus className="mr-2 h-4 w-4" /> Assign Shift
+            <Plus className="mr-2 h-4 w-4" /> {t("shifts_settings_page.assign_shift")}
           </Button>
         }
       />
@@ -172,9 +173,11 @@ function AssignmentsContent() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <CalendarRange className="h-12 w-12 text-muted-foreground/40" />
-            <p className="mt-3 font-medium">No assignments yet</p>
+            <p className="mt-3 font-medium">
+              {t("shift_assignments_page.no_assignments")}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Assign a shift to employees, departments, or entire branches
+              {t("shift_assignments_page.no_assignments_desc")}
             </p>
             <Button
               className="mt-4"
@@ -183,7 +186,8 @@ function AssignmentsContent() {
                 setShowDialog(true);
               }}
             >
-              <Plus className="mr-2 h-4 w-4" /> Assign First Shift
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {t("shift_assignments_page.assign_first")}
             </Button>
           </CardContent>
         </Card>
@@ -215,7 +219,7 @@ function AssignmentsContent() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium">
-                          {a.shift?.name ?? "Unknown Shift"}
+                          {a.shift?.name ?? t("shift_assignments_page.unknown_shift")}
                         </p>
                         <Badge variant="outline" className="text-xs">
                           {TYPE_LABEL[a.assignable_type] ?? a.assignable_type}
@@ -224,15 +228,18 @@ function AssignmentsContent() {
                           variant={isActive ? "success" : "secondary"}
                           className="text-xs"
                         >
-                          {isActive ? "Active" : "Expired"}
+                          {isActive
+                            ? t("webhooks_page.active")
+                            : t("shift_assignments_page.expired")}
                         </Badge>
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         {a.shift?.start_time} – {a.shift?.end_time}
-                        {" · "}From {a.effective_from}
+                        {" · "}
+                        {t("shift_assignments_page.from")} {a.effective_from}
                         {a.effective_to
-                          ? ` to ${a.effective_to}`
-                          : " (no end date)"}
+                          ? ` ${t("shift_assignments_page.to_lc")} ${a.effective_to}`
+                          : ` (${t("shift_assignments_page.no_end_date")})`}
                       </p>
                     </div>
                   </CardContent>
@@ -247,17 +254,16 @@ function AssignmentsContent() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Shift</DialogTitle>
+            <DialogTitle>{t("shifts_settings_page.assign_shift")}</DialogTitle>
             <DialogDescription>
-              Assign a shift to an employee, department, or branch. More
-              specific assignments take priority.
+              {t("shift_assignments_page.assign_desc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Shift */}
             <div>
-              <Label>Shift *</Label>
+              <Label>{t("shift_assignments_page.shift_required")}</Label>
               <Select
                 value={form.shift_public_id}
                 onValueChange={(v) =>
@@ -265,7 +271,7 @@ function AssignmentsContent() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select shift" />
+                  <SelectValue placeholder={t("shifts_settings_page.select_shift")} />
                 </SelectTrigger>
                 <SelectContent>
                   {shiftList.map(
@@ -286,7 +292,7 @@ function AssignmentsContent() {
 
             {/* Assignable type */}
             <div>
-              <Label>Assign To *</Label>
+              <Label>{t("shift_assignments_page.assign_to_required")}</Label>
               <Select
                 value={form.assignable_type}
                 onValueChange={(v) =>
@@ -302,16 +308,18 @@ function AssignmentsContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="employee">
-                    Employee (highest priority)
+                    {t("shift_assignments_page.employee_highest")}
                   </SelectItem>
-                  <SelectItem value="department">Department</SelectItem>
+                  <SelectItem value="department">
+                    {t("shifts_settings_page.department")}
+                  </SelectItem>
                   <SelectItem value="branch">
-                    Branch (lowest priority)
+                    {t("shift_assignments_page.branch_lowest")}
                   </SelectItem>
                 </SelectContent>
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">
-                Priority: Employee → Department → Branch → Default shift
+                {t("shift_assignments_page.priority_hint")}
               </p>
             </div>
 
@@ -319,10 +327,10 @@ function AssignmentsContent() {
             <div>
               <Label>
                 {form.assignable_type === "employee"
-                  ? "Employee"
+                  ? t("shifts_settings_page.employee")
                   : form.assignable_type === "department"
-                    ? "Department"
-                    : "Branch"}{" "}
+                    ? t("shifts_settings_page.department")
+                    : t("shifts_settings_page.branch")}{" "}
                 *
               </Label>
               <Select
@@ -332,7 +340,9 @@ function AssignmentsContent() {
                 }
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={`Select ${form.assignable_type}`} />
+                  <SelectValue
+                    placeholder={`${t("shift_assignments_page.select_prefix")} ${form.assignable_type}`}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {assignableOptions.map((o) => (
@@ -347,7 +357,7 @@ function AssignmentsContent() {
             {/* Date range */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Effective From *</Label>
+                <Label>{t("shifts_settings_page.effective_from")} *</Label>
                 <Input
                   type="date"
                   value={form.effective_from}
@@ -358,7 +368,7 @@ function AssignmentsContent() {
                 />
               </div>
               <div>
-                <Label>Effective To</Label>
+                <Label>{t("shifts_settings_page.effective_to")}</Label>
                 <Input
                   type="date"
                   value={form.effective_to}
@@ -369,7 +379,7 @@ function AssignmentsContent() {
                   className="mt-1"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Leave blank = permanent
+                  {t("shift_assignments_page.leave_blank_hint")}
                 </p>
               </div>
             </div>
@@ -377,7 +387,7 @@ function AssignmentsContent() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => assign.mutate(form)}
@@ -391,7 +401,7 @@ function AssignmentsContent() {
               {assign.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Assign Shift
+              {t("shifts_settings_page.assign_shift")}
             </Button>
           </DialogFooter>
         </DialogContent>

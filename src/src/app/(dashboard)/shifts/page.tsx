@@ -38,6 +38,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ function workedHours(
 }
 
 export default function ShiftsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Shift | null>(null);
@@ -141,11 +143,15 @@ export default function ShiftsPage() {
     onSuccess: () => {
       invalidate();
       setShowDialog(false);
-      toast.success(editing ? "Shift updated" : "Shift created");
+      toast.success(
+        editing
+          ? t("shifts_page.updated")
+          : t("shifts_settings_page.created"),
+      );
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail ?? "Failed to save shift");
+      toast.error(e.response?.data?.detail ?? t("shifts_page.save_failed"));
     },
   });
 
@@ -153,9 +159,9 @@ export default function ShiftsPage() {
     mutationFn: async (id: string) => apiClient.delete(`/shifts/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success("Shift deleted");
+      toast.success(t("shifts_settings_page.deleted"));
     },
-    onError: () => toast.error("Shift is in use — unassign it first"),
+    onError: () => toast.error(t("shifts_page.delete_in_use")),
   });
 
   function openCreate() {
@@ -200,18 +206,18 @@ export default function ShiftsPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Shift Management"
-          description="Define work shifts and assign them to employees, departments, or branches"
+          title={t("shifts_page.title")}
+          description={t("shifts_page.description")}
           actions={
             <div className="flex gap-2">
               <Link href="/shifts/roster">
-                <Button variant="outline">View Roster</Button>
+                <Button variant="outline">{t("shifts_page.view_roster")}</Button>
               </Link>
               <Link href="/shifts/assignments">
-                <Button variant="outline">Assignments</Button>
+                <Button variant="outline">{t("shifts_page.assignments")}</Button>
               </Link>
               <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> New Shift
+                <Plus className="mr-2 h-4 w-4" /> {t("shifts_page.new_shift")}
               </Button>
             </div>
           }
@@ -219,7 +225,7 @@ export default function ShiftsPage() {
 
         {/* Search */}
         <Input
-          placeholder="Search shifts..."
+          placeholder={t("shifts_page.search_placeholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
@@ -237,16 +243,16 @@ export default function ShiftsPage() {
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Clock className="h-12 w-12 text-muted-foreground/40" />
               <p className="mt-3 font-medium">
-                {search ? "No shifts match your search" : "No shifts yet"}
+                {search
+                  ? t("shifts_page.no_match")
+                  : t("shifts_page.no_shifts_yet")}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {search
-                  ? ""
-                  : "Create your first shift — Ethiopian standard: Mon–Fri 8:30–17:30"}
+                {search ? "" : t("shifts_page.create_first_hint")}
               </p>
               {!search && (
                 <Button className="mt-4" onClick={openCreate}>
-                  <Plus className="mr-2 h-4 w-4" /> Create Shift
+                  <Plus className="mr-2 h-4 w-4" /> {t("shifts_page.create_shift")}
                 </Button>
               )}
             </CardContent>
@@ -268,12 +274,14 @@ export default function ShiftsPage() {
                             variant="secondary"
                             className="text-xs shrink-0"
                           >
-                            <Star className="mr-1 h-2.5 w-2.5" /> Default
+                            <Star className="mr-1 h-2.5 w-2.5" />{" "}
+                            {t("shifts_settings_page.default")}
                           </Badge>
                         )}
                         {shift.crosses_midnight && (
                           <Badge variant="outline" className="text-xs shrink-0">
-                            <Moon className="mr-1 h-2.5 w-2.5" /> Night
+                            <Moon className="mr-1 h-2.5 w-2.5" />{" "}
+                            {t("shifts_page.night")}
                           </Badge>
                         )}
                       </div>
@@ -289,7 +297,7 @@ export default function ShiftsPage() {
                           shift.crosses_midnight,
                           shift.break_minutes,
                         )}{" "}
-                        worked
+                        {t("shifts_page.worked")}
                         {shift.break_minutes > 0 &&
                           ` · ${shift.break_minutes}m break`}
                         {` · ${shift.grace_minutes}m grace`}
@@ -307,13 +315,14 @@ export default function ShiftsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(shift)}>
-                          <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                          <Pencil className="mr-2 h-3.5 w-3.5" /> {t("common.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link
                             href={`/shifts/assignments?shift=${shift.public_id}`}
                           >
-                            <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Assign
+                            <CheckCircle2 className="mr-2 h-3.5 w-3.5" />{" "}
+                            {t("shifts_settings_page.assign")}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -321,7 +330,7 @@ export default function ShiftsPage() {
                           className="text-destructive"
                           onClick={() => destroy.mutate(shift.public_id)}
                         >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                          <Trash2 className="mr-2 h-3.5 w-3.5" /> {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -352,8 +361,8 @@ export default function ShiftsPage() {
                       <span className="ml-auto text-xs text-muted-foreground">
                         {shift.assignments_count}{" "}
                         {shift.assignments_count === 1
-                          ? "assignment"
-                          : "assignments"}
+                          ? t("shifts_page.assignment_singular")
+                          : t("shifts_page.assignment_plural")}
                       </span>
                     )}
                   </div>
@@ -368,12 +377,12 @@ export default function ShiftsPage() {
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>
-                {editing ? "Edit Shift" : "Create Shift"}
+                {editing ? t("shifts_page.edit_shift") : t("shifts_page.create_shift")}
               </DialogTitle>
               <DialogDescription>
                 {editing
-                  ? "Update shift details."
-                  : "Define a new work shift. Ethiopian standard is 8:30–17:30, Mon–Fri."}
+                  ? t("shifts_page.update_hint")
+                  : t("shifts_page.define_hint")}
               </DialogDescription>
             </DialogHeader>
 
@@ -381,7 +390,7 @@ export default function ShiftsPage() {
               {/* Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Name (English) *</Label>
+                  <Label>{t("shifts_page.name_english")}</Label>
                   <Input
                     value={form.name}
                     onChange={(e) =>
@@ -392,7 +401,7 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Name (Amharic)</Label>
+                  <Label>{t("shifts_page.name_amharic")}</Label>
                   <Input
                     value={form.name_am}
                     onChange={(e) =>
@@ -407,7 +416,7 @@ export default function ShiftsPage() {
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Start Time *</Label>
+                  <Label>{t("shifts_page.start_time_required")}</Label>
                   <Input
                     type="time"
                     value={form.start_time}
@@ -418,7 +427,7 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>End Time *</Label>
+                  <Label>{t("shifts_page.end_time_required")}</Label>
                   <Input
                     type="time"
                     value={form.end_time}
@@ -433,7 +442,7 @@ export default function ShiftsPage() {
               {/* Duration preview */}
               {form.start_time && form.end_time && (
                 <p className="text-sm text-muted-foreground -mt-2">
-                  Worked:{" "}
+                  {t("shifts_page.worked_label")}:{" "}
                   <strong>
                     {workedHours(
                       form.start_time,
@@ -443,14 +452,14 @@ export default function ShiftsPage() {
                     )}
                   </strong>
                   {form.break_minutes > 0 &&
-                    ` (after ${form.break_minutes}m break)`}
+                    ` (${t("shifts_page.after")} ${form.break_minutes}m ${t("shifts_page.break_lc")})`}
                 </p>
               )}
 
               {/* Minutes */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>Grace (min)</Label>
+                  <Label>{t("shifts_page.grace_min")}</Label>
                   <Input
                     type="number"
                     value={form.grace_minutes}
@@ -466,7 +475,7 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Break (min)</Label>
+                  <Label>{t("shifts_page.break_min")}</Label>
                   <Input
                     type="number"
                     value={form.break_minutes}
@@ -482,7 +491,7 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Early leave (min)</Label>
+                  <Label>{t("shifts_page.early_leave_min")}</Label>
                   <Input
                     type="number"
                     value={form.early_departure_minutes}
@@ -501,7 +510,7 @@ export default function ShiftsPage() {
 
               {/* Working days */}
               <div>
-                <Label>Working Days</Label>
+                <Label>{t("shifts_page.working_days")}</Label>
                 <div className="mt-2 flex gap-2 flex-wrap">
                   {[1, 2, 3, 4, 5, 6, 7].map((d) => (
                     <button
@@ -525,9 +534,11 @@ export default function ShiftsPage() {
               <div className="space-y-3 rounded-lg border p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Crosses midnight</p>
+                    <p className="text-sm font-medium">
+                      {t("shifts_page.crosses_midnight")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Night shift ends next day
+                      {t("shifts_page.crosses_midnight_desc")}
                     </p>
                   </div>
                   <Switch
@@ -539,9 +550,11 @@ export default function ShiftsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Default shift</p>
+                    <p className="text-sm font-medium">
+                      {t("shifts_page.default_shift")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Used when no shift is explicitly assigned
+                      {t("shifts_page.default_shift_desc")}
                     </p>
                   </div>
                   <Switch
@@ -553,9 +566,11 @@ export default function ShiftsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Active</p>
+                    <p className="text-sm font-medium">
+                      {t("shifts_page.active")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Inactive shifts are not matched
+                      {t("shifts_page.active_desc")}
                     </p>
                   </div>
                   <Switch
@@ -570,7 +585,7 @@ export default function ShiftsPage() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowDialog(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 onClick={() => save.mutate(form)}
@@ -584,7 +599,9 @@ export default function ShiftsPage() {
                 {save.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {editing ? "Save Changes" : "Create Shift"}
+                {editing
+                  ? t("leave_types_page.save_changes")
+                  : t("shifts_page.create_shift")}
               </Button>
             </DialogFooter>
           </DialogContent>
