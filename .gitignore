@@ -5,6 +5,7 @@ vendor/
 # Build output
 .next/
 api/public/build/
+src/tsconfig.tsbuildinfo
 
 # Environment
 .env
