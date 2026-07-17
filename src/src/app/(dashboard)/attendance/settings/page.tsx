@@ -12,39 +12,44 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 const ALL_METHODS = [
   {
     key: "biometric",
-    label: "Biometric Device",
-    description: "Fingerprint, face recognition devices",
+    labelKey: "attendance.settings_page.method_biometric_label",
+    descriptionKey: "attendance.settings_page.method_biometric_desc",
   },
   {
     key: "mobile",
-    label: "Mobile Check-in",
-    description: "GPS + selfie from employee phone",
+    labelKey: "attendance.settings_page.method_mobile_label",
+    descriptionKey: "attendance.settings_page.method_mobile_desc",
   },
   {
     key: "qr",
-    label: "QR Code Scan",
-    description: "Scan QR at branch entrance",
+    labelKey: "attendance.settings_page.method_qr_label",
+    descriptionKey: "attendance.settings_page.method_qr_desc",
   },
   {
     key: "kiosk",
-    label: "Kiosk",
-    description: "Shared device with employee code",
+    labelKey: "attendance.settings_page.method_kiosk_label",
+    descriptionKey: "attendance.settings_page.method_kiosk_desc",
   },
-  { key: "web", label: "Web Portal", description: "Check-in from dashboard" },
+  {
+    key: "web",
+    labelKey: "attendance.settings_page.method_web_label",
+    descriptionKey: "attendance.settings_page.method_web_desc",
+  },
   {
     key: "manual",
-    label: "Manual Entry",
-    description: "HR/Admin manual recording",
+    labelKey: "attendance.settings_page.method_manual_label",
+    descriptionKey: "attendance.settings_page.method_manual_desc",
   },
   {
     key: "csv",
-    label: "CSV Import",
-    description: "Bulk import from spreadsheet",
+    labelKey: "attendance.settings_page.method_csv_label",
+    descriptionKey: "attendance.settings_page.method_csv_desc",
   },
 ];
 
@@ -62,6 +67,7 @@ interface AttendanceSettings {
 }
 
 export default function AttendanceSettingsPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<AttendanceSettings | null>(null);
 
@@ -82,9 +88,9 @@ export default function AttendanceSettingsPage() {
     onSuccess: (updated) => {
       setForm(updated);
       queryClient.invalidateQueries({ queryKey: ["attendance", "settings"] });
-      toast.success("Settings saved");
+      toast.success(t("attendance.settings_page.saved"));
     },
-    onError: () => toast.error("Failed to save settings"),
+    onError: () => toast.error(t("attendance.settings_page.save_failed")),
   });
 
   function toggleMethod(method: string) {
@@ -93,7 +99,7 @@ export default function AttendanceSettingsPage() {
       ? form.enabled_methods.filter((m) => m !== method)
       : [...form.enabled_methods, method];
     if (enabled.length === 0) {
-      toast.error("At least one method must be enabled");
+      toast.error(t("attendance.settings_page.at_least_one_method"));
       return;
     }
     setForm({ ...form, enabled_methods: enabled });
@@ -111,8 +117,8 @@ export default function AttendanceSettingsPage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Attendance Settings"
-          description="Configure which attendance methods are enabled and their behavior"
+          title={t("attendance.settings_page.title")}
+          description={t("attendance.settings_page.description")}
           actions={
             <Button
               onClick={() => form && save.mutate(form)}
@@ -123,7 +129,7 @@ export default function AttendanceSettingsPage() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save Changes
+              {t("attendance.settings_page.save_changes")}
             </Button>
           }
         />
@@ -140,7 +146,8 @@ export default function AttendanceSettingsPage() {
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" /> Enabled Attendance Methods
+                  <Settings2 className="h-4 w-4" />{" "}
+                  {t("attendance.settings_page.enabled_methods")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -158,9 +165,11 @@ export default function AttendanceSettingsPage() {
                           onCheckedChange={() => toggleMethod(m.key)}
                         />
                         <div>
-                          <p className="text-sm font-medium">{m.label}</p>
+                          <p className="text-sm font-medium">
+                            {t(m.labelKey)}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {m.description}
+                            {t(m.descriptionKey)}
                           </p>
                         </div>
                       </div>
@@ -173,14 +182,18 @@ export default function AttendanceSettingsPage() {
             {/* Mobile Settings */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Mobile Check-in</CardTitle>
+                <CardTitle className="text-base">
+                  {t("attendance.settings_page.mobile_checkin")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Require geofence</p>
+                    <p className="text-sm font-medium">
+                      {t("attendance.settings_page.require_geofence")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Reject check-ins outside branch area
+                      {t("attendance.settings_page.require_geofence_desc")}
                     </p>
                   </div>
                   <Switch
@@ -190,9 +203,11 @@ export default function AttendanceSettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Require photo</p>
+                    <p className="text-sm font-medium">
+                      {t("attendance.settings_page.require_photo")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Selfie required for check-in
+                      {t("attendance.settings_page.require_photo_desc")}
                     </p>
                   </div>
                   <Switch
@@ -204,7 +219,7 @@ export default function AttendanceSettingsPage() {
                 </div>
                 <div>
                   <Label className="text-sm">
-                    GPS accuracy threshold (meters)
+                    {t("attendance.settings_page.gps_accuracy_threshold")}
                   </Label>
                   <Input
                     type="number"
@@ -220,14 +235,16 @@ export default function AttendanceSettingsPage() {
                     className="mt-1 w-32"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Reject if GPS accuracy exceeds this
+                    {t("attendance.settings_page.gps_accuracy_desc")}
                   </p>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Offline sync</p>
+                    <p className="text-sm font-medium">
+                      {t("attendance.settings_page.offline_sync")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Allow check-in when offline
+                      {t("attendance.settings_page.offline_sync_desc")}
                     </p>
                   </div>
                   <Switch
@@ -241,11 +258,15 @@ export default function AttendanceSettingsPage() {
             {/* QR Settings */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">QR Code</CardTitle>
+                <CardTitle className="text-base">
+                  {t("attendance.settings_page.qr_code")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm">Default expiry (minutes)</Label>
+                  <Label className="text-sm">
+                    {t("attendance.settings_page.default_expiry")}
+                  </Label>
                   <Input
                     type="number"
                     value={form.qr_expiry_minutes}
@@ -262,9 +283,11 @@ export default function AttendanceSettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Auto-refresh</p>
+                    <p className="text-sm font-medium">
+                      {t("attendance.settings_page.auto_refresh")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Auto-regenerate when QR expires
+                      {t("attendance.settings_page.auto_refresh_desc")}
                     </p>
                   </div>
                   <Switch
@@ -273,7 +296,9 @@ export default function AttendanceSettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm">Single-use limit</Label>
+                  <Label className="text-sm">
+                    {t("attendance.settings_page.single_use_limit")}
+                  </Label>
                   <Input
                     type="number"
                     value={form.qr_single_use_limit}
@@ -288,7 +313,7 @@ export default function AttendanceSettingsPage() {
                     className="mt-1 w-32"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    0 = unlimited scans per QR
+                    {t("attendance.settings_page.single_use_limit_desc")}
                   </p>
                 </div>
               </CardContent>
@@ -297,14 +322,18 @@ export default function AttendanceSettingsPage() {
             {/* Kiosk Settings */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kiosk</CardTitle>
+                <CardTitle className="text-base">
+                  {t("attendance.settings_page.kiosk")}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Require employee PIN</p>
+                    <p className="text-sm font-medium">
+                      {t("attendance.settings_page.require_pin")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Employees must enter PIN after code
+                      {t("attendance.settings_page.require_pin_desc")}
                     </p>
                   </div>
                   <Switch
@@ -313,7 +342,9 @@ export default function AttendanceSettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm">Auto-reset delay (seconds)</Label>
+                  <Label className="text-sm">
+                    {t("attendance.settings_page.auto_reset_delay")}
+                  </Label>
                   <Input
                     type="number"
                     value={form.kiosk_auto_reset_seconds}
@@ -328,7 +359,7 @@ export default function AttendanceSettingsPage() {
                     className="mt-1 w-32"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Reset kiosk after success/error
+                    {t("attendance.settings_page.auto_reset_desc")}
                   </p>
                 </div>
               </CardContent>

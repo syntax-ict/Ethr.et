@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 
 interface TeamRecord {
   public_id: string;
@@ -35,6 +36,7 @@ function shiftDate(dateStr: string, days: number) {
 }
 
 export default function TeamAttendancePage() {
+  const { t } = useT();
   const [date, setDate] = useState(todayStr);
 
   const { data, isLoading } = useQuery({
@@ -54,11 +56,11 @@ export default function TeamAttendancePage() {
     <RoleGate minRole="supervisor">
       <div className="space-y-6">
         <PageHeader
-          title="Team Attendance"
+          title={t("attendance.team_page.title")}
           description={
             isToday
-              ? "Today's attendance for your direct reports"
-              : `Attendance for ${date}`
+              ? t("attendance.team_page.today_desc")
+              : `${t("attendance.team_page.date_desc_prefix")} ${date}`
           }
           actions={
             <div className="flex items-center gap-1">
@@ -92,7 +94,7 @@ export default function TeamAttendancePage() {
                   className="ml-1 text-xs"
                   onClick={() => setDate(todayStr())}
                 >
-                  Today
+                  {t("attendance.team_page.today")}
                 </Button>
               )}
             </div>
@@ -108,8 +110,8 @@ export default function TeamAttendancePage() {
         ) : records.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No team attendance records"
-            description="Your direct reports have not checked in yet today"
+            title={t("attendance.team_page.empty_title")}
+            description={t("attendance.team_page.empty_desc")}
           />
         ) : (
           <Card>
@@ -119,22 +121,22 @@ export default function TeamAttendancePage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Employee
+                        {t("attendance.employee")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Date
+                        {t("common.date")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        In
+                        {t("attendance.in")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Out
+                        {t("attendance.out")}
                       </th>
                       <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                        Source
+                        {t("attendance.source")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Status
+                        {t("common.status")}
                       </th>
                     </tr>
                   </thead>

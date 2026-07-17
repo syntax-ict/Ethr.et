@@ -29,6 +29,7 @@ import {
   useRejectCorrection,
 } from "@/features/attendance/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
 interface Correction {
@@ -45,26 +46,31 @@ interface Correction {
 }
 
 export default function CorrectionsPage() {
+  const { t } = useT();
   const { isSupervisor } = usePermissions();
   const [requestOpen, setRequestOpen] = useState(false);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Attendance Corrections"
-        description="Submit and review corrections for attendance records"
+        title={t("attendance.corrections.title")}
+        description={t("attendance.corrections.description")}
         actions={
           <Button onClick={() => setRequestOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Request Correction
+            <Plus className="mr-2 h-4 w-4" /> {t("attendance.corrections.request")}
           </Button>
         }
       />
 
       <Tabs defaultValue="mine">
         <TabsList>
-          <TabsTrigger value="mine">My Requests</TabsTrigger>
+          <TabsTrigger value="mine">
+            {t("attendance.corrections.my_requests")}
+          </TabsTrigger>
           {isSupervisor && (
-            <TabsTrigger value="pending">Pending Reviews</TabsTrigger>
+            <TabsTrigger value="pending">
+              {t("attendance.corrections.pending_reviews")}
+            </TabsTrigger>
           )}
         </TabsList>
 
@@ -86,6 +92,7 @@ export default function CorrectionsPage() {
 // ── MY REQUESTS ────────────────────────────────────────────────
 
 function MyRequestsTab() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["corrections", "mine"],
     queryFn: async () => (await apiClient.get("/attendance/corrections")).data,
@@ -107,8 +114,8 @@ function MyRequestsTab() {
     return (
       <EmptyState
         icon={FileEdit}
-        title="No correction requests"
-        description="Submit a correction request if your attendance record is incorrect"
+        title={t("attendance.corrections.empty_title")}
+        description={t("attendance.corrections.empty_desc")}
       />
     );
   }
@@ -121,19 +128,19 @@ function MyRequestsTab() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Date
+                  {t("common.date")}
                 </th>
                 <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                  Corrected In
+                  {t("attendance.corrections.corrected_in")}
                 </th>
                 <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                  Corrected Out
+                  {t("attendance.corrections.corrected_out")}
                 </th>
                 <th className="hidden max-w-xs px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                  Reason
+                  {t("attendance.corrections.reason")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Status
+                  {t("common.status")}
                 </th>
               </tr>
             </thead>
@@ -171,6 +178,7 @@ function MyRequestsTab() {
 // ── PENDING REVIEWS (supervisor) ───────────────────────────────
 
 function PendingReviewsTab() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [rejectFor, setRejectFor] = useState<Correction | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -191,9 +199,9 @@ function PendingReviewsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corrections"] });
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast.success("Correction approved");
+      toast.success(t("attendance.corrections.approved"));
     },
-    onError: () => toast.error("Approve failed"),
+    onError: () => toast.error(t("attendance.corrections.approve_failed")),
   });
 
   const rejectMut = useMutation({
@@ -212,11 +220,11 @@ function PendingReviewsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corrections"] });
-      toast.success("Correction rejected");
+      toast.success(t("attendance.corrections.rejected"));
       setRejectFor(null);
       setRejectReason("");
     },
-    onError: () => toast.error("Reject failed"),
+    onError: () => toast.error(t("attendance.corrections.reject_failed")),
   });
 
   const items: Correction[] = data?.data ?? [];
@@ -235,8 +243,8 @@ function PendingReviewsTab() {
     return (
       <EmptyState
         icon={Check}
-        title="All caught up"
-        description="No correction requests pending your review"
+        title={t("attendance.corrections.caught_up")}
+        description={t("attendance.corrections.no_pending")}
       />
     );
   }
@@ -272,7 +280,9 @@ function PendingReviewsTab() {
                     </div>
                     <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-muted-foreground">Original:</span>
+                        <span className="text-muted-foreground">
+                          {t("attendance.corrections.original")}:
+                        </span>
                         <span className="font-mono">
                           {c.original_check_in ?? "—"} →{" "}
                           {c.original_check_out ?? "—"}
@@ -280,7 +290,7 @@ function PendingReviewsTab() {
                       </div>
                       <div className="flex items-baseline gap-2">
                         <span className="text-muted-foreground">
-                          Requested:
+                          {t("attendance.corrections.requested")}:
                         </span>
                         <span className="font-mono font-medium text-foreground">
                           {c.corrected_check_in ?? "—"} →{" "}
@@ -306,7 +316,8 @@ function PendingReviewsTab() {
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <>
-                          <Check className="mr-1 h-3 w-3" /> Approve
+                          <Check className="mr-1 h-3 w-3" />{" "}
+                          {t("common.approve")}
                         </>
                       )}
                     </Button>
@@ -317,7 +328,7 @@ function PendingReviewsTab() {
                       onClick={() => setRejectFor(c)}
                       disabled={isProcessing}
                     >
-                      <X className="mr-1 h-3 w-3" /> Reject
+                      <X className="mr-1 h-3 w-3" /> {t("common.reject")}
                     </Button>
                   </div>
                 </div>
@@ -338,22 +349,23 @@ function PendingReviewsTab() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Correction</DialogTitle>
+            <DialogTitle>{t("attendance.corrections.reject_title")}</DialogTitle>
             <DialogDescription>
-              Tell {rejectFor?.employee?.name ?? "the employee"} why this
-              correction is being rejected.
+              {t("attendance.corrections.reject_desc_prefix")}{" "}
+              {rejectFor?.employee?.name ?? t("attendance.corrections.the_employee")}{" "}
+              {t("attendance.corrections.reject_desc_suffix")}
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Reason for rejection"
+            placeholder={t("attendance.corrections.reject_reason_placeholder")}
             rows={3}
             required
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectFor(null)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -369,7 +381,7 @@ function PendingReviewsTab() {
               {rejectMut.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Reject Correction
+              {t("attendance.corrections.reject_correction")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -387,6 +399,7 @@ function RequestDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     date: "",
@@ -402,7 +415,7 @@ function RequestDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["corrections"] });
-      toast.success("Correction request submitted");
+      toast.success(t("attendance.corrections.submitted"));
       onClose();
       setForm({
         date: "",
@@ -411,14 +424,14 @@ function RequestDialog({
         reason: "",
       });
     },
-    onError: () => toast.error("Failed to submit correction"),
+    onError: () => toast.error(t("attendance.corrections.submit_failed")),
   });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Request Attendance Correction</DialogTitle>
+          <DialogTitle>{t("attendance.corrections.request_title")}</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -428,7 +441,7 @@ function RequestDialog({
           className="space-y-4"
         >
           <div>
-            <Label>Date *</Label>
+            <Label>{t("attendance.date_required")}</Label>
             <Input
               type="date"
               value={form.date}
@@ -439,7 +452,7 @@ function RequestDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Correct Check In</Label>
+              <Label>{t("attendance.corrections.correct_check_in")}</Label>
               <Input
                 type="time"
                 value={form.corrected_check_in}
@@ -450,7 +463,7 @@ function RequestDialog({
               />
             </div>
             <div>
-              <Label>Correct Check Out</Label>
+              <Label>{t("attendance.corrections.correct_check_out")}</Label>
               <Input
                 type="time"
                 value={form.corrected_check_out}
@@ -465,26 +478,26 @@ function RequestDialog({
             </div>
           </div>
           <div>
-            <Label>Reason *</Label>
+            <Label>{t("attendance.reason_required")}</Label>
             <Textarea
               value={form.reason}
               onChange={(e) =>
                 setForm((p) => ({ ...p, reason: e.target.value }))
               }
               required
-              placeholder="Explain why the correction is needed"
+              placeholder={t("attendance.corrections.reason_placeholder")}
               className="mt-1"
             />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={submit.isPending}>
               {submit.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Submit Request
+              {t("attendance.corrections.submit_request")}
             </Button>
           </DialogFooter>
         </form>

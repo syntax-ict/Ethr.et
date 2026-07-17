@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useT } from "@/lib/i18n/useT";
 
 interface OvertimeResponse {
   period: string;
@@ -31,6 +32,7 @@ interface OvertimeResponse {
 const THRESHOLD_MINUTES = 600; // 10 hours/month flag
 
 export default function OvertimePage() {
+  const { t } = useT();
   const [period, setPeriod] = useState<"weekly" | "monthly">("monthly");
 
   const { data, isLoading } = useQuery<OvertimeResponse>({
@@ -58,8 +60,8 @@ export default function OvertimePage() {
     <RoleGate minRole="hr_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Overtime Dashboard"
-          description="Overtime hours by employee with threshold alerts"
+          title={t("attendance.overtime_page.title")}
+          description={t("attendance.overtime_page.description")}
           actions={
             <Select
               value={period}
@@ -69,8 +71,12 @@ export default function OvertimePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="weekly">This Week</SelectItem>
-                <SelectItem value="monthly">This Month</SelectItem>
+                <SelectItem value="weekly">
+                  {t("attendance.overtime_page.this_week")}
+                </SelectItem>
+                <SelectItem value="monthly">
+                  {t("attendance.overtime_page.this_month")}
+                </SelectItem>
               </SelectContent>
             </Select>
           }
@@ -87,23 +93,27 @@ export default function OvertimePage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <Kpi
                 icon={Users}
-                title="Employees with OT"
+                title={t("attendance.overtime_page.employees_with_ot")}
                 value={String(employees.length)}
-                sub={`${period} period`}
+                sub={
+                  period === "monthly"
+                    ? t("attendance.overtime_page.this_month")
+                    : t("attendance.overtime_page.this_week")
+                }
                 color="blue"
               />
               <Kpi
                 icon={Clock}
-                title="Total OT Hours"
+                title={t("attendance.overtime_page.total_ot_hours")}
                 value={(totalMinutes / 60).toFixed(1)}
-                sub="across all employees"
+                sub={t("attendance.overtime_page.across_all_employees")}
                 color="purple"
               />
               <Kpi
                 icon={TrendingUp}
-                title="Over Threshold"
+                title={t("attendance.overtime_page.over_threshold")}
                 value={String(overThreshold)}
-                sub={`>${(THRESHOLD_MINUTES / 60).toFixed(0)}h flagged`}
+                sub={`>${(THRESHOLD_MINUTES / 60).toFixed(0)}h ${t("attendance.overtime_page.flagged")}`}
                 color={overThreshold > 0 ? "red" : "green"}
               />
             </div>
@@ -111,15 +121,15 @@ export default function OvertimePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Overtime by Employee
+                  {t("attendance.overtime_page.by_employee")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {employees.length === 0 ? (
                   <EmptyState
                     icon={Clock}
-                    title="No overtime recorded"
-                    description={`No employees logged overtime ${period === "monthly" ? "this month" : "this week"}`}
+                    title={t("attendance.overtime_page.empty_title")}
+                    description={`${t("attendance.overtime_page.empty_desc_prefix")} ${period === "monthly" ? t("attendance.overtime_page.this_month_lc") : t("attendance.overtime_page.this_week_lc")}`}
                   />
                 ) : (
                   <div className="overflow-x-auto">
@@ -127,16 +137,16 @@ export default function OvertimePage() {
                       <thead className="border-b bg-muted/50">
                         <tr>
                           <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                            Employee
+                            {t("attendance.employee")}
                           </th>
                           <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                            Days with OT
+                            {t("attendance.overtime_page.days_with_ot")}
                           </th>
                           <th className="px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground">
-                            Total Hours
+                            {t("attendance.overtime_page.total_hours")}
                           </th>
                           <th className="px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground">
-                            Status
+                            {t("common.status")}
                           </th>
                         </tr>
                       </thead>
@@ -165,14 +175,14 @@ export default function OvertimePage() {
                                     variant="outline"
                                     className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0"
                                   >
-                                    Over threshold
+                                    {t("attendance.overtime_page.over_threshold_badge")}
                                   </Badge>
                                 ) : (
                                   <Badge
                                     variant="outline"
                                     className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
                                   >
-                                    OK
+                                    {t("attendance.overtime_page.ok")}
                                   </Badge>
                                 )}
                               </td>
