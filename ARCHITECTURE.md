@@ -552,6 +552,28 @@ top-level instead of nested under `meta`) that silently breaks any frontend
 code written against the standard envelope — this exact bug shipped on the
 admin tenants list and the tenant audit log page before being caught.
 
+### Contract Testing (Generated Types + MSW)
+
+`npm run generate:api` exports the Laravel OpenAPI spec (via Scramble) and
+runs it through `openapi-typescript` into `src/api/generated.ts`
+(`components["schemas"][...]`, `paths[...]`). Feature-scoped types
+(`src/features/{feature}/types.ts`) should `Pick<>` from these generated
+schemas rather than hand-declaring parallel interfaces — a hand-rolled type
+drifts silently from the real API shape. This exact drift shipped once:
+`features/employees/types.ts` declared `position: { name: string }` while
+the real `PositionResource` field is `title`, so the employee list and
+detail pages always rendered "—" for position in production.
+
+Request mocking in Vitest uses MSW (`src/test/msw/handlers.ts` +
+`src/test/msw/server.ts`, wired into `src/test/setup.ts` with
+`onUnhandledRequest: "error"`) rather than mocking `apiClient` directly,
+so tests exercise the real axios request/response pipeline (interceptors,
+error handling) against fixtures typed off the same generated schemas —
+see `src/test/employees-api.test.tsx` for the reference pattern. Prefer this
+over `vi.mock("@/api/client")` for new feature tests; the existing
+`vi.mock`-based tests (e.g. `notifications-optimistic.test.tsx`) predate
+this convention and don't need to be migrated on sight.
+
 ### Route Structure
 
 ```

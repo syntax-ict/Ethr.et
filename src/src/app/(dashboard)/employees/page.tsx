@@ -123,7 +123,7 @@ export default function EmployeesPage() {
       enableSorting: false,
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.position?.name ?? "—"}
+          {row.original.position?.title ?? "—"}
         </span>
       ),
     },

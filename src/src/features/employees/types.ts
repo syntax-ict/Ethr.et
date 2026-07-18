@@ -1,19 +1,25 @@
-export interface Employee {
-  public_id: string;
-  name: string;
-  name_am: string | null;
-  email: string | null;
-  phone: string | null;
-  employee_code: string | null;
-  gender: string | null;
-  status: string;
-  hire_date: string;
-  salary_cents?: number;
-  department: { public_id: string; name: string } | null;
-  branch: { public_id: string; name: string } | null;
-  position: { public_id: string; name: string } | null;
-  created_at: string;
-}
+import type { components } from "@/api/generated";
+
+// Derived from the generated OpenAPI schema rather than hand-duplicated, so
+// a backend field rename (e.g. PositionResource.title) is caught by tsc
+// instead of silently rendering "—" in the UI.
+export type Employee = Pick<
+  components["schemas"]["EmployeeResource"],
+  | "public_id"
+  | "name"
+  | "name_am"
+  | "email"
+  | "phone"
+  | "employee_code"
+  | "gender"
+  | "status"
+  | "hire_date"
+  | "salary_cents"
+  | "department"
+  | "branch"
+  | "position"
+  | "created_at"
+>;
 
 export interface EmployeeFormData {
   name: string;

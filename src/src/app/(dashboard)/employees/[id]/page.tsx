@@ -293,7 +293,7 @@ export default function EmployeeDetailPage({
                 <InfoRow
                   icon={Briefcase}
                   label={t("common.position", "Position")}
-                  value={employee.position?.name ?? "—"}
+                  value={employee.position?.title ?? "—"}
                 />
                 <InfoRow
                   label={t("employee.detail.branch", "Branch")}
