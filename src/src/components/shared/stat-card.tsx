@@ -38,7 +38,7 @@ export function StatCard({
           <p
             className={cn(
               "mt-1 text-xs",
-              trend.value >= 0 ? "text-emerald-600" : "text-red-600",
+              trend.value >= 0 ? "text-status-success" : "text-status-error",
             )}
           >
             {trend.value >= 0 ? "+" : ""}

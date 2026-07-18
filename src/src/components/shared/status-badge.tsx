@@ -1,32 +1,31 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+// Built on the semantic status tokens (globals.css) rather than raw Tailwind
+// palette classes, so badges repaint automatically for dark mode via the
+// token's own light/dark value instead of a separate `dark:` override per
+// status. `/15` and `/60` are Tailwind opacity modifiers on the CSS variable.
 const statusStyles: Record<string, string> = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  confirmed:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  hired: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-  probation:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-  suspended:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-  terminated: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-  resigned: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-  retired: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  pending:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-  approved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-  cancelled: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  completed:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  draft: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  processing: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-  present: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  late: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-  absent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  voided: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+  active: "bg-status-success/15 text-status-success",
+  confirmed: "bg-status-success/15 text-status-success",
+  hired: "bg-status-info/15 text-status-info",
+  probation: "bg-status-warning/15 text-status-warning",
+  suspended: "bg-status-warning/15 text-status-warning",
+  terminated: "bg-status-error/15 text-status-error",
+  resigned: "bg-muted text-muted-foreground",
+  retired: "bg-muted text-muted-foreground",
+  pending: "bg-status-warning/15 text-status-warning",
+  approved: "bg-status-success/15 text-status-success",
+  rejected: "bg-status-error/15 text-status-error",
+  cancelled: "bg-muted text-muted-foreground",
+  completed: "bg-status-success/15 text-status-success",
+  draft: "bg-muted text-muted-foreground",
+  processing: "bg-status-info/15 text-status-info",
+  present: "bg-status-success/15 text-status-success",
+  late: "bg-status-warning/15 text-status-warning",
+  absent: "bg-status-error/15 text-status-error",
+  paid: "bg-status-success/15 text-status-success",
+  voided: "bg-status-error/15 text-status-error",
 };
 
 interface StatusBadgeProps {
@@ -40,8 +39,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       variant="outline"
       className={cn(
         "border-0 font-medium capitalize",
-        statusStyles[status] ??
-          "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+        statusStyles[status] ?? "bg-muted text-muted-foreground",
         className,
       )}
     >
