@@ -33,6 +33,7 @@ export function useMyProfile() {
       const { data } = await apiClient.get("/profile");
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 

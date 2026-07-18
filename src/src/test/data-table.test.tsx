@@ -258,6 +258,18 @@ describe("DataTable", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders Amharic text without truncation or encoding issues", () => {
+    const amharicRows: Row[] = [
+      { id: "1", name: "አበበ ከበደ" },
+      { id: "2", name: "ሳራ ተስፋዬ" },
+    ];
+    render(
+      <DataTable tableId="test-amharic" columns={columns} data={amharicRows} />,
+    );
+    expect(screen.getByText("አበበ ከበደ")).toBeInTheDocument();
+    expect(screen.getByText("ሳራ ተስፋዬ")).toBeInTheDocument();
+  });
+
   it("applies sticky positioning classes to pinned columns", () => {
     const pinnedColumns: ColumnDef<Row, unknown>[] = [
       {

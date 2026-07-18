@@ -51,6 +51,7 @@ export function useAdminTenants(params?: {
       });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -62,6 +63,7 @@ export function useAdminTenant(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 

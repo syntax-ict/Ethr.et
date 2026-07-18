@@ -38,6 +38,7 @@ export function useShifts(params?: { page?: number; per_page?: number }) {
       const { data } = await apiClient.get("/shifts", { params });
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -49,6 +50,7 @@ export function useShift(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -62,6 +64,7 @@ export function useShiftSchedule(params?: {
       const { data } = await apiClient.get("/shifts/schedule", { params });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 

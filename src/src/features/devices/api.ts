@@ -49,6 +49,7 @@ export function useDevices(params?: { page?: number; per_page?: number }) {
       const { data } = await apiClient.get("/devices", { params });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -60,6 +61,7 @@ export function useDevice(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -70,6 +72,7 @@ export function useDeviceDashboard() {
       const { data } = await apiClient.get("/devices/dashboard");
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 

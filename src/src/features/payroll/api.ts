@@ -75,6 +75,7 @@ export function usePayrollRuns(params?: { page?: number }) {
       const { data } = await apiClient.get("/payroll/runs", { params });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -86,6 +87,7 @@ export function usePayrollRun(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -179,6 +181,7 @@ export function useMyPayslips(params?: { page?: number }) {
       const { data } = await apiClient.get("/payroll/payslips/my", { params });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -196,6 +199,7 @@ export function useEmployeePayslips(
       return data;
     },
     enabled: !!employeePublicId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -208,6 +212,7 @@ export function useLoans(params?: { page?: number }) {
       const { data } = await apiClient.get("/payroll/loans", { params });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -219,6 +224,7 @@ export function useLoan(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

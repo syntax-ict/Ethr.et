@@ -53,6 +53,7 @@ export function useTeamAttendanceSummary(
       });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -75,6 +76,7 @@ export function useTeamOvertime() {
       const { data } = await apiClient.get("/team/overtime");
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -102,5 +104,6 @@ export function useTeamLeaveCalendar(month?: string) {
       });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }

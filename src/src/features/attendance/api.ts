@@ -51,6 +51,7 @@ export function useMyAttendance(params?: { page?: number }) {
       const { data } = await apiClient.get("/attendance/my", { params });
       return data;
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -63,6 +64,7 @@ export function useAttendanceList(params?: AttendanceFilters) {
       const { data } = await apiClient.get("/attendance", { params });
       return data;
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -144,6 +146,7 @@ export function useCorrections(params?: {
       });
       return data;
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -154,6 +157,7 @@ export function usePendingCorrections() {
       const { data } = await apiClient.get("/attendance/corrections/pending");
       return data;
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -226,6 +230,7 @@ export function useAttendanceIntelligence() {
       const { data } = await apiClient.get("/attendance/intelligence");
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -239,5 +244,6 @@ export function useAttendanceOvertime(params?: {
       const { data } = await apiClient.get("/attendance/overtime", { params });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }

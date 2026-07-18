@@ -46,6 +46,7 @@ export function useMyLeaveRequests(params?: { page?: number }) {
       const { data } = await apiClient.get("/leave/my", { params });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -56,6 +57,7 @@ export function useTeamLeaveRequests(params?: { page?: number }) {
       const { data } = await apiClient.get("/leave/team", { params });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 

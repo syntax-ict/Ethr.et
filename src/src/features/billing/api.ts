@@ -36,6 +36,7 @@ export function useBillingDashboard() {
       const { data } = await apiClient.get("/billing/dashboard");
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -46,6 +47,7 @@ export function usePlans() {
       const { data } = await apiClient.get("/plans");
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 

@@ -29,6 +29,7 @@ export function useAnnouncements(params?: { page?: number }) {
       const { data } = await apiClient.get("/announcements", { params });
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -40,6 +41,7 @@ export function useAnnouncement(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

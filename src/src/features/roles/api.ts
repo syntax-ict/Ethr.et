@@ -33,6 +33,7 @@ export function useCustomRoles(params?: {
       const { data } = await apiClient.get("/roles", { params });
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -44,6 +45,7 @@ export function useCustomRole(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -54,6 +56,7 @@ export function usePermissions() {
       const { data } = await apiClient.get("/permissions");
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 
