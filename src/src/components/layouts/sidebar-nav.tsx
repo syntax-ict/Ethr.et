@@ -359,7 +359,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     .filter((s) => s.items.length > 0);
 
   return (
-    <nav className="flex flex-col gap-1 px-3 py-2">
+    <nav aria-label="Main navigation" className="flex flex-col gap-1 px-3 py-2">
       {visibleSections.map((section, si) => (
         <div key={si}>
           {section.title && (
@@ -385,6 +385,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive

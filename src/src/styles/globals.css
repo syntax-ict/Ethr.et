@@ -163,4 +163,12 @@
 [lang="om"],
 .text-ethiopic {
   line-height: 1.7;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Focus ring for keyboard accessibility (WCAG 2.1 AA) */
+:focus-visible {
+  outline: 2px solid var(--interactive-focus);
+  outline-offset: 2px;
 }

@@ -3,7 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clock, LayoutDashboard, Menu, Receipt } from "lucide-react";
+import {
+  CalendarDays,
+  Clock,
+  LayoutDashboard,
+  Menu,
+  Receipt,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { Sheet } from "@/components/ui/sheet";
@@ -23,7 +29,11 @@ export function MobileBottomNav() {
 
   const tabs = [
     { label: t("nav.home", "Home"), href: "/dashboard", icon: LayoutDashboard },
-    { label: t("nav.attendance", "Attendance"), href: "/attendance", icon: Clock },
+    {
+      label: t("nav.attendance", "Attendance"),
+      href: "/attendance",
+      icon: Clock,
+    },
     { label: t("nav.leave", "Leave"), href: "/leave", icon: CalendarDays },
     {
       label: t("nav.payslips", "Payslips"),
@@ -46,11 +56,10 @@ export function MobileBottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium",
-                isActive
-                  ? "text-interactive-primary"
-                  : "text-muted-foreground",
+                isActive ? "text-interactive-primary" : "text-muted-foreground",
               )}
             >
               <Icon className="h-5 w-5" />
