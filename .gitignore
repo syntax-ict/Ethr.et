@@ -38,3 +38,6 @@ api/bootstrap/cache/*.php
 # Test
 coverage/
 .phpunit.result.cache
+src/test-results/
+src/playwright-report/
+src/lighthouse-reports/

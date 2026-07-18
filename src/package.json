@@ -10,6 +10,11 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:a11y": "playwright test accessibility.spec.ts",
+    "test:e2e:offline": "playwright test offline.spec.ts",
+    "test:e2e:responsive": "playwright test responsive.spec.ts",
+    "test:e2e:dark": "playwright test dark-mode.spec.ts",
+    "analyze": "ANALYZE=true next build",
     "typecheck": "tsc --noEmit",
     "generate:api": "cd ../api && php artisan scramble:export --path=openapi.json && cd ../src && npx openapi-typescript ../api/openapi.json -o src/api/generated.ts"
   },
@@ -50,6 +55,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
     "@eslint/eslintrc": "^3.3.5",
+    "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.47.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/dom": "^10.4.1",
