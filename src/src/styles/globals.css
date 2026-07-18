@@ -156,3 +156,11 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Ethiopic script requires taller line-height (1.7) vs Latin (1.5) */
+[lang="am"],
+[lang="ti"],
+[lang="om"],
+.text-ethiopic {
+  line-height: 1.7;
+}
