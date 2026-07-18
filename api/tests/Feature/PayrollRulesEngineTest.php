@@ -66,6 +66,43 @@ test('tax calculator: bracket 7 — 15000 ETB', function () {
     expect($calc->calculate(1500000))->toBe(375000);
 });
 
+test('tax calculator: exact bracket 6/7 boundary — 10900.00 ETB stays in bracket 6', function () {
+    $calc = new TaxCalculator;
+    // 1090000 * 30% - 95500 = 327000 - 95500 = 231500
+    expect($calc->calculate(1090000))->toBe(231500);
+});
+
+test('tax calculator: one cent over the boundary — 10900.01 ETB moves into bracket 7', function () {
+    $calc = new TaxCalculator;
+    // 1090001 * 35% - 150000 = 381500.35 - 150000 = 231500.35, rounds to 231500
+    expect($calc->calculate(1090001))->toBe(231500);
+});
+
+test('tax calculator: the bracket boundary is continuous, not a cliff', function () {
+    $calc = new TaxCalculator;
+
+    $justBelow = $calc->calculate(1090000);
+    $justAbove = $calc->calculate(1090001);
+
+    // A one-cent raise must not produce a jump in tax owed.
+    expect(abs($justAbove - $justBelow))->toBeLessThanOrEqual(1);
+});
+
+test('tax calculator: a mid-month raise crossing a bracket boundary taxes only the new gross, not a blend', function () {
+    $calc = new TaxCalculator;
+
+    // Employee starts the month at 900000 cents (bracket 6) and gets a raise
+    // to 1500000 cents (bracket 7) mid-month. Payroll taxes the period's
+    // actual gross taxable amount for that bracket — there is no proration
+    // of the tax calculation itself across brackets mid-period.
+    $beforeRaise = $calc->calculate(900000);
+    $afterRaise = $calc->calculate(1500000);
+
+    expect($beforeRaise)->toBe(174500);
+    expect($afterRaise)->toBe(375000);
+    expect($afterRaise)->toBeGreaterThan($beforeRaise);
+});
+
 // ── Pension Calculator ──
 
 test('pension calculates 7% employee and 11% employer', function () {

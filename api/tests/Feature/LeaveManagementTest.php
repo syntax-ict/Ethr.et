@@ -260,6 +260,71 @@ test('maternity leave restricted to female employees', function () {
         ->assertJsonPath('title', 'Leave Type Restricted');
 });
 
+test('maternity leave spanning 120 calendar days across four months is approved and deducted correctly', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'gender' => 'female',
+    ]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+
+    $leaveType = LeaveType::factory()->maternity()->create([
+        'tenant_id' => $tenant->id,
+        'code' => 'maternity_test',
+        'min_notice_days' => 0,
+    ]);
+
+    // 120 consecutive calendar days starting a month out (must be in the
+    // future for min_notice_days), guaranteed to span multiple months.
+    $start = now()->addDays(35)->startOfDay();
+    $end = $start->copy()->addDays(119);
+    expect((int) $start->diffInDays($end) + 1)->toBe(120);
+    expect($start->month)->not->toBe($end->month);
+
+    LeaveBalance::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'year' => $start->year,
+        'entitled_days' => 120,
+        'used_days' => 0,
+    ]);
+
+    test()->actingAs($user);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
+        'leave_type_public_id' => $leaveType->public_id,
+        'start_date' => $start->format('Y-m-d'),
+        'end_date' => $end->format('Y-m-d'),
+    ]);
+
+    $response->assertStatus(201);
+
+    // LeaveDayCalculator counts working days (excludes weekends/holidays), so
+    // a 120-calendar-day span pins to fewer than 120 "days" here — this is
+    // the system's current, uniformly-applied behavior for every leave type.
+    // Ethiopian law (Labour Proclamation 1156/2019 Art. 88) grants maternity
+    // leave as 120 *consecutive* days, which reads as calendar days, not
+    // working days — worth verifying against the actual proclamation text
+    // and reconsidering whether maternity/one-time leave types should count
+    // calendar days instead. Not changed here; this test pins current
+    // behavior so a future change is a deliberate, visible diff.
+    $days = (float) $response->json('days');
+    expect($days)->toBeGreaterThan(0)->toBeLessThan(120);
+
+    $leaveRequest = LeaveRequest::where('employee_id', $employee->id)->firstOrFail();
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leaveRequest->public_id}/approve")
+        ->assertOk();
+
+    $balance = LeaveBalance::where('employee_id', $employee->id)
+        ->where('leave_type_id', $leaveType->id)
+        ->first();
+
+    expect((float) $balance->used_days)->toBe($days);
+});
+
 test('min notice period enforced', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
