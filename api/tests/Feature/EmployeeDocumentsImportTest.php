@@ -125,7 +125,7 @@ describe('employee documents', function () {
         $this->deleteJson("/api/v1/employees/{$employee->public_id}/documents/{$doc->public_id}")
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('employee_documents', ['public_id' => $doc->public_id]);
+        $this->assertSoftDeleted('employee_documents', ['public_id' => $doc->public_id]);
     });
 
     it('shows expiry status', function () {

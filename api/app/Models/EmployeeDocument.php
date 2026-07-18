@@ -8,10 +8,11 @@ use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EmployeeDocument extends Model
 {
-    use BelongsToTenant, HasPublicId;
+    use BelongsToTenant, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',

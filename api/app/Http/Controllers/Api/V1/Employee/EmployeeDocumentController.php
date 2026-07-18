@@ -80,7 +80,9 @@ class EmployeeDocumentController extends Controller
     {
         Gate::authorize('employee.update');
 
-        $this->fileService->delete($document->file_path);
+        // Soft delete only — the underlying file is kept in case the document
+        // is later referenced in a legal/payroll dispute. Physical cleanup
+        // happens on a retention job once the record is permanently purged.
         $document->delete();
 
         AuditLog::record('employee.document.deleted', $employee, [
