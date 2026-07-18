@@ -5,19 +5,24 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\LeaveStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\LeaveBalance;
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\CurrentTenant;
+use App\Services\Payroll\PayrollEngine;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -26,6 +31,10 @@ class DemoTenantSeeder extends Seeder
 {
     public function run(): void
     {
+        // BelongsToTenant's global scope filters every query to 0 rows
+        // unless CurrentTenant is resolved — without this, every
+        // firstOrCreate()/updateOrCreate() lookup below silently fails to
+        // find existing rows and re-seeding crashes on unique constraints.
         $tenant = Tenant::firstOrCreate(['subdomain' => 'demo'], [
             'public_id' => (string) Str::ulid(),
             'name' => 'Ethio Demo Corp',
@@ -38,6 +47,8 @@ class DemoTenantSeeder extends Seeder
             ],
             'trial_ends_at' => now()->addMonths(6),
         ]);
+
+        app(CurrentTenant::class)->set($tenant);
 
         $adminUser = User::updateOrCreate(['email' => 'admin@demo.ethr.et'], [
             'public_id' => (string) Str::ulid(),
@@ -108,14 +119,14 @@ class DemoTenantSeeder extends Seeder
             ],
         );
 
-        if (Employee::where('tenant_id', $tenant->id)->count() >= 100) {
+        if (Employee::where('tenant_id', $tenant->id)->count() >= 150) {
             $this->command->info('Demo tenant already seeded — skipping bulk data.');
 
             return;
         }
 
         $employees = [];
-        for ($i = 0; $i < 100; $i++) {
+        for ($i = 0; $i < 150; $i++) {
             $dept = $departments[array_rand($departments)];
             $pos = $positions[array_rand($positions)];
 
@@ -194,14 +205,14 @@ class DemoTenantSeeder extends Seeder
             );
         }
 
-        for ($month = 2; $month >= 0; $month--) {
+        for ($month = 5; $month >= 0; $month--) {
             $monthStart = Carbon::now()->subMonths($month)->startOfMonth();
             $monthEnd = Carbon::now()->subMonths($month)->endOfMonth();
 
             $current = $monthStart->copy();
             while ($current->lte($monthEnd)) {
                 if ($current->isWeekday()) {
-                    foreach (array_slice($employees, 0, 90) as $employee) {
+                    foreach (array_slice($employees, 0, 135) as $employee) {
                         $late = fake()->boolean(10);
                         $checkIn = $current->copy()->setTime(8, $late ? fake()->numberBetween(35, 59) : fake()->numberBetween(15, 30));
                         $checkOut = $current->copy()->setTime(17, fake()->numberBetween(25, 50));
@@ -224,6 +235,95 @@ class DemoTenantSeeder extends Seeder
             }
         }
 
+        // 3 months of payroll history, run through the real engine for
+        // realistic tax/pension calculations. The two oldest runs are
+        // approved; the most recent is left completed-but-unapproved, since
+        // that's the realistic state of a payroll run right after processing.
+        $payrollEngine = app(PayrollEngine::class);
+        for ($month = 2; $month >= 0; $month--) {
+            $periodStart = Carbon::now()->subMonths($month)->startOfMonth();
+            $periodEnd = Carbon::now()->subMonths($month)->endOfMonth();
+
+            $result = $payrollEngine->process(
+                $tenant->id,
+                $periodStart,
+                $periodEnd,
+                $adminUser->id,
+                "demo-seed-payroll-{$periodStart->format('Y-m')}",
+            );
+
+            if ($month > 0) {
+                $result->run->update([
+                    'status' => 'approved',
+                    'approved_by' => $adminUser->id,
+                    'approved_at' => $periodEnd->copy()->addDays(3),
+                ]);
+            }
+        }
+
+        // Pending, approved, and rejected leave requests for a realistic
+        // approval-center demo.
+        $annualLeaveType = $leaveTypes[0];
+        $leaveRequestEmployees = array_slice($employees, 0, 15);
+
+        foreach ($leaveRequestEmployees as $index => $employee) {
+            $status = match (true) {
+                $index < 6 => LeaveStatus::PENDING,
+                $index < 11 => LeaveStatus::APPROVED,
+                default => LeaveStatus::REJECTED,
+            };
+
+            $start = now()->addDays(fake()->numberBetween(3, 30));
+            $end = $start->copy()->addDays(fake()->numberBetween(1, 4));
+
+            LeaveRequest::create([
+                'public_id' => (string) Str::ulid(),
+                'tenant_id' => $tenant->id,
+                'employee_id' => $employee->id,
+                'leave_type_id' => $annualLeaveType->id,
+                'start_date' => $start->format('Y-m-d'),
+                'end_date' => $end->format('Y-m-d'),
+                'days' => $start->diffInWeekdays($end) + 1,
+                'reason' => fake()->sentence(),
+                'status' => $status,
+                'approved_by' => $status === LeaveStatus::APPROVED ? [[
+                    'user_id' => $adminUser->id,
+                    'role' => UserRole::TENANT_ADMIN->value,
+                    'at' => now()->subDays(1)->toIso8601String(),
+                ]] : [],
+                'rejected_by' => $status === LeaveStatus::REJECTED ? $adminUser->id : null,
+                'rejected_reason' => $status === LeaveStatus::REJECTED ? 'Insufficient coverage during that period.' : null,
+            ]);
+        }
+
+        // Biometric devices — a mix of online and offline for the device
+        // management demo.
+        $deviceSpecs = [
+            ['name' => 'Main Entrance Terminal', 'status' => 'online', 'adapter_type' => 'zkteco'],
+            ['name' => 'Back Door Terminal', 'status' => 'online', 'adapter_type' => 'hikvision'],
+            ['name' => 'Floor 2 Terminal', 'status' => 'offline', 'adapter_type' => 'zkteco'],
+        ];
+
+        foreach ($deviceSpecs as $spec) {
+            Device::firstOrCreate(
+                ['tenant_id' => $tenant->id, 'name' => $spec['name']],
+                [
+                    'public_id' => (string) Str::ulid(),
+                    'branch_id' => $hq->id,
+                    'serial_number' => 'SN-'.fake()->unique()->numerify('########'),
+                    'adapter_type' => $spec['adapter_type'],
+                    'connection_config' => [
+                        'ip' => fake()->localIpv4(),
+                        'port' => 80,
+                        'username' => 'admin',
+                        'password' => 'admin123',
+                    ],
+                    'status' => $spec['status'],
+                    'last_sync_at' => $spec['status'] === 'online' ? now() : now()->subHours(6),
+                ],
+            );
+        }
+
         // Employee self-service user (linked to first employee for E2E tests)
         if (! empty($employees)) {
             $firstEmp = $employees[0];
@@ -242,6 +342,6 @@ class DemoTenantSeeder extends Seeder
         $this->command->info('Demo tenant seeded: demo.ethr.et (admin@demo.ethr.et / password)');
         $this->command->info('HR admin: hr@demo.ethr.et / password');
         $this->command->info('Employee: emp@demo.ethr.et / password');
-        $this->command->info('100 employees, 3 months attendance, leave balances, holidays');
+        $this->command->info('150 employees, 6 months attendance, 3 months payroll, leave requests, devices, holidays');
     }
 }
