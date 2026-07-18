@@ -131,6 +131,7 @@ final class AttendanceEngine
             ->whereDate('date', $now->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNull('check_out')
+            ->with('shift')
             ->latest('check_in')
             ->first();
 

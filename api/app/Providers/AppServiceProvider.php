@@ -16,6 +16,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Event;
@@ -35,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Model::preventLazyLoading(! $this->app->isProduction());
+        Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
+
         JsonResource::withoutWrapping();
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);

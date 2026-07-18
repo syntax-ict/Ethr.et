@@ -102,7 +102,7 @@ class AttendanceController extends Controller
 
         $query = AttendanceRecord::query()
             ->where('employee_id', $employee?->id)
-            ->with('shift');
+            ->with('employee', 'shift');
 
         if ($request->filled('date_from')) {
             $query->where('date', '>=', $request->input('date_from'));

@@ -159,7 +159,7 @@ class LeaveRequestController extends Controller
 
         $query = LeaveRequest::query()
             ->where('employee_id', $user->employee_id)
-            ->with('leaveType');
+            ->with('employee', 'leaveType');
 
         if ($request->has('filter.status')) {
             $query->where('status', $request->input('filter.status'));

@@ -329,6 +329,7 @@ final class PayrollEngine
             ->whereDate('date', '<=', $periodEnd->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNotNull('check_out')
+            ->with('shift')
             ->get()
             ->sum(fn ($r) => $r->overtimeMinutes());
     }

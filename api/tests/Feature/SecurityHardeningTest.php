@@ -429,6 +429,6 @@ test('audit log entries cannot be deleted via API', function () {
     $tenant = createTenant(['subdomain' => 'auditprot']);
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
-    test()->deleteJson("http://auditprot.ethr.test/api/v1/audit-log/1")
+    test()->deleteJson('http://auditprot.ethr.test/api/v1/audit-log/1')
         ->assertStatus(404);
 });
