@@ -11,4 +11,8 @@ return [
     'finalized' => 'Payroll run finalized and locked.',
     'cannot_void' => 'Only a completed or approved payroll run can be voided.',
     'cannot_reprocess' => 'Only a voided payroll run can be reprocessed.',
+    'fiscal_year_start_month' => 'Fiscal Year Start Month',
+    'pagumen_strategy' => 'Pagumen Proration Strategy',
+    'pagumen_full_month' => 'Full month salary',
+    'pagumen_daily_rate' => 'Daily rate (annual ÷ 365 × Pagumen days)',
 ];

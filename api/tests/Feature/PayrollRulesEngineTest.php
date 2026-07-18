@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Models\Employee;
 use App\Models\EmployeeLoan;
+use App\Models\PayrollEntry;
 use App\Services\Payroll\LoanService;
 use App\Services\Payroll\OvertimeCalculator;
+use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\PensionCalculator;
 use App\Services\Payroll\TaxCalculator;
+use Carbon\Carbon;
 
 // ── Tax Calculator: Ethiopian Income Tax Brackets ──
 // All amounts in cents. Brackets per ETB:
@@ -293,4 +296,161 @@ test('loans require authentication', function () {
 
     test()->getJson('http://authtest.ethr.test/api/v1/payroll/loans')
         ->assertUnauthorized();
+});
+
+// ── Pagumen (13th month) Proration ──
+// Reference: Pagume 2015 EC == 2023-09-06 .. 2023-09-11 (leap year, 6 days).
+// Salary 3,650,000 cents (36,500 ETB) is chosen so the daily rate is exact:
+// annual = 3,650,000 x 12 = 43,800,000; / 365 = 120,000 cents/day.
+
+test('pagumen full_month strategy pays the whole monthly salary for a short Pagume run', function () {
+    $tenant = createTenant();
+    $tenant->update(['settings' => ['pagumen_proration_strategy' => 'full_month']]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 3650000,
+        'hire_date' => '2020-01-01',
+    ]);
+
+    $engine = app(PayrollEngine::class);
+    $run = $engine->process(
+        $tenant->id,
+        Carbon::parse('2023-09-06'),
+        Carbon::parse('2023-09-11'),
+        $user->id,
+    )->run;
+
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
+
+    // full_month => Pagume treated as a normal month, no day-based reduction.
+    expect($entry->basic_salary_cents)->toBe(3650000);
+
+    $pagumenStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'pagumen_proration');
+    expect($pagumenStep['strategy'])->toBe('full_month');
+    expect($pagumenStep['applied'])->toBeFalse();
+    expect($pagumenStep['pagume_days_in_period'])->toBe(6);
+});
+
+test('pagumen daily_rate strategy pays annual/365 per Pagume day (leap year, 6 days)', function () {
+    $tenant = createTenant();
+    $tenant->update(['settings' => ['pagumen_proration_strategy' => 'daily_rate']]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 3650000,
+        'hire_date' => '2020-01-01',
+    ]);
+
+    $engine = app(PayrollEngine::class);
+    $run = $engine->process(
+        $tenant->id,
+        Carbon::parse('2023-09-06'),
+        Carbon::parse('2023-09-11'),
+        $user->id,
+    )->run;
+
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
+
+    // 3,650,000 x 12 / 365 x 6 = 120,000 x 6 = 720,000 cents. Integer, exact.
+    expect($entry->basic_salary_cents)->toBe(720000);
+
+    $pagumenStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'pagumen_proration');
+    expect($pagumenStep['strategy'])->toBe('daily_rate');
+    expect($pagumenStep['applied'])->toBeTrue();
+    expect($pagumenStep['pagume_days_in_period'])->toBe(6);
+    expect($pagumenStep['pagume_total_days_in_year'])->toBe(6);
+    expect($pagumenStep['ethiopian_year'])->toBe(2015);
+});
+
+test('pagumen daily_rate strategy pays 5 days in a common Ethiopian year', function () {
+    $tenant = createTenant();
+    $tenant->update(['settings' => ['pagumen_proration_strategy' => 'daily_rate']]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 3650000,
+        'hire_date' => '2020-01-01',
+    ]);
+
+    $engine = app(PayrollEngine::class);
+    // Pagume 2016 EC == 2024-09-06 .. 2024-09-10 (common year, 5 days).
+    $run = $engine->process(
+        $tenant->id,
+        Carbon::parse('2024-09-06'),
+        Carbon::parse('2024-09-10'),
+        $user->id,
+    )->run;
+
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
+
+    // 120,000 x 5 = 600,000 cents.
+    expect($entry->basic_salary_cents)->toBe(600000);
+
+    $pagumenStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'pagumen_proration');
+    expect($pagumenStep['pagume_total_days_in_year'])->toBe(5);
+    expect($pagumenStep['ethiopian_year'])->toBe(2016);
+});
+
+test('pagumen daily_rate composes multiplicatively with a mid-Pagume hire', function () {
+    $tenant = createTenant();
+    $tenant->update(['settings' => ['pagumen_proration_strategy' => 'daily_rate']]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    // Hired on Pagume day 4 (2023-09-09) of a 6-day Pagume run (2023-09-06..11).
+    // Hire proration = worked 3 of 6 period days = 0.5.
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 3650000,
+        'hire_date' => '2023-09-09',
+    ]);
+
+    $engine = app(PayrollEngine::class);
+    $run = $engine->process(
+        $tenant->id,
+        Carbon::parse('2023-09-06'),
+        Carbon::parse('2023-09-11'),
+        $user->id,
+    )->run;
+
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
+
+    // Daily-rate Pagume base 720,000 x hire factor 0.5 = 360,000 cents.
+    expect($entry->basic_salary_cents)->toBe(360000);
+
+    $prorationStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'proration');
+    expect($prorationStep['proration_factor'])->toBe(0.5);
+    expect($prorationStep['period_basic_cents'])->toBe(720000);
+});
+
+test('a normal Gregorian month is untouched by daily_rate strategy', function () {
+    $tenant = createTenant();
+    $tenant->update(['settings' => ['pagumen_proration_strategy' => 'daily_rate']]);
+    $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'salary_cents' => 3650000,
+        'hire_date' => '2020-01-01',
+    ]);
+
+    $engine = app(PayrollEngine::class);
+    $run = $engine->process(
+        $tenant->id,
+        Carbon::parse('2024-06-01'),
+        Carbon::parse('2024-06-30'),
+        $user->id,
+    )->run;
+
+    $entry = PayrollEntry::where('payroll_run_id', $run->id)->first();
+
+    // No Pagume overlap => full monthly salary, strategy not applied.
+    expect($entry->basic_salary_cents)->toBe(3650000);
+
+    $pagumenStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'pagumen_proration');
+    expect($pagumenStep['applied'])->toBeFalse();
+    expect($pagumenStep['pagume_days_in_period'])->toBe(0);
 });

@@ -11,4 +11,8 @@ return [
     'finalized' => 'የደመወዝ አሂድ ተጠናቋል እና ተቆልፏል።',
     'cannot_void' => 'የተጠናቀቀ ወይም የጸደቀ የደመወዝ አሂድ ብቻ ሊሰረዝ ይችላል።',
     'cannot_reprocess' => 'የተሰረዘ የደመወዝ አሂድ ብቻ እንደገና ሊሰራ ይችላል።',
+    'fiscal_year_start_month' => 'የበጀት ዓመት መጀመሪያ ወር',
+    'pagumen_strategy' => 'የጳጉሜን ተመጣጣኝ ስሌት ስልት',
+    'pagumen_full_month' => 'ሙሉ የወር ደመወዝ',
+    'pagumen_daily_rate' => 'የቀን ተመን (ዓመታዊ ÷ 365 × የጳጉሜ ቀናት)',
 ];

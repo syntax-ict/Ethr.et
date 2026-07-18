@@ -643,6 +643,12 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
 		-
+			message: '#^Offset ''fiscal_year_start…'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
+
+		-
 			message: '#^Offset ''grace_period_minutes'' on string\|null on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -662,6 +668,12 @@ parameters:
 
 		-
 			message: '#^Offset ''ot_daily_cap_minutes'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
+
+		-
+			message: '#^Offset ''pagumen_proration…'' on string\|null on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
@@ -5535,6 +5547,18 @@ parameters:
 		-
 			message: '#^Cannot call method gt\(\) on string\.$#'
 			identifier: method.nonObject
+			count: 1
+			path: app/Services/Payroll/PayrollEngine.php
+
+		-
+			message: '#^Offset ''fiscal_year_start…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Payroll/PayrollEngine.php
+
+		-
+			message: '#^Offset ''pagumen_proration…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Services/Payroll/PayrollEngine.php
 

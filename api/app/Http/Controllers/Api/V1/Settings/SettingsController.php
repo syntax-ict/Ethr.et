@@ -42,6 +42,8 @@ class SettingsController extends Controller
             'payroll' => [
                 'pay_period' => $tenant->settings['pay_period'] ?? 'monthly',
                 'run_day' => $tenant->settings['run_day'] ?? 25,
+                'fiscal_year_start_month' => $tenant->settings['fiscal_year_start_month'] ?? 1,
+                'pagumen_proration_strategy' => $tenant->settings['pagumen_proration_strategy'] ?? 'full_month',
             ],
             'security' => [
                 'mfa_policy' => $tenant->settings['mfa_policy'] ?? 'optional',

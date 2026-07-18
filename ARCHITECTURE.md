@@ -480,14 +480,44 @@ Stored in `tax_brackets` table. Configurable when government changes rates.
 
 ### Pagumen Proration Strategy
 
-For the 13th Ethiopian month (5 or 6 days):
+Pagume is the 13th Ethiopian month: 5 days in a common year, 6 days in a leap
+year (leap when `ethiopianYear mod 4 == 3`). When a payroll period overlaps
+Pagume, the tenant's strategy decides how those days are paid:
 
 | Strategy | Calculation | Use Case |
 |---|---|---|
-| `full_month` | Treat as full monthly salary | Government organizations |
-| `daily_rate` | (annual salary / 365) × actual Pagumen days | Private sector |
+| `full_month` | Treat Pagume as a full monthly salary (no day-based reduction) | Government organizations |
+| `daily_rate` | `(annual salary / 365) × actual Pagumen days in the period`, where `annual salary = monthly salary × 12` | Private sector |
 
-Configurable per tenant in settings: `pagumen_proration_strategy`.
+Configurable per tenant in the `settings` JSON:
+
+- `pagumen_proration_strategy` — `full_month` (default) or `daily_rate`.
+  **`full_month` is the safe default**: an unconfigured tenant never has pay
+  silently reduced. `daily_rate` must be opted into.
+- `fiscal_year_start_month` — Ethiopian month `1`–`13` the fiscal year starts
+  on. Default `1` (Meskerem, private sector); government tenants set `7`
+  (Hamle). Stored and surfaced in the payroll `calculation_log`; it does not
+  affect Pagume detection (Pagume is month 13 regardless of fiscal start).
+
+**Composition with mid-period-hire proration.** The two reasons combine
+multiplicatively. The Pagume base (full month, or `daily_rate × Pagume days`)
+is computed first, then multiplied by the hire-proration factor
+(`worked period days / total period days`). Example: an employee hired on the
+4th day of a 6-day Pagume run under `daily_rate` earns
+`(annual/365 × 6) × (3/6)`. Every entry's `calculation_log` records a
+`pagumen_proration` step (strategy, applied flag, Pagume days in period, Pagume
+length for the year, and the Ethiopian year) plus the standard `proration` step
+(hire factor), immutable after approval.
+
+Ethiopian ↔ Gregorian conversion (leap detection, Pagume-day counting over a
+Gregorian period) is provided by the single shared, JDN-based
+`App\Services\Calendar\EthiopianCalendar` service (also used by
+`HolidayService`) — exact for all dates, not a floating New-Year approximation.
+
+> Note: a period that *mixes* Pagume and ordinary days in one run is uncommon
+> (Pagume normally gets its own boundaried run). In that case the non-Pagume
+> days keep the monthly basis scaled to their share of the period; the
+> `daily_rate` formula applies only to the Pagume days.
 
 ---
 

@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Holiday;
 
 use App\Models\Holiday;
+use App\Services\Calendar\EthiopianCalendar;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 final class HolidayService
 {
+    public function __construct(
+        private readonly EthiopianCalendar $calendar,
+    ) {}
+
     public function getHolidays(int $tenantId, int $year): Collection
     {
         return Holiday::query()
@@ -142,25 +147,21 @@ final class HolidayService
     }
 
     /**
-     * Approximate Ethiopian calendar to Gregorian.
-     * Ethiopian months 1-12 have 30 days each, month 13 (Pagume) has 5 or 6.
-     * Ethiopian New Year is September 11 (or 12 in leap year before Gregorian leap).
+     * Resolve the Gregorian date of an Ethiopian-calendar holiday for the
+     * Ethiopian year that begins in September of $gregorianYear.
+     *
+     * That Ethiopian year is ($gregorianYear - 7): e.g. the year starting in
+     * September 2024 is 2017 EC. Conversion is delegated to the shared, exact
+     * EthiopianCalendar service so there is a single implementation. For all
+     * current-century inputs this yields dates identical to the previous
+     * inline Sept-11/12 approximation; beyond ~2100 it is strictly more
+     * accurate (it tracks the widening Julian/Gregorian gap the old rule
+     * ignored).
      */
     private function ethiopianToGregorian(int $gregorianYear, int $ethMonth, int $ethDay): string
     {
-        $ethNewYear = Carbon::create($gregorianYear, 9, 11);
-
-        if ($this->isEthiopianLeapYear($gregorianYear)) {
-            $ethNewYear = Carbon::create($gregorianYear, 9, 12);
-        }
-
-        $daysFromNewYear = ($ethMonth - 1) * 30 + ($ethDay - 1);
-
-        return $ethNewYear->copy()->addDays($daysFromNewYear)->format('Y-m-d');
-    }
-
-    private function isEthiopianLeapYear(int $gregorianYear): bool
-    {
-        return ($gregorianYear + 1) % 4 === 0;
+        return $this->calendar
+            ->ethiopianToGregorian($gregorianYear - 7, $ethMonth, $ethDay)
+            ->format('Y-m-d');
     }
 }

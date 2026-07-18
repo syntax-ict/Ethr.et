@@ -275,6 +275,51 @@ test('employee cannot update settings', function () {
     ])->assertForbidden();
 });
 
+test('settings expose fiscal-year and pagumen defaults', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/settings");
+
+    $response->assertOk()
+        ->assertJsonPath('payroll.fiscal_year_start_month', 1)
+        ->assertJsonPath('payroll.pagumen_proration_strategy', 'full_month');
+});
+
+test('tenant admin can update fiscal-year and pagumen strategy', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $response = test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/settings", [
+        'settings' => [
+            'fiscal_year_start_month' => 7,
+            'pagumen_proration_strategy' => 'daily_rate',
+        ],
+    ]);
+
+    $response->assertOk();
+    expect($response->json('settings.fiscal_year_start_month'))->toBe(7);
+    expect($response->json('settings.pagumen_proration_strategy'))->toBe('daily_rate');
+});
+
+test('invalid pagumen strategy is rejected', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/settings", [
+        'settings' => ['pagumen_proration_strategy' => 'weekly'],
+    ])->assertStatus(422);
+});
+
+test('out-of-range fiscal-year start month is rejected', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/settings", [
+        'settings' => ['fiscal_year_start_month' => 14],
+    ])->assertStatus(422);
+});
+
 // ── Audit Logs ──
 
 test('tenant admin can view audit logs', function () {
