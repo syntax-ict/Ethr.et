@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 
 class HealthController extends Controller
 {
@@ -26,6 +28,20 @@ class HealthController extends Controller
             $services['cache'] = cache()->store('redis')->get('health_check') ? 'healthy' : 'unhealthy';
         } catch (\Throwable) {
             $services['cache'] = 'unavailable';
+        }
+
+        try {
+            Queue::size('default');
+            $services['queue'] = 'healthy';
+        } catch (\Throwable) {
+            $services['queue'] = 'unavailable';
+        }
+
+        try {
+            Storage::disk('s3')->exists('.health');
+            $services['storage'] = 'healthy';
+        } catch (\Throwable) {
+            $services['storage'] = 'unavailable';
         }
 
         $services['api'] = 'healthy';
