@@ -239,6 +239,15 @@ class LeaveRequestController extends Controller
         }
 
         $user = $request->user();
+
+        if ($user->employee_id && $user->employee_id === $leaveRequest->employee_id) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/self-approval',
+                'title' => 'Self-Approval Forbidden',
+                'status' => 403,
+                'detail' => __('leave.cannot_approve_own'),
+            ], 403)->header('Content-Type', 'application/problem+json');
+        }
         $chain = $leaveRequest->approved_by ?? [];
         $chain[] = [
             'user_id' => $user->id,

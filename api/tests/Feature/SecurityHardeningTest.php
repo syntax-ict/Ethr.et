@@ -7,7 +7,9 @@ use App\Models\Announcement;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\User;
 use App\Models\Webhook;
@@ -309,4 +311,124 @@ test('document upload rejects disallowed file types', function () {
     );
 
     $response->assertStatus(422);
+});
+
+// ── IDOR Prevention (cross-tenant public_id reuse) ──
+
+test('cannot access employee from another tenant via public_id in URL', function () {
+    $tenantA = createTenant(['subdomain' => 'idor-alpha']);
+    $tenantB = createTenant(['subdomain' => 'idor-beta']);
+
+    $employeeB = Employee::factory()->create(['tenant_id' => $tenantB->id]);
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenantA);
+
+    test()->getJson("http://idor-alpha.ethr.test/api/v1/employees/{$employeeB->public_id}")
+        ->assertNotFound();
+});
+
+test('cannot approve leave request from another tenant via public_id', function () {
+    $tenantA = createTenant(['subdomain' => 'idor-alpha2']);
+    $tenantB = createTenant(['subdomain' => 'idor-beta2']);
+
+    $employeeB = Employee::factory()->create(['tenant_id' => $tenantB->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenantB->id, 'code' => 'annual']);
+    $leaveRequest = LeaveRequest::factory()->create([
+        'tenant_id' => $tenantB->id,
+        'employee_id' => $employeeB->id,
+        'leave_type_id' => $leaveType->id,
+    ]);
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenantA);
+
+    test()->putJson("http://idor-alpha2.ethr.test/api/v1/leave/{$leaveRequest->public_id}/approve")
+        ->assertNotFound();
+});
+
+// ── Self-Approval Prevention ──
+
+test('manager cannot approve their own leave request', function () {
+    $tenant = createTenant(['subdomain' => 'selfapprove']);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser([
+        'role' => UserRole::HR_ADMIN,
+        'employee_id' => $employee->id,
+    ], $tenant);
+    test()->actingAs($user);
+
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'annual']);
+    $leaveRequest = LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'status' => 'pending',
+    ]);
+
+    test()->putJson("http://selfapprove.ethr.test/api/v1/leave/{$leaveRequest->public_id}/approve")
+        ->assertStatus(403)
+        ->assertJsonPath('type', 'https://ethr.et/errors/self-approval');
+});
+
+// ── Payroll Immutability ──
+
+test('payroll entry cannot be modified after run is approved', function () {
+    $tenant = createTenant(['subdomain' => 'payimmut']);
+    actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'approved',
+    ]);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $entry = PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employee->id,
+    ]);
+
+    test()->putJson("http://payimmut.ethr.test/api/v1/payroll/runs/{$run->public_id}/entries/{$entry->public_id}", [
+        'basic_salary' => 50000_00,
+    ])->assertStatus(404);
+});
+
+test('approved payroll run cannot be re-approved', function () {
+    $tenant = createTenant(['subdomain' => 'payimmut2']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => 'approved',
+    ]);
+
+    test()->putJson("http://payimmut2.ethr.test/api/v1/payroll/runs/{$run->public_id}/approve")
+        ->assertStatus(422)
+        ->assertJsonPath('type', 'https://ethr.et/errors/invalid-state');
+});
+
+// ── Audit Log Completeness ──
+
+test('audit log is written for key operations', function () {
+    $tenant = createTenant(['subdomain' => 'auditcomp']);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    test()->putJson("http://auditcomp.ethr.test/api/v1/employees/{$employee->public_id}", [
+        'first_name' => 'Updated',
+        'last_name' => 'Name',
+    ])->assertOk();
+
+    $this->assertDatabaseHas('audit_log', [
+        'action' => 'employee.updated',
+        'tenant_id' => $tenant->id,
+    ]);
+});
+
+test('audit log entries cannot be deleted via API', function () {
+    $tenant = createTenant(['subdomain' => 'auditprot']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->deleteJson("http://auditprot.ethr.test/api/v1/audit-log/1")
+        ->assertStatus(404);
 });
