@@ -900,6 +900,46 @@ DataTable never actually renders more than 100 rows at once, which
 
 ---
 
+## Mobile UI Patterns
+
+CLAUDE.md's Sidebar Navigation Structure specifies "Mobile: bottom tab bar
+(Home, Attendance, Leave, Payslips, More) — not sidebar." Before this slice,
+mobile navigation was a hamburger button opening a slide-in sheet with the
+full desktop sidebar nav — functional, but not what CLAUDE.md specifies, and
+the "More" tab it names didn't exist anywhere.
+
+- **`components/layouts/mobile-bottom-nav.tsx`** — fixed bottom tab bar
+  (`lg:hidden`), the four named routes (`/dashboard`, `/attendance`,
+  `/leave`, `/payroll/payslips`) plus a "More" tab that opens the same
+  `SidebarNav` in a slide-in sheet (independent open-state from the header's
+  own hamburger sheet — both are left in place; the header's hamburger is
+  now a redundant-but-harmless second way to reach the same full nav on
+  mobile, not removed here to avoid touching its existing, separately-tested
+  behavior). Mounted in `app/(dashboard)/layout.tsx`; `<main>` gets `pb-20`
+  below `lg` so page content doesn't sit underneath the fixed bar.
+- **`components/shared/offline-banner.tsx`** — persistent connectivity
+  indicator, mounted globally in the dashboard layout. Deliberately reads
+  state only (`navigator.onLine` + `getPendingCount()` from
+  `lib/offline-queue`) and does **not** call `useOfflineSync()`/trigger a
+  sync itself: that hook already runs on the attendance check-in page
+  (`app/(dashboard)/attendance/mobile/page.tsx`) with its own
+  auto-sync-on-reconnect effect, and mounting a second live instance
+  globally would race it — two independent `syncInProgress` refs both firing
+  `POST /attendance/sync` when connectivity returns.
+
+Not implemented (deferred): pull-to-refresh and swipe actions. Both are
+real touch-gesture interaction code (not just responsive styling), and this
+environment has no way to verify touch/gesture behavior in an actual mobile
+browser before shipping — per CLAUDE.md's "test the feature in a browser
+before reporting complete" rule, they're left for a slice where that
+verification is possible. A bottom-sheet primitive (`vaul`, shadcn's
+`Drawer`) was also considered and skipped: nothing in this codebase
+currently needs one, and adding the dependency without a concrete consumer
+would be exactly the kind of speculative infra CLAUDE.md's build philosophy
+avoids.
+
+---
+
 ## Event Architecture
 
 ### Domain Events (Laravel Events + Listeners)

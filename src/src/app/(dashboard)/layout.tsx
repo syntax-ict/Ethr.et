@@ -2,6 +2,8 @@
 
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
+import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
+import { OfflineBanner } from "@/components/shared/offline-banner";
 import { AuthGuard } from "@/components/shared/auth-guard";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
@@ -27,19 +29,21 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       </a>
       <CommandPalette />
       <ImpersonationBanner />
+      <OfflineBanner />
       <div className="flex min-h-screen bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
           <AppHeader />
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto p-4 md:p-6"
+            className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 lg:pb-6"
             role="main"
           >
             <ErrorBoundary>{children}</ErrorBoundary>
           </main>
         </div>
       </div>
+      <MobileBottomNav />
     </ReverbProvider>
   );
 }
