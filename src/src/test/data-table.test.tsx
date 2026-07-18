@@ -162,4 +162,119 @@ describe("DataTable", () => {
       ),
     ).toEqual({ id: false });
   });
+
+  it("expands a row to reveal its sub-row content and collapses it again", async () => {
+    render(
+      <DataTable
+        tableId="test-expand"
+        columns={columns}
+        data={rows}
+        renderSubRow={(row) => <div>Details for {row.name}</div>}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Details for Abebe Kebede"),
+    ).not.toBeInTheDocument();
+
+    const [firstToggle] = screen.getAllByRole("button", {
+      name: /expand row/i,
+    });
+    await userEvent.click(firstToggle);
+
+    expect(screen.getByText("Details for Abebe Kebede")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Details for Sara Tesfaye"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /collapse row/i }),
+    );
+    expect(
+      screen.queryByText("Details for Abebe Kebede"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("only shows the expand toggle for rows where getRowCanExpand returns true", () => {
+    render(
+      <DataTable
+        tableId="test-expand-conditional"
+        columns={columns}
+        data={rows}
+        renderSubRow={(row) => <div>Details for {row.name}</div>}
+        getRowCanExpand={(row) => row.id === "1"}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /expand row/i }),
+    ).toHaveLength(1);
+  });
+
+  it("exports the currently loaded rows as a downloaded CSV file", async () => {
+    const clickSpy = vi.fn();
+    // jsdom doesn't implement these, so stub them directly rather than spyOn
+    // (which requires the property to already exist on the object).
+    URL.createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+    URL.revokeObjectURL = vi.fn();
+    const createObjectURL = vi.mocked(URL.createObjectURL);
+    const revokeObjectURL = vi.mocked(URL.revokeObjectURL);
+    const createElementSpy = vi.spyOn(document, "createElement");
+
+    render(
+      <DataTable
+        tableId="test-export"
+        columns={columns}
+        data={rows}
+        getExportRow={(row) => ({ ID: row.id, Name: row.name })}
+        exportFilename="employees"
+      />,
+    );
+
+    const link = document.createElement("a");
+    link.click = clickSpy;
+    createElementSpy.mockReturnValueOnce(link);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /export csv/i }),
+    );
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const [blob] = createObjectURL.mock.calls[0];
+    expect((blob as Blob).type).toBe("text/csv;charset=utf-8;");
+    expect(link.download).toBe("employees.csv");
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    createElementSpy.mockRestore();
+  });
+
+  it("does not render an export button when getExportRow is not provided", () => {
+    render(<DataTable tableId="test-no-export" columns={columns} data={rows} />);
+    expect(
+      screen.queryByRole("button", { name: /export csv/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("applies sticky positioning classes to pinned columns", () => {
+    const pinnedColumns: ColumnDef<Row, unknown>[] = [
+      {
+        accessorKey: "name",
+        header: "Name",
+        meta: { pinned: "left" },
+      },
+      { accessorKey: "id", header: "ID" },
+    ];
+    render(
+      <DataTable tableId="test-pin" columns={pinnedColumns} data={rows} />,
+    );
+
+    const nameHeader = screen.getByText("Name").closest("th");
+    expect(nameHeader).toHaveClass("sticky", "left-0");
+
+    const idHeader = screen.getByText("ID").closest("th");
+    expect(idHeader).not.toHaveClass("sticky");
+  });
 });

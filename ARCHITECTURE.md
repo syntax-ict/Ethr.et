@@ -862,6 +862,44 @@ audit:
 
 ---
 
+## DataTable Pattern
+
+`src/components/patterns/DataTable.tsx` is the shared enterprise table used
+across list pages (server-side sorting, pagination, column visibility
+persisted per-table to localStorage, row selection with bulk actions,
+progressive column hiding below a breakpoint via `column.meta.hideBelow`,
+and the four `QueryBoundary`-style states: loading skeleton, empty, error
+with retry, success). Three additional opt-in features:
+
+- **Row expansion** — pass `renderSubRow={(row) => <ReactNode>}` to enable a
+  chevron toggle column and an expandable detail row rendered below the
+  parent. `getRowCanExpand` restricts which rows can expand (defaults to all
+  rows expandable when `renderSubRow` is set).
+- **Column pinning** — set `meta: { pinned: "left" | "right" }` on a column
+  definition to keep it visible via CSS `position: sticky` while the table
+  scrolls horizontally (the table wrapper already has `overflow-auto`).
+  There's no drag-to-pin UI, just the declarative column-def flag.
+- **CSV export** — pass `getExportRow={(row) => ({ Header: value, ... })}`
+  to show an "Export CSV" button that downloads the *currently loaded page*
+  as a client-generated CSV file. This is a lightweight convenience for
+  what's on screen, not a replacement for the server-side export/report
+  pipeline in `features/reports` (`useExportReport`), which handles
+  complete, filtered, multi-page exports asynchronously via the `exports`
+  queue. `getExportRow` is an explicit mapping rather than something
+  DataTable infers from column definitions, because most columns in this
+  codebase render straight from `row.original` inside `cell` rather than
+  declaring an `accessorKey`/`accessorFn`, so there's no reliable value to
+  introspect.
+
+Not implemented (deferred — see the enterprise DataTable feature backlog):
+column resizing, inline cell editing, saved views, and virtual scrolling.
+Virtual scrolling in particular is lower priority than it might seem: the
+API's pagination cap (`per_page` max 100 — see API Conventions) means
+DataTable never actually renders more than 100 rows at once, which
+`@tanstack/react-table` handles natively without virtualization.
+
+---
+
 ## Event Architecture
 
 ### Domain Events (Laravel Events + Listeners)

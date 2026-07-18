@@ -203,6 +203,17 @@ export default function EmployeesPage() {
             setPage(1);
           }}
           onPageChange={setPage}
+          getExportRow={(row) => ({
+            "Employee Code": row.employee_code ?? "",
+            Name: row.name,
+            Email: row.email ?? "",
+            Phone: row.phone ?? "",
+            Department: row.department?.name ?? "",
+            Position: row.position?.title ?? "",
+            Status: row.status,
+            "Hire Date": row.hire_date,
+          })}
+          exportFilename="employees"
           emptyState={
             <EmptyState
               icon={Users}
