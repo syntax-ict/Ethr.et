@@ -802,6 +802,44 @@ admin tenants list and the tenant audit log page before being caught.
 
 ---
 
+## Frontend Form Architecture
+
+CLAUDE.md's "Form Pattern Library" section defines the six form patterns
+(inline, dialog, page-tabbed, wizard, inline-edit, drawer) and the rules that
+apply to all of them. There is no shared wrapper component per pattern (e.g.
+no `<DrawerForm>`/`<WizardForm>`) — each page hand-builds its form using the
+shadcn primitives directly. Status of the cross-cutting rules as of this
+audit:
+
+- **Submit/cancel placement, primary action on the right** — followed by
+  convention across existing forms; not structurally enforced.
+- **Escape to cancel dialogs** — satisfied for free: `components/ui/dialog.tsx`
+  wraps Radix UI's `Dialog` primitive, which handles Escape-to-close and focus
+  trapping out of the box.
+- **Enter to submit dialogs** — satisfied for free when a dialog's fields are
+  wrapped in `<form onSubmit={...}>` (the established convention in this
+  codebase) — that's native `<form>` behavior, not custom code. Any dialog
+  that renders fields *outside* a `<form>` element loses this for free.
+- **Unsaved changes warning on navigation (page forms/wizards)** — was
+  entirely missing. Added `useUnsavedChangesWarning(hasUnsavedChanges)` in
+  `src/lib/hooks/useUnsavedChangesWarning.ts`, wired into the employee
+  create page (`src/app/(dashboard)/employees/new/page.tsx`) as the
+  reference implementation. It only covers browser-level navigation
+  (tab close, refresh, external link) via the `beforeunload` event — the
+  Next.js App Router has no supported hook for intercepting client-side
+  route changes (`router.push` to another page), so in-app navigation away
+  from a dirty form is not currently guarded. Other page forms and the
+  onboarding wizard should adopt the same hook.
+- **Auto-save every 30s (page forms/wizards)** — not implemented anywhere.
+  Would need a draft-persistence design (where drafts live, conflict
+  handling on reconnect) before it's worth building; out of scope here.
+- **Forms use React Hook Form + Zod** (per the Stack table) — inconsistently
+  followed; several forms (e.g. the employee create page) use plain
+  `useState` instead. Not changed here — migrating an existing working form
+  to a different form library is a larger, separate refactor.
+
+---
+
 ## Event Architecture
 
 ### Domain Events (Laravel Events + Listeners)

@@ -20,6 +20,7 @@ import { useCreateEmployee } from "@/features/employees/api";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { RoleGate } from "@/components/shared/role-gate";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { toast } from "sonner";
 
 export default function NewEmployeePage() {
@@ -65,8 +66,12 @@ export default function NewEmployeePage() {
     position_public_id: "",
   });
 
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  useUnsavedChangesWarning(hasUnsavedChanges);
+
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setHasUnsavedChanges(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -79,6 +84,7 @@ export default function NewEmployeePage() {
       },
       {
         onSuccess: () => {
+          setHasUnsavedChanges(false);
           toast.success(t("employee.created", "Employee created successfully"));
           router.push("/employees");
         },
