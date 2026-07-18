@@ -27,7 +27,7 @@ parameters:
 		-
 			message: '#^Cannot access property \$value on string\.$#'
 			identifier: property.nonObject
-			count: 5
+			count: 4
 			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
 
 		-
@@ -43,19 +43,7 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\Tenant\>\:\:through\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
-
-		-
 			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Invoice\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\Tenant\>\:\:through\(\) contains unresolvable type\.$#'
 			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
@@ -853,6 +841,54 @@ parameters:
 			path: app/Http/Requests/Auth/LoginRequest.php
 
 		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$employees_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$public_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$subdomain\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$trial_ends_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AdminTenantResource\:\:\$type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AdminTenantResource.php
+
+		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\AnnouncementResource\:\:\$body\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1121,6 +1157,54 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Resources/AttendanceSettingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$auditable_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$auditable_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$ip_address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$payload\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$user_agent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\AuditLogResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/AuditLogResource.php
 
 		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\BankDetailResource\:\:\$account_number\.$#'
@@ -1901,6 +1985,42 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Resources/EmployeeTransitionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$connection\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$exception\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$failed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$payload\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$queue\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\FailedJobResource\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/FailedJobResource.php
 
 		-
 			message: '#^Access to an undefined property App\\Http\\Resources\\GradeResource\:\:\$created_at\.$#'

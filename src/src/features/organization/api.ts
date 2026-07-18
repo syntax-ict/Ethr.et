@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { PaginatedResponse } from "@/api/types";
 
 export interface Branch {
   public_id: string;
@@ -60,15 +61,10 @@ export interface CostCenter {
   is_active: boolean;
 }
 
-interface Paginated<T> {
-  data: T[];
-  meta?: { current_page?: number; last_page?: number; total?: number };
-}
-
 function makeHooks<T extends { public_id: string }>(resource: string) {
   return {
     useList: () =>
-      useQuery<Paginated<T>>({
+      useQuery<PaginatedResponse<T>>({
         queryKey: ["organization", resource],
         queryFn: async () => {
           const { data } = await apiClient.get(`/organization/${resource}`);

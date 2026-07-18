@@ -22,7 +22,12 @@ test('super admin can list tenants', function () {
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants");
 
     $response->assertOk()
-        ->assertJsonStructure(['data']);
+        ->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+        ]);
+    expect($response->json('meta.total'))->toBe(4);
 });
 
 test('super admin can view tenant detail', function () {
@@ -129,7 +134,11 @@ test('super admin can view platform audit log', function () {
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/audit");
 
     $response->assertOk()
-        ->assertJsonStructure(['data']);
+        ->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+        ]);
 });
 
 // ── Failed Jobs ──
@@ -151,8 +160,14 @@ test('super admin can list failed jobs', function () {
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs");
 
     $response->assertOk()
-        ->assertJsonStructure(['data']);
+        ->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+        ]);
     expect($response->json('data'))->toHaveCount(1);
+    expect($response->json('meta.total'))->toBe(1);
+    expect($response->json('data.0'))->not->toHaveKey('id');
 });
 
 test('tenant admin cannot list failed jobs', function () {
@@ -269,7 +284,11 @@ test('tenant admin can view audit logs', function () {
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/audit-logs");
 
     $response->assertOk()
-        ->assertJsonStructure(['data']);
+        ->assertJsonStructure([
+            'data',
+            'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+        ]);
 });
 
 // ── Auth ──

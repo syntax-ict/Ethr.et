@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { PaginatedResponse } from "@/api/types";
 
 export interface AdminTenant {
   public_id: string;
@@ -30,22 +31,13 @@ export interface AdminTenantDetail extends AdminTenant {
   audit_log: Array<{ action: string; created_at: string }>;
 }
 
-export interface PaginatedTenants {
-  data: AdminTenant[];
-  current_page?: number;
-  last_page?: number;
-  total?: number;
-  from?: number;
-  to?: number;
-}
-
 export function useAdminTenants(params?: {
   search?: string;
   status?: string;
   page?: number;
   per_page?: number;
 }) {
-  return useQuery<PaginatedTenants>({
+  return useQuery<PaginatedResponse<AdminTenant>>({
     queryKey: ["admin", "tenants", params],
     queryFn: async () => {
       const queryParams: Record<string, unknown> = {};
@@ -144,7 +136,6 @@ export function useImpersonateTenant() {
 }
 
 export interface AdminAuditLog {
-  id: number;
   action: string;
   auditable_type?: string;
   auditable_id?: number;
@@ -165,7 +156,6 @@ export function useTenantBackup() {
 }
 
 export interface FailedJob {
-  id: number;
   uuid: string;
   connection: string;
   queue: string;
@@ -175,12 +165,7 @@ export interface FailedJob {
 }
 
 export function useFailedJobs(params?: { page?: number }) {
-  return useQuery<{
-    data: FailedJob[];
-    current_page?: number;
-    last_page?: number;
-    total?: number;
-  }>({
+  return useQuery<PaginatedResponse<FailedJob>>({
     queryKey: ["admin", "failed-jobs", params],
     queryFn: async () => {
       const { data } = await apiClient.get("/admin/failed-jobs", {
@@ -225,14 +210,7 @@ export function useAdminAuditLog(params?: {
   to?: string;
   page?: number;
 }) {
-  return useQuery<{
-    data: AdminAuditLog[];
-    current_page?: number;
-    last_page?: number;
-    total?: number;
-    from?: number;
-    to?: number;
-  }>({
+  return useQuery<PaginatedResponse<AdminAuditLog>>({
     queryKey: ["admin", "audit", params],
     queryFn: async () => {
       const queryParams: Record<string, unknown> = { per_page: 50 };

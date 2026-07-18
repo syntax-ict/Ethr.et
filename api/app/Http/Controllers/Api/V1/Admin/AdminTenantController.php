@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
+use App\Http\Resources\AdminTenantResource;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Invoice;
@@ -19,11 +20,12 @@ use App\Models\User;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 
 class AdminTenantController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('admin.manage');
 
@@ -47,20 +49,9 @@ class AdminTenantController extends Controller
         $field = ltrim($sort, '-');
         $query->orderBy($field, $dir);
 
-        $tenants = $query->paginate($request->integer('per_page', 25));
-
-        $tenants->through(fn (Tenant $t) => [
-            'public_id' => $t->public_id,
-            'name' => $t->name,
-            'subdomain' => $t->subdomain,
-            'type' => $t->type,
-            'status' => $t->status->value,
-            'employee_count' => $t->employees_count,
-            'trial_ends_at' => $t->trial_ends_at,
-            'created_at' => $t->created_at,
-        ]);
-
-        return response()->json($tenants);
+        return AdminTenantResource::collection(
+            $query->paginate($request->integer('per_page', 25))
+        );
     }
 
     public function show(string $publicId): JsonResponse

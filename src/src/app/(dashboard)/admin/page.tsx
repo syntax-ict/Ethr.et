@@ -214,7 +214,7 @@ export default function AdminConsolePage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 {t("admin_console_page.failed_jobs")} (
-                {failedJobsData.total ?? failedJobsData.data.length})
+                {failedJobsData.meta?.total ?? failedJobsData.data.length})
               </CardTitle>
               <Button
                 variant="outline"
@@ -305,9 +305,9 @@ export default function AdminConsolePage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {audit.data.slice(0, 10).map((log) => (
+                {audit.data.slice(0, 10).map((log, index) => (
                   <div
-                    key={log.id}
+                    key={`${log.created_at}-${log.action}-${index}`}
                     className="flex items-center justify-between gap-3 rounded-lg border p-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">

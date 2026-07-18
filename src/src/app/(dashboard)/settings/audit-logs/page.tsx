@@ -16,7 +16,6 @@ import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 
 interface AuditLog {
-  id: number;
   action: string;
   auditable_type?: string;
   auditable_id?: number;
@@ -199,9 +198,9 @@ export default function AuditLogsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {logs.map((log) => (
+                      {logs.map((log, index) => (
                         <tr
-                          key={log.id}
+                          key={`${log.created_at}-${log.action}-${index}`}
                           className="border-b last:border-0 hover:bg-muted/30"
                         >
                           <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">

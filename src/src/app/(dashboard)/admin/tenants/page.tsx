@@ -178,11 +178,11 @@ export default function AdminTenantsPage() {
               </CardContent>
             </Card>
 
-            {data?.last_page && data.last_page > 1 && (
+            {data?.meta && data.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {t("audit_logs_page.showing")} {data.from}–{data.to}{" "}
-                  {t("audit_logs_page.of")} {data.total}
+                  {t("audit_logs_page.showing")} {data.meta.from}–
+                  {data.meta.to} {t("audit_logs_page.of")} {data.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -196,7 +196,7 @@ export default function AdminTenantsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page >= data.last_page}
+                    disabled={page >= data.meta.last_page}
                     onClick={() => setPage(page + 1)}
                   >
                     {t("audit_logs_page.next")}

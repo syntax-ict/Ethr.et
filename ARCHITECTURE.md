@@ -540,6 +540,18 @@ Valid transitions enforced by `EmployeeStatus::canTransitionTo()`. Every transit
 
 ## API Architecture
 
+### Response Envelope
+
+Every list/paginated endpoint must return a `JsonResource::collection()` over a
+paginator (never a raw `response()->json($paginator)`), so it serializes as
+the standard envelope — see CLAUDE.md's "API Conventions" section for the
+exact single-resource vs. paginated-collection shapes and the matching
+`PaginatedResponse<T>` TypeScript type in `src/api/types.ts`. Returning a raw
+paginator instead produces a different, incompatible shape (pagination fields
+top-level instead of nested under `meta`) that silently breaks any frontend
+code written against the standard envelope — this exact bug shipped on the
+admin tenants list and the tenant audit log page before being caught.
+
 ### Route Structure
 
 ```
