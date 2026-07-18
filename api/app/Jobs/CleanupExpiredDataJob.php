@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class CleanupExpiredDataJob implements ShouldQueue
 {
@@ -29,5 +30,12 @@ class CleanupExpiredDataJob implements ShouldQueue
             ->delete();
 
         Log::info("CleanupExpiredDataJob: deleted {$deleted} expired records.");
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        // Self-healing: next scheduled run picks up whatever was missed.
+        // Visible in the admin failed-jobs dashboard; no alert needed.
+        Log::error('CleanupExpiredDataJob failed', ['error' => $exception->getMessage()]);
     }
 }

@@ -17,6 +17,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Runs daily after business hours. Scans the previous workday for employees
@@ -92,5 +93,17 @@ class ScanMissingPunchesJob implements ShouldQueue
                 }
             }
         }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        // Self-healing: missing punches for this date are still catchable by
+        // a later corrections review. Visible in the admin failed-jobs
+        // dashboard; no alert needed.
+        Log::error('ScanMissingPunchesJob failed', [
+            'tenant_id' => $this->tenantId,
+            'date' => $this->date,
+            'error' => $exception->getMessage(),
+        ]);
     }
 }

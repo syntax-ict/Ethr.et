@@ -9,6 +9,8 @@ use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\Invoice;
 use App\Models\Subscription;
+use App\Models\User;
+use App\Notifications\SystemAlertNotification;
 use App\Notifications\TrialExpiringNotification;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -17,6 +19,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class HandleOverdueInvoicesJob implements ShouldQueue
 {
@@ -45,7 +48,7 @@ class HandleOverdueInvoicesJob implements ShouldQueue
                         // In production we'd have a dedicated OverdueInvoiceNotification
                         Log::info('Invoice 7-day overdue reminder sent', ['invoice' => $invoice->public_id]);
                     }
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     Log::error('Overdue reminder failed', ['invoice' => $invoice->public_id, 'error' => $e->getMessage()]);
                 }
             });
@@ -65,7 +68,7 @@ class HandleOverdueInvoicesJob implements ShouldQueue
                         ->where('tenant_id', $invoice->tenant_id)
                         ->where('status', SubscriptionStatus::ACTIVE)
                         ->update(['status' => SubscriptionStatus::PAST_DUE]);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     Log::error('Past-due escalation failed', ['invoice' => $invoice->public_id, 'error' => $e->getMessage()]);
                 }
             });
@@ -85,9 +88,28 @@ class HandleOverdueInvoicesJob implements ShouldQueue
                             'invoice' => $invoice->public_id,
                         ]);
                     }
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     Log::error('Suspension failed', ['invoice' => $invoice->public_id, 'error' => $e->getMessage()]);
                 }
             });
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        Log::error('HandleOverdueInvoicesJob failed entirely — overdue reminders/escalations/suspensions may not have run', [
+            'error' => $exception->getMessage(),
+        ]);
+
+        $superAdmins = User::withoutGlobalScopes()
+            ->where('role', UserRole::SUPER_ADMIN->value)
+            ->get();
+
+        foreach ($superAdmins as $admin) {
+            $admin->notify(new SystemAlertNotification(
+                'Overdue invoice handling failed',
+                "HandleOverdueInvoicesJob failed after exhausting retries: {$exception->getMessage()}. Overdue reminders, past-due escalations, and non-payment suspensions may not have run for this cycle — check the failed jobs dashboard and re-run manually if needed.",
+                ['error' => $exception->getMessage()],
+            ));
+        }
     }
 }
