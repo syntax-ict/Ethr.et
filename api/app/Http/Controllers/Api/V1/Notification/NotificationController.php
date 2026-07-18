@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Notification;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\NotificationResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
 
@@ -20,18 +22,10 @@ class NotificationController extends Controller
             $query = $user->unreadNotifications();
         }
 
-        $notifications = $query->orderByDesc('created_at')
-            ->paginate($request->integer('per_page', 25));
-
-        $items = $notifications->through(fn ($n) => [
-            'id' => $n->id,
-            'type' => class_basename($n->type),
-            'data' => $n->data,
-            'read_at' => $n->read_at,
-            'created_at' => $n->created_at,
-        ]);
-
-        return response()->json($items);
+        return NotificationResource::collection(
+            $query->orderByDesc('created_at')
+                ->paginate($request->integer('per_page', 25))
+        );
     }
 
     public function markAsRead(Request $request, string $id): JsonResponse
