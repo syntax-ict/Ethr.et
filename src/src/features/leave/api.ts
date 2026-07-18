@@ -35,6 +35,7 @@ export function useLeaveBalance() {
       const { data } = await apiClient.get("/leave/balance");
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -65,6 +66,7 @@ export function useLeaveTypes() {
       const { data } = await apiClient.get("/leave-types");
       return data;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }
 

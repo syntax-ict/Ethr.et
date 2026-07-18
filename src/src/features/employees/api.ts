@@ -15,6 +15,7 @@ export function useEmployees(params?: {
       const { data } = await apiClient.get("/employees", { params });
       return data;
     },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -26,6 +27,7 @@ export function useEmployee(publicId: string) {
       return data;
     },
     enabled: !!publicId,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

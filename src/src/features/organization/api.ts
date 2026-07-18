@@ -70,6 +70,7 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
           const { data } = await apiClient.get(`/organization/${resource}`);
           return data;
         },
+        staleTime: 30 * 60 * 1000,
       }),
 
     useCreate: () => {

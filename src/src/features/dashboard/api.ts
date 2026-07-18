@@ -33,6 +33,7 @@ export function useEmployeeDashboard() {
       const { data } = await apiClient.get("/dashboard/employee");
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -54,5 +55,6 @@ export function useManagerDashboard() {
       const { data } = await apiClient.get("/dashboard/manager");
       return data;
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
