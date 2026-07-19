@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "@/components/layouts/app-sidebar";
 import { AppHeader } from "@/components/layouts/app-header";
+import { AppLayoutProvider } from "@/components/layouts/layout-context";
 import { MobileBottomNav } from "@/components/layouts/mobile-bottom-nav";
 import { OfflineBanner } from "@/components/shared/offline-banner";
 import { AuthGuard } from "@/components/shared/auth-guard";
@@ -21,29 +22,31 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <ReverbProvider userId={user?.public_id} token={token}>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none"
-      >
-        Skip to main content
-      </a>
-      <CommandPalette />
-      <ImpersonationBanner />
-      <OfflineBanner />
-      <div className="flex min-h-screen bg-background">
-        <AppSidebar />
-        <div className="flex flex-1 flex-col">
-          <AppHeader />
-          <main
-            id="main-content"
-            className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 lg:pb-6"
-            role="main"
-          >
-            <ErrorBoundary>{children}</ErrorBoundary>
-          </main>
+      <AppLayoutProvider>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none"
+        >
+          Skip to main content
+        </a>
+        <CommandPalette />
+        <ImpersonationBanner />
+        <OfflineBanner />
+        <div className="flex min-h-screen bg-background">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col">
+            <AppHeader />
+            <main
+              id="main-content"
+              className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 lg:pb-6"
+              role="main"
+            >
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </main>
+          </div>
         </div>
-      </div>
-      <MobileBottomNav />
+        <MobileBottomNav />
+      </AppLayoutProvider>
     </ReverbProvider>
   );
 }

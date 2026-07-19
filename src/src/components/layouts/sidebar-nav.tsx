@@ -59,9 +59,10 @@ interface NavSection {
 
 interface SidebarNavProps {
   onNavigate?: () => void;
+  collapsed?: boolean;
 }
 
-export function SidebarNav({ onNavigate }: SidebarNavProps) {
+export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
   const pathname = usePathname();
   const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
   const { t } = useT();
@@ -359,18 +360,25 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
     .filter((s) => s.items.length > 0);
 
   return (
-    <nav aria-label="Main navigation" className="flex flex-col gap-1 px-3 py-2">
+    <nav
+      aria-label="Main navigation"
+      className={cn("flex flex-col gap-0.5", collapsed ? "px-2" : "px-3 py-2")}
+    >
       {visibleSections.map((section, si) => (
-        <div key={si}>
-          {section.title && (
-            <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
-              {section.title}
-            </p>
-          )}
+        <div key={si} className="flex flex-col gap-0.5">
+          {section.title &&
+            (collapsed ? (
+              si > 0 && (
+                <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" />
+              )
+            ) : (
+              <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                {section.title}
+              </p>
+            ))}
           {section.items.map((item) => {
             const isExactMatch = pathname === item.href;
             const isPrefixMatch = pathname.startsWith(item.href + "/");
-            // Avoid /settings matching when on /settings/holidays etc.
             const exactOnly =
               item.href === "/settings" ||
               item.href === "/payroll" ||
@@ -386,15 +394,26 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                 href={item.href}
                 onClick={onNavigate}
                 aria-current={isActive ? "page" : undefined}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "group relative flex items-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  collapsed ? "h-10 w-10 justify-center" : "gap-3 px-3 py-2",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 )}
               >
+                {!collapsed && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-opacity",
+                      isActive ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                )}
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}

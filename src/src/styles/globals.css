@@ -1,7 +1,35 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   ETHR — Global Theme
+   Enterprise design tokens with Light, Dark, and High Contrast themes.
+
+   Themes:
+     :root            → Light  (default)
+     .dark            → Dark
+     .high-contrast   → High Contrast (WCAG AAA, light-based)
+
+   Brand palette from CLAUDE.md Visual Identity. shadcn/ui bridge vars are
+   derived from ETHR tokens so all existing components repaint automatically.
+   ========================================================================= */
+
 @theme {
-  /* shadcn/ui component bridge */
+  /* --- Typography --------------------------------------------------------- */
+  --font-sans:
+    var(--font-inter), "Noto Sans Ethiopic", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+
+  /* --- shadcn/ui + ETHR semantic color bridge ----------------------------- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
@@ -14,6 +42,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -26,12 +60,15 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
 
-  /* ETHR semantic tokens (CLAUDE.md / DESIGN_SYSTEM.md) */
+  /* Data-viz ramp (colorblind-considered, per dataviz skill) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ETHR design-system semantic tokens (CLAUDE.md / DESIGN_SYSTEM.md) */
   --color-surface-primary: var(--surface-primary);
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-elevated: var(--surface-elevated);
@@ -50,10 +87,50 @@
   --color-status-warning: var(--status-warning);
   --color-status-error: var(--status-error);
   --color-status-info: var(--status-info);
+
+  /* --- Radius ------------------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* --- Elevation (theme-aware via --shadow-color) ------------------------- */
+  --shadow-2xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.04);
+  --shadow-xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.06);
+  --shadow-sm:
+    0 1px 2px 0 hsl(var(--shadow-color) / 0.06),
+    0 1px 3px 0 hsl(var(--shadow-color) / 0.08);
+  --shadow:
+    0 1px 2px -1px hsl(var(--shadow-color) / 0.08),
+    0 2px 4px 0 hsl(var(--shadow-color) / 0.08);
+  --shadow-md:
+    0 2px 4px -2px hsl(var(--shadow-color) / 0.08),
+    0 4px 8px -1px hsl(var(--shadow-color) / 0.1);
+  --shadow-lg:
+    0 4px 6px -4px hsl(var(--shadow-color) / 0.08),
+    0 8px 16px -2px hsl(var(--shadow-color) / 0.12);
+  --shadow-xl:
+    0 8px 10px -6px hsl(var(--shadow-color) / 0.1),
+    0 16px 32px -4px hsl(var(--shadow-color) / 0.14);
+  --shadow-2xl: 0 24px 48px -12px hsl(var(--shadow-color) / 0.24);
+
+  /* --- Motion ------------------------------------------------------------- */
+  --default-transition-duration: 160ms;
+  --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
+/* ============================================================================
+   LIGHT (default)
+   ETHR brand palette — Deep Teal Blue primary, Ethiopian Gold accent.
+   ========================================================================= */
 :root {
-  /* ETHR brand palette — CLAUDE.md Visual Identity (light) */
+  --shadow-color: 210 30% 18%;
+
+  /* ETHR brand palette (CLAUDE.md Visual Identity) */
   --surface-primary: #ffffff;
   --surface-secondary: #f8fafc;
   --surface-elevated: #ffffff;
@@ -73,10 +150,10 @@
   --status-error: #dc2626;
   --status-info: #0284c7;
 
-  /* shadcn/ui bridge — derived from tokens above so components repaint automatically */
+  /* shadcn/ui bridge — derived from tokens above */
   --background: var(--surface-primary);
   --foreground: var(--text-primary);
-  --card: var(--surface-secondary);
+  --card: var(--surface-primary);
   --card-foreground: var(--text-primary);
   --popover: var(--surface-elevated);
   --popover-foreground: var(--text-primary);
@@ -90,6 +167,12 @@
   --accent-foreground: var(--text-primary);
   --destructive: var(--status-error);
   --destructive-foreground: var(--text-inverse);
+  --success: var(--status-success);
+  --success-foreground: var(--text-inverse);
+  --warning: var(--status-warning);
+  --warning-foreground: var(--text-inverse);
+  --info: var(--status-info);
+  --info-foreground: var(--text-inverse);
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
@@ -98,10 +181,24 @@
   --sidebar-accent: #123f63;
   --sidebar-accent-foreground: var(--text-on-sidebar);
   --sidebar-border: #153555;
+
+  /* Chart palette */
+  --chart-1: #0f4c75;
+  --chart-2: #059669;
+  --chart-3: #d97706;
+  --chart-4: #e8a838;
+  --chart-5: #dc2626;
+
+  color-scheme: light;
 }
 
+/* ============================================================================
+   DARK
+   ========================================================================= */
 .dark {
-  /* ETHR brand palette — CLAUDE.md Visual Identity (dark) */
+  --shadow-color: 224 71% 3%;
+
+  /* ETHR brand palette — dark variants */
   --surface-primary: #0f172a;
   --surface-secondary: #1e293b;
   --surface-elevated: #1e293b;
@@ -137,6 +234,12 @@
   --accent-foreground: var(--text-primary);
   --destructive: var(--status-error);
   --destructive-foreground: var(--text-inverse);
+  --success: var(--status-success);
+  --success-foreground: var(--text-inverse);
+  --warning: var(--status-warning);
+  --warning-foreground: var(--text-inverse);
+  --info: var(--status-info);
+  --info-foreground: var(--text-inverse);
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
@@ -145,19 +248,162 @@
   --sidebar-accent: #0b2a42;
   --sidebar-accent-foreground: var(--text-on-sidebar);
   --sidebar-border: #0a1a2b;
+
+  --chart-1: #3282b8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #e8a838;
+  --chart-5: #f87171;
+
+  color-scheme: dark;
 }
 
+/* ============================================================================
+   HIGH CONTRAST (WCAG AAA, light-based)
+   Pure black on white, saturated accents, opaque strong borders.
+   Selectable via next-themes theme = "high-contrast".
+   ========================================================================= */
+.high-contrast {
+  --shadow-color: 0 0% 0%;
+
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-elevated: #ffffff;
+  --surface-sidebar: #ffffff;
+  --text-primary: #000000;
+  --text-secondary: #1a1a1a;
+  --text-inverse: #ffffff;
+  --text-on-sidebar: #000000;
+  --border-default: #000000;
+  --border-strong: #000000;
+  --interactive-primary: #003366;
+  --interactive-hover: #004d99;
+  --interactive-focus: #003366;
+  --brand-accent: #b8860b;
+  --status-success: #006400;
+  --status-warning: #8b4513;
+  --status-error: #8b0000;
+  --status-info: #003366;
+
+  --background: var(--surface-primary);
+  --foreground: var(--text-primary);
+  --card: var(--surface-primary);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-primary);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--interactive-primary);
+  --primary-foreground: var(--text-inverse);
+  --secondary: var(--surface-secondary);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-secondary);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--surface-secondary);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--status-error);
+  --destructive-foreground: var(--text-inverse);
+  --success: var(--status-success);
+  --success-foreground: var(--text-inverse);
+  --warning: var(--status-warning);
+  --warning-foreground: var(--text-inverse);
+  --info: var(--status-info);
+  --info-foreground: var(--text-inverse);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: #000000;
+  --sidebar: var(--surface-sidebar);
+  --sidebar-foreground: var(--text-on-sidebar);
+  --sidebar-accent: var(--surface-secondary);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: #000000;
+
+  --chart-1: #003366;
+  --chart-2: #006400;
+  --chart-3: #8b4513;
+  --chart-4: #b8860b;
+  --chart-5: #8b0000;
+
+  color-scheme: light;
+}
+
+/* OS-level high contrast: strengthen borders without full palette swap. */
+@media (prefers-contrast: more) {
+  :root {
+    --border-default: #94a3b8;
+    --border-strong: #64748b;
+  }
+  .dark {
+    --border-default: #64748b;
+    --border-strong: #94a3b8;
+  }
+}
+
+/* ============================================================================
+   Base layer
+   ========================================================================= */
 @layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: normal;
+  }
+
+  /* Tabular, aligned figures for tables, currency, and metrics. */
+  th,
+  td,
+  [data-slot="table-cell"],
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Accessible focus ring. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .high-contrast :focus-visible {
+    outline-width: 3px;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--interactive-primary) 20%, transparent);
+    color: var(--text-primary);
+  }
+
+  /* Enterprise scrollbars (WebKit + Firefox). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
   }
 }
 
-/* Ethiopic script requires taller line-height (1.7) vs Latin (1.5) */
+/* Ethiopic script requires taller line-height (1.7) vs Latin (1.5). */
 [lang="am"],
 [lang="ti"],
 [lang="om"],
@@ -167,16 +413,23 @@
   word-break: normal;
 }
 
-/* Focus ring for keyboard accessibility (WCAG 2.1 AA) */
-:focus-visible {
-  outline: 2px solid var(--interactive-focus);
-  outline-offset: 2px;
+/* Respect reduced-motion preferences globally. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Print: force light mode, hide chrome, optimize for paper */
+/* Print: force light mode, hide chrome, optimize for paper. */
 @media print {
   :root,
-  .dark {
+  .dark,
+  .high-contrast {
     --surface-primary: #ffffff;
     --surface-secondary: #f8fafc;
     --surface-elevated: #ffffff;
