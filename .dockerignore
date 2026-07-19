@@ -1,0 +1,34 @@
+# Version control
+.git
+.gitignore
+
+# Frontend — has its own build context (src/), never needed by API image builds
+src/node_modules
+src/.next
+src/out
+src/coverage
+src/test-results
+src/playwright-report
+src/lighthouse-reports
+
+# Backend — rebuilt inside the image, never copy host state in
+api/vendor
+api/node_modules
+api/storage/logs/*
+api/storage/framework/cache/*
+api/storage/framework/sessions/*
+api/storage/framework/views/*
+api/.env
+api/.env.*
+!api/.env.example
+
+# Docs, editor, OS cruft
+docs
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Claude Code worktrees / local state
+.claude

@@ -106,8 +106,14 @@ services:
     build:
       context: ./src
       dockerfile: ../docker/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://nginx
+        NEXT_PUBLIC_APP_NAME: ETHR
+        NEXT_PUBLIC_APP_URL: http://localhost
+        NEXT_PUBLIC_REVERB_HOST: localhost
+        NEXT_PUBLIC_REVERB_PORT: "8080"
+        NEXT_PUBLIC_REVERB_SCHEME: http
     environment:
-      - NEXT_PUBLIC_API_URL=http://nginx/api
       - PORT=3000
     networks:
       - ethr

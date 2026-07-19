@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+coverage
+test-results
+playwright-report
+lighthouse-reports
+.git
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+.env.local
+.env*.local

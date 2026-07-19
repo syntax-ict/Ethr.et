@@ -183,6 +183,17 @@ services:
     build:
       context: ./src
       dockerfile: ../docker/frontend/Dockerfile
+      # Next.js inlines NEXT_PUBLIC_* vars into the compiled output at build
+      # time, so `env_file:` below has no effect on them — these must be
+      # passed as build args. Override via shell env before `docker compose
+      # build` (e.g. NEXT_PUBLIC_API_URL=https://ethr.et docker compose ...).
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://ethr.et}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-ETHR}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://ethr.et}
+        NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST:-ethr.et}
+        NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT:-443}
+        NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME:-https}
     container_name: ethr-frontend
     environment:
       - NODE_ENV=production

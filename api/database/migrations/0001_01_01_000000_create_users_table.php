@@ -80,7 +80,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->char('public_id', 26)->unique();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('tenant_id')->nullable()->constrained()->cascadeOnDelete();
             $table->unsignedBigInteger('employee_id')->nullable();
             $table->string('email');
             $table->string('phone')->nullable();

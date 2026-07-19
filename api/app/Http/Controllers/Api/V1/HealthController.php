@@ -38,7 +38,7 @@ class HealthController extends Controller
         }
 
         try {
-            Storage::disk('s3')->exists('.health');
+            Storage::disk('minio')->exists('.health');
             $services['storage'] = 'healthy';
         } catch (\Throwable) {
             $services['storage'] = 'unavailable';
