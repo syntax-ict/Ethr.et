@@ -260,7 +260,7 @@ function BuilderTab() {
           </CardHeader>
           <CardContent>
             <Select value={config.source} onValueChange={changeSource}>
-              <SelectTrigger>
+              <SelectTrigger aria-label={t("reports_page.data_source")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -337,6 +337,7 @@ function BuilderTab() {
               variant="ghost"
               className="h-6 px-2"
               onClick={addFilter}
+              aria-label={t("reports_page.add_filter", "Add filter")}
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -400,7 +401,7 @@ function BuilderTab() {
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label={t("reports_page.group_by")}>
                 <SelectValue placeholder={t("reports_page.no_grouping")} />
               </SelectTrigger>
               <SelectContent>
@@ -433,7 +434,7 @@ function BuilderTab() {
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label={t("reports_page.sort")}>
                 <SelectValue placeholder={t("reports_page.no_sorting")} />
               </SelectTrigger>
               <SelectContent>
@@ -454,7 +455,7 @@ function BuilderTab() {
                   setConfig((p) => ({ ...p, sort_dir: v as "asc" | "desc" }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label={t("reports_page.sort_direction", "Sort direction")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

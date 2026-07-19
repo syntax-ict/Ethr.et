@@ -156,7 +156,11 @@ function EmployeeSelfServiceCards() {
                         )}
                       </span>
                     </div>
-                    <Progress value={pct} className="h-2" />
+                    <Progress
+                      value={pct}
+                      className="h-2"
+                      aria-label={`${String(b.type)} leave balance: ${pct}% used`}
+                    />
                   </div>
                 );
               })}

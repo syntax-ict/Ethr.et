@@ -324,6 +324,7 @@ function MyLeaveTab() {
                               }
                             }}
                             disabled={cancelLeave.isPending}
+                            aria-label={t("leave_page.withdraw")}
                           >
                             <X className="h-3 w-3" />
                           </Button>
@@ -461,6 +462,7 @@ function TeamLeaveTab() {
                                   approveLeave.mutate(req.public_id)
                                 }
                                 disabled={approveLeave.isPending}
+                                aria-label={t("common.approve")}
                               >
                                 <Check className="h-3 w-3" />
                               </Button>
@@ -475,6 +477,7 @@ function TeamLeaveTab() {
                                   })
                                 }
                                 disabled={rejectLeave.isPending}
+                                aria-label={t("common.reject")}
                               >
                                 <X className="h-3 w-3" />
                               </Button>

@@ -138,10 +138,11 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>
+                  <Label htmlFor="org-name">
                     {t("settings.organization_name", "Organization Name")}
                   </Label>
                   <Input
+                    id="org-name"
                     value={data?.organization?.name ?? ""}
                     disabled
                     className="mt-1"
@@ -151,9 +152,10 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <div>
-                  <Label>{t("settings.subdomain", "Subdomain")}</Label>
+                  <Label htmlFor="org-subdomain">{t("settings.subdomain", "Subdomain")}</Label>
                   <div className="mt-1 flex items-center gap-2">
                     <Input
+                      id="org-subdomain"
                       value={data?.organization?.subdomain ?? ""}
                       disabled
                     />
@@ -163,20 +165,21 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>{t("settings.timezone", "Timezone")}</Label>
+                  <Label htmlFor="org-timezone">{t("settings.timezone", "Timezone")}</Label>
                   <Input
+                    id="org-timezone"
                     value={data?.organization?.timezone ?? "Africa/Addis_Ababa"}
                     disabled
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>{t("settings.language", "Language")}</Label>
+                  <Label htmlFor="org-language">{t("settings.language", "Language")}</Label>
                   <Select
                     value={getValue("locale", "en")}
                     onValueChange={(v) => updateField("locale", v)}
                   >
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger id="org-language" className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
