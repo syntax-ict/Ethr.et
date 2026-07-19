@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
@@ -36,6 +37,25 @@ class LoginRequest extends FormRequest
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
+
+        // Platform super admins have no tenant (tenant_id is null by design —
+        // see CLAUDE.md's global model list), so they're invisible to the
+        // tenant-scoped lookup below even when a tenant WAS resolved (e.g. a
+        // subdomain field the login form still shows and the user filled in
+        // out of habit). Check for a super admin match first, independent of
+        // tenant resolution, before falling through to the normal flow.
+        $superAdmin = User::withoutGlobalScopes()
+            ->where('email', $this->input('email'))
+            ->whereNull('tenant_id')
+            ->where('role', UserRole::SUPER_ADMIN)
+            ->first();
+
+        if ($superAdmin && Hash::check($this->input('password'), $superAdmin->password)) {
+            Auth::login($superAdmin);
+            RateLimiter::clear($this->throttleKey());
+
+            return;
+        }
 
         $currentTenant = app(CurrentTenant::class);
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Tenant;
 use App\Models\User;
 
 describe('POST /api/v1/auth/login', function () {
@@ -66,6 +67,79 @@ describe('POST /api/v1/auth/login', function () {
         $this->postJson('/api/v1/auth/login', [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email', 'password']);
+    });
+
+    it('authenticates a super admin without a resolved tenant', function () {
+        User::factory()->create([
+            'tenant_id' => null,
+            'email' => 'superadmin@ethr.et',
+            'password' => bcrypt('password'),
+            'role' => UserRole::SUPER_ADMIN,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'superadmin@ethr.et',
+            'password' => 'password',
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['access_token']);
+    });
+
+    it('authenticates a super admin even when a tenant is also resolved', function () {
+        // Mirrors the real login form: the "Organization subdomain" field
+        // is visible whenever the host itself doesn't resolve a tenant, and
+        // a user may fill it in out of habit even when logging in as a
+        // platform-wide super admin. The tenant-scoped lookup must not
+        // shadow the super admin's tenant_id=null row in this case.
+        createTenant(['subdomain' => 'demo']);
+        User::factory()->create([
+            'tenant_id' => null,
+            'email' => 'superadmin@ethr.et',
+            'password' => bcrypt('password'),
+            'role' => UserRole::SUPER_ADMIN,
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'superadmin@ethr.et',
+            'password' => 'password',
+            'tenant' => 'demo',
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['access_token']);
+    });
+
+    it('rejects a super admin with the wrong password when no tenant is resolved', function () {
+        User::factory()->create([
+            'tenant_id' => null,
+            'email' => 'superadmin@ethr.et',
+            'password' => bcrypt('password'),
+            'role' => UserRole::SUPER_ADMIN,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'superadmin@ethr.et',
+            'password' => 'wrong-password',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['tenant']);
+    });
+
+    it('still requires a tenant for a non-super-admin email when none is resolved', function () {
+        $tenant = Tenant::factory()->create();
+        User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'email' => 'user@test.com',
+            'password' => bcrypt('password'),
+            'role' => UserRole::EMPLOYEE,
+        ]);
+
+        // Deliberately not calling createTenant() — no tenant is resolved
+        // for this request, and this user's tenant_id is not null, so the
+        // super-admin fallback must not match them.
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'user@test.com',
+            'password' => 'password',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['tenant']);
     });
 });
 
