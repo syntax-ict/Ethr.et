@@ -55,6 +55,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
     "@eslint/eslintrc": "^3.3.5",
+    "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.47.0",
     "@tailwindcss/postcss": "^4.3.1",
@@ -73,7 +74,7 @@
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1",
-    "typescript": "^6.0.3",
+    "typescript": "^5.9.3",
     "vitest": "^2.1.9"
   }
 }

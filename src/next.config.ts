@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -24,13 +25,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-let config = nextConfig;
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
-if (process.env.ANALYZE === "true") {
-  const withBundleAnalyzer = (await import("@next/bundle-analyzer")).default({
-    enabled: true,
-  });
-  config = withBundleAnalyzer(nextConfig);
-}
-
-export default config;
+export default withBundleAnalyzer(nextConfig);
