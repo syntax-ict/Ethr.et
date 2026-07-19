@@ -1,10 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { login, DEMO_EMAIL, DEMO_PASS } from './helpers';
 
 test.describe('Payroll', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, DEMO_EMAIL, DEMO_PASS);
-  });
+  test.use({ storageState: 'e2e/.auth/admin.json' });
 
   test('payroll runs page loads', async ({ page }) => {
     await page.goto('/payroll');

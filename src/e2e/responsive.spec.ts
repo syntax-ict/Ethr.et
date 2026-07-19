@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { login, DEMO_EMAIL, DEMO_PASS } from "./helpers";
 
 const VIEWPORTS = [
   { name: "mobile-sm", width: 375, height: 812 },
@@ -20,9 +19,7 @@ const PAGES = [
 ];
 
 test.describe("Responsive layout verification", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, DEMO_EMAIL, DEMO_PASS);
-  });
+  test.use({ storageState: "e2e/.auth/admin.json" });
 
   for (const viewport of VIEWPORTS) {
     test.describe(`${viewport.name} (${viewport.width}x${viewport.height})`, () => {

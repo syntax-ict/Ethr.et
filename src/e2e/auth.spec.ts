@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, logout, DEMO_EMAIL, DEMO_PASS } from './helpers';
+import { login, logout, DEMO_EMAIL, DEMO_PASS, DEMO_TENANT } from './helpers';
 
 test.describe('Authentication', () => {
   test('login with valid credentials redirects to dashboard', async ({ page }) => {
@@ -10,6 +10,10 @@ test.describe('Authentication', () => {
 
   test('login with invalid credentials shows error', async ({ page }) => {
     await page.goto('/login');
+    const tenantField = page.locator('#tenant');
+    if (await tenantField.isVisible().catch(() => false)) {
+      await tenantField.fill(DEMO_TENANT);
+    }
     await page.fill('input[type="email"]', DEMO_EMAIL);
     await page.fill('input[type="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');

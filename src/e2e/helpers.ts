@@ -10,8 +10,16 @@ export const HR_PASS     = process.env.HR_PASS     ?? 'password';
 export const EMP_EMAIL   = process.env.EMP_EMAIL   ?? 'emp@demo.ethr.et';
 export const EMP_PASS    = process.env.EMP_PASS    ?? 'password';
 
+export const DEMO_TENANT = process.env.DEMO_TENANT ?? 'demo';
+
 export async function login(page: Page, email: string, password: string) {
   await page.goto('/login');
+  // The subdomain field only renders when the host itself doesn't already
+  // resolve to a tenant (e.g. demo.localhost, used by this test suite).
+  const tenantField = page.locator('#tenant');
+  if (await tenantField.isVisible().catch(() => false)) {
+    await tenantField.fill(DEMO_TENANT);
+  }
   await page.fill('[data-testid="email-input"], input[type="email"], input[name="email"]', email);
   await page.fill('[data-testid="password-input"], input[type="password"], input[name="password"]', password);
   await page.click('[data-testid="login-button"], button[type="submit"]');

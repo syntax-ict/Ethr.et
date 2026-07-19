@@ -1,13 +1,17 @@
 import { test, expect } from "@playwright/test";
-import { login, EMP_EMAIL, EMP_PASS } from "./helpers";
 
 test.describe("PWA & Offline Behavior", () => {
-  test("service worker registers successfully", async ({ page }) => {
-    await login(page, EMP_EMAIL, EMP_PASS);
+  test.use({ storageState: "e2e/.auth/employee.json" });
 
+  test("service worker registers successfully", async ({ page }) => {
+    await page.goto("/dashboard");
+
+    // `serviceWorker.ready` waits for an active registration rather than
+    // sampling the current state immediately, which can race the
+    // useEffect-driven register() call on first navigation.
     const swRegistered = await page.evaluate(async () => {
       if (!("serviceWorker" in navigator)) return false;
-      const reg = await navigator.serviceWorker.getRegistration("/");
+      const reg = await navigator.serviceWorker.ready;
       return !!reg;
     });
 
@@ -29,7 +33,7 @@ test.describe("PWA & Offline Behavior", () => {
     page,
     context,
   }) => {
-    await login(page, EMP_EMAIL, EMP_PASS);
+    await page.goto("/dashboard");
 
     // Wait for service worker to activate and cache shell
     await page.waitForTimeout(2000);
@@ -58,7 +62,7 @@ test.describe("PWA & Offline Behavior", () => {
     page,
     context,
   }) => {
-    await login(page, EMP_EMAIL, EMP_PASS);
+    await page.goto("/dashboard");
     await page.waitForTimeout(2000);
 
     await context.setOffline(true);
@@ -96,7 +100,6 @@ test.describe("PWA & Offline Behavior", () => {
     page,
     context,
   }) => {
-    await login(page, EMP_EMAIL, EMP_PASS);
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
 
@@ -107,17 +110,15 @@ test.describe("PWA & Offline Behavior", () => {
       .goto("/employees", { waitUntil: "commit", timeout: 10000 })
       .catch(() => {});
 
-    const offlineBanner = page.locator(
-      '[data-testid="offline-banner"], [role="alert"]:has-text("offline"), text=/offline|no.*internet/i',
-    );
+    const offlineBanner = page
+      .locator('[data-testid="offline-banner"], [role="alert"]:has-text("offline")')
+      .or(page.getByText(/offline|no.*internet/i));
     await expect(offlineBanner.first()).toBeVisible({ timeout: 8000 });
 
     await context.setOffline(false);
   });
 
   test("API responses cached for offline access", async ({ page, context }) => {
-    await login(page, EMP_EMAIL, EMP_PASS);
-
     // Load dashboard to cache API responses
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");

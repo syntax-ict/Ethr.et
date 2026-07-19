@@ -1,10 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { login, DEMO_EMAIL, DEMO_PASS, HR_EMAIL, HR_PASS } from './helpers';
 
 test.describe('Employee Management', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, HR_EMAIL, HR_PASS);
-  });
+  test.use({ storageState: 'e2e/.auth/hr.json' });
 
   test('employee list loads with data', async ({ page }) => {
     await page.goto('/employees');
@@ -26,7 +23,8 @@ test.describe('Employee Management', () => {
     await page.goto('/employees');
     const firstRow = page.locator('table tbody tr, [data-testid="employee-card"]').first();
     await expect(firstRow).toBeVisible({ timeout: 10000 });
-    await firstRow.click();
+    // Rows aren't clickable themselves — navigation happens via the nested link.
+    await firstRow.locator('a').first().click();
     await expect(page).toHaveURL(/\/employees\/.+/);
   });
 });

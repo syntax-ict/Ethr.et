@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { login, DEMO_EMAIL, DEMO_PASS } from "./helpers";
 
 const PAGES = [
   { path: "/dashboard", name: "dashboard" },
@@ -13,9 +12,7 @@ const PAGES = [
 ];
 
 test.describe("Dark mode verification", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, DEMO_EMAIL, DEMO_PASS);
-  });
+  test.use({ storageState: "e2e/.auth/admin.json" });
 
   test("dark mode toggle exists and switches theme", async ({ page }) => {
     await page.goto("/dashboard");
@@ -121,7 +118,6 @@ test.describe("Dark mode verification", () => {
 
   test("Amharic text renders correctly in dark mode", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
-    await login(page, DEMO_EMAIL, DEMO_PASS);
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
 
