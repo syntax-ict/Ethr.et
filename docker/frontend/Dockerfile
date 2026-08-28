@@ -37,6 +37,15 @@ ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_REVERB_HOST
 ARG NEXT_PUBLIC_REVERB_PORT
 ARG NEXT_PUBLIC_REVERB_SCHEME
+# The key the browser authenticates to Reverb with. src/lib/echo.ts reads it as
+# `process.env.NEXT_PUBLIC_REVERB_APP_KEY ?? "ethr-key"`, so omitting it here
+# does not fail the build — it bakes the literal fallback "ethr-key" into the
+# bundle while the server checks against the random REVERB_APP_KEY generated at
+# deploy. The two never match, so every WebSocket handshake is rejected and
+# in-app notifications, live device status and attendance updates are all dead.
+# Nothing surfaces it: the page renders, the REST API works, and only the
+# socket is silently down.
+ARG NEXT_PUBLIC_REVERB_APP_KEY
 # The tenant selector. Empty in single-host dev (localhost), so hostContext()
 # falls back to "unknown" and the login stays in dev mode. Set per environment
 # (docker-compose.prod.yml passes it) it becomes authoritative: the apex,
@@ -51,6 +60,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_REVERB_HOST=${NEXT_PUBLIC_REVERB_HOST}
 ENV NEXT_PUBLIC_REVERB_PORT=${NEXT_PUBLIC_REVERB_PORT}
 ENV NEXT_PUBLIC_REVERB_SCHEME=${NEXT_PUBLIC_REVERB_SCHEME}
+ENV NEXT_PUBLIC_REVERB_APP_KEY=${NEXT_PUBLIC_REVERB_APP_KEY}
 ENV NEXT_PUBLIC_ROOT_DOMAIN=${NEXT_PUBLIC_ROOT_DOMAIN}
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build

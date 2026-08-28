@@ -363,6 +363,13 @@ services:
         NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST:-ethr.et}
         NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT:-443}
         NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME:-https}
+        # Must equal REVERB_APP_KEY in api/.env.production. Deliberately has no
+        # `:-` default: src/lib/echo.ts already falls back to the literal
+        # "ethr-key", so a default here would just make an unset value look
+        # deliberate while every WebSocket handshake fails against the real
+        # server key. Left empty, the build still succeeds — see the ARG comment
+        # in docker/frontend/Dockerfile for why nothing catches that.
+        NEXT_PUBLIC_REVERB_APP_KEY: ${NEXT_PUBLIC_REVERB_APP_KEY}
     environment:
       - NODE_ENV=production
       - PORT=3000

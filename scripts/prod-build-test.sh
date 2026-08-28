@@ -84,6 +84,11 @@ DB_PASSWORD=$DB_PASSWORD
 DB_READ_USERNAME=ethr_read
 DB_READ_PASSWORD=$DB_READ_PASSWORD
 REDIS_PASSWORD=$REDIS_PASSWORD
+# The browser half of the Reverb credential pair. api/.env.production carries
+# REVERB_APP_KEY (what the server checks); this is what gets compiled into the
+# JS bundle. Both are set from the same variable here precisely so the assertion
+# below can prove they agree.
+NEXT_PUBLIC_REVERB_APP_KEY=$REVERB_APP_KEY
 MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY
 MINIO_SECRET_KEY=$MINIO_SECRET_KEY
 API_REPLICAS=1
@@ -192,6 +197,25 @@ check $? "frontend image has the Next standalone build"
 docker run --rm --entrypoint sh "${PROJECT}-frontend" -c \
   'grep -rq "ethr\.et" .next/static/chunks' >/dev/null 2>&1
 check $? "frontend build args were inlined into the client bundle"
+
+# The Reverb key specifically, because the generic check above cannot see it and
+# its failure mode is silent. src/lib/echo.ts reads
+# `process.env.NEXT_PUBLIC_REVERB_APP_KEY ?? "ethr-key"`, so when the build arg
+# is missing the bundle compiles in the literal fallback and every WebSocket
+# handshake is rejected by a server checking the real REVERB_APP_KEY. The REST
+# API is unaffected, so notifications, live device status and attendance updates
+# just stop with nothing in any log. That is exactly how it shipped: the arg was
+# absent from the Dockerfile and from docker-compose.prod.yml, and no gate
+# looked at it.
+docker run --rm --entrypoint sh "${PROJECT}-frontend" -c \
+  "grep -rq '$REVERB_APP_KEY' .next/static/chunks" >/dev/null 2>&1
+check $? "browser bundle carries the real Reverb app key"
+
+# The other direction: the fallback must be absent. Asserting only the presence
+# of the real key would still pass if both were somehow present.
+docker run --rm --entrypoint sh "${PROJECT}-frontend" -c \
+  '! grep -rq "ethr-key" .next/static/chunks' >/dev/null 2>&1
+check $? "browser bundle does not fall back to the placeholder Reverb key"
 
 # ── 3. Boot ──────────────────────────────────────────────────────────────────
 say "3. Boot the stack"
