@@ -376,9 +376,12 @@ read the body, not just the status code.
 
 ## Step 7 — Backups (do this on day one)
 
-```bash
-mkdir -p /opt/backups/ethr /var/log/ethr
+`scripts/backup.sh` writes to `/var/backups/ethr` by default (override with
+`BACKUP_PATH`), creates that directory itself, and dumps three artefacts per run
+— `ethr_backup_<ts>_db.sql.gz`, `_files.tar.gz` (the MinIO volume), and `.env`.
+It sets `umask 077` because that env copy holds every production secret.
 
+```bash
 cat > /etc/cron.d/ethr-backup <<'EOF'
 # Daily 02:00 EAT (23:00 UTC)
 0 23 * * * root /opt/ethr/scripts/backup.sh >> /var/log/ethr-backup.log 2>&1
@@ -389,8 +392,15 @@ EOF
 
 ```bash
 ./scripts/backup.sh
-ls -lh /opt/backups/ethr/          # confirm a non-trivial .sql.gz landed
+ls -lh /var/backups/ethr/          # expect ethr_backup_<ts>_{db.sql.gz,files.tar.gz,.env}
+
+# Restore is by backup name (no _db.sql.gz suffix). Run with no args to list:
+./scripts/restore.sh
 ```
+
+> `BACKUP_PATH` must be set identically for backup and restore. If you point the
+> cron backup somewhere custom, `restore.sh` needs the same value or it will
+> report "Backup file not found" against the default path.
 
 ---
 
