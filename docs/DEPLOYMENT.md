@@ -510,7 +510,7 @@ docker compose -f docker-compose.prod.yml exec api php artisan horizon:terminate
 
 # Health check
 sleep 10
-curl -sf https://ethr.et/api/health || { echo "HEALTH CHECK FAILED"; exit 1; }
+curl -sf https://ethr.et/api/v1/health || { echo "HEALTH CHECK FAILED"; exit 1; }
 
 echo "$(date): Deployment complete."
 ```
@@ -576,7 +576,7 @@ echo "$(date): Restore complete."
 
 ### Health Endpoint
 
-`GET /api/health` returns:
+`GET /api/v1/health` returns:
 
 ```json
 {
