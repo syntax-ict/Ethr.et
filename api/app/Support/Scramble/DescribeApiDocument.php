@@ -54,8 +54,6 @@ class DescribeApiDocument
             array_keys(self::TAGS),
             array_values(self::TAGS),
         );
-        file_put_contents(storage_path('probe.txt'), 'after: '.count($document->tags).' oid='.spl_object_id($document).' class='.get_class($document).'
-', FILE_APPEND);
     }
 
     /**
