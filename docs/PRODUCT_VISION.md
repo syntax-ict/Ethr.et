@@ -110,8 +110,10 @@ A professional web presence is critical for SaaS adoption in Ethiopia, where tru
 - Free trial signup (6 months, no credit card)
 - Instant tenant creation (< 30 seconds)
 - Email verification
-- 7-step guided onboarding with organization templates
-- 8 industry templates (Government, Bank, Hospital, Manufacturing, NGO, Hotel, University, General)
+- 7-step guided onboarding with AI-assisted, industry-aware configuration (deterministic, auditable — see [ONBOARDING_V2.md](ONBOARDING_V2.md))
+- 27 selectable industries over 8 maintained base templates (Government, Bank, Hospital, Manufacturing, NGO, Hotel, University, General)
+- Workforce migration & device discovery: import from spreadsheets or biometric devices, matched to master employees so no duplicates are created
+- Flexible login identifiers (email, mobile number, or employee number) for organizations without staff email
 - Subscription upgrade in-app
 - Trial expiration enforcement (402 response after expiry)
 

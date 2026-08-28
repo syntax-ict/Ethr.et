@@ -1,8 +1,22 @@
 # Phase 3 — Attendance Platform (Flagship) (v2.0)
 
-## Status: 92% Complete — Action Plan for Remaining 8%
+> **Design record — not a progress tracker.**
+> The `- [ ]` checkboxes below are the original up-front specification and were
+> never maintained against the code. They under-report reality badly: several
+> phases read as 0% complete while the features they describe are live and
+> covered by tests. **Do not use them to judge what is done.**
+>
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
+> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
+> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
+> the source of truth is the code — verify against it, not against this file.
+>
+> Keep this document for its design intent: scope, data model, and acceptance
+> criteria, which remain accurate and useful.
 
-**Last Audited:** 2026-07-15  
+## Status: ✅ COMPLETE — all gaps closed, all exit criteria met
+
+**Last Audited:** 2026-07-27  
 **Auditor:** Principal SaaS Architect (automated + manual)
 
 ---
@@ -12,7 +26,7 @@
 | Story | Backend | Frontend | Tests | Status |
 |-------|---------|----------|-------|--------|
 | S13 — Attendance Engine Core | ✅ | ✅ | ✅ | DONE |
-| S14 — Shift Engine | ✅ | ✅ | ⚠️ 2 tests fail | NEEDS FIX |
+| S14 — Shift Engine | ✅ | ✅ | ✅ | DONE |
 | S15 — Web, Manual, CSV, Kiosk | ✅ | ✅ | ✅ | DONE |
 | S16 — Biometric + Hikvision | ✅ | ✅ | ✅ | DONE |
 | S17 — ZKTeco + Device Dashboard | ✅ | ✅ | ✅ | DONE |
@@ -22,7 +36,7 @@
 | Attendance Settings | ✅ | ✅ | ✅ | DONE |
 | QR Auto-refresh | ✅ | ✅ | ✅ | DONE |
 | Shift Management Frontend | ✅ | ✅ | ✅ | DONE |
-| GAP CLOSURE (new) | — | — | — | REMAINING |
+| GAP CLOSURE (GAP-FIX-1..7) | ✅ | ✅ | ✅ | DONE |
 
 ---
 
@@ -205,19 +219,96 @@
 
 ---
 
-## Gap Closure Priority (Execution Order)
+## Gap Closure Status (all closed 2026-07-27)
 
-| Priority | Gap | Effort | Blocked By |
-|----------|-----|--------|------------|
-| 1 | GAP-FIX-1: ShiftMatcher test bug | 1 hour | Nothing |
-| 2 | GAP-FIX-2: Conflict resolution state machine | 1-2 days | Nothing |
-| 3 | GAP-FIX-3: Missing punch alert job | 2 hours | Nothing |
-| 4 | GAP-FIX-4: Complete Amharic translations | 3 hours | Nothing (parallel) |
-| 5 | GAP-FIX-5: PWA service worker | 3-4 hours | Nothing (parallel) |
-| 6 | GAP-FIX-6: Payroll impact preview | 2 hours | Payroll engine (can stub) |
-| 7 | GAP-FIX-7: QR scan camera fallback | 1 hour | Nothing |
+| Gap | Status | Delivered |
+|-----|--------|-----------|
+| GAP-FIX-1: ShiftMatcher test bug | ✅ | `ShiftFactory` defaults `is_active = true`, `is_default = false`; ShiftEngineTest green |
+| GAP-FIX-2: Conflict resolution state machine | ✅ | `attendance_conflicts` table + `AttendanceConflict` model, `ConflictType`/`ConflictResolutionStatus` enums, source-priority tiebreak in `ConflictResolver`, `GET /attendance/conflicts` + `PUT /attendance/conflicts/{id}/resolve`, 10 decision-table tests |
+| GAP-FIX-3: Missing punch alert job | ✅ | `ScanMissingPunchesJob` (per-tenant), `MissingPunchNotification`, scheduled in `routes/console.php` |
+| GAP-FIX-4: Complete Amharic translations | ✅ | 16 `am/*.php` files matching `en/` |
+| GAP-FIX-5: PWA service worker | ✅ | `public/sw.js` (precache, network-first API, background sync, push), manifest, `/offline` page |
+| GAP-FIX-6: Payroll impact preview | ✅ | `GET /attendance/corrections/{id}/payroll-impact` returning before/after + delta |
+| GAP-FIX-7: QR scan camera fallback | ✅ | `camera_denied` state with explanation, manual token entry (also reachable from idle for accessibility), retry-camera action, 4 Vitest tests |
 
-**Total effort to close Phase 3: ~3-4 days**
+### Post-completion fixes
+
+**2026-07-28 — Device events endpoint 500'd on phantom columns (GAP-FIX-8) ✅**
+
+`DeviceController::deviceEvents` (`GET /devices/{device}/events`, S17 device dashboard) eager-loaded
+`employee:id,public_id,first_name,last_name,employee_code` and built `employee_name` from
+`first_name`/`last_name` — but `employees` has a single `name` column and no `first_name`/`last_name`,
+so the endpoint threw *Unknown column 'first_name'* and returned **500 for every request**. Hidden from
+PHPStan by the untyped `AttendanceRecord::employee()` relation (access resolved to `Model`) and covered
+by **no test**. Fixed to load/return `name`; typed `AttendanceRecord::employee()` as
+`BelongsTo<Employee, $this>` (root cause), which retired 12 now-obsolete PHPStan baseline entries across
+6 files. Added 2 regression tests to `DeviceManagementTest` (returns 200 with employee name/code;
+employee forbidden). Found via a repo-wide sweep for the same bug class as PHASE 4 GAP-4A-3 — no other
+constrained eager-load, explicit `select()`, or query-builder column reference (`orderBy`/`whereDate`/
+`groupBy`/`sum`/`pluck`) targets a missing column.
+
+Added durable regression nets that iterate the router and assert non-5xx:
+- `tests/Feature/ReadEndpointSmokeTest.php` — all 82 parameterless `GET /api/v1/*` routes, against both
+  an empty tenant and a data-rich fixture (verified once against the full 150-employee demo tenant too).
+- `tests/Feature/ParameterizedEndpointSmokeTest.php` — all 44 parameterized `GET /api/v1/*` routes,
+  binding a real fixture record to every `{param}` (with a coverage guard that fails if a newly added
+  route has an unmapped param). Two routes are intentionally skipped: the DomPDF payslip PDF
+  (memory-heavy) and the invoice receipt (needs a Subscription chain).
+
+All read endpoints pass.
+
+**2026-07-28 — Device status probe blocked a worker for ~20s on unreachable devices (GAP-FIX-9) ✅**
+
+Surfaced by the parameterized smoke net: `GET /devices/{device}/status` calls the adapter's
+`getStatus()` + `getDeviceInfo()`, each a live HTTP request. `Http::timeout(10)` only caps the request
+*after* connecting, so an unreachable device stalled on the TCP connect phase — ~20s total (two calls),
+tying up a PHP-FPM worker per offline device (worker-exhaustion risk). Added `->connectTimeout(2)` to the
+shared `request()` helper in `HikvisionAdapter`, `ZktecoAdapter`, and `SupremaAdapter` (the read
+`timeout(10)` is left intact — it is shared with large event pulls). Probe now fails in ~4s and returns a
+graceful `offline` (200), verified by a regression test hitting a TEST-NET-1 (RFC 5737) address.
+
+Gates: Pest 912 green, PHPStan level 6 clean, Pint clean.
+
+**2026-07-30 — Mobile check-in with a selfie always failed validation (GAP-FIX-10) ✅**
+
+The mobile attendance page captured the selfie with `canvas.toDataURL("image/jpeg", 0.7)` and sent the
+resulting **base64 data URL** as `photo_path`, which `MobileCheckInRequest` validated as
+`['nullable','string','max:500']`. Any real selfie is tens of thousands of characters, so *every*
+check-in that included a photo returned **422** — silently costing the S18 confidence bonus (95 with a
+selfie vs 88 without) and leaving no photographic evidence on the record. No test covered it: the one
+selfie test posted a short fake path (`'selfies/photo-001.jpg'`), which passed `max:500` and never
+exercised the real client payload.
+
+Closed with a proper upload pipeline:
+- `App\Rules\Base64Image` — parses the data URL, restricts to JPEG/PNG/WebP, caps the *decoded* size,
+  and verifies magic bytes, giving inline images the same guarantee `VerifyFileContent` gives multipart
+  uploads (convention #15). Messages added to `lang/en|am/validation.php`; the framework validation file
+  was published, since `validation.*` keys previously rendered as raw key strings.
+- `FileStorageService::uploadDataUrlImage()` — decodes, downscales to ≤ 1080px, and steps JPEG quality
+  down until the object fits the 200 KB selfie budget, then stores it under `{tenant}/selfies/`.
+  Requests now carry `photo` (the data URL); the object key is derived server-side and clients never
+  supply `photo_path`.
+- Check-out selfies are stored as `metadata.checkout_photo_path` rather than overwriting the check-in
+  photo — `AttendanceEngine::processCheckOut()` previously discarded any photo it was handed, which
+  would have orphaned the uploaded object.
+- 5 tests in `MobileSelfieUploadTest` (storage, both punches retained, non-image rejected, SVG rejected,
+  byte/dimension budget); the pre-existing confidence-95 test now posts a real data URL.
+
+Also fixed a GD handle leak found by the same work: `compressImage()` replaced its image handle without
+freeing the previous one, so a full-resolution photo exhausted the 128 MB PHP memory limit mid-request.
+
+Gates: Pest 959 green, PHPStan level 6 clean, Pint clean, tsc + Vitest 211 green.
+
+### Conflict decision table → implementation mapping
+
+| Scenario | Resolution | Implemented as |
+|---|---|---|
+| Same source, < 1 min | Deduplicate | `deduped` — higher confidence survives, ties keep first |
+| Different source, < 1 min | Merge (highest confidence) | `merged` via `mergeByConfidence()`; ties fall back to source priority |
+| Different source, 1–5 min | Merge span | `merged` — earliest check-in, latest check-out |
+| Different source, > 5 min | Flag for HR | `flagged` + `AttendanceConflict` record (`multi_source_far`) |
+| Confidence tied | Source priority | Biometric > Mobile > QR > Web > Manual > CSV |
+| Duplicate idempotency key | Skip | Unique `(tenant_id, idempotency_key)`, returns `was_duplicate: true` |
 
 ---
 
@@ -225,8 +316,8 @@
 
 - [x] Unified attendance engine handles all 9 sources
 - [x] Shift engine matches employees to shifts correctly
-- [ ] ShiftMatcher tests passing (GAP-FIX-1)
-- [ ] Conflict resolution formal state machine (GAP-FIX-2)
+- [x] ShiftMatcher tests passing (GAP-FIX-1)
+- [x] Conflict resolution formal state machine (GAP-FIX-2)
 - [x] Hikvision + ZKTeco devices integrated
 - [x] Offline attendance stores locally and syncs with conflict resolution
 - [x] Mobile attendance with GPS + geofence + selfie
@@ -237,11 +328,11 @@
 - [x] Device dashboard with real-time status
 - [x] Attendance settings (per-tenant method control)
 - [x] Shift management frontend (list, assignments, roster)
-- [ ] Missing punch alert job (GAP-FIX-3)
-- [ ] Full Amharic translation coverage (GAP-FIX-4)
-- [ ] PWA service worker + install prompt (GAP-FIX-5)
-- [ ] Payroll impact preview on corrections (GAP-FIX-6)
-- [ ] QR scan camera fallback (GAP-FIX-7)
-- [ ] Browser verified: desktop + tablet + mobile + dark + light
-- [ ] All Pest tests passing
-- [ ] TenantIsolationTest passes
+- [x] Missing punch alert job (GAP-FIX-3)
+- [x] Full Amharic translation coverage (GAP-FIX-4)
+- [x] PWA service worker + install prompt (GAP-FIX-5)
+- [x] Payroll impact preview on corrections (GAP-FIX-6)
+- [x] QR scan camera fallback (GAP-FIX-7)
+- [x] Browser verified: desktop + tablet (768) + mobile (375) + dark + light + Amharic; console clean
+- [x] All Pest tests passing (833 passed)
+- [x] TenantIsolationTest passes

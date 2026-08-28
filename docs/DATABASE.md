@@ -485,6 +485,42 @@ Category-based rules: pension, overtime, allowance, deduction. Formula stored as
 ### employee_loans
 Loan tracking: amount, monthly deduction, total paid, remaining balance, status (active/paused/completed).
 
+### employee_cost_sharing
+Ethiopian higher-education cost sharing — a graduate's obligation to repay a
+share of their public-university education, withheld from payroll by the employer.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGINT PK | |
+| public_id | CHAR(26) UNIQUE | ULID |
+| tenant_id | BIGINT FK | |
+| employee_id | BIGINT FK | |
+| total_obligation_cents | BIGINT | Integer cents |
+| outstanding_cents | BIGINT | Integer cents; drawn down by payroll |
+| deduction_rate_percent | DECIMAL(5,2) | **Per-row and required — no default** |
+| status | ENUM(active, suspended, completed, cancelled) | `CostSharingStatus` |
+| started_on | DATE | |
+| completed_at | TIMESTAMP NULL | Set when the balance reaches zero |
+| notes | TEXT NULL | |
+
+Singular table name: "cost sharing" is a mass noun, so the model sets `$table`
+explicitly rather than accepting Laravel's `employee_cost_sharings`.
+
+The rate is stored per obligation rather than as a constant because it comes from
+the graduate's individual agreement, and the governing proclamation has been
+amended more than once — a rate change is data, not a deploy, the same reasoning
+that makes `tax_brackets` a table.
+
+Payroll deducts `rate% × prorated gross`, clamped to `outstanding_cents`, so a
+part-month withholds proportionally and the final instalment cannot over-withhold.
+At most **one ACTIVE row per employee** (enforced in the controller — a unique
+index cannot express "at most one *active*", and completed obligations must be
+able to coexist with a new one). The balance is never settable through the API:
+correcting it is cancel-and-recreate, leaving both rows in the audit trail.
+
+**Never hard-delete** — approved payroll runs reference these rows, so ending an
+obligation is a status change (`cancelled`), not a DELETE.
+
 ### payroll_runs
 | Column | Type | Notes |
 |---|---|---|
@@ -555,8 +591,15 @@ Report builder: saved config, scheduling (daily/weekly/monthly), recipients, for
 ### accounting_mappings
 Chart of accounts: category → account code/name per tenant.
 
-### failed_syncs
-Recovery table: source, payload JSON, error, attempt count, resolved flag.
+### ~~failed_syncs~~ — specified, never built
+Was documented here as "recovery table: source, payload JSON, error, attempt
+count, resolved flag". **No such table or migration exists** (audit F-5,
+2026-08-23), and nothing needs one: offline attendance sync is synchronous
+(`OfflineSyncController` returns per-record `created`/`duplicate`/`error`), and
+queued-job failures land in Laravel's own `failed_jobs` table, surfaced by
+`SystemHealthService` in the Super Admin console. Kept as a struck-through entry
+rather than deleted so the next reader who finds the name in `ARCHITECTURE.md`
+or an older audit learns it was dropped, instead of assuming it went missing.
 
 ---
 
@@ -576,3 +619,22 @@ Recovery table: source, payload JSON, error, attempt count, resolved flag.
 | Notifications | 4 |
 | Integration | 7 |
 | **Total** | **58** |
+
+---
+
+## Onboarding v2 tables
+
+Added for AI-assisted onboarding & workforce migration (see
+[ONBOARDING_V2.md](ONBOARDING_V2.md)). All tenant-scoped (`BelongsToTenant`).
+
+| table | purpose | retention |
+|---|---|---|
+| `employee_external_identities` | maps an external identifier (device user id, card, …) to one master employee; unique on `(tenant_id, source_type, source_ref, identifier_type, identifier_value)` | persistent |
+| `migration_batches` | one workforce-discovery run | hard delete after 7 days |
+| `migration_staging_rows` | one staged person with resolver verdict + chosen action | hard delete after 7 days (cascade) |
+
+`organization_templates.template_data` extended with `grades` and `settings`
+(payroll defaults, attendance method, employee-number format).
+
+Staging tables are pruned by `CleanupExpiredDataJob` (daily), consistent with the
+"Import staging data — hard delete after 7 days" soft-delete policy.

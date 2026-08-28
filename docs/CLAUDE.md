@@ -93,6 +93,50 @@ If YES to implementation, remain on Sonnet.
 Only escalate when reasoning complexity exceeds implementation complexity.
 
 ---
+# ========================================================
+# LOCAL DEVELOPMENT POLICY (NON-NEGOTIABLE)
+# ========================================================
+
+ETHR is developed entirely within the local workspace.
+
+The local filesystem is the ONLY source of truth.
+
+Ignore ALL Git-related functionality.
+
+Never perform, recommend, mention, or wait for:
+
+- git init
+- git clone
+- git status
+- git add
+- git commit
+- git push
+- git pull
+- git fetch
+- git merge
+- git rebase
+- git checkout
+- git switch
+- git branch
+- git stash
+- git tag
+- git reset
+- git revert
+- GitHub
+- GitLab
+- Bitbucket
+- Pull Requests
+- Merge Requests
+- Repository history
+- Repository comparisons
+
+Assume version control is managed externally.
+
+Never ask the developer to commit, push, pull, merge, or create branches.
+
+Never use Git as a checkpoint.
+
+Always continue directly from the current local project state.
 
 # Task Decomposition Rules
 
@@ -476,48 +520,118 @@ Rules for all forms:
 - Amharic line-height: use 1.6-1.8 (vs 1.5 for Latin text).
 
 ---
+# Build Lifecycle
 
-## Build Lifecycle
+Every task must follow this lifecycle.
 
-Every slice follows this cycle. Do not mark complete until all steps pass.
+Do not skip any step.
+
+Do not mark a task complete until every validation passes.
 
 ```
-Read phase document
+Read CLAUDE.md
+       |
+Read relevant phase document(s)
+       |
+Analyze current code
+       |
+Verify existing implementation
+       |
+Determine completed vs missing work
        |
 Understand architecture + dependencies
        |
-Implement backend (migration → model → service → controller → FormRequest → Policy → tests)
+Implement ONE feature slice
        |
-Implement frontend (types → API hooks → components → pages → tests)
+Backend
+(migration → model → service → controller → FormRequest → Policy → tests)
        |
-Run formatter (pint backend, prettier frontend)
+Frontend
+(types → API hooks → components → pages → tests)
        |
-Run static analysis (phpstan level 6)
+Run formatter
+(Pint + Prettier)
+       |
+Run static analysis
+(PHPStan + TypeScript)
        |
 Run Pest tests
        |
 Run Vitest tests
        |
-Run TenantIsolationTest (if new model created)
+Run TenantIsolationTest
+(if applicable)
        |
-Verify in browser (desktop + tablet + mobile + dark + light)
+Verify Browser
+Desktop
+Tablet
+Mobile
+Dark
+Light
        |
-Fix issues, re-test
+Fix issues
        |
-Update docs
+Re-run validation
        |
-Commit
+Update documentation
+       |
+Output:
+Files Changed
+Summary
+Remaining Tasks
+Blockers
+       |
+Continue to next highest-priority unfinished feature
+```
+## Completion Report 
+
+After every completed task output ONLY:
+
+Files changed
+
+Summary
+
+Validation performed
+
+Remaining tasks
+
+Known blockers
+
+Do not output Git commands.
+
+Do not generate commit messages.
+
+Do not reference repositories.
 ```
 
 ---
 
 ## Quality Gates
 
-No slice ships without all checks passing:
+No slice ships without all checks passing.
 
-- [ ] `php artisan test` — all green
+**Run them with `bash scripts/gates.sh`, not by hand.** It runs all nine
+(Pint, PHPStan, Pest, i18n, Prettier, ESLint, tsc, Vitest, API-contract), keeps
+going after a failure so one run reports all the damage, and applies the
+bind-mount workarounds below automatically. The itemised list that follows is
+the *rationale* for each gate — the script is the enforcement. Anything listed
+here but not wired into the script is not a gate: Prettier and ESLint sat in
+this list unenforced until 2026-08-24, which is how a release audit, rather
+than a gate, is what caught `prettier --check` failing on 36 files.
+
+Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`.
+
+- [ ] `bash scripts/pest-isolated.sh` — all green. **Not `php artisan test` or a
+      bare `vendor/bin/pest`**: over the Windows bind mount PHP's recursive
+      directory scan silently collects a fraction of the suite (measured
+      2026-08-21: 22 of 132 test classes) and still exits 0 with a green
+      summary. `scripts/gates.sh` now fails on that undercount instead of
+      reporting success; this script runs the suite where collection is whole.
 - [ ] `npx vitest run` — all green
-- [ ] `./vendor/bin/phpstan analyse` — level 6, zero errors
+- [ ] `bash scripts/phpstan-isolated.sh` — level 6, zero errors. Not
+      `vendor/bin/phpstan` directly: over the bind mount Larastan sees half the
+      migrations, and the missing tables become ~990 phantom "undefined
+      property" errors that drowned this gate for months.
 - [ ] `./vendor/bin/pint --test` — no formatting issues
 - [ ] `npx prettier --check src/` — no formatting issues
 - [ ] `npx tsc --noEmit` — zero type errors
@@ -793,15 +907,33 @@ All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIso
 
 | Queue | After All Retries Fail |
 |---|---|
-| `attendance` | Preserve raw payload in `failed_syncs` table, notify tenant admin |
+| `attendance` | Log to `failed_jobs`, `Queue::failing` alert (see below) |
 | `payroll` | Mark payroll run as `failed` with error details, notify tenant admin |
 | `devices` | Trigger `DeviceOffline` event, notify admin |
 | `notifications` | Log failure, do not retry (notification is stale) |
 | `exports` | Mark export as `failed`, notify requesting user |
-| `sync` | Preserve raw payload in `failed_syncs` table, notify admin |
+| `sync` | **Not queued** — offline sync is synchronous, see below |
 | `default` | Log to `failed_jobs`, surface in admin dashboard |
 
 All failed jobs visible in Super Admin dashboard with retry/dismiss actions.
+
+**Every** queue additionally goes through the `Queue::failing` hook in
+`AppServiceProvider::boot()`: a `Log::error` carrying job name, queue,
+connection, attempt count and exception message, plus a Sentry report when that
+binding is present. It exists because a retry exhausting itself looks exactly
+like nothing happening — `ScanAttendanceAnomaliesJob` failed on every scheduled
+run and was found only by opening the health endpoint for an unrelated reason.
+
+**There is no `failed_syncs` table.** This table was specified here and in
+`ARCHITECTURE.md`/`DATABASE.md` but never built, and the two rows above claimed
+a recovery mechanism that does not exist (audit F-5, 2026-08-23). The reason is
+that offline attendance sync **is not a queue at all**: `OfflineSyncController`
+processes the batch synchronously and returns a per-record
+`created` / `duplicate` / `error` result plus a summary, so a record that fails
+is reported to the caller in the response that asked for it, not swallowed into
+a recovery table. Every record is idempotency-keyed and the client keeps its
+IndexedDB queue, so the correct recovery is the client retrying — replay
+returns `duplicate` rather than double-punching (convention #10).
 
 ---
 
@@ -831,16 +963,67 @@ means:
 
 ---
 
-# For every new session
 
-Read CLAUDE.md first.
+# For Every New Session
 
-Then read PRD.md, ARCHITECTURE.md, and all relevant documents in /et.
+Always begin by understanding the existing implementation.
 
-Analyze the current codebase.
+Execution order:
 
-Continue from the last completed phase.
+1. Read CLAUDE.md.
+2. Read PRODUCT_VISION.md.
+3. Read ARCHITECTURE.md.
+4. Read PRD.md.
+5. Read all relevant phase documents. For onboarding / device / migration / identity / login work, also read ONBOARDING_V2.md, INDUSTRY_TEMPLATES.md, DEVICE_INTEGRATION.md, IDENTITY_RESOLUTION.md, MIGRATION.md, and FRONTEND.md.
+6. Analyze the existing codebase.
+7. Compare implementation with documentation.
+8. Identify completed work.
+9. Identify unfinished work.
+10. Continue from the highest-priority unfinished task.
 
-Do not rewrite completed modules unless necessary.
+Never restart completed work.
 
-Run tests and verify changes in the browser before marking the task complete.
+Never rewrite production-ready modules unless required.
+
+Always verify implementation from code before making decisions.
+
+# Enterprise Codebase Audit Protocol
+
+Before implementing any feature:
+
+1. Inspect the current implementation.
+
+2. Determine:
+
+- Complete
+- Partial
+- Missing
+- Deprecated
+
+3. Compare against:
+
+- Product Vision
+- Architecture
+- Phase Documents
+
+4. Produce:
+
+Current completion
+
+Missing work
+
+Dependencies
+
+Technical debt
+
+Security issues
+
+Performance issues
+
+UI issues
+
+5. Continue from the highest-priority unfinished feature.
+
+Never assume documentation equals implementation.
+
+The source of truth is always the existing code.

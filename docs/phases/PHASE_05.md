@@ -1,5 +1,19 @@
 # Phase 5 — Portals & Notifications (v2.0)
 
+> **Design record — not a progress tracker.**
+> The `- [ ]` checkboxes below are the original up-front specification and were
+> never maintained against the code. They under-report reality badly: several
+> phases read as 0% complete while the features they describe are live and
+> covered by tests. **Do not use them to judge what is done.**
+>
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
+> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
+> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
+> the source of truth is the code — verify against it, not against this file.
+>
+> Keep this document for its design intent: scope, data model, and acceptance
+> criteria, which remain accurate and useful.
+
 ## Prerequisites
 - Phase 3 complete (attendance, corrections)
 - Phase 4A complete (leave)
@@ -9,6 +23,129 @@
 Build the employee self-service portal (mobile-first), manager portal with unified approval center, and the notification system across all channels.
 
 **NOTE:** Employee self-service (S24) should ship immediately after Phase 4A (leave). Payslip viewing is added as a follow-up after Phase 4B ships. This delivers employee value earlier.
+
+---
+
+## Progress / Gap Closure Log
+
+### 2026-08-02 — S24 profile-update approval workflow ✅
+
+**Gap (data loss, user-visible).** `ProfileController::update()` split the payload into
+"allowed" and "sensitive" fields, applied the first set, and for the second returned
+`pending_approval: { status: 'pending_approval', … }` with the message *"Changes to
+sensitive fields require HR approval."* — then **discarded the values**. There was no
+`profile_update_requests` table, no model, no reviewer endpoint, and nothing in the
+approvals centre. An employee who submitted a new bank account was told it was queued;
+it was written to an audit line and dropped. The spec's `ProfileUpdateRequestController`,
+`ProfileUpdateRequestedNotification` and `ProfileUpdateApprovedNotification` did not exist.
+
+**Closed:**
+- `profile_update_requests` table — one row per field, `old_value`/`new_value` **encrypted
+  at rest** (the gated set is exactly the sensitive set: bank account, TIN).
+- `ProfileUpdateRequest` model + `ProfileUpdateStatus` enum + factory + policy
+  (`employee.update` — approving a gated change *is* the employee edit).
+- `ProfileUpdateRequestService` — stage / approve / reject. Re-submitting a field
+  supersedes the earlier pending row rather than queuing a second one; a value equal to
+  what is already on record queues nothing. Approval routes each field to its real
+  destination (`employees` or `employee_bank_details`).
+- Gated set widened from `name`/`bank_name`/`bank_account_number` to include `name_am`
+  and `tin`, matching the S24 spec. Both were previously droppable by `validated()`.
+- Endpoints: `GET /profile-update-requests`, `POST /profile-update-requests/{id}/review`.
+  `GET /profile` now returns `pending_updates` so the employee can see their own queue.
+- Wired into the approvals centre (`type: profile_update`), including batch review —
+  gated per item on `employee.update`, so a supervisor cannot approve a bank-account
+  change by bundling it with leave.
+- **Account numbers are masked** (last four only) for reviewers holding `employee.update`
+  without `employee.viewFinancial`, in both the resource and the approvals summary.
+- Frontend: pending-changes panel on `/profile`, delta shown in the approvals card,
+  cache invalidation across profile / approvals / employees.
+
+**Verified:** 23 Pest cases in `ProfileUpdateRequestTest` (staging, supersede, no-op,
+approve→apply for both destinations, reject, double-review 422, employee cannot review,
+cross-tenant isolation, masking under a custom role that grants review without financial
+visibility, notifications both directions, approvals-centre integration). Frontend:
+`profile-pending-updates.test.tsx`. Then driven end-to-end in a browser against the running
+stack: staged → HR queue → approve → `employees.name` and `employee_bank_details` updated.
+
+**Two bugs the green suite did not catch, found by running it:**
+- **`GET /profile` 500'd once a request existed** — the resource reads
+  `employee`/`requester`/`reviewer` and they were not eager-loaded, so
+  `preventLazyLoading` (on outside production) threw. The suite passed because Laravel
+  exempts freshly-created models from the violation: the staging response was fine, only a
+  *subsequent* read failed. Fixed + a test that forces `preventLazyLoading(true)`.
+- **A Reverb outage turned a successful write into a 500** — the row committed, then the
+  inline notification threw `BroadcastException`, so the employee was told their change
+  failed when it had in fact been queued. Notification delivery is now best-effort and
+  logged. Same class as the `REVERB_HOST` bug in the 2026-07-31 session.
+
+### 2026-08-02 — S26 notification preferences actually enforced ✅
+
+**Gap (dead control).** `GET/PUT /notifications/preferences` persisted a per-user ×
+per-type × per-channel matrix, and Settings rendered the toggles — but all 16
+notifications hard-coded their own `via()`, and **no code path anywhere read a stored
+preference row**. Turning off "email me about payslips" changed a database row and
+nothing else.
+
+**Closed:** `RespectsNotificationPreferences` trait maps the API vocabulary
+(`in_app`/`email`/`sms`) onto Laravel channels (`database`/`broadcast`/`mail`/`sms`) and
+filters `via()`. Applied to the 11 notifications that have a preference type. Deliberately
+**not** applied to `AccountActivationNotification`, `PasswordResetLinkNotification`,
+`SystemAlertNotification`, `DeviceOfflineNotification` or `TrialExpiringNotification` —
+transactional and security mail must not be suppressible. `in_app` remains non-optional
+(it is the record of what happened, and the controller already refuses to store it as
+false). Added `profile_update` to `NOTIFICATION_TYPES`.
+
+**Bug found by running it (the suite was green):** `NotificationPreference` is
+`BelongsToTenant`, and a queued notification is delivered by a worker with no
+`CurrentTenant` bound — under the global scope the lookup returned **zero rows**, which is
+indistinguishable from "user has no preferences", so every opt-out was silently ignored on
+exactly the delivery path most notifications take. The lookup now runs
+`withoutGlobalScopes()` keyed on `user_id`, which is strictly narrower than `tenant_id` (a
+user belongs to one tenant) and so cannot reach another tenant's rows.
+
+**Verified:** 7 Pest cases in `NotificationPreferenceEnforcementTest`, including a
+round-trip from the endpoint through to actual `via()` output and a case that clears tenant
+context to reproduce the queue-worker path.
+
+### 2026-08-02 — S26 48-hour approval reminders now fire ✅
+
+**Gap (dead code).** `ApprovalReminderNotification` shipped in Phase 5 with a mail
+template, a translation key and a preference toggle — and **no caller**. Nothing in the
+codebase ever constructed it, so the specified "approver after 48h" reminder could not
+happen.
+
+**Closed:** `SendApprovalRemindersJob`, scheduled daily at 06:00 UTC (09:00 EAT, the start
+of the Ethiopian working day). Collects pending leave, corrections and profile updates
+older than 48h; leave/corrections route to the employee's supervisor, profile updates to
+`employee.update` holders. **One notification per approver**, not one per stale item.
+
+**Verified:** 6 Pest cases in `ApprovalReminderTest`, including the schedule registration.
+
+### 2026-08-02 — S26 SMS adapter built ✅
+
+**Gap (undeliverable channel).** S26 refers to "`SmsSender` interface (existing)" and the
+CLAUDE.md stack table lists an interface-based SMS layer with LogSms/EthioTelecom drivers.
+**Neither existed** — the only "sms" string in `app/` was the channel name in the
+preferences controller. Users could opt into a channel with no delivery path at all.
+
+**Closed:** `App\Contracts\SmsSender` + `LogSmsSender` (dev) + `EthioTelecomSmsSender`
+(HTTP gateway) + `SmsChannel` registered as a Laravel notification channel, enforcing the
+specified **5 SMS/day per user** cap (expiring at midnight EAT, so the allowance resets at
+the start of the user's day). `SmsNumber` normalizes `09…` / `+2519…` / `2519…` to E.164.
+`config/sms.php` + `.env.example` entries.
+
+**Honesty rail:** both drivers report `isAvailable()`, surfaced as `channel_availability`
+on the preferences endpoint. The log driver reports **false** — a log line is not delivery
+— and the UI disables the SMS column with a "Not configured" badge rather than offering a
+toggle nothing acts on. The EthioTelecom driver is unavailable until credentials are set
+and refuses to send rather than silently no-op'ing.
+
+**Not verified against the live operator gateway** (no credentials in this environment).
+The request shape follows the standard bulk-SMS form post; the driver is reachable only by
+explicit `SMS_DRIVER=ethiotelecom`, so an unexercised integration cannot be hit by
+accident. **Confirm against EthioTelecom before enabling in production.**
+
+**Verified:** 10 Pest cases in `SmsChannelTest`; 3 Vitest cases for the UI gating.
 
 ---
 

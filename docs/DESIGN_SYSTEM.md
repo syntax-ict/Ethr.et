@@ -61,7 +61,43 @@ All components reference semantic tokens, never raw hex values:
 | `--color-interactive-primary` | Buttons, links | `#0F4C75` | `#3282B8` |
 | `--color-interactive-hover` | Hover states | `#3282B8` | `#60A5FA` |
 
-**Rule:** `text-blue-600` or `bg-slate-100` is banned in components. Use `text-[var(--color-interactive-primary)]` or the Tailwind theme extension that maps to semantic tokens.
+### Status Soft Containers
+
+Tinted alert banners, KPI tiles and status badges use a three-token set per family
+instead of raw palette shades. Each token repaints per theme, so **consumers never
+write a `dark:` variant** for status colour.
+
+| Utility | Purpose |
+|---|---|
+| `bg-{family}-soft` | Tinted container background |
+| `text-{family}-on-soft` | Text/icon colour that sits on that tint |
+| `border-{family}-edge` | Border of the tinted container |
+
+Families: `success`, `warning`, `destructive`, `info`, `brand` (Ethiopian gold),
+`neutral`. Every family/theme pair is ≥ 5.7:1 contrast (most ≥ 7:1) in Light, Dark
+and High Contrast.
+
+```tsx
+// before
+<div className="border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+  <p className="text-amber-900 dark:text-amber-300">Offline</p>
+</div>
+
+// after
+<div className="border border-warning-edge bg-warning-soft">
+  <p className="text-warning-on-soft">Offline</p>
+</div>
+```
+
+For a *solid* status fill (dots, pills, selected toggles) use `bg-success` /
+`bg-warning` / `bg-destructive` / `bg-info` / `bg-brand-accent` with the matching
+`text-{family}-foreground`, or `text-text-inverse` — never `text-white`, which
+inverts wrongly once the status colour lightens in dark mode.
+
+**Rule:** `text-blue-600` or `bg-slate-100` is banned in components. Use the semantic
+utilities above (or `text-[var(--color-interactive-primary)]`). Enforced by
+`src/test/semantic-color-tokens.test.ts`, which fails the suite if any raw Tailwind
+palette class reappears under `src/`.
 
 ---
 
@@ -186,6 +222,7 @@ The pattern is an SVG consisting of repeating diamond and cross geometric shapes
 | `ProgressRing` | value, max, label | Circular progress indicator. |
 | `CurrencyDisplay` | amountCents | Formats integer cents as `1,234.56 ETB`. |
 | `AvatarGroup` | users[], max | Overlapping avatars with +N indicator. |
+| `EmployeeAvatar` | name, photoThumbUrl, photoUrl, className, fallbackClassName | The only way to render a person. Falls back thumbnail → full-size → initials. Initials split on grapheme boundaries so Amharic syllables stay intact. Never hand-roll `name.split(" ").map(n => n[0])`. |
 | `ChartWrapper` | type, data, options | Consistent chart styling: semantic colors, dark mode, currency axes. |
 
 ### Form Components

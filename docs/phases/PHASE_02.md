@@ -1,5 +1,19 @@
 # Phase 2 — Organization & Employee Platform (v2.0)
 
+> **Design record — not a progress tracker.**
+> The `- [ ]` checkboxes below are the original up-front specification and were
+> never maintained against the code. They under-report reality badly: several
+> phases read as 0% complete while the features they describe are live and
+> covered by tests. **Do not use them to judge what is done.**
+>
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
+> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
+> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
+> the source of truth is the code — verify against it, not against this file.
+>
+> Keep this document for its design intent: scope, data model, and acceptance
+> criteria, which remain accurate and useful.
+
 ## Prerequisites
 - Phase 0 complete (foundation, permissions, design system)
 - Phase 1 complete (tenancy, onboarding, templates)

@@ -48,6 +48,70 @@ Request → Nginx → Laravel
               [DEBUG/STAGING] QueryAuditMiddleware validates all queries include tenant_id
 ```
 
+### Hostname Model
+
+The hostname is the tenant selector. Three host shapes, three applications:
+
+| Host | Context | Tenant resolved | Serves |
+|---|---|---|---|
+| `ethr.et` | public | none | marketing, apex login (routes onward) |
+| `admin.ethr.et` | platform | **never, by any selector** | super admin console + `/api/v1/admin` |
+| `{tenant}.ethr.et` | tenant | from the subdomain | the tenant application |
+| any other reserved label (`www`, `api`, …) | public | none | behaves as the apex |
+| `localhost` (no `APP_DOMAIN`) | development | from `X-Tenant` | everything, single-host |
+
+`APP_DOMAIN` is what makes this exact rather than approximate — counting labels
+cannot tell an apex from a subdomain, and before it existed `ethr.et` resolved to
+a tenant named "ethr" and every request to the public site answered 404. Read it
+through `App\Support\TenancyDomain`, never `config('app.domain')` directly:
+`APP_DOMAIN=` in a `.env` yields an empty string, and treating that as
+"configured" switches the whole hostname model on. Unset, tenancy falls back to
+the `X-Tenant` header, which the API honours **only** in `local`/`testing`.
+
+Reserved labels live in `Tenant::RESERVED_SUBDOMAINS` — one list, used by
+resolution, registration and the availability check so they cannot drift.
+`Tenant::PLATFORM_SUBDOMAIN` (`admin`) is the subset of one that resolution
+treats specially.
+
+**The platform host is `admin.ethr.et`, not `platform.ethr.et`.** `admin` is the
+name already carried by nginx's server blocks, the wildcard certificate plan, the
+Next.js middleware, `EnsurePlatformContext`, the reserved list and the test
+suite; renaming it would touch every one of those to buy nothing. `platform` is
+reserved so nobody can claim it, and can be added as an alias later without
+displacing a tenant.
+
+### Tenant Resolution Flow
+
+```
+Request
+  |
+  Is the host the platform host (admin.{APP_DOMAIN})?
+  |    yes → no tenant, and no further selector is consulted. Stop.
+  |
+  Subdomain            {tenant}.ethr.et — the only selector honoured in production
+  |    reserved or absent → next
+  |
+  X-Tenant header      local/testing ONLY; refused outright elsewhere
+  |
+  `tenant` form field  login/register/password endpoints only — lets a client
+  |                    with no subdomain (mobile app, apex) name its organisation.
+  |                    Selects which tenant to authenticate against; it grants
+  |                    nothing — credentials and EnsureUserBelongsToTenant decide.
+  |
+  Tenant lookup (cached 5 min) → not found: 404 tenant-not-found
+  |                            → inactive:  403 tenant-inactive
+  |
+  CurrentTenant set → BelongsToTenant global scope → authentication
+```
+
+Two independent controls, deliberately: `ResolveTenant` derives tenant identity
+from the request **before** authentication and never from the authenticated
+user, so a leaked token cannot drag its own tenant along; `EnsureUserBelongsToTenant`
+then runs after `auth:sanctum` and refuses any user whose `tenant_id` disagrees
+with the resolved tenant. Either alone is insufficient.
+
+Covered by `tests/Feature/Security/HostnameTenancyTest.php`.
+
 ### Isolation Guarantees
 
 | Layer | Mechanism | Verification |
@@ -114,6 +178,52 @@ Custom PHPStan rule that errors if:
 ---
 
 ## Authentication Architecture
+
+### Authentication Contexts
+
+Two contexts, sharing one infrastructure and separated by hostname:
+
+| | Tenant authentication | Platform authentication |
+|---|---|---|
+| Host | `{tenant}.ethr.et` | `admin.ethr.et` |
+| Identifier | email / phone / employee number (per tenant setting) | email |
+| Tenant context | resolved from the hostname, before credentials | none, ever |
+| Who | tenant users and tenant administrators | `SUPER_ADMIN` (`tenant_id IS NULL`) |
+| Enforced by | `EnsureUserBelongsToTenant` | `EnsurePlatformContext` |
+
+**The platform host carries no tenant context by any selector.** `admin` being
+reserved stops the *subdomain* naming a tenant, but resolution used to fall
+through to the form-field fallback, so `POST admin.ethr.et/api/v1/auth/login`
+with `tenant: habru` in the body authenticated a Habru user on the platform
+hostname. Nothing crossed a boundary — the session cookie is host-only and the
+console still demands `super_admin` — but tenant authentication was reachable
+where it has no business being. `ResolveTenant::isPlatformHost()` now stops
+before every selector.
+
+The reverse boundary is `EnsureUserBelongsToTenant`: a super admin is exempt
+only where no tenant resolved, i.e. on the platform host. On a tenant's own
+hostname they are refused like anyone else, because their `tenant_id` is null by
+design. The sanctioned route to tenant data is impersonation — MFA-gated,
+time-boxed, audited, and issued *as that tenant's user*.
+
+A super admin can also sign in with no tenant at all (`LoginRequest` checks for
+one before tenant resolution). That is the bootstrap case: a fresh installation
+has no tenants, so there is no subdomain to sit on and no valid value to type.
+
+### Session Cookie Scope
+
+`SESSION_DOMAIN` must stay **empty**. The session cookie is host-only by design —
+that is what stops `habru.ethr.et`'s cookie from ever being transmitted to
+`woldia.ethr.et`. Widening it to `.ethr.et` would make every user's cookie
+cross-tenant and reduce isolation to a single middleware check.
+
+The consequence: a session established on one host is useless on another. So the
+apex login form **routes** rather than authenticates — it sends the browser to
+`{tenant}.ethr.et/login`, where the credentials are entered on the host that will
+hold the cookie. Nothing sensitive crosses a host boundary, only the slug the
+user typed. Impersonation crosses the same boundary with a single-use, 30-second
+handoff nonce carried in the URL *fragment* (`SessionHandoff`), never a
+domain-wide cookie.
 
 ### Token Strategy (Sanctum)
 
@@ -1001,14 +1111,26 @@ avoids.
 | Queue | Purpose | Workers | Retry | On Final Failure |
 |---|---|---|---|---|
 | `default` | General tasks | 2 | 3 | Log to failed_jobs, surface in admin dashboard |
-| `attendance` | Attendance processing, sync | 4 | 5 | Preserve payload in failed_syncs, notify admin |
+| `attendance` | Attendance scans, anomaly/missing-punch jobs | 4 | 5 | Log to failed_jobs + `Queue::failing` alert |
 | `payroll` | Payroll calculations | 2 | 1 | Mark run as failed, notify tenant_admin |
 | `notifications` | Email, SMS, push | 3 | 3 | Log failure, do not retry (stale) |
 | `exports` | PDF, Excel, bank files | 2 | 2 | Mark export as failed, notify user |
 | `devices` | Biometric device polling | 2 | 5 | Trigger DeviceOffline event |
-| `sync` | Offline data sync | 3 | 5 | Preserve payload in failed_syncs, notify admin |
+| `sync` | ~~Offline data sync~~ — **not queued**, see below | — | — | n/a |
 
-Failed jobs surface in Super Admin dashboard with retry/dismiss actions.
+Failed jobs surface in Super Admin dashboard with retry/dismiss actions
+(`SystemHealthService::failedJobsCount()`), and every queue routes through the
+`Queue::failing` hook in `AppServiceProvider::boot()` — an error log with job,
+queue, attempt count and exception, plus Sentry when bound.
+
+**Correction (audit F-5, 2026-08-23): the `failed_syncs` table this table twice
+named does not exist and was never built.** Offline attendance sync is not
+asynchronous: `OfflineSyncController` walks the batch inline and returns a
+per-record `created`/`duplicate`/`error` result with a summary, so a failed
+record is reported in the same response rather than parked for recovery. Because
+every record carries an idempotency key, the client's IndexedDB queue retrying
+is the recovery mechanism — a replayed record answers `duplicate` instead of
+recording a second punch.
 
 ---
 
@@ -1108,16 +1230,28 @@ Client → POST /api/v1/files/presign { filename, content_type }
 
 ```yaml
 services:
-  nginx:          Reverse proxy, SSL termination, rate limiting, security headers
-  api:            Laravel PHP-FPM (8.2)
-  frontend:       Next.js (SSR, Node 20 LTS)
-  worker:         Queue workers (Horizon, all queues)
-  scheduler:      Laravel scheduler (cron, 1-min intervals)
-  reverb:         WebSocket server (Reverb)
-  mariadb:        Database (10.11, persistent volume)
-  redis:          Cache + queues + sessions (7+, persistent volume)
-  minio:          File storage (persistent volume)
+  nginx:                 Reverse proxy, SSL termination, rate limiting, security headers
+  api:                   Laravel PHP-FPM (8.2)
+  frontend:              Next.js (SSR, Node 20 LTS)
+  worker-realtime:       Horizon — attendance, devices, sync
+  worker-notifications:  Horizon — notifications, mail, sms, default
+  worker-heavy:          Horizon — payroll, exports
+  scheduler:             Laravel scheduler (cron, 1-min intervals) — singleton
+  reverb:                WebSocket server (Reverb)
+  mariadb:               Database (10.11, persistent volume)
+  mariadb-replica:       Read replica (DB_READ_HOST, sticky reads)
+  redis:                 Queues + sessions + cache locks (noeviction, AOF)
+  redis-cache:           Application cache only (allkeys-lru, ephemeral)
+  minio:                 File storage (persistent volume)
 ```
+
+Queue work is split across three containers rather than one, so a 30-minute
+payroll run cannot starve latency-sensitive check-ins and so the three workloads
+get independent memory limits. Redis is split for a related reason:
+`maxmemory-policy` is instance-wide, so one instance serving both cache and
+queue has no correct setting. See `docs/DEPLOYMENT.md` → "Docker Compose
+Services" for the full reasoning and the naming contract with
+`api/config/horizon.php`.
 
 ### Nginx Routing
 
@@ -1200,3 +1334,31 @@ While impersonating a tenant admin:
 - Logged: every action with `impersonated_by` field in audit log
 - Expiry: 30-minute session timeout, non-renewable
 - Requires: MFA verification before starting impersonation
+
+---
+
+## Onboarding v2 (AI-Assisted, Industry-Aware)
+
+Intelligent, industry-aware onboarding and workforce migration. Design decisions
+and slice history: [ONBOARDING_V2.md](ONBOARDING_V2.md). Canonical steps live in
+`App\Enums\OnboardingStep` (7 steps).
+
+**"AI" is a deterministic rules engine, not an LLM** — reproducible, offline,
+free, and auditable (decision D2). Confidence and readiness scores derive purely
+from provenance and real record counts.
+
+| Concern | Component | Reference |
+|---|---|---|
+| Industry templates & smart config | `IndustryCatalog`, `IndustryProfileResolver`, `ConfigurationPlan`, `OrganizationProvisioner` | [INDUSTRY_TEMPLATES.md](INDUSTRY_TEMPLATES.md) |
+| Identity mastering | `IdentityResolver`, `employee_external_identities` | [IDENTITY_RESOLUTION.md](IDENTITY_RESOLUTION.md) |
+| Device adapters & discovery | `DeviceAdapter::pullEnrollments`, `GenericHttpAdapter` | [DEVICE_INTEGRATION.md](DEVICE_INTEGRATION.md) |
+| Workforce migration | `WorkforceMigrationService`, `migration_batches`/`migration_staging_rows` | [MIGRATION.md](MIGRATION.md) |
+| Access & identity | `AuthIdentifierResolver` (email/phone/employee_code login) | Slice 7 |
+| Readiness & go-live | `ReadinessScorer` | Slice 8 |
+| Event-time correctness | `AttendanceInput::$occurredAt` threaded through `AttendanceEngine` and all ingestion paths | Slice 3 |
+
+All onboarding-v2 endpoints are under `/api/v1/onboarding/*` (plus device
+enrollment discovery at `/api/v1/devices/{device}/enrollments`) and gated by
+`settings.manage` / `employee.*` permissions. The interactive frontend for the
+new steps is a dedicated slice; the backend contract is documented in
+[FRONTEND.md](FRONTEND.md).

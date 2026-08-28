@@ -1,10 +1,138 @@
 # Phase 9 — Production Readiness (v2.0)
 
+> **Design record — not a progress tracker.**
+> The `- [ ]` checkboxes below are the original up-front specification and were
+> never maintained against the code. They under-report reality badly: several
+> phases read as 0% complete while the features they describe are live and
+> covered by tests. **Do not use them to judge what is done.**
+>
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
+> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
+> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
+> the source of truth is the code — verify against it, not against this file.
+>
+> Keep this document for its design intent: scope, data model, and acceptance
+> criteria, which remain accurate and useful.
+
 ## Prerequisites
 - All phases (0-8) complete
 
 ## Objective
 Harden the platform for production: OWASP security audit, performance optimization with automated benchmarks, WCAG 2.1 AA accessibility, Amharic typography validation, E2E testing, deployment configuration, and documentation.
+
+---
+
+## Progress / Gap Closure Log
+
+### 2026-07-30 — S37 File optimization ✅
+
+Built while fixing the broken mobile selfie upload (see PHASE_03 GAP-FIX-10) — the same
+image pipeline serves both. `FileStorageService` now:
+
+- **Compresses on upload.** Longest edge capped (1600px photos / 1080px selfies), then JPEG
+  quality steps down until the object fits its budget — 500 KB for photos, 200 KB for selfies.
+  Falls back to shrinking the canvas rather than dropping below q45, where artefacts show.
+  Non-photo images (transparent PNGs, GIFs) keep their format and are only EXIF-stripped.
+- **Generates thumbnails** at 150px and 400px alongside every stored JPEG, at a deterministic
+  `…/thumbs/{name}_{size}.jpg` key (`thumbnailPath()`) — no schema column needed.
+- **Caches presigned URLs** for 5 minutes (bounded by the URL's own validity) instead of
+  re-signing the same object on every request.
+
+Fixed a GD handle leak in the process: the scaling helper replaced its image handle without
+freeing the previous one, so a full-resolution photo exhausted a 128 MB PHP memory limit.
+
+**Surfaced to clients (2026-07-30).** The thumbnails were generated but unreachable: every
+resource returned only `photo_path`, an object key a browser cannot render, so employee photos
+had never been displayed anywhere in the product — each avatar site fell back to initials.
+`EmployeeResource`, `EmployeeSummaryResource`, `DirectoryResource`, `/profile` and `/auth/me`
+now return `photo_url` + `photo_thumb_url` (signed, 5-min cached, null rather than throwing
+when storage cannot sign) via the shared `ExposesPhotoUrls` trait. A new
+`<EmployeeAvatar>` renders the thumbnail with a documented fallback chain — thumbnail →
+full-size (for photos predating thumbnail generation) → initials — and replaces the initials
+logic that had been copy-pasted across five components. Its initials helper splits on grapheme
+boundaries, so Amharic syllables are no longer cut in half by code-unit indexing.
+
+---
+
+### 2026-07-30 — S38 Hardcoded colours eliminated ✅
+
+**Gap:** 125 raw Tailwind palette classes (`bg-amber-50`, `dark:text-red-400`, …) remained
+across 17 pages, violating convention #12 and the S38 dark-mode rule "no hardcoded colors".
+They also had no High Contrast theme coverage at all — the `.high-contrast` palette swap
+does not reach raw palette values, so those surfaces silently stayed low-contrast.
+
+**Closed:**
+- Added a **status soft-container token set** to `globals.css` — `{family}-soft`,
+  `{family}-on-soft`, `{family}-edge` for `success`, `warning`, `destructive`, `info`,
+  `brand`, `neutral` — defined in all three themes (Light / Dark / High Contrast) and
+  bridged into Tailwind via `@theme`. Consumers no longer write `dark:` variants for status.
+- Replaced all 125 raw classes plus the `text-white`-over-themed-background cases
+  (now `*-foreground` / `text-text-inverse`, which invert correctly in dark mode).
+- Re-keyed the KPI `color` props on the intelligence, overtime and device-dashboard pages
+  from palette names (`amber`/`orange`/`purple`) to intent names (`warning`/`brand`/…);
+  `amber` and `orange` had collapsed onto one token, making two KPI cards identical.
+- Employee lifecycle dots: `probation` → `bg-brand-accent`, `retired` → `bg-primary` so
+  every state stays visually distinct after the sweep.
+- Guard test `src/test/semantic-color-tokens.test.ts` fails the suite if any raw palette
+  class or redundant `dark:` semantic variant reappears.
+
+**Verified:** measured contrast of every family × theme pair in the browser — all ≥ 5.7:1,
+14 of 18 ≥ 7:1 (AAA). High Contrast `brand-on-soft` was darkened to `#4a3708` after the
+initial `#b8860b` measured only ~3.5:1. Console clean; `tsc` and Vitest green.
+
+---
+
+### 2026-07-31 — S36 A06 dependency vuln + security-header evidence ✅
+
+**Gap:** `composer audit` reported **6 advisories** (4 medium, 2 low) against the payslip
+PDF renderer `dompdf/dompdf` v3.1.5 — including the Chroot Validation Bypass (CVE-2026-55554)
+and a file-existence oracle — all fixed in 3.1.6. The A06 "Vulnerable Components" checklist
+item was unclosed. Separately, the existing `SecurityHardeningTest` header assertion only
+covered **4 of the 7** headers the `SecurityHeaders` middleware emits: HSTS, CSP, and
+Permissions-Policy were unverified, so a regression that dropped them would pass CI.
+
+**Closed:**
+- Bumped `dompdf/dompdf` 3.1.5 → **3.1.6** (patch within the `barryvdh/laravel-dompdf ^3.1`
+  wrapper's range — no wrapper change). `composer audit` now reports **no advisories**.
+- Extended the security-header test to assert all seven: exact HSTS value, and the critical
+  directives of CSP (`default-src 'none'`, `frame-ancestors 'none'`, `base-uri`, `form-action`)
+  and Permissions-Policy (`microphone=()`, `camera=(self)`, `geolocation=(self)`, `payment=()`).
+- **Verified:** `pest --filter="security headers|payslip|PayrollProcess"` → 36 passed
+  (113 assertions), incl. payslip PDF download + voided-run watermark, confirming 3.1.6
+  renders payslips unchanged. Frontend deps left untouched by design — a Next dev server was
+  running, and npm install under it corrupts the SWC binary.
+
+**Note (A06, still open):** the frontend `npm audit` could not run in this environment
+(broken npm shim + running dev server). Re-run `npm audit --audit-level=high` on a clean box
+before launch.
+
+---
+
+### 2026-07-31 — S39 Deployment-config verification ✅
+
+**Verified against the S39 deployment checklist (found the config largely complete):**
+- `docker compose -f docker-compose.prod.yml config` **parses cleanly** — all services carry
+  resource limits, healthchecks, json-file log rotation, `restart: always`, and network
+  isolation (`ethr-internal` is `internal: true`; only nginx is on the external network).
+  Referenced build files (`api/Dockerfile.prod`, `docker/frontend/Dockerfile`) and the
+  `php artisan health:check` command backing the api healthcheck all exist.
+- `api/.env.production`: `APP_ENV=production`, `APP_DEBUG=false` (A05), `APP_KEY` empty with a
+  `key:generate` comment, no baked secrets.
+- Nginx prod config already had all 7 security headers, TLSv1.2/1.3, gzip, 1-year immutable
+  static caching, wildcard `*.ethr.et`, three-tier rate limiting matching the CLAUDE.md policy,
+  50M body limit, split proxy timeouts (payroll 120s via `@payroll_php`, else 30s),
+  `server_tokens off`.
+
+**Fixed (two real defects):**
+- **HTTP/2 directive deprecation** — `listen 443 ssl http2;` is deprecated on the pinned
+  `nginx:1.27-alpine` and warns on every start. Split into `listen 443 ssl;` + `http2 on;`.
+- **Security headers dropped on static assets** — nginx `add_header` *replaces* (does not
+  merge) inherited server-level headers, so the `expires`/`Cache-Control` static-asset block
+  silently served JS/CSS without any security headers. Re-asserted `X-Content-Type-Options:
+  nosniff` and HSTS there.
+
+**Verified:** `nginx -t` on the edited config (sanitized upstreams + self-signed cert, in
+`nginx:1.27-alpine`) → *syntax is ok, test is successful*, warning-free.
 
 ---
 
@@ -42,8 +170,8 @@ Harden the platform for production: OWASP security audit, performance optimizati
     - Disable directory listing
     - Remove version headers (PHP, Nginx, Laravel)
   - **A06 Vulnerable Components:**
-    - Run `composer audit` — fix all critical/high
-    - Run `npm audit` — fix all critical/high
+    - [x] Run `composer audit` — fix all critical/high (dompdf → 3.1.6, audit clean, 2026-07-31)
+    - Run `npm audit` — fix all critical/high (blocked locally; re-run on clean box)
     - Verify no deprecated packages in use
     - Document any known vulnerabilities with mitigations
   - **A07 Authentication Failures:**
@@ -96,7 +224,7 @@ Harden the platform for production: OWASP security audit, performance optimizati
 - [ ] MFA enforcement when policy is "required" (Pest)
 - [ ] Webhook URL validation — all private IP ranges rejected (Pest)
 - [ ] File upload content-type spoofing — magic bytes mismatch rejected (Pest)
-- [ ] Security headers present in response (Pest)
+- [x] Security headers present in response (Pest) — all 7 asserted, 2026-07-31
 - [ ] Impersonation guardrails — blocked actions list (Pest)
 - [ ] Audit log completeness — verify all sensitive operations logged (Pest)
 - [ ] IDOR prevention — access with wrong tenant's public_id denied (Pest)
@@ -152,10 +280,10 @@ Harden the platform for production: OWASP security audit, performance optimizati
   - `->select()` on all queries — no `SELECT *`
   - Eager load only needed relationships (`->with(['department:id,name', ...])`)
   - Pagination enforced (max per_page = 100)
-- [ ] File optimization:
-  - Image compression on upload (profile photos: max 500KB after compression, selfies: max 200KB)
-  - Thumbnail generation for profile photos (150x150 for avatars, 400x400 for profile page)
-  - Presigned URL caching (avoid regenerating for same file within 5 min)
+- [x] File optimization:
+  - [x] Image compression on upload (profile photos: max 500KB after compression, selfies: max 200KB)
+  - [x] Thumbnail generation for profile photos (150x150 for avatars, 400x400 for profile page)
+  - [x] Presigned URL caching (avoid regenerating for same file within 5 min)
 - [ ] PHP-FPM tuning for production:
   - `pm = ondemand` (saves memory when idle)
   - `pm.max_children = 40` (based on available RAM)
@@ -284,7 +412,7 @@ Harden the platform for production: OWASP security audit, performance optimizati
   - Charts visible (semantic colors adjust)
   - Status badges visible (lighter variants in dark mode)
   - Form inputs styled (borders visible, placeholder readable)
-  - No hardcoded colors (all CSS variables)
+  - [x] No hardcoded colors (all CSS variables) — enforced by `semantic-color-tokens.test.ts`
   - Elevation shadows appropriate (more subtle in dark mode)
   - Print styles: force light mode for printing
 
@@ -345,14 +473,14 @@ Harden the platform for production: OWASP security audit, performance optimizati
 - [ ] CI integration: Playwright runs on push to main branch (blocking)
 
 ### Deployment
-- [ ] Production Docker Compose (`docker-compose.prod.yml`):
+- [x] Production Docker Compose (`docker-compose.prod.yml`): verified (`config` parses), 2026-07-31
   - Resource limits per service (memory, CPU)
   - Volume mounts for persistent data (MariaDB, Redis, MinIO)
   - Log rotation (max 10MB per file, max 3 files)
   - Healthcheck for each service (command, interval, timeout, retries)
-  - Restart policy: `unless-stopped`
+  - Restart policy: `always` (spec said `unless-stopped`; `always` chosen deliberately)
   - Network isolation: internal network for inter-service, exposed ports only for nginx
-- [ ] Nginx production config:
+- [x] Nginx production config: verified `nginx -t` + HTTP/2 & static-header fixes, 2026-07-31
   - SSL/TLS via Let's Encrypt (certbot auto-renewal)
   - HTTP/2 enabled
   - Gzip compression (text/html, application/json, text/css, application/javascript)

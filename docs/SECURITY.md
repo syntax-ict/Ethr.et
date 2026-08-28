@@ -16,9 +16,11 @@
 
 | Mechanism | Implementation |
 |---|---|
-| Database queries | `BelongsToTenant` trait adds `WHERE tenant_id = ?` via global scope |
-| File storage | MinIO bucket per tenant: `tenant-{public_id}/` |
-| Cache keys | Redis prefix: `tenant:{id}:` |
+| Hostname | `{tenant}.ethr.et` is the only tenant selector honoured in production. `X-Tenant` is accepted in local/testing only; `admin`, `api`, `www`, `app` are reserved and never resolve to a tenant |
+| Request authorization | `EnsureUserBelongsToTenant` rejects a valid token used against another tenant's host (super admins exempt — they operate across tenants by design) |
+| Database queries | `BelongsToTenant` trait adds `WHERE tenant_id = ?` via global scope; degrades to `WHERE 0 = 1` when no tenant is resolved |
+| File storage | Single MinIO bucket, per-tenant **path prefix** `tenants/{public_id}/` applied by `FileStorageService`. Isolation is enforced in application code, not by bucket policy — a path built from unvalidated input would cross it |
+| Cache keys | **No tenant prefix is applied.** Keys are collision-free because they are built from globally-unique surrogate ids (e.g. `custom_role_permissions:{id}`). A key derived from a tenant-local identifier would collide silently |
 | Queue jobs | `tenant_id` serialized with every job, re-resolved on execution |
 | API responses | JsonResource filters by tenant, no cross-tenant data |
 | Encryption | Per-tenant encryption key derivation for sensitive fields |
@@ -47,11 +49,26 @@
 
 | Token | Lifetime | Storage | Rotation |
 |---|---|---|---|
-| Access token | 15 minutes | In-memory (JavaScript variable) | On refresh |
+| Access token | 15 minutes | `access_token` httpOnly cookie, `path=/api`, `SameSite=Lax`, `Secure` in production, **no `Domain`** (host-only) | On refresh |
 | Refresh token | 7 days | httpOnly, Secure, SameSite=Lax cookie | Rotated on use (old revoked) |
 | MFA token | 5 minutes | Response body | Single use |
 | OTP code | 5 minutes | Server-side (Argon2id hash) | Single use |
 | API key | Configurable (or none) | Displayed once on creation | Manual revocation |
+
+The access token lives in an httpOnly cookie rather than a JavaScript variable, which this
+table previously described. The SPA sends **no** `Authorization` header at all
+(`src/api/client.ts` uses `withCredentials`); `AuthenticateFromCookie` promotes the cookie to
+a bearer token on the way in. This resists XSS better than an in-memory token, at the cost of
+needing CSRF protection — which Sanctum's stateful middleware provides.
+
+Two consequences worth stating, because both have caused defects:
+
+- The cookie is **excluded from cookie encryption** (`bootstrap/app.php`). `AuthenticateFromCookie`
+  runs at position 1 of the api group and `EncryptCookies` only at position 8, so an encrypted
+  value would reach the middleware as ciphertext and never authenticate. The value is an opaque
+  Sanctum token verified by hashed lookup, so a forged one simply fails.
+- The cookie is **host-only**. Any flow that moves a browser between hosts — impersonation,
+  apex login — must hand the session over explicitly rather than assume the cookie follows.
 
 ### Login Security
 
