@@ -454,7 +454,22 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 1G
+          # 2x replica.cnf's innodb_buffer_pool_size (768M), matching the ratio
+          # the primary already runs at (1G pool / 2G limit). This was 1G — only
+          # 1.3x — and InnoDB's resident footprint is not the buffer pool alone:
+          # add the log buffer, the dictionary cache, tmp_table_size (64M) and
+          # per-connection buffers across max_connections=200 and it lands
+          # 25-40% above the pool, i.e. ~960M-1.07G against a hard 1G cap.
+          #
+          # The kernel then OOM-kills mariadbd mid-init, `restart: always`
+          # bounces it, and the container never reaches healthy. Because api,
+          # scheduler, the workers and nginx all gate on
+          # `mariadb-replica: condition: service_healthy`, one OOM takes the
+          # whole stack down with it. It fires only when init does enough work
+          # to cross the cap, so it reproduces intermittently: a
+          # scripts/prod-build-test.sh run failed 38/48 this way and the very
+          # next run passed 48/48 on identical images.
+          memory: 1536M
         reservations:
           cpus: '0.5'
           memory: 512M
