@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property CorrectionStatus $status */
 class AttendanceCorrection extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;

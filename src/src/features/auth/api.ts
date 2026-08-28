@@ -4,6 +4,8 @@ import type { User } from "@/api/types";
 
 interface MeResponse {
   user: User;
+  /** Abilities resolved server-side from the base role or custom role. */
+  permissions: string[];
   tenant: {
     public_id: string;
     name: string;
@@ -18,28 +20,34 @@ interface MeResponse {
   } | null;
 }
 
+const meQueryOptions = {
+  queryKey: ["auth", "me"],
+  queryFn: async () => {
+    const { data } = await apiClient.get<MeResponse>("/auth/me");
+    return data;
+  },
+  retry: false,
+  staleTime: 5 * 60 * 1000,
+} as const;
+
 export function useCurrentUser() {
-  return useQuery<User>({
-    queryKey: ["auth", "me"],
-    queryFn: async () => {
-      const { data } = await apiClient.get<MeResponse>("/auth/me");
-      return data.user;
-    },
-    retry: false,
-    staleTime: 5 * 60 * 1000,
+  return useQuery({
+    ...meQueryOptions,
+    select: (data: MeResponse) => data.user,
   });
 }
 
 export function useCurrentTenant() {
-  return useQuery<MeResponse["tenant"]>({
-    queryKey: ["auth", "me"],
-    queryFn: async () => {
-      const { data } = await apiClient.get<MeResponse>("/auth/me");
-      return data.tenant;
-    },
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    select: (data) => data,
+  return useQuery({
+    ...meQueryOptions,
+    select: (data: MeResponse) => data.tenant,
+  });
+}
+
+export function useCurrentPermissions() {
+  return useQuery({
+    ...meQueryOptions,
+    select: (data: MeResponse) => data.permissions ?? [],
   });
 }
 
@@ -51,9 +59,6 @@ export function useLogout() {
       await apiClient.post("/auth/logout");
     },
     onSuccess: () => {
-      localStorage.removeItem("access_token");
-      // Keep the 'tenant' key — pre-fills the login form for return visits.
-      // To switch tenants, the user clears it explicitly from the login form.
       queryClient.clear();
       window.location.href = "/login";
     },

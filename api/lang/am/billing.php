@@ -11,6 +11,8 @@ return [
     'trial_days_remaining' => 'በሙከራ ጊዜዎ :count ቀናት ይቀራሉ።',
     'upgrade_required' => 'ይህን ባህሪ ለማግኘት እባክዎ ዕቅድዎን ያሻሽሉ።',
     'employee_limit_reached' => 'ለዕቅድዎ የሰራተኛ ገደብ ደርሰዋል።',
+    'branch_limit_reached' => 'ለዕቅድዎ የቅርንጫፍ ገደብ ደርሰዋል።',
+    'device_limit_reached' => 'ለዕቅድዎ የመሳሪያ ገደብ ደርሰዋል።',
     'payment_received' => 'ክፍያ ተቀብለናል። አመሰግናለሁ።',
     'payment_failed' => 'ክፍያ ማስኬድ አልተሳካም። እባክዎ እንደገና ይሞክሩ።',
 ];

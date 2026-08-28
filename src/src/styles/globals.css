@@ -48,6 +48,34 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+
+  /* Status "soft containers" — tinted alert/badge surfaces.
+     `-soft`    → tinted background
+     `-on-soft` → text/icon colour that sits on that background
+     `-edge`    → border of the tinted container
+     Each family repaints per theme, so consumers never need `dark:` variants. */
+  --color-success-soft: var(--success-soft);
+  --color-success-on-soft: var(--success-on-soft);
+  --color-success-edge: var(--success-edge);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-on-soft: var(--warning-on-soft);
+  --color-warning-edge: var(--warning-edge);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-on-soft: var(--destructive-on-soft);
+  --color-destructive-edge: var(--destructive-edge);
+  --color-info-soft: var(--info-soft);
+  --color-info-on-soft: var(--info-on-soft);
+  --color-info-edge: var(--info-edge);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-on-soft: var(--primary-on-soft);
+  --color-primary-edge: var(--primary-edge);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-on-soft: var(--brand-on-soft);
+  --color-brand-edge: var(--brand-edge);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-on-soft: var(--neutral-on-soft);
+  --color-neutral-edge: var(--neutral-edge);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -83,6 +111,11 @@
   --color-interactive-hover: var(--interactive-hover);
   --color-interactive-focus: var(--interactive-focus);
   --color-brand-accent: var(--brand-accent);
+  /* Ethiopian Gold is a *light* colour in every theme, so anything set on it
+     must be dark ink — `bg-brand-accent text-foreground` measured 1.52:1 in
+     dark mode, effectively invisible. Pairing the fill with its own foreground
+     token makes the correct combination the easy one. */
+  --color-brand-accent-foreground: var(--brand-accent-foreground);
   --color-status-success: var(--status-success);
   --color-status-warning: var(--status-warning);
   --color-status-error: var(--status-error);
@@ -144,11 +177,25 @@
   --interactive-primary: #0f4c75;
   --interactive-hover: #3282b8;
   --interactive-focus: #0f4c75;
+
+  /* Ethiopian Gold. Decorative and fill only — at 2.08:1 on white it can never
+     carry body text. Text that needs to read as "brand" uses --brand-on-soft
+     (#7c5306, 6.30:1), the same split the high-contrast theme makes below. */
   --brand-accent: #e8a838;
-  --status-success: #059669;
-  --status-warning: #d97706;
-  --status-error: #dc2626;
-  --status-info: #0284c7;
+  --brand-accent-foreground: #0f172a; /* 8.58:1 */
+
+  /* Status colours double as text (`text-status-success`, 120 call sites) and
+     as fills with white text. The original 500-level shades failed WCAG AA as
+     text on white — success 3.77:1, warning 3.19:1, info 4.10:1 — which the
+     axe suite never caught because `color-contrast` was disabled. These are the
+     700-level shades of the same hues: they clear 4.5:1 as text on both white
+     and --surface-secondary, and *raise* contrast for white-on-fill too, so
+     every existing usage improves in both directions. Error was already
+     compliant at 4.83:1 and is unchanged. */
+  --status-success: #047857; /* 5.48:1 on white (was #059669, 3.77:1) */
+  --status-warning: #b45309; /* 5.02:1 on white (was #d97706, 3.19:1) */
+  --status-error: #dc2626; /* 4.83:1 on white */
+  --status-info: #0369a1; /* 5.93:1 on white (was #0284c7, 4.10:1) */
 
   /* shadcn/ui bridge — derived from tokens above */
   --background: var(--surface-primary);
@@ -173,6 +220,30 @@
   --warning-foreground: var(--text-inverse);
   --info: var(--status-info);
   --info-foreground: var(--text-inverse);
+
+  /* Soft status containers — light */
+  --success-soft: #ecfdf5;
+  --success-on-soft: #065f46;
+  --success-edge: #a7f3d0;
+  --warning-soft: #fffbeb;
+  --warning-on-soft: #92400e;
+  --warning-edge: #fcd34d;
+  --destructive-soft: #fef2f2;
+  --destructive-on-soft: #991b1b;
+  --destructive-edge: #fecaca;
+  --info-soft: #eff6ff;
+  --info-on-soft: #1e40af;
+  --info-edge: #bfdbfe;
+  --primary-soft: #e8f1f8;
+  --primary-on-soft: #0f4c75; /* 7.95:1 */
+  --primary-edge: #b9d5e8;
+  --brand-soft: #fdf6e7;
+  --brand-on-soft: #7c5306;
+  --brand-edge: #f3d998;
+  --neutral-soft: #f1f5f9;
+  --neutral-on-soft: #475569;
+  --neutral-edge: #cbd5e1;
+
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
@@ -181,6 +252,15 @@
   --sidebar-accent: #123f63;
   --sidebar-accent-foreground: var(--text-on-sidebar);
   --sidebar-border: #153555;
+
+  /* Override Tailwind v4 color tokens directly (the @theme var() chain
+     is broken by Tailwind's own HSL defaults for --primary etc.) */
+  --color-primary: var(--interactive-primary);
+  --color-primary-foreground: var(--text-inverse);
+  --color-destructive: var(--status-error);
+  --color-destructive-foreground: var(--text-inverse);
+  --color-secondary: var(--surface-secondary);
+  --color-secondary-foreground: var(--text-primary);
 
   /* Chart palette */
   --chart-1: #0f4c75;
@@ -209,10 +289,18 @@
   --text-on-sidebar: #cbd5e1;
   --border-default: #334155;
   --border-strong: #475569;
-  --interactive-primary: #3282b8;
+  /* Lightened from #3282b8, which measured 4.27:1 on --surface-primary and
+     only 3.50:1 on --surface-secondary — below AA. Because this token is both
+     the link colour and the primary button fill (with #0f172a text on it),
+     that single value failed contrast on every link and every primary button
+     in dark mode, app-wide. #4a9fd8 gives 6.16:1 on the page, 5.04:1 on a
+     card, and 6.16:1 for the button's dark label, while staying recognisably
+     the same brand blue. */
+  --interactive-primary: #4a9fd8;
   --interactive-hover: #60a5fa;
-  --interactive-focus: #3282b8;
+  --interactive-focus: #4a9fd8;
   --brand-accent: #fbbf24;
+  --brand-accent-foreground: #0f172a; /* 10.69:1 */
   --status-success: #34d399;
   --status-warning: #fbbf24;
   --status-error: #f87171;
@@ -240,6 +328,30 @@
   --warning-foreground: var(--text-inverse);
   --info: var(--status-info);
   --info-foreground: var(--text-inverse);
+
+  /* Soft status containers — dark */
+  --success-soft: #052e16;
+  --success-on-soft: #6ee7b7;
+  --success-edge: #14532d;
+  --warning-soft: #451a03;
+  --warning-on-soft: #fcd34d;
+  --warning-edge: #78350f;
+  --destructive-soft: #450a0a;
+  --destructive-on-soft: #fca5a5;
+  --destructive-edge: #7f1d1d;
+  --info-soft: #172554;
+  --info-on-soft: #93c5fd;
+  --info-edge: #1e3a8a;
+  --primary-soft: #16293d;
+  --primary-on-soft: #a8d2ef; /* 9.26:1 */
+  --primary-edge: #24405c;
+  --brand-soft: #2a1f05;
+  --brand-on-soft: #fbbf24;
+  --brand-edge: #4a3708;
+  --neutral-soft: #1e293b;
+  --neutral-on-soft: #94a3b8;
+  --neutral-edge: #334155;
+
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
@@ -248,6 +360,13 @@
   --sidebar-accent: #0b2a42;
   --sidebar-accent-foreground: var(--text-on-sidebar);
   --sidebar-border: #0a1a2b;
+
+  --color-primary: var(--interactive-primary);
+  --color-primary-foreground: var(--text-inverse);
+  --color-destructive: var(--status-error);
+  --color-destructive-foreground: var(--text-inverse);
+  --color-secondary: var(--surface-secondary);
+  --color-secondary-foreground: var(--text-primary);
 
   --chart-1: #3282b8;
   --chart-2: #34d399;
@@ -280,6 +399,7 @@
   --interactive-hover: #004d99;
   --interactive-focus: #003366;
   --brand-accent: #b8860b;
+  --brand-accent-foreground: #000000; /* 6.45:1 */
   --status-success: #006400;
   --status-warning: #8b4513;
   --status-error: #8b0000;
@@ -307,6 +427,33 @@
   --warning-foreground: var(--text-inverse);
   --info: var(--status-info);
   --info-foreground: var(--text-inverse);
+
+  /* Soft status containers — high contrast: no tint, the status colour and an
+     opaque black edge carry the meaning so every pair stays at AAA. */
+  --success-soft: var(--surface-primary);
+  --success-on-soft: var(--status-success);
+  --success-edge: #000000;
+  --warning-soft: var(--surface-primary);
+  --warning-on-soft: var(--status-warning);
+  --warning-edge: #000000;
+  --destructive-soft: var(--surface-primary);
+  --destructive-on-soft: var(--status-error);
+  --destructive-edge: #000000;
+  --info-soft: var(--surface-primary);
+  --info-on-soft: var(--status-info);
+  --info-edge: #000000;
+  --primary-soft: var(--surface-primary);
+  --primary-on-soft: #003366; /* 12.61:1 */
+  --primary-edge: #000000;
+  --brand-soft: var(--surface-primary);
+  /* Not --brand-accent: #b8860b on white is only ~3.5:1, short of AAA for the
+     small badge text this token carries. Darkened bronze keeps the gold hue. */
+  --brand-on-soft: #4a3708;
+  --brand-edge: #000000;
+  --neutral-soft: var(--surface-secondary);
+  --neutral-on-soft: var(--text-primary);
+  --neutral-edge: #000000;
+
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: #000000;
@@ -315,6 +462,13 @@
   --sidebar-accent: var(--surface-secondary);
   --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: #000000;
+
+  --color-primary: var(--interactive-primary);
+  --color-primary-foreground: var(--text-inverse);
+  --color-destructive: var(--status-error);
+  --color-destructive-foreground: var(--text-inverse);
+  --color-secondary: var(--surface-secondary);
+  --color-secondary-foreground: var(--text-primary);
 
   --chart-1: #003366;
   --chart-2: #006400;
@@ -376,7 +530,11 @@
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--interactive-primary) 20%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--interactive-primary) 20%,
+      transparent
+    );
     color: var(--text-primary);
   }
 
@@ -437,11 +595,13 @@
     --text-secondary: #64748b;
     --border-default: #e2e8f0;
     --border-strong: #cbd5e1;
+    /* Kept in step with the light theme's AA-compliant values above — print is
+       the one context where a low-contrast ink colour is unrecoverable. */
     --interactive-primary: #0f4c75;
-    --status-success: #059669;
-    --status-warning: #d97706;
+    --status-success: #047857;
+    --status-warning: #b45309;
     --status-error: #dc2626;
-    --status-info: #0284c7;
+    --status-info: #0369a1;
 
     --background: #ffffff;
     --foreground: #0f172a;
@@ -453,6 +613,30 @@
     --muted-foreground: #64748b;
     --border: #e2e8f0;
     --destructive: #dc2626;
+
+    /* Soft status containers must fall back to the light tints too, otherwise a
+       payslip printed from dark mode lays dark ink over the whole container. */
+    --success-soft: #ecfdf5;
+    --success-on-soft: #065f46;
+    --success-edge: #a7f3d0;
+    --warning-soft: #fffbeb;
+    --warning-on-soft: #92400e;
+    --warning-edge: #fcd34d;
+    --destructive-soft: #fef2f2;
+    --destructive-on-soft: #991b1b;
+    --destructive-edge: #fecaca;
+    --info-soft: #eff6ff;
+    --info-on-soft: #1e40af;
+    --info-edge: #bfdbfe;
+    --primary-soft: #e8f1f8;
+    --primary-on-soft: #0f4c75;
+    --primary-edge: #b9d5e8;
+    --brand-soft: #fdf6e7;
+    --brand-on-soft: #7c5306;
+    --brand-edge: #f3d998;
+    --neutral-soft: #f1f5f9;
+    --neutral-on-soft: #475569;
+    --neutral-edge: #cbd5e1;
   }
 
   nav,
@@ -472,4 +656,218 @@
   * {
     box-shadow: none !important;
   }
+}
+
+/* ============================================================================
+   Micro-interactions & Dashboard Animations
+   Professional, subtle animations for enterprise dashboard widgets.
+   All animations respect prefers-reduced-motion via the block above.
+   ========================================================================= */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s var(--ease-out-quart) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s var(--ease-standard) both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s var(--ease-out-quart) both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s var(--ease-out-quart) both;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Staggered children animations for dashboard grid items */
+.stagger-children > * {
+  animation: fade-in-up 0.4s var(--ease-out-quart) both;
+}
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* Card lift effect: subtle elevation on hover (used by KpiCard, etc.) */
+.card-lift {
+  transition:
+    transform 0.2s var(--ease-standard),
+    box-shadow 0.2s var(--ease-standard);
+}
+.card-lift:hover {
+  transform: translateY(-1px);
+}
+
+/* Number counter transition (for KPI values) */
+.number-transition {
+  transition: all 0.3s var(--ease-out-quart);
+}
+
+/* Active indicator pulse for live data */
+.live-pulse {
+  position: relative;
+}
+.live-pulse::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--status-success);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Sidebar scrollbar — hidden until hover, thin & unobtrusive */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: var(--sidebar-border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.3s;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-border);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sidebar-foreground, #94a3b8);
+}
+
+/* Scroll fade masks — top/bottom gradient hints */
+.sidebar-scroll-container {
+  position: relative;
+}
+.sidebar-scroll-container::before,
+.sidebar-scroll-container::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sidebar-scroll-container::before {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--sidebar, hsl(var(--sidebar))) 30%,
+    transparent
+  );
+}
+.sidebar-scroll-container::after {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    var(--sidebar, hsl(var(--sidebar))) 30%,
+    transparent
+  );
+}
+.sidebar-scroll-container[data-can-scroll-up="true"]::before {
+  opacity: 1;
+}
+.sidebar-scroll-container[data-can-scroll-down="true"]::after {
+  opacity: 1;
 }

@@ -14,6 +14,22 @@ src/lighthouse-reports
 # Backend — rebuilt inside the image, never copy host state in
 api/vendor
 api/node_modules
+# Laravel's package-discovery manifest, written by a *dev* `composer install`
+# and gitignored (api/bootstrap/cache/.gitignore is `*`), so it is pure local
+# state. Dockerfile.prod runs `composer install --no-dev --no-scripts`: --no-dev
+# omits laravel/pail, sail, collision, tinker and termwind, and --no-scripts
+# skips the `package:discover` that would rewrite the manifest. A copied-in
+# manifest therefore still lists those dev providers while their classes are
+# absent, and the very next line — `php artisan view:cache` — dies with
+# "Class Laravel\Pail\PailServiceProvider not found". Left out of the context,
+# Laravel rebuilds the manifest at boot from vendor/composer/installed.json,
+# which contains only the --no-dev set. This is invisible on a fresh clone
+# (nothing to copy) and fails on every working tree that has run dev composer.
+api/bootstrap/cache/*.php
+# An absolute symlink into a container path, so it dangles on the host and
+# buildkit refuses the whole context with "invalid file request". The image
+# creates its own link (see Dockerfile.prod) against the real WORKDIR.
+api/public/storage
 api/storage/logs/*
 api/storage/framework/cache/*
 api/storage/framework/sessions/*

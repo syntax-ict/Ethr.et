@@ -30,6 +30,16 @@ return [
     'correction_rejected_subject' => 'የታዳሚ እርማት ጥያቄ ውድቅ ተደርጓል',
     'correction_rejected_body' => 'ለ :date ቀን ያቀረቡት የታዳሚ እርማት ጥያቄ ውድቅ ተደርጓል።',
 
+    // Profile update requests
+    'profile_update_requested_subject' => 'የመገለጫ ለውጥ ግምገማ ይጠብቃል',
+    'profile_update_requested_body' => ':name በተጠበቁ የመገለጫ መስኮች ላይ ለውጥ ጠይቀዋል።',
+    'profile_update_approved_body' => 'ለ :field ያቀረቡት የለውጥ ጥያቄ ተፈቅዷል።',
+    'profile_update_rejected_body' => 'ለ :field ያቀረቡት የለውጥ ጥያቄ ውድቅ ተደርጓል።',
+
+    // Approval reminders
+    'approval_reminder_subject' => 'እርስዎን የሚጠብቁ ማጽደቆች',
+    'approval_reminder_body' => 'ከ :hours ሰዓታት በላይ የቆዩ :count ጥያቄ(ዎች) አለዎት።',
+
     // Approval routing
     'review_request' => 'ጥያቄ ይከልሱ',
 ];

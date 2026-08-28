@@ -8,30 +8,51 @@ use App\Enums\UserRole;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use App\Traits\ScopesEmployeeAccess;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * The datetime properties are declared for the same reason as on Employee:
+ * Larastan reads the schema, which cannot see the casts below.
+ *
+ * @property UserRole $role
+ * @property array<string, mixed>|null $preferences
+ * @property Carbon|null $last_login_at
+ * @property Carbon|null $email_verified_at
+ * @property-read Employee|null $employee A user need not be an employee — `users.employee_id` is nullable.
+ * @property-read string $name Display name, computed — see name().
+ */
 class User extends Authenticatable
 {
-    use BelongsToTenant, HasApiTokens, HasAuditLog, HasFactory, HasPublicId, Notifiable, SoftDeletes;
+    use BelongsToTenant, HasApiTokens, HasAuditLog, HasFactory, HasPublicId, Notifiable, ScopesEmployeeAccess, SoftDeletes;
 
     protected $fillable = [
         'public_id',
         'tenant_id',
         'employee_id',
         'email',
+        'username',
         'phone',
         'password',
+        'password_changed_at',
         'role',
         'custom_role_id',
         'status',
+        'invited_by',
+        'invited_at',
+        'activated_at',
+        'email_verified_at',
         'mfa_enabled',
         'mfa_secret',
         'locale',
+        'preferences',
         'last_login_at',
     ];
 
@@ -47,17 +68,54 @@ class User extends Authenticatable
     {
         return [
             'role' => UserRole::class,
+            'preferences' => 'array',
             'mfa_enabled' => 'boolean',
             'mfa_secret' => 'encrypted',
             'password' => 'hashed',
+            'password_changed_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'invited_at' => 'datetime',
+            'activated_at' => 'datetime',
             'email_verified_at' => 'datetime',
         ];
     }
 
+    /** @return BelongsTo<Employee, $this> */
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    /**
+     * `users` carries no display name column of its own — every name in the
+     * product is read through the linked Employee — so fall back to the
+     * login email for an account with no employee record (an HR-only login,
+     * e.g. a super admin). loadMissing rather than a bare relation read:
+     * `preventLazyLoading` is on outside production, so a caller that forgot
+     * to eager-load `employee` would 500 here instead of just costing a query.
+     *
+     * @return Attribute<string, never>
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                $this->loadMissing('employee');
+                $employee = $this->employee;
+
+                return $employee instanceof Employee ? $employee->name : $this->email;
+            },
+        );
+    }
+
+    public function invitedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'invited_by');
+    }
+
+    public function isInvited(): bool
+    {
+        return $this->status === 'invited';
     }
 
     public function hasRole(UserRole $role): bool
@@ -96,15 +154,28 @@ class User extends Authenticatable
             return true;
         }
 
-        if ($this->custom_role_id) {
-            $permissions = Permission::permissionsForCustomRole($this->custom_role_id);
+        return in_array($permission, $this->permissionNames(), true);
+    }
 
-            return in_array($permission, $permissions, true);
+    /**
+     * The abilities this user holds, resolved exactly as hasPermission() resolves
+     * them: a custom role replaces the base role's set entirely. super_admin has no
+     * role_permissions rows because hasPermission() short-circuits, so it gets the
+     * whole catalogue here instead of an empty list.
+     *
+     * @return list<string>
+     */
+    public function permissionNames(): array
+    {
+        if ($this->role === UserRole::SUPER_ADMIN) {
+            return Permission::allNames();
         }
 
-        $permissions = Permission::permissionsForRole($this->role->value);
+        if ($this->custom_role_id) {
+            return Permission::permissionsForCustomRole($this->custom_role_id);
+        }
 
-        return in_array($permission, $permissions, true);
+        return Permission::permissionsForRole($this->role->value);
     }
 
     public function receivesBroadcastNotificationsOn(): string

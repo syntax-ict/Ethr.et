@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useT } from "@/lib/i18n/useT";
 import {
   Receipt,
@@ -30,7 +31,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { KpiCard } from "@/features/dashboard/components/kpi-card";
 import {
   useBillingDashboard,
   usePlans,
@@ -38,7 +41,9 @@ import {
   useMarkInvoicePaid,
   type Plan,
   type BillingInvoice,
+  type PaymentDetails,
 } from "@/features/billing/api";
+import { formatETB } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -46,6 +51,10 @@ export default function BillingPage() {
   const { t } = useT();
   const { data: dashboard, isLoading } = useBillingDashboard();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
+
+  // A tenant is trialling when it has a trial end date and no subscription yet.
+  const isOnTrial =
+    !dashboard?.plan && (dashboard?.trial_days_remaining ?? null) !== null;
 
   return (
     <RoleGate minRole="tenant_admin">
@@ -69,47 +78,68 @@ export default function BillingPage() {
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <SummaryCard
+              <KpiCard
                 icon={Crown}
-                color="purple"
+                tone="primary"
                 title={t("billing.current_plan", "Current Plan")}
-                value={dashboard?.plan ?? t("billing.no_plan", "No plan")}
-                sub={dashboard?.subscription_status ?? "—"}
+                // Most tenants are on a trial with no subscription row, so
+                // falling straight to "No plan" told nearly every customer their
+                // billing was unconfigured for their first six months.
+                value={
+                  dashboard?.plan ??
+                  (isOnTrial
+                    ? t("billing.free_trial", "Free trial")
+                    : t("billing.no_plan", "No plan"))
+                }
+                sub={
+                  dashboard?.subscription_status ??
+                  (isOnTrial
+                    ? t("billing.trial_days_left", ":days days left", {
+                        days: dashboard?.trial_days_remaining ?? 0,
+                      })
+                    : "—")
+                }
               />
-              <SummaryCard
+              <KpiCard
                 icon={CreditCard}
-                color="blue"
+                tone="info"
                 title={t("billing.monthly_price", "Monthly Price")}
                 value={
                   dashboard?.plan_price_cents
-                    ? formatCents(dashboard.plan_price_cents)
+                    ? formatETB(dashboard.plan_price_cents)
                     : "—"
                 }
                 sub={t("billing.etb_per_month", "ETB / month")}
               />
-              <SummaryCard
+              <KpiCard
                 icon={CalendarClock}
-                color="amber"
+                tone="warning"
                 title={t("billing.next_billing", "Next Billing")}
                 value={
                   dashboard?.current_period_end
                     ? new Date(
                         dashboard.current_period_end,
                       ).toLocaleDateString()
-                    : "—"
+                    : dashboard?.trial_ends_at
+                      ? new Date(dashboard.trial_ends_at).toLocaleDateString()
+                      : "—"
                 }
-                sub={t("billing.period_ends", "Period ends")}
+                sub={
+                  isOnTrial
+                    ? t("billing.trial_ends", "Trial ends")
+                    : t("billing.period_ends", "Period ends")
+                }
               />
-              <SummaryCard
+              <KpiCard
                 icon={Receipt}
-                color="green"
+                tone="success"
                 title={t("billing.invoices", "Invoices")}
                 value={String(dashboard?.invoices?.length ?? 0)}
                 sub={t("billing.recent_records", "Recent records")}
               />
             </div>
 
-            <PaymentInstructions />
+            <PaymentInstructions details={dashboard?.payment_details ?? null} />
 
             <InvoiceHistory invoices={dashboard?.invoices ?? []} />
           </>
@@ -139,62 +169,49 @@ function BillingSkeleton() {
   );
 }
 
-const colorMap: Record<string, string> = {
-  purple:
-    "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
-  blue: "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
-  amber: "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
-  green: "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400",
-};
+/**
+ * Where to send payment. Every value comes from the API, set by the super admin —
+ * previously the account number and account name were literal JSX and the bank name
+ * was a translation key, so the payment destination shipped in the browser bundle
+ * and could differ between the English and Amharic UI.
+ *
+ * `details` is null until an operator has filled all three fields. Saying so plainly
+ * beats rendering blanks on the one screen that tells customers where money goes.
+ */
+function PaymentInstructions({ details }: { details: PaymentDetails | null }) {
+  const { t, locale } = useT();
 
-function SummaryCard({
-  icon: Icon,
-  color,
-  title,
-  value,
-  sub,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  title: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-1 text-lg font-bold text-foreground capitalize truncate">
-              {value}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground capitalize">
-              {sub}
-            </p>
-          </div>
-          <div
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-              colorMap[color],
-            )}
-          >
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+  if (!details) {
+    return (
+      /* Was a Card tinted with `bg-status-warning/5`, which warms the surface
+         to #fbf6f3 — and `text-muted-foreground` on that measured 4.43:1, just
+         under AA. The Alert primitive's warning family is a verified
+         foreground/background pair in all three themes, so the tint and the
+         text can no longer drift apart. */
+      <Alert variant="warning">
+        <AlertTitle>
+          {t("billing.payment_not_configured", "Payment details unavailable")}
+        </AlertTitle>
+        <AlertDescription>
+          {t(
+            "billing.payment_not_configured_desc",
+            "Contact ETHR support for payment instructions.",
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
-function PaymentInstructions() {
-  const { t } = useT();
+  const instructions =
+    (locale === "am" ? details.instructions_am : details.instructions) ??
+    details.instructions;
+
   return (
-    <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+    <Card className="border-status-info/30 bg-status-info/5">
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900">
-            <BadgeCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-status-info/10">
+            <BadgeCheck className="h-5 w-5 text-status-info" />
           </div>
           <div className="flex-1">
             <p className="font-semibold text-foreground">
@@ -204,33 +221,32 @@ function PaymentInstructions() {
               )}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t(
-                "billing.payment_instructions_desc",
-                "Transfer the invoice amount to the account below and reference your invoice ID. Your subscription will be marked active once payment is verified.",
-              )}
+              {instructions ??
+                t(
+                  "billing.payment_instructions_desc",
+                  "Transfer the invoice amount to the account below and reference your invoice ID. Your subscription will be marked active once payment is verified.",
+                )}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-background p-3">
                 <p className="text-xs text-muted-foreground">
                   {t("billing.bank", "Bank")}
                 </p>
-                <p className="text-sm font-medium">
-                  {t("billing.bank_name", "Commercial Bank of Ethiopia")}
-                </p>
+                <p className="text-sm font-medium">{details.bank_name}</p>
               </div>
               <div className="rounded-lg border bg-background p-3">
                 <p className="text-xs text-muted-foreground">
                   {t("billing.account_number", "Account Number")}
                 </p>
-                <p className="text-sm font-mono font-medium">
-                  1000 1234 5678 90
+                <p className="font-mono text-sm font-medium">
+                  {details.account_number}
                 </p>
               </div>
               <div className="rounded-lg border bg-background p-3">
                 <p className="text-xs text-muted-foreground">
                   {t("billing.account_name", "Account Name")}
                 </p>
-                <p className="text-sm font-medium">ETHR Technologies PLC</p>
+                <p className="text-sm font-medium">{details.account_name}</p>
               </div>
             </div>
           </div>
@@ -275,116 +291,103 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
             )}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("billing.invoice_id", "Invoice ID")}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("billing.amount", "Amount")}
-                  </th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                    {t("billing.due_date", "Due Date")}
-                  </th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                    {t("billing.paid_on", "Paid On")}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("common.status", "Status")}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("common.actions", "Actions")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => {
-                  const isOverdue =
-                    invoice.status !== "paid" &&
-                    invoice.due_date &&
-                    new Date(invoice.due_date) < new Date();
-                  return (
-                    <tr
-                      key={invoice.public_id}
-                      className="border-b last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                        {invoice.public_id.slice(0, 10)}…
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <CurrencyDisplay
-                          cents={invoice.total_cents}
-                          className="text-sm font-semibold"
-                        />
-                      </td>
-                      <td className="hidden px-4 py-3 text-sm sm:table-cell">
-                        <span
-                          className={
-                            isOverdue
-                              ? "text-destructive font-medium"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {invoice.due_date ?? "—"}
-                          {isOverdue && (
-                            <AlertCircle className="ml-1 inline h-3 w-3" />
-                          )}
+          <SimpleTable
+            caption={t("billing.invoice_history", "Invoice History")}
+            headers={[
+              t("billing.invoice_id", "Invoice ID"),
+              t("billing.amount", "Amount"),
+              t("billing.due_date", "Due Date"),
+              t("billing.paid_on", "Paid On"),
+              t("common.status", "Status"),
+            ]}
+            align={["left", "right", "left", "left", "left"]}
+            colClassName={[
+              "",
+              "",
+              "hidden sm:table-cell",
+              "hidden md:table-cell",
+              "",
+            ]}
+            rows={invoices.map((invoice) => {
+              const isOverdue =
+                invoice.status !== "paid" &&
+                invoice.due_date &&
+                new Date(invoice.due_date) < new Date();
+              return {
+                key: invoice.public_id,
+                cells: [
+                  <span key="id" className="font-mono text-muted-foreground">
+                    {invoice.public_id.slice(0, 10)}…
+                  </span>,
+                  <CurrencyDisplay
+                    key="amt"
+                    cents={invoice.total_cents}
+                    className="font-semibold"
+                  />,
+                  <span
+                    key="due"
+                    className={
+                      isOverdue
+                        ? "font-medium text-status-error"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {invoice.due_date ?? "—"}
+                    {isOverdue && (
+                      <AlertCircle className="ml-1 inline h-3 w-3" />
+                    )}
+                  </span>,
+                  <span key="paid" className="text-muted-foreground">
+                    {invoice.paid_at
+                      ? new Date(invoice.paid_at).toLocaleDateString()
+                      : "—"}
+                  </span>,
+                  <StatusBadge key="s" status={invoice.status} />,
+                ],
+                actions: (
+                  <div className="flex justify-end gap-1">
+                    {invoice.paid_at && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={t(
+                          "billing.download_receipt",
+                          "Download receipt",
+                        )}
+                        onClick={() =>
+                          window.open(
+                            `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("billing.download_receipt", "Download receipt")}
                         </span>
-                      </td>
-                      <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">
-                        {invoice.paid_at
-                          ? new Date(invoice.paid_at).toLocaleDateString()
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={invoice.status} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-1">
-                          {invoice.paid_at && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title={t(
-                                "billing.download_receipt",
-                                "Download receipt",
-                              )}
-                              onClick={() =>
-                                window.open(
-                                  `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
-                                  "_blank",
-                                )
-                              }
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {invoice.status !== "paid" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkPaid(invoice)}
-                              disabled={markPaid.isPending}
-                            >
-                              {markPaid.isPending &&
-                              markPaid.variables === invoice.public_id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="mr-1 h-3 w-3" />
-                              )}
-                              {t("billing.mark_paid", "Mark Paid")}
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </Button>
+                    )}
+                    {invoice.status !== "paid" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleMarkPaid(invoice)}
+                        disabled={markPaid.isPending}
+                      >
+                        {markPaid.isPending &&
+                        markPaid.variables === invoice.public_id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Check className="mr-1 h-3 w-3" />
+                        )}
+                        {t("billing.mark_paid", "Mark Paid")}
+                      </Button>
+                    )}
+                  </div>
+                ),
+              };
+            })}
+          />
         )}
       </CardContent>
     </Card>
@@ -426,7 +429,9 @@ function PlanChangeDialog({
           );
         },
         onError: (err: unknown) => {
-          const axiosErr = err as { response?: { data?: { detail?: string } } };
+          const axiosErr = err as {
+            response?: { data?: { detail?: string } };
+          };
           toast.error(
             axiosErr.response?.data?.detail ||
               t("billing.change_failed", "Failed to change plan"),
@@ -464,8 +469,8 @@ function PlanChangeDialog({
 
         {prorationResult ? (
           <div className="space-y-4 py-4 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-              <Check className="h-7 w-7 text-green-600" />
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-status-success/10">
+              <Check className="h-7 w-7 text-status-success" />
             </div>
             <div>
               <p className="text-lg font-semibold">
@@ -491,8 +496,8 @@ function PlanChangeDialog({
                   className={cn(
                     "mt-1 text-2xl font-bold",
                     prorationResult.proration_cents > 0
-                      ? "text-destructive"
-                      : "text-green-600",
+                      ? "text-status-error"
+                      : "text-status-success",
                   )}
                 />
               )}
@@ -524,8 +529,8 @@ function PlanChangeDialog({
                       isCurrent
                         ? "cursor-not-allowed border-muted bg-muted/30 opacity-60"
                         : isSelected
-                          ? "border-primary bg-primary/5 shadow-md"
-                          : "border-border hover:border-primary/50 hover:shadow-sm",
+                          ? "border-interactive-primary bg-interactive-primary/5 shadow-md"
+                          : "border-border hover:border-interactive-primary/50 hover:shadow-sm",
                     )}
                   >
                     <div className="flex items-start justify-between">
@@ -540,7 +545,7 @@ function PlanChangeDialog({
                         )}
                       </div>
                       {isSelected && !isCurrent && (
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-interactive-primary text-background">
                           <Check className="h-3 w-3" />
                         </div>
                       )}
@@ -557,7 +562,7 @@ function PlanChangeDialog({
                     <div className="mt-4 space-y-1.5 text-xs text-muted-foreground">
                       {plan.max_employees != null && (
                         <p>
-                          👥 {t("billing.up_to", "Up to")}{" "}
+                          {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_employees}
                           </span>{" "}
@@ -566,7 +571,7 @@ function PlanChangeDialog({
                       )}
                       {plan.max_branches != null && (
                         <p>
-                          🏢 {t("billing.up_to", "Up to")}{" "}
+                          {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_branches}
                           </span>{" "}
@@ -575,7 +580,7 @@ function PlanChangeDialog({
                       )}
                       {plan.max_devices != null && (
                         <p>
-                          📱 {t("billing.up_to", "Up to")}{" "}
+                          {t("billing.up_to", "Up to")}{" "}
                           <span className="font-medium text-foreground">
                             {plan.max_devices}
                           </span>{" "}
@@ -586,7 +591,7 @@ function PlanChangeDialog({
                         <ul className="mt-2 space-y-1 border-t pt-2">
                           {plan.features.slice(0, 5).map((f) => (
                             <li key={f} className="flex items-start gap-1.5">
-                              <Check className="mt-0.5 h-3 w-3 shrink-0 text-green-600" />
+                              <Check className="mt-0.5 h-3 w-3 shrink-0 text-status-success" />
                               <span>{f}</span>
                             </li>
                           ))}
@@ -616,14 +621,5 @@ function PlanChangeDialog({
         )}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function formatCents(cents: number): string {
-  return (
-    new Intl.NumberFormat("en-ET", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(cents / 100) + " ETB"
   );
 }

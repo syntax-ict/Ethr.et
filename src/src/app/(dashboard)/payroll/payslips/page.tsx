@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
 import { useCurrentUser } from "@/features/auth/api";
@@ -143,8 +144,21 @@ export default function MyPayslipsPage() {
                         labels,
                       )
                     }
+                    // Every payslip card renders this button, so a bare
+                    // "Download" would announce identically N times. Naming the
+                    // period makes each one distinguishable in a screen
+                    // reader's element list.
+                    aria-label={[
+                      t(
+                        "payroll_page.payslips_page.download",
+                        "Download payslip",
+                      ),
+                      entry.period_label,
+                    ]
+                      .filter(Boolean)
+                      .join(" — ")}
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               </CardHeader>
@@ -194,6 +208,12 @@ export default function MyPayslipsPage() {
           ))}
         </div>
       )}
+
+      <PaginationControls
+        meta={data?.meta}
+        onPageChange={setPage}
+        disabled={isLoading}
+      />
     </div>
   );
 }
@@ -211,7 +231,7 @@ function Row({
     <div className="flex items-center justify-between">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span
-        className={`text-sm ${deduction ? "text-red-500" : "text-foreground"}`}
+        className={`text-sm ${deduction ? "text-status-error" : "text-foreground"}`}
       >
         {deduction && "- "}
         <CurrencyDisplay cents={cents} />

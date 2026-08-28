@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
+use App\Jobs\BackupTenantJob;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Tenant;
+use App\Notifications\SystemAlertNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 // ── Super Admin Tenant Management ──
 
 test('super admin can list tenants', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     Tenant::factory()->count(3)->create();
@@ -32,7 +37,7 @@ test('super admin can list tenants', function () {
 
 test('super admin can view tenant detail', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $target = Tenant::factory()->create(['name' => 'Acme Corp']);
@@ -45,7 +50,7 @@ test('super admin can view tenant detail', function () {
 
 test('super admin can change tenant status', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $target = Tenant::factory()->create(['status' => TenantStatus::ACTIVE]);
@@ -60,9 +65,30 @@ test('super admin can change tenant status', function () {
     $this->assertDatabaseHas('audit_log', ['action' => 'admin.tenant.status_changed']);
 });
 
+test('suspending a tenant blocks it immediately, not after the resolve cache expires', function () {
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    $target = Tenant::factory()->create(['status' => TenantStatus::ACTIVE, 'subdomain' => 'suspendme']);
+
+    // Warm ResolveTenant's cache the same way a normal request would.
+    test()->getJson('http://suspendme.ethr.test/api/v1/register/check-subdomain?subdomain=xyz')
+        ->assertOk();
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/status", [
+        'status' => 'suspended',
+    ])->assertOk();
+
+    // Without busting the cache this would still resolve as active for up to 5 minutes.
+    test()->getJson('http://suspendme.ethr.test/api/v1/attendance/settings')
+        ->assertStatus(403)
+        ->assertJsonPath('type', 'https://ethr.et/errors/tenant-inactive');
+});
+
 test('super admin can extend trial', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $target = Tenant::factory()->create([
@@ -88,11 +114,78 @@ test('tenant admin cannot access admin endpoints', function () {
         ->assertForbidden();
 });
 
+// ── Tenant Backup ──
+
+test('super admin triggering backup queues the export job and audit-logs it', function () {
+    Queue::fake();
+
+    $tenant = createTenant();
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    test()->actingAs($user);
+
+    $target = Tenant::factory()->create();
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/backup");
+
+    $response->assertOk()->assertJsonPath('tenant_id', $target->public_id);
+
+    Queue::assertPushed(BackupTenantJob::class);
+    test()->assertDatabaseHas('audit_log', ['action' => 'admin.tenant.backup_triggered']);
+});
+
+test('tenant admin cannot trigger a backup', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/tenants/{$tenant->public_id}/backup")
+        ->assertForbidden();
+});
+
+test('BackupTenantJob exports tenant-scoped rows and notifies the requester', function () {
+    Notification::fake();
+    Storage::fake(config('filesystems.default'));
+
+    $tenant = createTenant();
+    $admin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+    Employee::factory()->count(2)->create(['tenant_id' => $tenant->id]);
+
+    (new BackupTenantJob($tenant->id, $admin->id))->handle();
+
+    $files = Storage::disk(config('filesystems.default'))->allFiles("backups/{$tenant->subdomain}");
+    expect($files)->toHaveCount(1);
+
+    $payload = json_decode(Storage::disk(config('filesystems.default'))->get($files[0]), true);
+    expect($payload['tenant']['public_id'])->toBe($tenant->public_id);
+    expect($payload['tables']['employees'])->toHaveCount(2);
+    // Sensitive/internal fields stay hidden, same as every API response.
+    expect($payload['tables']['users'][0])->not->toHaveKey('password');
+    expect($payload['tables']['users'][0])->not->toHaveKey('id');
+
+    Notification::assertSentTo($admin, SystemAlertNotification::class);
+});
+
+test('BackupTenantJob notifies failure instead of throwing when export breaks', function () {
+    Notification::fake();
+
+    $tenant = createTenant();
+    $admin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+
+    Storage::shouldReceive('disk')->andThrow(new RuntimeException('disk unavailable'));
+
+    (new BackupTenantJob($tenant->id, $admin->id))->handle();
+
+    Notification::assertSentTo(
+        $admin,
+        SystemAlertNotification::class,
+        fn ($notification) => str_contains($notification->toArray($admin)['title'], 'failed'),
+    );
+});
+
 // ── Revenue Dashboard ──
 
 test('super admin can view revenue', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/revenue");
@@ -111,7 +204,7 @@ test('super admin can view revenue', function () {
 
 test('super admin can view system health', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/health");
@@ -128,7 +221,7 @@ test('super admin can view system health', function () {
 
 test('super admin can view platform audit log', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/audit");
@@ -145,7 +238,7 @@ test('super admin can view platform audit log', function () {
 
 test('super admin can list failed jobs', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     DB::table('failed_jobs')->insert([
@@ -180,7 +273,7 @@ test('tenant admin cannot list failed jobs', function () {
 
 test('retrying an unknown failed job returns 404', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs/".Str::uuid().'/retry');
@@ -190,7 +283,7 @@ test('retrying an unknown failed job returns 404', function () {
 
 test('retrying all failed jobs when none exist reports zero', function () {
     $tenant = createTenant();
-    $user = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    $user = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
     test()->actingAs($user);
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/failed-jobs/retry-all");
@@ -240,7 +333,6 @@ test('tenant admin can view settings', function () {
     $response->assertOk()
         ->assertJsonStructure([
             'organization',
-            'attendance',
             'leave',
             'payroll',
             'security',

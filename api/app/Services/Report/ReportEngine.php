@@ -72,11 +72,26 @@ final class ReportEngine
         $summary = [];
         if ($groupBy && ! empty($data)) {
             $grouped = [];
+            // Sums any `*_cents` column present in the (already column-filtered)
+            // rows per group — e.g. grouping the payroll source by `period` gives
+            // the monthly income-tax/pension totals a statutory filing needs,
+            // without a payroll-specific code path. A count alone ("45 rows")
+            // told a compliance officer nothing usable for a remittance filing.
+            $sums = [];
             foreach ($data as $row) {
-                $key = $row[$groupBy] ?? 'Unknown';
+                $key = (string) ($row[$groupBy] ?? 'Unknown');
                 $grouped[$key] = ($grouped[$key] ?? 0) + 1;
+
+                foreach ($row as $field => $value) {
+                    if (str_ends_with($field, '_cents') && is_numeric($value)) {
+                        $sums[$key][$field] = ($sums[$key][$field] ?? 0) + (int) $value;
+                    }
+                }
             }
             $summary = ['grouped_by' => $groupBy, 'groups' => $grouped];
+            if ($sums !== []) {
+                $summary['group_sums'] = $sums;
+            }
         }
 
         return [
@@ -87,11 +102,39 @@ final class ReportEngine
         ];
     }
 
+    /**
+     * Shared CSV builder — used by both the on-demand export endpoint and
+     * scheduled report delivery, so the two paths can't drift into producing
+     * different files for the same config (the bug class the bank-export and
+     * OpenAPI-drift fixes elsewhere in this project both turned out to be).
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    public function toCsv(array $rows): string
+    {
+        if ($rows === []) {
+            return '';
+        }
+
+        $lines = [implode(',', array_keys($rows[0]))];
+        foreach ($rows as $row) {
+            $lines[] = implode(',', array_map(
+                fn ($value) => '"'.str_replace('"', '""', (string) $value).'"',
+                $row
+            ));
+        }
+
+        return implode("\r\n", $lines);
+    }
+
     private function queryEmployees(int $tenantId, array $filters): array
     {
         $query = Employee::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
-            ->with(['department:id,name', 'branch:id,name', 'position:id,name']);
+            // `positions` has no `name` column (it is `title`). Naming it here both
+            // errors on a real driver and fails to load the column the mapping
+            // below actually reads, so the eager load must select `title` too.
+            ->with(['department:id,name', 'branch:id,name', 'position:id,title']);
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -111,7 +154,8 @@ final class ReportEngine
             'salary_cents' => $e->salary_cents,
             'department' => $e->department?->name ?? '',
             'branch' => $e->branch?->name ?? '',
-            'position' => $e->position?->name ?? '',
+            // `positions.title`, not `name` — this column was empty in every export.
+            'position' => $e->position?->title ?? '',
         ])->toArray();
     }
 
@@ -133,8 +177,8 @@ final class ReportEngine
             'date' => $r->date instanceof Carbon ? $r->date->format('Y-m-d') : $r->date,
             'check_in' => $r->check_in,
             'check_out' => $r->check_out,
-            'status' => $r->status instanceof \BackedEnum ? $r->status->value : (string) $r->status,
-            'source' => $r->source instanceof \BackedEnum ? $r->source->value : (string) $r->source,
+            'status' => $r->status->value,
+            'source' => $r->source->value,
             'worked_minutes' => $r->worked_minutes ?? 0,
         ])->toArray();
     }

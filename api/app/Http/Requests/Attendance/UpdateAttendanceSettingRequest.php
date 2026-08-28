@@ -27,6 +27,9 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'mobile_accuracy_threshold_meters' => ['sometimes', 'integer', 'min:10', 'max:5000'],
             'offline_sync_enabled' => ['sometimes', 'boolean'],
             'kiosk_auto_reset_seconds' => ['sometimes', 'integer', 'min:2', 'max:30'],
+            'grace_period_minutes' => ['sometimes', 'integer', 'min:0', 'max:240'],
+            'ot_daily_cap_minutes' => ['sometimes', 'integer', 'min:0', 'max:1440'],
+            'confidence_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
         ];
     }
 }

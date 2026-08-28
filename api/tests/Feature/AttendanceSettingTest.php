@@ -17,7 +17,10 @@ test('hr admin can view attendance settings', function () {
     $response->assertOk()
         ->assertJsonPath('geofence_required', false)
         ->assertJsonPath('kiosk_pin_required', false)
-        ->assertJsonPath('qr_expiry_minutes', 30);
+        ->assertJsonPath('qr_expiry_minutes', 30)
+        ->assertJsonPath('grace_period_minutes', 15)
+        ->assertJsonPath('ot_daily_cap_minutes', 120)
+        ->assertJsonPath('confidence_threshold', 70);
 
     // Should auto-create with defaults
     expect(AttendanceSetting::count())->toBe(1);
@@ -47,15 +50,34 @@ test('hr admin can update attendance settings', function () {
         'kiosk_pin_required' => true,
         'qr_expiry_minutes' => 60,
         'enabled_methods' => ['biometric', 'mobile', 'qr'],
+        'grace_period_minutes' => 20,
+        'ot_daily_cap_minutes' => 90,
+        'confidence_threshold' => 85,
     ])->assertOk()
         ->assertJsonPath('geofence_required', true)
         ->assertJsonPath('kiosk_pin_required', true)
-        ->assertJsonPath('qr_expiry_minutes', 60);
+        ->assertJsonPath('qr_expiry_minutes', 60)
+        ->assertJsonPath('grace_period_minutes', 20)
+        ->assertJsonPath('ot_daily_cap_minutes', 90)
+        ->assertJsonPath('confidence_threshold', 85);
 
     $setting = AttendanceSetting::first();
     expect($setting->geofence_required)->toBeTrue();
     expect($setting->enabled_methods)->toContain('biometric', 'mobile', 'qr');
     expect($setting->enabled_methods)->not->toContain('kiosk');
+    expect($setting->grace_period_minutes)->toBe(20);
+    expect($setting->confidence_threshold)->toBe(85);
+});
+
+test('update rejects out of range confidence threshold', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/settings");
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/settings", [
+        'confidence_threshold' => 150,
+    ])->assertUnprocessable();
 });
 
 test('update rejects invalid enabled methods', function () {

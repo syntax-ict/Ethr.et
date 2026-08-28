@@ -61,6 +61,51 @@ export interface CostCenter {
   is_active: boolean;
 }
 
+/**
+ * A node in the department hierarchy returned by `GET /organization/tree`.
+ * `employees_count` is the department's own direct headcount; the rolled-up
+ * subtree total is derived on the client. The endpoint returns a bare array of
+ * root nodes (no pagination wrapper), each nesting its descendants under
+ * `children_recursive`.
+ */
+export interface DepartmentTreeNode {
+  public_id: string;
+  name: string;
+  name_am?: string | null;
+  code?: string | null;
+  is_active: boolean;
+  branch?: { public_id: string; name: string } | null;
+  employees_count?: number;
+  children_recursive?: DepartmentTreeNode[];
+}
+
+/**
+ * A node in the reporting hierarchy from `GET /organization/reporting-tree`:
+ * an employee with their chain of direct reports nested under `direct_reports`.
+ */
+export interface ReportingNode {
+  public_id: string;
+  name: string;
+  employee_code: string;
+  position?: string | null;
+  photo_url?: string | null;
+  photo_thumb_url?: string | null;
+  direct_reports?: ReportingNode[];
+}
+
+export function useReportingTree() {
+  return useQuery<ReportingNode[]>({
+    queryKey: ["organization", "reporting-tree"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ReportingNode[]>(
+        "/organization/reporting-tree",
+      );
+      return data;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
 function makeHooks<T extends { public_id: string }>(resource: string) {
   return {
     useList: () =>
@@ -83,8 +128,12 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
           );
           return data;
         },
-        onSuccess: () =>
-          qc.invalidateQueries({ queryKey: ["organization", resource] }),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["organization", resource] });
+          // Department/branch edits reshape the tree, and any headcount can
+          // shift the chart's rolled-up totals, so keep the chart fresh too.
+          qc.invalidateQueries({ queryKey: ["organization", "tree"] });
+        },
       });
     },
 
@@ -104,8 +153,12 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
           );
           return data;
         },
-        onSuccess: () =>
-          qc.invalidateQueries({ queryKey: ["organization", resource] }),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["organization", resource] });
+          // Department/branch edits reshape the tree, and any headcount can
+          // shift the chart's rolled-up totals, so keep the chart fresh too.
+          qc.invalidateQueries({ queryKey: ["organization", "tree"] });
+        },
       });
     },
 
@@ -115,11 +168,27 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
         mutationFn: async (publicId: string) => {
           await apiClient.delete(`/organization/${resource}/${publicId}`);
         },
-        onSuccess: () =>
-          qc.invalidateQueries({ queryKey: ["organization", resource] }),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["organization", resource] });
+          // Department/branch edits reshape the tree, and any headcount can
+          // shift the chart's rolled-up totals, so keep the chart fresh too.
+          qc.invalidateQueries({ queryKey: ["organization", "tree"] });
+        },
       });
     },
   };
+}
+
+export function useOrganizationTree() {
+  return useQuery<DepartmentTreeNode[]>({
+    queryKey: ["organization", "tree"],
+    queryFn: async () => {
+      const { data } =
+        await apiClient.get<DepartmentTreeNode[]>("/organization/tree");
+      return data;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
 }
 
 export const branchesApi = makeHooks<Branch>("branches");
@@ -128,3 +197,83 @@ export const teamsApi = makeHooks<Team>("teams");
 export const positionsApi = makeHooks<Position>("positions");
 export const gradesApi = makeHooks<Grade>("grades");
 export const costCentersApi = makeHooks<CostCenter>("cost-centers");
+
+// ── Grade salary steps (the grade→step salary scale) ────────────────
+
+export interface GradeSalaryStep {
+  public_id: string;
+  step: number;
+  salary_cents: number;
+  created_at: string;
+}
+
+export interface GradeSalaryStepInput {
+  step: number;
+  salary_cents: number;
+}
+
+function gradeStepsKey(gradePublicId: string) {
+  return ["organization", "grades", gradePublicId, "salary-steps"];
+}
+
+export function useGradeSalarySteps(gradePublicId: string, enabled = true) {
+  return useQuery<GradeSalaryStep[]>({
+    queryKey: gradeStepsKey(gradePublicId),
+    queryFn: async () => {
+      const { data } = await apiClient.get<GradeSalaryStep[]>(
+        `/organization/grades/${gradePublicId}/salary-steps`,
+      );
+      return data;
+    },
+    enabled: enabled && !!gradePublicId,
+  });
+}
+
+export function useCreateGradeSalaryStep(gradePublicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: GradeSalaryStepInput) => {
+      const { data } = await apiClient.post<GradeSalaryStep>(
+        `/organization/grades/${gradePublicId}/salary-steps`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: gradeStepsKey(gradePublicId) }),
+  });
+}
+
+export function useUpdateGradeSalaryStep(gradePublicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      stepPublicId,
+      input,
+    }: {
+      stepPublicId: string;
+      input: GradeSalaryStepInput;
+    }) => {
+      const { data } = await apiClient.put<GradeSalaryStep>(
+        `/organization/grades/${gradePublicId}/salary-steps/${stepPublicId}`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: gradeStepsKey(gradePublicId) }),
+  });
+}
+
+export function useDeleteGradeSalaryStep(gradePublicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (stepPublicId: string) => {
+      await apiClient.delete(
+        `/organization/grades/${gradePublicId}/salary-steps/${stepPublicId}`,
+      );
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: gradeStepsKey(gradePublicId) }),
+  });
+}

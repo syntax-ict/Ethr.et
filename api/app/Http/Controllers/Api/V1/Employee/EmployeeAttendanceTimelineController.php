@@ -68,7 +68,7 @@ class EmployeeAttendanceTimelineController extends Controller
                 $checkIn = $record->check_in ? Carbon::parse($record->check_in) : null;
                 $checkOut = $record->check_out ? Carbon::parse($record->check_out) : null;
                 $worked = $checkIn && $checkOut ? $checkIn->diffInMinutes($checkOut) : null;
-                $status = (string) ($record->status?->value ?? $record->status);
+                $status = $record->status->value;
 
                 if ($status === 'late') {
                     $totals['late']++;
@@ -85,7 +85,7 @@ class EmployeeAttendanceTimelineController extends Controller
                     'check_in' => $checkIn?->format('H:i:s'),
                     'check_out' => $checkOut?->format('H:i:s'),
                     'worked_minutes' => $worked,
-                    'source' => (string) ($record->source?->value ?? $record->source),
+                    'source' => $record->source->value,
                     'late_minutes' => null,
                     'is_weekend' => $isWeekend,
                 ];

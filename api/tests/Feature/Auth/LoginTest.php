@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\CustomRole;
+use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\User;
 
@@ -176,5 +178,55 @@ describe('GET /api/v1/auth/me', function () {
     it('rejects unauthenticated requests', function () {
         $this->getJson('/api/v1/auth/me')
             ->assertUnauthorized();
+    });
+
+    it('returns the resolved permission list for the role', function () {
+        actingAsUser(['role' => UserRole::EMPLOYEE]);
+
+        $permissions = $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->json('permissions');
+
+        expect($permissions)->toBeArray()
+            ->toContain('attendance.checkIn')
+            ->not->toContain('employee.create')
+            ->not->toContain('settings.manage');
+    });
+
+    it('returns a custom role permission set instead of the base role set', function () {
+        $tenant = createTenant();
+
+        $customRole = CustomRole::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Custom Viewer',
+        ]);
+        $customRole->permissions()->sync(
+            Permission::whereIn('name', ['employee.viewAny', 'employee.view'])->pluck('id')
+        );
+
+        actingAsUser([
+            'role' => UserRole::EMPLOYEE,
+            'custom_role_id' => $customRole->id,
+        ], $tenant);
+
+        $permissions = $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->json('permissions');
+
+        // The custom role replaces the base set — attendance.checkIn is an
+        // employee-role ability the custom role does not grant.
+        expect($permissions)->toEqualCanonicalizing(['employee.viewAny', 'employee.view'])
+            ->not->toContain('attendance.checkIn');
+    });
+
+    it('returns the full catalogue for super_admin', function () {
+        actingAsUser(['role' => UserRole::SUPER_ADMIN]);
+
+        $permissions = $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->json('permissions');
+
+        expect($permissions)->toEqualCanonicalizing(Permission::allNames())
+            ->toContain('admin.manage');
     });
 });

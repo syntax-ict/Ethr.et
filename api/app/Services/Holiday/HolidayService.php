@@ -26,6 +26,33 @@ final class HolidayService
             ->get();
     }
 
+    /**
+     * The set of holiday dates for a tenant within [$from, $to], as a map of
+     * 'Y-m-d' => true for O(1) membership checks. Fetches once so callers that
+     * test many dates (e.g. payroll scanning a period's attendance) avoid a
+     * per-date query.
+     *
+     * @return array<string, bool>
+     */
+    public function getHolidayDates(int $tenantId, Carbon $from, Carbon $to, ?int $branchId = null): array
+    {
+        return Holiday::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->whereDate('date', '>=', $from->format('Y-m-d'))
+            ->whereDate('date', '<=', $to->format('Y-m-d'))
+            ->where(function ($q) use ($branchId) {
+                $q->whereNull('branch_id');
+                if ($branchId) {
+                    $q->orWhere('branch_id', $branchId);
+                }
+            })
+            ->pluck('date')
+            ->mapWithKeys(fn ($date) => [Carbon::parse($date)->format('Y-m-d') => true])
+            ->all();
+    }
+
     public function isHoliday(int $tenantId, Carbon $date, ?int $branchId = null): bool
     {
         return Holiday::query()
@@ -110,6 +137,75 @@ final class HolidayService
             'recurring' => true,
         ];
 
+        // ── Movable feasts ────────────────────────────────────────────────
+        // Orthodox Easter is computed (Alexandrian computus), so Siklet and
+        // Fasika are exact. The Islamic feasts come from the tabular Hijri
+        // calendar and are marked estimated — Ethiopia observes them by local
+        // moon sighting, which can shift the date by a day either way.
+
+        $holidays[] = [
+            'name' => 'Good Friday (Siklet)',
+            'name_am' => 'ስቅለት',
+            'date' => $this->calendar->orthodoxGoodFriday($gregorianYear)->format('Y-m-d'),
+            'ethiopian_calendar' => true,
+            'recurring' => true,
+        ];
+
+        $holidays[] = [
+            'name' => 'Ethiopian Easter (Fasika)',
+            'name_am' => 'ፋሲካ',
+            'date' => $this->calendar->orthodoxEaster($gregorianYear)->format('Y-m-d'),
+            'ethiopian_calendar' => true,
+            'recurring' => true,
+        ];
+
+        foreach ($this->islamicHolidays($gregorianYear) as $islamic) {
+            $holidays[] = $islamic;
+        }
+
+        return $holidays;
+    }
+
+    /**
+     * Eid al-Fitr, Eid al-Adha and Mawlid for a Gregorian year.
+     *
+     * A Hijri year is ~11 days shorter than a Gregorian one, so a feast can
+     * fall twice in the same Gregorian year — each occurrence is returned.
+     *
+     * @return list<array{name: string, name_am: string, date: string, ethiopian_calendar: bool, recurring: bool, is_estimated: bool}>
+     */
+    private function islamicHolidays(int $gregorianYear): array
+    {
+        $feasts = [
+            // [name, Amharic name, Hijri month, Hijri day]
+            ['Eid al-Fitr', 'ኢድ አል ፈጥር', 10, 1],
+            ['Eid al-Adha (Arafa)', 'አረፋ', 12, 10],
+            ['Prophet Muhammad Birthday (Mawlid)', 'መውሊድ', 3, 12],
+        ];
+
+        $holidays = [];
+
+        foreach ($feasts as [$name, $nameAm, $hijriMonth, $hijriDay]) {
+            $hijriYears = $this->calendar->hijriYearsOverlapping(
+                $gregorianYear,
+                $hijriMonth,
+                $hijriDay,
+            );
+
+            foreach ($hijriYears as $hijriYear) {
+                $holidays[] = [
+                    'name' => $name,
+                    'name_am' => $nameAm,
+                    'date' => $this->calendar
+                        ->hijriToGregorian($hijriYear, $hijriMonth, $hijriDay)
+                        ->format('Y-m-d'),
+                    'ethiopian_calendar' => false,
+                    'recurring' => true,
+                    'is_estimated' => true,
+                ];
+            }
+        }
+
         return $holidays;
     }
 
@@ -119,10 +215,15 @@ final class HolidayService
         $created = 0;
 
         foreach ($holidays as $holidayData) {
+            // Match on the date alone, not name + date: a tenant that already
+            // recorded "Ethiopian Christmas" must not gain a second row when
+            // auto-detect proposes "Ethiopian Christmas (Genna)" for the same
+            // day. Branch-specific holidays are left alone — they coexist with
+            // the tenant-wide ones by design.
             $exists = Holiday::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
-                ->where('name', $holidayData['name'])
+                ->whereNull('branch_id')
                 ->whereDate('date', $holidayData['date'])
                 ->exists();
 
@@ -137,6 +238,7 @@ final class HolidayService
                 'date' => $holidayData['date'],
                 'ethiopian_calendar' => $holidayData['ethiopian_calendar'],
                 'recurring' => $holidayData['recurring'],
+                'is_estimated' => $holidayData['is_estimated'] ?? false,
                 'is_active' => true,
             ]);
 

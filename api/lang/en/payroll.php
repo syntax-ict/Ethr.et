@@ -15,4 +15,13 @@ return [
     'pagumen_strategy' => 'Pagumen Proration Strategy',
     'pagumen_full_month' => 'Full month salary',
     'pagumen_daily_rate' => 'Daily rate (annual ÷ 365 × Pagumen days)',
+    'tax_bracket_must_start_at_zero' => 'The first tax bracket must start at 0.',
+    'tax_bracket_only_last_open_ended' => 'Only the final tax bracket may be open-ended.',
+    'tax_bracket_max_after_min' => 'A tax bracket maximum must be greater than its minimum.',
+    'tax_bracket_not_contiguous' => 'Tax brackets must be contiguous — each bracket must start one cent after the previous one ends.',
+    'tax_brackets_replaced' => 'Tax brackets updated.',
+    'overtime_rates_updated' => 'Overtime rates updated.',
+    'loan_not_active' => 'Only an active loan can be modified.',
+    'cost_sharing_already_active' => 'This employee already has an active cost-sharing obligation.',
+    'cost_sharing_invalid_transition' => 'That cost-sharing status change is not allowed.',
 ];

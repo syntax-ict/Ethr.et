@@ -15,4 +15,13 @@ return [
     'pagumen_strategy' => 'የጳጉሜን ተመጣጣኝ ስሌት ስልት',
     'pagumen_full_month' => 'ሙሉ የወር ደመወዝ',
     'pagumen_daily_rate' => 'የቀን ተመን (ዓመታዊ ÷ 365 × የጳጉሜ ቀናት)',
+    'tax_bracket_must_start_at_zero' => 'የመጀመሪያው የግብር ደረጃ ከ0 መጀመር አለበት።',
+    'tax_bracket_only_last_open_ended' => 'የመጨረሻው የግብር ደረጃ ብቻ ጣሪያ የሌለው ሊሆን ይችላል።',
+    'tax_bracket_max_after_min' => 'የግብር ደረጃ ጣሪያ ከዝቅተኛው መጠን መብለጥ አለበት።',
+    'tax_bracket_not_contiguous' => 'የግብር ደረጃዎች ተከታታይ መሆን አለባቸው — እያንዳንዱ ደረጃ ካለፈው ደረጃ መጨረሻ አንድ ሳንቲም በኋላ መጀመር አለበት።',
+    'tax_brackets_replaced' => 'የግብር ደረጃዎች ተዘምነዋል።',
+    'overtime_rates_updated' => 'የትርፍ ሰዓት ተመኖች ተዘምነዋል።',
+    'loan_not_active' => 'ንቁ የሆነ ብድር ብቻ ሊስተካከል ይችላል።',
+    'cost_sharing_already_active' => 'ይህ ሠራተኛ አስቀድሞ ንቁ የወጪ መጋራት ግዴታ አለው።',
+    'cost_sharing_invalid_transition' => 'ይህ የወጪ መጋራት ሁኔታ ለውጥ አይፈቀድም።',
 ];

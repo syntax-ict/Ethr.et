@@ -1,11 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { FileEdit, Plus, Loader2, Check, X, AlertCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  FileEdit,
+  Plus,
+  Loader2,
+  Check,
+  X,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,14 +31,11 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import {
-  useSubmitCorrection,
-  useApproveCorrection,
-  useRejectCorrection,
-} from "@/features/attendance/api";
+
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -124,53 +132,44 @@ function MyRequestsTab() {
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {t("common.date")}
-                </th>
-                <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                  {t("attendance.corrections.corrected_in")}
-                </th>
-                <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                  {t("attendance.corrections.corrected_out")}
-                </th>
-                <th className="hidden max-w-xs px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                  {t("attendance.corrections.reason")}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {t("common.status")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {corrections.map((c) => (
-                <tr
-                  key={c.public_id}
-                  className="border-b last:border-0 hover:bg-muted/30"
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">
-                    {c.date}
-                  </td>
-                  <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                    {c.corrected_check_in ?? "—"}
-                  </td>
-                  <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                    {c.corrected_check_out ?? "—"}
-                  </td>
-                  <td className="hidden max-w-[200px] truncate px-4 py-3 text-sm text-muted-foreground md:table-cell">
-                    {c.reason}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={c.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SimpleTable
+          caption={t("attendance.corrections.title", "Corrections")}
+          headers={[
+            t("common.date"),
+            t("attendance.corrections.corrected_in"),
+            t("attendance.corrections.corrected_out"),
+            t("attendance.corrections.reason"),
+            t("common.status"),
+          ]}
+          colClassName={[
+            "",
+            "hidden sm:table-cell",
+            "hidden sm:table-cell",
+            "hidden max-w-xs md:table-cell",
+            "",
+          ]}
+          rows={corrections.map((c) => ({
+            key: c.public_id,
+            cells: [
+              <span key="d" className="font-medium">
+                {c.date}
+              </span>,
+              <span key="in" className="text-muted-foreground">
+                {c.corrected_check_in ?? "—"}
+              </span>,
+              <span key="out" className="text-muted-foreground">
+                {c.corrected_check_out ?? "—"}
+              </span>,
+              <span
+                key="r"
+                className="block max-w-[200px] truncate text-muted-foreground"
+              >
+                {c.reason}
+              </span>,
+              <StatusBadge key="s" status={c.status} />,
+            ],
+          }))}
+        />
       </CardContent>
     </Card>
   );
@@ -209,14 +208,16 @@ function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
   const colorClass = isNeutral
     ? "text-muted-foreground"
     : isPositive
-      ? "text-green-600 dark:text-green-400"
-      : "text-red-600 dark:text-red-400";
+      ? "text-status-success"
+      : "text-status-error";
   const label = isNeutral
     ? "No payroll impact"
     : `${isPositive ? "+" : "−"} ${impactEtb.toLocaleString("en-ET", { minimumFractionDigits: 2 })} ETB`;
 
   return (
-    <div className={`flex items-center gap-1 text-[10px] font-medium ${colorClass}`}>
+    <div
+      className={`flex items-center gap-1 text-[10px] font-medium ${colorClass}`}
+    >
       <Icon className="h-3 w-3" />
       <span>{label}</span>
       {!isNeutral && (
@@ -363,7 +364,7 @@ function PendingReviewsTab() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-green-600 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-950"
+                      className="text-success-on-soft hover:bg-success-soft"
                       onClick={() => approveMut.mutate(c.public_id)}
                       disabled={isProcessing}
                     >
@@ -380,7 +381,7 @@ function PendingReviewsTab() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
+                      className="text-destructive-on-soft hover:bg-destructive-soft"
                       onClick={() => setRejectFor(c)}
                       disabled={isProcessing}
                     >
@@ -501,18 +502,20 @@ function RequestDialog({
         >
           <div>
             <Label>{t("attendance.date_required")}</Label>
-            <Input
-              type="date"
+            <DualCalendarDateInput
               value={form.date}
-              onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+              onChange={(v) => setForm((p) => ({ ...p, date: v }))}
               required
               className="mt-1"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>{t("attendance.corrections.correct_check_in")}</Label>
+              <Label htmlFor="correct-check-in">
+                {t("attendance.corrections.correct_check_in")}
+              </Label>
               <Input
+                id="correct-check-in"
                 type="time"
                 value={form.corrected_check_in}
                 onChange={(e) =>
@@ -522,8 +525,11 @@ function RequestDialog({
               />
             </div>
             <div>
-              <Label>{t("attendance.corrections.correct_check_out")}</Label>
+              <Label htmlFor="correct-check-out">
+                {t("attendance.corrections.correct_check_out")}
+              </Label>
               <Input
+                id="correct-check-out"
                 type="time"
                 value={form.corrected_check_out}
                 onChange={(e) =>
@@ -537,8 +543,11 @@ function RequestDialog({
             </div>
           </div>
           <div>
-            <Label>{t("attendance.reason_required")}</Label>
+            <Label htmlFor="reason-required">
+              {t("attendance.reason_required")}
+            </Label>
             <Textarea
+              id="reason-required"
               value={form.reason}
               onChange={(e) =>
                 setForm((p) => ({ ...p, reason: e.target.value }))

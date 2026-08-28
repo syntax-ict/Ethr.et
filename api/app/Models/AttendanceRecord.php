@@ -9,14 +9,22 @@ use App\Enums\AttendanceStatus;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property AttendanceSource $source
+ * @property AttendanceStatus $status
+ * @property Carbon|null $check_in
+ * @property Carbon|null $check_out
+ */
 class AttendanceRecord extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
+    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
 
     protected $fillable = [
         'public_id',
@@ -63,6 +71,7 @@ class AttendanceRecord extends Model
         ];
     }
 
+    /** @return BelongsTo<Employee, $this> */
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
@@ -97,8 +106,22 @@ class AttendanceRecord extends Model
 
     public function overtimeMinutes(): int
     {
-        if (! $this->shift || ! $this->check_out) {
-            return 0;
+        $window = $this->overtimeWindow();
+
+        return $window === null ? 0 : (int) $window[0]->diffInMinutes($window[1]);
+    }
+
+    /**
+     * The worked-past-shift-end interval that counts as overtime, or null when
+     * there is none. Single source of truth for both the total OT minutes and
+     * the per-type (day/night, holiday) classification done in payroll.
+     *
+     * @return array{0: Carbon, 1: Carbon}|null [start, end]
+     */
+    public function overtimeWindow(): ?array
+    {
+        if (! $this->shift || ! $this->check_in || ! $this->check_out) {
+            return null;
         }
 
         $shiftEnd = $this->check_in->copy()->setTimeFromTimeString($this->shift->end_time);
@@ -108,9 +131,9 @@ class AttendanceRecord extends Model
         }
 
         if ($this->check_out->gt($shiftEnd)) {
-            return (int) $shiftEnd->diffInMinutes($this->check_out);
+            return [$shiftEnd, $this->check_out];
         }
 
-        return 0;
+        return null;
     }
 }

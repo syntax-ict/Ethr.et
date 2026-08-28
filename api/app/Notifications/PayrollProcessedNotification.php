@@ -5,16 +5,22 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\PayrollRun;
+use App\Notifications\Concerns\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 class PayrollProcessedNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly PayrollRun $payrollRun,
     ) {}
+
+    protected function preferenceType(): string
+    {
+        return 'payroll_processed';
+    }
 
     public function via(object $notifiable): array
     {
@@ -23,7 +29,7 @@ class PayrollProcessedNotification extends Notification
             $channels[] = 'broadcast';
         }
 
-        return $channels;
+        return $this->filterChannels($notifiable, $channels);
     }
 
     public function toArray(object $notifiable): array

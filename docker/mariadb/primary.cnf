@@ -1,0 +1,50 @@
+[mariadb]
+server-id              = 1
+log_bin                = /var/log/mysql/mariadb-bin
+binlog_format          = ROW
+binlog_row_image       = MINIMAL
+expire_logs_days       = 7
+max_binlog_size        = 256M
+
+# Required because log_bin is on above. With binary logging enabled, MariaDB
+# refuses CREATE TRIGGER/FUNCTION from any account lacking SUPER, and the
+# application user deliberately lacks it. Migration
+# 2026_07_22_000001_restrict_audit_log_to_insert_only creates triggers on
+# audit_log, so without this a fresh production `migrate --force` stops there:
+#
+#   SQLSTATE[HY000]: General error: 1419 You do not have the SUPER privilege
+#   and binary logging is enabled
+#
+# — and stops *partway*, leaving the database half-migrated (measured: 25 of 53
+# applied). Development never sees it because the dev compose has no binlog.
+#
+# The "less safe" in MariaDB's hint is about untrusted accounts writing
+# non-deterministic routines that break replication. Here the only account
+# creating triggers is the app's own migration runner, whose DDL is in this
+# repo and reviewed, so the exposure is the same code either way.
+log_bin_trust_function_creators = 1
+
+# Replication safety
+sync_binlog            = 1
+innodb_flush_log_at_trx_commit = 1
+
+# Performance
+innodb_buffer_pool_size = 1G
+innodb_log_file_size    = 256M
+innodb_io_capacity      = 2000
+innodb_read_io_threads  = 4
+innodb_write_io_threads = 4
+max_connections         = 200
+thread_cache_size       = 16
+table_open_cache        = 4096
+tmp_table_size          = 64M
+max_heap_table_size     = 64M
+
+# Character set
+character-set-server   = utf8mb4
+collation-server       = utf8mb4_unicode_ci
+
+# Slow query log
+slow_query_log         = 1
+slow_query_log_file    = /var/log/mysql/slow.log
+long_query_time        = 1

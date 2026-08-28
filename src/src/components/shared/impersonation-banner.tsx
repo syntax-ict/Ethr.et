@@ -1,33 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function readImpersonating(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem("impersonating") === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function ImpersonationBanner() {
-  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [isImpersonating] = useState(readImpersonating);
 
-  useEffect(() => {
-    const flag = localStorage.getItem("impersonating");
-    setIsImpersonating(flag === "true");
-  }, []);
+  async function exitImpersonation() {
+    // The server revokes the impersonation token and swaps the session cookie
+    // back to a fresh one for the super admin, reporting which tenant that
+    // session belongs to. If it could not restore them — an expired session, an
+    // account that is no longer a super admin — there is no identity left to
+    // return to and the only honest destination is the login screen.
+    let restoredTenant: string | null = null;
+    let restored = false;
 
-  function exitImpersonation() {
-    const originalToken = localStorage.getItem("original_access_token");
-    const originalTenant = localStorage.getItem("original_tenant");
-
-    if (originalToken) {
-      localStorage.setItem("access_token", originalToken);
-      localStorage.removeItem("original_access_token");
+    try {
+      const { apiClient } = await import("@/api/client");
+      const { data } = await apiClient.post("/admin/exit-impersonation");
+      restored = data?.session_restored === true;
+      restoredTenant = data?.tenant ?? null;
+    } catch {
+      restored = false;
     }
+
+    // Prefer the server's answer over what this browser stashed on the way in.
+    const originalTenant =
+      restoredTenant ?? localStorage.getItem("original_tenant");
     if (originalTenant) {
       localStorage.setItem("tenant", originalTenant);
-      localStorage.removeItem("original_tenant");
     }
+    localStorage.removeItem("original_tenant");
     localStorage.removeItem("impersonating");
 
-    // Redirect back to admin console
-    window.location.href = "/admin";
+    window.location.href = restored ? "/admin" : "/login";
   }
 
   if (!isImpersonating) return null;

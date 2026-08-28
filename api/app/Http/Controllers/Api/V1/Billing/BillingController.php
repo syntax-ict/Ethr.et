@@ -25,6 +25,8 @@ class BillingController extends Controller
 
     public function dashboard(Request $request): JsonResponse
     {
+        Gate::authorize('billing.manage');
+
         $tenant = app(CurrentTenant::class)->get();
 
         return response()->json($this->service->dashboard($tenant));

@@ -6,15 +6,17 @@ import type { PaginatedResponse } from "@/api/types";
 
 export interface AttendanceRecord {
   public_id: string;
-  employee_name?: string;
+  employee?: { public_id: string; name: string; employee_code: string };
   employee_public_id?: string;
   date: string;
   check_in: string | null;
   check_out: string | null;
   status: string;
   source: string;
+  source_label?: string;
   confidence_score: number;
   worked_minutes: number | null;
+  overtime_minutes: number | null;
 }
 
 export interface AttendanceCorrection {

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\OnboardingStep;
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use Illuminate\Database\Eloquent\Model;
 
 class OnboardingProgress extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, HasAuditLog;
 
     protected $table = 'onboarding_progress';
 
@@ -49,7 +51,7 @@ class OnboardingProgress extends Model
         $this->update([
             'completed_steps' => $completed,
             'step_data' => $stepData,
-            'current_step' => min($step + 1, 7),
+            'current_step' => min($step + 1, OnboardingStep::last()->value),
         ]);
     }
 

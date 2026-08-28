@@ -14,6 +14,7 @@ final class DeviceManager
         'hikvision' => HikvisionAdapter::class,
         'zkteco' => ZktecoAdapter::class,
         'suprema' => SupremaAdapter::class,
+        'generic' => GenericHttpAdapter::class,
         'mock' => MockAdapter::class,
     ];
 

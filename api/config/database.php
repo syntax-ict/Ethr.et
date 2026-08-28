@@ -67,6 +67,16 @@ return [
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
+            'read' => env('DB_READ_HOST') ? [
+                'host' => array_filter(explode(',', env('DB_READ_HOST', ''))),
+                'port' => env('DB_READ_PORT', env('DB_PORT', '3306')),
+                'username' => env('DB_READ_USERNAME', env('DB_USERNAME', 'root')),
+                'password' => env('DB_READ_PASSWORD', env('DB_PASSWORD', '')),
+            ] : null,
+            'write' => [
+                'host' => env('DB_HOST', '127.0.0.1'),
+            ],
+            'sticky' => (bool) env('DB_STICKY', true),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -166,12 +176,30 @@ return [
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
         ],
 
+        // Deliberately addressable as a SEPARATE server, not just a separate
+        // database number on the same one. `maxmemory-policy` is instance-wide
+        // and does not respect the db split, so one Redis serving both this
+        // connection and `default` can only ever have a policy that is wrong
+        // for one of them: `allkeys-lru` lets cache pressure evict queued
+        // payroll jobs (no TTL, so nothing protects them), while `noeviction`
+        // makes a full cache start failing writes. Production gives each its
+        // own container with its own policy — docker-compose.prod.yml,
+        // `redis-cache` and `redis-data`.
+        //
+        // Note what does NOT move with it: 'lock_connection' below stays on
+        // `default`, so Cache::lock() and every scheduled task's
+        // withoutOverlapping() mutex (routes/console.php) live on the
+        // non-evicting instance. An evicted lock is a double-run of
+        // accrue-leave-balances, not a cache miss.
+        //
+        // Falls back to REDIS_HOST when unset, so local/testing stay
+        // single-instance with no configuration at all.
         'cache' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => env('REDIS_CACHE_HOST', env('REDIS_HOST', '127.0.0.1')),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'port' => env('REDIS_CACHE_PORT', env('REDIS_PORT', '6379')),
             'database' => env('REDIS_CACHE_DB', '1'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),

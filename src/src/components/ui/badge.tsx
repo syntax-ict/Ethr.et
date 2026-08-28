@@ -12,10 +12,17 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow",
         outline: "text-foreground",
-        success:
-          "border-transparent bg-status-success/15 text-status-success",
-        warning:
-          "border-transparent bg-status-warning/15 text-status-warning",
+        // Soft-container token families rather than `bg-status-x/15
+        // text-status-x`. Tinting a colour to 15% and then setting text in the
+        // *same* colour is contrast-neutral at best: the pair measured 3.4:1 in
+        // light mode. The `-soft` / `-on-soft` / `-edge` families are designed
+        // as legible pairs and are already verified across all three themes,
+        // including high contrast where the tint collapses to the page surface
+        // and the opaque edge carries the boundary.
+        success: "border-success-edge bg-success-soft text-success-on-soft",
+        warning: "border-warning-edge bg-warning-soft text-warning-on-soft",
+        info: "border-info-edge bg-info-soft text-info-on-soft",
+        neutral: "border-neutral-edge bg-neutral-soft text-neutral-on-soft",
       },
     },
     defaultVariants: {

@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import {
   User,
   Mail,
@@ -12,111 +10,77 @@ import {
   Briefcase,
   Building2,
   Calendar,
-  Edit,
-  Save,
-  X,
+  Clock,
+  Camera,
+  Trash2,
+  Loader2,
+  Pencil,
+  BadgeCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PageHeader } from "@/components/shared/page-header";
-import { useCurrentUser, useCurrentTenant } from "@/features/auth/api";
+import { EmployeeAvatar } from "@/components/shared/employee-avatar";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { useCurrentTenant } from "@/features/auth/api";
 import {
   useMyProfile,
-  useUpdateProfile,
-} from "@/features/dashboard/profile-api";
+  useRemoveProfilePhoto,
+  useUploadProfilePhoto,
+  type ProfileResponse,
+} from "@/features/profile/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-const editSchema = z.object({
-  phone: z.string().max(20).optional(),
-  emergency_contact_name: z.string().max(255).optional(),
-  emergency_contact_phone: z.string().max(20).optional(),
-  emergency_contact_relationship: z.string().max(100).optional(),
-});
-type EditForm = z.infer<typeof editSchema>;
+/** Matches the server rule on POST /profile/photo. */
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function ProfilePage() {
   const { t } = useT();
-  const [editing, setEditing] = useState(false);
-  const { data: user, isLoading: userLoading } = useCurrentUser();
+  const query = useMyProfile();
+
+  return (
+    <QueryBoundary query={query}>
+      {(profile) => <ProfileOverview profile={profile} t={t} />}
+    </QueryBoundary>
+  );
+}
+
+function ProfileOverview({
+  profile,
+  t,
+}: {
+  profile: ProfileResponse;
+  t: (key: string, fallback?: string) => string;
+}) {
   const { data: tenant } = useCurrentTenant();
-  const { data: profile, isLoading: profileLoading } = useMyProfile();
-  const updateProfile = useUpdateProfile();
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<EditForm>({
-    resolver: zodResolver(editSchema),
-    defaultValues: {
-      phone: profile?.employee?.phone ?? profile?.user.phone ?? "",
-    },
-  });
-
-  const employee = profile?.employee;
-
-  async function onSave(values: EditForm) {
-    try {
-      const result = await updateProfile.mutateAsync(values);
-      if (result.pending_approval) {
-        toast.warning(
-          t("profile.pending_approval", "Changes are pending HR approval."),
-        );
-      } else {
-        toast.success(t("profile.updated", "Profile updated successfully."));
-      }
-      setEditing(false);
-    } catch {
-      toast.error(
-        t(
-          "profile.update_failed",
-          "Failed to update profile. Please try again.",
-        ),
-      );
-    }
-  }
-
-  if (userLoading || profileLoading || !user) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
+  const employee = profile.employee;
+  const user = profile.user;
+  const pendingUpdates = profile.pending_updates ?? [];
   const displayName = employee?.name ?? user.email.split("@")[0];
-  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("profile.title", "My Profile")}
-        description={t(
-          "profile.description",
-          "View and update your personal information",
-        )}
-      />
-
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="text-xl font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <PhotoControl
+              name={displayName}
+              photoThumbUrl={employee?.photo_thumb_url}
+              photoUrl={employee?.photo_url}
+              canEdit={Boolean(employee)}
+              t={t}
+            />
             <div className="flex-1 text-center sm:text-left">
               <h2 className="text-xl font-bold text-foreground">
                 {displayName}
               </h2>
+              {employee?.name_am && (
+                <p className="text-sm text-muted-foreground">
+                  {employee.name_am}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Badge variant="outline" className="capitalize">
@@ -125,232 +89,311 @@ export default function ProfilePage() {
                 <Badge variant="outline" className="capitalize">
                   {user.status}
                 </Badge>
+                {employee?.employee_code && (
+                  <Badge variant="outline" className="font-mono">
+                    {employee.employee_code}
+                  </Badge>
+                )}
                 {user.mfa_enabled && (
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0">
+                  <Badge className="bg-success-soft text-success-on-soft border-0">
                     {t("profile.mfa_enabled", "MFA Enabled")}
                   </Badge>
                 )}
               </div>
             </div>
-            {!editing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  reset({ phone: employee?.phone ?? user.phone ?? "" });
-                  setEditing(true);
-                }}
-              >
-                <Edit className="mr-1 h-3 w-3" />
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/profile/personal">
+                <Pencil className="mr-1 h-3 w-3" />
                 {t("common.edit", "Edit")}
-              </Button>
-            )}
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {editing ? (
-        <form onSubmit={handleSubmit(onSave)}>
+      {pendingUpdates.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="h-4 w-4 text-status-warning" />
+              {t("profile.pending_updates_title", "Changes awaiting HR review")}
+            </CardTitle>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/profile/requests">
+                {t("common.view_all", "View all")}
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingUpdates.map((update) => (
+              <div
+                key={update.public_id}
+                className="flex flex-col gap-1 rounded-md border border-border-default bg-surface-secondary p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium capitalize text-foreground">
+                    {update.field_name.replace(/_/g, " ")}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="line-through">
+                      {update.old_value ?? t("common.not_set", "Not set")}
+                    </span>{" "}
+                    → <span className="font-medium">{update.new_value}</span>
+                  </p>
+                </div>
+                <Badge className="w-fit bg-warning-soft text-warning-on-soft border-0">
+                  {t("profile.awaiting_review", "Awaiting review")}
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {t("profile.account_info", "Account Information")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <InfoRow
+              icon={Mail}
+              label={t("common.email", "Email")}
+              value={user.email}
+            />
+            <InfoRow
+              icon={Phone}
+              label={t("common.phone", "Phone")}
+              value={user.phone ?? employee?.phone ?? "—"}
+            />
+            <InfoRow
+              icon={Shield}
+              label={t("profile.role", "Role")}
+              value={user.role?.replace(/_/g, " ") ?? "—"}
+              className="capitalize"
+            />
+            <InfoRow
+              icon={BadgeCheck}
+              label={t("profile.two_factor", "Two-factor")}
+              value={
+                user.mfa_enabled
+                  ? t("security_page.enabled", "Enabled")
+                  : t("profile.not_enabled", "Not enabled")
+              }
+            />
+            {user.last_login_at && (
+              <InfoRow
+                icon={Calendar}
+                label={t("profile.last_login", "Last Login")}
+                value={new Date(user.last_login_at).toLocaleString()}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {tenant && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {t("profile.edit_title", "Edit Profile")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">
-                    {t("profile.phone_number", "Phone Number")}
-                  </Label>
-                  <Input
-                    id="phone"
-                    placeholder="+251 9XX XXX XXX"
-                    {...register("phone")}
-                  />
-                  {errors.phone && (
-                    <p className="text-xs text-destructive">
-                      {errors.phone.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="ec_name">
-                    {t("profile.ec_name", "Emergency Contact Name")}
-                  </Label>
-                  <Input
-                    id="ec_name"
-                    placeholder="Full name"
-                    {...register("emergency_contact_name")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ec_phone">
-                    {t("profile.ec_phone", "Emergency Contact Phone")}
-                  </Label>
-                  <Input
-                    id="ec_phone"
-                    placeholder="+251 9XX XXX XXX"
-                    {...register("emergency_contact_phone")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ec_rel">
-                    {t("employee.emergency.relationship", "Relationship")}
-                  </Label>
-                  <Input
-                    id="ec_rel"
-                    placeholder="e.g. Spouse, Parent"
-                    {...register("emergency_contact_relationship")}
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  "profile.hr_approval_note",
-                  "Changes to name or bank details require HR approval before taking effect.",
-                )}
-              </p>
-
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={updateProfile.isPending}
-                >
-                  <Save className="mr-1 h-3 w-3" />
-                  {updateProfile.isPending
-                    ? t("profile.saving", "Saving...")
-                    : t("profile.save_changes", "Save Changes")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditing(false)}
-                >
-                  <X className="mr-1 h-3 w-3" />
-                  {t("common.cancel", "Cancel")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </form>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("profile.account_info", "Account Information")}
+                {t("employee.detail.organization", "Organization")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <InfoRow
-                icon={Mail}
-                label={t("common.email", "Email")}
-                value={user.email}
+                icon={Building2}
+                label={t("employee.detail.organization", "Organization")}
+                value={tenant.name ?? ""}
               />
-              {(user.phone ?? employee?.phone) && (
-                <InfoRow
-                  icon={Phone}
-                  label={t("common.phone", "Phone")}
-                  value={user.phone ?? employee?.phone ?? ""}
-                />
-              )}
+              <InfoRow
+                icon={Building2}
+                label={t("profile.subdomain", "Subdomain")}
+                value={tenant.subdomain ?? ""}
+              />
               <InfoRow
                 icon={Shield}
-                label={t("profile.role", "Role")}
-                value={user.role?.replace(/_/g, " ") ?? ""}
+                label={t("common.status", "Status")}
+                value={tenant.status ?? ""}
+                className="capitalize"
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {employee && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">
+                {t("profile.employment_details", "Employment Details")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <InfoRow
+                icon={Calendar}
+                label={t("employee.detail.hire_date", "Hire Date")}
+                value={employee.hire_date ?? "—"}
+              />
+              <InfoRow
+                icon={User}
+                label={t("employee.detail.gender", "Gender")}
+                value={employee.gender ?? "—"}
                 className="capitalize"
               />
               <InfoRow
-                icon={Calendar}
-                label={t("profile.locale", "Locale")}
-                value={user.locale ?? "en"}
+                icon={Building2}
+                label={t("common.department", "Department")}
+                value={employee.department ?? "—"}
               />
-              {user.last_login_at && (
-                <InfoRow
-                  icon={Calendar}
-                  label={t("profile.last_login", "Last Login")}
-                  value={new Date(user.last_login_at).toLocaleString()}
-                />
-              )}
+              <InfoRow
+                icon={Briefcase}
+                label={t("common.position", "Position")}
+                value={employee.position ?? "—"}
+              />
+              <InfoRow
+                icon={Building2}
+                label={t("employee.detail.branch", "Branch")}
+                value={employee.branch ?? "—"}
+              />
+              <InfoRow
+                icon={Building2}
+                label={t("profile.grade", "Grade")}
+                value={employee.grade ?? "—"}
+              />
+              <InfoRow
+                icon={User}
+                label={t("profile.supervisor", "Supervisor")}
+                value={employee.supervisor ?? "—"}
+              />
+              <InfoRow
+                icon={BadgeCheck}
+                label={t("common.status", "Status")}
+                value={employee.status ?? "—"}
+                className="capitalize"
+              />
             </CardContent>
           </Card>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          {tenant && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t("employee.detail.organization", "Organization")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <InfoRow
-                  icon={Building2}
-                  label={t("employee.detail.organization", "Organization")}
-                  value={tenant.name ?? ""}
-                />
-                <InfoRow
-                  icon={Building2}
-                  label={t("profile.subdomain", "Subdomain")}
-                  value={tenant.subdomain ?? ""}
-                />
-                <InfoRow
-                  icon={Shield}
-                  label={t("common.status", "Status")}
-                  value={tenant.status ?? ""}
-                  className="capitalize"
-                />
-              </CardContent>
-            </Card>
-          )}
+/**
+ * Avatar with upload and removal.
+ *
+ * The photo used to be a field on `PUT /profile` that no browser could ever
+ * populate — multipart bodies do not survive a PUT — so there was no way for an
+ * employee to change their own picture.
+ */
+function PhotoControl({
+  name,
+  photoThumbUrl,
+  photoUrl,
+  canEdit,
+  t,
+}: {
+  name: string;
+  photoThumbUrl?: string | null;
+  photoUrl?: string | null;
+  canEdit: boolean;
+  t: (key: string, fallback?: string) => string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const upload = useUploadProfilePhoto();
+  const remove = useRemoveProfilePhoto();
+  const busy = upload.isPending || remove.isPending;
 
-          {employee && (
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t("profile.employment_details", "Employment Details")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <InfoRow
-                  icon={Calendar}
-                  label={t("employee.detail.hire_date", "Hire Date")}
-                  value={employee.hire_date ?? "—"}
-                />
-                <InfoRow
-                  icon={User}
-                  label={t("employee.detail.gender", "Gender")}
-                  value={employee.gender ?? "—"}
-                  className="capitalize"
-                />
-                <InfoRow
-                  icon={Building2}
-                  label={t("common.department", "Department")}
-                  value={employee.department ?? "—"}
-                />
-                <InfoRow
-                  icon={Briefcase}
-                  label={t("common.position", "Position")}
-                  value={employee.position ?? "—"}
-                />
-                <InfoRow
-                  icon={Building2}
-                  label={t("employee.detail.branch", "Branch")}
-                  value={employee.branch ?? "—"}
-                />
-                <InfoRow
-                  icon={Building2}
-                  label={t("profile.grade", "Grade")}
-                  value={employee.grade ?? "—"}
-                />
-              </CardContent>
-            </Card>
+  async function onPick(file: File | undefined) {
+    if (!file) return;
+
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      toast.error(
+        t("profile.photo_type_error", "Choose a JPG, PNG or WebP image."),
+      );
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast.error(t("profile.photo_size_error", "Photos must be under 5 MB."));
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+
+    try {
+      await upload.mutateAsync(file);
+      toast.success(t("profile.photo_updated", "Photo updated."));
+    } catch {
+      toast.error(t("profile.photo_failed", "Couldn't upload that photo."));
+      setPreview(null);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  async function onRemove() {
+    try {
+      await remove.mutateAsync();
+      setPreview(null);
+      toast.success(t("profile.photo_removed", "Photo removed."));
+    } catch {
+      toast.error(t("profile.photo_failed", "Couldn't upload that photo."));
+    }
+  }
+
+  const hasPhoto = Boolean(preview ?? photoThumbUrl ?? photoUrl);
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative">
+        <EmployeeAvatar
+          name={name}
+          photoThumbUrl={preview ?? photoThumbUrl}
+          photoUrl={preview ?? photoUrl}
+          className="h-20 w-20 shadow-sm"
+          fallbackClassName="bg-primary-soft text-xl font-semibold text-primary-on-soft"
+        />
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-surface-primary/70">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
+      {canEdit && (
+        <div className="flex items-center gap-1">
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPTED_PHOTO_TYPES.join(",")}
+            className="sr-only"
+            aria-label={t("profile.change_photo", "Change photo")}
+            onChange={(e) => void onPick(e.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            <Camera className="mr-1 h-3 w-3" />
+            {t("profile.change_photo", "Change photo")}
+          </Button>
+          {hasPhoto && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              aria-label={t("profile.remove_photo", "Remove photo")}
+              onClick={() => void onRemove()}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
           )}
         </div>
       )}
@@ -370,13 +413,13 @@ function InfoRow({
   className?: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border p-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
+      <div className="flex items-center gap-2.5">
+        <Icon className="h-4 w-4 text-muted-foreground/70" />
         <span className="text-sm text-muted-foreground">{label}</span>
       </div>
       <span
-        className={`text-sm font-medium text-foreground ${className ?? ""}`}
+        className={`text-sm font-medium tabular-nums text-foreground ${className ?? ""}`}
       >
         {value}
       </span>

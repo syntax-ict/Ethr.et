@@ -112,6 +112,64 @@ describe('POST /api/v1/auth/register', function () {
             ->assertJsonValidationErrors(['admin_phone']);
     });
 
+    it('accepts a local-format phone and stores it canonically', function () {
+        $payload = [
+            'organization_name' => 'Local Phone Corp',
+            'subdomain' => 'local-phone',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@localphone.com',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ];
+
+        $this->postJson('/api/v1/auth/register', $payload)->assertCreated();
+
+        // Canonicalized to E.164 for consistent storage regardless of input form.
+        $this->assertDatabaseHas('users', [
+            'email' => 'admin@localphone.com',
+            'phone' => '+251912345678',
+        ]);
+    });
+
+    it('accepts a spaced local-format phone', function () {
+        $payload = [
+            'organization_name' => 'Spaced Phone Corp',
+            'subdomain' => 'spaced-phone',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@spacedphone.com',
+            'admin_phone' => '0912 345 678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ];
+
+        $this->postJson('/api/v1/auth/register', $payload)->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'admin@spacedphone.com',
+            'phone' => '+251912345678',
+        ]);
+    });
+
+    it('applies the platform password policy to the admin password', function () {
+        // The registration form used to run `min:8` while every other password
+        // path went through PasswordPolicy. Both enforced the same rule today,
+        // but a tightened floor in DEFAULTS would leave registration behind —
+        // pinning it here so future changes fail loudly, not silently.
+        $payload = [
+            'organization_name' => 'Policy Corp',
+            'subdomain' => 'policy-corp',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@policy.com',
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ];
+
+        $this->postJson('/api/v1/auth/register', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['password']);
+    });
+
     it('hides numeric ids in response', function () {
         $payload = [
             'organization_name' => 'ID Test Corp',

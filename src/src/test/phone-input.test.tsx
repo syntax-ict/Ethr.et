@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { PhoneInput } from "@/components/shared/phone-input";
 
-function ControlledPhoneInput({ initialValue = "" }: { initialValue?: string }) {
+function ControlledPhoneInput({
+  initialValue = "",
+}: {
+  initialValue?: string;
+}) {
   const [value, setValue] = useState(initialValue);
   return <PhoneInput value={value} onChange={setValue} />;
 }

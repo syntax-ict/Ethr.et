@@ -56,4 +56,14 @@ class UserFactory extends Factory
     {
         return $this->state(['email_verified_at' => null]);
     }
+
+    public function invited(): static
+    {
+        return $this->state([
+            'status' => 'invited',
+            'email_verified_at' => null,
+            'invited_at' => now(),
+            'activated_at' => null,
+        ]);
+    }
 }

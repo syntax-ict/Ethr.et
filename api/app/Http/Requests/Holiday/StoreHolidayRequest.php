@@ -22,6 +22,7 @@ class StoreHolidayRequest extends FormRequest
             'branch_public_id' => ['nullable', 'string', 'exists:branches,public_id'],
             'ethiopian_calendar' => ['nullable', 'boolean'],
             'recurring' => ['nullable', 'boolean'],
+            'is_estimated' => ['nullable', 'boolean'],
         ];
     }
 }

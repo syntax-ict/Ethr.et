@@ -154,8 +154,8 @@ describe('Permission model', function () {
 // ──────────────────────── Seeder completeness ────────────────────────
 
 describe('PermissionSeeder completeness', function () {
-    it('seeds all 63 permissions', function () {
-        expect(Permission::count())->toBe(63);
+    it('seeds all 79 permissions', function () {
+        expect(Permission::count())->toBe(79);
     });
 
     it('seeds permissions for all non-super-admin roles', function () {

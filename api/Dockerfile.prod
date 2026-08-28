@@ -24,7 +24,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 
 RUN pecl channel-update pecl.php.net && pecl install redis && docker-php-ext-enable redis
 
-COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/php/php.prod.ini /usr/local/etc/php/conf.d/custom.ini
 
 # Production PHP-FPM tuning
 COPY docker/php/www.prod.conf /usr/local/etc/php-fpm.d/www.conf
@@ -35,15 +35,67 @@ WORKDIR /var/www/ethr/api
 
 COPY api/ .
 
-RUN composer install \
+# COMPOSER_PROCESS_TIMEOUT: composer's default is 300s per download attempt.
+# Two consecutive production builds died at essentially exactly 300000ms mid-
+# download of a multi-megabyte package (dompdf, aws-sdk-php) over a slow/
+# unstable path to codeload.github.com — the transfer was progressing, not
+# dead (2.7/3.7MB and 1.5/6.8MB received respectively), it simply ran out of
+# clock. 900s gives a genuinely slow-but-alive download room to finish. It
+# does nothing for an outright dropped connection (curl error 56, seen on a
+# separate attempt) — that failure mode is why the cache mount below exists.
+#
+# --mount=type=cache: verified empirically that composer's cache-dir inside
+# this exact base image (HOME=/root, no XDG_CACHE_HOME) resolves to
+# /root/.composer/cache, not the /tmp/cache the standalone composer:2 image
+# reports. On any retry of this build, everything already downloaded in a
+# prior failed attempt is served from here instead of re-fetched, so a retry
+# only pulls whatever package failed last time, not all ~116 again. This
+# cache lives outside the final image — BuildKit cache mounts are never
+# committed to a layer — so it has zero effect on the built image itself.
+RUN --mount=type=cache,target=/root/.composer/cache \
+    COMPOSER_PROCESS_TIMEOUT=900 composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction \
     --no-scripts
 
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+# No artisan cache warming happens here — not even view:cache.
+#
+# view:cache was baked in on the reasoning that it "compiles Blade templates,
+# which depend on nothing outside the source tree". That is true of the
+# compilation and false of the boot that precedes it: every artisan command
+# boots the full application first, and bootstrap/app.php registers
+# `channels: routes/channels.php`, which resolves the BroadcastManager. With
+# BROADCAST_CONNECTION=reverb and no REVERB_APP_KEY in the image (.dockerignore
+# excludes api/.env*, by design) that constructor is handed null and the build
+# dies:
+#
+#   In Pusher.php line 63:
+#     Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type
+#     string, null given, called in .../BroadcastManager.php on line 353
+#
+# Nothing is lost by dropping it: scripts/deploy.sh:83 already runs view:cache
+# via `dc run --rm api`, in a container that has the real environment, and
+# writes to the shared api_storage volume. Blade also compiles lazily on first
+# render, so a deploy that skipped that step would still serve correct pages.
+#
+# config:cache, route:cache and event:cache must NOT run here either. .dockerignore
+# excludes api/.env*, and no runtime values are available at build time, so
+# every env() call would resolve to its *default* — DB_HOST 127.0.0.1, empty
+# DB_PASSWORD, empty APP_KEY. That would be survivable if it were re-read
+# later, but a cached config file makes Laravel stop consulting env()
+# altogether, so `env_file: ./api/.env.production` in docker-compose.prod.yml
+# would be silently ignored. On a first deploy the empty api_cache volume is
+# seeded from the image, so the poisoned file is exactly what the container
+# would run with. scripts/deploy.sh builds these caches instead, inside a
+# container that has the real environment, writing into the shared api_cache
+# volume.
+
+# Built here rather than copied from the host: the host's copy is an absolute
+# symlink to /var/www/api/... — a path that exists in neither this image nor the
+# host, so it dangled in both places and every Storage::url() file 404'd.
+# Relative to WORKDIR, so it stays correct if that ever moves.
+RUN ln -sfn ../storage/app/public public/storage
 
 RUN chown -R www-data:www-data storage bootstrap/cache
 

@@ -40,11 +40,15 @@ final class DepartmentAnalyticsService
                 ? round(($attendanceCount / $expectedAttendance) * 100, 1)
                 : 0;
 
-            $avgSalary = Employee::withoutGlobalScope('tenant')
+            // Query-builder aggregates bypass the model's casts and come back
+            // from PDO as a numeric string, which round() rejects outright
+            // under strict_types. Collection::avg() (see detail()) is cast and
+            // needs no such help.
+            $avgSalary = (float) (Employee::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
                 ->where('department_id', $dept->id)
                 ->whereIn('status', $activeStatuses)
-                ->avg('salary_cents') ?? 0;
+                ->avg('salary_cents') ?? 0);
 
             return [
                 'public_id' => $dept->public_id,

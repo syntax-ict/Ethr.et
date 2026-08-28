@@ -12,4 +12,8 @@ return [
     'export_failed' => 'ወደ ውጪ መላክ አልተሳካም። እባክዎ እንደገና ይሞክሩ።',
     'invalid_date_range' => 'ልክ ያልሆነ የቀን ክልል። የመጀመሪያ ቀን ከመጨረሻ ቀን በፊት መሆን አለበት።',
     'period_too_long' => 'የሪፖርት ጊዜ ከ:max ወራት መብለጥ አይችልም።',
+
+    // Scheduled report delivery
+    'scheduled_subject' => 'የተያዘ ሪፖርት፦ :name',
+    'scheduled_body' => 'የተያዘው ሪፖርትዎ ":name" በ :rows ረድፍ(ዎች) ተዘጋጅቷል።',
 ];

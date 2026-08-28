@@ -5,7 +5,11 @@ declare(strict_types=1);
 /**
  * Automated performance benchmarks (CLAUDE.md "Performance Targets" / PHASE_09 S37).
  * Not part of the default test run — invoke explicitly with:
- *   php artisan test tests/Performance
+ *   ./scripts/gates.sh performance
+ * which delegates to `scripts/pest-isolated.sh tests/Performance`. Do NOT run this
+ * as `php artisan test tests/Performance` inside `et-api-1`: over the Windows bind
+ * mount PHP's recursive directory scan collects only a fraction of what is on disk
+ * and still exits 0, so the run reports green while measuring almost nothing.
  * Seeds realistic data volumes and asserts response times as a regression guard,
  * not a precise production benchmark (this runs against SQLite in CI, not MariaDB).
  */

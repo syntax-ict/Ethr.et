@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { SimpleTable } from "@/components/shared/simple-table";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
+
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -59,21 +60,18 @@ const ADAPTER_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  online:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0",
-  offline:
-    "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0",
-  error: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0",
-  pending:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-0",
+  online: "bg-success-soft text-success-on-soft border-0",
+  offline: "bg-muted text-muted-foreground border-0",
+  error: "bg-destructive-soft text-destructive-on-soft border-0",
+  pending: "bg-warning-soft text-warning-on-soft border-0",
 };
 
 const SYNC_STATUS_ICON: Record<string, React.ReactNode> = {
-  success: <CheckCircle className="h-4 w-4 text-green-600" />,
-  partial: <AlertTriangle className="h-4 w-4 text-amber-500" />,
-  failed: <XCircle className="h-4 w-4 text-red-500" />,
-  offline: <WifiOff className="h-4 w-4 text-gray-400" />,
-  running: <Loader2 className="h-4 w-4 animate-spin text-blue-500" />,
+  success: <CheckCircle className="h-4 w-4 text-status-success" />,
+  partial: <AlertTriangle className="h-4 w-4 text-status-warning" />,
+  failed: <XCircle className="h-4 w-4 text-status-error" />,
+  offline: <WifiOff className="h-4 w-4 text-muted-foreground" />,
+  running: <Loader2 className="h-4 w-4 animate-spin text-status-info" />,
 };
 
 interface Device {
@@ -266,7 +264,7 @@ export default function DeviceDetailPage({
                 className={STATUS_STYLES[device.status] ?? ""}
               >
                 <span
-                  className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isOnline ? "bg-green-500 animate-pulse" : device.status === "error" ? "bg-red-500" : "bg-gray-400"}`}
+                  className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isOnline ? "bg-success animate-pulse" : device.status === "error" ? "bg-destructive" : "bg-muted-foreground"}`}
                 />
                 {statusLabel(device.status, t)}
               </Badge>
@@ -378,6 +376,12 @@ export default function DeviceDetailPage({
                       variant="outline"
                       size="icon"
                       className="h-8 w-8 shrink-0"
+                      // Icon-only, so the Copy glyph is the entire content and
+                      // a screen reader announced an unnamed "button".
+                      aria-label={t(
+                        "device_detail_page.copy_webhook_url",
+                        "Copy webhook URL",
+                      )}
                       onClick={() => {
                         navigator.clipboard.writeText(device.webhook_url ?? "");
                         toast.success(t("attendance.kiosks_page.copied"));
@@ -432,76 +436,92 @@ export default function DeviceDetailPage({
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b bg-muted/50">
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("common.status")}
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("device_detail_page.trigger")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              {t("device_detail_page.found")}
-                            </th>
-                            <th className="px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground">
-                              {t("device_detail_page.processed")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              {t("devices_dashboard_page.failed")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              {t("device_detail_page.duration")}
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("device_detail_page.time")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {syncLogItems.map((log) => (
-                            <tr
-                              key={log.public_id}
-                              className="border-b last:border-0 hover:bg-muted/30"
-                            >
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2 text-sm">
-                                  {SYNC_STATUS_ICON[log.status] ?? null}
-                                  <span className="capitalize">
-                                    {syncStatusLabel(log.status, t)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm capitalize text-muted-foreground">
-                                {log.triggered_by}
-                              </td>
-                              <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground sm:table-cell">
-                                {log.events_found}
-                              </td>
-                              <td className="px-4 py-3 text-right text-sm tabular-nums font-medium">
-                                {log.events_processed}
-                              </td>
-                              <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground md:table-cell">
-                                {log.events_failed > 0 ? (
-                                  <span className="text-red-500">
-                                    {log.events_failed}
-                                  </span>
-                                ) : (
-                                  "0"
-                                )}
-                              </td>
-                              <td className="hidden px-4 py-3 text-right text-xs text-muted-foreground md:table-cell">
-                                {log.duration_ms ? `${log.duration_ms}ms` : "—"}
-                              </td>
-                              <td className="px-4 py-3 text-xs text-muted-foreground">
-                                {timeAgo(log.started_at, t)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <SimpleTable
+                      caption={t(
+                        "device_detail_page.sync_history",
+                        "Sync history",
+                      )}
+                      headers={[
+                        t("common.status"),
+                        t("device_detail_page.trigger"),
+                        t("device_detail_page.found"),
+                        t("device_detail_page.processed"),
+                        t("devices_dashboard_page.failed"),
+                        t("device_detail_page.duration"),
+                        t("device_detail_page.time"),
+                      ]}
+                      align={[
+                        "left",
+                        "left",
+                        "right",
+                        "right",
+                        "right",
+                        "right",
+                        "left",
+                      ]}
+                      colClassName={[
+                        "",
+                        "",
+                        "hidden sm:table-cell",
+                        "",
+                        "hidden md:table-cell",
+                        "hidden md:table-cell",
+                        "",
+                      ]}
+                      rows={syncLogItems.map((log) => ({
+                        key: log.public_id,
+                        cells: [
+                          <div
+                            key="s"
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            {SYNC_STATUS_ICON[log.status] ?? null}
+                            <span className="capitalize">
+                              {syncStatusLabel(log.status, t)}
+                            </span>
+                          </div>,
+                          <span
+                            key="t"
+                            className="capitalize text-muted-foreground"
+                          >
+                            {log.triggered_by}
+                          </span>,
+                          <span
+                            key="f"
+                            className="tabular-nums text-muted-foreground"
+                          >
+                            {log.events_found}
+                          </span>,
+                          <span key="p" className="tabular-nums font-medium">
+                            {log.events_processed}
+                          </span>,
+                          <span
+                            key="ef"
+                            className="tabular-nums text-muted-foreground"
+                          >
+                            {log.events_failed > 0 ? (
+                              <span className="text-status-error">
+                                {log.events_failed}
+                              </span>
+                            ) : (
+                              "0"
+                            )}
+                          </span>,
+                          <span
+                            key="d"
+                            className="text-xs text-muted-foreground"
+                          >
+                            {log.duration_ms ? `${log.duration_ms}ms` : "—"}
+                          </span>,
+                          <span
+                            key="ts"
+                            className="text-xs text-muted-foreground"
+                          >
+                            {timeAgo(log.started_at, t)}
+                          </span>,
+                        ],
+                      }))}
+                    />
                     {syncLogs?.meta?.last_page > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
@@ -512,6 +532,10 @@ export default function DeviceDetailPage({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={t(
+                              "common.previous_page",
+                              "Previous page",
+                            )}
                             disabled={syncLogPage <= 1}
                             onClick={() => setSyncLogPage((p) => p - 1)}
                           >
@@ -521,6 +545,7 @@ export default function DeviceDetailPage({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={t("common.next_page", "Next page")}
                             disabled={syncLogPage >= syncLogs.meta.last_page}
                             onClick={() => setSyncLogPage((p) => p + 1)}
                           >
@@ -550,77 +575,65 @@ export default function DeviceDetailPage({
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b bg-muted/50">
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("attendance.employee")}
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("common.date")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              {t("common.check_in")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                              {t("common.check_out")}
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                              {t("common.status")}
-                            </th>
-                            <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                              {t("device_detail_page.confidence")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {eventItems.map((ev) => (
-                            <tr
-                              key={ev.public_id}
-                              className="border-b last:border-0 hover:bg-muted/30"
-                            >
-                              <td className="px-4 py-3">
-                                <p className="text-sm font-medium">
-                                  {ev.employee_name}
-                                </p>
-                                {ev.employee_code && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {ev.employee_code}
-                                  </p>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">
-                                {ev.date}
-                              </td>
-                              <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                                {ev.check_in
-                                  ? new Date(ev.check_in).toLocaleTimeString()
-                                  : "—"}
-                              </td>
-                              <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                                {ev.check_out
-                                  ? new Date(ev.check_out).toLocaleTimeString()
-                                  : "—"}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    STATUS_STYLES[ev.status] ?? "border-0"
-                                  }
-                                >
-                                  {ev.status}
-                                </Badge>
-                              </td>
-                              <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground md:table-cell">
-                                {ev.confidence_score}%
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <SimpleTable
+                      caption={t("device_detail_page.events", "Events")}
+                      headers={[
+                        t("attendance.employee"),
+                        t("common.date"),
+                        t("common.check_in"),
+                        t("common.check_out"),
+                        t("common.status"),
+                        t("device_detail_page.confidence"),
+                      ]}
+                      align={["left", "left", "left", "left", "left", "right"]}
+                      colClassName={[
+                        "",
+                        "",
+                        "hidden sm:table-cell",
+                        "hidden sm:table-cell",
+                        "",
+                        "hidden md:table-cell",
+                      ]}
+                      rows={eventItems.map((ev) => ({
+                        key: ev.public_id,
+                        cells: [
+                          <div key="e">
+                            <p className="font-medium">{ev.employee_name}</p>
+                            {ev.employee_code && (
+                              <p className="text-xs text-muted-foreground">
+                                {ev.employee_code}
+                              </p>
+                            )}
+                          </div>,
+                          <span key="d" className="text-muted-foreground">
+                            {ev.date}
+                          </span>,
+                          <span key="ci" className="text-muted-foreground">
+                            {ev.check_in
+                              ? new Date(ev.check_in).toLocaleTimeString()
+                              : "—"}
+                          </span>,
+                          <span key="co" className="text-muted-foreground">
+                            {ev.check_out
+                              ? new Date(ev.check_out).toLocaleTimeString()
+                              : "—"}
+                          </span>,
+                          <Badge
+                            key="s"
+                            variant="outline"
+                            className={STATUS_STYLES[ev.status] ?? "border-0"}
+                          >
+                            {ev.status}
+                          </Badge>,
+                          <span
+                            key="c"
+                            className="tabular-nums text-muted-foreground"
+                          >
+                            {ev.confidence_score}%
+                          </span>,
+                        ],
+                      }))}
+                    />
                     {events?.meta?.last_page > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
@@ -631,6 +644,10 @@ export default function DeviceDetailPage({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={t(
+                              "common.previous_page",
+                              "Previous page",
+                            )}
                             disabled={eventPage <= 1}
                             onClick={() => setEventPage((p) => p - 1)}
                           >
@@ -640,6 +657,7 @@ export default function DeviceDetailPage({
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={t("common.next_page", "Next page")}
                             disabled={eventPage >= events.meta.last_page}
                             onClick={() => setEventPage((p) => p + 1)}
                           >
@@ -767,8 +785,9 @@ function EditDeviceDialog({
           className="space-y-4"
         >
           <div>
-            <Label>{t("devices_page.device_name")}</Label>
+            <Label htmlFor="device-name">{t("devices_page.device_name")}</Label>
             <Input
+              id="device-name"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               required
@@ -776,8 +795,11 @@ function EditDeviceDialog({
             />
           </div>
           <div>
-            <Label>{t("device_detail_page.location_description")}</Label>
+            <Label htmlFor="location-description">
+              {t("device_detail_page.location_description")}
+            </Label>
             <Input
+              id="location-description"
               value={form.location_description}
               onChange={(e) => set("location_description", e.target.value)}
               placeholder={t("device_detail_page.location_placeholder")}
@@ -785,8 +807,11 @@ function EditDeviceDialog({
             />
           </div>
           <div>
-            <Label>{t("devices_page.serial_number")}</Label>
+            <Label htmlFor="serial-number">
+              {t("devices_page.serial_number")}
+            </Label>
             <Input
+              id="serial-number"
               value={form.serial_number}
               onChange={(e) => set("serial_number", e.target.value)}
               className="mt-1"
@@ -802,18 +827,21 @@ function EditDeviceDialog({
               </p>
             </div>
             <Switch
+              aria-label={t("device_detail_page.auto_sync")}
               checked={form.auto_sync}
               onCheckedChange={(v) => set("auto_sync", v)}
             />
           </div>
           {form.auto_sync && (
             <div>
-              <Label>{t("device_detail_page.sync_interval")}</Label>
+              <Label htmlFor="sync-interval">
+                {t("device_detail_page.sync_interval")}
+              </Label>
               <Select
                 value={form.sync_interval_minutes}
                 onValueChange={(v) => set("sync_interval_minutes", v)}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="sync-interval" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

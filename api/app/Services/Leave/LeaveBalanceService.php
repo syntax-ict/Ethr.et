@@ -42,7 +42,10 @@ final class LeaveBalanceService
 
     public function accrueMonthly(int $tenantId): int
     {
+        // Explicitly scoped for the same reason as carryForward() — the tenant
+        // comes from the signature, not from ambient request state.
         $leaveTypes = LeaveType::query()
+            ->withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
             ->where('accrual_type', AccrualType::MONTHLY)
             ->where('is_active', true)
@@ -56,6 +59,7 @@ final class LeaveBalanceService
             $targetEntitled = round((float) $leaveType->default_days * $currentMonth / 12, 1);
 
             $employees = Employee::query()
+                ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
                 ->get();
 
@@ -79,7 +83,12 @@ final class LeaveBalanceService
 
     public function carryForward(int $tenantId, int $fromYear, int $toYear): int
     {
+        // Scoped explicitly rather than via the global scope: this runs from a
+        // queued job, where the ambient tenant is whatever the job set — and
+        // the caller names the tenant in the signature.
         $leaveTypes = LeaveType::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
             ->where('carry_forward', true)
             ->where('is_active', true)
             ->get();
@@ -88,6 +97,7 @@ final class LeaveBalanceService
 
         foreach ($leaveTypes as $leaveType) {
             $balances = LeaveBalance::query()
+                ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
                 ->where('leave_type_id', $leaveType->id)
                 ->where('year', $fromYear)
@@ -100,15 +110,21 @@ final class LeaveBalanceService
                     continue;
                 }
 
+                $employee = Employee::withoutGlobalScope('tenant')
+                    ->where('id', $balance->employee_id)
+                    ->first();
+
+                // Employee deleted since the balance was written — nothing to
+                // carry into, and getOrCreateBalance() requires an Employee.
+                if (! $employee) {
+                    continue;
+                }
+
                 $carryDays = $leaveType->max_carry_days !== null
                     ? min($remaining, (float) $leaveType->max_carry_days)
                     : $remaining;
 
-                $newBalance = $this->getOrCreateBalance(
-                    Employee::find($balance->employee_id),
-                    $leaveType,
-                    $toYear
-                );
+                $newBalance = $this->getOrCreateBalance($employee, $leaveType, $toYear);
                 $newBalance->update(['carried_days' => $carryDays]);
 
                 $carried++;

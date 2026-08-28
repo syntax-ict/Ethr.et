@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -39,7 +41,7 @@ export default function TeamAttendancePage() {
   const { t } = useT();
   const [date, setDate] = useState(todayStr);
 
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: ["attendance", "team", date],
     queryFn: async () => {
       const { data } = await apiClient.get("/attendance/team", {
@@ -49,7 +51,7 @@ export default function TeamAttendancePage() {
     },
   });
 
-  const records: TeamRecord[] = data?.data ?? [];
+  const records: TeamRecord[] = query.data?.data ?? [];
   const isToday = date === todayStr();
 
   return (
@@ -69,14 +71,21 @@ export default function TeamAttendancePage() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => setDate(shiftDate(date, -1))}
+                aria-label={t(
+                  "attendance.team_page.previous_day",
+                  "Previous day",
+                )}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <Input
-                type="date"
+              <DualCalendarDateInput
                 value={date}
-                onChange={(e) => setDate(e.target.value || todayStr())}
-                className="w-40 h-8 text-sm"
+                onChange={(v) => setDate(v || todayStr())}
+                className="w-40"
+                aria-label={t(
+                  "attendance.team_page.select_date",
+                  "Select date",
+                )}
               />
               <Button
                 variant="outline"
@@ -84,8 +93,9 @@ export default function TeamAttendancePage() {
                 className="h-8 w-8"
                 onClick={() => setDate(shiftDate(date, 1))}
                 disabled={isToday}
+                aria-label={t("attendance.team_page.next_day", "Next day")}
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </Button>
               {!isToday && (
                 <Button
@@ -101,77 +111,67 @@ export default function TeamAttendancePage() {
           }
         />
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </div>
-        ) : records.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title={t("attendance.team_page.empty_title")}
-            description={t("attendance.team_page.empty_desc")}
-          />
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("attendance.employee")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("common.date")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("attendance.in")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("attendance.out")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                        {t("attendance.source")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("common.status")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {records.map((r) => (
-                      <tr
-                        key={r.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
+        <QueryBoundary
+          query={query}
+          loading={
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          }
+          isEmpty={() => records.length === 0}
+          empty={
+            <EmptyState
+              icon={Users}
+              title={t("attendance.team_page.empty_title")}
+              description={t("attendance.team_page.empty_desc")}
+            />
+          }
+        >
+          {() => (
+            <Card>
+              <CardContent className="p-0">
+                <SimpleTable
+                  caption={t("attendance.team_page.title", "Team Attendance")}
+                  headers={[
+                    t("attendance.employee"),
+                    t("common.date"),
+                    t("attendance.in"),
+                    t("attendance.out"),
+                    t("attendance.source"),
+                    t("common.status"),
+                  ]}
+                  colClassName={["", "", "", "", "hidden sm:table-cell", ""]}
+                  rows={records.map((r) => ({
+                    key: r.public_id,
+                    cells: [
+                      <span key="e" className="font-medium">
+                        {r.employee?.name ?? r.employee_name ?? "—"}
+                      </span>,
+                      <span key="d" className="text-muted-foreground">
+                        {r.date}
+                      </span>,
+                      <span key="i" className="text-muted-foreground">
+                        {r.check_in ?? "—"}
+                      </span>,
+                      <span key="o" className="text-muted-foreground">
+                        {r.check_out ?? "—"}
+                      </span>,
+                      <span
+                        key="s"
+                        className="capitalize text-muted-foreground"
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {r.employee?.name ?? r.employee_name ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {r.date}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {r.check_in ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {r.check_out ?? "—"}
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
-                          {r.source}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={r.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                        {r.source}
+                      </span>,
+                      <StatusBadge key="st" status={r.status} />,
+                    ],
+                  }))}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </QueryBoundary>
       </div>
     </RoleGate>
   );

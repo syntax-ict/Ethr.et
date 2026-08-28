@@ -4,8 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { CalendarRange, Plus, Users, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -265,14 +265,16 @@ function AssignmentsContent() {
           <div className="space-y-4">
             {/* Shift */}
             <div>
-              <Label>{t("shift_assignments_page.shift_required")}</Label>
+              <Label htmlFor="shift-required">
+                {t("shift_assignments_page.shift_required")}
+              </Label>
               <Select
                 value={form.shift_public_id}
                 onValueChange={(v) =>
                   setForm((f) => ({ ...f, shift_public_id: v }))
                 }
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="shift-required" className="mt-1">
                   <SelectValue
                     placeholder={t("shifts_settings_page.select_shift")}
                   />
@@ -362,23 +364,19 @@ function AssignmentsContent() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("shifts_settings_page.effective_from")} *</Label>
-                <Input
-                  type="date"
+                <DualCalendarDateInput
                   value={form.effective_from}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, effective_from: e.target.value }))
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, effective_from: v }))
                   }
                   className="mt-1"
                 />
               </div>
               <div>
                 <Label>{t("shifts_settings_page.effective_to")}</Label>
-                <Input
-                  type="date"
+                <DualCalendarDateInput
                   value={form.effective_to}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, effective_to: e.target.value }))
-                  }
+                  onChange={(v) => setForm((f) => ({ ...f, effective_to: v }))}
                   min={form.effective_from}
                   className="mt-1"
                 />

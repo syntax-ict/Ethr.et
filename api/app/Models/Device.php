@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property array<int, string>|null $webhook_ip_allowlist
+ */
 class Device extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
@@ -28,6 +31,7 @@ class Device extends Model
         'connection_config',
         'status',
         'webhook_token',
+        'webhook_ip_allowlist',
         'auto_sync',
         'sync_interval_minutes',
         'last_sync_at',
@@ -44,10 +48,77 @@ class Device extends Model
     {
         return [
             'connection_config' => 'encrypted:array',
+            'webhook_ip_allowlist' => 'array',
             'last_sync_at' => 'datetime',
             'auto_sync' => 'boolean',
             'sync_interval_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * Whether an inbound webhook from $ip is allowed for a token-less device.
+     *
+     * Fail-closed: a device with no allowlist configured accepts nothing on the
+     * IP path — a token-less, allowlist-less device is unreachable by design and
+     * must be given either a webhook_token or an explicit allowlist entry.
+     * Entries may be a plain IPv4/IPv6 address or an IPv4 CIDR block.
+     */
+    public function webhookIpAllowed(?string $ip): bool
+    {
+        if ($ip === null || $ip === '') {
+            return false;
+        }
+
+        $allowlist = $this->webhook_ip_allowlist;
+        if (! is_array($allowlist) || $allowlist === []) {
+            return false;
+        }
+
+        foreach ($allowlist as $entry) {
+            $entry = trim((string) $entry);
+            if ($entry === '') {
+                continue;
+            }
+
+            if (str_contains($entry, '/')) {
+                if ($this->ipInCidr($ip, $entry)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (hash_equals($entry, $ip)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** IPv4 CIDR membership test (e.g. 10.0.0.0/8). Non-IPv4 inputs return false. */
+    private function ipInCidr(string $ip, string $cidr): bool
+    {
+        [$subnet, $bits] = array_pad(explode('/', $cidr, 2), 2, null);
+
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long((string) $subnet);
+        if ($ipLong === false || $subnetLong === false || $bits === null) {
+            return false;
+        }
+
+        $bits = (int) $bits;
+        if ($bits < 0 || $bits > 32) {
+            return false;
+        }
+
+        if ($bits === 0) {
+            return true;
+        }
+
+        $mask = -1 << (32 - $bits);
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
     public function branch(): BelongsTo

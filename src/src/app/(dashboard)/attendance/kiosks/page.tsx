@@ -231,6 +231,10 @@ export default function KioskSessionsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
+                            aria-label={t(
+                              "attendance.kiosks_page.row_actions",
+                              "Kiosk actions",
+                            )}
                           >
                             <MoreVertical className="h-3.5 w-3.5" />
                           </Button>
@@ -306,8 +310,11 @@ export default function KioskSessionsPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>{t("attendance.kiosks_page.kiosk_name")}</Label>
+                <Label htmlFor="kiosk-name">
+                  {t("attendance.kiosks_page.kiosk_name")}
+                </Label>
                 <Input
+                  id="kiosk-name"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   placeholder={t(
@@ -317,9 +324,11 @@ export default function KioskSessionsPage() {
                 />
               </div>
               <div>
-                <Label>{t("attendance.kiosks_page.branch")}</Label>
+                <Label htmlFor="branch">
+                  {t("attendance.kiosks_page.branch")}
+                </Label>
                 <Select value={regBranch} onValueChange={setRegBranch}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="branch" className="mt-1">
                     <SelectValue
                       placeholder={t("attendance.kiosks_page.select_branch")}
                     />
@@ -336,8 +345,11 @@ export default function KioskSessionsPage() {
                 </Select>
               </div>
               <div>
-                <Label>{t("attendance.kiosks_page.admin_pin")}</Label>
+                <Label htmlFor="admin-pin">
+                  {t("attendance.kiosks_page.admin_pin")}
+                </Label>
                 <Input
+                  id="admin-pin"
                   type="password"
                   value={regPin}
                   onChange={(e) =>
@@ -351,8 +363,11 @@ export default function KioskSessionsPage() {
                 />
               </div>
               <div>
-                <Label>{t("attendance.kiosks_page.device_identifier")}</Label>
+                <Label htmlFor="device-identifier">
+                  {t("attendance.kiosks_page.device_identifier")}
+                </Label>
                 <Input
+                  id="device-identifier"
                   value={regDevice}
                   onChange={(e) => setRegDevice(e.target.value)}
                   placeholder={t(
@@ -414,7 +429,7 @@ export default function KioskSessionsPage() {
               >
                 {copiedToken ? (
                   <>
-                    <CheckCircle2 className="mr-1 h-3 w-3 text-green-600" />{" "}
+                    <CheckCircle2 className="mr-1 h-3 w-3 text-success" />{" "}
                     {t("attendance.kiosks_page.copied")}
                   </>
                 ) : (

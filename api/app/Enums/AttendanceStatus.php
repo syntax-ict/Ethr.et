@@ -13,6 +13,7 @@ enum AttendanceStatus: string
     case EARLY_LEAVE = 'early_leave';
     case ON_LEAVE = 'on_leave';
     case HOLIDAY = 'holiday';
+    case VOIDED = 'voided';
 
     public function label(): string
     {
@@ -24,6 +25,7 @@ enum AttendanceStatus: string
             self::EARLY_LEAVE => 'Early Leave',
             self::ON_LEAVE => 'On Leave',
             self::HOLIDAY => 'Holiday',
+            self::VOIDED => 'Voided',
         };
     }
 

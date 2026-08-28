@@ -1,30 +1,73 @@
-import { useCallback, useEffect, useState } from "react";
-import { t, getLocale } from "./translations";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { t, getLocale, preloadLocale, DEFAULT_LOCALE } from "./translations";
 
 /**
- * React hook that returns a translation function bound to the current locale.
- * Re-renders when the locale changes (via localStorage + custom event).
+ * The locale is external state — it lives in localStorage and changes via a
+ * `locale-changed` window event — so it is read with `useSyncExternalStore`
+ * rather than mirrored into component state from an effect.
  *
- * Usage:
- *   const { t } = useT();
- *   return <button>{t('common.save')}</button>;
+ * The previous shape (`useState(DEFAULT_LOCALE)` plus an effect that immediately
+ * called `setLocaleState(getLocale())`) re-rendered every component using this
+ * hook on mount, which is every page in the app. `getServerSnapshot` returns the
+ * default so server and first client render still agree.
  */
+function subscribeToLocale(onStoreChange: () => void): () => void {
+  window.addEventListener("locale-changed", onStoreChange);
+  return () => window.removeEventListener("locale-changed", onStoreChange);
+}
+
 export function useT() {
-  const [locale, setLocaleState] = useState<string>(() => getLocale());
+  const locale = useSyncExternalStore(
+    subscribeToLocale,
+    getLocale,
+    () => DEFAULT_LOCALE,
+  );
+
+  // Translation dictionaries load asynchronously. This forces one re-render once
+  // the active locale's strings are in memory, so the first paint's fallbacks are
+  // replaced by real translations. The setState is inside a promise callback, not
+  // synchronous in the effect body, so it costs one render only when a dictionary
+  // actually arrives.
+  const [, setDictionaryVersion] = useState(0);
 
   useEffect(() => {
-    function onLocaleChange(e: Event) {
-      setLocaleState((e as CustomEvent<string>).detail);
-    }
-    window.addEventListener("locale-changed", onLocaleChange);
-    return () => window.removeEventListener("locale-changed", onLocaleChange);
-  }, []);
+    let cancelled = false;
 
+    preloadLocale(locale).then(() => {
+      if (!cancelled) setDictionaryVersion((v) => v + 1);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
+
+  /**
+   * `replacements` substitutes `:name` placeholders, matching the convention the
+   * backend lang files already use (`'throttle' => '... :seconds ...'`).
+   *
+   * Without it the only way to get a value into a translated string was to pass a
+   * template literal as the *fallback* — which works right up until the key exists,
+   * at which point the translation wins and the interpolated values vanish with no
+   * error. That silently dropped the employee count on /employees. Interpolating
+   * inside the string also lets Amharic put the number where its grammar wants it,
+   * which prefix/suffix concatenation cannot do.
+   */
   const translate = useCallback(
-    (key: string, fallback?: string): string => {
+    (
+      key: string,
+      fallback?: string,
+      replacements?: Record<string, string | number>,
+    ): string => {
       const result = t(key, locale);
-      // t() returns the key itself when not found — use explicit fallback if provided
-      return result !== key ? result : (fallback ?? key);
+      const base = result !== key ? result : (fallback ?? key);
+
+      if (!replacements) return base;
+
+      return Object.entries(replacements).reduce(
+        (out, [name, value]) => out.split(`:${name}`).join(String(value)),
+        base,
+      );
     },
     [locale],
   );

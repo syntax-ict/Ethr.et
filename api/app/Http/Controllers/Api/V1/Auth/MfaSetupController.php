@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\DisableMfaRequest;
 use App\Http\Requests\Auth\EnableMfaRequest;
+use App\Models\AuditLog;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,8 @@ class MfaSetupController extends Controller
             ], 422);
         }
 
+        AuditLog::record('auth.mfa_enabled', $user);
+
         return response()->json([
             'message' => __('auth.mfa_enabled'),
         ]);
@@ -85,6 +88,8 @@ class MfaSetupController extends Controller
                 'detail' => __('auth.mfa_invalid'),
             ], 422);
         }
+
+        AuditLog::record('auth.mfa_disabled', $user);
 
         return response()->json([
             'message' => __('auth.mfa_disabled'),

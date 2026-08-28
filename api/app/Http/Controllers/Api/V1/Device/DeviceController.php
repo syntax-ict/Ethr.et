@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Device\ImportHistoryRequest;
 use App\Http\Requests\Device\StoreDeviceRequest;
 use App\Http\Requests\Device\UpdateDeviceRequest;
 use App\Http\Resources\DeviceResource;
@@ -19,11 +20,15 @@ use App\Models\DeviceSyncLog;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
+use App\Services\PlanLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 
 class DeviceController extends Controller
 {
@@ -72,9 +77,11 @@ class DeviceController extends Controller
         );
     }
 
-    public function store(StoreDeviceRequest $request): JsonResponse
+    public function store(StoreDeviceRequest $request, PlanLimitService $planLimits): JsonResponse
     {
         Gate::authorize('device.create');
+
+        $planLimits->assertCanAdd(app(CurrentTenant::class)->get(), 'devices');
 
         $branch = Branch::where('public_id', $request->validated('branch_public_id'))->firstOrFail();
 
@@ -84,7 +91,11 @@ class DeviceController extends Controller
             'adapter_type' => $request->validated('adapter_type'),
             'branch_id' => $branch->id,
             'serial_number' => $request->validated('serial_number'),
-            'connection_config' => $request->validated('connection_config'),
+            // Store the raw config, not validated(): different adapters carry
+            // different keys (mock has none of the ip/port schema; the generic
+            // adapter needs base_url/mapping/auth), and validated() would strip
+            // anything without an explicit rule — persisting null and 500ing.
+            'connection_config' => $request->input('connection_config', []),
             'auto_sync' => $request->validated('auto_sync', true),
             'sync_interval_minutes' => $request->validated('sync_interval_minutes', 5),
             'webhook_token' => Device::generateWebhookToken(),
@@ -123,6 +134,11 @@ class DeviceController extends Controller
             unset($data['branch_public_id']);
         }
 
+        // Preserve all adapter-specific config keys (validated() strips unknowns).
+        if ($request->has('connection_config')) {
+            $data['connection_config'] = $request->input('connection_config');
+        }
+
         $device->update($data);
 
         AuditLog::record('device.updated', $device);
@@ -149,9 +165,14 @@ class DeviceController extends Controller
 
         $adapter = $this->deviceManager->adapter($device);
         $status = $adapter->getStatus($device);
-        $info = $adapter->getDeviceInfo($device);
+        $online = $status['online'] ?? false;
 
-        $newStatus = ($status['online'] ?? false) ? 'online' : 'offline';
+        // Only fetch device info when the device answered the status probe. Probing an
+        // offline device a second time doubles the wait on the connect timeout and blocks
+        // the request (and worker) for no useful data.
+        $info = $online ? $adapter->getDeviceInfo($device) : [];
+
+        $newStatus = $online ? 'online' : 'offline';
         if ($device->status !== $newStatus) {
             $device->update(['status' => $newStatus]);
         }
@@ -174,6 +195,33 @@ class DeviceController extends Controller
             'message' => __('device.pull_dispatched'),
             'device_public_id' => $device->public_id,
         ]);
+    }
+
+    public function importHistory(ImportHistoryRequest $request, Device $device): JsonResponse
+    {
+        Gate::authorize('device.update');
+
+        // Resolve the backfill start. `full` passes no `since`, letting the
+        // adapter return the earliest history it retains.
+        $since = match ($request->validated('window')) {
+            'last_30' => now()->subDays(30),
+            'last_90' => now()->subDays(90),
+            'from_date' => Carbon::parse($request->validated('from_date'))->startOfDay(),
+            default => null, // full
+        };
+
+        PullDeviceEventsJob::dispatch(
+            $device,
+            'history_import',
+            $since?->format('Y-m-d\TH:i:sP'),
+        );
+
+        return response()->json([
+            'message' => __('device.pull_dispatched'),
+            'device_public_id' => $device->public_id,
+            'window' => $request->validated('window'),
+            'since' => $since?->toIso8601String(),
+        ], 202);
     }
 
     public function syncAll(Request $request): JsonResponse
@@ -226,7 +274,7 @@ class DeviceController extends Controller
         Gate::authorize('device.view');
 
         $query = AttendanceRecord::where('device_id', $device->id)
-            ->with('employee:id,public_id,first_name,last_name,employee_code')
+            ->with('employee:id,public_id,name,employee_code')
             ->orderByDesc('created_at');
 
         if ($request->filled('filter.date')) {
@@ -237,7 +285,7 @@ class DeviceController extends Controller
 
         $data = $records->through(fn ($r) => [
             'public_id' => $r->public_id,
-            'employee_name' => trim(($r->employee->first_name ?? '').' '.($r->employee->last_name ?? '')),
+            'employee_name' => $r->employee?->name,
             'employee_code' => $r->employee->employee_code ?? null,
             'date' => $r->date?->format('Y-m-d'),
             'check_in' => $r->check_in?->toIso8601String(),
@@ -331,6 +379,7 @@ class DeviceController extends Controller
             type: 'check_in',
             idempotencyKey: $idempotencyKey,
             deviceId: $device->id,
+            occurredAt: $timestamp,
         ));
 
         $device->update(['last_sync_at' => now(), 'status' => 'online']);
@@ -385,6 +434,7 @@ class DeviceController extends Controller
                     type: $punchType,
                     idempotencyKey: $idempotencyKey,
                     deviceId: $device->id,
+                    occurredAt: $timestamp,
                 ));
                 $processed++;
             } catch (\Throwable) {
@@ -454,28 +504,76 @@ class DeviceController extends Controller
         return response()->json(['status' => 'processed', 'count' => $processed], 200);
     }
 
+    /**
+     * Authenticate an inbound device webhook (audit finding F-1).
+     *
+     * Policy: token where possible, IP allowlist for legacy firmware.
+     *  - A token (query `token` or `X-Webhook-Token`) both selects the device
+     *    and authenticates it. A wrong/absent match is rejected.
+     *  - Without a token, the serial only *selects* a candidate device; the
+     *    serial never authenticates on its own. A candidate that has a
+     *    webhook_token configured is rejected (it must use the token), and a
+     *    token-less candidate is accepted only from an allowlisted source IP.
+     */
     private function resolveWebhookDevice(Request $request, string $adapterType): ?Device
     {
         $token = $request->query('token') ?? $request->header('X-Webhook-Token');
 
-        if (! $token) {
-            $serialNumber = $request->input('sn')
-                ?? $request->input('deviceSerialNo')
-                ?? $request->input('AccessControllerEvent.deviceSerialNo');
+        if ($token) {
+            return Device::withoutGlobalScope('tenant')
+                ->where('webhook_token', $token)
+                ->where('adapter_type', $adapterType)
+                ->first();
+        }
 
-            if ($serialNumber) {
-                return Device::withoutGlobalScope('tenant')
-                    ->where('serial_number', $serialNumber)
-                    ->where('adapter_type', $adapterType)
-                    ->first();
-            }
+        $serialNumber = $request->input('sn')
+            ?? $request->input('deviceSerialNo')
+            ?? $request->input('AccessControllerEvent.deviceSerialNo');
+
+        if (! $serialNumber) {
+            return null;
+        }
+
+        $device = Device::withoutGlobalScope('tenant')
+            ->where('serial_number', $serialNumber)
+            ->where('adapter_type', $adapterType)
+            ->first();
+
+        if (! $device) {
+            return null;
+        }
+
+        // A device that has a token must use it — a serial-only call cannot
+        // stand in for the token it was issued.
+        if (! empty($device->webhook_token)) {
+            $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'token_required');
 
             return null;
         }
 
-        return Device::withoutGlobalScope('tenant')
-            ->where('webhook_token', $token)
-            ->where('adapter_type', $adapterType)
-            ->first();
+        // Token-less (legacy) device: authenticate by source IP allowlist.
+        if (! $device->webhookIpAllowed($request->ip())) {
+            $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'ip_not_allowlisted');
+
+            return null;
+        }
+
+        return $device;
+    }
+
+    private function logWebhookRejection(string $adapterType, string $serial, ?string $ip, string $reason): void
+    {
+        // A downed log sink must never turn an authentication denial into a 500 —
+        // the rejection itself is the security-relevant outcome, not the log line.
+        try {
+            Log::warning('Device webhook rejected', [
+                'adapter' => $adapterType,
+                'serial' => $serial,
+                'ip' => $ip,
+                'reason' => $reason,
+            ]);
+        } catch (\Throwable) {
+            // swallow — denial already returned to the caller
+        }
     }
 }

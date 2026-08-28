@@ -34,11 +34,25 @@ import {
   useUpdateCustomRole,
   useDeleteCustomRole,
   type CustomRole,
-  type PermissionsByModule,
 } from "@/features/roles/api";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage } from "@/lib/forms/rules";
 import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
+import { z } from "zod";
+
+const roleSchema = z.object({
+  name: rules.requiredText(255),
+  description: rules.text(500),
+  // A role granting nothing can be assigned and locks its holder out of every
+  // screen. The server rejects it; this says so against the permission tree
+  // instead of in a toast that names no control.
+  permissions: z.array(z.string()).min(1, "roles_page.select_at_least_one"),
+});
+type RoleValues = z.infer<typeof roleSchema>;
 
 const MODULE_LABEL_KEYS: Record<string, string> = {
   org: "roles_page.module_org",
@@ -210,9 +224,36 @@ function RoleDialog({
   editingRole: CustomRole | null;
 }) {
   const { t } = useT();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const {
+    register,
+    submit,
+    reset,
+    watch,
+    setValue,
+    rootError,
+    formState: { errors, isSubmitting },
+  } = useZodForm<RoleValues>({
+    schema: roleSchema,
+    defaultValues: { name: "", description: "", permissions: [] },
+  });
+
+  // The permission tree toggles by name and asks "is this one on?" thousands of
+  // times per render, so a Set stays the right structure for the UI. It is
+  // derived from form state rather than being a second source of truth — the
+  // array in the form is what validates and what gets submitted.
+  const permissions = watch("permissions");
+  const selected = useMemo(() => new Set(permissions), [permissions]);
+
+  const setPermissions = useCallback(
+    (next: Set<string>) => {
+      setValue("permissions", Array.from(next), {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    },
+    [setValue],
+  );
 
   const { data: permsByModule, isLoading: permsLoading } = usePermissions();
 
@@ -221,16 +262,16 @@ function RoleDialog({
   const updateRole = useUpdateCustomRole(editingRole?.public_id ?? "");
 
   const resetForm = useCallback(() => {
-    if (editingRole) {
-      setName(editingRole.name);
-      setDescription(editingRole.description);
-      setSelected(new Set(editingRole.permissions));
-    } else {
-      setName("");
-      setDescription("");
-      setSelected(new Set());
-    }
-  }, [editingRole]);
+    reset(
+      editingRole
+        ? {
+            name: editingRole.name,
+            description: editingRole.description,
+            permissions: editingRole.permissions,
+          }
+        : { name: "", description: "", permissions: [] },
+    );
+  }, [editingRole, reset]);
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
@@ -243,36 +284,35 @@ function RoleDialog({
     [resetForm, onClose],
   );
 
-  const togglePermission = useCallback((permName: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
+  const togglePermission = useCallback(
+    (permName: string) => {
+      const next = new Set(selected);
       if (next.has(permName)) {
         next.delete(permName);
       } else {
         next.add(permName);
       }
-      return next;
-    });
-  }, []);
+      setPermissions(next);
+    },
+    [selected, setPermissions],
+  );
 
   const toggleModule = useCallback(
     (module: string) => {
       if (!permsByModule) return;
       const modulePerms = permsByModule[module] ?? [];
       const allSelected = modulePerms.every((p) => selected.has(p.name));
-      setSelected((prev) => {
-        const next = new Set(prev);
-        for (const p of modulePerms) {
-          if (allSelected) {
-            next.delete(p.name);
-          } else {
-            next.add(p.name);
-          }
+      const next = new Set(selected);
+      for (const p of modulePerms) {
+        if (allSelected) {
+          next.delete(p.name);
+        } else {
+          next.add(p.name);
         }
-        return next;
-      });
+      }
+      setPermissions(next);
     },
-    [permsByModule, selected],
+    [permsByModule, selected, setPermissions],
   );
 
   const moduleOrder = useMemo(() => {
@@ -284,44 +324,22 @@ function RoleDialog({
     });
   }, [permsByModule, t]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const permissions = Array.from(selected);
-    if (permissions.length === 0) {
-      toast.error(t("roles_page.select_at_least_one"));
-      return;
-    }
+  // "Select at least one permission" used to be a toast fired from the submit
+  // handler: it named no control, vanished after a few seconds, and left a
+  // scrolled permission tree looking exactly as it did before. It is a schema
+  // rule now, rendered against the Permissions group.
+  async function onSubmit(values: RoleValues) {
+    await (isEditing
+      ? updateRole.mutateAsync(values)
+      : createRole.mutateAsync(values));
 
-    if (isEditing) {
-      updateRole.mutate(
-        { name, description, permissions },
-        {
-          onSuccess: () => {
-            toast.success(
-              `${t("roles_page.role_lc")} "${name}" ${t("roles_page.updated")}`,
-            );
-            onClose();
-          },
-          onError: (err) => toastError(err, t("roles_page.update_failed")),
-        },
-      );
-    } else {
-      createRole.mutate(
-        { name, description, permissions },
-        {
-          onSuccess: () => {
-            toast.success(
-              `${t("roles_page.role_lc")} "${name}" ${t("roles_page.created")}`,
-            );
-            onClose();
-          },
-          onError: (err) => toastError(err, t("roles_page.create_failed")),
-        },
-      );
-    }
+    toast.success(
+      `${t("roles_page.role_lc")} "${values.name}" ${
+        isEditing ? t("roles_page.updated") : t("roles_page.created")
+      }`,
+    );
+    onClose();
   }
-
-  const isPending = createRole.isPending || updateRole.isPending;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -339,43 +357,61 @@ function RoleDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          onSubmit={handleSubmit}
+          onSubmit={submit(
+            onSubmit,
+            isEditing
+              ? t("roles_page.update_failed")
+              : t("roles_page.create_failed"),
+          )}
           className="flex flex-1 flex-col overflow-hidden"
+          noValidate
         >
           <div className="space-y-4 px-1">
+            <FormErrorSummary message={rootError} />
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="role_name">{t("common.name")}</Label>
+              <FormField
+                id="role_name"
+                label={t("common.name")}
+                required
+                error={fieldMessage(t, errors.name?.message)}
+              >
                 <Input
-                  id="role_name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  {...register("name")}
                   placeholder={t("roles_page.name_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label htmlFor="role_desc">
-                  {t("roles_page.role_description")}
-                </Label>
+              </FormField>
+
+              <FormField
+                id="role_desc"
+                label={t("roles_page.role_description")}
+                error={fieldMessage(t, errors.description?.message)}
+              >
                 <Input
-                  id="role_desc"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  {...register("description")}
                   placeholder={t("leave_page.optional_description")}
                   className="mt-1"
                 />
-              </div>
+              </FormField>
             </div>
 
             <div>
-              <Label>
+              <Label id="role_permissions_label">
                 {t("roles_page.permissions")}{" "}
                 <span className="text-muted-foreground">
                   ({selected.size} {t("roles_page.selected")})
                 </span>
               </Label>
+              {errors.permissions?.message && (
+                <p
+                  id="role_permissions-error"
+                  role="alert"
+                  className="mt-1 text-xs font-medium text-destructive"
+                >
+                  {fieldMessage(t, errors.permissions.message)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -462,8 +498,12 @@ function RoleDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isPending || selected.size === 0}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {/* Not disabled on an empty selection any more: submitting now
+                explains why, where a dead button did not. */}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {isEditing
                 ? t("roles_page.update_role")
                 : t("roles_page.create_role")}

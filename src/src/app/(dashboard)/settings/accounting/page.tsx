@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -129,7 +130,12 @@ function ChartOfAccountsSection() {
             key={account.key}
             className="grid grid-cols-3 gap-2 items-center"
           >
-            <div className="text-sm font-medium">
+            {/* The row label is a plain <div>, so neither input had an
+                accessible name — and since every row renders the same two
+                columns, "account code" alone would be ambiguous across ten
+                identical pairs. Each input is named with its row *and* its
+                column. */}
+            <div id={`acct-${account.key}`} className="text-sm font-medium">
               {keyLabels[account.key] ?? account.key}
             </div>
             <Input
@@ -139,6 +145,10 @@ function ChartOfAccountsSection() {
               }
               className="font-mono text-sm"
               placeholder="e.g. 5100"
+              aria-label={`${keyLabels[account.key] ?? account.key} — ${t(
+                "accounting_page.account_code",
+                "Account code",
+              )}`}
             />
             <Input
               value={account.account_name}
@@ -146,6 +156,10 @@ function ChartOfAccountsSection() {
                 updateAccount(account.key, "account_name", e.target.value)
               }
               className="text-sm"
+              aria-label={`${keyLabels[account.key] ?? account.key} — ${t(
+                "accounting_page.account_name",
+                "Account name",
+              )}`}
             />
           </div>
         ))}
@@ -212,12 +226,14 @@ function JournalExportSection() {
       <CardContent className="space-y-4">
         <div className="flex items-end gap-4">
           <div className="flex-1 space-y-2">
-            <Label>{t("accounting_page.payroll_run")}</Label>
+            <Label htmlFor="payroll_run">
+              {t("accounting_page.payroll_run")}
+            </Label>
             {runsLoading ? (
               <Skeleton className="h-9 w-full" />
             ) : (
               <Select value={selectedRun} onValueChange={setSelectedRun}>
-                <SelectTrigger>
+                <SelectTrigger id="payroll_run">
                   <SelectValue placeholder={t("accounting_page.select_run")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,78 +266,55 @@ function JournalExportSection() {
               </span>
               <span className="text-muted-foreground">{journalData.date}</span>
               {journalData.is_balanced ? (
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
+                <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success-on-soft">
                   {t("accounting_page.balanced")}
                 </span>
               ) : (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-300">
+                <span className="rounded-full bg-destructive-soft px-2 py-0.5 text-xs font-medium text-destructive-on-soft">
                   {t("accounting_page.unbalanced")}
                 </span>
               )}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs font-medium text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">
-                      {t("accounting_page.account_code")}
-                    </th>
-                    <th className="px-3 py-2 text-left">
-                      {t("accounting_page.account_name")}
-                    </th>
-                    <th className="px-3 py-2 text-right">
-                      {t("accounting_page.debit_etb")}
-                    </th>
-                    <th className="px-3 py-2 text-right">
-                      {t("accounting_page.credit_etb")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {journalData.entries?.map(
-                    (
-                      entry: {
-                        account_code: string;
-                        account_name: string;
-                        debit_cents: number;
-                        credit_cents: number;
-                      },
-                      i: number,
-                    ) => (
-                      <tr key={i} className="hover:bg-muted/30">
-                        <td className="px-3 py-2 font-mono">
-                          {entry.account_code}
-                        </td>
-                        <td className="px-3 py-2">{entry.account_name}</td>
-                        <td className="px-3 py-2 text-right">
-                          {entry.debit_cents > 0
-                            ? formatCents(entry.debit_cents)
-                            : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {entry.credit_cents > 0
-                            ? formatCents(entry.credit_cents)
-                            : "—"}
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-                <tfoot className="border-t bg-muted/50 font-medium">
-                  <tr>
-                    <td className="px-3 py-2" colSpan={2}>
-                      {t("accounting_page.totals")}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      {formatCents(journalData.total_debits_cents)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      {formatCents(journalData.total_credits_cents)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+            <div className="overflow-hidden rounded-lg border">
+              <SimpleTable
+                caption={t("accounting_page.title", "Journal entries")}
+                headers={[
+                  t("accounting_page.account_code"),
+                  t("accounting_page.account_name"),
+                  t("accounting_page.debit_etb"),
+                  t("accounting_page.credit_etb"),
+                ]}
+                align={["left", "left", "right", "right"]}
+                rows={(
+                  journalData.entries as Array<{
+                    account_code: string;
+                    account_name: string;
+                    debit_cents: number;
+                    credit_cents: number;
+                  }>
+                )?.map((entry, i) => ({
+                  key: String(i),
+                  cells: [
+                    <span key="c" className="font-mono">
+                      {entry.account_code}
+                    </span>,
+                    entry.account_name,
+                    entry.debit_cents > 0
+                      ? formatCents(entry.debit_cents)
+                      : "—",
+                    entry.credit_cents > 0
+                      ? formatCents(entry.credit_cents)
+                      : "—",
+                  ],
+                }))}
+                footerCells={[
+                  t("accounting_page.totals"),
+                  "",
+                  formatCents(journalData.total_debits_cents),
+                  formatCents(journalData.total_credits_cents),
+                ]}
+              />
             </div>
           </div>
         )}

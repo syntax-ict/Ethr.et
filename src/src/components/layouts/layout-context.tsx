@@ -21,18 +21,18 @@ interface AppLayoutContextValue {
 
 const AppLayoutContext = createContext<AppLayoutContextValue | null>(null);
 
-export function AppLayoutProvider({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsedState] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+function readStoredCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-      if (stored != null) setCollapsedState(stored === "1");
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, []);
+export function AppLayoutProvider({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsedState] = useState(readStoredCollapsed);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const setCollapsed = useCallback((value: boolean) => {
     setCollapsedState(value);

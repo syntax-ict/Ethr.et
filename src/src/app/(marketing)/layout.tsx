@@ -1,3 +1,5 @@
+"use client";
+
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 

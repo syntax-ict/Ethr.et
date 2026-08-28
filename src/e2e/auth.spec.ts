@@ -17,7 +17,11 @@ test.describe('Authentication', () => {
     await page.fill('input[type="email"]', DEMO_EMAIL);
     await page.fill('input[type="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/invalid|incorrect|wrong/i').first()).toBeVisible({ timeout: 5000 });
+    // Locale-agnostic: the app defaults to Amharic, so assert the error summary
+    // (role="alert") appears rather than matching English wording, and that the
+    // bad credentials did not authenticate.
+    await expect(page.locator('[role="alert"]').first()).toBeVisible({ timeout: 5000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('logout clears session and redirects to login', async ({ page }) => {

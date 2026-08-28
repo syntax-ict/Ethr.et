@@ -153,6 +153,7 @@ test('hr admin can view intelligence dashboard', function () {
     $response->assertOk()
         ->assertJsonStructure([
             'date',
+            'anomalies' => ['count', 'thresholds', 'records'],
             'late_arrivals' => ['count', 'records'],
             'early_departures' => ['count'],
             'missing_punches' => ['count'],
@@ -167,6 +168,55 @@ test('employee cannot view intelligence dashboard', function () {
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/intelligence")
         ->assertForbidden();
+});
+
+// ── Anomalies (excessive hours / overtime) ──
+
+test('intelligence dashboard surfaces an excessive-hours anomaly with explanation data', function () {
+    $tenant = createTenant();
+    $user = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $date = now()->format('Y-m-d');
+
+    // 19 worked hours (1140 min) trips the >960-minute excessive_hours threshold.
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $date,
+        'check_in' => now()->setTime(4, 0),
+        'check_out' => now()->setTime(23, 0),
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/intelligence?date={$date}");
+
+    $response->assertOk()
+        ->assertJsonPath('anomalies.count', 1)
+        ->assertJsonPath('anomalies.thresholds.excessive_hours_minutes', AttendanceIntelligence::EXCESSIVE_HOURS_MINUTES)
+        ->assertJsonPath('anomalies.thresholds.excessive_overtime_minutes', AttendanceIntelligence::EXCESSIVE_OVERTIME_MINUTES)
+        ->assertJsonPath('anomalies.records.0.employee_name', $employee->name)
+        ->assertJsonPath('anomalies.records.0.types.0', 'excessive_hours')
+        ->assertJsonPath('anomalies.records.0.worked_minutes', 1140);
+});
+
+test('a normal working day raises no anomaly on the intelligence dashboard', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $date = now()->format('Y-m-d');
+
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'date' => $date,
+        'check_in' => now()->setTime(8, 0),
+        'check_out' => now()->setTime(17, 0),
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/intelligence?date={$date}");
+
+    $response->assertOk()->assertJsonPath('anomalies.count', 0);
 });
 
 // ── Overtime Endpoint ──

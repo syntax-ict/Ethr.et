@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Grade;
 use App\Models\Position;
 use App\Models\Team;
@@ -231,6 +232,32 @@ describe('departments CRUD', function () {
         expect($tree[0]['children_recursive'])->toHaveCount(1);
         expect($tree[0]['children_recursive'][0]['name'])->toBe('Child');
         expect($tree[0]['children_recursive'][0]['children_recursive'])->toHaveCount(1);
+    });
+
+    it('includes employee counts at every level of the tree', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $root = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Root']);
+        $child = Department::factory()->create([
+            'tenant_id' => $tenant->id,
+            'parent_id' => $root->id,
+            'name' => 'Child',
+        ]);
+
+        Employee::factory()->count(2)->create([
+            'tenant_id' => $tenant->id,
+            'department_id' => $root->id,
+        ]);
+        Employee::factory()->count(3)->create([
+            'tenant_id' => $tenant->id,
+            'department_id' => $child->id,
+        ]);
+
+        $tree = $this->getJson('/api/v1/organization/tree')->assertOk()->json();
+
+        expect($tree[0]['employees_count'])->toBe(2);
+        expect($tree[0]['children_recursive'][0]['employees_count'])->toBe(3);
     });
 
     it('shows a department with children', function () {
@@ -704,5 +731,63 @@ describe('organization audit logging', function () {
             'action' => 'grade.deleted',
             'tenant_id' => $tenant->id,
         ]);
+    });
+});
+
+describe('reporting hierarchy', function () {
+    it('returns the manager to direct-reports hierarchy', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $ceo = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Chief']);
+        $mgr = Employee::factory()->create([
+            'tenant_id' => $tenant->id, 'name' => 'Manager', 'supervisor_id' => $ceo->id,
+        ]);
+        Employee::factory()->create([
+            'tenant_id' => $tenant->id, 'name' => 'Contributor', 'supervisor_id' => $mgr->id,
+        ]);
+
+        $tree = $this->getJson('/api/v1/organization/reporting-tree')->assertOk()->json();
+
+        // Assert by name rather than root count: an acting user may itself be an
+        // unmanaged employee and appear as an extra root.
+        $chief = collect($tree)->firstWhere('name', 'Chief');
+        expect($chief)->not->toBeNull();
+        expect($chief['direct_reports'])->toHaveCount(1);
+        expect($chief['direct_reports'][0]['name'])->toBe('Manager');
+        expect($chief['direct_reports'][0]['direct_reports'][0]['name'])->toBe('Contributor');
+    });
+
+    it('never leaks a numeric id', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->getJson('/api/v1/organization/reporting-tree')
+            ->assertOk()
+            ->assertJsonMissingPath('0.id');
+    });
+
+    it('surfaces reports of a soft-deleted supervisor as roots', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $mgr = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Departing Manager']);
+        Employee::factory()->create([
+            'tenant_id' => $tenant->id, 'name' => 'Orphaned Report', 'supervisor_id' => $mgr->id,
+        ]);
+
+        $mgr->delete(); // soft delete
+
+        $tree = $this->getJson('/api/v1/organization/reporting-tree')->assertOk()->json();
+        $names = collect($tree)->pluck('name');
+
+        // The report must not vanish just because its manager was terminated.
+        expect($names)->toContain('Orphaned Report');
+        expect($names)->not->toContain('Departing Manager');
+    });
+
+    it('requires authentication', function () {
+        $this->getJson('/api/v1/organization/reporting-tree')->assertUnauthorized();
     });
 });

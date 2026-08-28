@@ -49,6 +49,10 @@ class OfflineSyncController extends Controller
                     longitude: $record['longitude'] ?? null,
                     offlineToken: $record['offline_token'],
                     ipAddress: $request->ip(),
+                    // The punch happened on the device while offline; record it at
+                    // that time, not at sync time. The field is already required
+                    // and validated by OfflineSyncRequest.
+                    occurredAt: $record['timestamp'],
                 ));
 
                 $results[] = [

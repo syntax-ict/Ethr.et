@@ -13,7 +13,7 @@ export const CHART_COLORS = [
 ];
 
 const toneMap: Record<string, string> = {
-  blue: "bg-primary/10 text-primary",
+  blue: "bg-primary-soft text-primary-on-soft",
   green: "bg-[var(--status-success)]/10 text-[var(--status-success)]",
   amber: "bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]",
   purple: "bg-[var(--status-info)]/10 text-[var(--status-info)]",
@@ -21,15 +21,20 @@ const toneMap: Record<string, string> = {
 
 export function ChartCard({
   title,
+  subtitle,
   children,
 }: {
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
+        {subtitle && (
+          <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+        )}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>

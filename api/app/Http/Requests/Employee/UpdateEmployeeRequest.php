@@ -33,6 +33,7 @@ class UpdateEmployeeRequest extends FormRequest
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],
+            'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
             'hire_date' => ['sometimes', 'date'],
             'probation_end_date' => ['nullable', 'date'],

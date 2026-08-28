@@ -11,6 +11,8 @@ return [
     'trial_days_remaining' => ':count days remaining in your trial.',
     'upgrade_required' => 'Please upgrade your plan to access this feature.',
     'employee_limit_reached' => 'You have reached the employee limit for your plan.',
+    'branch_limit_reached' => 'You have reached the branch limit for your plan.',
+    'device_limit_reached' => 'You have reached the device limit for your plan.',
     'payment_received' => 'Payment received. Thank you.',
     'payment_failed' => 'Payment processing failed. Please try again.',
 ];

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Payroll;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Payroll\CancelLoanRequest;
 use App\Http\Requests\Payroll\StoreLoanRequest;
+use App\Http\Requests\Payroll\UpdateLoanRequest;
 use App\Http\Resources\EmployeeLoanResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
@@ -77,5 +79,76 @@ class LoanController extends Controller
         $loan->load('employee');
 
         return new EmployeeLoanResource($loan);
+    }
+
+    /**
+     * Adjusts the monthly instalment on an outstanding loan. Settled and
+     * cancelled loans are frozen — their deduction history is already in
+     * approved payroll runs.
+     */
+    public function update(UpdateLoanRequest $request, EmployeeLoan $loan): JsonResponse|EmployeeLoanResource
+    {
+        Gate::authorize('payroll.manageLoan');
+
+        if ($loan->status !== 'active') {
+            return $this->notActive();
+        }
+
+        $before = [
+            'monthly_deduction_cents' => $loan->monthly_deduction_cents,
+            'reason' => $loan->reason,
+        ];
+
+        $loan->update($request->validated());
+
+        AuditLog::record('loan.updated', $loan, [
+            'before' => $before,
+            'after' => [
+                'monthly_deduction_cents' => $loan->monthly_deduction_cents,
+                'reason' => $loan->reason,
+            ],
+        ]);
+
+        $loan->load('employee');
+
+        return new EmployeeLoanResource($loan);
+    }
+
+    /**
+     * Cancels an outstanding loan so it stops being deducted. The row is kept
+     * (never hard-deleted) because past payroll entries reference it.
+     */
+    public function cancel(CancelLoanRequest $request, EmployeeLoan $loan): JsonResponse|EmployeeLoanResource
+    {
+        Gate::authorize('payroll.manageLoan');
+
+        if ($loan->status !== 'active') {
+            return $this->notActive();
+        }
+
+        $loan->update([
+            'status' => 'cancelled',
+            'end_date' => now(),
+        ]);
+
+        AuditLog::record('loan.cancelled', $loan, [
+            'employee_public_id' => $loan->employee?->public_id,
+            'remaining_cents' => $loan->remaining_cents,
+            'reason' => $request->validated('reason'),
+        ]);
+
+        $loan->load('employee');
+
+        return new EmployeeLoanResource($loan);
+    }
+
+    private function notActive(): JsonResponse
+    {
+        return response()->json([
+            'type' => 'https://ethr.et/errors/invalid-state',
+            'title' => 'Invalid State',
+            'status' => 422,
+            'detail' => __('payroll.loan_not_active'),
+        ], 422)->header('Content-Type', 'application/problem+json');
     }
 }

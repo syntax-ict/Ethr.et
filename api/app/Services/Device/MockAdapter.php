@@ -83,6 +83,30 @@ final class MockAdapter implements DeviceAdapter
         return $events;
     }
 
+    /**
+     * Present the tenant's employees as if they were enrolled on the device,
+     * so onboarding discovery and identity matching can be exercised end-to-end
+     * without real hardware.
+     *
+     * @return array<int, array{device_user_id: string, name: ?string, card_number: ?string, department: ?string, fingerprint_count: ?int, face_registered: ?bool}>
+     */
+    public function pullEnrollments(Device $device): array
+    {
+        return Employee::where('tenant_id', $device->tenant_id)
+            ->whereNotNull('employee_code')
+            ->limit(500)
+            ->get(['employee_code', 'badge_number', 'name'])
+            ->map(fn (Employee $employee): array => [
+                'device_user_id' => (string) ($employee->badge_number ?? $employee->employee_code),
+                'name' => $employee->name,
+                'card_number' => $employee->badge_number,
+                'department' => null,
+                'fingerprint_count' => 1,
+                'face_registered' => false,
+            ])
+            ->all();
+    }
+
     public function pushEventUrl(Device $device, string $callbackUrl): bool
     {
         return true;

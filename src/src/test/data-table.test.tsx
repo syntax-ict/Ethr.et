@@ -30,6 +30,7 @@ const meta: DataTableMeta = {
 describe("DataTable", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem("locale", "en");
   });
 
   it("renders skeleton rows while loading, not the row data", () => {
@@ -206,9 +207,9 @@ describe("DataTable", () => {
       />,
     );
 
-    expect(
-      screen.getAllByRole("button", { name: /expand row/i }),
-    ).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /expand row/i })).toHaveLength(
+      1,
+    );
   });
 
   it("exports the currently loaded rows as a downloaded CSV file", async () => {
@@ -235,9 +236,7 @@ describe("DataTable", () => {
     link.click = clickSpy;
     createElementSpy.mockReturnValueOnce(link);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /export csv/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /export csv/i }));
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const [blob] = createObjectURL.mock.calls[0];
@@ -252,7 +251,9 @@ describe("DataTable", () => {
   });
 
   it("does not render an export button when getExportRow is not provided", () => {
-    render(<DataTable tableId="test-no-export" columns={columns} data={rows} />);
+    render(
+      <DataTable tableId="test-no-export" columns={columns} data={rows} />,
+    );
     expect(
       screen.queryByRole("button", { name: /export csv/i }),
     ).not.toBeInTheDocument();

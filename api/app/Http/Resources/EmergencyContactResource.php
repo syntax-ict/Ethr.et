@@ -12,7 +12,7 @@ class EmergencyContactResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'public_id' => $this->public_id,
             'name' => $this->name,
             'relationship' => $this->relationship,
             'phone' => $this->phone,

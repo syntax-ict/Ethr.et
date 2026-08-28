@@ -15,6 +15,22 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Platform MFA Enforcement
+    |--------------------------------------------------------------------------
+    |
+    | Platform operators (super admins) reach across every tenant, so they may
+    | not perform state-changing actions without MFA enabled. `default` blocks
+    | writes on /api/v1/admin/* and leaves reads open, so an un-enrolled
+    | operator can still see the console explaining what to do; `strict` blocks
+    | reads too. Enrolment (POST /auth/mfa/setup) is outside the guarded group
+    | either way. See App\Http\Middleware\RequirePlatformMfa.
+    |
+    */
+
+    'platform_mfa_enforcement' => env('PLATFORM_MFA_ENFORCEMENT', 'default'),
+
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -327,10 +328,10 @@ export default function EmployeeImportPage() {
             </div>
 
             {errorRows > 0 && (
-              <Card className="border-amber-300 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+              <Card className="border-warning-edge bg-warning-soft">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">
                         {errorRows}{" "}
@@ -365,77 +366,56 @@ export default function EmployeeImportPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                          {t("employees_import_page.row")}
-                        </th>
-                        {preview.headers.map((h) => (
-                          <th
-                            key={h}
-                            className="px-3 py-2 text-left font-medium uppercase text-muted-foreground whitespace-nowrap"
+                <SimpleTable
+                  caption={t("employees_import_page.preview", "Import preview")}
+                  headers={[
+                    t("employees_import_page.row"),
+                    ...preview.headers,
+                    t("employees_import_page.validation"),
+                  ]}
+                  rows={preview.rows.slice(0, 100).map((row, i) => {
+                    const lineNumber = i + 2;
+                    const rowErrors = preview.errors[lineNumber] ?? [];
+                    return {
+                      key: String(i),
+                      className:
+                        rowErrors.length > 0
+                          ? "bg-destructive-soft"
+                          : undefined,
+                      cells: [
+                        <span key="ln" className="text-muted-foreground">
+                          {lineNumber}
+                        </span>,
+                        ...preview.headers.map((h) => (
+                          <span key={h} className="whitespace-nowrap">
+                            {row[h] ?? "—"}
+                          </span>
+                        )),
+                        rowErrors.length > 0 ? (
+                          <Badge
+                            key="v"
+                            variant="outline"
+                            className="border-0 bg-destructive-soft text-destructive-on-soft text-[10px]"
+                            title={rowErrors.join("; ")}
                           >
-                            {h}
-                          </th>
-                        ))}
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                          {t("employees_import_page.validation")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.rows.slice(0, 100).map((row, i) => {
-                        const lineNumber = i + 2;
-                        const rowErrors = preview.errors[lineNumber] ?? [];
-                        return (
-                          <tr
-                            key={i}
-                            className={cn(
-                              "border-b last:border-0",
-                              rowErrors.length > 0 &&
-                                "bg-red-50/50 dark:bg-red-950/20",
-                            )}
+                            {rowErrors.length}{" "}
+                            {rowErrors.length > 1
+                              ? t("employees_import_page.errors")
+                              : t("employees_import_page.error")}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            key="v"
+                            variant="outline"
+                            className="border-0 bg-success-soft text-success-on-soft text-[10px]"
                           >
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {lineNumber}
-                            </td>
-                            {preview.headers.map((h) => (
-                              <td
-                                key={h}
-                                className="px-3 py-2 text-foreground whitespace-nowrap"
-                              >
-                                {row[h] ?? "—"}
-                              </td>
-                            ))}
-                            <td className="px-3 py-2">
-                              {rowErrors.length > 0 ? (
-                                <Badge
-                                  variant="outline"
-                                  className="border-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 text-[10px]"
-                                  title={rowErrors.join("; ")}
-                                >
-                                  {rowErrors.length}{" "}
-                                  {rowErrors.length > 1
-                                    ? t("employees_import_page.errors")
-                                    : t("employees_import_page.error")}
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-[10px]"
-                                >
-                                  {t("employees_import_page.valid")}
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            {t("employees_import_page.valid")}
+                          </Badge>
+                        ),
+                      ],
+                    };
+                  })}
+                />
                 {totalRows > 100 && (
                   <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
                     {t("employees_import_page.showing_first_100_prefix")}{" "}
@@ -471,8 +451,8 @@ export default function EmployeeImportPage() {
         {step === "result" && result && (
           <Card>
             <CardContent className="p-8 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-soft">
+                <CheckCircle2 className="h-8 w-8 text-success" />
               </div>
               <h2 className="mt-4 text-xl font-bold text-foreground">
                 {t("employees_import_page.import_complete")}
@@ -587,12 +567,10 @@ function StepIndicator({ current }: { current: Step }) {
 }
 
 const statColors: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900",
-  green:
-    "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-900",
-  red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900",
-  amber:
-    "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900",
+  blue: "bg-info-soft text-info-on-soft border-info-edge",
+  green: "bg-success-soft text-success-on-soft border-success-edge",
+  red: "bg-destructive-soft text-destructive-on-soft border-destructive-edge",
+  amber: "bg-warning-soft text-warning-on-soft border-warning-edge",
 };
 
 function StatCard({

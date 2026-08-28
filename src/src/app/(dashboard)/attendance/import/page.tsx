@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
+
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -284,13 +285,13 @@ export default function AttendanceImportPage() {
               icon={CheckCircle2}
               label={t("attendance.import_page.valid")}
               value={preview.valid}
-              color="text-green-600 dark:text-green-400"
+              color="text-success"
             />
             <SummaryCard
               icon={XCircle}
               label={t("attendance.import_page.invalid")}
               value={preview.invalid}
-              color="text-red-600 dark:text-red-400"
+              color="text-destructive"
             />
           </div>
 
@@ -316,95 +317,63 @@ export default function AttendanceImportPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground w-12">
-                        {t("attendance.import_page.line")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground w-12">
-                        {t("common.status")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.employee")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.date")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.in")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.out")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.import_page.issues")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.map((row, i) => (
-                      <tr
-                        key={i}
-                        className={cn(
-                          "border-b last:border-0",
-                          !row.valid && "bg-red-50/50 dark:bg-red-950/20",
-                        )}
-                      >
-                        <td className="px-4 py-2 text-xs text-muted-foreground">
-                          {row.line}
-                        </td>
-                        <td className="px-4 py-2">
-                          {row.valid ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-sm font-mono">
-                          {row.employee_code}
-                        </td>
-                        <td className="px-4 py-2 text-sm">{row.date}</td>
-                        <td className="px-4 py-2 text-sm">
-                          {row.check_in_time}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-muted-foreground">
-                          {row.check_out_time || "—"}
-                        </td>
-                        <td className="px-4 py-2">
-                          {row.errors.length > 0 && (
-                            <div className="space-y-0.5">
-                              {row.errors.map((err, j) => (
-                                <p
-                                  key={j}
-                                  className="text-xs text-red-600 dark:text-red-400"
-                                >
-                                  {err}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable
+                caption={t("attendance.import_page.title", "Import preview")}
+                headers={[
+                  t("attendance.import_page.line"),
+                  t("common.status"),
+                  t("attendance.employee"),
+                  t("common.date"),
+                  t("attendance.in"),
+                  t("attendance.out"),
+                  t("attendance.import_page.issues"),
+                ]}
+                rows={preview.rows.map((row, i) => ({
+                  key: String(i),
+                  className: !row.valid ? "bg-destructive-soft" : undefined,
+                  cells: [
+                    <span key="l" className="text-xs text-muted-foreground">
+                      {row.line}
+                    </span>,
+                    row.valid ? (
+                      <CheckCircle2 key="v" className="h-4 w-4 text-success" />
+                    ) : (
+                      <XCircle key="v" className="h-4 w-4 text-destructive" />
+                    ),
+                    <span key="e" className="font-mono">
+                      {row.employee_code}
+                    </span>,
+                    row.date,
+                    row.check_in_time,
+                    <span key="o" className="text-muted-foreground">
+                      {row.check_out_time || "—"}
+                    </span>,
+                    row.errors.length > 0 ? (
+                      <div key="err" className="space-y-0.5">
+                        {row.errors.map((err, j) => (
+                          <p key={j} className="text-xs text-destructive">
+                            {err}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null,
+                  ],
+                }))}
+              />
             </CardContent>
           </Card>
 
           {preview.invalid > 0 && (
-            <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div className="flex items-start gap-3 rounded-lg border border-warning-edge bg-warning-soft p-4">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-warning" />
               <div>
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
+                <p className="text-sm font-medium text-warning-on-soft">
                   {preview.invalid}{" "}
                   {preview.invalid > 1
                     ? t("attendance.import_page.rows_will_be_skipped")
                     : t("attendance.import_page.row_will_be_skipped")}
                 </p>
-                <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/70">
+                <p className="mt-1 text-xs text-warning-on-soft">
                   {t("attendance.import_page.skip_hint")}
                 </p>
               </div>
@@ -430,8 +399,8 @@ export default function AttendanceImportPage() {
       {step === "done" && importResult && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-950">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-success-soft">
+              <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
             <h2 className="mt-4 text-lg font-semibold text-foreground">
               {t("attendance.import_page.complete")}
@@ -439,14 +408,14 @@ export default function AttendanceImportPage() {
             <div className="mt-4 flex gap-4">
               <Badge
                 variant="outline"
-                className="px-3 py-1.5 text-sm bg-green-50 dark:bg-green-950/30"
+                className="px-3 py-1.5 text-sm bg-success-soft"
               >
                 {importResult.created} {t("attendance.import_page.created")}
               </Badge>
               {importResult.skipped > 0 && (
                 <Badge
                   variant="outline"
-                  className="px-3 py-1.5 text-sm bg-amber-50 dark:bg-amber-950/30"
+                  className="px-3 py-1.5 text-sm bg-warning-soft"
                 >
                   {importResult.skipped}{" "}
                   {t("attendance.import_page.skipped_duplicates")}
@@ -454,9 +423,9 @@ export default function AttendanceImportPage() {
               )}
             </div>
             {importResult.errors.length > 0 && (
-              <div className="mt-4 w-full max-w-md rounded-lg bg-red-50 p-3 dark:bg-red-950/30">
+              <div className="mt-4 w-full max-w-md rounded-lg bg-destructive-soft p-3">
                 {importResult.errors.map((err, i) => (
-                  <p key={i} className="text-xs text-red-600 dark:text-red-400">
+                  <p key={i} className="text-xs text-destructive">
                     {err}
                   </p>
                 ))}

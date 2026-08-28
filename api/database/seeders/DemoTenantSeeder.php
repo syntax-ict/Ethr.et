@@ -188,10 +188,12 @@ class DemoTenantSeeder extends Seeder
             }
         }
 
+        // Amharic names match HolidayService's catalogue, so demo data exercises the
+        // same bilingual path a real tenant gets from holiday auto-detection.
         $holidays = [
-            ['name' => 'Ethiopian New Year', 'date' => Carbon::parse(now()->year.'-09-11')],
-            ['name' => 'Meskel', 'date' => Carbon::parse(now()->year.'-09-27')],
-            ['name' => 'Ethiopian Christmas', 'date' => Carbon::parse(now()->year.'-01-07')],
+            ['name' => 'Ethiopian New Year', 'name_am' => 'እንቁጣጣሽ', 'date' => Carbon::parse(now()->year.'-09-11')],
+            ['name' => 'Meskel', 'name_am' => 'መስቀል', 'date' => Carbon::parse(now()->year.'-09-27')],
+            ['name' => 'Ethiopian Christmas', 'name_am' => 'ገና', 'date' => Carbon::parse(now()->year.'-01-07')],
         ];
 
         foreach ($holidays as $h) {
@@ -199,6 +201,7 @@ class DemoTenantSeeder extends Seeder
                 ['tenant_id' => $tenant->id, 'name' => $h['name']],
                 [
                     'public_id' => (string) Str::ulid(),
+                    'name_am' => $h['name_am'],
                     'date' => $h['date'],
                     'recurring' => true,
                 ],
@@ -206,8 +209,11 @@ class DemoTenantSeeder extends Seeder
         }
 
         for ($month = 5; $month >= 0; $month--) {
-            $monthStart = Carbon::now()->subMonths($month)->startOfMonth();
-            $monthEnd = Carbon::now()->subMonths($month)->endOfMonth();
+            // Anchor to the first of the current month BEFORE subtracting, so
+            // short months (e.g. Feb) don't day-overflow and collapse two
+            // iterations into the same month when seeding late in a 31-day month.
+            $monthStart = Carbon::now()->startOfMonth()->subMonths($month);
+            $monthEnd = $monthStart->copy()->endOfMonth();
 
             $current = $monthStart->copy();
             while ($current->lte($monthEnd)) {
@@ -241,8 +247,9 @@ class DemoTenantSeeder extends Seeder
         // that's the realistic state of a payroll run right after processing.
         $payrollEngine = app(PayrollEngine::class);
         for ($month = 2; $month >= 0; $month--) {
-            $periodStart = Carbon::now()->subMonths($month)->startOfMonth();
-            $periodEnd = Carbon::now()->subMonths($month)->endOfMonth();
+            // Same month-overflow guard as the attendance loop above.
+            $periodStart = Carbon::now()->startOfMonth()->subMonths($month);
+            $periodEnd = $periodStart->copy()->endOfMonth();
 
             $result = $payrollEngine->process(
                 $tenant->id,

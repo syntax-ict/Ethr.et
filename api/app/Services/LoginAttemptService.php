@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Notifications\SystemAlertNotification;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class LoginAttemptService
 {
@@ -67,7 +72,52 @@ class LoginAttemptService
     private function lockoutAccount(string $email, string $ip, Tenant $tenant): void
     {
         $key = $this->getLockoutKey($email, $ip, $tenant->public_id);
+
+        // Only notify on the transition into lockout, not on every subsequent
+        // failed attempt while already locked — otherwise a running brute-force
+        // attack becomes a mail flood aimed at the very admins who need to read it.
+        $alreadyLockedOut = (bool) $this->cache->get($key);
+
         $this->cache->put($key, true, now()->addMinutes(self::LOCKOUT_MINUTES));
+
+        if (! $alreadyLockedOut) {
+            $this->notifyTenantAdmins($email, $ip, $tenant);
+        }
+    }
+
+    /**
+     * PHASE_00 S02 requires the tenant admin to be told when an account locks out.
+     * Delivery is best-effort: a mail or broadcast outage must not turn the
+     * lockout itself into an exception on the login path.
+     */
+    private function notifyTenantAdmins(string $email, string $ip, Tenant $tenant): void
+    {
+        try {
+            $admins = User::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('role', [UserRole::TENANT_ADMIN, UserRole::HR_ADMIN])
+                ->where('status', 'active')
+                ->get();
+
+            if ($admins->isEmpty()) {
+                return;
+            }
+
+            Notification::send($admins, new SystemAlertNotification(
+                __('auth.lockout_alert_title'),
+                __('auth.lockout_alert_body', [
+                    'identifier' => $email,
+                    'ip' => $ip,
+                    'minutes' => self::LOCKOUT_MINUTES,
+                ]),
+                ['identifier' => $email, 'ip' => $ip, 'tenant' => $tenant->public_id],
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Account-lockout alert could not be delivered', [
+                'error' => $e->getMessage(),
+                'tenant' => $tenant->public_id,
+            ]);
+        }
     }
 
     private function getAttemptKey(string $email, string $ip, string $tenantPublicId): string

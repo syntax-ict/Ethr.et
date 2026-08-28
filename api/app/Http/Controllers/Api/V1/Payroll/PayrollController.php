@@ -25,7 +25,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Gate;
 
 class PayrollController extends Controller
 {
@@ -33,7 +32,7 @@ class PayrollController extends Controller
 
     public function process(ProcessPayrollRequest $request, PayrollEngine $engine): JsonResponse
     {
-        Gate::authorize('payroll.process');
+        $this->authorize('process', PayrollRun::class);
 
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
@@ -72,7 +71,7 @@ class PayrollController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('viewAny', PayrollRun::class);
 
         $query = PayrollRun::query()
             ->orderByDesc('period_start');
@@ -88,7 +87,7 @@ class PayrollController extends Controller
 
     public function show(PayrollRun $payrollRun): PayrollRunResource
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('view', $payrollRun);
 
         $payrollRun->load('entries.employee', 'reprocessedFrom');
 
@@ -97,7 +96,7 @@ class PayrollController extends Controller
 
     public function approve(Request $request, PayrollRun $payrollRun): JsonResponse
     {
-        Gate::authorize('payroll.approve');
+        $this->authorize('approve', $payrollRun);
 
         if ($payrollRun->status !== 'completed') {
             return response()->json([
@@ -126,7 +125,7 @@ class PayrollController extends Controller
 
     public function void(VoidPayrollRunRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
     {
-        Gate::authorize('payroll.void');
+        $this->authorize('void', $payrollRun);
 
         if (! in_array($payrollRun->status, ['completed', 'approved'], true)) {
             return response()->json([
@@ -153,7 +152,7 @@ class PayrollController extends Controller
 
     public function reprocess(ReprocessPayrollRunRequest $request, PayrollRun $payrollRun, PayrollEngine $engine): JsonResponse
     {
-        Gate::authorize('payroll.reprocess');
+        $this->authorize('reprocess', $payrollRun);
 
         if ($payrollRun->status !== 'voided') {
             return response()->json([
@@ -196,13 +195,13 @@ class PayrollController extends Controller
 
     public function myPayslips(Request $request): AnonymousResourceCollection
     {
-        Gate::authorize('payroll.viewOwnPayslip');
+        $this->authorize('viewOwnPayslip', PayrollRun::class);
 
         $user = $request->user();
 
         $entries = PayrollEntry::query()
             ->where('employee_id', $user->employee_id)
-            ->with('payrollRun')
+            ->with('payrollRun', 'employee')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 25));
 
@@ -211,13 +210,13 @@ class PayrollController extends Controller
 
     public function employeePayslips(Request $request, string $employeePublicId): AnonymousResourceCollection
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('viewAny', PayrollRun::class);
 
         $employee = Employee::where('public_id', $employeePublicId)->firstOrFail();
 
         $entries = PayrollEntry::query()
             ->where('employee_id', $employee->id)
-            ->with('payrollRun')
+            ->with('payrollRun', 'employee')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 25));
 
@@ -226,7 +225,7 @@ class PayrollController extends Controller
 
     public function downloadPayslip(PayrollEntry $payrollEntry, PayslipPdfService $pdfService): Response
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('viewAny', PayrollRun::class);
 
         $pdf = $pdfService->generate($payrollEntry);
 
@@ -240,7 +239,7 @@ class PayrollController extends Controller
 
     public function downloadBankExport(PayrollRun $payrollRun, BankExportService $bankExportService): Response
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('view', $payrollRun);
 
         $csv = $bankExportService->generateCsv($payrollRun);
         $filename = "bank-export-{$payrollRun->public_id}.csv";
@@ -255,7 +254,7 @@ class PayrollController extends Controller
 
     public function bankExport(PayrollRun $payrollRun): JsonResponse
     {
-        Gate::authorize('payroll.viewAll');
+        $this->authorize('view', $payrollRun);
 
         $entries = PayrollEntry::query()
             ->where('payroll_run_id', $payrollRun->id)
@@ -274,6 +273,8 @@ class PayrollController extends Controller
                 'net_amount_cents' => $entry->net_cents,
             ];
         });
+
+        AuditLog::record('payroll.bank_export', $payrollRun);
 
         return response()->json([
             'period' => $payrollRun->period_label,

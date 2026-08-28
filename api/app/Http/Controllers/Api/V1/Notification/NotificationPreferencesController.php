@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Notification;
 
+use App\Contracts\SmsSender;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Notification\UpdatePreferencesRequest;
 use App\Models\AuditLog;
@@ -31,6 +32,7 @@ class NotificationPreferencesController extends Controller
         'payroll_processed',
         'announcement',
         'approval_reminder',
+        'profile_update',
     ];
 
     public const CHANNELS = ['in_app', 'email', 'sms'];
@@ -65,6 +67,14 @@ class NotificationPreferencesController extends Controller
             'notification_types' => self::NOTIFICATION_TYPES,
             'channels' => self::CHANNELS,
             'preferences' => $preferences,
+            // Which channels this deployment can actually deliver on. SMS depends
+            // on a configured gateway; without one the client disables the toggle
+            // rather than letting a user opt into nothing.
+            'channel_availability' => [
+                'in_app' => true,
+                'email' => true,
+                'sms' => app(SmsSender::class)->isAvailable(),
+            ],
         ]);
     }
 

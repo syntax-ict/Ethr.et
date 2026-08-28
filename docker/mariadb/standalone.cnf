@@ -1,0 +1,38 @@
+[mariadb]
+server-id              = 1
+
+# No log_bin here, deliberately — unlike primary.cnf. This file is for
+# docker-compose.lowmem.yml, which runs a single MariaDB instance with no
+# replica, so there is nothing to ship a binlog to. That also sidesteps the
+# whole log_bin_trust_function_creators / SUPER-privilege problem documented
+# in primary.cnf: with binary logging off, migration
+# 2026_07_22_000001_restrict_audit_log_to_insert_only's CREATE TRIGGER runs
+# under the application's own (deliberately non-SUPER) account with no special
+# case needed. Re-enabling log_bin later (e.g. moving back to
+# docker-compose.prod.yml) brings that requirement back with it.
+
+# Performance — sized for a 4 GB host running MariaDB alongside twelve other
+# containers (see docker-compose.lowmem.yml), not for the 8 GB+ minimum
+# primary.cnf assumes. innodb_buffer_pool_size is the single biggest lever on
+# a box this size; everything else here is a proportional trim of primary.cnf,
+# not an independent guess.
+innodb_buffer_pool_size = 192M
+innodb_log_file_size    = 64M
+innodb_io_capacity      = 1000
+innodb_read_io_threads  = 2
+innodb_write_io_threads = 2
+max_connections         = 100
+thread_cache_size       = 8
+table_open_cache        = 2048
+tmp_table_size          = 32M
+max_heap_table_size     = 32M
+
+# Character set
+character-set-server   = utf8mb4
+collation-server       = utf8mb4_unicode_ci
+
+# Slow query log — cheap to keep, and the only visibility into query cost this
+# tier has without a replica to offload reporting queries onto.
+slow_query_log         = 1
+slow_query_log_file    = /var/log/mysql/slow.log
+long_query_time        = 1

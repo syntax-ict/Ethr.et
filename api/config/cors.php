@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
@@ -33,6 +33,8 @@ return [
         'Idempotency-Key',
         'Accept',
         'Accept-Language',
+        'X-XSRF-TOKEN',
+        'X-CSRF-TOKEN',
         'X-ETHR-Signature',
     ],
 

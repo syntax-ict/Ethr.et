@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Webhook, Plus, Trash2, Copy, Send, Loader2 } from "lucide-react";
+import {
+  Webhook,
+  Plus,
+  Trash2,
+  Copy,
+  Send,
+  Loader2,
+  History,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,10 +25,17 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
+import { WebhookDeliveriesDialog } from "@/features/webhooks/webhook-deliveries-dialog";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage } from "@/lib/forms/rules";
+import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface WebhookEntry {
   public_id: string;
@@ -48,12 +62,36 @@ const ALL_EVENTS = [
   "device.offline",
 ];
 
+const webhookSchema = z.object({
+  url: rules.url(),
+  // A webhook subscribed to nothing is silently inert: it is created, listed as
+  // Active, and never fires. The server rejects an empty list; without this the
+  // user only found out via a toast that named no field.
+  events: z.array(z.string()).min(1, "webhooks_page.events_required"),
+});
+type WebhookValues = z.infer<typeof webhookSchema>;
+
 export default function WebhooksPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
-  const [form, setForm] = useState({ url: "", events: [] as string[] });
+  const [deliveriesFor, setDeliveriesFor] = useState<WebhookEntry | null>(null);
+
+  const {
+    register,
+    submit,
+    reset,
+    watch,
+    setValue,
+    rootError,
+    formState: { errors, isSubmitting },
+  } = useZodForm<WebhookValues>({
+    schema: webhookSchema,
+    defaultValues: { url: "", events: [] },
+  });
+
+  const selectedEvents = watch("events");
 
   const { data, isLoading } = useQuery({
     queryKey: ["webhooks"],
@@ -63,19 +101,22 @@ export default function WebhooksPage() {
     },
   });
 
+  // No `onError` toast: a failed create is now reported inside the dialog —
+  // inline on the offending field for a 422, in the summary otherwise. A toast
+  // would duplicate it and then vanish, which is what previously left the user
+  // with a dialog full of rejected input and no explanation.
   const createWebhook = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/webhooks", form);
+    mutationFn: async (values: WebhookValues) => {
+      const { data } = await apiClient.post("/webhooks", values);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       setNewSecret(data.secret);
       setCreateOpen(false);
-      setForm({ url: "", events: [] });
+      reset();
       toast.success(t("webhooks_page.created"));
     },
-    onError: () => toast.error(t("webhooks_page.create_failed")),
   });
 
   const deleteWebhook = useMutation({
@@ -100,12 +141,12 @@ export default function WebhooksPage() {
   const webhooks: WebhookEntry[] = data?.webhooks ?? [];
 
   function toggleEvent(event: string) {
-    setForm((p) => ({
-      ...p,
-      events: p.events.includes(event)
-        ? p.events.filter((e) => e !== event)
-        : [...p.events, event],
-    }));
+    const next = selectedEvents.includes(event)
+      ? selectedEvents.filter((e) => e !== event)
+      : [...selectedEvents, event];
+    // `shouldValidate` so ticking the first box clears the "choose at least
+    // one" error immediately, rather than leaving it up until the next submit.
+    setValue("events", next, { shouldValidate: true, shouldDirty: true });
   }
 
   function copySecret() {
@@ -129,9 +170,9 @@ export default function WebhooksPage() {
         />
 
         {newSecret && (
-          <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <Card className="border-2 border-status-warning/40 bg-status-warning/5">
             <CardContent className="p-4">
-              <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">
+              <p className="mb-2 text-sm font-semibold text-foreground">
                 {t("webhooks_page.save_secret_hint")}
               </p>
               <div className="flex items-center gap-2">
@@ -180,8 +221,8 @@ export default function WebhooksPage() {
                           variant="outline"
                           className={
                             w.is_active
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
-                              : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0"
+                              ? statusBadgeClass("active")
+                              : statusBadgeClass("offline")
                           }
                         >
                           {w.is_active
@@ -191,7 +232,7 @@ export default function WebhooksPage() {
                         {w.failure_count > 0 && (
                           <Badge
                             variant="outline"
-                            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0"
+                            className={statusBadgeClass("error")}
                           >
                             {w.failure_count} {t("webhooks_page.failures")}
                           </Badge>
@@ -219,17 +260,34 @@ export default function WebhooksPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setDeliveriesFor(w)}
+                        title={t("webhooks_page.deliveries_title")}
+                      >
+                        <History className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("webhooks_page.deliveries_title")}
+                        </span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => testWebhook.mutate(w.public_id)}
                         disabled={testWebhook.isPending}
+                        title={t("webhooks_page.send_test")}
                       >
                         <Send className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("webhooks_page.send_test")}
+                        </span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteWebhook.mutate(w.public_id)}
+                        title={t("common.delete")}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">{t("common.delete")}</span>
                       </Button>
                     </div>
                   </div>
@@ -239,50 +297,76 @@ export default function WebhooksPage() {
           </div>
         )}
 
+        <WebhookDeliveriesDialog
+          webhookId={deliveriesFor?.public_id ?? null}
+          webhookUrl={deliveriesFor?.url}
+          open={!!deliveriesFor}
+          onClose={() => setDeliveriesFor(null)}
+        />
+
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t("webhooks_page.create_webhook")}</DialogTitle>
             </DialogHeader>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createWebhook.mutate();
-              }}
+              onSubmit={submit(
+                (values) => createWebhook.mutateAsync(values),
+                t("webhooks_page.create_failed"),
+              )}
               className="space-y-4"
+              noValidate
             >
-              <div>
-                <Label>{t("webhooks_page.url")}</Label>
+              <FormErrorSummary message={rootError} />
+
+              <FormField
+                id="webhook-url"
+                label={t("webhooks_page.url")}
+                required
+                error={fieldMessage(t, errors.url?.message)}
+              >
                 <Input
+                  {...register("url")}
                   type="url"
-                  value={form.url}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, url: e.target.value }))
-                  }
-                  required
                   placeholder="https://example.com/webhook"
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label>{t("webhooks_page.events")}</Label>
-                <div className="mt-2 max-h-60 overflow-y-auto space-y-1 rounded-lg border p-2">
-                  {ALL_EVENTS.map((event) => (
-                    <label
-                      key={event}
-                      className="flex cursor-pointer items-center gap-2 rounded p-1 hover:bg-muted/50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.events.includes(event)}
-                        onChange={() => toggleEvent(event)}
-                        className="h-4 w-4 rounded"
-                      />
-                      <span className="text-sm font-mono">{event}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              </FormField>
+
+              <FormField
+                id="webhook-events"
+                label={t("webhooks_page.events")}
+                required
+                error={fieldMessage(t, errors.events?.message)}
+              >
+                {(control) => (
+                  // `role="group"` rather than a cloned control: the checkboxes
+                  // are the input here, and there is no single element for the
+                  // label to point at.
+                  <div
+                    {...control}
+                    role="group"
+                    aria-label={t("webhooks_page.events")}
+                    className="mt-2 max-h-60 space-y-1 overflow-y-auto rounded-lg border p-2"
+                  >
+                    {ALL_EVENTS.map((event) => (
+                      <label
+                        key={event}
+                        className="flex cursor-pointer items-center gap-2 rounded p-1 hover:bg-muted/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEvents.includes(event)}
+                          onChange={() => toggleEvent(event)}
+                          className="h-4 w-4 rounded"
+                        />
+                        <span className="font-mono text-sm">{event}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </FormField>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -291,11 +375,11 @@ export default function WebhooksPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createWebhook.isPending || form.events.length === 0}
-                >
-                  {createWebhook.isPending && (
+                {/* No longer disabled on an empty event list: a button that is
+                    dead with no message next to it is indistinguishable from a
+                    broken one. Submitting now says why. */}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("api_keys_page.create")}

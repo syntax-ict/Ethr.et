@@ -6,7 +6,7 @@ import { Wallet, Plus, Loader2, FileText, HandCoins } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -20,11 +20,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import {
-  usePayrollRuns,
-  useProcessPayroll,
-  useApprovePayroll,
-} from "@/features/payroll/api";
+import { usePayrollRuns, useProcessPayroll } from "@/features/payroll/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -38,7 +34,6 @@ export default function PayrollPage() {
   const { data, isLoading } = usePayrollRuns({ page });
   const { can } = usePermissions();
   const processPayroll = useProcessPayroll();
-  const approvePayroll = useApprovePayroll();
 
   function handleRunPayroll(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +84,7 @@ export default function PayrollPage() {
           }
         />
 
-        <div className="flex flex-wrap gap-2 border-b pb-3">
+        <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
           <Button asChild variant="ghost" size="sm" className="h-8">
             <Link href="/payroll/payslips">
               <FileText className="mr-2 h-3 w-3" />{" "}
@@ -123,8 +118,11 @@ export default function PayrollPage() {
           <>
             <div className="grid gap-4">
               {data.data.map((run) => (
-                <Card key={run.public_id}>
-                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <Card
+                  key={run.public_id}
+                  className="border-border/60 transition-shadow hover:shadow-sm"
+                >
+                  <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-foreground">
@@ -133,7 +131,8 @@ export default function PayrollPage() {
                         <StatusBadge status={run.status} />
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {run.employee_count} employees &middot;{" "}
+                        {run.employee_count}{" "}
+                        {t("common.employees", "employees")} &middot;{" "}
                         {run.period_start} to {run.period_end}
                       </p>
                     </div>
@@ -205,11 +204,10 @@ export default function PayrollPage() {
                 <Label htmlFor="period_start">
                   {t("payroll.period_start", "Period Start")}
                 </Label>
-                <Input
+                <DualCalendarDateInput
                   id="period_start"
-                  type="date"
                   value={periodStart}
-                  onChange={(e) => setPeriodStart(e.target.value)}
+                  onChange={setPeriodStart}
                   required
                   className="mt-1"
                 />
@@ -218,11 +216,10 @@ export default function PayrollPage() {
                 <Label htmlFor="period_end">
                   {t("payroll.period_end", "Period End")}
                 </Label>
-                <Input
+                <DualCalendarDateInput
                   id="period_end"
-                  type="date"
                   value={periodEnd}
-                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  onChange={setPeriodEnd}
                   required
                   className="mt-1"
                 />

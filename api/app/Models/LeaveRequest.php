@@ -6,15 +6,17 @@ namespace App\Models;
 
 use App\Enums\LeaveStatus;
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/** @property LeaveStatus $status */
 class LeaveRequest extends Model
 {
-    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',
@@ -58,6 +60,7 @@ class LeaveRequest extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    /** @return BelongsTo<LeaveType, $this> */
     public function leaveType(): BelongsTo
     {
         return $this->belongsTo(LeaveType::class);

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\Employee;
+use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
+use App\Models\Position;
 use App\Models\SavedReport;
 
 // ── Report Sources ──
@@ -73,6 +76,34 @@ test('hr admin can generate employee report', function () {
     expect($response->json('data.0'))->not->toHaveKey('salary_cents');
 });
 
+test('employee report resolves the position column for employees who have one', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $position = Position::factory()->create([
+        'tenant_id' => $tenant->id,
+        'title' => 'Senior Accountant',
+    ]);
+    Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'position_id' => $position->id,
+    ]);
+
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/generate", [
+        'source' => 'employees',
+        'columns' => ['name', 'position'],
+    ]);
+
+    // Regression guard. The eager load named a `positions.name` column that does
+    // not exist (it is `title`), so this 500'd against a real driver. Every
+    // pre-existing test created employees with no position_id, and Laravel skips
+    // an eager load entirely when no parent row has a foreign key -- so the broken
+    // select never ran and the whole suite stayed green. Assert the value, not
+    // just the status: selecting the wrong column also silently blanked it.
+    $response->assertOk();
+    expect($response->json('data.0.position'))->toBe('Senior Accountant');
+});
+
 test('report generation supports sorting', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -107,6 +138,42 @@ test('report generation supports group by', function () {
     expect($response->json('summary.grouped_by'))->toBe('gender');
     expect($response->json('summary.groups.male'))->toBe(3);
     expect($response->json('summary.groups.female'))->toBe(2);
+});
+
+test('grouping a payroll report sums cents columns per group, not just counts', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'August 2026']);
+    $employeeA = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employeeB = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employeeA->id,
+        'income_tax_cents' => 15000,
+        'employee_pension_cents' => 5000,
+    ]);
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employeeB->id,
+        'income_tax_cents' => 25000,
+        'employee_pension_cents' => 7000,
+    ]);
+
+    // The statutory need: total income tax withheld and total pension
+    // contributed for the month, ready for the ERCA/pension-agency
+    // remittance — a per-row list alone doesn't answer that.
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/reports/generate", [
+        'source' => 'payroll',
+        'columns' => ['employee_name', 'period', 'income_tax_cents', 'employee_pension_cents'],
+        'group_by' => 'period',
+    ]);
+
+    $response->assertOk();
+    expect($response->json('summary.group_sums.August 2026.income_tax_cents'))->toBe(40000);
+    expect($response->json('summary.group_sums.August 2026.employee_pension_cents'))->toBe(12000);
 });
 
 // ── Save & Load Reports ──

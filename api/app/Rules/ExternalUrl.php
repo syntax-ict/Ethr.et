@@ -41,16 +41,29 @@ class ExternalUrl implements ValidationRule
             return true;
         }
 
+        if (in_array($host, ['metadata.google.internal', 'metadata.goog'], true)) {
+            return true;
+        }
+
         if (filter_var($host, FILTER_VALIDATE_IP)) {
             return $this->isPrivateIp($host);
         }
 
         $ip = gethostbyname($host);
-        if ($ip === $host) {
-            return false;
+        if ($ip !== $host && $this->isPrivateIp($ip)) {
+            return true;
         }
 
-        return $this->isPrivateIp($ip);
+        $ipv6Records = @dns_get_record($host, DNS_AAAA);
+        if (is_array($ipv6Records)) {
+            foreach ($ipv6Records as $record) {
+                if (isset($record['ipv6']) && $this->isPrivateIp($record['ipv6'])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function isPrivateIp(string $ip): bool

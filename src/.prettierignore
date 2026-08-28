@@ -1,1 +1,11 @@
+# Build output. Globbed with **/ because the Next app root is `src/`, so its
+# output lands at `src/.next/`, not the repo-root `.next/` — a root-anchored
+# pattern misses it, and Prettier then reports generated bundles and emitted
+# .d.ts files as style violations.
+**/.next/
+**/node_modules/
+**/test-results/
+**/playwright-report/
+
+# Generated from the OpenAPI spec; not ours to style.
 src/api/generated.ts

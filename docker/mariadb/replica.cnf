@@ -1,0 +1,49 @@
+[mariadb]
+server-id              = 2
+relay_log              = /var/log/mysql/relay-bin
+
+# Keep the primary's account changes out of the replica's own mysql schema.
+# This container provisions its own accounts at first start — including
+# `healthcheck@localhost`, whose password is generated per-container and stored
+# in its local .my-healthcheck.cnf. Replicating the primary's mysql tables over
+# the top leaves that file pointing at a password the user table no longer has,
+# and the healthcheck fails forever with:
+#
+#   ERROR 1045 (28000): Access denied for user 'healthcheck'@'localhost'
+#
+# Replication itself keeps working, so the breakage is silent until you notice
+# that api (depends_on: mariadb-replica: condition: service_healthy) will not
+# start on any later `up` or host reboot.
+replicate_ignore_db    = mysql
+read_only              = 1
+# No super_read_only here. It is a MySQL 5.7+ variable that MariaDB never
+# implemented, and an unknown variable is fatal, not ignored: mariadb:10.11
+# exits with `unknown variable 'super_read_only=1'` before it ever serves a
+# connection. The replica then never reports healthy, and because the api
+# service declares `mariadb-replica: condition: service_healthy`, the whole
+# production stack — api, worker, nginx — stays down with it.
+#
+# read_only above is MariaDB's equivalent for every account that lacks SUPER,
+# which is the protection actually wanted here; keeping SUPER off the
+# application's DB users is what covers the remaining gap.
+
+# Performance (read-optimized)
+innodb_buffer_pool_size = 768M
+innodb_log_file_size    = 128M
+innodb_io_capacity      = 2000
+innodb_read_io_threads  = 8
+innodb_write_io_threads = 2
+max_connections         = 200
+thread_cache_size       = 16
+table_open_cache        = 4096
+tmp_table_size          = 64M
+max_heap_table_size     = 64M
+
+# Character set
+character-set-server   = utf8mb4
+collation-server       = utf8mb4_unicode_ci
+
+# Slow query log
+slow_query_log         = 1
+slow_query_log_file    = /var/log/mysql/slow.log
+long_query_time        = 1

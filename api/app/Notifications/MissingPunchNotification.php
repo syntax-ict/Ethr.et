@@ -5,19 +5,25 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\Employee;
+use App\Notifications\Concerns\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class MissingPunchNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly Employee $employee,
         private readonly string $date,
         private readonly string $type, // 'missing_check_out' | 'missing_check_in'
     ) {}
+
+    protected function preferenceType(): string
+    {
+        return 'attendance_anomaly';
+    }
 
     public function via(object $notifiable): array
     {
@@ -26,7 +32,7 @@ class MissingPunchNotification extends Notification
             $channels[] = 'broadcast';
         }
 
-        return $channels;
+        return $this->filterChannels($notifiable, $channels);
     }
 
     public function toArray(object $notifiable): array

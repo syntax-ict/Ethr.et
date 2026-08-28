@@ -67,7 +67,7 @@
             </tr>
             @foreach($allowances as $allowance)
             <tr>
-                <td>{{ $allowance['type'] ?? 'Allowance' }}</td>
+                <td>{{ $allowance['name'] ?? $allowance['type'] ?? 'Allowance' }}</td>
                 <td class="amount">{{ number_format(($allowance['amount_cents'] ?? 0) / 100, 2) }} ETB</td>
             </tr>
             @endforeach

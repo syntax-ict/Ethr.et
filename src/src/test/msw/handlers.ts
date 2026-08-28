@@ -22,7 +22,12 @@ export function buildEmployee(
     probation_end_date: "2024-04-01",
     confirmation_date: "2024-04-01",
     termination_date: "",
-    photo_path: null,
+    // Kept internally consistent: a photo_path implies presigned URLs, which
+    // EmployeeResource always returns alongside it.
+    photo_path: "employees/01HZEMPLOYEE0000000000001.jpg",
+    photo_url: "https://storage.test/employees/01HZEMPLOYEE0000000000001.jpg",
+    photo_thumb_url:
+      "https://storage.test/employees/01HZEMPLOYEE0000000000001-150.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     ...overrides,

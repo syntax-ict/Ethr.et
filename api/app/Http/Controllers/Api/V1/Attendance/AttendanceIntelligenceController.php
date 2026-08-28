@@ -28,9 +28,24 @@ class AttendanceIntelligenceController extends Controller
         $lateArrivals = $this->intelligence->getLateArrivals($tenant->id, $date);
         $earlyDepartures = $this->intelligence->getEarlyDepartures($tenant->id, $date);
         $missingPunches = $this->intelligence->getMissingPunches($tenant->id, $date);
+        $anomalies = $this->intelligence->getAnomalies($tenant->id, $date);
 
         return response()->json([
             'date' => $date,
+            'anomalies' => [
+                'count' => $anomalies->count(),
+                'thresholds' => [
+                    'excessive_hours_minutes' => AttendanceIntelligence::EXCESSIVE_HOURS_MINUTES,
+                    'excessive_overtime_minutes' => AttendanceIntelligence::EXCESSIVE_OVERTIME_MINUTES,
+                ],
+                'records' => $anomalies->map(fn ($item) => [
+                    'employee_public_id' => $item['record']->employee?->public_id,
+                    'employee_name' => $item['record']->employee?->name,
+                    'types' => $item['types'],
+                    'worked_minutes' => $item['worked_minutes'],
+                    'overtime_minutes' => $item['overtime_minutes'],
+                ])->values(),
+            ],
             'late_arrivals' => [
                 'count' => $lateArrivals->count(),
                 'records' => $lateArrivals->map(fn ($item) => [

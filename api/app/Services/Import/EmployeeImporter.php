@@ -5,14 +5,26 @@ declare(strict_types=1);
 namespace App\Services\Import;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Services\CurrentTenant;
+use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\IdentitySignals;
+use App\Services\UserProvisioningService;
+use App\Support\EthiopianPhone;
 use Illuminate\Http\UploadedFile;
 
 class EmployeeImporter
 {
+    public function __construct(
+        private readonly UserProvisioningService $provisioning,
+        private readonly IdentityResolver $identity,
+        private readonly CurrentTenant $currentTenant,
+    ) {}
+
     /** @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>} */
     public function preview(UploadedFile $file): array
     {
@@ -59,16 +71,22 @@ class EmployeeImporter
         return ['headers' => $headers, 'rows' => $rows, 'errors' => $errors];
     }
 
-    /** @return array{created: int, skipped: int, errors: array<int, string[]>} */
-    public function commit(string $importKey, array $rows): array
+    /**
+     * @return array{created: int, skipped: int, matched: int, users_created: int, errors: array<int, string[]>}
+     */
+    public function commit(string $importKey, array $rows, bool $createLogins = false): array
     {
         $created = 0;
         $skipped = 0;
+        $matched = 0;
+        $usersCreated = 0;
         $errors = [];
 
         $departmentMap = Department::pluck('id', 'code')->all();
         $branchMap = Branch::pluck('id', 'code')->all();
         $positionMap = Position::pluck('id', 'code')->all();
+
+        $tenantId = $this->currentTenant->id();
 
         foreach ($rows as $i => $row) {
             $rowKey = $importKey.'_'.($row['employee_code'] ?? $i);
@@ -87,11 +105,33 @@ class EmployeeImporter
                 continue;
             }
 
-            Employee::create([
+            // Guard against importing a person who already exists under a
+            // different import batch (a re-exported file, a manual entry). Only
+            // a confident match on a strong identifier (code/email/phone) skips;
+            // a mere name resemblance never blocks a genuine new hire. See
+            // ONBOARDING_V2.md D4.
+            if ($tenantId !== null) {
+                $match = $this->identity->resolve($tenantId, new IdentitySignals(
+                    employeeCode: $row['employee_code'] ?? null,
+                    email: $row['email'] ?? null,
+                    phone: $row['phone'] ?? null,
+                    name: $row['name'] ?? null,
+                    nationalId: $row['national_id'] ?? null,
+                ));
+
+                if ($match->isMatch()) {
+                    $matched++;
+
+                    continue;
+                }
+            }
+
+            $employee = Employee::create([
                 'name' => $row['name'],
                 'email' => $row['email'] ?? null,
-                'phone' => $row['phone'] ?? null,
+                'phone' => EthiopianPhone::canonicalOrRaw($row['phone'] ?? null),
                 'employee_code' => $row['employee_code'] ?? null,
+                'national_id' => $row['national_id'] ?? null,
                 'gender' => $row['gender'] ?? null,
                 'hire_date' => $row['hire_date'],
                 'salary_cents' => isset($row['salary_cents']) ? (int) $row['salary_cents'] : 0,
@@ -103,9 +143,23 @@ class EmployeeImporter
             ]);
 
             $created++;
+
+            // Provision a login (employee role) for rows that carry an email.
+            // Rows without an email are attendance/payroll-only records.
+            if ($createLogins && ! empty($employee->email)) {
+                $user = $this->provisioning->provision(
+                    email: $employee->email,
+                    role: UserRole::EMPLOYEE,
+                    employee: $employee,
+                );
+
+                if ($user !== null) {
+                    $usersCreated++;
+                }
+            }
         }
 
-        return ['created' => $created, 'skipped' => $skipped, 'errors' => $errors];
+        return ['created' => $created, 'skipped' => $skipped, 'matched' => $matched, 'users_created' => $usersCreated, 'errors' => $errors];
     }
 
     /** @return string[] */
@@ -136,7 +190,7 @@ class EmployeeImporter
 
     public function templateCsv(): string
     {
-        $headers = ['name', 'email', 'phone', 'employee_code', 'gender', 'hire_date', 'department_code', 'branch_code', 'position_code', 'salary_cents'];
+        $headers = ['name', 'email', 'phone', 'employee_code', 'national_id', 'gender', 'hire_date', 'department_code', 'branch_code', 'position_code', 'salary_cents'];
 
         return implode(',', $headers)."\n";
     }

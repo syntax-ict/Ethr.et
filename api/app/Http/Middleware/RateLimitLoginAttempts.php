@@ -72,9 +72,11 @@ class RateLimitLoginAttempts
 
     private function identifier(Request $request): string
     {
-        $email = mb_strtolower(trim($request->input('email') ?? 'unknown'));
+        // Login accepts `identifier` (email, phone, or employee number) with
+        // `email` as a legacy alias — throttle on whichever was sent.
+        $value = mb_strtolower(trim($request->input('identifier') ?? $request->input('email') ?? 'unknown'));
         $ip = $request->ip() ?? '0.0.0.0';
 
-        return "{$email}:{$ip}";
+        return "{$value}:{$ip}";
     }
 }

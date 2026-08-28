@@ -13,6 +13,8 @@ export type Employee = Pick<
   | "employee_code"
   | "gender"
   | "status"
+  | "photo_url"
+  | "photo_thumb_url"
   | "hire_date"
   | "salary_cents"
   | "department"
@@ -30,6 +32,8 @@ export interface EmployeeFormData {
   gender: string;
   date_of_birth: string;
   nationality: string;
+  /** Encrypted at rest; drives duplicate detection on import and device sync. */
+  national_id?: string;
   marital_status: string;
   hire_date: string;
   salary_cents: number;

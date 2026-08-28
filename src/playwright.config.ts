@@ -21,11 +21,21 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-desktop",
-      use: { ...devices["Desktop Chrome"] },
+      // PW_CHANNEL lets a machine without Playwright's downloaded browsers
+      // (e.g. an offline/network-restricted dev box) drive the system Chrome
+      // or Edge instead. Unset in CI, where the bundled Chromium is installed.
+      use: { ...devices["Desktop Chrome"], channel: process.env.PW_CHANNEL || undefined },
     },
     {
-      name: "chromium-mobile",
-      use: { ...devices["iPhone 14"] },
+      // Named for the engine it actually launches. `devices["iPhone 14"]` sets
+      // defaultBrowserType: "webkit", so this was never Chromium despite being
+      // called "chromium-mobile" — and when the WebKit binary was missing, all 83
+      // mobile cases failed with "Executable doesn't exist at .../webkit-2311"
+      // while the name sent everyone looking at a Chromium install that was fine.
+      // Needs `npx playwright install webkit` (58.8 MiB) — not to be confused with
+      // the 2 GB mcr.microsoft.com/playwright image the Dockerised path needs.
+      name: "webkit-mobile",
+      use: { ...devices["iPhone 14"], channel: process.env.PW_CHANNEL || undefined },
     },
   ],
 });

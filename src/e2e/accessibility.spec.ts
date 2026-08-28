@@ -11,12 +11,22 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-// Helper: run axe and assert no critical/serious violations
-async function assertNoA11yViolations(page: Parameters<typeof AxeBuilder>[0]['page']) {
+// Helper: run axe and assert no critical/serious violations.
+//
+// `ConstructorParameters`, not `Parameters`: AxeBuilder is a class, and
+// `Parameters<T>` requires a callable, so the original resolved to `never` and
+// made every call site a type error. Invisible because `tsconfig.json` excludes
+// `e2e/` and Playwright transpiles without typechecking — the annotation is
+// erased at runtime, so the suite ran while the type was meaningless.
+async function assertNoA11yViolations(page: ConstructorParameters<typeof AxeBuilder>[0]['page']) {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .disableRules([
-      'color-contrast',       // Requires visual rendering — verified manually
+      // `color-contrast` used to be disabled here as "verified manually". It is
+      // now enabled: Playwright renders for real, so axe can measure computed
+      // colours, and contrast is the single most common AA failure — a suite
+      // that skips it cannot claim WCAG AA. The manual-verification note was an
+      // unverifiable claim standing in for a check the tooling can actually do.
       'scrollable-region-focusable', // Handled by keyboard nav pattern
     ])
     .analyze();

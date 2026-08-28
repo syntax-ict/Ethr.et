@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Building2, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Building2, RefreshCw, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,17 +18,25 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useAdminTenants } from "@/features/admin/api";
 import { useT } from "@/lib/i18n/useT";
+import { cn } from "@/lib/utils";
+
+function trialDaysLeft(trialEndsAt: string | null): number | null {
+  if (!trialEndsAt) return null;
+  return Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000);
+}
 
 export default function AdminTenantsPage() {
   const { t } = useT();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useAdminTenants({
+  const { data, isLoading, isError, refetch } = useAdminTenants({
     search: search || undefined,
     status: status === "all" ? undefined : status,
     page,
@@ -35,13 +44,18 @@ export default function AdminTenantsPage() {
   });
 
   const tenants = data?.data ?? [];
+  const total = data?.meta?.total;
 
   return (
-    <RoleGate allowedRoles={["super_admin"]}>
+    <RoleGate minRole="super_admin">
       <div className="space-y-6">
         <PageHeader
-          title={t("admin_tenants_page.title")}
-          description={t("admin_tenants_page.description")}
+          title={t("admin_tenants_page.title", "Tenants")}
+          description={
+            total !== undefined
+              ? `${total} ${t("admin_tenants_page.total_tenants", "total tenants")}`
+              : t("admin_tenants_page.description", "Manage platform tenants")
+          }
         />
 
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -52,7 +66,10 @@ export default function AdminTenantsPage() {
                 setSearch(v);
                 setPage(1);
               }}
-              placeholder={t("admin_tenants_page.search_placeholder")}
+              placeholder={t(
+                "admin_tenants_page.search_placeholder",
+                "Search tenants...",
+              )}
             />
           </div>
           <Select
@@ -62,24 +79,33 @@ export default function AdminTenantsPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-48">
+            {/* The trigger's only content is the selected value, so it has no
+                accessible name of its own and announced as an unnamed button —
+                the user hears the current value with no idea what it filters. */}
+            <SelectTrigger
+              className="w-full sm:w-48"
+              aria-label={t(
+                "admin_tenants_page.filter_by_status",
+                "Filter by status",
+              )}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">
-                {t("admin_tenants_page.all_statuses")}
+                {t("admin_tenants_page.all_statuses", "All statuses")}
               </SelectItem>
               <SelectItem value="trial">
-                {t("admin_console_page.trial")}
+                {t("admin_console_page.trial", "Trial")}
               </SelectItem>
               <SelectItem value="active">
-                {t("webhooks_page.active")}
+                {t("admin_console_page.active_label", "Active")}
               </SelectItem>
               <SelectItem value="suspended">
-                {t("admin_console_page.suspended")}
+                {t("admin_console_page.suspended", "Suspended")}
               </SelectItem>
               <SelectItem value="cancelled">
-                {t("admin_console_page.cancelled")}
+                {t("admin_console_page.cancelled", "Cancelled")}
               </SelectItem>
             </SelectContent>
           </Select>
@@ -91,98 +117,141 @@ export default function AdminTenantsPage() {
               <Skeleton key={i} className="h-16 w-full" />
             ))}
           </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-16 text-center">
+            <AlertTriangle className="h-8 w-8 text-status-error" />
+            <p className="text-sm font-medium text-foreground">
+              {t("admin_tenants_page.load_failed", "Couldn't load tenants")}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="mr-1.5 h-3 w-3" />
+              {t("common.retry", "Try again")}
+            </Button>
+          </div>
         ) : tenants.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title={t("admin_tenants_page.no_tenants")}
+            title={t("admin_tenants_page.no_tenants", "No tenants found")}
             description={
               search
-                ? t("admin_tenants_page.try_different_search")
-                : t("admin_tenants_page.no_tenants_match")
+                ? t(
+                    "admin_tenants_page.try_different_search",
+                    "Try a different search term",
+                  )
+                : t(
+                    "admin_tenants_page.no_tenants_match",
+                    "No tenants match the selected filter",
+                  )
             }
           />
         ) : (
           <>
             <Card>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          {t("admin_tenants_page.tenant")}
-                        </th>
-                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                          {t("admin_tenants_page.subdomain")}
-                        </th>
-                        <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                          {t("attendance.employee")}
-                        </th>
-                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          {t("admin_tenants_page.trial_ends")}
-                        </th>
-                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                          {t("attendance.kiosks_page.created")}
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          {t("common.status")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tenants.map((tenant) => (
-                        <tr
-                          key={tenant.public_id}
-                          className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+                <SimpleTable
+                  caption={t("admin_tenants_page.title", "Tenants")}
+                  headers={[
+                    t("admin_tenants_page.tenant", "Tenant"),
+                    t("admin_tenants_page.subdomain", "Subdomain"),
+                    t("admin_tenants_page.employees", "Employees"),
+                    t("admin_tenants_page.trial_ends", "Trial Ends"),
+                    t("admin_tenants_page.created", "Created"),
+                    t("common.status", "Status"),
+                  ]}
+                  align={["left", "left", "right", "left", "left", "left"]}
+                  colClassName={[
+                    "",
+                    "hidden sm:table-cell",
+                    "hidden md:table-cell",
+                    "hidden lg:table-cell",
+                    "hidden lg:table-cell",
+                    "",
+                  ]}
+                  rows={tenants.map((tenant) => {
+                    const days = trialDaysLeft(tenant.trial_ends_at);
+                    const expiringSoon = days !== null && days > 0 && days <= 7;
+                    const expired = days !== null && days <= 0;
+                    return {
+                      key: tenant.public_id,
+                      onClick: () =>
+                        router.push(`/admin/tenants/${tenant.public_id}`),
+                      cells: [
+                        <div key="n">
+                          <span className="text-sm font-medium text-foreground">
+                            {tenant.name}
+                          </span>
+                          {tenant.type && (
+                            <p className="text-xs capitalize text-muted-foreground">
+                              {tenant.type}
+                            </p>
+                          )}
+                        </div>,
+                        <span
+                          key="s"
+                          className="font-mono text-muted-foreground"
                         >
-                          <td className="px-4 py-3">
-                            <Link
-                              href={`/admin/tenants/${tenant.public_id}`}
-                              className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+                          {tenant.subdomain}.ethr.et
+                        </span>,
+                        <span
+                          key="e"
+                          className="inline-flex items-center gap-1 tabular-nums text-muted-foreground"
+                        >
+                          <Users className="h-3 w-3" /> {tenant.employee_count}
+                        </span>,
+                        tenant.trial_ends_at ? (
+                          <div key="t" className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "tabular-nums",
+                                expiringSoon && "text-status-warning",
+                                expired && "text-status-error",
+                                !expiringSoon &&
+                                  !expired &&
+                                  "text-muted-foreground",
+                              )}
                             >
-                              {tenant.name}
-                            </Link>
-                            {tenant.type && (
-                              <p className="text-xs text-muted-foreground capitalize">
-                                {tenant.type}
-                              </p>
-                            )}
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground sm:table-cell">
-                            {tenant.subdomain}.ethr.et
-                          </td>
-                          <td className="hidden px-4 py-3 text-right md:table-cell">
-                            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                              <Users className="h-3 w-3" />{" "}
-                              {tenant.employee_count}
+                              {new Date(
+                                tenant.trial_ends_at,
+                              ).toLocaleDateString()}
                             </span>
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
-                            {tenant.trial_ends_at
-                              ? new Date(
-                                  tenant.trial_ends_at,
-                                ).toLocaleDateString()
-                              : "—"}
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
-                            {new Date(tenant.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge status={tenant.status} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            {expiringSoon && (
+                              <Badge
+                                variant="outline"
+                                className="border-status-warning/30 text-[10px] text-status-warning"
+                              >
+                                {days}d
+                              </Badge>
+                            )}
+                            {expired && (
+                              <Badge
+                                variant="outline"
+                                className="border-status-error/30 text-[10px] text-status-error"
+                              >
+                                {t("admin_tenants_page.expired", "Expired")}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span key="t" className="text-muted-foreground">
+                            —
+                          </span>
+                        ),
+                        <span key="c" className="text-muted-foreground">
+                          {new Date(tenant.created_at).toLocaleDateString()}
+                        </span>,
+                        <StatusBadge key="st" status={tenant.status} />,
+                      ],
+                    };
+                  })}
+                />
               </CardContent>
             </Card>
 
             {data?.meta && data.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {t("audit_logs_page.showing")} {data.meta.from}–
-                  {data.meta.to} {t("audit_logs_page.of")} {data.meta.total}
+                  {data.meta.from}–{data.meta.to}{" "}
+                  {t("admin_tenants_page.of", "of")} {data.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -191,7 +260,7 @@ export default function AdminTenantsPage() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    {t("audit_logs_page.previous")}
+                    {t("admin_tenants_page.previous", "Previous")}
                   </Button>
                   <Button
                     variant="outline"
@@ -199,7 +268,7 @@ export default function AdminTenantsPage() {
                     disabled={page >= data.meta.last_page}
                     onClick={() => setPage(page + 1)}
                   >
-                    {t("audit_logs_page.next")}
+                    {t("admin_tenants_page.next", "Next")}
                   </Button>
                 </div>
               </div>

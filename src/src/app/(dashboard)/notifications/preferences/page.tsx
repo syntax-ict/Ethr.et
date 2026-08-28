@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Mail,
   Bell,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
@@ -22,6 +23,12 @@ interface PreferencesResponse {
   notification_types: string[];
   channels: string[];
   preferences: Record<string, Record<string, boolean>>;
+  /**
+   * Which channels this deployment can actually deliver on. SMS needs a
+   * configured gateway; without one the column is disabled rather than offering
+   * a toggle that nothing acts on.
+   */
+  channel_availability?: Record<string, boolean>;
 }
 
 const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey: string }> = {
@@ -95,12 +102,12 @@ export default function NotificationPreferencesPage() {
       (await apiClient.get("/notifications/preferences")).data,
   });
 
-  // Sync server data → local editable copy the first time it arrives
-  useEffect(() => {
-    if (data && !local) {
-      setLocal(data.preferences);
-    }
-  }, [data, local]);
+  // Sync server data → local editable copy the first time it arrives. Adjusting
+  // state during render avoids an extra effect commit — see
+  // https://react.dev/learn/you-might-not-need-an-effect.
+  if (data && !local) {
+    setLocal(data.preferences);
+  }
 
   const save = useMutation({
     mutationFn: async () => {
@@ -119,8 +126,18 @@ export default function NotificationPreferencesPage() {
     onError: () => toast.error(t("notification_prefs_page.save_failed")),
   });
 
+  /**
+   * A channel the deployment cannot deliver on. The server omits the field on
+   * older builds, so an absent entry means "assume available" rather than
+   * blanking every column.
+   */
+  function isUnavailable(channelKey: string) {
+    return data?.channel_availability?.[channelKey] === false;
+  }
+
   function toggle(typeKey: string, channelKey: string) {
     if (CHANNEL_META[channelKey]?.alwaysOn) return;
+    if (isUnavailable(channelKey)) return;
     setLocal((p) => {
       if (!p) return p;
       return {
@@ -189,71 +206,71 @@ export default function NotificationPreferencesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                    {t("notification_prefs_page.event")}
-                  </th>
-                  {data.channels.map((ch) => {
-                    const meta = CHANNEL_META[ch];
-                    const Icon = meta?.icon ?? Bell;
+          <SimpleTable
+            caption={t(
+              "notification_prefs_page.notification_types",
+              "Notification types",
+            )}
+            headers={[
+              t("notification_prefs_page.event"),
+              ...data.channels.map((ch) => {
+                const meta = CHANNEL_META[ch];
+                const Icon = meta?.icon ?? Bell;
+                const unavailable = isUnavailable(ch);
+                return (
+                  <div key={ch} className="flex flex-col items-center gap-1">
+                    <Icon className="h-4 w-4" />
+                    <span>{meta ? t(meta.labelKey) : ch}</span>
+                    {unavailable && (
+                      <span className="rounded-full bg-neutral-soft px-2 py-0.5 text-[10px] font-medium normal-case text-neutral-on-soft">
+                        {t(
+                          "notification_prefs_page.channel_unavailable",
+                          "Not configured",
+                        )}
+                      </span>
+                    )}
+                  </div>
+                );
+              }),
+            ]}
+            align={["left", ...data.channels.map(() => "center" as const)]}
+            rows={data.notification_types.map((type) => {
+              const meta = TYPE_LABEL_KEYS[type];
+              const label = meta ? t(meta.labelKey) : type;
+              const description = meta ? t(meta.descKey) : "";
+              return {
+                key: type,
+                cells: [
+                  <div key="label">
+                    <p className="font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {description}
+                    </p>
+                  </div>,
+                  ...data.channels.map((ch) => {
+                    const cm = CHANNEL_META[ch];
+                    const unavailable = isUnavailable(ch);
+                    const value = local[type]?.[ch] ?? false;
                     return (
-                      <th
+                      <label
                         key={ch}
-                        className="px-4 py-3 text-center text-xs font-medium uppercase text-muted-foreground"
+                        className="inline-flex cursor-pointer items-center"
                       >
-                        <div className="flex flex-col items-center gap-1">
-                          <Icon className="h-4 w-4" />
-                          <span>{meta ? t(meta.labelKey) : ch}</span>
-                        </div>
-                      </th>
+                        <input
+                          type="checkbox"
+                          checked={value && !unavailable}
+                          disabled={cm?.alwaysOn || unavailable}
+                          aria-label={`${label} — ${cm ? t(cm.labelKey) : ch}`}
+                          onChange={() => toggle(type, ch)}
+                          className="h-5 w-5 cursor-pointer rounded disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                      </label>
                     );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {data.notification_types.map((type) => {
-                  const meta = TYPE_LABEL_KEYS[type];
-                  const label = meta ? t(meta.labelKey) : type;
-                  const description = meta ? t(meta.descKey) : "";
-                  return (
-                    <tr
-                      key={type}
-                      className="border-b last:border-0 hover:bg-muted/30"
-                    >
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-foreground">
-                          {label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {description}
-                        </p>
-                      </td>
-                      {data.channels.map((ch) => {
-                        const cm = CHANNEL_META[ch];
-                        const value = local[type]?.[ch] ?? false;
-                        return (
-                          <td key={ch} className="px-4 py-3 text-center">
-                            <label className="inline-flex cursor-pointer items-center">
-                              <input
-                                type="checkbox"
-                                checked={value}
-                                disabled={cm?.alwaysOn}
-                                onChange={() => toggle(type, ch)}
-                                className="h-5 w-5 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                              />
-                            </label>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  }),
+                ],
+              };
+            })}
+          />
           <div className="border-t bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
             {t("notification_prefs_page.footer_notice")}
           </div>

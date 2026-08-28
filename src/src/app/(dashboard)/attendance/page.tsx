@@ -18,11 +18,13 @@ import {
   Filter,
   X,
   Monitor,
+  GitMerge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -42,6 +44,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import {
   useAttendanceList,
   useCheckIn,
@@ -52,6 +55,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { formatTime } from "@/lib/utils/date";
 import { toast } from "sonner";
 
 export default function AttendancePage() {
@@ -146,7 +150,7 @@ export default function AttendancePage() {
       />
 
       {/* Sub-nav */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
+      <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
         <SubNav href="/attendance/scan" icon={QrCode}>
           {t("attendance.scan_qr", "Scan QR")}
         </SubNav>
@@ -161,6 +165,11 @@ export default function AttendancePage() {
         <SubNav href="/attendance/corrections" icon={FilePenLine}>
           {t("nav.corrections", "Corrections")}
         </SubNav>
+        {can.viewAttendanceConflicts && (
+          <SubNav href="/attendance/conflicts" icon={GitMerge}>
+            {t("nav.conflicts", "Conflicts")}
+          </SubNav>
+        )}
         {can.manageEmployees && (
           <SubNav href="/kiosk" icon={Monitor}>
             {t("nav.kiosks", "Kiosk")}
@@ -225,11 +234,10 @@ export default function AttendancePage() {
                   <Label className="text-xs">
                     {t("attendance.date_from", "Date From")}
                   </Label>
-                  <Input
-                    type="date"
+                  <DualCalendarDateInput
                     value={dateFrom}
-                    onChange={(e) => {
-                      setDateFrom(e.target.value);
+                    onChange={(v) => {
+                      setDateFrom(v);
                       setPage(1);
                     }}
                     className="mt-1"
@@ -239,11 +247,10 @@ export default function AttendancePage() {
                   <Label className="text-xs">
                     {t("attendance.date_to", "Date To")}
                   </Label>
-                  <Input
-                    type="date"
+                  <DualCalendarDateInput
                     value={dateTo}
-                    onChange={(e) => {
-                      setDateTo(e.target.value);
+                    onChange={(v) => {
+                      setDateTo(v);
                       setPage(1);
                     }}
                     className="mt-1"
@@ -364,65 +371,62 @@ export default function AttendancePage() {
         />
       ) : (
         <>
-          <Card>
+          <Card className="overflow-hidden rounded-xl border-border/60">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      {can.manageEmployees && (
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                          {t("attendance.employee", "Employee")}
-                        </th>
-                      )}
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.date", "Date")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.in", "In")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("attendance.out", "Out")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        {t("attendance.source", "Source")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.status", "Status")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {records.map((record) => (
-                      <tr
-                        key={record.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        {can.manageEmployees && (
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {record.employee_name ?? "—"}
-                          </td>
-                        )}
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {record.date}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {record.check_in ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {record.check_out ?? "—"}
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
-                          {record.source}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={record.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable
+                caption={t("attendance.title", "Attendance")}
+                headers={[
+                  ...(can.manageEmployees
+                    ? [t("attendance.employee", "Employee")]
+                    : []),
+                  t("common.date", "Date"),
+                  t("attendance.in", "In"),
+                  t("attendance.out", "Out"),
+                  t("attendance.source", "Source"),
+                  t("common.status", "Status"),
+                ]}
+                colClassName={[
+                  ...(can.manageEmployees ? [""] : []),
+                  "",
+                  "",
+                  "",
+                  "hidden sm:table-cell",
+                  "",
+                ]}
+                rows={records.map((record) => ({
+                  key: record.public_id,
+                  cells: [
+                    ...(can.manageEmployees
+                      ? [record.employee?.name ?? "—"]
+                      : []),
+                    <span key="date" className="font-medium">
+                      {record.date}
+                    </span>,
+                    <span
+                      key="in"
+                      className="tabular-nums text-muted-foreground"
+                    >
+                      {record.check_in ? formatTime(record.check_in) : "—"}
+                    </span>,
+                    <span
+                      key="out"
+                      className="tabular-nums text-muted-foreground"
+                    >
+                      {record.check_out ? formatTime(record.check_out) : "—"}
+                    </span>,
+                    // The filter dropdown above already translates these; the
+                    // rows were printing the raw enum, so the same value read
+                    // "Biometric" here and "ባዮሜትሪክ" three inches away.
+                    <span
+                      key="src"
+                      className="capitalize text-muted-foreground"
+                    >
+                      {t(`attendance.source_${record.source}`, record.source)}
+                    </span>,
+                    <StatusBadge key="status" status={record.status} />,
+                  ],
+                }))}
+              />
             </CardContent>
           </Card>
 
@@ -550,14 +554,16 @@ function ManualEntryDialog({
           className="space-y-3"
         >
           <div>
-            <Label>{t("attendance.employee_required", "Employee *")}</Label>
+            <Label htmlFor="employee-required">
+              {t("attendance.employee_required", "Employee *")}
+            </Label>
             <Select
               value={form.employee_public_id}
               onValueChange={(v) =>
                 setForm((p) => ({ ...p, employee_public_id: v }))
               }
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger id="employee-required" className="mt-1">
                 <SelectValue
                   placeholder={t(
                     "attendance.select_employee",
@@ -588,19 +594,19 @@ function ManualEntryDialog({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>{t("attendance.date_required", "Date *")}</Label>
-              <Input
-                type="date"
+              <DualCalendarDateInput
                 value={form.date}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, date: e.target.value }))
-                }
+                onChange={(v) => setForm((p) => ({ ...p, date: v }))}
                 required
                 className="mt-1"
               />
             </div>
             <div>
-              <Label>{t("attendance.check_in_required", "Check In *")}</Label>
+              <Label htmlFor="check-in-required">
+                {t("attendance.check_in_required", "Check In *")}
+              </Label>
               <Input
+                id="check-in-required"
                 type="time"
                 value={form.check_in}
                 onChange={(e) =>
@@ -611,8 +617,11 @@ function ManualEntryDialog({
               />
             </div>
             <div>
-              <Label>{t("common.check_out", "Check Out")}</Label>
+              <Label htmlFor="check-out">
+                {t("common.check_out", "Check Out")}
+              </Label>
               <Input
+                id="check-out"
                 type="time"
                 value={form.check_out}
                 onChange={(e) =>
@@ -623,8 +632,11 @@ function ManualEntryDialog({
             </div>
           </div>
           <div>
-            <Label>{t("attendance.reason_required", "Reason *")}</Label>
+            <Label htmlFor="reason-required">
+              {t("attendance.reason_required", "Reason *")}
+            </Label>
             <Textarea
+              id="reason-required"
               value={form.reason}
               onChange={(e) =>
                 setForm((p) => ({ ...p, reason: e.target.value }))

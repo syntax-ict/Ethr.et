@@ -13,10 +13,15 @@
     "test:e2e:a11y": "playwright test accessibility.spec.ts",
     "test:e2e:offline": "playwright test offline.spec.ts",
     "test:e2e:responsive": "playwright test responsive.spec.ts",
-    "test:e2e:dark": "playwright test dark-mode.spec.ts",
+    "docker:refresh": "node scripts/docker-refresh.mjs",
+    "test:e2e:theme": "playwright test theme-switching.spec.ts",
+    "test:e2e:amharic": "playwright test amharic-layout.spec.ts",
+    "test:e2e:ux": "playwright test ux-audit.spec.ts",
     "analyze": "ANALYZE=true next build",
     "typecheck": "tsc --noEmit",
-    "generate:api": "cd ../api && php artisan scramble:export --path=openapi.json && cd ../src && npx openapi-typescript ../api/openapi.json -o src/api/generated.ts"
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "generate:api": "node scripts/generate-api.mjs"
   },
   "type": "module",
   "dependencies": {
@@ -31,6 +36,7 @@
     "@radix-ui/react-switch": "^1.3.2",
     "@radix-ui/react-tabs": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.10",
+    "@sentry/nextjs": "^10.69.0",
     "@tanstack/react-query": "^5.101.1",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.18.1",
@@ -72,9 +78,16 @@
     "jsdom": "^29.1.1",
     "msw": "^2.15.0",
     "openapi-typescript": "^7.13.0",
-    "postcss": "^8.5.15",
+    "postcss": "^8.5.25",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
+  },
+  "_overridesNote": "Security overrides. `next` itself carries no advisory — npm rates it HIGH purely by inheritance from these two transitive deps (audit `via: [postcss, sharp]`). Next 16.2.12 is already the latest STABLE release, so there is no framework upgrade that fixes this; the only versions above the advisory range are 16.3.0-preview builds. Pinning the vulnerable deps directly resolves it without shipping a pre-release framework. postcss uses $postcss so the override cannot drift from the direct devDependency.",
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "^0.35.3",
+    "nanoid": "^3.3.18"
   }
 }

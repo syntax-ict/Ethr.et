@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Settings2, Loader2, Save } from "lucide-react";
+import { useState } from "react";
+import { Settings2, Loader2, Save, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { SettingRow } from "@/components/patterns/SettingRow";
 
 const ALL_METHODS = [
   {
@@ -64,6 +65,9 @@ interface AttendanceSettings {
   mobile_accuracy_threshold_meters: number;
   offline_sync_enabled: boolean;
   kiosk_auto_reset_seconds: number;
+  grace_period_minutes: number;
+  ot_daily_cap_minutes: number;
+  confidence_threshold: number;
 }
 
 export default function AttendanceSettingsPage() {
@@ -76,9 +80,12 @@ export default function AttendanceSettingsPage() {
     queryFn: async () => (await apiClient.get("/attendance/settings")).data,
   });
 
-  useEffect(() => {
-    if (data && !form) setForm(data);
-  }, [data, form]);
+  // Seed the editable copy once the server data arrives, without clobbering an
+  // in-progress edit. Adjusting state during render avoids an extra effect
+  // commit — see https://react.dev/learn/you-might-not-need-an-effect.
+  if (data && !form) {
+    setForm(data);
+  }
 
   const save = useMutation({
     mutationFn: async (payload: Partial<AttendanceSettings>) => {
@@ -158,11 +165,24 @@ export default function AttendanceSettingsPage() {
                       <div
                         key={m.key}
                         className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50"
-                        onClick={() => toggleMethod(m.key)}
+                        // A click on the Switch fired its own onCheckedChange
+                        // *and* bubbled to this handler, toggling twice — so
+                        // clicking the switch itself did nothing at all and the
+                        // row only responded when you hit the padding around
+                        // it. Let the control own its own clicks.
+                        onClick={(e) => {
+                          if (
+                            (e.target as HTMLElement).closest('[role="switch"]')
+                          ) {
+                            return;
+                          }
+                          toggleMethod(m.key);
+                        }}
                       >
                         <Switch
                           checked={enabled}
                           onCheckedChange={() => toggleMethod(m.key)}
+                          aria-label={t(m.labelKey)}
                         />
                         <div>
                           <p className="text-sm font-medium">{t(m.labelKey)}</p>
@@ -177,6 +197,102 @@ export default function AttendanceSettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Attendance Rules */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4" />{" "}
+                  {t("attendance.settings_page.rules", "Attendance Rules")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="grace-period" className="text-sm">
+                    {t(
+                      "attendance.settings_page.grace_period",
+                      "Grace period (minutes)",
+                    )}
+                  </Label>
+                  <Input
+                    id="grace-period"
+                    type="number"
+                    value={form.grace_period_minutes}
+                    onChange={(e) =>
+                      setField(
+                        "grace_period_minutes",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
+                    min={0}
+                    max={240}
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.grace_period_desc",
+                      "Minutes after shift start before marking late",
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="ot-daily-cap" className="text-sm">
+                    {t(
+                      "attendance.settings_page.ot_daily_cap",
+                      "OT daily cap (minutes)",
+                    )}
+                  </Label>
+                  <Input
+                    id="ot-daily-cap"
+                    type="number"
+                    value={form.ot_daily_cap_minutes}
+                    onChange={(e) =>
+                      setField(
+                        "ot_daily_cap_minutes",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
+                    min={0}
+                    max={1440}
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.ot_daily_cap_desc",
+                      "Maximum overtime counted per day",
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="confidence-threshold" className="text-sm">
+                    {t(
+                      "attendance.settings_page.confidence_threshold",
+                      "Confidence threshold (%)",
+                    )}
+                  </Label>
+                  <Input
+                    id="confidence-threshold"
+                    type="number"
+                    value={form.confidence_threshold}
+                    onChange={(e) =>
+                      setField(
+                        "confidence_threshold",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
+                    min={0}
+                    max={100}
+                    className="mt-1 w-32"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "attendance.settings_page.confidence_threshold_desc",
+                      "Minimum confidence score for attendance records",
+                    )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Mobile Settings */}
             <Card>
               <CardHeader>
@@ -185,41 +301,36 @@ export default function AttendanceSettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("attendance.settings_page.require_geofence")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("attendance.settings_page.require_geofence_desc")}
-                    </p>
-                  </div>
+                <SettingRow
+                  id="require-geofence"
+                  title={t("attendance.settings_page.require_geofence")}
+                  description={t(
+                    "attendance.settings_page.require_geofence_desc",
+                  )}
+                >
                   <Switch
                     checked={form.geofence_required}
                     onCheckedChange={(v) => setField("geofence_required", v)}
                   />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("attendance.settings_page.require_photo")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("attendance.settings_page.require_photo_desc")}
-                    </p>
-                  </div>
+                </SettingRow>
+                <SettingRow
+                  id="require-photo"
+                  title={t("attendance.settings_page.require_photo")}
+                  description={t("attendance.settings_page.require_photo_desc")}
+                >
                   <Switch
                     checked={form.mobile_photo_required}
                     onCheckedChange={(v) =>
                       setField("mobile_photo_required", v)
                     }
                   />
-                </div>
+                </SettingRow>
                 <div>
-                  <Label className="text-sm">
+                  <Label htmlFor="gps-accuracy-threshold" className="text-sm">
                     {t("attendance.settings_page.gps_accuracy_threshold")}
                   </Label>
                   <Input
+                    id="gps-accuracy-threshold"
                     type="number"
                     value={form.mobile_accuracy_threshold_meters}
                     onChange={(e) =>
@@ -236,20 +347,16 @@ export default function AttendanceSettingsPage() {
                     {t("attendance.settings_page.gps_accuracy_desc")}
                   </p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("attendance.settings_page.offline_sync")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("attendance.settings_page.offline_sync_desc")}
-                    </p>
-                  </div>
+                <SettingRow
+                  id="offline-sync"
+                  title={t("attendance.settings_page.offline_sync")}
+                  description={t("attendance.settings_page.offline_sync_desc")}
+                >
                   <Switch
                     checked={form.offline_sync_enabled}
                     onCheckedChange={(v) => setField("offline_sync_enabled", v)}
                   />
-                </div>
+                </SettingRow>
               </CardContent>
             </Card>
 
@@ -262,10 +369,11 @@ export default function AttendanceSettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-sm">
+                  <Label htmlFor="default-expiry" className="text-sm">
                     {t("attendance.settings_page.default_expiry")}
                   </Label>
                   <Input
+                    id="default-expiry"
                     type="number"
                     value={form.qr_expiry_minutes}
                     onChange={(e) =>
@@ -279,25 +387,22 @@ export default function AttendanceSettingsPage() {
                     className="mt-1 w-32"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("attendance.settings_page.auto_refresh")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("attendance.settings_page.auto_refresh_desc")}
-                    </p>
-                  </div>
+                <SettingRow
+                  id="auto-refresh"
+                  title={t("attendance.settings_page.auto_refresh")}
+                  description={t("attendance.settings_page.auto_refresh_desc")}
+                >
                   <Switch
                     checked={form.qr_auto_refresh}
                     onCheckedChange={(v) => setField("qr_auto_refresh", v)}
                   />
-                </div>
+                </SettingRow>
                 <div>
-                  <Label className="text-sm">
+                  <Label htmlFor="single-use-limit" className="text-sm">
                     {t("attendance.settings_page.single_use_limit")}
                   </Label>
                   <Input
+                    id="single-use-limit"
                     type="number"
                     value={form.qr_single_use_limit}
                     onChange={(e) =>
@@ -325,25 +430,22 @@ export default function AttendanceSettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("attendance.settings_page.require_pin")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("attendance.settings_page.require_pin_desc")}
-                    </p>
-                  </div>
+                <SettingRow
+                  id="require-pin"
+                  title={t("attendance.settings_page.require_pin")}
+                  description={t("attendance.settings_page.require_pin_desc")}
+                >
                   <Switch
                     checked={form.kiosk_pin_required}
                     onCheckedChange={(v) => setField("kiosk_pin_required", v)}
                   />
-                </div>
+                </SettingRow>
                 <div>
-                  <Label className="text-sm">
+                  <Label htmlFor="auto-reset-delay" className="text-sm">
                     {t("attendance.settings_page.auto_reset_delay")}
                   </Label>
                   <Input
+                    id="auto-reset-delay"
                     type="number"
                     value={form.kiosk_auto_reset_seconds}
                     onChange={(e) =>

@@ -43,4 +43,10 @@ class Grade extends Model
     {
         return $this->hasMany(Employee::class);
     }
+
+    /** @return HasMany<GradeSalaryStep, $this> */
+    public function salarySteps(): HasMany
+    {
+        return $this->hasMany(GradeSalaryStep::class)->orderBy('step');
+    }
 }

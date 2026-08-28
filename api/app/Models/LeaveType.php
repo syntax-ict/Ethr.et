@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\AccrualType;
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** @property AccrualType $accrual_type */
 class LeaveType extends Model
 {
-    use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
+    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',
@@ -76,5 +77,31 @@ class LeaveType extends Model
         }
 
         return $this->gender_restriction === $gender;
+    }
+
+    /**
+     * A stable, visually distinct colour for calendar blocks and legends.
+     *
+     * There is no stored colour column on leave types, so the colour is
+     * derived deterministically from the immutable `code` — the same type
+     * always renders the same colour, and custom tenant types get a distinct
+     * colour without any configuration.
+     */
+    public function calendarColor(): string
+    {
+        $palette = [
+            '#0F4C75', // deep teal-blue
+            '#059669', // green
+            '#D97706', // amber
+            '#DC2626', // red
+            '#7C3AED', // violet
+            '#0284C7', // info blue
+            '#DB2777', // pink
+            '#4B5563', // slate
+        ];
+
+        $key = (string) ($this->code ?? $this->name ?? '');
+
+        return $palette[crc32($key) % count($palette)];
     }
 }

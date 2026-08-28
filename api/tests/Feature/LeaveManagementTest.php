@@ -386,9 +386,10 @@ test('leave day calculator skips holidays', function () {
 
 test('supervisor can approve leave request', function () {
     $tenant = createTenant();
-    $supervisor = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+    $supervisorEmployee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $supervisor = actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisorEmployee->id], $tenant);
 
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisorEmployee->id]);
     $leaveType = LeaveType::factory()->create([
         'tenant_id' => $tenant->id,
         'code' => 'approve_test',
@@ -460,9 +461,10 @@ test('cannot approve non-pending leave request', function () {
 
 test('supervisor can reject leave with reason', function () {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+    $supervisorEmployee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisorEmployee->id], $tenant);
 
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisorEmployee->id]);
     $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'reject_test']);
 
     $balance = LeaveBalance::factory()->create([
@@ -754,9 +756,10 @@ test('employee cannot view team leaves', function () {
 
 test('leave approval is audit logged', function () {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+    $supervisorEmployee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisorEmployee->id], $tenant);
 
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisorEmployee->id]);
     $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'audit_appr']);
 
     LeaveBalance::factory()->create([
@@ -817,4 +820,60 @@ test('leave types require authentication', function () {
 
     test()->getJson('http://authtest.ethr.test/api/v1/leave-types')
         ->assertUnauthorized();
+});
+
+// ── Leave Request detail (show) ──
+
+test('employee can view their own leave request', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveRequest = LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leaveRequest->public_id}")
+        ->assertOk()
+        ->assertJsonPath('public_id', $leaveRequest->public_id)
+        ->assertJsonMissingPath('id');
+});
+
+test('employee cannot view another employees leave request', function () {
+    $tenant = createTenant();
+    $mine = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $other = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $mine->id], $tenant);
+    test()->actingAs($user);
+
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveRequest = LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $other->id,
+        'leave_type_id' => $leaveType->id,
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leaveRequest->public_id}")
+        ->assertStatus(403);
+});
+
+test('hr admin can view any leave request', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    $leaveRequest = LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/{$leaveRequest->public_id}")
+        ->assertOk()
+        ->assertJsonPath('public_id', $leaveRequest->public_id);
 });

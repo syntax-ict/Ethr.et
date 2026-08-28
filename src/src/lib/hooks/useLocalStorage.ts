@@ -17,7 +17,6 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     } catch {
       // localStorage unavailable (private browsing, quota exceeded) — state still works in-memory
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, value]);
 
   return [value, setValue] as const;

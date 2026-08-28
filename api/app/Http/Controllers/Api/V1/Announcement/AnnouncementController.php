@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Announcement\StoreAnnouncementRequest;
 use App\Http\Requests\Announcement\UpdateAnnouncementRequest;
 use App\Http\Resources\AnnouncementResource;
+use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Models\Announcement;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
@@ -57,6 +58,10 @@ class AnnouncementController extends Controller
         ]);
 
         AuditLog::record('announcement.created', $announcement);
+
+        // Publishing is what makes an announcement visible; a draft scheduled for
+        // later is notified when the job runs against a published_at in the past.
+        NotifyAnnouncementAudienceJob::dispatch($announcement->id)->onQueue('notifications');
 
         return (new AnnouncementResource($announcement))
             ->response()

@@ -98,7 +98,7 @@ class EmployeeBulkController extends Controller
                 $emp->hire_date?->format('Y-m-d'),
                 $emp->department?->name,
                 $emp->branch?->name,
-                $emp->position?->title ?? $emp->position?->name ?? null,
+                $emp->position?->title,
             ];
         }
 

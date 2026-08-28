@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   KeyRound,
   Plus,
@@ -13,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,11 +23,17 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage } from "@/lib/forms/rules";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface ApiKey {
   public_id: string;
@@ -42,15 +46,45 @@ interface ApiKey {
   created_at: string;
 }
 
+const ABILITIES = [
+  "read",
+  "write",
+  "employees",
+  "attendance",
+  "leave",
+  "payroll",
+  "reports",
+] as const;
+
+const apiKeySchema = z.object({
+  name: rules.requiredText(255),
+  // An API key granting nothing authenticates and then 403s on every call — it
+  // looks issued and is useless. The server enforces this; saying so here means
+  // the user is not left guessing at a dead Create button.
+  abilities: z.array(z.string()).min(1, "api_keys_page.abilities_required"),
+});
+type ApiKeyValues = z.infer<typeof apiKeySchema>;
+
 export default function ApiKeysPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    abilities: ["read"] as string[],
+
+  const {
+    register,
+    submit,
+    reset,
+    watch,
+    setValue,
+    rootError,
+    formState: { errors, isSubmitting },
+  } = useZodForm<ApiKeyValues>({
+    schema: apiKeySchema,
+    defaultValues: { name: "", abilities: ["read"] },
   });
+
+  const selectedAbilities = watch("abilities");
 
   const { data, isLoading } = useQuery({
     queryKey: ["api-keys"],
@@ -60,19 +94,20 @@ export default function ApiKeysPage() {
     },
   });
 
+  // No `onError` toast — a rejected create is reported inside the dialog now,
+  // on the field that caused it.
   const createKey = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/api-keys", form);
+    mutationFn: async (values: ApiKeyValues) => {
+      const { data } = await apiClient.post("/api-keys", values);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
       setNewKey(data.key);
       setCreateOpen(false);
-      setForm({ name: "", abilities: ["read"] });
+      reset();
       toast.success(t("api_keys_page.key_created"));
     },
-    onError: () => toast.error(t("api_keys_page.create_failed")),
   });
 
   const revokeKey = useMutation({
@@ -88,12 +123,10 @@ export default function ApiKeysPage() {
   const keys: ApiKey[] = data?.keys ?? [];
 
   function toggleAbility(ability: string) {
-    setForm((p) => ({
-      ...p,
-      abilities: p.abilities.includes(ability)
-        ? p.abilities.filter((a) => a !== ability)
-        : [...p.abilities, ability],
-    }));
+    const next = selectedAbilities.includes(ability)
+      ? selectedAbilities.filter((a) => a !== ability)
+      : [...selectedAbilities, ability];
+    setValue("abilities", next, { shouldValidate: true, shouldDirty: true });
   }
 
   function copyKey() {
@@ -112,10 +145,16 @@ export default function ApiKeysPage() {
           actions={
             <div className="flex gap-2">
               <Button variant="outline" asChild>
-                <Link href="/api/docs" target="_blank">
-                  <ExternalLink className="mr-2 h-4 w-4" />{" "}
+                {/* A plain <a>, not next/link. `/api/docs` is the backend's
+                    Swagger page reached through the `/api/:path*` rewrite, not
+                    an app route — so next/link prefetched it as an RSC
+                    navigation on mount, and that request never resolved. It
+                    left the page permanently short of network-idle and made
+                    every visit fire a pointless call to the docs endpoint. */}
+                <a href="/api/docs" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />{" "}
                   {t("api_keys_page.api_docs")}
-                </Link>
+                </a>
               </Button>
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />{" "}
@@ -126,9 +165,9 @@ export default function ApiKeysPage() {
         />
 
         {newKey && (
-          <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <Card className="border-2 border-status-warning/40 bg-status-warning/5">
             <CardContent className="p-4">
-              <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-300">
+              <p className="mb-2 text-sm font-semibold text-foreground">
                 {t("api_keys_page.save_now_hint")}
               </p>
               <div className="flex items-center gap-2">
@@ -165,69 +204,58 @@ export default function ApiKeysPage() {
         ) : (
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.name")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("api_keys_page.prefix")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        {t("api_keys_page.abilities")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        {t("attendance.kiosks_page.created")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.actions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {keys.map((k) => (
-                      <tr
-                        key={k.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {k.name}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                          {k.key_prefix}...
-                        </td>
-                        <td className="hidden px-4 py-3 sm:table-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {k.abilities.map((a) => (
-                              <Badge
-                                key={a}
-                                variant="outline"
-                                className="text-[10px]"
-                              >
-                                {a}
-                              </Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">
-                          {new Date(k.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => revokeKey.mutate(k.public_id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable
+                caption={t("api_keys_page.title", "API Keys")}
+                headers={[
+                  t("common.name"),
+                  t("api_keys_page.prefix"),
+                  t("api_keys_page.abilities"),
+                  t("attendance.kiosks_page.created"),
+                ]}
+                colClassName={[
+                  "",
+                  "",
+                  "hidden sm:table-cell",
+                  "hidden md:table-cell",
+                ]}
+                rows={keys.map((k) => ({
+                  key: k.public_id,
+                  cells: [
+                    <span key="n" className="font-medium">
+                      {k.name}
+                    </span>,
+                    <span key="p" className="font-mono text-muted-foreground">
+                      {k.key_prefix}...
+                    </span>,
+                    <div key="a" className="flex flex-wrap gap-1">
+                      {k.abilities.map((a) => (
+                        <Badge
+                          key={a}
+                          variant="outline"
+                          className="text-[10px]"
+                        >
+                          {a}
+                        </Badge>
+                      ))}
+                    </div>,
+                    <span key="c" className="text-muted-foreground">
+                      {new Date(k.created_at).toLocaleDateString()}
+                    </span>,
+                  ],
+                  actions: (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => revokeKey.mutate(k.public_id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">
+                        {t("api_keys_page.revoke", "Revoke")}
+                      </span>
+                    </Button>
+                  ),
+                }))}
+              />
             </CardContent>
           </Card>
         )}
@@ -238,51 +266,59 @@ export default function ApiKeysPage() {
               <DialogTitle>{t("api_keys_page.create_key")}</DialogTitle>
             </DialogHeader>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createKey.mutate();
-              }}
+              onSubmit={submit(
+                (values) => createKey.mutateAsync(values),
+                t("api_keys_page.create_failed"),
+              )}
               className="space-y-4"
+              noValidate
             >
-              <div>
-                <Label>{t("api_keys_page.key_name")}</Label>
+              <FormErrorSummary message={rootError} />
+
+              <FormField
+                id="api-key-name"
+                label={t("api_keys_page.key_name")}
+                required
+                error={fieldMessage(t, errors.name?.message)}
+              >
                 <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, name: e.target.value }))
-                  }
-                  required
+                  {...register("name")}
                   placeholder={t("api_keys_page.key_name_placeholder")}
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label>{t("api_keys_page.abilities")}</Label>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {[
-                    "read",
-                    "write",
-                    "employees",
-                    "attendance",
-                    "leave",
-                    "payroll",
-                    "reports",
-                  ].map((a) => (
-                    <label
-                      key={a}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg border p-2 hover:bg-muted/50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.abilities.includes(a)}
-                        onChange={() => toggleAbility(a)}
-                        className="h-4 w-4 rounded"
-                      />
-                      <span className="text-sm capitalize">{a}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              </FormField>
+
+              <FormField
+                id="api-key-abilities"
+                label={t("api_keys_page.abilities")}
+                required
+                error={fieldMessage(t, errors.abilities?.message)}
+              >
+                {(control) => (
+                  <div
+                    {...control}
+                    role="group"
+                    aria-label={t("api_keys_page.abilities")}
+                    className="mt-2 grid grid-cols-2 gap-2"
+                  >
+                    {ABILITIES.map((a) => (
+                      <label
+                        key={a}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg border p-2 hover:bg-muted/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAbilities.includes(a)}
+                          onChange={() => toggleAbility(a)}
+                          className="h-4 w-4 rounded"
+                        />
+                        <span className="text-sm capitalize">{a}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </FormField>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -291,11 +327,8 @@ export default function ApiKeysPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createKey.isPending || form.abilities.length === 0}
-                >
-                  {createKey.isPending && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("api_keys_page.create")}

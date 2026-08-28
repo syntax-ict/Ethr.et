@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PayrollEntry extends Model
 {
-    use BelongsToTenant, HasFactory, HasPublicId;
+    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
 
     protected $fillable = [
         'public_id',

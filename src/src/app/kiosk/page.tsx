@@ -62,7 +62,6 @@ export default function KioskPage() {
     if (saved) {
       authenticateToken(saved);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live clock
@@ -353,8 +352,8 @@ export default function KioskPage() {
       <main className="flex-1 flex items-center justify-center p-6">
         {mode === "success" ? (
           <div className="text-center space-y-6 animate-in zoom-in duration-300">
-            <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
-              <CheckCircle2 className="h-20 w-20 text-green-600 dark:text-green-400" />
+            <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-success-soft">
+              <CheckCircle2 className="h-20 w-20 text-success" />
             </div>
             <p className="text-4xl font-bold text-foreground">{message}</p>
             <p className="text-sm text-muted-foreground">
@@ -363,8 +362,8 @@ export default function KioskPage() {
           </div>
         ) : mode === "error" ? (
           <div className="text-center space-y-6 animate-in zoom-in duration-300">
-            <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
-              <XCircle className="h-20 w-20 text-red-600 dark:text-red-400" />
+            <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-destructive-soft">
+              <XCircle className="h-20 w-20 text-destructive" />
             </div>
             <p className="text-3xl font-bold text-foreground">{message}</p>
             <p className="text-sm text-muted-foreground">Please try again</p>
@@ -378,7 +377,7 @@ export default function KioskPage() {
                 className={cn(
                   "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
                   type === "check_in"
-                    ? "bg-green-600 text-white shadow-md"
+                    ? "bg-success text-success-foreground shadow-md"
                     : "text-muted-foreground",
                 )}
               >
@@ -389,7 +388,7 @@ export default function KioskPage() {
                 className={cn(
                   "flex-1 rounded-lg py-3 font-semibold transition-all flex items-center justify-center gap-2",
                   type === "check_out"
-                    ? "bg-orange-600 text-white shadow-md"
+                    ? "bg-warning text-warning-foreground shadow-md"
                     : "text-muted-foreground",
                 )}
               >

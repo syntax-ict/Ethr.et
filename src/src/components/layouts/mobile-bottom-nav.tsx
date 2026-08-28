@@ -4,14 +4,20 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Building2,
   CalendarDays,
   Clock,
+  Landmark,
   LayoutDashboard,
   Menu,
   Receipt,
+  ScrollText,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
 import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
@@ -25,22 +31,58 @@ import { TenantLogoBadge } from "@/features/branding/TenantBrandingProvider";
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
+  const { isTenantAdmin, isSuperAdmin } = usePermissions();
+  // See sidebar-nav: a super admin clears the tenant-admin level check but has
+  // no tenant, so onboarding progress does not exist for them.
+  const onboarding = useOnboardingStatus(isTenantAdmin && !isSuperAdmin);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const tabs = [
-    { label: t("nav.home", "Home"), href: "/dashboard", icon: LayoutDashboard },
-    {
-      label: t("nav.attendance", "Attendance"),
-      href: "/attendance",
-      icon: Clock,
-    },
-    { label: t("nav.leave", "Leave"), href: "/leave", icon: CalendarDays },
-    {
-      label: t("nav.payslips", "Payslips"),
-      href: "/payroll/payslips",
-      icon: Receipt,
-    },
-  ];
+  const showSetupDot =
+    !onboarding.isLoading && !onboarding.isComplete && isTenantAdmin;
+
+  // Same reasoning as the sidebar: a platform super admin has no tenant, so
+  // Attendance / Leave / Payslips are not their work — the console is.
+  const tabs = isSuperAdmin
+    ? [
+        {
+          label: t("nav.admin", "Admin Console"),
+          href: "/admin",
+          icon: Shield,
+        },
+        {
+          label: t("nav.tenants", "Tenants"),
+          href: "/admin/tenants",
+          icon: Building2,
+        },
+        {
+          label: t("nav.platform_audit", "Audit Log"),
+          href: "/admin/audit",
+          icon: ScrollText,
+        },
+        {
+          label: t("nav.platform_settings", "Settings"),
+          href: "/admin/platform-settings",
+          icon: Landmark,
+        },
+      ]
+    : [
+        {
+          label: t("nav.home", "Home"),
+          href: "/dashboard",
+          icon: LayoutDashboard,
+        },
+        {
+          label: t("nav.attendance", "Attendance"),
+          href: "/attendance",
+          icon: Clock,
+        },
+        { label: t("nav.leave", "Leave"), href: "/leave", icon: CalendarDays },
+        {
+          label: t("nav.payslips", "Payslips"),
+          href: "/payroll/payslips",
+          icon: Receipt,
+        },
+      ];
 
   return (
     <>
@@ -70,14 +112,24 @@ export function MobileBottomNav() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground"
+          className="relative flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground"
         >
           <Menu className="h-5 w-5" />
           {t("nav.more", "More")}
+          {showSetupDot && (
+            <span className="absolute right-1/4 top-1.5 flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-accent,#E8A838)] opacity-50" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--color-accent,#E8A838)]" />
+            </span>
+          )}
         </button>
       </nav>
 
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+      <Sheet
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        title={t("nav.more_navigation", "More navigation")}
+      >
         <div className="flex h-16 items-center gap-2 border-b px-6">
           <TenantLogoBadge />
         </div>

@@ -5,7 +5,8 @@ import { Users, Phone, Mail } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,13 +21,15 @@ interface DirectoryEntry {
   department: string | null;
   position: string | null;
   branch: string | null;
+  photo_url: string | null;
+  photo_thumb_url: string | null;
 }
 
 export default function DirectoryPage() {
   const { t } = useT();
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: ["directory", search],
     queryFn: async () => {
       const { data } = await apiClient.get("/directory", {
@@ -36,7 +39,7 @@ export default function DirectoryPage() {
     },
   });
 
-  const entries: DirectoryEntry[] = data?.data ?? [];
+  const entries: DirectoryEntry[] = query.data?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -59,81 +62,84 @@ export default function DirectoryPage() {
         />
       </div>
 
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-      ) : entries.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t("directory.empty_title", "No employees found")}
-          description={
-            search
-              ? t("directory.try_different", "Try a different search")
-              : t("directory.empty_desc", "No employees in the directory yet")
-          }
-        />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((e) => {
-            const initials = e.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase();
-            return (
-              <Card
-                key={e.public_id}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="text-sm font-medium">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {e.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {e.position ?? e.department ?? ""}
-                      </p>
-                      {e.department && e.position && (
-                        <p className="text-xs text-muted-foreground">
-                          {e.department}
+      <QueryBoundary
+        query={query}
+        loading={
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        }
+        isEmpty={() => entries.length === 0}
+        empty={
+          <EmptyState
+            icon={Users}
+            title={t("directory.empty_title", "No employees found")}
+            description={
+              search
+                ? t("directory.try_different", "Try a different search")
+                : t("directory.empty_desc", "No employees in the directory yet")
+            }
+          />
+        }
+      >
+        {() => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {entries.map((e) => {
+              return (
+                <Card
+                  key={e.public_id}
+                  className="hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <EmployeeAvatar
+                        name={e.name}
+                        photoThumbUrl={e.photo_thumb_url}
+                        photoUrl={e.photo_url}
+                        className="h-10 w-10"
+                        fallbackClassName="text-sm font-medium"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {e.name}
                         </p>
-                      )}
-                      <div className="mt-2 space-y-1">
-                        {e.email && (
-                          <a
-                            href={`mailto:${e.email}`}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                          >
-                            <Mail className="h-3 w-3" /> {e.email}
-                          </a>
+                        <p className="text-xs text-muted-foreground">
+                          {e.position ?? e.department ?? ""}
+                        </p>
+                        {e.department && e.position && (
+                          <p className="text-xs text-muted-foreground">
+                            {e.department}
+                          </p>
                         )}
-                        {e.phone && (
-                          <a
-                            href={`tel:${e.phone}`}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                          >
-                            <Phone className="h-3 w-3" /> {e.phone}
-                          </a>
-                        )}
+                        <div className="mt-2 space-y-1">
+                          {e.email && (
+                            <a
+                              href={`mailto:${e.email}`}
+                              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                            >
+                              <Mail className="h-3 w-3" /> {e.email}
+                            </a>
+                          )}
+                          {e.phone && (
+                            <a
+                              href={`tel:${e.phone}`}
+                              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                            >
+                              <Phone className="h-3 w-3" /> {e.phone}
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </QueryBoundary>
     </div>
   );
 }

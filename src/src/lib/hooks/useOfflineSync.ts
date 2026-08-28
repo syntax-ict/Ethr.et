@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/api/client";
+import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import {
   getPendingRecords,
   markSynced,
@@ -11,29 +12,12 @@ import {
 } from "@/lib/offline-queue";
 
 export function useOfflineSync() {
-  const [isOnline, setIsOnline] = useState(true);
+  // Shared with OfflineBanner, which held an identical copy of the listener
+  // block. Two independent copies of "am I online" could disagree.
+  const { isOnline } = useOfflineStatus();
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const syncInProgress = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setIsOnline(navigator.onLine);
-
-    function onOnline() {
-      setIsOnline(true);
-    }
-    function onOffline() {
-      setIsOnline(false);
-    }
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, []);
 
   const refreshCount = useCallback(async () => {
     try {
@@ -45,6 +29,9 @@ export function useOfflineSync() {
   }, []);
 
   useEffect(() => {
+    // Genuinely synchronizing with an external system (IndexedDB) via polling,
+    // not deriving state from props — the documented exception to this rule.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshCount();
     const interval = setInterval(refreshCount, 10000);
     return () => clearInterval(interval);

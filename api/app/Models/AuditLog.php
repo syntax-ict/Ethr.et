@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Auth\ImpersonationToken;
 use App\Services\CurrentTenant;
 use App\Traits\BelongsToTenant;
+use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Request;
 
 class AuditLog extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, NeverDelete;
 
     public $timestamps = false;
 
@@ -54,14 +56,25 @@ class AuditLog extends Model
         return $this->morphTo();
     }
 
+    public function update(array $attributes = [], array $options = []): never
+    {
+        throw new \LogicException('Audit log entries cannot be updated.');
+    }
+
     public static function record(string $action, ?Model $auditable = null, array $payload = []): self
     {
         $tenant = app(CurrentTenant::class);
         $user = auth()->user();
 
-        $tokenName = (string) ($user?->currentAccessToken()->name ?? '');
-        if (str_starts_with($tokenName, 'impersonation:')) {
-            $payload['impersonated_by'] = (int) substr($tokenName, strlen('impersonation:'));
+        // The `?? null` is load-bearing: under session-cookie auth
+        // currentAccessToken() is a TransientToken, which has no `name` at all,
+        // and only the null-coalescing read suppresses the undefined-property
+        // warning that Laravel would otherwise promote to an ErrorException.
+        $tokenName = $user?->currentAccessToken()->name ?? null;
+
+        $impersonatorId = ImpersonationToken::impersonatorId($tokenName);
+        if ($impersonatorId !== null) {
+            $payload['impersonated_by'] = $impersonatorId;
         }
 
         return self::create([

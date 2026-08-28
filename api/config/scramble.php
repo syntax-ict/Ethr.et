@@ -1,12 +1,18 @@
 <?php
 
 declare(strict_types=1);
+use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
 
 return [
     /*
      * API version shown in the documentation.
      */
     'api_version' => '1.0.0',
+
+    // Listed first in the generated document so an integrator copying the top
+    // server URL gets production, not whatever APP_URL happens to be locally.
+    // Unset in development, where only the local server is listed.
+    'production_url' => env('SCRAMBLE_PRODUCTION_URL'),
 
     /*
      * URL path for the API docs UI.
@@ -19,9 +25,21 @@ return [
     'api_domain' => null,
 
     /*
-     * Restrict doc access in production (set to false to open public).
+     * Restrict doc access in production.
+     *
+     * RestrictedDocsAccess is load-bearing and must not be dropped: it lets any
+     * caller through in the `local` environment, and everywhere else requires the
+     * `viewApiDocs` gate (defined in AppServiceProvider — super admins only),
+     * returning 403 otherwise.
+     *
+     * Without it this list is just ['web'], which authenticates nobody, and
+     * GET /api/docs anonymously serves the complete API map — every operation
+     * with its request and response schemas — to the public internet.
      */
-    'middleware' => ['web'],
+    'middleware' => [
+        'web',
+        RestrictedDocsAccess::class,
+    ],
 
     /*
      * Base path of routes to include.

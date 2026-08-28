@@ -9,9 +9,9 @@ import {
   Award,
   Wallet,
   Plus,
-  Edit,
-  Trash2,
   Loader2,
+  Network,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable, TableRowActions } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import {
@@ -53,6 +54,9 @@ import {
   type Grade,
   type CostCenter,
 } from "@/features/organization/api";
+import { OrgChart } from "@/features/organization/components/org-chart";
+import { ReportingChart } from "@/features/organization/components/reporting-chart";
+import { GradeSalaryStepsDialog } from "@/features/organization/components/grade-salary-steps-dialog";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 
@@ -69,8 +73,16 @@ export default function OrganizationPage() {
           )}
         />
 
-        <Tabs defaultValue="branches">
+        <Tabs defaultValue="structure">
           <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="structure">
+              <Network className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.structure", "Structure")}
+            </TabsTrigger>
+            <TabsTrigger value="reporting">
+              <Users className="mr-1.5 h-3.5 w-3.5" />{" "}
+              {t("org.tab.reporting", "Reporting")}
+            </TabsTrigger>
             <TabsTrigger value="branches">
               <Building2 className="mr-1.5 h-3.5 w-3.5" />{" "}
               {t("org.tab.branches", "Branches")}
@@ -97,6 +109,12 @@ export default function OrganizationPage() {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="structure" className="mt-4">
+            <OrgChart />
+          </TabsContent>
+          <TabsContent value="reporting" className="mt-4">
+            <ReportingChart />
+          </TabsContent>
           <TabsContent value="branches" className="mt-4">
             <BranchesTab />
           </TabsContent>
@@ -256,7 +274,7 @@ function BranchesTab() {
                     )}
                   </div>
                 </div>
-                <RowActions
+                <TableRowActions
                   onEdit={() => openEdit(b)}
                   onDelete={() => handleDelete(b)}
                 />
@@ -474,7 +492,7 @@ function DepartmentsTab() {
     >
       <Card>
         <CardContent className="p-0">
-          <ResourceTable
+          <SimpleTable
             headers={[
               t("org.field.name", "Name"),
               t("org.field.code", "Code"),
@@ -494,7 +512,7 @@ function DepartmentsTab() {
                   variant="outline"
                   className={
                     d.is_active
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
+                      ? "bg-success-soft text-success-on-soft border-0"
                       : ""
                   }
                 >
@@ -701,7 +719,7 @@ function TeamsTab() {
     >
       <Card>
         <CardContent className="p-0">
-          <ResourceTable
+          <SimpleTable
             headers={[
               t("org.field.name", "Name"),
               t("common.department", "Department"),
@@ -717,7 +735,7 @@ function TeamsTab() {
                   variant="outline"
                   className={
                     tm.is_active
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
+                      ? "bg-success-soft text-success-on-soft border-0"
                       : ""
                   }
                 >
@@ -888,7 +906,7 @@ function PositionsTab() {
     >
       <Card>
         <CardContent className="p-0">
-          <ResourceTable
+          <SimpleTable
             headers={[
               t("org.field.title", "Title"),
               t("org.field.code", "Code"),
@@ -913,7 +931,7 @@ function PositionsTab() {
                   variant="outline"
                   className={
                     p.is_active
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
+                      ? "bg-success-soft text-success-on-soft border-0"
                       : ""
                   }
                 >
@@ -1010,6 +1028,7 @@ function GradesTab() {
 
   const [editing, setEditing] = useState<Grade | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [stepsFor, setStepsFor] = useState<Grade | null>(null);
   const empty = { name: "", min_salary: "", max_salary: "", sort_order: "0" };
   const [form, setForm] = useState(empty);
 
@@ -1076,7 +1095,7 @@ function GradesTab() {
     >
       <Card>
         <CardContent className="p-0">
-          <ResourceTable
+          <SimpleTable
             headers={[
               t("org.tab.grades", "Grades"),
               t("org.field.min_salary", "Min Salary"),
@@ -1091,12 +1110,34 @@ function GradesTab() {
                 <CurrencyDisplay key="max" cents={g.max_salary_cents} />,
                 g.sort_order ?? 0,
               ],
-              onEdit: () => openEdit(g),
-              onDelete: () => handleDelete(g),
+              actions: (
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setStepsFor(g)}
+                  >
+                    {t("org.grade.step.manage", "Steps")}
+                  </Button>
+                  <TableRowActions
+                    onEdit={() => openEdit(g)}
+                    onDelete={() => handleDelete(g)}
+                  />
+                </div>
+              ),
             }))}
           />
         </CardContent>
       </Card>
+
+      {stepsFor && (
+        <GradeSalaryStepsDialog
+          grade={stepsFor}
+          open={stepsFor !== null}
+          onOpenChange={(v) => !v && setStepsFor(null)}
+        />
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
@@ -1243,7 +1284,7 @@ function CostCentersTab() {
     >
       <Card>
         <CardContent className="p-0">
-          <ResourceTable
+          <SimpleTable
             headers={[
               t("org.field.name", "Name"),
               t("org.field.code", "Code"),
@@ -1259,7 +1300,7 @@ function CostCentersTab() {
                   variant="outline"
                   className={
                     c.is_active
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
+                      ? "bg-success-soft text-success-on-soft border-0"
                       : ""
                   }
                 >
@@ -1378,88 +1419,6 @@ function ResourceLayout({
       ) : (
         children
       )}
-    </div>
-  );
-}
-
-function ResourceTable({
-  headers,
-  rows,
-}: {
-  headers: string[];
-  rows: Array<{
-    key: string;
-    cells: React.ReactNode[];
-    onEdit: () => void;
-    onDelete: () => void;
-  }>;
-}) {
-  const { t } = useT();
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b bg-muted/50">
-            {headers.map((h) => (
-              <th
-                key={h}
-                className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
-              >
-                {h}
-              </th>
-            ))}
-            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {t("common.actions", "Actions")}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.key}
-              className="border-b last:border-0 hover:bg-muted/30"
-            >
-              {row.cells.map((c, i) => (
-                <td key={i} className="px-4 py-3 text-sm text-foreground">
-                  {c}
-                </td>
-              ))}
-              <td className="px-4 py-3 text-right">
-                <RowActions onEdit={row.onEdit} onDelete={row.onDelete} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function RowActions({
-  onEdit,
-  onDelete,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="flex justify-end gap-1">
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 w-7 p-0"
-        onClick={onEdit}
-      >
-        <Edit className="h-3.5 w-3.5" />
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 w-7 p-0"
-        onClick={onDelete}
-      >
-        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-      </Button>
     </div>
   );
 }

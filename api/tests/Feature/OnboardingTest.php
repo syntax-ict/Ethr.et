@@ -3,9 +3,39 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\AuditLog;
+use App\Models\Department;
+use App\Models\LeaveType;
 use App\Models\OnboardingProgress;
+use App\Models\Position;
+use App\Models\Shift;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+
+/**
+ * A template exercising every resource the provisioner handles, in the
+ * shorthand shape the real seeder uses.
+ */
+function seedGovernmentTemplate(): void
+{
+    DB::table('organization_templates')->insert([
+        'public_id' => (string) Str::ulid(),
+        'name' => 'Government',
+        'slug' => 'government',
+        'template_data' => json_encode([
+            'departments' => ['Administration', 'Finance', 'HR'],
+            'positions' => ['Director', 'Manager', 'Officer'],
+            'shifts' => [['name' => 'Regular', 'start' => '08:30', 'end' => '17:30', 'days' => '1,2,3,4,5']],
+            'leave_types' => ['annual', 'sick'],
+            'holidays' => false,
+            'settings' => ['employee_number_format' => 'GOV-{SEQ:4}'],
+        ]),
+        'is_active' => true,
+        'sort_order' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
 
 describe('GET /api/v1/templates', function () {
     beforeEach(function () {
@@ -43,7 +73,7 @@ describe('GET /api/v1/templates', function () {
 describe('onboarding progress', function () {
     it('returns fresh progress for new tenant', function () {
         $tenant = createTenant();
-        actingAsUser([], $tenant);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
         $response = $this->getJson('http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/progress');
 
@@ -79,20 +109,8 @@ describe('onboarding progress', function () {
         $response->assertUnprocessable();
     });
 
-    it('applies a template', function () {
-        DB::table('organization_templates')->insert([
-            'public_id' => (string) Str::ulid(),
-            'name' => 'Government',
-            'slug' => 'government',
-            'template_data' => json_encode([
-                'departments' => ['Administration', 'Finance', 'HR'],
-                'positions' => ['Director', 'Manager', 'Officer'],
-            ]),
-            'is_active' => true,
-            'sort_order' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+    it('applies a template and creates the records it describes', function () {
+        seedGovernmentTemplate();
 
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -104,7 +122,53 @@ describe('onboarding progress', function () {
 
         $response->assertOk()
             ->assertJsonPath('template.slug', 'government')
+            ->assertJsonPath('provisioned.resources.departments.created', 3)
+            ->assertJsonPath('provisioned.resources.positions.created', 3)
             ->assertJsonStructure(['data' => ['departments', 'positions']]);
+
+        expect(Department::where('tenant_id', $tenant->id)->pluck('name')->all())
+            ->toEqualCanonicalizing(['Administration', 'Finance', 'HR']);
+        expect(Position::where('tenant_id', $tenant->id)->count())->toBe(3);
+        expect(Shift::where('tenant_id', $tenant->id)->count())->toBe(1);
+        expect(LeaveType::where('tenant_id', $tenant->id)->count())->toBe(2);
+    });
+
+    it('re-applies a template without duplicating anything', function () {
+        seedGovernmentTemplate();
+
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $url = 'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/apply-template';
+
+        $this->postJson($url, ['template_slug' => 'government'])->assertOk();
+
+        $this->postJson($url, ['template_slug' => 'government'])
+            ->assertOk()
+            ->assertJsonPath('provisioned.total_created', 0)
+            ->assertJsonPath('provisioned.resources.departments.skipped', 3);
+
+        expect(Department::where('tenant_id', $tenant->id)->count())->toBe(3);
+    });
+
+    it('records what was provisioned in the audit log', function () {
+        seedGovernmentTemplate();
+
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/apply-template',
+            ['template_slug' => 'government']
+        )->assertOk();
+
+        $entry = AuditLog::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('action', 'onboarding.template_applied')
+            ->first();
+
+        expect($entry)->not->toBeNull();
+        expect($entry->payload['provisioned']['resources']['departments']['created'])->toBe(3);
     });
 
     it('completes onboarding', function () {
@@ -122,6 +186,51 @@ describe('onboarding progress', function () {
 
         $progress = OnboardingProgress::where('tenant_id', $tenant->id)->first();
         expect($progress->completed_at)->not->toBeNull();
+    });
+
+    it('invites team members and skips ones that already exist', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        createUser(['email' => 'existing@acme.com'], $tenant);
+
+        $response = $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/invite',
+            ['emails' => ['new@acme.com', 'existing@acme.com'], 'role' => 'supervisor']
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('created.0.email', 'new@acme.com')
+            ->assertJsonPath('skipped.0', 'existing@acme.com');
+    });
+
+    it('rejects an invite payload with no emails', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/invite',
+            ['emails' => []]
+        )->assertUnprocessable()->assertJsonValidationErrors(['emails']);
+    });
+
+    it('rejects an invite with a malformed email', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/invite',
+            ['emails' => ['not-an-email']]
+        )->assertUnprocessable()->assertJsonValidationErrors(['emails.0']);
+    });
+
+    it('rejects an invite naming a role outside the allowed set', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->postJson(
+            'http://'.$tenant->subdomain.'.ethr.test/api/v1/onboarding/invite',
+            ['emails' => ['new@acme.com'], 'role' => 'super_admin']
+        )->assertUnprocessable()->assertJsonValidationErrors(['role']);
     });
 
     it('denies onboarding mutations to non-admin roles', function () {

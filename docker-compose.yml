@@ -24,6 +24,7 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
+      - APP_URL=http://localhost:8888
       - DB_CONNECTION=mariadb
       - DB_HOST=mariadb
       - DB_PORT=3306
@@ -34,7 +35,25 @@ services:
       - QUEUE_CONNECTION=redis
       - CACHE_STORE=redis
       - SESSION_DRIVER=redis
+      - SESSION_DOMAIN=
       - BROADCAST_CONNECTION=reverb
+      # Without these, config/broadcasting.php falls back to localhost and this
+      # container dials *itself* on 8080 instead of the reverb service, so every
+      # broadcast fails with "cURL error 7: Failed to connect to 127.0.0.1:8080".
+      # (REVERB_HOST on the reverb service itself is 0.0.0.0 — that is its bind
+      # address, not where clients should connect.)
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
+      # Tenant subdomains must be listed, not just the apex. Locally a tenant is
+      # reached at `demo.localhost:3000`, and without `*.localhost:3000` here
+      # Sanctum does not treat those requests as stateful: the session cookie is
+      # ignored, so every page load after login returned 401 and bounced the
+      # user back to /login. It also silently defeated the authenticated E2E
+      # specs, which were auditing a redirected login page rather than the app.
+      # `api/.env.example` already listed these — this line had drifted from it.
+      - SANCTUM_STATEFUL_DOMAINS=localhost,localhost:3000,localhost:8888,127.0.0.1,127.0.0.1:8000,*.localhost,*.localhost:3000,*.localhost:8888,ethr.et,*.ethr.et
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8888
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_ACCESS_KEY=ethr_minio
       - MINIO_SECRET_KEY=ethr_minio_secret
@@ -67,6 +86,11 @@ services:
       - REDIS_HOST=redis
       - QUEUE_CONNECTION=redis
       - CACHE_STORE=redis
+      # Horizon runs the queued broadcasts, so it needs to reach reverb by
+      # service name too — see the note on the api service.
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
     depends_on:
       mariadb:
         condition: service_healthy
@@ -93,6 +117,10 @@ services:
       - DB_USERNAME=ethr
       - DB_PASSWORD=ethr_secret
       - REDIS_HOST=redis
+      # Scheduled commands broadcast as well — same reasoning as api/worker.
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
     depends_on:
       mariadb:
         condition: service_healthy
@@ -109,10 +137,17 @@ services:
       args:
         NEXT_PUBLIC_API_URL: http://nginx
         NEXT_PUBLIC_APP_NAME: ETHR
-        NEXT_PUBLIC_APP_URL: http://localhost
+        NEXT_PUBLIC_APP_URL: http://localhost:8888
         NEXT_PUBLIC_REVERB_HOST: localhost
         NEXT_PUBLIC_REVERB_PORT: "8080"
         NEXT_PUBLIC_REVERB_SCHEME: http
+        # Empty on purpose: single-host local development, tenancy via X-Tenant.
+        # Declared rather than omitted so the value is part of the build's cache
+        # key — left undeclared, a build that had previously baked in a root
+        # domain (docker-compose.hostnames.yml) reused the cached builder layer,
+        # and the "restored" default stack went on redirecting /admin to
+        # admin.localhost with the container's own env showing empty.
+        NEXT_PUBLIC_ROOT_DOMAIN: ""
     environment:
       - PORT=3000
     networks:
@@ -168,6 +203,12 @@ services:
 
   redis:
     image: redis:7-alpine
+    # allkeys-lru here on purpose, unlike prod's volatile-lru (see the reasoning
+    # in docker-compose.prod.yml). This instance has no appendonly either: local
+    # development has nothing durable to lose, and volatile-lru's payoff is
+    # refusing writes rather than dropping jobs — a failure mode worth having in
+    # production and purely confusing on a dev box. Deliberate divergence, not
+    # drift.
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
@@ -183,7 +224,9 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    # Same pin as docker-compose.prod.yml so local storage behaviour matches
+    # production; `latest` on both sides meant the two could silently diverge.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"

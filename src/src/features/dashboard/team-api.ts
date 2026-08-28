@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 
 export interface TeamAttendanceEmployee {
@@ -6,6 +6,7 @@ export interface TeamAttendanceEmployee {
   name: string;
   department: string | null;
   photo_path: string | null;
+  photo_thumb_url: string | null;
   status: "present" | "absent" | "late" | "on_leave" | "checked_in";
   check_in: string | null;
   check_out: string | null;

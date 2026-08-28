@@ -13,10 +13,13 @@ class SubdomainCheckController extends Controller
 {
     public function __invoke(SubdomainCheckRequest $request): JsonResponse
     {
-        $reserved = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'app', 'staging', 'dev', 'test'];
         $subdomain = $request->input('subdomain');
 
-        $available = ! in_array($subdomain, $reserved, true)
+        // Must agree with what registration enforces and what ResolveTenant will
+        // actually resolve — hence the shared constant rather than a local list.
+        // The local copy this replaced had already drifted: it advertised `cdn`
+        // and `status` as available while resolution refused them.
+        $available = ! in_array($subdomain, Tenant::RESERVED_SUBDOMAINS, true)
             && ! Tenant::withoutGlobalScopes()->where('subdomain', $subdomain)->exists();
 
         return response()->json([

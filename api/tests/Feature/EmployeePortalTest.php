@@ -275,3 +275,80 @@ test('directory requires authentication', function () {
     test()->getJson('http://authtest.ethr.test/api/v1/directory')
         ->assertUnauthorized();
 });
+
+// ── Profile Update ──
+
+test('employee can update just their phone via profile', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/profile", [
+        'phone' => '+251912345678',
+    ])->assertOk();
+
+    expect($employee->fresh()->phone)->toBe('+251912345678');
+});
+
+test('employee can set their emergency contact via profile', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/profile", [
+        'emergency_contact_name' => 'Almaz Tesfaye',
+        'emergency_contact_phone' => '+251911223344',
+    ])->assertOk();
+
+    test()->assertDatabaseHas('employee_emergency_contacts', [
+        'employee_id' => $employee->id,
+        'name' => 'Almaz Tesfaye',
+        'phone' => '+251911223344',
+    ]);
+});
+
+test('emergency contact phone set via the profile shorthand is canonicalized from local 09... form', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/profile", [
+        'emergency_contact_name' => 'Local Format',
+        'emergency_contact_phone' => '0911223344',
+    ])->assertOk();
+
+    test()->assertDatabaseHas('employee_emergency_contacts', [
+        'employee_id' => $employee->id,
+        'name' => 'Local Format',
+        'phone' => '+251911223344',
+    ]);
+});
+
+test('updating profile emergency contact updates the existing primary contact, not a duplicate', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employee->emergencyContacts()->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Old Name',
+        'relationship' => 'parent',
+        'phone' => '+251900000000',
+        'priority' => 1,
+    ]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/profile", [
+        'emergency_contact_name' => 'New Name',
+        'emergency_contact_phone' => '+251911999888',
+    ])->assertOk();
+
+    expect($employee->emergencyContacts()->count())->toBe(1);
+    test()->assertDatabaseHas('employee_emergency_contacts', [
+        'employee_id' => $employee->id,
+        'name' => 'New Name',
+        'phone' => '+251911999888',
+    ]);
+});

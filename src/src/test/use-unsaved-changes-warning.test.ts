@@ -3,7 +3,9 @@ import { renderHook } from "@testing-library/react";
 import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 
 function dispatchBeforeUnload() {
-  const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
+  const event = new Event("beforeunload", {
+    cancelable: true,
+  }) as BeforeUnloadEvent;
   window.dispatchEvent(event);
   return event;
 }
@@ -41,7 +43,10 @@ describe("useUnsavedChangesWarning", () => {
 
     unmount();
 
-    expect(removeSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith(
+      "beforeunload",
+      expect.any(Function),
+    );
     removeSpy.mockRestore();
   });
 });

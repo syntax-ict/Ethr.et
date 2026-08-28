@@ -10,6 +10,8 @@ use App\Http\Requests\Organization\UpdateBranchRequest;
 use App\Http\Resources\BranchResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Services\CurrentTenant;
+use App\Services\PlanLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -50,9 +52,11 @@ class BranchController extends Controller
         );
     }
 
-    public function store(StoreBranchRequest $request): JsonResponse
+    public function store(StoreBranchRequest $request, PlanLimitService $planLimits): JsonResponse
     {
         Gate::authorize('org.create');
+
+        $planLimits->assertCanAdd(app(CurrentTenant::class)->get(), 'branches');
 
         $branch = Branch::create($request->validated());
 

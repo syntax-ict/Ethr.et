@@ -18,7 +18,7 @@ class BatchApprovalRequest extends FormRequest
     {
         return [
             'actions' => ['required', 'array', 'min:1'],
-            'actions.*.type' => ['required', 'string', 'in:leave,correction'],
+            'actions.*.type' => ['required', 'string', 'in:leave,correction,profile_update'],
             'actions.*.public_id' => ['required', 'string'],
             'actions.*.action' => ['required', 'string', 'in:approve,reject'],
             'actions.*.reason' => ['nullable', 'string'],

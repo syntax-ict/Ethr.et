@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,8 +34,15 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Controller } from "react-hook-form";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage, dateRangeRefinement } from "@/lib/forms/rules";
+import { z } from "zod";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -70,24 +77,60 @@ function assignableTypeLabel(
   return type;
 }
 
+/** `HH:MM`, what `<input type="time">` yields. */
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const shiftSchema = z.object({
+  name: rules.requiredText(255),
+  start_time: z.string().regex(TIME, "shifts_settings_page.time_invalid"),
+  end_time: z.string().regex(TIME, "shifts_settings_page.time_invalid"),
+  // Not bounded against start_time on purpose: a night shift legitimately ends
+  // before it starts (22:00 → 06:00), and the attendance engine already treats
+  // an end earlier than the start as crossing midnight. Rejecting it here would
+  // make every night shift unenterable.
+  grace_minutes: rules.integer({ min: 0, max: 240 }),
+});
+type ShiftValues = z.infer<typeof shiftSchema>;
+
+const assignSchema = z
+  .object({
+    shift_public_id: rules.select(),
+    assignable_type: z.enum(["employee", "department", "branch"]),
+    assignable_public_id: rules.select(),
+    effective_from: rules.date(),
+    effective_to: rules.optionalDate(),
+  })
+  .superRefine(dateRangeRefinement("effective_from", "effective_to"));
+type AssignValues = z.infer<typeof assignSchema>;
+
 export default function ShiftsPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    start_time: "",
-    end_time: "",
-    grace_minutes: "15",
+
+  const shiftForm = useZodForm<ShiftValues>({
+    schema: shiftSchema,
+    defaultValues: {
+      name: "",
+      start_time: "",
+      end_time: "",
+      grace_minutes: "15",
+    },
   });
-  const [assignForm, setAssignForm] = useState({
-    shift_public_id: "",
-    assignable_type: "employee" as "employee" | "department" | "branch",
-    assignable_public_id: "",
-    effective_from: new Date().toISOString().split("T")[0],
-    effective_to: "",
+
+  const assignForm = useZodForm<AssignValues>({
+    schema: assignSchema,
+    defaultValues: {
+      shift_public_id: "",
+      assignable_type: "employee",
+      assignable_public_id: "",
+      effective_from: new Date().toISOString().split("T")[0],
+      effective_to: "",
+    },
   });
+
+  const assignableType = assignForm.watch("assignable_type");
 
   const { data, isLoading } = useQuery<{ data: Shift[] }>({
     queryKey: ["shifts"],
@@ -114,16 +157,17 @@ export default function ShiftsPage() {
     data: { public_id: string; name: string }[];
   }>({
     queryKey: ["departments", "lookup"],
-    queryFn: async () => (await apiClient.get("/departments")).data,
-    enabled: assignOpen && assignForm.assignable_type === "department",
+    queryFn: async () =>
+      (await apiClient.get("/organization/departments")).data,
+    enabled: assignOpen && assignableType === "department",
   });
 
   const { data: branches } = useQuery<{
     data: { public_id: string; name: string }[];
   }>({
     queryKey: ["branches", "lookup"],
-    queryFn: async () => (await apiClient.get("/branches")).data,
-    enabled: assignOpen && assignForm.assignable_type === "branch",
+    queryFn: async () => (await apiClient.get("/organization/branches")).data,
+    enabled: assignOpen && assignableType === "branch",
   });
 
   const createShift = useMutation({
@@ -140,14 +184,9 @@ export default function ShiftsPage() {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
       toast.success(t("shifts_settings_page.created"));
       setDialogOpen(false);
-      setForm({ name: "", start_time: "", end_time: "", grace_minutes: "15" });
+      shiftForm.reset();
     },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail || t("shifts_settings_page.create_failed"),
-      );
-    },
+    // Errors land inline in the dialog now, not in a toast over a closed form.
   });
 
   const deleteShift = useMutation({
@@ -167,7 +206,7 @@ export default function ShiftsPage() {
   });
 
   const assignShift = useMutation({
-    mutationFn: async (payload: typeof assignForm) => {
+    mutationFn: async (payload: AssignValues) => {
       const { data } = await apiClient.post("/shifts/assign", {
         ...payload,
         effective_to: payload.effective_to || null,
@@ -178,39 +217,25 @@ export default function ShiftsPage() {
       queryClient.invalidateQueries({ queryKey: ["shifts"] });
       toast.success(t("shifts_settings_page.assigned"));
       setAssignOpen(false);
-      setAssignForm({
-        shift_public_id: "",
-        assignable_type: "employee",
-        assignable_public_id: "",
-        effective_from: new Date().toISOString().split("T")[0],
-        effective_to: "",
-      });
-    },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail || t("shifts_settings_page.assign_failed"),
-      );
+      assignForm.reset();
     },
   });
 
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    createShift.mutate({
-      name: form.name,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      grace_minutes: parseInt(form.grace_minutes, 10),
+  async function onCreate(values: ShiftValues) {
+    await createShift.mutateAsync({
+      name: values.name,
+      start_time: values.start_time,
+      end_time: values.end_time,
+      grace_minutes: Number(values.grace_minutes),
     });
   }
 
-  function handleAssign(e: React.FormEvent) {
-    e.preventDefault();
-    assignShift.mutate(assignForm);
+  async function onAssign(values: AssignValues) {
+    await assignShift.mutateAsync(values);
   }
 
   function openAssignFor(shiftPublicId: string) {
-    setAssignForm((p) => ({ ...p, shift_public_id: shiftPublicId }));
+    assignForm.setValue("shift_public_id", shiftPublicId);
     setAssignOpen(true);
   }
 
@@ -218,12 +243,12 @@ export default function ShiftsPage() {
   const schedule = scheduleData?.data ?? [];
 
   const assignableOptions =
-    assignForm.assignable_type === "employee"
+    assignableType === "employee"
       ? (employees?.data ?? []).map((e) => ({
           value: e.public_id,
           label: `${e.name} (${e.employee_code})`,
         }))
-      : assignForm.assignable_type === "department"
+      : assignableType === "department"
         ? (departments?.data ?? []).map((d) => ({
             value: d.public_id,
             label: d.name,
@@ -285,93 +310,73 @@ export default function ShiftsPage() {
             ) : (
               <Card>
                 <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("common.name")}
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.start")}
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.end")}
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.grace")}
-                          </th>
-                          <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                            {t("shifts_settings_page.assignments")}
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
-                            {t("common.actions")}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {shifts.map((shift) => (
-                          <tr
-                            key={shift.public_id}
-                            className="border-b last:border-0 hover:bg-muted/30"
+                  <SimpleTable
+                    caption={t("shifts_settings_page.title", "Shifts")}
+                    headers={[
+                      t("common.name"),
+                      t("shifts_settings_page.start"),
+                      t("shifts_settings_page.end"),
+                      t("shifts_settings_page.grace"),
+                      t("shifts_settings_page.assignments"),
+                    ]}
+                    align={["left", "left", "left", "right", "right"]}
+                    colClassName={["", "", "", "", "hidden sm:table-cell"]}
+                    rows={shifts.map((shift) => ({
+                      key: shift.public_id,
+                      cells: [
+                        <span key="n" className="font-medium">
+                          {shift.name}
+                          {shift.is_default && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {t("shifts_settings_page.default")}
+                            </Badge>
+                          )}
+                        </span>,
+                        <span key="s" className="text-muted-foreground">
+                          {shift.start_time}
+                        </span>,
+                        <span key="e" className="text-muted-foreground">
+                          {shift.end_time}
+                        </span>,
+                        <span key="g" className="text-muted-foreground">
+                          {shift.grace_minutes}m
+                        </span>,
+                        <span key="a" className="text-muted-foreground">
+                          {shift.assignments_count ?? "—"}
+                        </span>,
+                      ],
+                      actions: (
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openAssignFor(shift.public_id)}
                           >
-                            <td className="px-4 py-3 text-sm font-medium text-foreground">
-                              {shift.name}
-                              {shift.is_default && (
-                                <Badge
-                                  variant="outline"
-                                  className="ml-2 text-xs"
-                                >
-                                  {t("shifts_settings_page.default")}
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">
-                              {shift.start_time}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">
-                              {shift.end_time}
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                              {shift.grace_minutes}m
-                            </td>
-                            <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground sm:table-cell">
-                              {shift.assignments_count ?? "—"}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openAssignFor(shift.public_id)}
-                                >
-                                  <CalendarDays className="h-3 w-3 mr-1" />{" "}
-                                  {t("shifts_settings_page.assign")}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => {
-                                    if (
-                                      confirm(
-                                        t(
-                                          "shifts_settings_page.delete_confirm",
-                                        ),
-                                      )
-                                    )
-                                      deleteShift.mutate(shift.public_id);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            <CalendarDays className="mr-1 h-3 w-3" />{" "}
+                            {t("shifts_settings_page.assign")}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  t("shifts_settings_page.delete_confirm"),
+                                )
+                              )
+                                deleteShift.mutate(shift.public_id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span className="sr-only">
+                              {t("common.delete", "Delete")}
+                            </span>
+                          </Button>
+                        </div>
+                      ),
+                    }))}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -398,72 +403,61 @@ export default function ShiftsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.shift")}
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.assigned_to")}
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.from")}
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
-                            {t("shifts_settings_page.to")}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {schedule.map((assignment, i) => {
-                          const TypeIcon =
-                            typeIcon[
-                              assignment.assignable_type.toLowerCase() as keyof typeof typeIcon
-                            ] ?? Users;
-                          return (
-                            <tr
-                              key={i}
-                              className="border-b last:border-0 hover:bg-muted/30"
+                  <SimpleTable
+                    caption={t(
+                      "shifts_settings_page.active_schedule",
+                      "Active schedule",
+                    )}
+                    headers={[
+                      t("shifts_settings_page.shift"),
+                      t("shifts_settings_page.assigned_to"),
+                      t("shifts_settings_page.from"),
+                      t("shifts_settings_page.to"),
+                    ]}
+                    rows={schedule.map((assignment, i) => {
+                      const TypeIcon =
+                        typeIcon[
+                          assignment.assignable_type.toLowerCase() as keyof typeof typeIcon
+                        ] ?? Users;
+                      return {
+                        key: String(i),
+                        cells: [
+                          <span key="sh" className="font-medium">
+                            {assignment.shift?.name ?? "—"}
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {assignment.shift?.start_time}–
+                              {assignment.shift?.end_time}
+                            </span>
+                          </span>,
+                          <div
+                            key="ty"
+                            className="flex items-center gap-2 text-muted-foreground"
+                          >
+                            <TypeIcon className="h-3.5 w-3.5" />
+                            <Badge
+                              variant="outline"
+                              className="text-xs capitalize"
                             >
-                              <td className="px-4 py-3 text-sm font-medium text-foreground">
-                                {assignment.shift?.name ?? "—"}
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  {assignment.shift?.start_time}–
-                                  {assignment.shift?.end_time}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                  <TypeIcon className="h-3.5 w-3.5" />
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs capitalize"
-                                  >
-                                    {assignableTypeLabel(
-                                      assignment.assignable_type,
-                                      t,
-                                    )}
-                                  </Badge>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">
-                                {assignment.effective_from ?? "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">
-                                {assignment.effective_to ?? (
-                                  <span className="text-xs italic">
-                                    {t("shifts_settings_page.ongoing")}
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              {assignableTypeLabel(
+                                assignment.assignable_type,
+                                t,
+                              )}
+                            </Badge>
+                          </div>,
+                          <span key="f" className="text-muted-foreground">
+                            {assignment.effective_from ?? "—"}
+                          </span>,
+                          <span key="to" className="text-muted-foreground">
+                            {assignment.effective_to ?? (
+                              <span className="text-xs italic">
+                                {t("shifts_settings_page.ongoing")}
+                              </span>
+                            )}
+                          </span>,
+                        ],
+                      };
+                    })}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -476,68 +470,83 @@ export default function ShiftsPage() {
             <DialogHeader>
               <DialogTitle>{t("shifts_settings_page.add_shift")}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <Label htmlFor="shift_name">{t("common.name")}</Label>
+            <form
+              onSubmit={shiftForm.submit(
+                onCreate,
+                t("shifts_settings_page.create_failed"),
+              )}
+              className="space-y-4"
+              noValidate
+            >
+              <FormErrorSummary message={shiftForm.rootError} />
+
+              <FormField
+                id="shift_name"
+                label={t("common.name")}
+                required
+                error={fieldMessage(
+                  t,
+                  shiftForm.formState.errors.name?.message,
+                )}
+              >
                 <Input
-                  id="shift_name"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, name: e.target.value }))
-                  }
+                  {...shiftForm.register("name")}
                   placeholder={t("shifts_settings_page.name_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
+              </FormField>
+
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="shift_start">
-                    {t("shifts_settings_page.start_time")}
-                  </Label>
+                <FormField
+                  id="shift_start"
+                  label={t("shifts_settings_page.start_time")}
+                  required
+                  error={fieldMessage(
+                    t,
+                    shiftForm.formState.errors.start_time?.message,
+                  )}
+                >
                   <Input
-                    id="shift_start"
+                    {...shiftForm.register("start_time")}
                     type="time"
-                    value={form.start_time}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, start_time: e.target.value }))
-                    }
-                    required
                     className="mt-1"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="shift_end">
-                    {t("shifts_settings_page.end_time")}
-                  </Label>
+                </FormField>
+
+                <FormField
+                  id="shift_end"
+                  label={t("shifts_settings_page.end_time")}
+                  required
+                  error={fieldMessage(
+                    t,
+                    shiftForm.formState.errors.end_time?.message,
+                  )}
+                >
                   <Input
-                    id="shift_end"
+                    {...shiftForm.register("end_time")}
                     type="time"
-                    value={form.end_time}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, end_time: e.target.value }))
-                    }
-                    required
                     className="mt-1"
                   />
-                </div>
+                </FormField>
               </div>
-              <div>
-                <Label htmlFor="shift_grace">
-                  {t("shifts_settings_page.grace_period")}
-                </Label>
+
+              <FormField
+                id="shift_grace"
+                label={t("shifts_settings_page.grace_period")}
+                required
+                error={fieldMessage(
+                  t,
+                  shiftForm.formState.errors.grace_minutes?.message,
+                )}
+              >
                 <Input
-                  id="shift_grace"
+                  {...shiftForm.register("grace_minutes")}
                   type="number"
                   min="0"
-                  value={form.grace_minutes}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, grace_minutes: e.target.value }))
-                  }
-                  required
                   className="mt-1"
                 />
-              </div>
+              </FormField>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -546,8 +555,11 @@ export default function ShiftsPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={createShift.isPending}>
-                  {createShift.isPending && (
+                <Button
+                  type="submit"
+                  disabled={shiftForm.formState.isSubmitting}
+                >
+                  {shiftForm.formState.isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("shifts_settings_page.add_shift")}
@@ -565,124 +577,193 @@ export default function ShiftsPage() {
                 {t("shifts_settings_page.assign_shift")}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAssign} className="space-y-4">
-              <div>
-                <Label>{t("shifts_settings_page.shift")}</Label>
-                <Select
-                  value={assignForm.shift_public_id}
-                  onValueChange={(v) =>
-                    setAssignForm((p) => ({ ...p, shift_public_id: v }))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue
-                      placeholder={t("shifts_settings_page.select_shift")}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shifts.map((s) => (
-                      <SelectItem key={s.public_id} value={s.public_id}>
-                        {s.name} ({s.start_time}–{s.end_time})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <form
+              onSubmit={assignForm.submit(
+                onAssign,
+                t("shifts_settings_page.assign_failed"),
+              )}
+              className="space-y-4"
+              noValidate
+            >
+              <FormErrorSummary message={assignForm.rootError} />
 
-              <div>
-                <Label>{t("shifts_settings_page.assign_to")}</Label>
-                <Select
-                  value={assignForm.assignable_type}
-                  onValueChange={(v) =>
-                    setAssignForm((p) => ({
-                      ...p,
-                      assignable_type: v as
-                        "employee" | "department" | "branch",
-                      assignable_public_id: "",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="employee">
-                      {t("shifts_settings_page.employee")}
-                    </SelectItem>
-                    <SelectItem value="department">
-                      {t("shifts_settings_page.department")}
-                    </SelectItem>
-                    <SelectItem value="branch">
-                      {t("shifts_settings_page.branch")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <FormField
+                id="assign_shift"
+                label={t("shifts_settings_page.shift")}
+                required
+                error={fieldMessage(
+                  t,
+                  assignForm.formState.errors.shift_public_id?.message,
+                )}
+              >
+                {(control) => (
+                  <Controller
+                    name="shift_public_id"
+                    control={assignForm.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger {...control} className="mt-1">
+                          <SelectValue
+                            placeholder={t("shifts_settings_page.select_shift")}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {shifts.map((s) => (
+                            <SelectItem key={s.public_id} value={s.public_id}>
+                              {s.name} ({s.start_time}–{s.end_time})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+              </FormField>
 
-              <div>
-                <Label>
-                  {assignForm.assignable_type === "employee"
+              <FormField
+                id="assign_type"
+                label={t("shifts_settings_page.assign_to")}
+                required
+              >
+                {(control) => (
+                  <Controller
+                    name="assignable_type"
+                    control={assignForm.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          // The target list is scoped by type, so a previously
+                          // chosen employee is not a valid department. Clearing
+                          // it stops a stale id being submitted against the
+                          // wrong collection.
+                          assignForm.setValue("assignable_public_id", "");
+                        }}
+                      >
+                        <SelectTrigger {...control} className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="employee">
+                            {t("shifts_settings_page.employee")}
+                          </SelectItem>
+                          <SelectItem value="department">
+                            {t("shifts_settings_page.department")}
+                          </SelectItem>
+                          <SelectItem value="branch">
+                            {t("shifts_settings_page.branch")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+              </FormField>
+
+              <FormField
+                id="assign_target"
+                label={
+                  assignableType === "employee"
                     ? t("shifts_settings_page.employee")
-                    : assignForm.assignable_type === "department"
+                    : assignableType === "department"
                       ? t("shifts_settings_page.department")
-                      : t("shifts_settings_page.branch")}
-                </Label>
-                <Select
-                  value={assignForm.assignable_public_id}
-                  onValueChange={(v) =>
-                    setAssignForm((p) => ({ ...p, assignable_public_id: v }))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue
-                      placeholder={t("shifts_settings_page.select_ellipsis")}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignableOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                      : t("shifts_settings_page.branch")
+                }
+                required
+                error={fieldMessage(
+                  t,
+                  assignForm.formState.errors.assignable_public_id?.message,
+                )}
+              >
+                {(control) => (
+                  <Controller
+                    name="assignable_public_id"
+                    control={assignForm.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger {...control} className="mt-1">
+                          <SelectValue
+                            placeholder={t(
+                              "shifts_settings_page.select_ellipsis",
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assignableOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+              </FormField>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("shifts_settings_page.effective_from")}</Label>
-                  <Input
-                    type="date"
-                    value={assignForm.effective_from}
-                    onChange={(e) =>
-                      setAssignForm((p) => ({
-                        ...p,
-                        effective_from: e.target.value,
-                      }))
-                    }
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>
-                    {t("shifts_settings_page.effective_to")}{" "}
-                    <span className="text-xs text-muted-foreground">
-                      ({t("leave_page.optional")})
-                    </span>
-                  </Label>
-                  <Input
-                    type="date"
-                    value={assignForm.effective_to}
-                    onChange={(e) =>
-                      setAssignForm((p) => ({
-                        ...p,
-                        effective_to: e.target.value,
-                      }))
-                    }
-                    className="mt-1"
-                  />
-                </div>
+                <FormField
+                  id="assign_from"
+                  label={t("shifts_settings_page.effective_from")}
+                  required
+                  error={fieldMessage(
+                    t,
+                    assignForm.formState.errors.effective_from?.message,
+                  )}
+                >
+                  {(control) => (
+                    <Controller
+                      name="effective_from"
+                      control={assignForm.control}
+                      render={({ field }) => (
+                        <DualCalendarDateInput
+                          {...control}
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="mt-1"
+                        />
+                      )}
+                    />
+                  )}
+                </FormField>
+
+                <FormField
+                  id="assign_to_date"
+                  label={
+                    <>
+                      {t("shifts_settings_page.effective_to")}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({t("leave_page.optional")})
+                      </span>
+                    </>
+                  }
+                  error={fieldMessage(
+                    t,
+                    assignForm.formState.errors.effective_to?.message,
+                  )}
+                >
+                  {(control) => (
+                    <Controller
+                      name="effective_to"
+                      control={assignForm.control}
+                      render={({ field }) => (
+                        <DualCalendarDateInput
+                          {...control}
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="mt-1"
+                        />
+                      )}
+                    />
+                  )}
+                </FormField>
               </div>
 
               <DialogFooter>
@@ -695,13 +776,9 @@ export default function ShiftsPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    assignShift.isPending ||
-                    !assignForm.shift_public_id ||
-                    !assignForm.assignable_public_id
-                  }
+                  disabled={assignForm.formState.isSubmitting}
                 >
-                  {assignShift.isPending && (
+                  {assignForm.formState.isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("shifts_settings_page.assign")}

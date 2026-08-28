@@ -41,10 +41,10 @@ interface Announcement {
 }
 
 const priorityColors: Record<string, string> = {
-  urgent: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-  normal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-  low: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  urgent: "bg-destructive-soft text-destructive-on-soft",
+  high: "bg-warning-soft text-warning-on-soft",
+  normal: "bg-info-soft text-info-on-soft",
+  low: "bg-muted text-muted-foreground",
 };
 
 export default function AnnouncementsPage() {
@@ -176,7 +176,7 @@ export default function AnnouncementsPage() {
                         variant="outline"
                         className={`border-0 text-[10px] ${priorityColors[a.priority] ?? ""}`}
                       >
-                        {a.priority}
+                        {t(`common.${a.priority}`, a.priority)}
                       </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">

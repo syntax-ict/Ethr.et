@@ -16,6 +16,14 @@ export function formatDateTime(dateStr: string): string {
   });
 }
 
+export function formatTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export function timeAgo(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);

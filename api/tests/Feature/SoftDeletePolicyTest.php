@@ -21,7 +21,7 @@ test('deleting an employee document soft-deletes it and keeps the underlying fil
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
     $upload = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$employee->public_id}/documents", [
-        'file' => UploadedFile::fake()->create('contract.pdf', 100, 'application/pdf'),
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', '%PDF-1.4 fake content'),
         'title' => 'Employment Contract',
         'type' => 'contract',
     ]);

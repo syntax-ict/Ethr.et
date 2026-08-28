@@ -35,6 +35,31 @@ class EmployeeDocumentController extends Controller
         );
     }
 
+    /**
+     * Documents expiring within a window (PHASE_02 S12: "documents expiring
+     * within 30 days (for notification/dashboard)").
+     *
+     * Tenant-wide rather than per-employee: the point is for HR to catch a work
+     * permit or contract before it lapses, which means seeing every employee's at
+     * once. Already-expired documents are included — a permit that lapsed last
+     * week is more urgent than one lapsing next week, not less.
+     */
+    public function expiring(Request $request): AnonymousResourceCollection
+    {
+        Gate::authorize('employee.viewAny');
+
+        $days = min(max((int) $request->query('days', 30), 1), 365);
+
+        $documents = EmployeeDocument::query()
+            ->whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '<=', now()->addDays($days))
+            ->with('employee:id,public_id,name')
+            ->orderBy('expiry_date')
+            ->paginate(min((int) $request->query('per_page', 25), 100));
+
+        return EmployeeDocumentResource::collection($documents);
+    }
+
     public function store(StoreDocumentRequest $request, Employee $employee): JsonResponse
     {
         Gate::authorize('employee.update');

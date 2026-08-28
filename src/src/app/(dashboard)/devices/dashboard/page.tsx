@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -100,31 +101,31 @@ export default function DeviceDashboardPage() {
                 icon={Fingerprint}
                 title={t("devices_dashboard_page.total_devices")}
                 value={stats.total}
-                color="blue"
+                color="info"
               />
               <StatusCard
                 icon={Wifi}
                 title={t("devices_page.online")}
                 value={stats.online}
-                color="green"
+                color="success"
               />
               <StatusCard
                 icon={WifiOff}
                 title={t("devices_page.offline")}
                 value={stats.offline}
-                color="gray"
+                color="neutral"
               />
               <StatusCard
                 icon={AlertTriangle}
                 title={t("devices_page.error")}
                 value={stats.error}
-                color="red"
+                color="danger"
               />
               <StatusCard
                 icon={Activity}
                 title={t("devices_dashboard_page.events_today")}
                 value={stats.events_today}
-                color="purple"
+                color="brand"
               />
             </div>
 
@@ -140,7 +141,7 @@ export default function DeviceDashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       {t("devices_dashboard_page.successful")}
                     </p>
-                    <p className="text-xl font-bold text-green-600">
+                    <p className="text-xl font-bold text-success">
                       {stats.sync_stats_24h.success}
                     </p>
                   </div>
@@ -148,7 +149,7 @@ export default function DeviceDashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       {t("devices_dashboard_page.partial")}
                     </p>
-                    <p className="text-xl font-bold text-amber-600">
+                    <p className="text-xl font-bold text-warning">
                       {stats.sync_stats_24h.partial}
                     </p>
                   </div>
@@ -156,7 +157,7 @@ export default function DeviceDashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       {t("devices_dashboard_page.failed")}
                     </p>
-                    <p className="text-xl font-bold text-red-600">
+                    <p className="text-xl font-bold text-destructive">
                       {stats.sync_stats_24h.failed}
                     </p>
                   </div>
@@ -193,96 +194,86 @@ export default function DeviceDashboardPage() {
                   <Skeleton key={i} className="h-14" />
                 ))}
               </div>
+            ) : allDevices.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-muted-foreground">
+                {t("devices_dashboard_page.no_devices_yet")}
+              </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("devices_page.device_name")}
-                      </th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground sm:table-cell">
-                        {t("devices_dashboard_page.adapter")}
-                      </th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        {t("devices_dashboard_page.serial")}
-                      </th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground md:table-cell">
-                        {t("attendance.kiosks_page.branch").replace(" *", "")}
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground">
-                        {t("common.status")}
-                      </th>
-                      <th className="hidden px-4 py-2 text-right text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                        {t("devices_page.records")}
-                      </th>
-                      <th className="hidden px-4 py-2 text-left text-xs font-medium uppercase text-muted-foreground lg:table-cell">
-                        {t("devices_dashboard_page.last_sync")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allDevices.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="px-4 py-12 text-center text-sm text-muted-foreground"
-                        >
-                          {t("devices_dashboard_page.no_devices_yet")}
-                        </td>
-                      </tr>
-                    ) : (
-                      allDevices.map((d) => (
-                        <tr
-                          key={d.public_id}
-                          className="border-b last:border-0 hover:bg-muted/30"
-                        >
-                          <td className="px-4 py-3 text-sm font-medium">
-                            {d.name}
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm capitalize text-muted-foreground sm:table-cell">
-                            {d.adapter_type === "mock"
-                              ? t("devices_page.mock_simulator")
-                              : (ADAPTER_LABELS[d.adapter_type] ??
-                                d.adapter_type)}
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm font-mono text-muted-foreground md:table-cell">
-                            {d.serial_number ?? "—"}
-                          </td>
-                          <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">
-                            {d.branch?.name ?? "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge
-                              variant="outline"
-                              className={statusClass(d.status)}
-                            >
-                              <span
-                                className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dotClass(d.status)}`}
-                              />
-                              {statusLabel(d.status, t)}
-                            </Badge>
-                          </td>
-                          <td className="hidden px-4 py-3 text-right text-sm tabular-nums text-muted-foreground lg:table-cell">
-                            {d.attendance_records_count?.toLocaleString() ??
-                              "—"}
-                          </td>
-                          <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
-                            {d.last_sync_at ? (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />{" "}
-                                {timeAgo(d.last_sync_at, t)}
-                              </span>
-                            ) : (
-                              t("devices_page.never")
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable
+                caption={t("devices_page.title", "Devices")}
+                headers={[
+                  t("devices_page.device_name"),
+                  t("devices_dashboard_page.adapter"),
+                  t("devices_dashboard_page.serial"),
+                  t("attendance.kiosks_page.branch").replace(" *", ""),
+                  t("common.status"),
+                  t("devices_page.records"),
+                  t("devices_dashboard_page.last_sync"),
+                ]}
+                align={[
+                  "left",
+                  "left",
+                  "left",
+                  "left",
+                  "left",
+                  "right",
+                  "left",
+                ]}
+                colClassName={[
+                  "",
+                  "hidden sm:table-cell",
+                  "hidden md:table-cell",
+                  "hidden md:table-cell",
+                  "",
+                  "hidden lg:table-cell",
+                  "hidden lg:table-cell",
+                ]}
+                rows={allDevices.map((d) => ({
+                  key: d.public_id,
+                  cells: [
+                    <span key="n" className="font-medium">
+                      {d.name}
+                    </span>,
+                    <span key="a" className="capitalize text-muted-foreground">
+                      {d.adapter_type === "mock"
+                        ? t("devices_page.mock_simulator")
+                        : (ADAPTER_LABELS[d.adapter_type] ?? d.adapter_type)}
+                    </span>,
+                    <span key="sn" className="font-mono text-muted-foreground">
+                      {d.serial_number ?? "—"}
+                    </span>,
+                    <span key="b" className="text-muted-foreground">
+                      {d.branch?.name ?? "—"}
+                    </span>,
+                    <Badge
+                      key="s"
+                      variant="outline"
+                      className={statusClass(d.status)}
+                    >
+                      <span
+                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dotClass(d.status)}`}
+                      />
+                      {statusLabel(d.status, t)}
+                    </Badge>,
+                    <span
+                      key="r"
+                      className="tabular-nums text-muted-foreground"
+                    >
+                      {d.attendance_records_count?.toLocaleString() ?? "—"}
+                    </span>,
+                    <span key="ls" className="text-xs text-muted-foreground">
+                      {d.last_sync_at ? (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />{" "}
+                          {timeAgo(d.last_sync_at, t)}
+                        </span>
+                      ) : (
+                        t("devices_page.never")
+                      )}
+                    </span>,
+                  ],
+                }))}
+              />
             )}
           </CardContent>
         </Card>
@@ -299,12 +290,11 @@ const ADAPTER_LABELS: Record<string, string> = {
 };
 
 const colorClass: Record<string, string> = {
-  blue: "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
-  green: "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400",
-  gray: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  red: "bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400",
-  purple:
-    "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
+  info: "bg-info-soft text-info-on-soft",
+  success: "bg-success-soft text-success-on-soft",
+  neutral: "bg-neutral-soft text-neutral-on-soft",
+  danger: "bg-destructive-soft text-destructive-on-soft",
+  brand: "bg-brand-soft text-brand-on-soft",
 };
 
 function StatusCard({
@@ -337,25 +327,22 @@ function StatusCard({
 
 function statusClass(status: string): string {
   const map: Record<string, string> = {
-    online:
-      "border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    offline:
-      "border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-    error: "border-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    pending:
-      "border-0 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300",
+    online: "border-0 bg-success-soft text-success-on-soft",
+    offline: "border-0 bg-neutral-soft text-neutral-on-soft",
+    error: "border-0 bg-destructive-soft text-destructive-on-soft",
+    pending: "border-0 bg-warning-soft text-warning-on-soft",
   };
   return map[status] ?? "";
 }
 
 function dotClass(status: string): string {
   const map: Record<string, string> = {
-    online: "bg-green-500 animate-pulse",
-    offline: "bg-gray-400",
-    error: "bg-red-500",
-    pending: "bg-amber-500",
+    online: "bg-success animate-pulse",
+    offline: "bg-muted-foreground",
+    error: "bg-destructive",
+    pending: "bg-warning",
   };
-  return map[status] ?? "bg-gray-400";
+  return map[status] ?? "bg-muted-foreground";
 }
 
 function statusLabel(

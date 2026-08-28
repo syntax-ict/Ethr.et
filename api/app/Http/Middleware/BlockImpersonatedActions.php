@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ApiKey\ApiKeyController;
 use App\Http\Controllers\Api\V1\Auth\MfaSetupController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
+use App\Services\Auth\ImpersonationToken;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,7 +32,7 @@ class BlockImpersonatedActions
         // Sanctum's can() treats '*' as matching any ability, so a normal
         // token (abilities: ['*']) would also match 'impersonation'. Check
         // the abilities list directly instead of via can().
-        if ($token && in_array('impersonation', $token->abilities ?? [], true)) {
+        if ($token && in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
             $action = $request->route()?->getActionName();
 
             if ($request->isMethod('delete') || in_array($action, self::BLOCKED_ACTIONS, true)) {

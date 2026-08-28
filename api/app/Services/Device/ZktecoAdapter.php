@@ -95,6 +95,40 @@ final class ZktecoAdapter implements DeviceAdapter
         }
     }
 
+    public function pullEnrollments(Device $device): array
+    {
+        try {
+            $response = $this->request($device, 'GET', '/api/users', ['limit' => 500]);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $data = $response->json();
+            $enrollments = [];
+
+            foreach ($data['users'] ?? $data ?? [] as $user) {
+                $enrollments[] = [
+                    'device_user_id' => (string) ($user['pin'] ?? $user['user_id'] ?? ''),
+                    'name' => $user['name'] ?? null,
+                    'card_number' => isset($user['card']) ? (string) $user['card'] : null,
+                    'department' => $user['dept_name'] ?? $user['department'] ?? null,
+                    'fingerprint_count' => isset($user['fp_count']) ? (int) $user['fp_count'] : null,
+                    'face_registered' => isset($user['face']) ? (bool) $user['face'] : null,
+                ];
+            }
+
+            return $enrollments;
+        } catch (\Throwable $e) {
+            Log::error('ZKTeco pullEnrollments failed', [
+                'device_id' => $device->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
     public function pushEventUrl(Device $device, string $callbackUrl): bool
     {
         try {
@@ -119,7 +153,8 @@ final class ZktecoAdapter implements DeviceAdapter
         $config = $device->connection_config;
         $baseUrl = "http://{$config['ip']}:{$config['port']}";
 
-        $request = Http::timeout(10);
+        // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
+        $request = Http::connectTimeout(2)->timeout(10);
 
         if (! empty($config['api_key'])) {
             $request = $request->withHeaders(['Authorization' => "Bearer {$config['api_key']}"]);

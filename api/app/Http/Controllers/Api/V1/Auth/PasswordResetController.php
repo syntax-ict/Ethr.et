@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\AuditLog;
+use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Notifications\PasswordResetLinkNotification;
 use App\Services\CurrentTenant;
@@ -124,15 +125,35 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        // Update password + invalidate all existing tokens
-        $user->update(['password' => Hash::make($request->input('password'))]);
+        // Update password + invalidate all existing tokens. If this is an
+        // invited account setting its password for the first time, this same
+        // flow also activates it (invited -> active) so it can sign in.
+        $wasInvited = $user->status === 'invited';
+
+        $updates = [
+            'password' => Hash::make($request->input('password')),
+            // Starts the expiry clock for the tenant's password policy.
+            'password_changed_at' => now(),
+        ];
+
+        if ($wasInvited) {
+            $updates['status'] = 'active';
+            $updates['activated_at'] = now();
+            if ($user->email_verified_at === null) {
+                $updates['email_verified_at'] = now();
+            }
+        }
+
+        $user->update($updates);
         $user->tokens()->delete();
         $broker->deleteToken($user);
 
-        AuditLog::record('user.password_reset_completed', $user);
+        AuditLog::record($wasInvited ? 'user.activated' : 'user.password_reset_completed', $user);
 
         return response()->json([
-            'message' => 'Password has been reset. Please sign in with your new password.',
+            'message' => $wasInvited
+                ? 'Your account is now active. Please sign in with your new password.'
+                : 'Password has been reset. Please sign in with your new password.',
         ]);
     }
 
@@ -152,11 +173,18 @@ class PasswordResetController extends Controller
         }
 
         DB::transaction(function () use ($user, $request) {
-            $user->update(['password' => Hash::make($request->input('password'))]);
+            $user->update([
+                'password' => Hash::make($request->input('password')),
+                'password_changed_at' => now(),
+            ]);
 
             // Revoke all other sessions but keep the current one active so the
-            // caller doesn't get logged out mid-request
-            $currentTokenId = $user->currentAccessToken()?->id;
+            // caller doesn't get logged out mid-request.
+            //
+            // Guarded: under session-cookie auth `currentAccessToken()` is a
+            // TransientToken with no `id`, and reading it raised "Undefined
+            // property" — so changing a password over a cookie session 500'd.
+            $currentTokenId = PersonalAccessToken::currentIdFor($user);
             $user->tokens()
                 ->when($currentTokenId, fn ($q) => $q->where('id', '!=', $currentTokenId))
                 ->delete();

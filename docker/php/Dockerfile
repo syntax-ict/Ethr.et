@@ -34,6 +34,12 @@ COPY api/ .
 
 RUN composer install --optimize-autoloader --no-interaction --no-scripts
 
+# The host's public/storage is excluded from the build context (it is an
+# absolute symlink that dangles outside a container, and buildkit rejects the
+# whole context over it), so the link is made here instead. Relative, so it
+# survives a change of WORKDIR.
+RUN ln -sfn ../storage/app/public public/storage
+
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 9000

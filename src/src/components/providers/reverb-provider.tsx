@@ -7,25 +7,20 @@ import { initEcho, disconnectEcho } from "@/lib/echo";
 
 interface ReverbProviderProps {
   userId?: string;
-  token?: string;
   children?: React.ReactNode;
 }
 
-export function ReverbProvider({
-  userId,
-  token,
-  children,
-}: ReverbProviderProps) {
+export function ReverbProvider({ userId, children }: ReverbProviderProps) {
   const queryClient = useQueryClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!userId || !token) return;
+    if (!userId) return;
 
     let mounted = true;
 
-    initEcho(token).then((echo) => {
+    initEcho().then((echo) => {
       if (!echo || !mounted) return;
 
       try {
@@ -33,10 +28,8 @@ export function ReverbProvider({
         channelRef.current.listen(
           ".Illuminate\\Notifications\\Events\\BroadcastNotificationCreated",
           (event: { data?: { message?: string }; id?: string }) => {
-            // Invalidate notification queries to refresh badge + list
             queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
-            // Show toast
             const message =
               event?.data?.message ?? "You have a new notification";
             toast.info(message, { duration: 5000 });
@@ -58,7 +51,7 @@ export function ReverbProvider({
       }
       disconnectEcho();
     };
-  }, [userId, token, queryClient]);
+  }, [userId, queryClient]);
 
   return <>{children}</>;
 }

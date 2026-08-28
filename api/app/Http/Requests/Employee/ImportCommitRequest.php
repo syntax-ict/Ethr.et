@@ -18,6 +18,9 @@ class ImportCommitRequest extends FormRequest
     {
         return [
             'import_key' => ['required', 'string', 'max:50'],
+            // When true, a login account is provisioned for every imported row
+            // that has an email (each receives an activation link).
+            'create_logins' => ['sometimes', 'boolean'],
             'rows' => ['required', 'array', 'min:1'],
             'rows.*.name' => ['required', 'string', 'max:255'],
             'rows.*.email' => ['nullable', 'email', 'max:255'],

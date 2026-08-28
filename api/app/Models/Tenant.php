@@ -11,10 +11,50 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 
+/** @property TenantStatus $status */
 class Tenant extends Model
 {
     use HasFactory, HasPublicId, SoftDeletes;
+
+    /**
+     * Subdomains a tenant may never claim — the single source of truth.
+     *
+     * This lived in three places that had already drifted apart: ResolveTenant
+     * refused one set, SubdomainCheckController advertised availability against
+     * a different set, and RegisterTenantRequest enforced nothing at all. The
+     * gaps were not cosmetic — `admin` passed registration, which would create
+     * a tenant squatting the platform console's hostname that ResolveTenant
+     * then refused to resolve: a tenant that exists and can never be reached.
+     *
+     * `admin` is the one that matters for security; the rest are infrastructure
+     * names an operator will plausibly want, and reserving them now is far
+     * cheaper than renaming a tenant later.
+     *
+     * `platform` is reserved without being served: it is the other name the
+     * platform console is routinely called, so a tenant holding it could not be
+     * moved later without breaking their URLs. Reserving a name costs nothing;
+     * reclaiming one costs a migration.
+     */
+    public const RESERVED_SUBDOMAINS = [
+        'admin', 'platform', 'api', 'app', 'www',
+        'mail', 'smtp', 'ftp',
+        'cdn', 'static', 'assets',
+        'status', 'support', 'help', 'docs',
+        'staging', 'dev', 'test',
+    ];
+
+    /**
+     * The single hostname label platform administration is served from.
+     *
+     * Named rather than spelled `'admin'` at each site because two different
+     * rules depend on it and mean different things: ResolveTenant refuses every
+     * tenant selector on this host, while the rest of RESERVED_SUBDOMAINS merely
+     * cannot *be* a tenant. Conflating them once meant an apex alias like `www`
+     * would silently lose the login form's organisation field.
+     */
+    public const PLATFORM_SUBDOMAIN = 'admin';
 
     protected $fillable = [
         'public_id',
@@ -52,6 +92,7 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
+    /** @return HasOne<Subscription, $this> */
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class)->latestOfMany();
@@ -70,6 +111,15 @@ class Tenant extends Model
     public function featureFlags(): HasMany
     {
         return $this->hasMany(FeatureFlag::class);
+    }
+
+    /**
+     * Tenant-scoped flag, falling back to the global flag of the same key.
+     * See FeatureFlag::enabled() — an unset flag (tenant or global) is off.
+     */
+    public function hasFeature(string $key): bool
+    {
+        return FeatureFlag::enabled($key, $this);
     }
 
     public function branches(): HasMany
@@ -127,6 +177,11 @@ class Tenant extends Model
         return $this->hasOne(AttendanceSetting::class);
     }
 
+    public function ssoSetting(): HasOne
+    {
+        return $this->hasOne(SsoSetting::class);
+    }
+
     public function kioskSessions(): HasMany
     {
         return $this->hasMany(KioskSession::class);
@@ -148,5 +203,18 @@ class Tenant extends Model
     {
         return in_array($this->status, [TenantStatus::TRIAL, TenantStatus::ACTIVE], true)
             && ! $this->isTrialExpired();
+    }
+
+    protected static function booted(): void
+    {
+        // ResolveTenant caches this model under `tenant:{subdomain}` for 5 minutes
+        // to skip a DB hit per request. Without busting it here, a super admin
+        // suspending a tenant (fraud, abuse, non-payment) leaves that tenant fully
+        // functional for up to 5 more minutes — the opposite of what "suspend"
+        // promises. Bust both the old and new subdomain in case it changed.
+        static::saved(function (self $tenant): void {
+            Cache::forget("tenant:{$tenant->getOriginal('subdomain')}");
+            Cache::forget("tenant:{$tenant->subdomain}");
+        });
     }
 }

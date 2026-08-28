@@ -9,12 +9,26 @@ export interface BillingInvoice {
   paid_at: string | null;
 }
 
+/** Where tenants pay ETHR. Set by the super admin, null until configured. */
+export interface PaymentDetails {
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  instructions: string | null;
+  instructions_am: string | null;
+}
+
 export interface BillingDashboard {
   plan: string | null;
   plan_price_cents: number | null;
   subscription_status: string | null;
   current_period_end: string | null;
   invoices: BillingInvoice[];
+  tenant_status: string;
+  trial_ends_at: string | null;
+  trial_days_remaining: number | null;
+  /** Null while the platform operator has not finished configuring the account. */
+  payment_details: PaymentDetails | null;
 }
 
 export interface Plan {

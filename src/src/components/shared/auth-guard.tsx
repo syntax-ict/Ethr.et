@@ -11,10 +11,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && (isError || !user)) {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        router.replace("/login");
-      }
+      router.replace("/login");
     }
   }, [isLoading, isError, user, router]);
 

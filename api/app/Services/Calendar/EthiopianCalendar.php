@@ -76,19 +76,28 @@ final class EthiopianCalendar
      */
     public function pagumeDaysInRange(Carbon $start, Carbon $end): array
     {
-        $cursor = $start->copy()->startOfDay();
-        $last = $end->copy()->startOfDay();
+        $startEth = $this->gregorianToEthiopian($start);
+        $endEth = $this->gregorianToEthiopian($end);
 
         $days = 0;
         $ethiopianYear = null;
 
-        while ($cursor->lte($last)) {
-            $eth = $this->gregorianToEthiopian($cursor);
-            if ($eth['month'] === 13) {
-                $days++;
-                $ethiopianYear ??= $eth['year'];
+        for ($y = $startEth['year']; $y <= $endEth['year']; $y++) {
+            $pagStart = $this->ethiopianToGregorian($y, 13, 1);
+            $pagLength = $this->daysInPagume($y);
+            $pagEnd = $this->ethiopianToGregorian($y, 13, $pagLength);
+
+            $overlapStart = $pagStart->greaterThan($start->copy()->startOfDay())
+                ? $pagStart
+                : $start->copy()->startOfDay();
+            $overlapEnd = $pagEnd->lessThan($end->copy()->startOfDay())
+                ? $pagEnd
+                : $end->copy()->startOfDay();
+
+            if ($overlapStart->lte($overlapEnd)) {
+                $days += (int) $overlapStart->diffInDays($overlapEnd) + 1;
+                $ethiopianYear ??= $y;
             }
-            $cursor->addDay();
         }
 
         return [
@@ -96,6 +105,106 @@ final class EthiopianCalendar
             'ethiopian_year' => $ethiopianYear,
             'pagume_length' => $ethiopianYear !== null ? $this->daysInPagume($ethiopianYear) : null,
         ];
+    }
+
+    /**
+     * Ethiopian Orthodox Easter (Fasika) for a Gregorian year.
+     *
+     * The Ethiopian Orthodox Tewahedo Church uses the Alexandrian computus —
+     * the same rule as Eastern Orthodox Easter — which yields a date on the
+     * *Julian* calendar that is then read on the Gregorian one. This is a
+     * calculated feast, not a sighted one, so the result is exact.
+     */
+    public function orthodoxEaster(int $gregorianYear): Carbon
+    {
+        // Meeus' Julian algorithm — returns the Julian calendar date.
+        $a = $gregorianYear % 4;
+        $b = $gregorianYear % 7;
+        $c = $gregorianYear % 19;
+        $d = (19 * $c + 15) % 30;
+        $e = (2 * $a + 4 * $b - $d + 34) % 7;
+
+        $julianMonth = intdiv($d + $e + 114, 31);
+        $julianDay = (($d + $e + 114) % 31) + 1;
+
+        [$gy, $gm, $gd] = $this->jdnToGregorian(
+            $this->julianToJdn($gregorianYear, $julianMonth, $julianDay)
+        );
+
+        return Carbon::create($gy, $gm, $gd, 0, 0, 0, 'UTC');
+    }
+
+    /** Good Friday (Siklet) — the Friday two days before Fasika. */
+    public function orthodoxGoodFriday(int $gregorianYear): Carbon
+    {
+        return $this->orthodoxEaster($gregorianYear)->subDays(2);
+    }
+
+    /**
+     * Convert a date on the tabular Islamic (Hijri) calendar to Gregorian.
+     *
+     * This is the arithmetic calendar, which can differ from Ethiopia's
+     * locally-sighted observance by a day either way — callers must treat the
+     * result as an estimate for a human to confirm.
+     */
+    public function hijriToGregorian(int $hijriYear, int $hijriMonth, int $hijriDay): Carbon
+    {
+        [$gy, $gm, $gd] = $this->jdnToGregorian(
+            $this->hijriToJdn($hijriYear, $hijriMonth, $hijriDay)
+        );
+
+        return Carbon::create($gy, $gm, $gd, 0, 0, 0, 'UTC');
+    }
+
+    /**
+     * The Hijri years whose given month falls anywhere in a Gregorian year.
+     * A Hijri year is ~11 days shorter, so a single Gregorian year can contain
+     * the same Islamic feast twice (or, rarely, not at all).
+     *
+     * @return list<int>
+     */
+    public function hijriYearsOverlapping(int $gregorianYear, int $hijriMonth, int $hijriDay): array
+    {
+        // 1 Muharram 1 AH == 16 July 622 CE; ~1.0307 Hijri years per Gregorian.
+        $approx = (int) floor(($gregorianYear - 622) * 1.030684) + 1;
+
+        $years = [];
+        foreach ([$approx - 1, $approx, $approx + 1] as $hy) {
+            if ($hy < 1) {
+                continue;
+            }
+
+            if ($this->hijriToGregorian($hy, $hijriMonth, $hijriDay)->year === $gregorianYear) {
+                $years[] = $hy;
+            }
+        }
+
+        return $years;
+    }
+
+    /** JDN of a date on the Julian (not Gregorian) calendar. */
+    private function julianToJdn(int $year, int $month, int $day): int
+    {
+        $a = intdiv(14 - $month, 12);
+        $y = $year + 4800 - $a;
+        $m = $month + 12 * $a - 3;
+
+        return $day
+            + intdiv(153 * $m + 2, 5)
+            + 365 * $y
+            + intdiv($y, 4)
+            - 32083;
+    }
+
+    /** JDN of a date on the tabular Islamic calendar (Kuwaiti algorithm). */
+    private function hijriToJdn(int $year, int $month, int $day): int
+    {
+        return $day
+            + (int) ceil(29.5 * ($month - 1))
+            + ($year - 1) * 354
+            + intdiv(3 + 11 * $year, 30)
+            + 1_948_440
+            - 1;
     }
 
     private function ethiopianToJdn(int $year, int $month, int $day): int

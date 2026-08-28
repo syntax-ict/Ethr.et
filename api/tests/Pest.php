@@ -41,3 +41,27 @@ function actingAsUser(array $attributes = [], ?Tenant $tenant = null): User
 
     return $user;
 }
+
+/**
+ * A JPEG data URL of the requested pixel size, as a browser canvas would send
+ * for an attendance selfie. Filled with noise so the encoder cannot compress it
+ * away — that is what makes byte-budget assertions meaningful.
+ */
+function selfieDataUrl(int $width = 400, int $height = 400): string
+{
+    $image = imagecreatetruecolor($width, $height);
+
+    for ($x = 0; $x < $width; $x += 2) {
+        for ($y = 0; $y < $height; $y += 2) {
+            $colour = imagecolorallocate($image, random_int(0, 255), random_int(0, 255), random_int(0, 255));
+            imagefilledrectangle($image, $x, $y, $x + 1, $y + 1, (int) $colour);
+        }
+    }
+
+    ob_start();
+    imagejpeg($image, null, 92);
+    $binary = (string) ob_get_clean();
+    imagedestroy($image);
+
+    return 'data:image/jpeg;base64,'.base64_encode($binary);
+}

@@ -1,0 +1,130 @@
+# E2E overlay — production-like tenant routing.
+#
+# This deliberately does NOT use the single-host X-Tenant dev affordance. The
+# product resolves tenants from the hostname in production (acme.ethr.et), and
+# nginx (docker/nginx/default.conf) already models that with a `*.ethr.test`
+# server block that preserves the Host header end to end and routes /api to
+# PHP-FPM directly. So the browser hits http://demo.ethr.test through nginx and
+# ResolveTenant reads the subdomain — exactly the production path — instead of
+# the X-Tenant header, which is refused outside local/testing.
+#
+# demo.ethr.test resolves inside the compose network via the nginx service
+# alias below (no hosts file, no DNS). APP_DOMAIN=ethr.test makes
+# ResolveTenant::extractSubdomain treat ethr.test as the apex, and the frontend
+# is built with NEXT_PUBLIC_ROOT_DOMAIN=ethr.test so the SPA knows the hostname
+# is authoritative and stops sending X-Tenant.
+services:
+  api:
+    environment:
+      - APP_ENV=testing
+      - APP_DEBUG=true
+      - DB_DATABASE=ethr_test
+      - APP_DOMAIN=ethr.test
+      - SANCTUM_STATEFUL_DOMAINS=ethr.test,*.ethr.test,localhost,localhost:3000
+      # `$$` is a literal `$` (Compose interpolates one).
+      #
+      # The `#...#` delimiters are REQUIRED, not stylistic: config/cors.php hands
+      # these straight to preg_match(), so a bare `^http://...$` makes PHP read
+      # `^` as the delimiter and fatal with "No ending delimiter '^' found" —
+      # a 500 on every browser request that carries an Origin header (i.e. the
+      # login POST). Measured here: login returned 500 and the whole E2E suite
+      # died in globalSetup. docker-compose.hostnames.yml carries the same
+      # malformed pattern and has the same defect.
+      - CORS_ALLOWED_ORIGINS_PATTERNS=#^http://[a-z0-9-]+\.ethr\.test(:[0-9]+)?$$#
+
+  # Queue worker and scheduler resolve tenants too; they need the same view of
+  # what a tenant host is as the request that enqueued the work.
+  worker:
+    environment:
+      - APP_DOMAIN=ethr.test
+
+  scheduler:
+    environment:
+      - APP_DOMAIN=ethr.test
+
+  # The e2e run is a self-contained isolated Compose project (see run-e2e.sh:
+  # `-p ethr-e2e`, its own volumes). The browser and Lighthouse reach every
+  # service over the internal `ethr` network via the nginx alias below, so no
+  # host ports are needed — and publishing the base ports (80/8080/6379/3306/
+  # 9000) would collide with a developer's already-running dev stack. `!reset []`
+  # clears the inherited `ports:` instead of appending to it (Compose merges
+  # sequences by appending, so a plain override cannot remove a published port).
+  mariadb:
+    ports: !reset []
+    environment:
+      MARIADB_DATABASE: ethr_test
+
+  redis:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  reverb:
+    ports: !reset []
+
+  nginx:
+    ports: !reset []
+    networks:
+      ethr:
+        aliases:
+          - ethr.test
+          - demo.ethr.test
+          - admin.ethr.test
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: http://nginx
+        NEXT_PUBLIC_APP_URL: http://demo.ethr.test
+        NEXT_PUBLIC_ROOT_DOMAIN: ethr.test
+        # The base compose builds this as `localhost:8080`, which is correct for
+        # a developer's own browser but wrong for the E2E browser: inside the
+        # playwright container `localhost` is that container's loopback, so every
+        # page logged `WebSocket ... ERR_CONNECTION_REFUSED` and ux-audit — which
+        # asserts a clean console on every page/theme — failed across the board.
+        # `reverb` is the service name, resolvable on the compose network.
+        NEXT_PUBLIC_REVERB_HOST: reverb
+        NEXT_PUBLIC_REVERB_PORT: "8080"
+        NEXT_PUBLIC_REVERB_SCHEME: http
+
+  e2e:
+    # Pinned to the repo's @playwright/test version (package-lock.json: 1.61.1).
+    # A mismatched image ships a browser the installed library cannot drive.
+    # Note: this image is ~3.45 GB unpacked and pulls slowly on a constrained
+    # link (measured here at ~40-70 KB/s, several hours). Pre-pull it, or use a
+    # registry mirror, before running the suite on a fresh machine.
+    image: mcr.microsoft.com/playwright:v1.61.1-noble
+    working_dir: /app
+    volumes:
+      - ./src:/app
+      # Shadow the host node_modules (win32 binaries) with the container's own
+      # Linux install so `npx playwright test` runs.
+      - /app/node_modules
+    environment:
+      - BASE_URL=http://demo.ethr.test
+      - API_URL=http://demo.ethr.test/api/v1
+      # The platform admin console is served from its own host, never from a
+      # tenant's: middleware.ts redirects /admin off any non-platform host, and
+      # EnsurePlatformContext 404s the admin API whenever a tenant resolved.
+      # Because SESSION_DOMAIN is deliberately empty (host-only cookies, so one
+      # tenant's session can never reach another's host), the admin specs also
+      # need their own session on this origin — global-setup mints it here.
+      # The alias is already provisioned on the nginx service above.
+      - PLATFORM_BASE_URL=http://admin.ethr.test
+      # Must match what scripts/run-e2e.sh provisions. `ethr:create-admin`
+      # enforces min:12, which the dev seed's `password` does not satisfy.
+      - SUPER_ADMIN_EMAIL=superadmin@ethr.et
+      - SUPER_ADMIN_PASS=e2e-super-admin-pw
+      - CI=true
+    depends_on:
+      - nginx
+      - frontend
+    # Chromium is already baked into the image; only the project's Linux node
+    # modules are needed at runtime. `exec "$@"` keeps run-e2e.sh in control of
+    # what actually runs (it passes `npx playwright test [spec]`).
+    entrypoint: ["sh", "-c", "npm ci && exec \"$@\"", "--"]
+    networks:
+      - ethr
+    profiles:
+      - e2e

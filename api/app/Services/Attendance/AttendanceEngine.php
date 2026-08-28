@@ -50,9 +50,21 @@ final class AttendanceEngine
         return $this->processCheckIn($input, $employee, $settings);
     }
 
+    /**
+     * The moment the punch happened: the supplied event time for delayed
+     * ingestion, otherwise now. Everything downstream (shift match, status,
+     * date, stored timestamp) keys off this so a backlog is dated correctly.
+     */
+    private function resolveMoment(AttendanceInput $input): Carbon
+    {
+        return $input->occurredAt !== null
+            ? Carbon::parse($input->occurredAt)
+            : Carbon::now();
+    }
+
     private function processCheckIn(AttendanceInput $input, Employee $employee, ?AttendanceSetting $settings = null): AttendanceResult
     {
-        $now = Carbon::now();
+        $now = $this->resolveMoment($input);
         $shift = $this->shiftMatcher->match($employee, $now);
 
         $geofenceVerified = null;
@@ -123,7 +135,7 @@ final class AttendanceEngine
 
     private function processCheckOut(AttendanceInput $input, Employee $employee): AttendanceResult
     {
-        $now = Carbon::now();
+        $now = $this->resolveMoment($input);
 
         $record = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
@@ -139,9 +151,17 @@ final class AttendanceEngine
             throw new \RuntimeException('No open check-in found for today.');
         }
 
-        $record->update([
-            'check_out' => $now,
-        ]);
+        $updates = ['check_out' => $now];
+
+        // The record's `photo_path` belongs to the check-in selfie; a check-out
+        // selfie is kept alongside it so neither punch loses its evidence.
+        if ($input->photoPath !== null) {
+            $updates['metadata'] = array_merge($record->metadata ?? [], [
+                'checkout_photo_path' => $input->photoPath,
+            ]);
+        }
+
+        $record->update($updates);
 
         if ($record->shift && $record->status === AttendanceStatus::PRESENT) {
             $shiftEnd = $now->copy()->setTimeFromTimeString($record->shift->end_time);

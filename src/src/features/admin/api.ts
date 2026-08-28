@@ -1,6 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import type { PaginatedResponse } from "@/api/types";
+
+/**
+ * Every endpoint in this module is super-admin only.
+ *
+ * `RoleGate` guards the *render*, but hooks are called unconditionally at the
+ * top of a component — so a tenant admin who opened `/admin` still fired four
+ * privileged requests, collected four 403s in the console, and left four
+ * authorisation failures in the server log that look indistinguishable from
+ * probing. Gating each query on the caller's role stops the request at the
+ * source rather than discarding its rejection.
+ */
+function useIsSuperAdmin(): boolean {
+  return usePermissions().isSuperAdmin;
+}
 
 export interface AdminTenant {
   public_id: string;
@@ -13,7 +28,14 @@ export interface AdminTenant {
   created_at: string;
 }
 
-export interface AdminTenantDetail extends AdminTenant {
+/**
+ * `Omit<..., "employee_count">` is deliberate: only the *list* endpoint returns
+ * that field. The detail endpoint reports headcount under `usage.employees`, so
+ * inheriting it unchanged made the type claim a field the response never
+ * carries — and the detail page duly rendered the string "Undefined" in its
+ * Employees tile and profile row, with tsc none the wiser.
+ */
+export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   updated_at: string;
   usage: { employees: number; devices: number } | null;
   subscription: {
@@ -37,8 +59,11 @@ export function useAdminTenants(params?: {
   page?: number;
   per_page?: number;
 }) {
+  const isSuperAdmin = useIsSuperAdmin();
+
   return useQuery<PaginatedResponse<AdminTenant>>({
     queryKey: ["admin", "tenants", params],
+    enabled: isSuperAdmin,
     queryFn: async () => {
       const queryParams: Record<string, unknown> = {};
       if (params?.search) queryParams.search = params.search;
@@ -107,6 +132,14 @@ export function useExtendTrial() {
   });
 }
 
+/**
+ * Start an impersonation session.
+ *
+ * The `token` in the response is for API clients that send a bearer header;
+ * this app does not — the server puts the same token in the httpOnly session
+ * cookie, which is what makes the reload below land as the tenant admin. The
+ * localStorage entries only carry the tenant header and the banner flag.
+ */
 export function useImpersonateTenant() {
   return useMutation<
     { token: string; tenant: string; expires_at: string },
@@ -121,17 +154,14 @@ export function useImpersonateTenant() {
       return data;
     },
     onSuccess: (data) => {
-      // Preserve original credentials for exit
-      const current = localStorage.getItem("access_token");
       const currentTenant = localStorage.getItem("tenant");
-      if (current) localStorage.setItem("original_access_token", current);
       if (currentTenant) localStorage.setItem("original_tenant", currentTenant);
 
-      // Switch to impersonated session
-      localStorage.setItem("access_token", data.token);
       localStorage.setItem("tenant", data.tenant);
       localStorage.setItem("impersonating", "true");
 
+      // Full reload, not a router push: the identity behind every cached query
+      // just changed, so the client cache has to be dropped wholesale.
       window.location.href = "/dashboard";
     },
   });
@@ -167,8 +197,11 @@ export interface FailedJob {
 }
 
 export function useFailedJobs(params?: { page?: number }) {
+  const isSuperAdmin = useIsSuperAdmin();
+
   return useQuery<PaginatedResponse<FailedJob>>({
     queryKey: ["admin", "failed-jobs", params],
+    enabled: isSuperAdmin,
     queryFn: async () => {
       const { data } = await apiClient.get("/admin/failed-jobs", {
         params: { page: params?.page ?? 1 },
@@ -192,6 +225,24 @@ export function useRetryFailedJob() {
   });
 }
 
+/**
+ * Drop a failed job without re-running it — for the ones that can never
+ * succeed. Without this the console's "Attention Required" banner could only
+ * ever grow, and an operator learns to ignore a counter that never clears.
+ */
+export function useDismissFailedJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (uuid: string) => {
+      await apiClient.delete(`/admin/failed-jobs/${uuid}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "failed-jobs"] });
+      qc.invalidateQueries({ queryKey: ["admin", "health"] });
+    },
+  });
+}
+
 export function useRetryAllFailedJobs() {
   const qc = useQueryClient();
   return useMutation({
@@ -206,14 +257,76 @@ export function useRetryAllFailedJobs() {
   });
 }
 
+// ── Platform analytics hooks ─────────────────────────────────────────────────
+
+export interface AdminRevenue {
+  mrr_cents: number;
+  total_tenants: number;
+  active_tenants: number;
+  trial_tenants: number;
+  suspended_tenants: number;
+  cancelled_tenants: number;
+  conversion_rate: number;
+  monthly_trend: Array<{ month: string; revenue_cents: number }>;
+}
+
+export function useAdminRevenue() {
+  const isSuperAdmin = useIsSuperAdmin();
+
+  return useQuery<AdminRevenue>({
+    queryKey: ["admin", "revenue"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/revenue");
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: isSuperAdmin,
+  });
+}
+
+export interface AdminHealthService {
+  status: string;
+  response_ms?: number;
+  error?: string;
+  note?: string;
+}
+
+export interface AdminHealth {
+  services: Record<string, AdminHealthService>;
+  queue: Record<string, { depth: number | null; error?: string }>;
+  failed_jobs: number;
+  resources?: {
+    php_memory_mb: number;
+    php_peak_memory_mb: number;
+    disk_free_gb: number | null;
+  };
+}
+
+export function useAdminHealth() {
+  const isSuperAdmin = useIsSuperAdmin();
+
+  return useQuery<AdminHealth>({
+    queryKey: ["admin", "health"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/health");
+      return data;
+    },
+    refetchInterval: 30_000,
+    enabled: isSuperAdmin,
+  });
+}
+
 export function useAdminAuditLog(params?: {
   action?: string;
   from?: string;
   to?: string;
   page?: number;
 }) {
+  const isSuperAdmin = useIsSuperAdmin();
+
   return useQuery<PaginatedResponse<AdminAuditLog>>({
     queryKey: ["admin", "audit", params],
+    enabled: isSuperAdmin,
     queryFn: async () => {
       const queryParams: Record<string, unknown> = { per_page: 50 };
       if (params?.action) queryParams["filter[action]"] = params.action;
@@ -225,6 +338,52 @@ export function useAdminAuditLog(params?: {
         params: queryParams,
       });
       return data;
+    },
+  });
+}
+
+/**
+ * Platform-wide settings, super admin only.
+ *
+ * The bank account here is what every tenant's billing page tells them to pay
+ * into, so a mistake routes real money to the wrong place — hence the audit
+ * entry on the backend and the confirmation step in the UI.
+ */
+export interface PlatformSettings {
+  public_id: string;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  payment_instructions: string | null;
+  payment_instructions_am: string | null;
+  is_configured: boolean;
+  updated_at: string | null;
+}
+
+export function usePlatformSettings() {
+  const isSuperAdmin = useIsSuperAdmin();
+
+  return useQuery<PlatformSettings>({
+    queryKey: ["admin", "platform-settings"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/platform-settings");
+      return data;
+    },
+    enabled: isSuperAdmin,
+  });
+}
+
+export function useUpdatePlatformSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<PlatformSettings>) => {
+      const { data } = await apiClient.put("/admin/platform-settings", payload);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "platform-settings"] });
+      // Tenants read these values on their billing page.
+      qc.invalidateQueries({ queryKey: ["billing", "dashboard"] });
     },
   });
 }

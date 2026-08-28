@@ -48,7 +48,6 @@ export default function QrGeneratorPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [result, setResult] = useState<QrResult | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: branches } = useQuery({
@@ -124,7 +123,6 @@ export default function QrGeneratorPage() {
   useEffect(() => {
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
     };
   }, []);
 
@@ -155,9 +153,11 @@ export default function QrGeneratorPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>{t("attendance.kiosks_page.branch")}</Label>
+                <Label htmlFor="branch">
+                  {t("attendance.kiosks_page.branch")}
+                </Label>
                 <Select value={branchId} onValueChange={setBranchId}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="branch" className="mt-1">
                     <SelectValue
                       placeholder={t("attendance.kiosks_page.select_branch")}
                     />
@@ -174,9 +174,11 @@ export default function QrGeneratorPage() {
                 </Select>
               </div>
               <div>
-                <Label>{t("attendance.qr_page.shift_optional")}</Label>
+                <Label htmlFor="shift-optional">
+                  {t("attendance.qr_page.shift_optional")}
+                </Label>
                 <Select value={shiftId} onValueChange={setShiftId}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger id="shift-optional" className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -194,8 +196,11 @@ export default function QrGeneratorPage() {
                 </Select>
               </div>
               <div>
-                <Label>{t("attendance.qr_page.expiry_minutes")}</Label>
+                <Label htmlFor="expiry-minutes">
+                  {t("attendance.qr_page.expiry_minutes")}
+                </Label>
                 <Input
+                  id="expiry-minutes"
                   type="number"
                   value={expiry}
                   onChange={(e) => setExpiry(parseInt(e.target.value) || 30)}
@@ -217,6 +222,7 @@ export default function QrGeneratorPage() {
                   </p>
                 </div>
                 <Switch
+                  aria-label={t("attendance.settings_page.auto_refresh")}
                   checked={autoRefresh}
                   onCheckedChange={setAutoRefresh}
                 />
@@ -282,10 +288,10 @@ export default function QrGeneratorPage() {
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium",
                       isExpired
-                        ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400"
+                        ? "bg-destructive-soft text-destructive-on-soft"
                         : isLow
-                          ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 animate-pulse"
-                          : "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+                          ? "bg-warning-soft text-warning-on-soft animate-pulse"
+                          : "bg-success-soft text-success-on-soft",
                     )}
                   >
                     {isExpired ? (
@@ -309,7 +315,7 @@ export default function QrGeneratorPage() {
                     className={cn(
                       "inline-block rounded-2xl border-4 p-6 bg-white transition-opacity",
                       isExpired && !autoRefresh
-                        ? "opacity-30 border-red-300"
+                        ? "opacity-30 border-destructive-edge"
                         : "border-primary",
                     )}
                   >

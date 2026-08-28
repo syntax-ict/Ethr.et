@@ -69,6 +69,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'attendance.viewAll', 'module' => 'attendance', 'action' => 'viewAll', 'description' => 'View all attendance records'],
             ['name' => 'attendance.view', 'module' => 'attendance', 'action' => 'view', 'description' => 'View attendance records'],
             ['name' => 'attendance.manage', 'module' => 'attendance', 'action' => 'manage', 'description' => 'Manage attendance settings and imports'],
+            ['name' => 'attendance.viewConflicts', 'module' => 'attendance', 'action' => 'viewConflicts', 'description' => 'View attendance conflicts for HR review'],
+            ['name' => 'attendance.resolveConflicts', 'module' => 'attendance', 'action' => 'resolveConflicts', 'description' => 'Resolve attendance conflicts'],
 
             // Shift
             ['name' => 'shift.viewAny', 'module' => 'shift', 'action' => 'viewAny', 'description' => 'View shifts list'],
@@ -105,7 +107,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'payroll.void', 'module' => 'payroll', 'action' => 'void', 'description' => 'Void an approved payroll run'],
             ['name' => 'payroll.reprocess', 'module' => 'payroll', 'action' => 'reprocess', 'description' => 'Reprocess a voided payroll run'],
             ['name' => 'payroll.manageLoan', 'module' => 'payroll', 'action' => 'manageLoan', 'description' => 'Manage employee loans'],
+            ['name' => 'payroll.manageCostSharing', 'module' => 'payroll', 'action' => 'manageCostSharing', 'description' => 'Manage employee cost-sharing obligations'],
             ['name' => 'payroll.viewOwnPayslip', 'module' => 'payroll', 'action' => 'viewOwnPayslip', 'description' => 'View own payslip'],
+            ['name' => 'payroll.viewConfig', 'module' => 'payroll', 'action' => 'viewConfig', 'description' => 'View payroll configuration (allowances, tax brackets, overtime rates)'],
+            ['name' => 'payroll.manageConfig', 'module' => 'payroll', 'action' => 'manageConfig', 'description' => 'Manage payroll configuration (allowances, tax brackets, overtime rates)'],
 
             // Leave
             ['name' => 'leave.viewTypes', 'module' => 'leave', 'action' => 'viewTypes', 'description' => 'View leave types'],
@@ -126,15 +131,34 @@ class PermissionSeeder extends Seeder
             ['name' => 'employee.viewFinancial', 'module' => 'employee', 'action' => 'viewFinancial', 'description' => 'View employee financial data'],
             ['name' => 'employee.updateFinancial', 'module' => 'employee', 'action' => 'updateFinancial', 'description' => 'Update employee financial data'],
 
+            // Personnel actions (employment history: promotion, transfer, acting, …)
+            ['name' => 'personnel_action.viewAny', 'module' => 'personnel_action', 'action' => 'viewAny', 'description' => 'View employment history / personnel actions'],
+            ['name' => 'personnel_action.create', 'module' => 'personnel_action', 'action' => 'create', 'description' => 'Record personnel actions'],
+
+            // Disciplinary cases (offence → investigation → decision → sanction → appeal)
+            ['name' => 'disciplinary_case.viewAny', 'module' => 'disciplinary_case', 'action' => 'viewAny', 'description' => 'View disciplinary cases'],
+            ['name' => 'disciplinary_case.manage', 'module' => 'disciplinary_case', 'action' => 'manage', 'description' => 'Open, investigate, decide, sanction and resolve disciplinary cases'],
+
+            // Retirement cases (initiated → reviewed → approved/rejected → finalized)
+            ['name' => 'retirement_case.viewAny', 'module' => 'retirement_case', 'action' => 'viewAny', 'description' => 'View retirement cases'],
+            ['name' => 'retirement_case.manage', 'module' => 'retirement_case', 'action' => 'manage', 'description' => 'Initiate, review, decide and finalize retirement cases'],
+
             // Profile
             ['name' => 'profile.view', 'module' => 'profile', 'action' => 'view', 'description' => 'View own profile'],
             ['name' => 'profile.update', 'module' => 'profile', 'action' => 'update', 'description' => 'Update own profile'],
+
+            // User / access management
+            ['name' => 'users.viewAny', 'module' => 'users', 'action' => 'viewAny', 'description' => 'View login accounts'],
+            ['name' => 'users.invite', 'module' => 'users', 'action' => 'invite', 'description' => 'Invite and provision login accounts'],
+            ['name' => 'users.update', 'module' => 'users', 'action' => 'update', 'description' => 'Update user roles, status and access'],
+            ['name' => 'users.delete', 'module' => 'users', 'action' => 'delete', 'description' => 'Deactivate login accounts'],
 
             // Announcement
             ['name' => 'announcement.manage', 'module' => 'announcement', 'action' => 'manage', 'description' => 'Manage announcements'],
 
             // Dashboard
-            ['name' => 'dashboard.executive', 'module' => 'dashboard', 'action' => 'executive', 'description' => 'View executive dashboard'],
+            ['name' => 'dashboard.executive', 'module' => 'dashboard', 'action' => 'executive', 'description' => 'View executive dashboard (any branch)'],
+            ['name' => 'dashboard.regional', 'module' => 'dashboard', 'action' => 'regional', 'description' => 'View executive dashboard scoped to own branch'],
 
             // Report
             ['name' => 'report.generate', 'module' => 'report', 'action' => 'generate', 'description' => 'Generate reports'],
@@ -182,12 +206,22 @@ class PermissionSeeder extends Seeder
             'correction.viewPending', 'correction.approve',
             'leave.viewTeam', 'leave.approve',
             'employee.viewAny', 'employee.view',
+            // Supervisors read their team's employment history but don't record actions.
+            'personnel_action.viewAny',
+            // Same for disciplinary cases — supervisors can see them, not act on them.
+            'disciplinary_case.viewAny',
+            // Same for retirement cases — supervisors can see them, not act on them.
+            'retirement_case.viewAny',
+            // Regional Manager / Operations persona: executive-style dashboard,
+            // but forced to their own branch — see ExecutiveDashboardController.
+            'dashboard.regional',
         ];
 
         // isAtLeast(HR_ADMIN) — level 70+ (HR_ADMIN & FINANCE_ADMIN both at 70)
         $hrAdmin = [
             'org.create', 'org.update',
             'attendance.viewAll', 'attendance.manage',
+            'attendance.viewConflicts', 'attendance.resolveConflicts',
             'shift.create', 'shift.update',
             'device.viewAny', 'device.view',
             'correction.viewAll',
@@ -195,13 +229,27 @@ class PermissionSeeder extends Seeder
             'leave.manageTypes', 'leave.viewAll', 'leave.adjustBalance',
             'employee.create', 'employee.update', 'employee.transition',
             'employee.viewFinancial', 'employee.updateFinancial',
+            'personnel_action.create',
+            'disciplinary_case.manage',
+            'retirement_case.manage',
             'announcement.manage',
             'report.generate',
+            // Inviting/activating people is part of HR onboarding.
+            'users.viewAny', 'users.invite', 'users.update',
+            // HR Director / Finance Director personas: unrestricted (any-branch)
+            // executive dashboard. Both tiers share this bucket at level 70.
+            'dashboard.executive',
         ];
 
         // isAtLeast(FINANCE_ADMIN) — level 70+ (same level as HR_ADMIN)
         $financeAdmin = [
             'payroll.viewAll', 'payroll.process', 'payroll.manageLoan',
+            // Same level as manageLoan: recording an employee's cost-sharing
+            // obligation is finance data entry, not a policy change. It sets a
+            // deduction against one employee, unlike manageConfig, which moves
+            // what everybody is paid and stays at tenant-admin.
+            'payroll.manageCostSharing',
+            'payroll.viewConfig',
         ];
 
         // isAtLeast(TENANT_ADMIN) — level 90+
@@ -213,8 +261,12 @@ class PermissionSeeder extends Seeder
             'payroll.approve',
             'payroll.void',
             'payroll.reprocess',
+            // Allowance rules, tax brackets and overtime rates change what
+            // every employee is paid — kept at tenant-admin level.
+            'payroll.manageConfig',
             'employee.delete',
-            'dashboard.executive',
+            // Deactivating a login is a sensitive, tenant-admin-level action.
+            'users.delete',
             'apikey.manage',
             'webhook.manage',
             'billing.manage',

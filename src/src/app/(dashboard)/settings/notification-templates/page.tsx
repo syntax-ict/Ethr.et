@@ -1,16 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Save,
-  Loader2,
-  RotateCcw,
-  Mail,
-  CheckCircle2,
-  Edit2,
-} from "lucide-react";
+import { Save, Loader2, Mail, CheckCircle2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +22,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { toast } from "sonner";
+import { useT } from "@/lib/i18n/useT";
 
 interface NotificationTemplate {
   type: string;
@@ -50,6 +44,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function NotificationTemplatesPage() {
+  const { t } = useT();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<NotificationTemplate | null>(null);
   const [form, setForm] = useState({
@@ -86,9 +81,12 @@ export default function NotificationTemplatesPage() {
         queryKey: ["settings", "notification-templates"],
       });
       setEditing(null);
-      toast.success("Template updated");
+      toast.success(t("settings.template_updated", "Template updated"));
     },
-    onError: () => toast.error("Failed to update template"),
+    onError: () =>
+      toast.error(
+        t("settings.template_update_failed", "Failed to update template"),
+      ),
   });
 
   function openEdit(t: NotificationTemplate) {
@@ -134,7 +132,7 @@ export default function NotificationTemplatesPage() {
                       {t.is_customized && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] text-green-600"
+                          className="text-[10px] text-status-success"
                         >
                           <CheckCircle2 className="mr-1 h-3 w-3" />
                           Customized

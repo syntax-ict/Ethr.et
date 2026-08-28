@@ -23,12 +23,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/shared/page-header";
 import { useCurrentUser } from "@/features/auth/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { PasswordStrengthMeter } from "@/components/shared/password-strength";
+import {
+  ActiveSessionsCard,
+  TrustedDevicesCard,
+} from "@/features/auth/components/active-sessions-card";
 
 export default function SecurityPage() {
   const { t } = useT();
@@ -158,11 +162,7 @@ export default function SecurityPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("security_page.title")}
-        description={t("security_page.description")}
-      />
-
+      {/* The profile layout renders the page title and the section tabs. */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -173,12 +173,12 @@ export default function SecurityPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               {user?.mfa_enabled ? (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 dark:bg-green-950">
-                  <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-status-success/10">
+                  <ShieldCheck className="h-5 w-5 text-status-success" />
                 </div>
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950">
-                  <ShieldOff className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-status-warning/10">
+                  <ShieldOff className="h-5 w-5 text-status-warning" />
                 </div>
               )}
               <div>
@@ -189,7 +189,7 @@ export default function SecurityPage() {
                   {user?.mfa_enabled && (
                     <Badge
                       variant="outline"
-                      className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0"
+                      className="bg-success-soft text-success-on-soft border-0"
                     >
                       {t("security_page.enabled")}
                     </Badge>
@@ -243,6 +243,12 @@ export default function SecurityPage() {
         </CardContent>
       </Card>
 
+      <ActiveSessionsCard />
+
+      {/* Only meaningful once MFA is on — trusted devices exist to skip a prompt
+          that an MFA-less account never sees. */}
+      {user?.mfa_enabled && <TrustedDevicesCard />}
+
       <Dialog open={setupOpen} onOpenChange={setSetupOpen}>
         <DialogContent>
           <DialogHeader>
@@ -275,14 +281,14 @@ export default function SecurityPage() {
 
               {setupData.recovery_codes &&
                 setupData.recovery_codes.length > 0 && (
-                  <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-3 dark:bg-amber-950/30">
+                  <div className="rounded-lg border-2 border-status-warning bg-status-warning/10 p-3">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
+                      <AlertCircle className="mt-0.5 h-4 w-4 text-status-warning" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                        <p className="text-sm font-semibold text-status-warning">
                           {t("security_page.recovery_codes")}
                         </p>
-                        <p className="mt-1 text-xs text-amber-900 dark:text-amber-300/80">
+                        <p className="mt-1 text-xs text-status-warning/80">
                           {t("security_page.recovery_codes_hint")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">
@@ -396,6 +402,9 @@ export default function SecurityPage() {
                   )}
                 </button>
               </div>
+              {/* S03 requires the strength indicator on password change, not only
+                  on the reset page where it already lived. */}
+              <PasswordStrengthMeter password={newPassword} />
               <p className="text-xs text-muted-foreground">
                 {t("security_page.new_password_hint")}
               </p>

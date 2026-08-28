@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Services\FileStorageService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Gate;
 
 class TeamMonitoringController extends Controller
 {
+    public function __construct(private readonly FileStorageService $storage) {}
+
     public function attendanceToday(Request $request): JsonResponse
     {
         Gate::authorize('attendance.viewTeam');
@@ -62,6 +65,7 @@ class TeamMonitoringController extends Controller
                     'name' => $emp->name,
                     'department' => $emp->department?->name,
                     'photo_path' => $emp->photo_path,
+                    'photo_thumb_url' => $this->storage->thumbnailUrlOrNull($emp->photo_path, 150),
                     'status' => $status,
                     'check_in' => $record?->check_in,
                     'check_out' => $record?->check_out,
@@ -202,7 +206,7 @@ class TeamMonitoringController extends Controller
             ->where('status', LeaveStatus::APPROVED)
             ->where('start_date', '<=', $to)
             ->where('end_date', '>=', $from)
-            ->with('employee:id,public_id,name', 'leaveType:id,name,color')
+            ->with('employee:id,public_id,name', 'leaveType:id,name,code')
             ->get();
 
         $employees = Employee::query()
@@ -220,7 +224,7 @@ class TeamMonitoringController extends Controller
                     $days[$day->format('Y-m-d')] = [
                         'on_leave' => true,
                         'leave_type' => $onLeave->leaveType?->name,
-                        'color' => $onLeave->leaveType?->color ?? '#6366f1',
+                        'color' => $onLeave->leaveType?->calendarColor() ?? '#64748B',
                     ];
                 }
             }
@@ -229,6 +233,7 @@ class TeamMonitoringController extends Controller
                 'public_id' => $emp->public_id,
                 'name' => $emp->name,
                 'photo_path' => $emp->photo_path,
+                'photo_thumb_url' => $this->storage->thumbnailUrlOrNull($emp->photo_path, 150),
                 'days' => $days,
             ];
         });

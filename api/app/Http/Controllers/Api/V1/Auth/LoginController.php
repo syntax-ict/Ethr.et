@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\AuditLog;
+use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,8 @@ class LoginController extends Controller
                 'reason' => 'account_inactive',
             ]);
 
+            LoginHistory::record($user, 'blocked', 'account_inactive');
+
             return response()->json([
                 'type' => 'https://ethr.et/errors/account-inactive',
                 'title' => 'Account Inactive',
@@ -39,6 +42,8 @@ class LoginController extends Controller
         }
 
         $result = $this->authService->login($user);
+
+        LoginHistory::record($user, 'success');
 
         return response()->json($result);
     }

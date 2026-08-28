@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AttendanceSource;
+use App\Enums\AttendanceStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Branch;
@@ -10,6 +11,7 @@ use App\Models\Employee;
 use App\Services\Attendance\ConflictResolver;
 use App\Services\Attendance\QrCodeService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 // ── Mobile Check-in ──
 
@@ -95,16 +97,20 @@ test('mobile check-in outside geofence has confidence 88', function () {
 });
 
 test('mobile check-in with selfie has confidence 95', function () {
+    Storage::fake('minio');
+
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     test()->actingAs($user);
 
+    // Clients send the captured selfie inline; the server stores it and derives
+    // the object key. See MobileSelfieUploadTest for the storage guarantees.
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/mobile/check-in", [
         'idempotency_key' => 'mob-selfie-001',
         'latitude' => 9.0,
         'longitude' => 38.0,
-        'photo_path' => 'selfies/photo-001.jpg',
+        'photo' => selfieDataUrl(120, 120),
     ]);
 
     $response->assertStatus(201)
@@ -361,7 +367,8 @@ test('offline sync has confidence score 88', function () {
 
 // ── Conflict Resolver ──
 
-test('conflict resolver dedupes same-minute records keeping higher confidence', function () {
+test('conflict resolver merges same-minute records from different sources keeping higher confidence', function () {
+    // Formal decision table (PHASE_03 GAP-FIX-2): different source, same minute → Merge, keep highest confidence.
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
@@ -385,9 +392,10 @@ test('conflict resolver dedupes same-minute records keeping higher confidence', 
     $resolver = new ConflictResolver;
     $result = $resolver->resolve($newRecord);
 
-    expect($result->action)->toBe('deduped');
+    expect($result->action)->toBe('merged');
     expect($result->record->id)->toBe($newRecord->id);
-    expect(AttendanceRecord::find($existing->id))->toBeNull();
+    $existing->refresh();
+    expect($existing->status)->toBe(AttendanceStatus::VOIDED);
     expect(AttendanceRecord::find($newRecord->id))->not->toBeNull();
 });
 
@@ -416,7 +424,8 @@ test('conflict resolver dedupes same-minute records keeping the first on a confi
 
     expect($result->action)->toBe('deduped');
     expect(AttendanceRecord::find($existing->id))->not->toBeNull();
-    expect(AttendanceRecord::find($newRecord->id))->toBeNull();
+    $newRecord->refresh();
+    expect($newRecord->status)->toBe(AttendanceStatus::VOIDED);
 });
 
 test('conflict resolver merges records 1-5 minutes apart into one spanning record', function () {
@@ -445,7 +454,8 @@ test('conflict resolver merges records 1-5 minutes apart into one spanning recor
     $result = (new ConflictResolver)->resolve($newRecord);
 
     expect($result->action)->toBe('merged');
-    expect(AttendanceRecord::find($existing->id))->toBeNull();
+    $existing->refresh();
+    expect($existing->status)->toBe(AttendanceStatus::VOIDED);
     $survivor = AttendanceRecord::find($newRecord->id);
     expect($survivor)->not->toBeNull();
     expect($survivor->check_in->format('H:i'))->toBe('08:30');
@@ -514,7 +524,7 @@ test('a second web check-in within a minute of the first is deduped automaticall
         'source' => 'web',
     ])->assertCreated();
 
-    expect(AttendanceRecord::where('employee_id', $employee->id)->count())->toBe(1);
+    expect(AttendanceRecord::where('employee_id', $employee->id)->where('status', '!=', 'voided')->count())->toBe(1);
     $this->assertDatabaseHas('audit_log', ['action' => 'attendance.conflict_deduped']);
 });
 

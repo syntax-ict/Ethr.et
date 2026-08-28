@@ -15,6 +15,8 @@ import {
   Activity,
   Signal,
   AlertTriangle,
+  Users,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +50,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useDeviceDashboard } from "@/features/devices/api";
+
+import {
+  DeviceEnrollmentsDialog,
+  ImportHistoryDialog,
+} from "@/features/devices/components/device-workforce-dialogs";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -125,6 +131,8 @@ export default function DevicesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
+  const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
+  const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
   const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_FORM });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -299,7 +307,10 @@ export default function DevicesPage() {
             className="max-w-xs"
           />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger
+              className="w-[140px]"
+              aria-label={t("common.status")}
+            >
               <SelectValue placeholder={t("common.status")} />
             </SelectTrigger>
             <SelectContent>
@@ -350,6 +361,8 @@ export default function DevicesPage() {
                 onTest={() => testMutation.mutate(d.public_id)}
                 onEdit={() => openEdit(d)}
                 onDelete={() => setDeleteDevice(d)}
+                onDiscover={() => setDiscoverDevice(d)}
+                onImportHistory={() => setHistoryDevice(d)}
                 pulling={pullMutation.isPending}
                 testing={testMutation.isPending}
               />
@@ -428,6 +441,18 @@ export default function DevicesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Workforce discovery + attendance-history backfill */}
+        <DeviceEnrollmentsDialog
+          devicePublicId={discoverDevice?.public_id ?? null}
+          deviceName={discoverDevice?.name}
+          onClose={() => setDiscoverDevice(null)}
+        />
+        <ImportHistoryDialog
+          devicePublicId={historyDevice?.public_id ?? null}
+          deviceName={historyDevice?.name}
+          onClose={() => setHistoryDevice(null)}
+        />
       </div>
     </RoleGate>
   );
@@ -439,6 +464,8 @@ function DeviceCard({
   onTest,
   onEdit,
   onDelete,
+  onDiscover,
+  onImportHistory,
   pulling,
   testing,
 }: {
@@ -447,6 +474,8 @@ function DeviceCard({
   onTest: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onDiscover: () => void;
+  onImportHistory: () => void;
   pulling: boolean;
   testing: boolean;
 }) {
@@ -455,18 +484,18 @@ function DeviceCard({
   const isError = device.status === "error";
 
   const statusIcon = isOnline ? (
-    <Wifi className="h-5 w-5 text-green-600 dark:text-green-400" />
+    <Wifi className="h-5 w-5 text-success" />
   ) : isError ? (
-    <AlertTriangle className="h-5 w-5 text-red-500" />
+    <AlertTriangle className="h-5 w-5 text-destructive" />
   ) : (
-    <WifiOff className="h-5 w-5 text-gray-400" />
+    <WifiOff className="h-5 w-5 text-muted-foreground" />
   );
 
   const statusBg = isOnline
-    ? "bg-green-100 dark:bg-green-950"
+    ? "bg-success-soft"
     : isError
-      ? "bg-red-100 dark:bg-red-950"
-      : "bg-gray-100 dark:bg-gray-800";
+      ? "bg-destructive-soft"
+      : "bg-neutral-soft";
 
   return (
     <Card>
@@ -497,8 +526,13 @@ function DeviceCard({
             <StatusBadge status={device.status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <MoreVertical className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label={t("common.actions", "Actions")}
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -510,11 +544,25 @@ function DeviceCard({
                   <RefreshCw className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.pull_records")}
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDiscover}>
+                  <Users className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.discover_users", "Discover enrolled users")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onImportHistory}>
+                  <History className="mr-2 h-4 w-4" />{" "}
+                  {t(
+                    "devices_page.import_history",
+                    "Import attendance history",
+                  )}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onEdit}>
                   <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDelete} className="text-red-600">
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-destructive"
+                >
                   <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -597,26 +645,23 @@ function StatusBadge({ status }: { status: string }) {
     pending: t("devices_page.pending"),
   };
   const styles: Record<string, string> = {
-    online:
-      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 border-0",
-    offline:
-      "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0",
-    error: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 border-0",
-    pending:
-      "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-0",
+    online: "bg-success-soft text-success-on-soft border-0",
+    offline: "bg-neutral-soft text-neutral-on-soft border-0",
+    error: "bg-destructive-soft text-destructive-on-soft border-0",
+    pending: "bg-warning-soft text-warning-on-soft border-0",
   };
 
   const dots: Record<string, string> = {
-    online: "bg-green-500 animate-pulse",
-    offline: "bg-gray-400",
-    error: "bg-red-500",
-    pending: "bg-amber-500",
+    online: "bg-success animate-pulse",
+    offline: "bg-muted-foreground",
+    error: "bg-destructive",
+    pending: "bg-warning",
   };
 
   return (
     <Badge variant="outline" className={styles[status] ?? ""}>
       <span
-        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dots[status] ?? "bg-gray-400"}`}
+        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${dots[status] ?? "bg-muted-foreground"}`}
       />
       {labels[status] ?? status}
     </Badge>
@@ -658,8 +703,9 @@ function DeviceFormDialog({
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <Label>{t("devices_page.device_name")}</Label>
+            <Label htmlFor="device-name">{t("devices_page.device_name")}</Label>
             <Input
+              id="device-name"
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               required
@@ -670,12 +716,14 @@ function DeviceFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>{t("devices_page.adapter_type")}</Label>
+              <Label htmlFor="adapter-type">
+                {t("devices_page.adapter_type")}
+              </Label>
               <Select
                 value={form.adapter_type}
                 onValueChange={(v) => set("adapter_type", v)}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="adapter-type" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -689,8 +737,11 @@ function DeviceFormDialog({
               </Select>
             </div>
             <div>
-              <Label>{t("devices_page.serial_number")}</Label>
+              <Label htmlFor="serial-number">
+                {t("devices_page.serial_number")}
+              </Label>
               <Input
+                id="serial-number"
                 value={form.serial_number}
                 onChange={(e) => set("serial_number", e.target.value)}
                 placeholder={t("leave_page.optional")}
@@ -700,7 +751,7 @@ function DeviceFormDialog({
           </div>
 
           {isMock && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+            <div className="rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft">
               {t("devices_page.mock_hint")}
             </div>
           )}
@@ -712,8 +763,11 @@ function DeviceFormDialog({
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <Label>{t("devices_page.ip_address")}</Label>
+                  <Label htmlFor="ip-address">
+                    {t("devices_page.ip_address")}
+                  </Label>
                   <Input
+                    id="ip-address"
                     value={form.ip}
                     onChange={(e) => set("ip", e.target.value)}
                     required
@@ -722,8 +776,9 @@ function DeviceFormDialog({
                   />
                 </div>
                 <div>
-                  <Label>{t("devices_page.port")}</Label>
+                  <Label htmlFor="port">{t("devices_page.port")}</Label>
                   <Input
+                    id="port"
                     value={form.port}
                     onChange={(e) => set("port", e.target.value)}
                     required
@@ -736,8 +791,9 @@ function DeviceFormDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>{t("devices_page.username")}</Label>
+                  <Label htmlFor="username">{t("devices_page.username")}</Label>
                   <Input
+                    id="username"
                     value={form.username}
                     onChange={(e) => set("username", e.target.value)}
                     placeholder={t("leave_page.optional")}
@@ -745,8 +801,9 @@ function DeviceFormDialog({
                   />
                 </div>
                 <div>
-                  <Label>{t("auth.password")}</Label>
+                  <Label htmlFor="password">{t("auth.password")}</Label>
                   <Input
+                    id="password"
                     type="password"
                     value={form.password}
                     onChange={(e) => set("password", e.target.value)}
@@ -757,8 +814,9 @@ function DeviceFormDialog({
               </div>
               {form.adapter_type === "suprema" && (
                 <div>
-                  <Label>{t("devices_page.api_key")}</Label>
+                  <Label htmlFor="api-key">{t("devices_page.api_key")}</Label>
                   <Input
+                    id="api-key"
                     value={form.api_key}
                     onChange={(e) => set("api_key", e.target.value)}
                     placeholder={t("devices_page.api_key_placeholder")}
@@ -771,14 +829,14 @@ function DeviceFormDialog({
 
           {branches.length > 0 && (
             <div>
-              <Label>
+              <Label htmlFor="branch">
                 {t("attendance.kiosks_page.branch").replace(" *", "")}
               </Label>
               <Select
                 value={form.branch_public_id}
                 onValueChange={(v) => set("branch_public_id", v)}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="branch" className="mt-1">
                   <SelectValue
                     placeholder={t("attendance.kiosks_page.select_branch")}
                   />

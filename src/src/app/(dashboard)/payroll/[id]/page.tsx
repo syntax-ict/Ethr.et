@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
+import { SimpleTable } from "@/components/shared/simple-table";
 import {
   usePayrollRun,
   useApprovePayroll,
@@ -86,7 +87,8 @@ export default function PayrollDetailPage({
     reprocessPayroll.mutate(
       { publicId: id, idempotency_key: crypto.randomUUID() },
       {
-        onSuccess: () => toast.success(t("payroll_detail_page.reprocessed_success")),
+        onSuccess: () =>
+          toast.success(t("payroll_detail_page.reprocessed_success")),
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { detail?: string } } };
           toast.error(
@@ -408,71 +410,69 @@ export default function PayrollDetailPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      {t("attendance.employee")}
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                      {t("payroll_detail_page.basic")}
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground md:table-cell">
-                      {t("payroll_page.payslips_page.gross")}
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground sm:table-cell">
-                      {t("payroll_detail_page.tax")}
-                    </th>
-                    <th className="hidden px-4 py-3 text-right text-sm font-medium text-muted-foreground sm:table-cell">
-                      {t("payroll_detail_page.pension")}
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                      {t("payroll_detail_page.net")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {run.entries.map(
-                    (entry: {
-                      public_id: string;
-                      employee?: { name: string };
-                      basic_salary_cents: number;
-                      gross_cents: number;
-                      income_tax_cents: number;
-                      employee_pension_cents: number;
-                      net_cents: number;
-                    }) => (
-                      <tr
-                        key={entry.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {entry.employee?.name ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                          <CurrencyDisplay cents={entry.basic_salary_cents} />
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground md:table-cell">
-                          <CurrencyDisplay cents={entry.gross_cents} />
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground sm:table-cell">
-                          <CurrencyDisplay cents={entry.income_tax_cents} />
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm text-muted-foreground sm:table-cell">
-                          <CurrencyDisplay
-                            cents={entry.employee_pension_cents}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                          <CurrencyDisplay cents={entry.net_cents} />
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <SimpleTable
+              caption={t("payroll_detail_page.payroll_entries")}
+              headers={[
+                t("attendance.employee"),
+                t("payroll_detail_page.basic"),
+                t("payroll_page.payslips_page.gross"),
+                t("payroll_detail_page.tax"),
+                t("payroll_detail_page.pension"),
+                t("payroll_detail_page.net"),
+              ]}
+              align={["left", "right", "right", "right", "right", "right"]}
+              colClassName={[
+                "",
+                "",
+                "hidden md:table-cell",
+                "hidden sm:table-cell",
+                "hidden sm:table-cell",
+                "",
+              ]}
+              rows={run.entries.map(
+                (entry: {
+                  public_id: string;
+                  employee?: { name: string };
+                  basic_salary_cents: number;
+                  gross_cents: number;
+                  income_tax_cents: number;
+                  employee_pension_cents: number;
+                  net_cents: number;
+                }) => ({
+                  key: entry.public_id,
+                  cells: [
+                    <span key="e" className="font-medium">
+                      {entry.employee?.name ?? "—"}
+                    </span>,
+                    <CurrencyDisplay
+                      key="b"
+                      cents={entry.basic_salary_cents}
+                      className="text-muted-foreground"
+                    />,
+                    <CurrencyDisplay
+                      key="g"
+                      cents={entry.gross_cents}
+                      className="text-muted-foreground"
+                    />,
+                    <CurrencyDisplay
+                      key="t"
+                      cents={entry.income_tax_cents}
+                      className="text-muted-foreground"
+                    />,
+                    <CurrencyDisplay
+                      key="p"
+                      cents={entry.employee_pension_cents}
+                      className="text-muted-foreground"
+                    />,
+                    <CurrencyDisplay
+                      key="n"
+                      cents={entry.net_cents}
+                      className="font-semibold text-foreground"
+                    />,
+                  ],
+                }),
+              )}
+            />
           </CardContent>
         </Card>
       )}

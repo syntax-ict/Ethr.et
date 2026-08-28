@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -30,7 +30,9 @@ describe("NotificationBell", () => {
 
   it("shows badge when there are unread notifications", async () => {
     const { useUnreadCount } = await import("@/features/notifications/api");
-    vi.mocked(useUnreadCount).mockReturnValue({ data: { count: 5 } } as any);
+    vi.mocked(useUnreadCount).mockReturnValue({
+      data: { count: 5 },
+    } as unknown as ReturnType<typeof useUnreadCount>);
     render(<NotificationBell />, { wrapper });
     expect(screen.getByText("5")).toBeInTheDocument();
   });

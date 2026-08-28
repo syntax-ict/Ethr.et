@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class ApprovalReminderNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly int $pendingCount,
         private readonly int $oldestHours,
     ) {}
 
+    protected function preferenceType(): string
+    {
+        return 'approval_reminder';
+    }
+
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return $this->filterChannels($notifiable, ['database', 'mail']);
     }
 
     public function toArray(object $notifiable): array

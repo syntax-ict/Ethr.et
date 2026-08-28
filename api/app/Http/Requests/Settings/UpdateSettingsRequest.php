@@ -23,6 +23,7 @@ class UpdateSettingsRequest extends FormRequest
             // (government), but any Ethiopian month is accepted.
             'settings.fiscal_year_start_month' => ['sometimes', 'integer', 'between:1,13'],
             'settings.pagumen_proration_strategy' => ['sometimes', 'string', 'in:full_month,daily_rate'],
+            'settings.retirement_age' => ['sometimes', 'integer', 'between:45,75'],
         ];
     }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { WifiOff } from "lucide-react";
 import { getPendingCount } from "@/lib/offline-queue";
+import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -14,26 +15,11 @@ import { useT } from "@/lib/i18n/useT";
  */
 export function OfflineBanner() {
   const { t } = useT();
-  const [isOnline, setIsOnline] = useState(true);
+  // Connectivity now comes from the shared hook rather than a copy of the
+  // listener block that also lived in useOfflineSync — the two could briefly
+  // disagree about whether the app was online.
+  const { isOnline } = useOfflineStatus();
   const [pendingCount, setPendingCount] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setIsOnline(navigator.onLine);
-
-    function onOnline() {
-      setIsOnline(true);
-    }
-    function onOffline() {
-      setIsOnline(false);
-    }
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +42,7 @@ export function OfflineBanner() {
   if (isOnline && pendingCount === 0) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2 bg-status-warning/15 px-4 py-1.5 text-xs font-medium text-status-warning">
+    <div className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-xs font-medium text-warning-on-soft">
       <WifiOff className="h-3.5 w-3.5" />
       {!isOnline && <span>{t("offline.offline", "You're offline")}</span>}
       {pendingCount > 0 && (

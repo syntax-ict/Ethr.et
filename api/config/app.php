@@ -56,6 +56,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tenancy Root Domain
+    |--------------------------------------------------------------------------
+    |
+    | The bare domain tenants live under: "ethr.et", so that "habru.ethr.et" is
+    | the tenant "habru" and "ethr.et" itself is the public apex with no tenant.
+    | ResolveTenant needs this to tell those apart — label counting cannot,
+    | which is why the apex previously resolved to a tenant named "ethr" and
+    | answered 404 on every request.
+    |
+    | Leave empty for single-host local development; ResolveTenant then falls
+    | back to treating any three-label host as {tenant}.{domain}.
+    |
+    */
+
+    'domain' => env('APP_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

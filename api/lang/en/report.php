@@ -12,4 +12,8 @@ return [
     'export_failed' => 'Export failed. Please try again.',
     'invalid_date_range' => 'Invalid date range. Start date must be before end date.',
     'period_too_long' => 'Report period cannot exceed :max months.',
+
+    // Scheduled report delivery
+    'scheduled_subject' => 'Scheduled report: :name',
+    'scheduled_body' => 'Your scheduled report ":name" has been generated with :rows row(s).',
 ];

@@ -13,9 +13,7 @@ function makeWrapper() {
   });
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
   };
 }
@@ -54,9 +52,12 @@ describe("employees api (MSW, generated OpenAPI types)", () => {
       ),
     );
 
-    const { result } = renderHook(() => useEmployee("01HZEMPLOYEE0000000000099"), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEmployee("01HZEMPLOYEE0000000000099"),
+      {
+        wrapper: makeWrapper(),
+      },
+    );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

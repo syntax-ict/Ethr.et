@@ -164,6 +164,71 @@ export function usePullDeviceEvents() {
   });
 }
 
+// ── Workforce discovery & history backfill ───────────────────────────────────
+
+export type MatchOutcome = "matched" | "probable" | "ambiguous" | "new";
+
+export interface DeviceEnrollment {
+  device_user_id: string;
+  name: string | null;
+  card_number: string | null;
+  department: string | null;
+  fingerprint_count: number | null;
+  face_registered: boolean | null;
+  match: {
+    outcome: MatchOutcome;
+    employee_public_id: string | null;
+    confidence: number;
+  };
+}
+
+export interface DeviceEnrollmentsResponse {
+  device: { public_id: string; name: string; adapter_type: string };
+  enrollments: DeviceEnrollment[];
+  summary: {
+    total: number;
+    matched: number;
+    probable: number;
+    ambiguous: number;
+    new: number;
+  };
+}
+
+/** Read the people enrolled on a device, each with a suggested employee match. */
+export function useDeviceEnrollments(publicId: string | null) {
+  return useQuery<DeviceEnrollmentsResponse>({
+    queryKey: ["devices", publicId, "enrollments"],
+    queryFn: async () =>
+      (await apiClient.get(`/devices/${publicId}/enrollments`)).data,
+    enabled: !!publicId,
+  });
+}
+
+export type HistoryWindow = "last_30" | "last_90" | "from_date" | "full";
+
+/** One-off attendance backfill; punches are dated at their real event time. */
+export function useImportDeviceHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      publicId: string;
+      window: HistoryWindow;
+      from_date?: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/devices/${vars.publicId}/import-history`,
+        { window: vars.window, from_date: vars.from_date },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["devices", vars.publicId] });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+  });
+}
+
 export function useRegenerateDeviceToken() {
   const queryClient = useQueryClient();
 

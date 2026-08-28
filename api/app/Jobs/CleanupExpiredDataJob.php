@@ -29,6 +29,12 @@ class CleanupExpiredDataJob implements ShouldQueue
             ->where('created_at', '<', now()->subDays(30))
             ->delete();
 
+        // Import staging data — hard delete after 7 days (CLAUDE.md soft-delete
+        // policy). Staging rows cascade with their batch.
+        $deleted += DB::table('migration_batches')
+            ->where('created_at', '<', now()->subDays(7))
+            ->delete();
+
         Log::info("CleanupExpiredDataJob: deleted {$deleted} expired records.");
     }
 

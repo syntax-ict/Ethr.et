@@ -22,6 +22,7 @@ class UpdateHolidayRequest extends FormRequest
             'branch_public_id' => ['sometimes', 'nullable', 'string', 'exists:branches,public_id'],
             'ethiopian_calendar' => ['sometimes', 'boolean'],
             'recurring' => ['sometimes', 'boolean'],
+            'is_estimated' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

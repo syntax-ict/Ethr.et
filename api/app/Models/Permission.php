@@ -26,13 +26,21 @@ class Permission extends Model
         'id',
     ];
 
-    public static function isKnownAbility(string $ability): bool
+    /**
+     * Every ability defined in the catalogue.
+     *
+     * @return list<string>
+     */
+    public static function allNames(): array
     {
-        $known = Cache::remember('permissions:known_abilities', 3600, function () {
+        return Cache::remember('permissions:known_abilities', 3600, function () {
             return DB::table('permissions')->pluck('name')->all();
         });
+    }
 
-        return in_array($ability, $known, true);
+    public static function isKnownAbility(string $ability): bool
+    {
+        return in_array($ability, self::allNames(), true);
     }
 
     public static function permissionsForRole(string $role): array

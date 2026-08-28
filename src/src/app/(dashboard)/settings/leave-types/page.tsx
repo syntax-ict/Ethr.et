@@ -5,7 +5,6 @@ import { FileText, Plus, Trash2, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,10 +23,18 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Controller } from "react-hook-form";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage } from "@/lib/forms/rules";
+import { z } from "zod";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 
 interface LeaveType {
@@ -39,27 +46,65 @@ interface LeaveType {
   is_active: boolean;
 }
 
+const ACCRUAL_TYPES = ["monthly", "annual", "immediate", "one_time"] as const;
+
+const leaveTypeSchema = z.object({
+  name: rules.requiredText(255),
+  // The code is the stable key balances and payroll join on, so it is worth
+  // constraining here rather than letting a stray space or lowercase variant
+  // create a second "AL" that reconciles against nothing.
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(2, "validation.name_min")
+    .max(10, "validation.too_long")
+    .regex(/^[A-Z0-9_]+$/, "leave_types_page.code_format"),
+  // Kept as a string through the form (an empty number input parses to NaN,
+  // which reads as "0 days" rather than "you left this blank") and converted
+  // once, on submit.
+  default_days: rules.integer({ min: 0, max: 365 }),
+  accrual_type: z.enum(ACCRUAL_TYPES),
+});
+type LeaveTypeValues = z.infer<typeof leaveTypeSchema>;
+
+const EMPTY_LEAVE_TYPE: LeaveTypeValues = {
+  name: "",
+  code: "",
+  default_days: "",
+  accrual_type: "monthly",
+};
+
 export default function LeaveTypesPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    code: "",
-    default_days: "",
-    accrual_type: "monthly",
+
+  const {
+    register,
+    control,
+    submit,
+    reset,
+    rootError,
+    formState: { errors, isSubmitting },
+  } = useZodForm<LeaveTypeValues>({
+    schema: leaveTypeSchema,
+    defaultValues: EMPTY_LEAVE_TYPE,
   });
 
   function openNew() {
     setEditingId(null);
-    setForm({ name: "", code: "", default_days: "", accrual_type: "monthly" });
+    reset(EMPTY_LEAVE_TYPE);
     setDialogOpen(true);
   }
 
   function openEdit(lt: LeaveType) {
     setEditingId(lt.public_id);
-    setForm({
+    // `reset` rather than per-field setValue: it also clears errors and the
+    // dirty/touched state, so a field rejected on the previous record does not
+    // open the dialog already showing a stale message against a valid value.
+    reset({
       name: lt.name,
       code: lt.code,
       default_days: String(lt.default_days),
@@ -90,20 +135,10 @@ export default function LeaveTypesPage() {
       queryClient.invalidateQueries({ queryKey: ["leave-types"] });
       toast.success(t("leave_types_page.created"));
       setDialogOpen(false);
-      setForm({
-        name: "",
-        code: "",
-        default_days: "",
-        accrual_type: "monthly",
-      });
+      reset(EMPTY_LEAVE_TYPE);
     },
-    onError: (err: unknown) => {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosError.response?.data?.detail ||
-          t("leave_types_page.create_failed"),
-      );
-    },
+    // Errors surface inline in the dialog now — a duplicate `code` is the
+    // common rejection here, and it belongs on the code field.
   });
 
   const updateLeaveType = useMutation({
@@ -125,7 +160,6 @@ export default function LeaveTypesPage() {
       setDialogOpen(false);
       setEditingId(null);
     },
-    onError: () => toast.error(t("leave_types_page.update_failed")),
   });
 
   const deleteLeaveType = useMutation({
@@ -139,19 +173,16 @@ export default function LeaveTypesPage() {
     onError: () => toast.error(t("leave_types_page.delete_failed")),
   });
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(values: LeaveTypeValues) {
     const payload = {
-      name: form.name,
-      code: form.code,
-      default_days: parseInt(form.default_days, 10),
-      accrual_type: form.accrual_type,
+      name: values.name,
+      code: values.code,
+      default_days: Number(values.default_days),
+      accrual_type: values.accrual_type,
     };
-    if (editingId) {
-      updateLeaveType.mutate(payload);
-    } else {
-      createLeaveType.mutate(payload);
-    }
+    await (editingId
+      ? updateLeaveType.mutateAsync(payload)
+      : createLeaveType.mutateAsync(payload));
   }
 
   const leaveTypes = data?.data ?? [];
@@ -190,88 +221,77 @@ export default function LeaveTypesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("common.name")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("leave_types_page.code")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        {t("leave_types_page.default_days")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("leave_types_page.accrual_type")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("common.status")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        {t("common.actions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaveTypes.map((lt) => (
-                      <tr
-                        key={lt.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
+              <SimpleTable
+                caption={t("leave_types_page.title")}
+                headers={[
+                  t("common.name"),
+                  t("leave_types_page.code"),
+                  t("leave_types_page.default_days"),
+                  t("leave_types_page.accrual_type"),
+                  t("common.status"),
+                ]}
+                align={["left", "left", "right", "left", "left"]}
+                rows={leaveTypes.map((lt) => ({
+                  key: lt.public_id,
+                  cells: [
+                    <span key="n" className="font-medium">
+                      {lt.name}
+                    </span>,
+                    <span key="c" className="font-mono text-muted-foreground">
+                      {lt.code}
+                    </span>,
+                    <span key="d" className="text-muted-foreground">
+                      {lt.default_days}
+                    </span>,
+                    <span key="a" className="capitalize text-muted-foreground">
+                      {lt.accrual_type.replace(/_/g, " ")}
+                    </span>,
+                    lt.is_active ? (
+                      <Badge
+                        key="s"
+                        variant="outline"
+                        className={statusBadgeClass("active")}
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {lt.name}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                          {lt.code}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                          {lt.default_days}
-                        </td>
-                        <td className="px-4 py-3 text-sm capitalize text-muted-foreground">
-                          {lt.accrual_type.replace(/_/g, " ")}
-                        </td>
-                        <td className="px-4 py-3">
-                          {lt.is_active ? (
-                            <Badge
-                              variant="outline"
-                              className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                            >
-                              {t("webhooks_page.active")}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                            >
-                              {t("roles_page.inactive")}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEdit(lt)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
-                            onClick={() => deleteLeaveType.mutate(lt.public_id)}
-                            disabled={deleteLeaveType.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        {t("webhooks_page.active")}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        key="s"
+                        variant="outline"
+                        className={statusBadgeClass("offline")}
+                      >
+                        {t("roles_page.inactive")}
+                      </Badge>
+                    ),
+                  ],
+                  actions: (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(lt)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("common.edit", "Edit")}
+                        </span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive-on-soft hover:bg-destructive-soft"
+                        onClick={() => deleteLeaveType.mutate(lt.public_id)}
+                        disabled={deleteLeaveType.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("common.delete", "Delete")}
+                        </span>
+                      </Button>
+                    </div>
+                  ),
+                }))}
+              />
             </CardContent>
           </Card>
         )}
@@ -285,79 +305,101 @@ export default function LeaveTypesPage() {
                   : t("leave_types_page.add")}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="lt_name">{t("common.name")}</Label>
+            <form
+              onSubmit={submit(
+                onSubmit,
+                editingId
+                  ? t("leave_types_page.update_failed")
+                  : t("leave_types_page.create_failed"),
+              )}
+              className="space-y-4"
+              noValidate
+            >
+              <FormErrorSummary message={rootError} />
+
+              <FormField
+                id="lt_name"
+                label={t("common.name")}
+                required
+                error={fieldMessage(t, errors.name?.message)}
+              >
                 <Input
-                  id="lt_name"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, name: e.target.value }))
-                  }
+                  {...register("name")}
                   placeholder={t("leave_types_page.name_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label htmlFor="lt_code">{t("leave_types_page.code")}</Label>
+              </FormField>
+
+              <FormField
+                id="lt_code"
+                label={t("leave_types_page.code")}
+                required
+                error={fieldMessage(t, errors.code?.message)}
+              >
                 <Input
-                  id="lt_code"
-                  value={form.code}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, code: e.target.value }))
-                  }
+                  {...register("code")}
                   placeholder={t("leave_types_page.code_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label htmlFor="lt_days">
-                  {t("leave_types_page.default_days")}
-                </Label>
+              </FormField>
+
+              <FormField
+                id="lt_days"
+                label={t("leave_types_page.default_days")}
+                required
+                error={fieldMessage(t, errors.default_days?.message)}
+              >
                 <Input
-                  id="lt_days"
+                  {...register("default_days")}
                   type="number"
                   min="0"
-                  value={form.default_days}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, default_days: e.target.value }))
-                  }
                   placeholder={t("leave_types_page.days_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label>{t("leave_types_page.accrual_type")}</Label>
-                <Select
-                  value={form.accrual_type}
-                  onValueChange={(v) =>
-                    setForm((p) => ({ ...p, accrual_type: v }))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue
-                      placeholder={t("leave_types_page.select_accrual_type")}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">
-                      {t("leave_types_page.monthly")}
-                    </SelectItem>
-                    <SelectItem value="annual">
-                      {t("leave_types_page.annual")}
-                    </SelectItem>
-                    <SelectItem value="immediate">
-                      {t("leave_types_page.immediate")}
-                    </SelectItem>
-                    <SelectItem value="one_time">
-                      {t("leave_types_page.one_time")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              </FormField>
+
+              <FormField
+                id="lt_accrual"
+                label={t("leave_types_page.accrual_type")}
+                required
+                error={fieldMessage(t, errors.accrual_type?.message)}
+              >
+                {(control_) => (
+                  <Controller
+                    name="accrual_type"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger {...control_} className="mt-1">
+                          <SelectValue
+                            placeholder={t(
+                              "leave_types_page.select_accrual_type",
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">
+                            {t("leave_types_page.monthly")}
+                          </SelectItem>
+                          <SelectItem value="annual">
+                            {t("leave_types_page.annual")}
+                          </SelectItem>
+                          <SelectItem value="immediate">
+                            {t("leave_types_page.immediate")}
+                          </SelectItem>
+                          <SelectItem value="one_time">
+                            {t("leave_types_page.one_time")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+              </FormField>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -366,13 +408,8 @@ export default function LeaveTypesPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    createLeaveType.isPending || updateLeaveType.isPending
-                  }
-                >
-                  {(createLeaveType.isPending || updateLeaveType.isPending) && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {editingId

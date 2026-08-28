@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScheduledReport extends Model
 {
-    use BelongsToTenant, HasFactory, HasPublicId;
+    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
 
     protected $fillable = [
         'tenant_id',

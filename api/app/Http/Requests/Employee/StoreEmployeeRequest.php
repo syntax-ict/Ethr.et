@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Employee;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\UserRole;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,6 +34,9 @@ class StoreEmployeeRequest extends FormRequest
             'gender' => ['nullable', 'string', Rule::in(['male', 'female'])],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'nationality' => ['nullable', 'string', 'max:100'],
+            // Encrypted at rest; a blind index drives duplicate detection during
+            // import and device sync (see IDENTITY_RESOLUTION.md).
+            'national_id' => ['nullable', 'string', 'max:50'],
             'marital_status' => ['nullable', 'string', Rule::in(['single', 'married', 'divorced', 'widowed'])],
             'status' => ['nullable', 'string', Rule::enum(EmployeeStatus::class)],
             'hire_date' => ['required', 'date'],
@@ -46,6 +50,11 @@ class StoreEmployeeRequest extends FormRequest
             'team_id' => ['nullable', 'exists:teams,public_id'],
             'cost_center_id' => ['nullable', 'exists:cost_centers,public_id'],
             'supervisor_id' => ['nullable', 'exists:employees,public_id'],
+
+            // Optionally provision a login account for this employee. Requires an
+            // email; the person receives an activation link to set their password.
+            'create_login' => ['sometimes', 'boolean'],
+            'user_role' => ['sometimes', 'string', Rule::enum(UserRole::class)],
         ];
     }
 }

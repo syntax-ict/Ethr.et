@@ -67,7 +67,7 @@ test.describe("PWA & Offline Behavior", () => {
 
     await context.setOffline(true);
 
-    const response = await page
+    await page
       .goto("/attendance/mobile", {
         waitUntil: "commit",
         timeout: 10000,

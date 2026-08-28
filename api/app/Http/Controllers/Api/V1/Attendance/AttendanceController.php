@@ -11,9 +11,9 @@ use App\Http\Requests\Attendance\CheckInRequest;
 use App\Http\Requests\Attendance\CheckOutRequest;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\AttendanceRecord;
+use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
-use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -124,14 +124,11 @@ class AttendanceController extends Controller
         Gate::authorize('attendance.viewTeam');
 
         $user = $request->user();
-        $employee = $user->employee;
 
         $query = AttendanceRecord::query()
             ->with('employee', 'shift')
-            ->whereHas('employee', function ($q) use ($employee) {
-                if ($employee) {
-                    $q->where('department_id', $employee->department_id);
-                }
+            ->whereHas('employee', function ($q) use ($user) {
+                $user->scopeAccessibleEmployees($q);
             });
 
         if ($request->filled('date')) {
@@ -151,7 +148,10 @@ class AttendanceController extends Controller
     {
         Gate::authorize('attendance.viewAll');
 
+        $user = $request->user();
         $query = AttendanceRecord::query()->with('employee', 'shift');
+
+        $query->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q));
 
         if ($request->filled('filter.employee_public_id')) {
             $query->whereHas('employee', function ($q) use ($request) {
@@ -203,13 +203,16 @@ class AttendanceController extends Controller
         Gate::authorize('attendance.viewAll');
 
         $today = now()->format('Y-m-d');
-        $tenant = app(CurrentTenant::class)->get();
+        $user = $request->user();
 
         $records = AttendanceRecord::query()
             ->where('date', $today)
+            ->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q))
             ->get();
 
-        $totalEmployees = $tenant->employees()->count();
+        $totalQuery = Employee::query();
+        $user->scopeAccessibleEmployees($totalQuery);
+        $totalEmployees = $totalQuery->count();
 
         return response()->json([
             'date' => $today,

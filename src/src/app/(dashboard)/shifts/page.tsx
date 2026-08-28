@@ -42,6 +42,7 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { SettingRow } from "@/components/patterns/SettingRow";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
@@ -218,6 +219,11 @@ export default function ShiftsPage() {
                   {t("shifts_page.assignments")}
                 </Button>
               </Link>
+              <Link href="/shifts/rotations">
+                <Button variant="outline">
+                  {t("shifts_page.rotations", "Rotations")}
+                </Button>
+              </Link>
               <Button onClick={openCreate}>
                 <Plus className="mr-2 h-4 w-4" /> {t("shifts_page.new_shift")}
               </Button>
@@ -312,6 +318,7 @@ export default function ShiftsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 shrink-0"
+                          aria-label={t("common.actions", "Actions")}
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
@@ -354,7 +361,7 @@ export default function ShiftsPage() {
                           className={cn(
                             "rounded px-1.5 py-0.5 text-xs font-medium",
                             active
-                              ? "bg-primary/10 text-primary"
+                              ? "bg-primary-soft text-primary-on-soft"
                               : "bg-muted text-muted-foreground",
                           )}
                         >
@@ -397,8 +404,11 @@ export default function ShiftsPage() {
               {/* Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>{t("shifts_page.name_english")}</Label>
+                  <Label htmlFor="name-english">
+                    {t("shifts_page.name_english")}
+                  </Label>
                   <Input
+                    id="name-english"
                     value={form.name}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
@@ -408,8 +418,11 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>{t("shifts_page.name_amharic")}</Label>
+                  <Label htmlFor="name-amharic">
+                    {t("shifts_page.name_amharic")}
+                  </Label>
                   <Input
+                    id="name-amharic"
                     value={form.name_am}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name_am: e.target.value }))
@@ -423,8 +436,11 @@ export default function ShiftsPage() {
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>{t("shifts_page.start_time_required")}</Label>
+                  <Label htmlFor="start-time-required">
+                    {t("shifts_page.start_time_required")}
+                  </Label>
                   <Input
+                    id="start-time-required"
                     type="time"
                     value={form.start_time}
                     onChange={(e) =>
@@ -434,8 +450,11 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>{t("shifts_page.end_time_required")}</Label>
+                  <Label htmlFor="end-time-required">
+                    {t("shifts_page.end_time_required")}
+                  </Label>
                   <Input
+                    id="end-time-required"
                     type="time"
                     value={form.end_time}
                     onChange={(e) =>
@@ -466,8 +485,11 @@ export default function ShiftsPage() {
               {/* Minutes */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>{t("shifts_page.grace_min")}</Label>
+                  <Label htmlFor="grace-min">
+                    {t("shifts_page.grace_min")}
+                  </Label>
                   <Input
+                    id="grace-min"
                     type="number"
                     value={form.grace_minutes}
                     onChange={(e) =>
@@ -482,8 +504,11 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>{t("shifts_page.break_min")}</Label>
+                  <Label htmlFor="break-min">
+                    {t("shifts_page.break_min")}
+                  </Label>
                   <Input
+                    id="break-min"
                     type="number"
                     value={form.break_minutes}
                     onChange={(e) =>
@@ -498,8 +523,11 @@ export default function ShiftsPage() {
                   />
                 </div>
                 <div>
-                  <Label>{t("shifts_page.early_leave_min")}</Label>
+                  <Label htmlFor="early-leave-min">
+                    {t("shifts_page.early_leave_min")}
+                  </Label>
                   <Input
+                    id="early-leave-min"
                     type="number"
                     value={form.early_departure_minutes}
                     onChange={(e) =>
@@ -539,54 +567,42 @@ export default function ShiftsPage() {
 
               {/* Toggles */}
               <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("shifts_page.crosses_midnight")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("shifts_page.crosses_midnight_desc")}
-                    </p>
-                  </div>
+                <SettingRow
+                  id="crosses-midnight"
+                  title={t("shifts_page.crosses_midnight")}
+                  description={t("shifts_page.crosses_midnight_desc")}
+                >
                   <Switch
                     checked={form.crosses_midnight}
                     onCheckedChange={(v) =>
                       setForm((f) => ({ ...f, crosses_midnight: v }))
                     }
                   />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("shifts_page.default_shift")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("shifts_page.default_shift_desc")}
-                    </p>
-                  </div>
+                </SettingRow>
+                <SettingRow
+                  id="default-shift"
+                  title={t("shifts_page.default_shift")}
+                  description={t("shifts_page.default_shift_desc")}
+                >
                   <Switch
                     checked={form.is_default}
                     onCheckedChange={(v) =>
                       setForm((f) => ({ ...f, is_default: v }))
                     }
                   />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {t("shifts_page.active")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("shifts_page.active_desc")}
-                    </p>
-                  </div>
+                </SettingRow>
+                <SettingRow
+                  id="active"
+                  title={t("shifts_page.active")}
+                  description={t("shifts_page.active_desc")}
+                >
                   <Switch
                     checked={form.is_active}
                     onCheckedChange={(v) =>
                       setForm((f) => ({ ...f, is_active: v }))
                     }
                   />
-                </div>
+                </SettingRow>
               </div>
             </div>
 

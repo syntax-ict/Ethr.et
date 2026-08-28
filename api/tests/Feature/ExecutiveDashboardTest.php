@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 
 // ── Executive Dashboard Overview ──
@@ -100,9 +102,100 @@ test('payroll deep-dive returns structured data', function () {
     $response->assertOk()
         ->assertJsonStructure([
             'monthly_trend',
+            'overtime_trend',
             'by_department',
+            'by_cost_center',
             'totals',
         ]);
+});
+
+test('overtime trend sums overtime pay from the calculation log, not a stored column', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'completed', 'period_label' => 'August 2026']);
+    $employeeA = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $employeeB = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employeeA->id,
+        'calculation_log' => ['steps' => [
+            ['step' => 'basic', 'basic_after_unpaid_leave_cents' => 500000],
+            ['step' => 'overtime', 'overtime_minutes' => 120, 'overtime_amount_cents' => 15000],
+        ]],
+    ]);
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employeeB->id,
+        'calculation_log' => ['steps' => [
+            ['step' => 'overtime', 'overtime_minutes' => 60, 'overtime_amount_cents' => 7500],
+        ]],
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/payroll");
+
+    $response->assertOk();
+    $trend = collect($response->json('overtime_trend'))->keyBy('period');
+    expect($trend->get('August 2026')['overtime_cents'])->toBe(22500);
+    expect($trend->get('August 2026')['overtime_minutes'])->toBe(180);
+});
+
+test('overtime trend excludes draft payroll runs', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'draft', 'period_label' => 'September 2026']);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employee->id,
+        'calculation_log' => ['steps' => [
+            ['step' => 'overtime', 'overtime_minutes' => 60, 'overtime_amount_cents' => 7500],
+        ]],
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/payroll");
+
+    $response->assertOk();
+    expect(collect($response->json('overtime_trend'))->pluck('period'))->not->toContain('September 2026');
+});
+
+test('payroll by cost center sums gross pay per center and buckets unassigned employees', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+    $engineering = CostCenter::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Engineering']);
+
+    $withCostCenter = Employee::factory()->create(['tenant_id' => $tenant->id, 'cost_center_id' => $engineering->id]);
+    $withoutCostCenter = Employee::factory()->create(['tenant_id' => $tenant->id, 'cost_center_id' => null]);
+
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $withCostCenter->id,
+        'gross_cents' => 300000,
+    ]);
+    PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $withoutCostCenter->id,
+        'gross_cents' => 100000,
+    ]);
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/payroll");
+
+    $response->assertOk();
+    $byCostCenter = collect($response->json('by_cost_center'))->keyBy('cost_center');
+    expect($byCostCenter->get('Engineering')['total_gross_cents'])->toBe(300000);
+    expect($byCostCenter->get('Engineering')['employee_count'])->toBe(1);
+    // Not silently dropped — a tenant that hasn't finished assigning cost
+    // centers still sees that payroll accounted for, just unlabelled.
+    expect($byCostCenter->get('Unassigned')['total_gross_cents'])->toBe(100000);
 });
 
 // ── Workforce Deep-dive ──

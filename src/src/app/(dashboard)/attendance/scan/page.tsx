@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
+  CameraOff,
   CheckCircle2,
+  Keyboard,
   XCircle,
   ArrowLeft,
   LogIn,
@@ -12,13 +14,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
 import { apiClient } from "@/api/client";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-type Status = "idle" | "scanning" | "verifying" | "success" | "error";
+type Status =
+  "idle" | "scanning" | "verifying" | "success" | "error" | "camera_denied";
 
 export default function QrScanPage() {
   const { t } = useT();
@@ -26,15 +30,36 @@ export default function QrScanPage() {
   const [type, setType] = useState<"check_in" | "check_out">("check_in");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
+  const [manualToken, setManualToken] = useState("");
+  const [showManual, setShowManual] = useState(false);
   const readerRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scannerRef = useRef<any>(null);
 
+  // Teardown reads the ref directly instead of calling the component-scoped
+  // `stopScanner()` declared further down. That worked only through function
+  // hoisting, which the compiler cannot see as safe ("Cannot access variable
+  // before it is declared") — and an unmount cleanup cannot await a promise
+  // anyway, so the async helper was never the right shape here.
   useEffect(() => {
     return () => {
-      stopScanner();
+      const scanner = scannerRef.current;
+      if (!scanner) return;
+
+      scannerRef.current = null;
+
+      Promise.resolve(scanner.stop())
+        .catch(() => {
+          /* already stopped, or the camera track is gone */
+        })
+        .finally(() => {
+          try {
+            scanner.clear();
+          } catch {
+            /* the reader node is unmounted; nothing to clear */
+          }
+        });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startScanner() {
@@ -58,7 +83,7 @@ export default function QrScanPage() {
     } catch (err) {
       console.error(err);
       toast.error(t("attendance.scan_page.camera_unavailable"));
-      setStatus("idle");
+      setStatus("camera_denied");
     }
   }
 
@@ -72,6 +97,13 @@ export default function QrScanPage() {
       }
       scannerRef.current = null;
     }
+  }
+
+  async function handleManualSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const token = manualToken.trim();
+    if (!token) return;
+    await verifyToken(token);
   }
 
   async function verifyToken(qrToken: string) {
@@ -98,6 +130,30 @@ export default function QrScanPage() {
     }
   }
 
+  const manualEntryForm = (
+    <div className="space-y-3">
+      <label
+        htmlFor="qr-manual-token"
+        className="flex items-center gap-2 text-sm font-medium"
+      >
+        <Keyboard className="h-4 w-4" />
+        {t("attendance.scan_page.manual_entry_label")}
+      </label>
+      <form onSubmit={handleManualSubmit} className="flex gap-2">
+        <Input
+          id="qr-manual-token"
+          value={manualToken}
+          onChange={(e) => setManualToken(e.target.value)}
+          placeholder={t("attendance.scan_page.manual_entry_placeholder")}
+          className="flex-1 font-mono"
+        />
+        <Button type="submit" disabled={!manualToken.trim()}>
+          {t("attendance.scan_page.submit")}
+        </Button>
+      </form>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -110,11 +166,11 @@ export default function QrScanPage() {
         <div className="flex rounded-xl border-2 p-1">
           <button
             onClick={() => setType("check_in")}
-            disabled={status !== "idle" && status !== "scanning"}
+            disabled={status === "verifying" || status === "success"}
             className={cn(
               "flex-1 rounded-lg py-2 font-semibold transition-all flex items-center justify-center gap-2",
               type === "check_in"
-                ? "bg-green-600 text-white"
+                ? "bg-success text-success-foreground"
                 : "text-muted-foreground",
             )}
           >
@@ -122,11 +178,11 @@ export default function QrScanPage() {
           </button>
           <button
             onClick={() => setType("check_out")}
-            disabled={status !== "idle" && status !== "scanning"}
+            disabled={status === "verifying" || status === "success"}
             className={cn(
               "flex-1 rounded-lg py-2 font-semibold transition-all flex items-center justify-center gap-2",
               type === "check_out"
-                ? "bg-orange-600 text-white"
+                ? "bg-warning text-warning-foreground"
                 : "text-muted-foreground",
             )}
           >
@@ -136,9 +192,9 @@ export default function QrScanPage() {
 
         {/* Result states */}
         {status === "success" && (
-          <Card className="border-green-300">
+          <Card className="border-success-edge">
             <CardContent className="p-8 text-center space-y-3">
-              <CheckCircle2 className="mx-auto h-16 w-16 text-green-600 animate-in zoom-in" />
+              <CheckCircle2 className="mx-auto h-16 w-16 text-success animate-in zoom-in" />
               <p className="text-xl font-bold">{message}</p>
               <p className="text-xs text-muted-foreground">
                 {t("attendance.mobile_page.redirecting")}
@@ -148,9 +204,9 @@ export default function QrScanPage() {
         )}
 
         {status === "error" && (
-          <Card className="border-red-300">
+          <Card className="border-destructive-edge">
             <CardContent className="p-8 text-center space-y-3">
-              <XCircle className="mx-auto h-16 w-16 text-red-600 animate-in zoom-in" />
+              <XCircle className="mx-auto h-16 w-16 text-destructive animate-in zoom-in" />
               <p className="font-semibold">{message}</p>
               <Button
                 variant="outline"
@@ -161,6 +217,39 @@ export default function QrScanPage() {
                 }}
               >
                 {t("attendance.scan_page.try_again")}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {status === "camera_denied" && (
+          <Card className="border-warning-edge">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-warning-soft">
+                  <CameraOff className="h-8 w-8 text-warning" />
+                </div>
+                <p className="font-semibold">
+                  {t("attendance.scan_page.camera_denied_title")}
+                </p>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  {t("attendance.scan_page.camera_denied_description")}
+                </p>
+              </div>
+
+              <div className="border-t pt-4">{manualEntryForm}</div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStatus("idle");
+                  setManualToken("");
+                }}
+                className="w-full"
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                {t("attendance.scan_page.retry_camera")}
               </Button>
             </CardContent>
           </Card>
@@ -191,6 +280,21 @@ export default function QrScanPage() {
                     <Camera className="mr-2 h-4 w-4" />{" "}
                     {t("attendance.scan_page.start_scanner")}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowManual((v) => !v)}
+                    aria-expanded={showManual}
+                    aria-controls="qr-manual-entry"
+                  >
+                    <Keyboard className="mr-2 h-4 w-4" />
+                    {t("attendance.scan_page.manual_entry_label")}
+                  </Button>
+                </div>
+              )}
+              {status === "idle" && showManual && (
+                <div id="qr-manual-entry" className="border-t pt-4">
+                  {manualEntryForm}
                 </div>
               )}
               {status === "verifying" && (

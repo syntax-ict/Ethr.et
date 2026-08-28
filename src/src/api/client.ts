@@ -1,5 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
+import { hostnameIsAuthoritative } from "@/lib/auth/tenant-host";
+
 export interface ApiError {
   type: string;
   title: string;
@@ -14,32 +16,31 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
+  withCredentials: true,
   timeout: 30000,
 });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window === "undefined") return config;
 
-  const token = localStorage.getItem("access_token");
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   const locale = localStorage.getItem("locale") || "en";
   if (config.headers) {
     config.headers["Accept-Language"] = locale;
   }
 
-  // Hybrid tenant resolution: in production the subdomain identifies the tenant,
-  // but for shared-URL flows (local dev, mobile apps, API tools) we send X-Tenant
-  // from the persisted login context.
-  const hostParts = window.location.host.split(".");
-  const hasSubdomain =
-    hostParts.length >= 3 ||
-    (hostParts.length === 2 &&
-      !["localhost", "test"].includes(hostParts[1].split(":")[0]));
-
-  if (!hasSubdomain) {
+  // X-Tenant is a single-host development affordance, not a production one.
+  //
+  // Where NEXT_PUBLIC_ROOT_DOMAIN is configured the hostname is the tenant
+  // selector and the API refuses this header outright (ResolveTenant only
+  // honours it in local/testing). Sending it anyway would be harmless but
+  // misleading: it would look like the client still chooses the tenant.
+  //
+  // Without a root domain — localhost development, tests — there is no
+  // subdomain to read, so the header is the only way to say which tenant is
+  // meant. That condition is exactly "the hostname is not authoritative": the
+  // second guard this used to carry counted labels without knowing the root
+  // domain, and could only ever disagree with the first one wrongly.
+  if (!hostnameIsAuthoritative()) {
     const tenant = localStorage.getItem("tenant");
     if (tenant && config.headers) {
       config.headers["X-Tenant"] = tenant;
@@ -62,23 +63,10 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const { data } = await axios.post(
-          "/api/v1/auth/refresh",
-          {},
-          { withCredentials: true },
-        );
+        await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
 
-        if (data.access_token) {
-          localStorage.setItem("access_token", data.access_token);
-
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-          }
-
-          return apiClient(originalRequest);
-        }
+        return apiClient(originalRequest);
       } catch {
-        localStorage.removeItem("access_token");
         window.location.href = "/login";
       }
     }

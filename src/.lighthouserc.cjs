@@ -1,12 +1,36 @@
+/**
+ * Lighthouse CI configuration.
+ *
+ * The URL list is deliberately limited to routes that render correctly for an
+ * anonymous visitor. It previously included /dashboard, /employees,
+ * /attendance and /payroll — but Lighthouse CI has no session, so all four
+ * redirected to /login and scored the login page four times over while
+ * appearing to cover the application. The assertions passed comfortably and
+ * would have gone on passing while the real authenticated score was 54.
+ *
+ * Authenticated performance is measured separately, because doing it here
+ * means either shipping a credential into CI config or driving Lighthouse
+ * through Playwright's storage state. Until that exists, this file measures
+ * what it can honestly reach and does not imply more. See
+ * `docs/audits/UX_PHASE_09.md` for the authenticated numbers and how they were
+ * produced.
+ */
+// Base origin under test. Defaults to the single-host dev URL so nothing
+// changes for existing local/CI use; the reproducible Docker E2E harness sets
+// LHCI_BASE_URL=http://demo.ethr.test so Lighthouse hits the same production-like
+// subdomain path (through nginx) that the Playwright suite does.
+const BASE = process.env.LHCI_BASE_URL || "http://demo.localhost:3000";
+
 module.exports = {
   ci: {
     collect: {
       url: [
-        "http://demo.localhost:3000/login",
-        "http://demo.localhost:3000/dashboard",
-        "http://demo.localhost:3000/employees",
-        "http://demo.localhost:3000/attendance",
-        "http://demo.localhost:3000/payroll",
+        `${BASE}/`,
+        `${BASE}/login`,
+        `${BASE}/register`,
+        `${BASE}/pricing`,
+        `${BASE}/features`,
+        `${BASE}/contact`,
       ],
       numberOfRuns: 3,
       settings: {
@@ -16,10 +40,13 @@ module.exports = {
     },
     assert: {
       assertions: {
+        // Thresholds from CLAUDE.md "Performance Targets".
         "categories:performance": ["error", { minScore: 0.8 }],
         "categories:accessibility": ["error", { minScore: 0.9 }],
         "categories:best-practices": ["warn", { minScore: 0.8 }],
-        "categories:seo": ["warn", { minScore: 0.8 }],
+        // These are public, indexable marketing pages, so SEO is an error
+        // rather than a warning — a regression here costs real signups.
+        "categories:seo": ["error", { minScore: 0.9 }],
         "first-contentful-paint": ["warn", { maxNumericValue: 1500 }],
         "largest-contentful-paint": ["warn", { maxNumericValue: 2500 }],
         "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],

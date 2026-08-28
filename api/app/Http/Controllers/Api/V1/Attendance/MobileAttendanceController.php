@@ -11,13 +11,16 @@ use App\Http\Requests\Attendance\MobileCheckOutRequest;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\FileStorageService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class MobileAttendanceController extends Controller
 {
     public function __construct(
         private readonly AttendanceEngine $engine,
+        private readonly FileStorageService $storage,
     ) {}
 
     public function checkIn(MobileCheckInRequest $request): JsonResponse
@@ -45,7 +48,7 @@ class MobileAttendanceController extends Controller
                 idempotencyKey: $request->validated('idempotency_key'),
                 latitude: $request->validated('latitude'),
                 longitude: $request->validated('longitude'),
-                photoPath: $request->validated('photo_path'),
+                photoPath: $this->storeSelfie($request),
                 ipAddress: $request->ip(),
             ));
         } catch (\RuntimeException $e) {
@@ -90,6 +93,7 @@ class MobileAttendanceController extends Controller
             idempotencyKey: $request->validated('idempotency_key'),
             latitude: $request->validated('latitude'),
             longitude: $request->validated('longitude'),
+            photoPath: $this->storeSelfie($request),
             ipAddress: $request->ip(),
         ));
 
@@ -98,5 +102,20 @@ class MobileAttendanceController extends Controller
         return (new AttendanceRecordResource($result->record))
             ->response()
             ->setStatusCode(200);
+    }
+
+    /**
+     * Persist the inline selfie (already validated as a data URL) and return the
+     * stored object key, which is what the attendance record holds.
+     */
+    private function storeSelfie(Request $request): ?string
+    {
+        $photo = $request->input('photo');
+
+        if (! is_string($photo) || $photo === '') {
+            return null;
+        }
+
+        return $this->storage->uploadDataUrlImage($photo, 'selfies')['path'];
     }
 }

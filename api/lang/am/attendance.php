@@ -9,4 +9,5 @@ return [
     'method_disabled' => 'ይህ የመገኘት ዘዴ ለድርጅትዎ አልተንቃ።',
     'geofence_location_required' => 'ጂኦፌንስ ሲነቃ GPS አካባቢ ያስፈልጋል።',
     'outside_geofence' => 'ከተፈቀደው ክልል ውጪ ነዎት። እባክዎ ወደ ቅርንጫፍ ቦታዎ ይቅረቡ።',
+    'conflict_already_resolved' => 'ይህ ግጭት ቀድሞውኑ ተፈትቷል።',
 ];

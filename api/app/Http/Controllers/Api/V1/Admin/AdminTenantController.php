@@ -11,12 +11,17 @@ use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
+use App\Jobs\BackupTenantJob;
 use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\ImpersonationToken;
+use App\Services\Auth\SessionCookie;
+use App\Services\Auth\SessionHandoff;
+use App\Services\AuthService;
 use App\Services\MfaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,12 +30,22 @@ use Illuminate\Support\Facades\Gate;
 
 class AdminTenantController extends Controller
 {
+    /** How long an impersonation session lasts before it has to be re-authorized with MFA. */
+    private const IMPERSONATION_MINUTES = 30;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         Gate::authorize('admin.manage');
 
+        // The `withoutGlobalScopes()` on the outer query does not reach the
+        // `withCount` subquery — that builds its own Employee query, which still
+        // carries BelongsToTenant's scope. With no tenant resolved (the platform
+        // admin never has one) that scope is `whereRaw('0 = 1')`, so every
+        // tenant reported **0 employees** no matter its real headcount: the
+        // 150-employee demo tenant read as empty. Devices below were already
+        // counted scope-free; employees were missed.
         $query = Tenant::withoutGlobalScopes()
-            ->withCount('employees');
+            ->withCount(['employees' => fn ($q) => $q->withoutGlobalScopes()]);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -58,9 +73,10 @@ class AdminTenantController extends Controller
     {
         Gate::authorize('admin.manage');
 
+        // Scope-free count, for the same reason as index() above.
         $tenant = Tenant::withoutGlobalScopes()
             ->where('public_id', $publicId)
-            ->withCount('employees')
+            ->withCount(['employees' => fn ($q) => $q->withoutGlobalScopes()])
             ->firstOrFail();
 
         $subscription = Subscription::withoutGlobalScopes()
@@ -163,7 +179,17 @@ class AdminTenantController extends Controller
         ]);
     }
 
-    public function impersonate(ImpersonateTenantRequest $request, string $publicId, MfaService $mfaService): JsonResponse
+    /**
+     * Start impersonating a tenant's admin.
+     *
+     * The minted token is both returned (for API clients that send it as a
+     * bearer) and planted in the session cookie, because the browser SPA has no
+     * other way to use it — it sends no Authorization header. Without the
+     * cookie swap the redirect that follows merely continued the super admin's
+     * own session against the target tenant, which is not impersonation and
+     * left no exit path for the audit trail to close.
+     */
+    public function impersonate(ImpersonateTenantRequest $request, string $publicId, MfaService $mfaService, SessionCookie $sessionCookie, SessionHandoff $handoff): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -209,8 +235,12 @@ class AdminTenantController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $expiresAt = now()->addMinutes(30);
-        $token = $adminUser->createToken("impersonation:{$actor->id}", ['*', 'impersonation'], $expiresAt);
+        $expiresAt = now()->addMinutes(self::IMPERSONATION_MINUTES);
+        $token = $adminUser->createToken(
+            ImpersonationToken::nameFor($actor->id),
+            ['*', ImpersonationToken::ABILITY],
+            $expiresAt
+        );
 
         AuditLog::record('admin.tenant.impersonated', $tenant, [
             'impersonated_user_id' => $adminUser->id,
@@ -218,11 +248,123 @@ class AdminTenantController extends Controller
             'expires_at' => $expiresAt->toIso8601String(),
         ]);
 
+        // Once hostnames are authoritative this request is on admin.ethr.et and
+        // the browser is about to be sent to {tenant}.ethr.et. The session
+        // cookie is host-only, so issuing it here would plant it on a host the
+        // browser is leaving — impersonation would simply arrive logged out.
+        // Hand the session over explicitly instead.
+        if (SessionHandoff::required()) {
+            $nonce = $handoff->issue(
+                $token->plainTextToken,
+                $tenant->subdomain,
+                self::IMPERSONATION_MINUTES * 60,
+            );
+
+            AuditLog::record('admin.tenant.impersonation_handoff_issued', $tenant, [
+                'admin_user_id' => $actor->id,
+                'impersonated_user_id' => $adminUser->id,
+            ]);
+
+            return response()->json([
+                'tenant' => $tenant->subdomain,
+                'expires_at' => $expiresAt,
+                // The nonce travels in the fragment of this URL, so it is never
+                // sent to a server in a query string or written to a log.
+                'handoff_url' => SessionHandoff::urlFor($tenant->subdomain, $nonce),
+            ]);
+        }
+
+        // Single-host development: console and tenant app share an origin, so
+        // the cookie already reaches where it needs to.
+        //
+        // The admin's own token is deliberately left alive. Revoking it here
+        // would strand them if anything downstream of this point failed.
+        $sessionCookie->issue($token->plainTextToken, self::IMPERSONATION_MINUTES * 60);
+
         return response()->json([
             'token' => $token->plainTextToken,
             'tenant' => $tenant->subdomain,
             'expires_at' => $expiresAt,
         ]);
+    }
+
+    /**
+     * End an impersonation session and put the super admin back in their own.
+     *
+     * Revoking the token is not enough on its own: the browser is holding that
+     * token in its session cookie, so a bare revoke turns the next request into
+     * a 401 that reads as a random logout. The admin's original plaintext token
+     * is unrecoverable (it was overwritten in the cookie and only its hash is
+     * stored), so restoring them means minting a fresh session here.
+     */
+    public function exitImpersonation(Request $request, SessionCookie $sessionCookie, AuthService $auth): JsonResponse
+    {
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+
+        // Only an active impersonation session (token minted with the
+        // 'impersonation' ability) may be ended here. No admin.manage gate:
+        // the caller is acting as the impersonated tenant admin, not a super admin.
+        if ($user === null || $token === null || ! in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/not-impersonating',
+                'title' => 'Not Impersonating',
+                'status' => 409,
+                'detail' => __('auth.not_impersonating'),
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
+        AuditLog::record('admin.tenant.impersonation_ended', null, [
+            'impersonated_user_id' => $user->id,
+        ]);
+
+        // Revoke the impersonation token so it can no longer be used.
+        $token->delete();
+
+        $impersonator = $this->resolveImpersonator($token->name);
+
+        if ($impersonator === null) {
+            $sessionCookie->clear();
+
+            return response()->json([
+                'message' => __('auth.impersonation_ended'),
+                'session_restored' => false,
+                'tenant' => null,
+            ]);
+        }
+
+        $auth->issueSession($impersonator);
+
+        return response()->json([
+            'message' => __('auth.impersonation_ended'),
+            'session_restored' => true,
+            // The subdomain the client should send as X-Tenant from here on.
+            // Server-authoritative, so exiting still works when the browser has
+            // lost whatever it stashed at the start of the session.
+            'tenant' => Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain,
+        ]);
+    }
+
+    /**
+     * Recover the super admin behind an impersonation token.
+     *
+     * The name is written by impersonate() and is never client-supplied, so it
+     * is trustworthy input — but the role is re-checked regardless, so a token
+     * whose name no longer maps to a super admin (one minted before this
+     * format, a demoted account, a deleted one) restores nothing rather than
+     * minting a session for the wrong person.
+     */
+    private function resolveImpersonator(?string $tokenName): ?User
+    {
+        $actorId = ImpersonationToken::impersonatorId($tokenName);
+
+        if ($actorId === null) {
+            return null;
+        }
+
+        $impersonator = User::withoutGlobalScopes()->find($actorId);
+
+        return $impersonator?->isSuperAdmin() ? $impersonator : null;
     }
 
     public function backup(Request $request, string $publicId): JsonResponse
@@ -236,6 +378,8 @@ class AdminTenantController extends Controller
         AuditLog::record('admin.tenant.backup_triggered', $tenant, [
             'triggered_by' => $request->user()->id,
         ]);
+
+        BackupTenantJob::dispatch($tenant->id, $request->user()->id);
 
         return response()->json([
             'message' => 'Backup job queued. You will be notified when the export is ready.',

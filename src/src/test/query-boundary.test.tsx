@@ -55,8 +55,8 @@ describe("QueryBoundary", () => {
         {() => <div>Data</div>}
       </QueryBoundary>,
     );
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Try Again"));
+    expect(screen.getByText("Couldn't load this")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Try again"));
     expect(refetch).toHaveBeenCalled();
   });
 
@@ -66,7 +66,7 @@ describe("QueryBoundary", () => {
         {() => <div>Data</div>}
       </QueryBoundary>,
     );
-    expect(screen.getByText("No data found")).toBeInTheDocument();
+    expect(screen.getByText("No results found")).toBeInTheDocument();
   });
 
   it("renders children with data on success", () => {
@@ -107,6 +107,6 @@ describe("QueryBoundary", () => {
         {() => <div>Data</div>}
       </QueryBoundary>,
     );
-    expect(screen.getByText("No data found")).toBeInTheDocument();
+    expect(screen.getByText("No results found")).toBeInTheDocument();
   });
 });

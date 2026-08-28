@@ -63,6 +63,15 @@ export interface DataTableColumnMeta {
 }
 
 declare module "@tanstack/react-table" {
+  // TS2428 requires an interface augmentation to repeat the original's type
+  // parameters *by name*, so these cannot be renamed to the `_` convention or
+  // dropped — the augmentation stops compiling either way. They are unused here
+  // only because this declaration contributes fields, not generics. The
+  // interface itself is empty only in the structural sense (it re-exports
+  // DataTableColumnMeta's members via `extends`), which is exactly what
+  // no-empty-object-type exists to catch for accidental no-op interfaces —
+  // this one is intentional.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type
   interface ColumnMeta<TData, TValue> extends DataTableColumnMeta {}
 }
 
@@ -81,7 +90,16 @@ interface DataTableProps<TData> {
   /** Controlled single-column sort. Omit to disable sorting entirely. */
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
+  /**
+   * Controlled column visibility, for callers that need to read or apply it
+   * externally (e.g. saved views). Omit both this and `onColumnVisibilityChange`
+   * to keep the table's own `datatable:${tableId}:visibility` localStorage default.
+   */
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void;
   onPageChange?: (page: number) => void;
+  /** Rendered in the toolbar row, alongside Export CSV / Columns */
+  toolbarExtra?: ReactNode;
   selectable?: boolean;
   onSelectionChange?: (selectedIds: string[]) => void;
   /** Rendered above the table when at least one row is selected */
@@ -99,7 +117,9 @@ interface DataTableProps<TData> {
    * inferring it from column definitions, since most columns in this codebase
    * render from `row.original` directly instead of an accessorKey/accessorFn.
    */
-  getExportRow?: (row: TData) => Record<string, string | number | null | undefined>;
+  getExportRow?: (
+    row: TData,
+  ) => Record<string, string | number | null | undefined>;
   exportFilename?: string;
   className?: string;
 }
@@ -139,7 +159,10 @@ export function DataTable<TData>({
   skeletonRows = 8,
   sorting,
   onSortingChange,
+  columnVisibility: controlledColumnVisibility,
+  onColumnVisibilityChange,
   onPageChange,
+  toolbarExtra,
   selectable = false,
   onSelectionChange,
   bulkActions,
@@ -150,8 +173,10 @@ export function DataTable<TData>({
   className,
 }: DataTableProps<TData>) {
   const { t } = useT();
-  const [columnVisibility, setColumnVisibility] =
+  const [internalColumnVisibility, setInternalColumnVisibility] =
     useLocalStorage<VisibilityState>(`datatable:${tableId}:visibility`, {});
+  const columnVisibility =
+    controlledColumnVisibility ?? internalColumnVisibility;
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
@@ -236,10 +261,15 @@ export function DataTable<TData>({
       rowSelection,
       expanded,
     },
-    onColumnVisibilityChange: (updater) =>
-      setColumnVisibility((prev) =>
-        typeof updater === "function" ? updater(prev) : updater,
-      ),
+    onColumnVisibilityChange: (updater) => {
+      const next =
+        typeof updater === "function" ? updater(columnVisibility) : updater;
+      if (onColumnVisibilityChange) {
+        onColumnVisibilityChange(next);
+      } else {
+        setInternalColumnVisibility(next);
+      }
+    },
     onRowSelectionChange: (updater) => {
       setRowSelection((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
@@ -265,7 +295,9 @@ export function DataTable<TData>({
 
   function handleExport() {
     if (!getExportRow) return;
-    const rows = table.getRowModel().rows.map((row) => getExportRow(row.original));
+    const rows = table
+      .getRowModel()
+      .rows.map((row) => getExportRow(row.original));
     if (rows.length === 0) return;
 
     const headers = Object.keys(rows[0]);
@@ -287,7 +319,7 @@ export function DataTable<TData>({
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-border/60 py-16 text-center">
         <p className="text-sm font-medium text-foreground">
           Something went wrong loading this data.
         </p>
@@ -322,6 +354,7 @@ export function DataTable<TData>({
         <div className="flex-1">
           {selectable && selectedIds.length > 0 && bulkActions?.(selectedIds)}
         </div>
+        {toolbarExtra}
         {getExportRow && (
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="mr-2 h-3.5 w-3.5" />
@@ -355,9 +388,9 @@ export function DataTable<TData>({
         </DropdownMenu>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="rounded-xl border border-border/60 overflow-hidden">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-muted/50">
+          <TableHeader className="sticky top-0 z-10 bg-muted/40">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => {

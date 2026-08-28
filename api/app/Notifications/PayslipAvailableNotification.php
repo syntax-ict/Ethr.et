@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\PayrollEntry;
+use App\Notifications\Concerns\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class PayslipAvailableNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly PayrollEntry $entry,
     ) {}
+
+    protected function preferenceType(): string
+    {
+        return 'payslip_available';
+    }
 
     public function via(object $notifiable): array
     {
@@ -24,7 +30,7 @@ class PayslipAvailableNotification extends Notification
             $channels[] = 'broadcast';
         }
 
-        return $channels;
+        return $this->filterChannels($notifiable, $channels);
     }
 
     public function toArray(object $notifiable): array

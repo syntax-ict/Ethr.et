@@ -21,7 +21,7 @@ class DirectoryController extends Controller
                 'phone', 'email', 'photo_path',
                 'department_id', 'position_id', 'branch_id',
             ])
-            ->with(['department:id,name', 'position:id,name', 'branch:id,name']);
+            ->with(['department:id,name', 'position:id,title', 'branch:id,name']);
 
         if ($request->has('search')) {
             $search = $request->input('search');

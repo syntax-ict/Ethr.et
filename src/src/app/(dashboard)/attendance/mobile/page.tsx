@@ -161,7 +161,9 @@ export default function MobileCheckInPage() {
         latitude: coords.lat,
         longitude: coords.lng,
       };
-      if (photoDataUrl) payload.photo_path = photoDataUrl;
+      // The server stores the selfie and derives the object key; sending the
+      // data URL as `photo_path` would exceed that field's length entirely.
+      if (photoDataUrl) payload.photo = photoDataUrl;
       const { data } = await apiClient.post(path, payload);
       setMessage(
         `${type === "check_in" ? t("attendance.checked_in_label") : t("attendance.checked_out_label")} · ${t("attendance.mobile_page.confidence")} ${data.confidence_score ?? "—"}`,
@@ -181,7 +183,7 @@ export default function MobileCheckInPage() {
   if (status === "success") {
     return (
       <div className="mx-auto max-w-md py-10 text-center">
-        <CheckCircle2 className="mx-auto h-20 w-20 text-green-600 animate-in zoom-in" />
+        <CheckCircle2 className="mx-auto h-20 w-20 text-success animate-in zoom-in" />
         <p className="mt-4 text-xl font-bold">{message}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("attendance.mobile_page.redirecting")}
@@ -199,18 +201,18 @@ export default function MobileCheckInPage() {
 
       {/* Offline / sync banner */}
       {!isOnline && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
-          <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          <p className="text-sm text-amber-900 dark:text-amber-300">
+        <div className="flex items-center gap-2 rounded-lg border border-warning-edge bg-warning-soft px-4 py-3">
+          <WifiOff className="h-4 w-4 text-warning-on-soft shrink-0" />
+          <p className="text-sm text-warning-on-soft">
             {t("attendance.mobile_page.offline_banner")}
           </p>
         </div>
       )}
       {pendingCount > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950/30">
+        <div className="flex items-center justify-between rounded-lg border border-info-edge bg-info-soft px-4 py-3">
           <div className="flex items-center gap-2">
-            <CloudUpload className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-            <p className="text-sm text-blue-900 dark:text-blue-300">
+            <CloudUpload className="h-4 w-4 text-info-on-soft shrink-0" />
+            <p className="text-sm text-info-on-soft">
               {pendingCount}{" "}
               {pendingCount > 1
                 ? t("attendance.mobile_page.records_pending")
@@ -251,7 +253,7 @@ export default function MobileCheckInPage() {
           className={cn(
             "flex-1 rounded-lg py-3 font-semibold flex items-center justify-center gap-2",
             type === "check_in"
-              ? "bg-green-600 text-white shadow-md"
+              ? "bg-success text-success-foreground shadow-md"
               : "text-muted-foreground",
           )}
         >
@@ -262,7 +264,7 @@ export default function MobileCheckInPage() {
           className={cn(
             "flex-1 rounded-lg py-3 font-semibold flex items-center justify-center gap-2",
             type === "check_out"
-              ? "bg-orange-600 text-white shadow-md"
+              ? "bg-warning text-warning-foreground shadow-md"
               : "text-muted-foreground",
           )}
         >
@@ -277,15 +279,13 @@ export default function MobileCheckInPage() {
             <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-xl",
-                coords
-                  ? "bg-green-100 dark:bg-green-950"
-                  : "bg-amber-100 dark:bg-amber-950",
+                coords ? "bg-success-soft" : "bg-warning-soft",
               )}
             >
               <MapPin
                 className={cn(
                   "h-5 w-5",
-                  coords ? "text-green-600" : "text-amber-600",
+                  coords ? "text-success-on-soft" : "text-warning-on-soft",
                 )}
               />
             </div>
@@ -310,8 +310,16 @@ export default function MobileCheckInPage() {
                 </p>
               )}
             </div>
-            <Button size="sm" variant="ghost" onClick={requestLocation}>
-              <RefreshCw className="h-3 w-3" />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={requestLocation}
+              aria-label={t(
+                "attendance.mobile_page.refresh_location",
+                "Refresh location",
+              )}
+            >
+              <RefreshCw className="h-3 w-3" aria-hidden="true" />
             </Button>
           </div>
         </CardContent>
@@ -324,13 +332,15 @@ export default function MobileCheckInPage() {
             <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-xl",
-                photoDataUrl ? "bg-green-100 dark:bg-green-950" : "bg-muted",
+                photoDataUrl ? "bg-success-soft" : "bg-muted",
               )}
             >
               <Camera
                 className={cn(
                   "h-5 w-5",
-                  photoDataUrl ? "text-green-600" : "text-muted-foreground",
+                  photoDataUrl
+                    ? "text-success-on-soft"
+                    : "text-muted-foreground",
                 )}
               />
             </div>
@@ -400,15 +410,15 @@ export default function MobileCheckInPage() {
       </Card>
 
       {status === "error" && message && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
-          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+        <div className="flex items-start gap-2 rounded-lg border border-destructive-edge bg-destructive-soft p-3">
+          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-on-soft" />
           <p className="text-sm text-foreground">{message}</p>
         </div>
       )}
 
       {!coords && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning-on-soft" />
           <p className="text-sm text-foreground">
             {t("attendance.mobile_page.location_required_notice")}
           </p>

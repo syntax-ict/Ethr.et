@@ -18,7 +18,7 @@ class UpdateDeviceRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'location_description' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'adapter_type' => ['sometimes', 'string', 'in:hikvision,zkteco,suprema,mock'],
+            'adapter_type' => ['sometimes', 'string', 'in:hikvision,zkteco,suprema,generic,mock'],
             'branch_public_id' => ['sometimes', 'string', 'exists:branches,public_id'],
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],

@@ -119,6 +119,38 @@ final class SupremaAdapter implements DeviceAdapter
         }
     }
 
+    public function pullEnrollments(Device $device): array
+    {
+        try {
+            $response = $this->request($device, 'GET', '/api/users?limit=500');
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $enrollments = [];
+            foreach (($response->json('records') ?? $response->json('users') ?? []) as $user) {
+                $enrollments[] = [
+                    'device_user_id' => (string) ($user['user_id'] ?? ''),
+                    'name' => $user['name'] ?? null,
+                    'card_number' => isset($user['cards'][0]['card_id']) ? (string) $user['cards'][0]['card_id'] : null,
+                    'department' => $user['user_group_id']['name'] ?? null,
+                    'fingerprint_count' => isset($user['fingerprint_templates']) ? (int) $user['fingerprint_templates'] : null,
+                    'face_registered' => isset($user['face_templates']) ? ((int) $user['face_templates']) > 0 : null,
+                ];
+            }
+
+            return $enrollments;
+        } catch (\Throwable $e) {
+            Log::error('Suprema pullEnrollments failed', [
+                'device_id' => $device->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
     public function pushEventUrl(Device $device, string $callbackUrl): bool
     {
         try {
@@ -151,7 +183,8 @@ final class SupremaAdapter implements DeviceAdapter
         $scheme = $port === 443 ? 'https' : 'http';
         $baseUrl = "{$scheme}://{$config['ip']}:{$port}";
 
-        $request = Http::timeout(10)
+        // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
+        $request = Http::connectTimeout(2)->timeout(10)
             ->withHeaders([
                 'X-API-Key' => $config['api_key'] ?? '',
                 'Accept' => 'application/json',

@@ -20,8 +20,8 @@ describe("CurrencyDisplay", () => {
 
   it("applies custom className", () => {
     const { container } = render(
-      <CurrencyDisplay cents={100} className="text-red-500" />,
+      <CurrencyDisplay cents={100} className="text-destructive" />,
     );
-    expect(container.firstChild).toHaveClass("text-red-500");
+    expect(container.firstChild).toHaveClass("text-destructive");
   });
 });

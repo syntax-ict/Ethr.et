@@ -62,19 +62,4 @@ final class PlatformAnalyticsService
             'monthly_trend' => $monthlyTrend,
         ];
     }
-
-    public function health(): array
-    {
-        return [
-            'services' => [
-                'api' => ['status' => 'healthy'],
-                'database' => ['status' => 'healthy'],
-                'cache' => ['status' => 'healthy'],
-            ],
-            'queue' => [
-                'default' => ['depth' => 0],
-            ],
-            'failed_jobs' => 0,
-        ];
-    }
 }

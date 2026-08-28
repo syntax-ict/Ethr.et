@@ -21,9 +21,17 @@ export interface EmployeeDashboard {
   } | null;
   upcoming_holidays: Array<{
     name: string;
+    /** Amharic name; null for holidays created before bilingual names existed. */
+    name_am: string | null;
     date: string;
   }>;
   pending_approvals: number;
+  tenant_summary: {
+    employee_count: number;
+    department_count: number;
+    branch_count: number;
+  };
+  onboarding_complete: boolean;
 }
 
 export function useEmployeeDashboard() {
@@ -48,7 +56,12 @@ export interface ManagerDashboard {
   team_size: number;
 }
 
-export function useManagerDashboard() {
+/**
+ * @param enabled Gate the request on the caller's role. Consumers render null
+ * for non-supervisors, but hooks run before those early returns, so without
+ * this every employee fired a request the API answers with 403.
+ */
+export function useManagerDashboard(enabled = true) {
   return useQuery<ManagerDashboard>({
     queryKey: ["dashboard", "manager"],
     queryFn: async () => {
@@ -56,5 +69,6 @@ export function useManagerDashboard() {
       return data;
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }

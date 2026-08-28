@@ -102,6 +102,46 @@ final class HikvisionAdapter implements DeviceAdapter
         }
     }
 
+    public function pullEnrollments(Device $device): array
+    {
+        try {
+            $body = [
+                'UserInfoSearchCond' => [
+                    'searchID' => (string) Str::uuid(),
+                    'searchResultPosition' => 0,
+                    'maxResults' => 200,
+                ],
+            ];
+
+            $response = $this->request($device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $enrollments = [];
+            foreach ($response->json('UserInfoSearch.UserInfo') ?? [] as $user) {
+                $enrollments[] = [
+                    'device_user_id' => (string) ($user['employeeNo'] ?? ''),
+                    'name' => $user['name'] ?? null,
+                    'card_number' => $user['cardNo'] ?? null,
+                    'department' => $user['belongGroup'] ?? null,
+                    'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
+                    'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
+                ];
+            }
+
+            return $enrollments;
+        } catch (\Throwable $e) {
+            Log::error('Hikvision pullEnrollments failed', [
+                'device_id' => $device->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
     public function pushEventUrl(Device $device, string $callbackUrl): bool
     {
         try {
@@ -134,7 +174,10 @@ final class HikvisionAdapter implements DeviceAdapter
         $config = $device->connection_config;
         $baseUrl = "http://{$config['ip']}:{$config['port']}";
 
-        $request = Http::timeout(10)
+        // connectTimeout bounds the TCP connect phase so an unreachable device fails fast
+        // (Http::timeout only caps the request once connected) — keeps status checks from
+        // blocking a worker for the full read timeout on an offline device.
+        $request = Http::connectTimeout(2)->timeout(10)
             ->withBasicAuth($config['username'] ?? 'admin', $config['password'] ?? '');
 
         if ($body !== null) {

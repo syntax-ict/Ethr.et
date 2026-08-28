@@ -117,6 +117,32 @@ export function toGregorian(
   return new Date(greg.year, greg.month - 1, greg.day);
 }
 
+export function daysInEthiopianMonth(year: number, month: number): number {
+  if (month >= 1 && month <= 12) return 30;
+  if (month === 13) return isEthiopianLeapYear(year) ? 6 : 5;
+  return 0;
+}
+
+export function ethiopianMonthStart(ethYear: number, ethMonth: number): Date {
+  return toGregorian(ethYear, ethMonth, 1);
+}
+
+export function nextEthiopianMonth(
+  year: number,
+  month: number,
+): { year: number; month: number } {
+  if (month < 13) return { year, month: month + 1 };
+  return { year: year + 1, month: 1 };
+}
+
+export function prevEthiopianMonth(
+  year: number,
+  month: number,
+): { year: number; month: number } {
+  if (month > 1) return { year, month: month - 1 };
+  return { year: year - 1, month: 13 };
+}
+
 export function formatEthiopian(
   date: EthiopianDate,
   locale: string = "en",
@@ -124,6 +150,16 @@ export function formatEthiopian(
   const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
   const monthName = months[date.month - 1] ?? `Month ${date.month}`;
   return `${monthName} ${date.day}, ${date.year}`;
+}
+
+export function formatEthiopianMonthYear(
+  year: number,
+  month: number,
+  locale: string = "en",
+): string {
+  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  const monthName = months[month - 1] ?? `Month ${month}`;
+  return `${monthName} ${year}`;
 }
 
 export function todayEthiopian(): EthiopianDate {

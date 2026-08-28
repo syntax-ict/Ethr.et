@@ -60,7 +60,7 @@ describe('employee documents', function () {
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-        $file = UploadedFile::fake()->create('contract.pdf', 500, 'application/pdf');
+        $file = UploadedFile::fake()->createWithContent('contract.pdf', '%PDF-1.4 fake content for testing');
 
         $response = $this->postJson("/api/v1/employees/{$employee->public_id}/documents", [
             'file' => $file,
@@ -97,7 +97,7 @@ describe('employee documents', function () {
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
-        $file = UploadedFile::fake()->create('doc.pdf', 100, 'application/pdf');
+        $file = UploadedFile::fake()->createWithContent('doc.pdf', '%PDF-1.4 fake content');
 
         $this->postJson("/api/v1/employees/{$employee->public_id}/documents", [
             'file' => $file,
@@ -155,7 +155,7 @@ describe('employee documents', function () {
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
-        $file = UploadedFile::fake()->create('audit_test.pdf', 100, 'application/pdf');
+        $file = UploadedFile::fake()->createWithContent('audit_test.pdf', '%PDF-1.4 fake content');
 
         $this->postJson("/api/v1/employees/{$employee->public_id}/documents", [
             'file' => $file,
@@ -465,5 +465,60 @@ describe('documents and import authorization', function () {
         $this->postJson('/api/v1/employees/import/commit')->assertUnauthorized();
         $this->postJson('/api/v1/employees/bulk-update')->assertUnauthorized();
         $this->getJson('/api/v1/employees/export')->assertUnauthorized();
+    });
+});
+
+describe('bulk update status validation', function () {
+    // `status` was validated as a bare `string` while the column is cast to
+    // EmployeeStatus on read. Any value reached the database, and the row then
+    // threw `ValueError: "..." is not a valid backing value` on every subsequent
+    // read — 500ing the employee endpoint and any list containing that employee.
+    // Because the API is also the only way to correct the value, an HR admin
+    // could permanently brick employee records, in bulk, through a documented
+    // endpoint. Verified against the pre-fix code: the first test returned 200
+    // and the third returned 500.
+
+    it('rejects a status outside the enum', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $emp = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $original = $emp->status;
+
+        $this->postJson('/api/v1/employees/bulk-update', [
+            'employee_ids' => [$emp->public_id],
+            'status' => 'banana',
+        ])->assertUnprocessable();
+
+        expect($emp->refresh()->status)->toBe($original);
+    });
+
+    it('accepts a valid status', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $emp = Employee::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => EmployeeStatus::HIRED,
+        ]);
+
+        $this->postJson('/api/v1/employees/bulk-update', [
+            'employee_ids' => [$emp->public_id],
+            'status' => EmployeeStatus::SUSPENDED->value,
+        ])->assertOk()->assertJsonPath('updated', 1);
+
+        expect($emp->refresh()->status)->toBe(EmployeeStatus::SUSPENDED);
+    });
+
+    it('leaves the employee readable after a rejected status update', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $emp = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->postJson('/api/v1/employees/bulk-update', [
+            'employee_ids' => [$emp->public_id],
+            'status' => 'banana',
+        ])->assertUnprocessable();
+
+        // The assertion that actually mattered: the record survives intact.
+        $this->getJson('/api/v1/employees/'.$emp->public_id)->assertOk();
     });
 });

@@ -1,0 +1,78 @@
+# Opt-in: run the local stack with the production hostname model.
+#
+# By default local development is single-host — `localhost:3000` for everything,
+# with the tenant carried in the `X-Tenant` header. That is deliberate (there is
+# no subdomain on a bare `localhost` to read), but it means the thing this
+# product's login is actually built around — tenant identity resolved from the
+# hostname — cannot be seen, demonstrated, or manually tested on a developer's
+# machine at all. Every host-shape check had to be taken on trust from the Pest
+# suite.
+#
+# This overlay closes that gap by pointing the same model at `localhost` as its
+# root domain. Browsers resolve any `*.localhost` name to 127.0.0.1 themselves
+# (RFC 6761), so no hosts-file editing and no DNS is involved:
+#
+#   http://localhost:3000        apex   — public context, organisation field shown
+#   http://admin.localhost:3000  platform — "Sign in to ETHR Platform", no tenant
+#   http://demo.localhost:3000   tenant   — "Sign in to {Tenant Name}", field hidden
+#   http://nope.localhost:3000   unknown  — controlled tenant-not-found state
+#
+# Usage (all three files, since -f disables the implicit override):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml \
+#                  -f docker-compose.hostnames.yml up -d --build frontend
+#
+# The frontend must be rebuilt, not merely restarted: NEXT_PUBLIC_* values are
+# inlined into the client bundle at build time, so setting one at runtime has no
+# effect (docker/frontend/Dockerfile says the same thing at greater length).
+#
+# To go back, bring the stack up without this file and rebuild the frontend.
+#
+# Consequences worth knowing before you switch it on — they are the point, not
+# side effects:
+#   - `X-Tenant` stops being consulted; the hostname decides. A tenant reached
+#     the old way (localhost + localStorage) will appear to have no data.
+#   - EnsurePlatformContext activates: `/api/v1/admin/*` answers 404 on tenant
+#     hosts, and the console is only served from `admin.localhost`.
+#   - A super admin is refused on tenant hostnames (EnsureUserBelongsToTenant
+#     narrows its exemption to the platform host).
+#   - Impersonation goes through the cross-host handoff nonce rather than
+#     planting a cookie directly.
+#
+# `SANCTUM_STATEFUL_DOMAINS` in docker-compose.yml already lists `*.localhost`
+# and `*.localhost:3000` — without them the session cookie is ignored on a
+# tenant host and every page load after login bounces back to /login.
+
+services:
+  api:
+    environment:
+      - APP_DOMAIN=localhost
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8888
+      # `$$` is a literal `$` — Compose interpolates a single one. And the var is
+      # CORS_ALLOWED_ORIGINS_PATTERNS (config/cors.php:26), not …ORIGIN_PATTERNS:
+      # a near-miss here fails open into "no patterns", which looks like working
+      # CORS until the first cross-origin request from a tenant host.
+      # The `#...#` delimiters are REQUIRED: config/cors.php passes these values
+      # straight to preg_match(), so a bare `^http://...$` makes PHP read `^` as
+      # the delimiter and fatal with "No ending delimiter '^' found" — turning
+      # every browser request that carries an Origin header (any login POST)
+      # into a 500. Found 2026-08-23 when the identical pattern in
+      # docker-compose.test.yml killed the E2E suite in globalSetup.
+      - CORS_ALLOWED_ORIGINS_PATTERNS=#^http://[a-z0-9-]+\.localhost(:[0-9]+)?$$#
+
+  # The queue worker and scheduler resolve tenants too — a job that rebuilds a
+  # cache key or writes a notification needs the same view of what a tenant is
+  # as the request that queued it. Leaving APP_DOMAIN off here is the shape of
+  # bug that only shows up asynchronously, hours later, in the wrong tenant.
+  worker:
+    environment:
+      - APP_DOMAIN=localhost
+
+  scheduler:
+    environment:
+      - APP_DOMAIN=localhost
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_ROOT_DOMAIN: localhost

@@ -32,6 +32,8 @@ export interface Tenant {
 
 export interface User {
   public_id: string;
+  name: string | null;
+  name_am: string | null;
   email: string;
   phone: string | null;
   role: string;
@@ -39,6 +41,8 @@ export interface User {
   mfa_enabled: boolean;
   locale: string;
   last_login_at: string | null;
+  employee_code: string | null;
+  photo_thumb_url: string | null;
 }
 
 export interface Employee {

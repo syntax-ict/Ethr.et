@@ -5,6 +5,7 @@ import { CalendarDays, Plus, Trash2, Wand2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +18,19 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { FormField } from "@/components/patterns/FormField";
+import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Controller } from "react-hook-form";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import { useZodForm } from "@/lib/forms/use-zod-form";
+import { rules, fieldMessage } from "@/lib/forms/rules";
+import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface Holiday {
   public_id: string;
@@ -30,11 +39,29 @@ interface Holiday {
   recurring: boolean;
 }
 
+const holidaySchema = z.object({
+  name: rules.requiredText(255),
+  date: rules.date(),
+  recurring: z.boolean(),
+});
+type HolidayValues = z.infer<typeof holidaySchema>;
+
 export default function HolidaysPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", date: "", recurring: false });
+
+  const {
+    register,
+    control,
+    submit,
+    reset,
+    rootError,
+    formState: { errors, isSubmitting },
+  } = useZodForm<HolidayValues>({
+    schema: holidaySchema,
+    defaultValues: { name: "", date: "", recurring: false },
+  });
 
   const { data, isLoading } = useQuery<{ data: Holiday[] }>({
     queryKey: ["holidays"],
@@ -57,14 +84,10 @@ export default function HolidaysPage() {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
       toast.success(t("holidays_page.added"));
       setDialogOpen(false);
-      setForm({ name: "", date: "", recurring: false });
+      reset();
     },
-    onError: (err: unknown) => {
-      const axiosError = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosError.response?.data?.detail || t("holidays_page.add_failed"),
-      );
-    },
+    // No `onError` toast — a duplicate date or a rejected name is now shown on
+    // the field inside the still-open dialog, where it can be corrected.
   });
 
   const deleteHoliday = useMutation({
@@ -89,11 +112,6 @@ export default function HolidaysPage() {
     },
     onError: () => toast.error(t("holidays_page.auto_detect_failed")),
   });
-
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    createHoliday.mutate(form);
-  }
 
   const holidays = data?.data ?? [];
 
@@ -145,71 +163,56 @@ export default function HolidaysPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("common.name")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("common.date")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("holidays_page.recurring")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        {t("common.actions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {holidays.map((holiday) => (
-                      <tr
-                        key={holiday.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
+              <SimpleTable
+                caption={t("holidays_page.title")}
+                headers={[
+                  t("common.name"),
+                  t("common.date"),
+                  t("holidays_page.recurring"),
+                ]}
+                rows={holidays.map((holiday) => ({
+                  key: holiday.public_id,
+                  cells: [
+                    <span key="n" className="font-medium">
+                      {holiday.name}
+                    </span>,
+                    <span key="d" className="text-muted-foreground">
+                      {holiday.date}
+                    </span>,
+                    holiday.recurring ? (
+                      <Badge
+                        key="r"
+                        variant="outline"
+                        className={statusBadgeClass("active")}
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {holiday.name}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {holiday.date}
-                        </td>
-                        <td className="px-4 py-3">
-                          {holiday.recurring ? (
-                            <Badge
-                              variant="outline"
-                              className="border-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                            >
-                              {t("holidays_page.recurring")}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                            >
-                              {t("holidays_page.one_time")}
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950"
-                            onClick={() =>
-                              deleteHoliday.mutate(holiday.public_id)
-                            }
-                            disabled={deleteHoliday.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        {t("holidays_page.recurring")}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        key="r"
+                        variant="outline"
+                        className={statusBadgeClass("offline")}
+                      >
+                        {t("holidays_page.one_time")}
+                      </Badge>
+                    ),
+                  ],
+                  actions: (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive-on-soft hover:bg-destructive-soft"
+                      onClick={() => deleteHoliday.mutate(holiday.public_id)}
+                      disabled={deleteHoliday.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">
+                        {t("common.delete", "Delete")}
+                      </span>
+                    </Button>
+                  ),
+                }))}
+              />
             </CardContent>
           </Card>
         )}
@@ -219,47 +222,67 @@ export default function HolidaysPage() {
             <DialogHeader>
               <DialogTitle>{t("holidays_page.add_holiday")}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <Label htmlFor="holiday_name">{t("common.name")}</Label>
+            <form
+              onSubmit={submit(
+                (values) => createHoliday.mutateAsync(values),
+                t("holidays_page.add_failed"),
+              )}
+              className="space-y-4"
+              noValidate
+            >
+              <FormErrorSummary message={rootError} />
+
+              <FormField
+                id="holiday_name"
+                label={t("common.name")}
+                required
+                error={fieldMessage(t, errors.name?.message)}
+              >
                 <Input
-                  id="holiday_name"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, name: e.target.value }))
-                  }
+                  {...register("name")}
                   placeholder={t("holidays_page.name_placeholder")}
-                  required
                   className="mt-1"
                 />
-              </div>
-              <div>
-                <Label htmlFor="holiday_date">{t("common.date")}</Label>
-                <Input
-                  id="holiday_date"
-                  type="date"
-                  value={form.date}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, date: e.target.value }))
-                  }
-                  required
-                  className="mt-1"
-                />
-              </div>
+              </FormField>
+
+              <FormField
+                id="holiday_date"
+                label={t("common.date")}
+                required
+                error={fieldMessage(t, errors.date?.message)}
+              >
+                {(control_) => (
+                  // `Controller`, not `register`: DualCalendarDateInput is a
+                  // controlled component with an ISO-string contract, and in
+                  // Ethiopian entry mode it is three Selects rather than an
+                  // input RHF could register directly.
+                  <Controller
+                    name="date"
+                    control={control}
+                    render={({ field }) => (
+                      <DualCalendarDateInput
+                        {...control_}
+                        value={field.value}
+                        onChange={field.onChange}
+                        className="mt-1"
+                      />
+                    )}
+                  />
+                )}
+              </FormField>
+
               <div className="flex items-center gap-2">
                 <input
+                  {...register("recurring")}
                   id="holiday_recurring"
                   type="checkbox"
-                  checked={form.recurring}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, recurring: e.target.checked }))
-                  }
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-input"
                 />
                 <Label htmlFor="holiday_recurring" className="cursor-pointer">
                   {t("holidays_page.recurring_every_year")}
                 </Label>
               </div>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -268,8 +291,8 @@ export default function HolidaysPage() {
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={createHoliday.isPending}>
-                  {createHoliday.isPending && (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("holidays_page.add_holiday")}

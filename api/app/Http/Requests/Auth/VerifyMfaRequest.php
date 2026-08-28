@@ -18,6 +18,8 @@ class VerifyMfaRequest extends FormRequest
     {
         return [
             'code' => ['required', 'string', 'size:6'],
+            // Optional so existing clients that omit it keep working unchanged.
+            'trust_device' => ['sometimes', 'boolean'],
         ];
     }
 }

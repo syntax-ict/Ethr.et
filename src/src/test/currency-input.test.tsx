@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { CurrencyInput } from "@/components/shared/currency-input";
 
-function ControlledCurrencyInput({ initialCents = 0 }: { initialCents?: number }) {
+function ControlledCurrencyInput({
+  initialCents = 0,
+}: {
+  initialCents?: number;
+}) {
   const [cents, setCents] = useState(initialCents);
   return (
     <CurrencyInput
@@ -56,7 +60,6 @@ describe("CurrencyInput", () => {
 
     function Harness() {
       const [cents, setCents] = useState(0);
-      lastCents = cents;
       return (
         <CurrencyInput
           value={cents}

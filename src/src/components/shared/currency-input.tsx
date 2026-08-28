@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -39,12 +39,16 @@ export function CurrencyInput({
 
   // Only resync from the prop while not focused, so an external value update
   // (e.g. a parent recomputing state after this input's own onChange) never
-  // clobbers the digits the user is mid-way through typing.
-  useEffect(() => {
-    if (!isFocused) {
-      setText(centsToDisplay(value));
-    }
-  }, [value, isFocused]);
+  // clobbers the digits the user is mid-way through typing. Adjusting state
+  // during render avoids an extra effect commit — see
+  // https://react.dev/learn/you-might-not-need-an-effect. The blur-time
+  // resync (normalizing whatever the user typed to the canonical display
+  // format) happens directly in the onBlur handler below.
+  const [prevValue, setPrevValue] = useState(value);
+  if (!isFocused && value !== prevValue) {
+    setPrevValue(value);
+    setText(centsToDisplay(value));
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
@@ -63,7 +67,10 @@ export function CurrencyInput({
         value={text}
         onChange={handleChange}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
+        onBlur={() => {
+          setIsFocused(false);
+          setText(centsToDisplay(value));
+        }}
         placeholder={placeholder ?? "0.00"}
         disabled={disabled}
         required={required}

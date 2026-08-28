@@ -54,7 +54,10 @@ class Department extends Model
 
     public function childrenRecursive(): HasMany
     {
-        return $this->children()->with('childrenRecursive');
+        return $this->children()
+            ->withCount('employees')
+            ->orderBy('name')
+            ->with('childrenRecursive');
     }
 
     public function branch(): BelongsTo

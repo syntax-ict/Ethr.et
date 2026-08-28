@@ -9,4 +9,5 @@ return [
     'method_disabled' => 'This attendance method is not enabled for your organization.',
     'geofence_location_required' => 'GPS location is required when geofence enforcement is enabled.',
     'outside_geofence' => 'You are outside the allowed check-in area. Please move closer to your branch location.',
+    'conflict_already_resolved' => 'This conflict has already been resolved.',
 ];

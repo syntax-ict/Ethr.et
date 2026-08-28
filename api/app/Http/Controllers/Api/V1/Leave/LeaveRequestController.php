@@ -15,18 +15,21 @@ use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LeaveRejectedNotification;
+use App\Notifications\LeaveRequestedNotification;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
 use App\Traits\DispatchesWebhooks;
+use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Gate;
 
 class LeaveRequestController extends Controller
 {
-    use DispatchesWebhooks;
+    use DispatchesWebhooks, SendsNotifications;
 
     public function __construct(
         private readonly LeaveBalanceService $balanceService,
@@ -35,7 +38,7 @@ class LeaveRequestController extends Controller
 
     public function store(StoreLeaveRequestRequest $request): JsonResponse
     {
-        Gate::authorize('leave.request');
+        $this->authorize('request', LeaveRequest::class);
 
         $user = $request->user();
         $employee = Employee::findOrFail($user->employee_id);
@@ -148,6 +151,14 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->load('employee', 'leaveType');
 
+        // PHASE_05 S26: "LeaveRequestedNotification → approver". The class existed
+        // from Phase 5 but nothing ever constructed it, so approvers were never
+        // told a request was waiting.
+        $this->notify(
+            $this->supervisorUserOf($leaveRequest->employee),
+            new LeaveRequestedNotification($leaveRequest),
+        );
+
         return (new LeaveRequestResource($leaveRequest))
             ->response()
             ->setStatusCode(201);
@@ -174,15 +185,16 @@ class LeaveRequestController extends Controller
 
     public function team(Request $request): AnonymousResourceCollection
     {
-        Gate::authorize('leave.viewTeam');
+        $this->authorize('viewTeam', LeaveRequest::class);
 
         $user = $request->user();
 
-        $directReportIds = Employee::where('supervisor_id', $user->employee_id)
-            ->pluck('id');
+        $accessibleQuery = Employee::query();
+        $user->scopeAccessibleEmployees($accessibleQuery);
+        $accessibleIds = $accessibleQuery->pluck('id');
 
         $query = LeaveRequest::query()
-            ->whereIn('employee_id', $directReportIds)
+            ->whereIn('employee_id', $accessibleIds)
             ->with('employee', 'leaveType');
 
         if ($request->has('filter.status')) {
@@ -212,7 +224,7 @@ class LeaveRequestController extends Controller
 
     public function employeeBalance(Request $request, Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('leave.viewAll');
+        $this->authorize('viewAll', LeaveRequest::class);
 
         $year = $request->integer('year', now()->year);
 
@@ -225,9 +237,18 @@ class LeaveRequestController extends Controller
         return LeaveBalanceResource::collection($balances);
     }
 
+    public function show(Request $request, LeaveRequest $leaveRequest): JsonResponse
+    {
+        $this->authorize('view', $leaveRequest);
+
+        $leaveRequest->load('employee', 'leaveType');
+
+        return response()->json(new LeaveRequestResource($leaveRequest));
+    }
+
     public function approve(Request $request, LeaveRequest $leaveRequest): JsonResponse
     {
-        Gate::authorize('leave.approve');
+        $this->authorize('approve', $leaveRequest);
 
         if ($leaveRequest->status !== LeaveStatus::PENDING) {
             return response()->json([
@@ -281,12 +302,17 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->load('employee', 'leaveType');
 
+        $this->notify(
+            $this->userOf($leaveRequest->employee),
+            new LeaveApprovedNotification($leaveRequest),
+        );
+
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
 
     public function reject(RejectLeaveRequest $request, LeaveRequest $leaveRequest): JsonResponse
     {
-        Gate::authorize('leave.approve');
+        $this->authorize('approve', $leaveRequest);
 
         if ($leaveRequest->status !== LeaveStatus::PENDING) {
             return response()->json([
@@ -326,6 +352,11 @@ class LeaveRequestController extends Controller
         ]);
 
         $leaveRequest->load('employee', 'leaveType');
+
+        $this->notify(
+            $this->userOf($leaveRequest->employee),
+            new LeaveRejectedNotification($leaveRequest),
+        );
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }

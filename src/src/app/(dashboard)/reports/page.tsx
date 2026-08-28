@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import {
-  BarChart3,
   Download,
   Loader2,
   Users,
@@ -22,7 +21,6 @@ import {
   Mail,
   Plus,
   X,
-  AlertCircle,
   FileSpreadsheet,
   Play,
 } from "lucide-react";
@@ -50,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import {
   useReportSources,
@@ -64,11 +63,11 @@ import {
   type ReportSources,
   type SavedReport,
 } from "@/features/reports/api";
-import { useMutation } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatETB } from "@/lib/utils/currency";
 
 const prebuilt = [
   {
@@ -76,28 +75,28 @@ const prebuilt = [
     icon: Users,
     titleKey: "reports_page.prebuilt_employees_title",
     descKey: "reports_page.prebuilt_employees_desc",
-    color: "text-blue-600",
+    color: "text-status-info",
   },
   {
     key: "attendance",
     icon: Clock,
     titleKey: "reports_page.prebuilt_attendance_title",
     descKey: "reports_page.prebuilt_attendance_desc",
-    color: "text-green-600",
+    color: "text-status-success",
   },
   {
     key: "leave",
     icon: CalendarDays,
     titleKey: "reports_page.prebuilt_leave_title",
     descKey: "reports_page.prebuilt_leave_desc",
-    color: "text-purple-600",
+    color: "text-interactive-primary",
   },
   {
     key: "payroll",
     icon: Wallet,
     titleKey: "reports_page.prebuilt_payroll_title",
     descKey: "reports_page.prebuilt_payroll_desc",
-    color: "text-amber-600",
+    color: "text-status-warning",
   },
 ];
 
@@ -455,7 +454,12 @@ function BuilderTab() {
                   setConfig((p) => ({ ...p, sort_dir: v as "asc" | "desc" }))
                 }
               >
-                <SelectTrigger aria-label={t("reports_page.sort_direction", "Sort direction")}>
+                <SelectTrigger
+                  aria-label={t(
+                    "reports_page.sort_direction",
+                    "Sort direction",
+                  )}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -541,7 +545,11 @@ function PreviewResult({
     source: string;
     total: number;
     data: Array<Record<string, unknown>>;
-    summary: { grouped_by?: string; groups?: Record<string, number> };
+    summary: {
+      grouped_by?: string;
+      groups?: Record<string, number>;
+      group_sums?: Record<string, Record<string, number>>;
+    };
   };
 }) {
   const { t } = useT();
@@ -550,6 +558,7 @@ function PreviewResult({
     [result.data],
   );
   const groups = result.summary?.groups;
+  const groupSums = result.summary?.group_sums;
 
   return (
     <div className="space-y-4">
@@ -577,6 +586,29 @@ function PreviewResult({
                 </Badge>
               ))}
             </div>
+            {groupSums && Object.keys(groupSums).length > 0 && (
+              <div className="mt-3 space-y-2 border-t pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "reports_page.group_totals",
+                    "Totals per group — for statutory filing (e.g. monthly tax/pension remittance):",
+                  )}
+                </p>
+                {Object.entries(groupSums).map(([key, sums]) => (
+                  <div key={key} className="text-xs">
+                    <span className="font-semibold text-foreground">
+                      {key}:
+                    </span>{" "}
+                    {Object.entries(sums)
+                      .map(
+                        ([field, cents]) =>
+                          `${field.replace(/_cents$/, "").replace(/_/g, " ")} ${formatETB(cents)}`,
+                      )
+                      .join(" · ")}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -590,39 +622,23 @@ function PreviewResult({
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto max-h-[calc(100vh-280px)]">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted">
-                  <tr className="border-b">
-                    {headers.map((col) => (
-                      <th
-                        key={col}
-                        className="px-3 py-2 text-left font-medium text-muted-foreground capitalize whitespace-nowrap"
-                      >
-                        {col.replace(/_/g, " ").replace(/cents/i, "(¢)")}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.data.slice(0, 200).map((row, i) => (
-                    <tr
-                      key={i}
-                      className="border-b last:border-0 hover:bg-muted/30"
-                    >
-                      {headers.map((h) => (
-                        <td
-                          key={h}
-                          className="px-3 py-2 text-foreground whitespace-nowrap"
-                        >
-                          {row[h] == null ? "—" : String(row[h])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SimpleTable
+              caption={t("reports_page.title", "Report results")}
+              maxHeight="calc(100vh - 280px)"
+              headers={headers.map((col) => (
+                <span key={col} className="capitalize">
+                  {col.replace(/_/g, " ").replace(/cents/i, "(¢)")}
+                </span>
+              ))}
+              rows={result.data.slice(0, 200).map((row, i) => ({
+                key: String(i),
+                cells: headers.map((h) => (
+                  <span key={h} className="whitespace-nowrap">
+                    {row[h] == null ? "—" : String(row[h])}
+                  </span>
+                )),
+              }))}
+            />
             {result.data.length > 200 && (
               <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
                 {t("reports_page.showing_first_200_prefix")}{" "}

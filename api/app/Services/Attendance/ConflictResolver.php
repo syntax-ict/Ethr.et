@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\ConflictType;
+use App\Models\AttendanceConflict;
 use App\Models\AttendanceRecord;
 use Carbon\Carbon;
 
-/**
- * Resolves duplicate/conflicting check-ins for the same employee on the same
- * day, arriving from different sources (web, mobile, biometric, kiosk...).
- * Decision table, based on the gap between check-in times:
- *   < 1 min   → dedupe: keep the higher-confidence record (ties keep the first)
- *   1-5 min   → merge: one surviving record spanning the earliest check-in and
- *               latest check-out, keeping the higher-confidence record's identity
- *   > 5 min   → flag: both records are kept, tagged for HR review
- */
 final class ConflictResolver
 {
     private const DEDUPE_THRESHOLD_MINUTES = 1;
 
     private const MERGE_THRESHOLD_MINUTES = 5;
+
+    private const SOURCE_PRIORITY = [
+        'biometric' => 6,
+        'mobile' => 5,
+        'qr' => 4,
+        'web' => 3,
+        'manual' => 2,
+        'csv' => 1,
+    ];
 
     public function resolve(AttendanceRecord $newRecord): ConflictResolution
     {
@@ -28,39 +30,65 @@ final class ConflictResolver
             return new ConflictResolution($newRecord, 'created');
         }
 
-        $conflict = AttendanceRecord::withoutGlobalScope('tenant')
+        $existing = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $newRecord->tenant_id)
             ->where('employee_id', $newRecord->employee_id)
             ->whereDate('date', $newRecord->date->format('Y-m-d'))
             ->where('id', '!=', $newRecord->id)
             ->whereNotNull('check_in')
+            ->where('status', '!=', 'voided')
             ->get()
             ->sortBy(fn (AttendanceRecord $r) => abs($r->check_in->diffInSeconds($newRecord->check_in)))
             ->first();
 
-        if (! $conflict) {
+        if (! $existing) {
             return new ConflictResolution($newRecord, 'created');
         }
 
-        $gapMinutes = abs($conflict->check_in->diffInMinutes($newRecord->check_in, true));
+        $gapMinutes = abs($existing->check_in->diffInMinutes($newRecord->check_in, true));
+        $sameSource = $this->sourceKey($newRecord) === $this->sourceKey($existing);
+
+        if ($gapMinutes < self::DEDUPE_THRESHOLD_MINUTES && $sameSource) {
+            return $this->combine($newRecord, $existing, 'deduped');
+        }
 
         if ($gapMinutes < self::DEDUPE_THRESHOLD_MINUTES) {
-            return $this->combine($newRecord, $conflict, 'deduped');
+            return $this->mergeByConfidence($newRecord, $existing, 'merged');
         }
 
         if ($gapMinutes <= self::MERGE_THRESHOLD_MINUTES) {
-            return $this->combine($newRecord, $conflict, 'merged');
+            return $this->combine($newRecord, $existing, 'merged');
         }
 
-        return $this->flag($newRecord, $conflict);
+        return $this->flag($newRecord, $existing);
+    }
+
+    private function mergeByConfidence(AttendanceRecord $newRecord, AttendanceRecord $existing, string $action): ConflictResolution
+    {
+        $newPriority = $this->sourcePriority($newRecord);
+        $existingPriority = $this->sourcePriority($existing);
+
+        if ($newRecord->confidence_score === $existing->confidence_score) {
+            $survivor = $newPriority >= $existingPriority ? $newRecord : $existing;
+        } else {
+            $survivor = $newRecord->confidence_score > $existing->confidence_score ? $newRecord : $existing;
+        }
+
+        $loser = $survivor->is($newRecord) ? $existing : $newRecord;
+
+        return $this->performMerge($survivor, $loser, $newRecord, $existing, $action);
     }
 
     private function combine(AttendanceRecord $newRecord, AttendanceRecord $existing, string $action): ConflictResolution
     {
-        // Ties keep the existing (first-arrived) record.
         $survivor = $newRecord->confidence_score > $existing->confidence_score ? $newRecord : $existing;
         $loser = $survivor->is($newRecord) ? $existing : $newRecord;
 
+        return $this->performMerge($survivor, $loser, $newRecord, $existing, $action);
+    }
+
+    private function performMerge(AttendanceRecord $survivor, AttendanceRecord $loser, AttendanceRecord $newRecord, AttendanceRecord $existing, string $action): ConflictResolution
+    {
         $survivor->update([
             'check_in' => $newRecord->check_in->lt($existing->check_in) ? $newRecord->check_in : $existing->check_in,
             'check_out' => $this->latestCheckOut($newRecord->check_out, $existing->check_out),
@@ -72,7 +100,14 @@ final class ConflictResolver
             ]),
         ]);
 
-        $loser->delete();
+        $loser->update([
+            'status' => 'voided',
+            'metadata' => array_merge($loser->metadata ?? [], [
+                'voided_reason' => 'conflict_merge',
+                'merged_into' => $survivor->public_id,
+                'voided_at' => now()->toIso8601String(),
+            ]),
+        ]);
 
         return new ConflictResolution($survivor->fresh(), $action);
     }
@@ -87,7 +122,25 @@ final class ConflictResolver
             ]),
         ]);
 
+        AttendanceConflict::create([
+            'tenant_id' => $newRecord->tenant_id,
+            'employee_id' => $newRecord->employee_id,
+            'record_a_id' => $existing->id,
+            'record_b_id' => $newRecord->id,
+            'conflict_type' => ConflictType::MULTI_SOURCE_FAR,
+        ]);
+
         return new ConflictResolution($newRecord->fresh(), 'flagged');
+    }
+
+    private function sourcePriority(AttendanceRecord $record): int
+    {
+        return self::SOURCE_PRIORITY[$this->sourceKey($record)] ?? 0;
+    }
+
+    private function sourceKey(AttendanceRecord $record): string
+    {
+        return $record->source->value;
     }
 
     private function latestCheckOut(?Carbon $a, ?Carbon $b): ?Carbon

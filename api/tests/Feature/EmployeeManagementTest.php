@@ -66,9 +66,42 @@ describe('employee CRUD', function () {
         ]);
     });
 
+    it('canonicalizes a phone typed in local 09... form on create', function () {
+        // This is the primary, highest-traffic path for entering an employee's
+        // phone number — unlike import/migration/SCIM/SSO/profile-self-service,
+        // it stored whatever shape the form submitted until this fix.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $response = $this->postJson('/api/v1/employees', [
+            'name' => 'Local Format',
+            'phone' => '0911123456',
+            'hire_date' => '2026-01-01',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('phone', '+251911123456');
+        $this->assertDatabaseHas('employees', [
+            'name' => 'Local Format',
+            'phone' => '+251911123456',
+            'tenant_id' => $tenant->id,
+        ]);
+    });
+
+    it('canonicalizes a phone typed in local 09... form on update', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $response = $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'phone' => '0922334455',
+        ]);
+
+        $response->assertOk()->assertJsonPath('phone', '+251922334455');
+    });
+
     it('shows a single employee with relationships', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $dept = Department::factory()->create(['tenant_id' => $tenant->id]);
         $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
@@ -144,7 +177,7 @@ describe('employee CRUD', function () {
 
     it('never exposes numeric id', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
@@ -231,7 +264,7 @@ describe('employee search and filter', function () {
 
     it('returns employee stats', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $dept = Department::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Engineering']);
         $branch = Branch::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Addis']);
@@ -427,6 +460,22 @@ describe('employee emergency contacts', function () {
             ->assertJsonPath('relationship', 'spouse');
     });
 
+    it('canonicalizes an emergency contact phone typed in local 09... form', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $response = $this->postJson("/api/v1/employees/{$employee->public_id}/emergency-contacts", [
+            'name' => 'Local Format Contact',
+            'relationship' => 'spouse',
+            'phone' => '0911999888',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('phone', '+251911999888');
+    });
+
     it('deletes an emergency contact', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -439,7 +488,7 @@ describe('employee emergency contacts', function () {
             'phone' => '+251900000000',
         ]);
 
-        $this->deleteJson("/api/v1/employees/{$employee->public_id}/emergency-contacts/{$contact->id}")
+        $this->deleteJson("/api/v1/employees/{$employee->public_id}/emergency-contacts/{$contact->public_id}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('employee_emergency_contacts', ['id' => $contact->id]);
@@ -572,7 +621,7 @@ describe('employee education', function () {
             'degree' => 'PhD',
         ]);
 
-        $this->deleteJson("/api/v1/employees/{$employee->public_id}/education/{$edu->id}")
+        $this->deleteJson("/api/v1/employees/{$employee->public_id}/education/{$edu->public_id}")
             ->assertNoContent();
     });
 });

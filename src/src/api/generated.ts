@@ -4,30 +4,37 @@
  */
 
 export interface paths {
-    "/accounting/chart-of-accounts": {
+    "/dashboard/alert-thresholds": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["accounting.chartOfAccounts"];
-        put: operations["accounting.updateChartOfAccounts"];
-        post?: never;
+        /** List alert thresholds */
+        get: operations["alertThreshold.index"];
+        put?: never;
+        /** Create alert threshold */
+        post: operations["alertThreshold.store"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/accounting/journal/{payrollRun}": {
+    "/dashboard/alert-thresholds/triggered": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["accounting.journal"];
+        /**
+         * Live evaluation against the caller's own scope — the same
+         *     dashboard.executive/regional branch rule ExecutiveDashboardController
+         *     enforces for every other read
+         */
+        get: operations["alertThreshold.triggered"];
         put?: never;
         post?: never;
         delete?: never;
@@ -36,279 +43,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/accounting/export/{payrollRun}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["accounting.export"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/revenue": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["adminDashboard.revenue"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["adminDashboard.health"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/audit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["adminDashboard.auditLog"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["adminTenant.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants/{publicId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["adminTenant.show"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants/{publicId}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["adminTenant.updateStatus"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants/{publicId}/extend-trial": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["adminTenant.extendTrial"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants/{publicId}/impersonate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["adminTenant.impersonate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/tenants/{publicId}/backup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["adminTenant.backup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/departments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analytics.departments"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/departments/{department}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analytics.departmentDetail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analytics.branches"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/analytics/branches/{branch}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analytics.branchDetail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/announcements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["announcement.index"];
-        put?: never;
-        post: operations["announcement.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/announcements/{announcement}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["announcement.show"];
-        put: operations["announcement.update"];
-        post?: never;
-        delete: operations["announcement.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["apiKey.index"];
-        put?: never;
-        post: operations["apiKey.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api-keys/{apiKey}": {
+    "/dashboard/alert-thresholds/{alertThreshold}": {
         parameters: {
             query?: never;
             header?: never;
@@ -318,29 +53,14 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["apiKey.destroy"];
+        /** Delete alert threshold */
+        delete: operations["alertThreshold.destroy"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/approvals/pending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["approval.pending"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/approvals/batch": {
+    "/kiosk/authenticate": {
         parameters: {
             query?: never;
             header?: never;
@@ -349,7 +69,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approval.batch"];
+        /** Authenticate kiosk */
+        post: operations["kioskSession.authenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check in kiosk */
+        post: operations["kiosk.kioskCheckIn"];
         delete?: never;
         options?: never;
         head?: never;
@@ -365,6 +103,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Check in attendance */
         post: operations["attendance.checkIn"];
         delete?: never;
         options?: never;
@@ -381,6 +120,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Check out attendance */
         post: operations["attendance.checkOut"];
         delete?: never;
         options?: never;
@@ -395,6 +135,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** My attendance */
         get: operations["attendance.my"];
         put?: never;
         post?: never;
@@ -411,6 +152,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Team attendance */
         get: operations["attendance.team"];
         put?: never;
         post?: never;
@@ -427,6 +169,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Today attendance */
         get: operations["attendance.today"];
         put?: never;
         post?: never;
@@ -436,71 +179,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/attendance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendance.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/{attendanceRecord}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendance.show"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/corrections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendanceCorrection.index"];
-        put?: never;
-        post: operations["attendanceCorrection.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/corrections/pending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendanceCorrection.pending"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/corrections/{correction}/approve": {
+    "/attendance/manual": {
         parameters: {
             query?: never;
             header?: never;
@@ -508,15 +187,16 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["attendanceCorrection.approve"];
-        post?: never;
+        put?: never;
+        /** Manual attendance */
+        post: operations["manualAttendance.store"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/attendance/corrections/{correction}/reject": {
+    "/attendance/kiosk": {
         parameters: {
             query?: never;
             header?: never;
@@ -524,8 +204,9 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["attendanceCorrection.reject"];
-        post?: never;
+        put?: never;
+        /** Kiosk attendance */
+        post: operations["kioskAttendance.store"];
         delete?: never;
         options?: never;
         head?: never;
@@ -541,6 +222,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Template import */
         post: operations["attendanceImport.template"];
         delete?: never;
         options?: never;
@@ -557,6 +239,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Preview import */
         post: operations["attendanceImport.preview"];
         delete?: never;
         options?: never;
@@ -573,6 +256,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Commit import */
         post: operations["attendanceImport.commit"];
         delete?: never;
         options?: never;
@@ -600,1462 +284,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/attendance/intelligence": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendanceIntelligence.dashboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/overtime": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendanceIntelligence.overtime"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["attendanceSetting.show"];
-        put: operations["attendanceSetting.update"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/audit-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["auditLog.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/bank-details": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["bankDetail.index"];
-        put?: never;
-        post: operations["bankDetail.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/bank-details/{bankDetail}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["bankDetail.update"];
-        post?: never;
-        delete: operations["bankDetail.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["billing.dashboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/change-plan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["billing.changePlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/invoices/{invoice}/mark-paid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["billing.markPaid"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/invoices/{invoice}/receipt": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["billing.receipt"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["branches.index"];
-        put?: never;
-        post: operations["branches.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/branches/{branch}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["branches.show"];
-        put: operations["branches.update"];
-        post?: never;
-        delete: operations["branches.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/contact": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["v1.contact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/cost-centers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["cost-centers.index"];
-        put?: never;
-        post: operations["cost-centers.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/cost-centers/{costCenter}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["cost-centers.show"];
-        put: operations["cost-centers.update"];
-        post?: never;
-        delete: operations["cost-centers.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["customRole.permissions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roles.index"];
-        put?: never;
-        post: operations["roles.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/{customRole}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roles.show"];
-        put: operations["roles.update"];
-        post?: never;
-        delete: operations["roles.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/employee": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["dashboard.employee"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/manager": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["dashboard.manager"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["department.tree"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/departments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["departments.index"];
-        put?: never;
-        post: operations["departments.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/departments/{department}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["departments.show"];
-        put: operations["departments.update"];
-        post?: never;
-        delete: operations["departments.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/webhook/hikvision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.webhookHikvision"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/webhook/zkteco": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.webhookZkteco"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/webhook/suprema": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.webhookSuprema"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["device.dashboard"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/sync-all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.syncAll"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["device.status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}/pull": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.pull"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}/regenerate-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["device.regenerateToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}/sync-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["device.syncLogs"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["device.deviceEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["devices.index"];
-        put?: never;
-        post: operations["devices.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/devices/{device}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["devices.show"];
-        put: operations["devices.update"];
-        post?: never;
-        delete: operations["devices.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/directory": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["directory.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/education": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["education.index"];
-        put?: never;
-        post: operations["education.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/education/{education}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["education.update"];
-        post?: never;
-        delete: operations["education.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/emergency-contacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["emergencyContact.index"];
-        put?: never;
-        post: operations["emergencyContact.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/emergency-contacts/{contact}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["emergencyContact.update"];
-        post?: never;
-        delete: operations["emergencyContact.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employee.stats"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employees.index"];
-        put?: never;
-        post: operations["employees.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employees.show"];
-        put: operations["employees.update"];
-        post?: never;
-        delete: operations["employees.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/attendance/timeline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employee.employeeAttendanceTimeline"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employeeBulk.export"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/bulk-update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["employeeBulk.bulkUpdate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/documents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employeeDocument.index"];
-        put?: never;
-        post: operations["employeeDocument.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/documents/{document}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employeeDocument.show"];
-        put?: never;
-        post?: never;
-        delete: operations["employeeDocument.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/import/template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["employeeImport.template"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/import/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["employeeImport.preview"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/import/commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["employeeImport.commit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/transitions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["employeeTransition.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{employee}/transition": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["employeeTransition.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/executive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["executiveDashboard.overview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/executive/attendance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["executiveDashboard.attendance"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/executive/payroll": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["executiveDashboard.payroll"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/executive/workforce": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["executiveDashboard.workforce"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/grades": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["grades.index"];
-        put?: never;
-        post: operations["grades.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/grades/{grade}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["grades.show"];
-        put: operations["grades.update"];
-        post?: never;
-        delete: operations["grades.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["v1.health"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/holidays/auto-detect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["holiday.autoDetect"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/holidays": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["holidays.index"];
-        put?: never;
-        post: operations["holidays.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/holidays/{holiday}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["holidays.show"];
-        put: operations["holidays.update"];
-        post?: never;
-        delete: operations["holidays.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/kiosk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kioskAttendance.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk/check-in": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kiosk.kioskCheckIn"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk/authenticate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kioskSession.authenticate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk-sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["kioskSession.index"];
-        put?: never;
-        post: operations["kioskSession.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk-sessions/{publicId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["kioskSession.show"];
-        put?: never;
-        post?: never;
-        delete: operations["kioskSession.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk-sessions/{publicId}/deactivate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kioskSession.deactivate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk-sessions/{publicId}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kioskSession.activate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kiosk-sessions/{publicId}/regenerate-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["kioskSession.regenerateToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["leaveRequest.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/my": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leaveRequest.my"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/team": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leaveRequest.team"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/balance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leaveRequest.balance"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/balance/{employee}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leaveRequest.employeeBalance"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/{leaveRequest}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["leaveRequest.approve"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/{leaveRequest}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["leaveRequest.reject"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave/{leaveRequest}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["leaveRequest.cancel"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leave-types.index"];
-        put?: never;
-        post: operations["leave-types.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/leave-types/{leaveType}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["leave-types.show"];
-        put: operations["leave-types.update"];
-        post?: never;
-        delete: operations["leave-types.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/loans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["loan.index"];
-        put?: never;
-        post: operations["loan.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/loans/{loan}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["loan.show"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["auth.login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["auth.logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/manual": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["manualAttendance.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["auth.me"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/mfa/setup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["mfaSetup.setup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/mfa/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["mfaSetup.enable"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/mfa/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["mfaSetup.disable"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/mfa/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["auth.mfaVerify"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/attendance/mobile/check-in": {
         parameters: {
             query?: never;
@@ -2065,6 +293,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Check in mobile */
         post: operations["mobileAttendance.checkIn"];
         delete?: never;
         options?: never;
@@ -2081,455 +310,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Check out mobile */
         post: operations["mobileAttendance.checkOut"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["notification.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notifications/unread-count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["notification.unreadCount"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notifications/read-all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["notification.markAllAsRead"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notifications/{id}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["notification.markAsRead"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/notifications/preferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["notificationPreferences.index"];
-        put: operations["notificationPreferences.update"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/settings/notification-templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["notificationTemplate.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/settings/notification-templates/{type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["notificationTemplate.update"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/attendance/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["offlineSync.sync"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/progress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["onboarding.getProgress"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/progress/{step}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["onboarding.updateStep"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/apply-template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["onboarding.applyTemplate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/onboarding/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["onboarding.complete"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/password/forgot": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["passwordReset.forgot"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/password/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["passwordReset.reset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/password/change": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["passwordReset.change"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/process": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["payroll.process"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/runs/{payrollRun}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.show"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/runs/{payrollRun}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["payroll.approve"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/runs/{payrollRun}/export/bank": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.bankExport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/runs/{payrollRun}/export/bank-csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.downloadBankExport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/payslips/my": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.myPayslips"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/payslips/{employeePublicId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.employeePayslips"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/payroll/payslips/{payrollEntry}/pdf": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["payroll.downloadPayslip"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/plans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["plan.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/positions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["positions.index"];
-        put?: never;
-        post: operations["positions.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/organization/positions/{position}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["positions.show"];
-        put: operations["positions.update"];
-        post?: never;
-        delete: operations["positions.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["profile.show"];
-        put: operations["profile.update"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2543,6 +325,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Generate qr */
         get: operations["qrAttendance.generate"];
         put?: never;
         post?: never;
@@ -2561,6 +344,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Qr attendance */
         post: operations["qrAttendance.scan"];
         delete?: never;
         options?: never;
@@ -2568,7 +352,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/refresh": {
+    "/attendance/sync": {
         parameters: {
             query?: never;
             header?: never;
@@ -2577,7 +361,318 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["auth.refresh"];
+        /** Sync attendance */
+        post: operations["offlineSync.sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/intelligence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Intelligence attendance */
+        get: operations["attendanceIntelligence.dashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/overtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overtime attendance */
+        get: operations["attendanceIntelligence.overtime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List settings */
+        get: operations["attendanceSetting.show"];
+        /** Update setting */
+        put: operations["attendanceSetting.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List corrections */
+        get: operations["attendanceCorrection.index"];
+        put?: never;
+        /** Create correction */
+        post: operations["attendanceCorrection.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/corrections/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pending corrections */
+        get: operations["attendanceCorrection.pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/corrections/{correction}/payroll-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payroll impact corrections */
+        get: operations["attendanceCorrection.payrollImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/corrections/{correction}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Approve corrections */
+        put: operations["attendanceCorrection.approve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/corrections/{correction}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reject corrections */
+        put: operations["attendanceCorrection.reject"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List conflicts */
+        get: operations["attendanceConflict.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/conflicts/{conflict}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Resolve conflicts */
+        put: operations["attendanceConflict.resolve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Attendance v1 */
+        get: operations["attendance.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attendance/{attendanceRecord}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get attendance */
+        get: operations["attendance.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/attendance/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline attendance */
+        get: operations["employee.employeeAttendanceTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List kiosk sessions */
+        get: operations["kioskSession.index"];
+        put?: never;
+        /** Create kiosk session */
+        post: operations["kioskSession.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk-sessions/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get kiosk session */
+        get: operations["kioskSession.show"];
+        put?: never;
+        post?: never;
+        /** Delete kiosk session */
+        delete: operations["kioskSession.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk-sessions/{publicId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate kiosk sessions */
+        post: operations["kioskSession.deactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk-sessions/{publicId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate kiosk sessions */
+        post: operations["kioskSession.activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/kiosk-sessions/{publicId}/regenerate-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate token kiosk sessions */
+        post: operations["kioskSession.regenerateToken"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2593,7 +688,659 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Register auth */
         post: operations["auth.register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login auth */
+        post: operations["auth.login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Forgot password */
+        post: operations["passwordReset.forgot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset password */
+        post: operations["passwordReset.reset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/register/check-subdomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check subdomain register */
+        get: operations["auth.subdomainCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sso/saml/{subdomain}/initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Initiate saml */
+        get: operations["sso.initiate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sso/saml/{subdomain}/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create ac */
+        post: operations["sso.callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sso/saml/{subdomain}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metadata saml */
+        get: operations["sso.metadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/broadcasting/auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Auth broadcasting */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                401: components["responses"]["AuthenticationException"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout auth */
+        post: operations["auth.logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh auth */
+        post: operations["auth.refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me auth */
+        get: operations["auth.me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change password */
+        post: operations["passwordReset.change"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Setup mfa */
+        post: operations["mfaSetup.setup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable mfa */
+        post: operations["mfaSetup.enable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable mfa */
+        post: operations["mfaSetup.disable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify mfa */
+        post: operations["auth.mfaVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List plans */
+        get: operations["plan.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dashboard billing */
+        get: operations["billing.dashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/change-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change plan billing */
+        post: operations["billing.changePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/invoices/{invoice}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark paid invoices */
+        put: operations["billing.markPaid"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/invoices/{invoice}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Receipt invoices */
+        get: operations["billing.receipt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/cost-sharing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cost sharing payroll */
+        get: operations["costSharing.index"];
+        put?: never;
+        /** Cost sharing payroll */
+        post: operations["costSharing.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/cost-sharing/{costSharing}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get cost sharing */
+        get: operations["costSharing.show"];
+        /** Update cost sharing */
+        put: operations["costSharing.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/employee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Employee dashboard */
+        get: operations["dashboard.employee"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Manager dashboard */
+        get: operations["dashboard.manager"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Executive dashboard */
+        get: operations["executiveDashboard.overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Attendance executive */
+        get: operations["executiveDashboard.attendance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive/payroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payroll executive */
+        get: operations["executiveDashboard.payroll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive/workforce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workforce executive */
+        get: operations["executiveDashboard.workforce"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compliance executive */
+        get: operations["executiveDashboard.compliance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/executive/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Forecast executive */
+        get: operations["executiveDashboard.forecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/digests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List digests */
+        get: operations["dashboardDigest.index"];
+        put?: never;
+        /** Create digest */
+        post: operations["dashboardDigest.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/digests/{dashboardDigest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete digest */
+        delete: operations["dashboardDigest.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List departments */
+        get: operations["analytics.departments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/departments/{department}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get department */
+        get: operations["analytics.departmentDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List branches */
+        get: operations["analytics.branches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/branches/{branch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get branch */
+        get: operations["analytics.branchDetail"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2607,6 +1354,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** List sources */
         get: operations["report.sources"];
         put?: never;
         post?: never;
@@ -2625,6 +1373,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Generate reports */
         post: operations["report.generate"];
         delete?: never;
         options?: never;
@@ -2641,6 +1390,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Export reports */
         post: operations["report.export"];
         delete?: never;
         options?: never;
@@ -2657,6 +1407,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Save reports */
         post: operations["report.save"];
         delete?: never;
         options?: never;
@@ -2671,6 +1422,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Saved reports */
         get: operations["report.savedList"];
         put?: never;
         post?: never;
@@ -2690,6 +1442,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
+        /** Delete saved */
         delete: operations["report.deleteSaved"];
         options?: never;
         head?: never;
@@ -2705,6 +1458,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Schedule reports */
         post: operations["report.schedule"];
         delete?: never;
         options?: never;
@@ -2719,6 +1473,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Scheduled reports */
         get: operations["report.scheduledList"];
         put?: never;
         post?: never;
@@ -2738,61 +1493,14 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
+        /** Delete scheduled */
         delete: operations["report.deleteScheduled"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["settings.index"];
-        put: operations["settings.update"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/settings/organization": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["settings.updateOrganization"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/settings/branding": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["settings.updateBranding"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/shifts/assign": {
+    "/devices/webhook/hikvision": {
         parameters: {
             query?: never;
             header?: never;
@@ -2801,21 +1509,57 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["shift.assign"];
+        /** Hikvision webhook */
+        post: operations["device.webhookHikvision"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/shifts/schedule": {
+    "/devices/webhook/zkteco": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["shift.schedule"];
+        get?: never;
+        put?: never;
+        /** Zkteco webhook */
+        post: operations["device.webhookZkteco"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/webhook/suprema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suprema webhook */
+        post: operations["device.webhookSuprema"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dashboard devices */
+        get: operations["device.dashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2824,46 +1568,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/shifts": {
+    "/devices/sync-all": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["shifts.index"];
+        get?: never;
         put?: never;
-        post: operations["shifts.store"];
+        /** Sync all devices */
+        post: operations["device.syncAll"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/shifts/{shift}": {
+    "/devices/{device}/status": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["shifts.show"];
-        put: operations["shifts.update"];
-        post?: never;
-        delete: operations["shifts.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/register/check-subdomain": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["auth.subdomainCheck"];
+        /** List status */
+        get: operations["device.status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2872,78 +1602,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organization/teams": {
+    "/devices/{device}/pull": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["teams.index"];
+        get?: never;
         put?: never;
-        post: operations["teams.store"];
+        /** Pull devices */
+        post: operations["device.pull"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/organization/teams/{team}": {
+    "/devices/{device}/import-history": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["teams.show"];
-        put: operations["teams.update"];
-        post?: never;
-        delete: operations["teams.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/team/attendance/today": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["teamMonitoring.attendanceToday"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Import history devices */
+        post: operations["device.importHistory"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/team/attendance/summary": {
+    "/devices/{device}/regenerate-token": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["teamMonitoring.attendanceSummary"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Regenerate token devices */
+        post: operations["device.regenerateToken"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/team/overtime": {
+    "/devices/{device}/sync-logs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["teamMonitoring.overtime"];
+        /** List sync logs */
+        get: operations["device.syncLogs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2952,15 +1670,1178 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/team/leave/calendar": {
+    "/devices/{device}/events": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["teamMonitoring.leaveCalendar"];
+        /** List events */
+        get: operations["device.deviceEvents"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}/enrollments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List enrollments */
+        get: operations["deviceEnrollment.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List devices */
+        get: operations["devices.index"];
+        put?: never;
+        /** Create device */
+        post: operations["devices.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/devices/{device}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get device */
+        get: operations["devices.show"];
+        /** Update device */
+        put: operations["devices.update"];
+        post?: never;
+        /** Delete device */
+        delete: operations["devices.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List disciplinary cases */
+        get: operations["disciplinaryCase.index"];
+        put?: never;
+        /** Create disciplinary case */
+        post: operations["disciplinaryCase.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases/{disciplinaryCase}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create note */
+        post: operations["disciplinaryCase.addNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases/{disciplinaryCase}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decision disciplinary cases */
+        post: operations["disciplinaryCase.decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases/{disciplinaryCase}/appeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Appeal disciplinary cases */
+        post: operations["disciplinaryCase.appeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases/{disciplinaryCase}/appeal-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Appeal decision disciplinary cases */
+        post: operations["disciplinaryCase.resolveAppeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/disciplinary-cases/{disciplinaryCase}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close disciplinary cases */
+        post: operations["disciplinaryCase.close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List stats */
+        get: operations["employee.stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export employees */
+        get: operations["employeeBulk.export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/documents/expiring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Documents expiring within a window (PHASE_02 S12: "documents expiring
+         *          * within 30 days (for notification/dashboard)")
+         * @description Tenant-wide rather than per-employee: the point is for HR to catch a work
+         *     permit or contract before it lapses, which means seeing every employee's at
+         *     once. Already-expired documents are included — a permit that lapsed last
+         *     week is more urgent than one lapsing next week, not less.
+         */
+        get: operations["employeeDocument.expiring"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/contracts/expiring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tenant-wide watchlist of active contracts ending within N days —
+         *     mirrors EmployeeDocumentController::expiring()
+         */
+        get: operations["employeeContract.expiring"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/import/status/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outcome of a previously committed import (PHASE_02 S12)
+         * @description `commit` runs synchronously and returns its result, so this is not a
+         *     progress bar — there is no partially-running import to poll. What it is
+         *     for is recovery: a client that lost the commit response (dropped
+         *     connection, closed tab) can ask what actually landed instead of
+         *     re-submitting and hoping idempotency saves it.
+         *
+         *     The count is derived from real rows rather than a cached tally, so it
+         *     cannot drift from what is actually in the database.
+         */
+        get: operations["employeeImport.status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/bulk-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk update employees */
+        post: operations["employeeBulk.bulkUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/import/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Template import */
+        post: operations["employeeImport.template"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview import */
+        post: operations["employeeImport.preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/import/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit import */
+        post: operations["employeeImport.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List employees */
+        get: operations["employees.index"];
+        put?: never;
+        /** Create employee */
+        post: operations["employees.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get employee */
+        get: operations["employees.show"];
+        /** Update employee */
+        put: operations["employees.update"];
+        post?: never;
+        /** Delete employee */
+        delete: operations["employees.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List transitions */
+        get: operations["employeeTransition.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition employees */
+        post: operations["employeeTransition.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contracts */
+        get: operations["employeeContract.index"];
+        put?: never;
+        /** Create contract */
+        post: operations["employeeContract.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/contracts/{contract}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew contracts */
+        post: operations["employeeContract.renew"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/contracts/{contract}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End contracts */
+        post: operations["employeeContract.end"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/emergency-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List emergency contacts */
+        get: operations["emergencyContact.index"];
+        put?: never;
+        /** Create emergency contact */
+        post: operations["emergencyContact.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/emergency-contacts/{emergencyContact}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update emergency contact */
+        put: operations["emergencyContact.update"];
+        post?: never;
+        /** Delete emergency contact */
+        delete: operations["emergencyContact.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/bank-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List bank details */
+        get: operations["bankDetail.index"];
+        put?: never;
+        /** Create bank detail */
+        post: operations["bankDetail.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/bank-details/{bankDetail}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update bank detail */
+        put: operations["bankDetail.update"];
+        post?: never;
+        /** Delete bank detail */
+        delete: operations["bankDetail.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/education": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Education employees */
+        get: operations["education.index"];
+        put?: never;
+        /** Education employees */
+        post: operations["education.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/education/{education}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update education */
+        put: operations["education.update"];
+        post?: never;
+        /** Delete education */
+        delete: operations["education.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List documents */
+        get: operations["employeeDocument.index"];
+        put?: never;
+        /** Create document */
+        post: operations["employeeDocument.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/documents/{document}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get document */
+        get: operations["employeeDocument.show"];
+        put?: never;
+        post?: never;
+        /** Delete document */
+        delete: operations["employeeDocument.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Directory v1 */
+        get: operations["directory.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/reporting-tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The org reporting hierarchy: every employee with no active supervisor,
+         *     each nesting its full chain of direct reports. Tenant isolation is
+         *     automatic via the model's global scope; reports of a soft-deleted
+         *     supervisor surface as their own roots rather than vanishing
+         */
+        get: operations["employee.reportingTree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List users */
+        get: operations["scimUser.index"];
+        put?: never;
+        /** Create user */
+        post: operations["scimUser.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Users/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user */
+        get: operations["scimUser.show"];
+        /** Update user */
+        put: operations["scimUser.update"];
+        post?: never;
+        /** Delete user */
+        delete: operations["scimUser.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List groups */
+        get: operations["scimGroup.index"];
+        put?: never;
+        /** Create group */
+        post: operations["scimGroup.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scim/v2/Groups/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get group */
+        get: operations["scimGroup.show"];
+        /** Update group */
+        put: operations["scimGroup.update"];
+        post?: never;
+        /** Delete group */
+        delete: operations["scimGroup.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List api keys */
+        get: operations["apiKey.index"];
+        put?: never;
+        /** Create api key */
+        post: operations["apiKey.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys/{apiKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete api key */
+        delete: operations["apiKey.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List webhooks */
+        get: operations["webhook.index"];
+        put?: never;
+        /** Create webhook */
+        post: operations["webhook.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{webhook}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update webhook */
+        put: operations["webhook.update"];
+        post?: never;
+        /** Delete webhook */
+        delete: operations["webhook.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{webhook}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test webhooks */
+        post: operations["webhook.test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{webhook}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List deliveries */
+        get: operations["webhook.deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request leave */
+        post: operations["leaveRequest.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My leave */
+        get: operations["leaveRequest.my"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Team leave */
+        get: operations["leaveRequest.team"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Balance leave */
+        get: operations["leaveRequest.balance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/balance/{employee}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get balance */
+        get: operations["leaveRequest.employeeBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/{leaveRequest}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Approve leave */
+        put: operations["leaveRequest.approve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/{leaveRequest}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reject leave */
+        put: operations["leaveRequest.reject"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/{leaveRequest}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Cancel leave */
+        put: operations["leaveRequest.cancel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave/{leaveRequest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get leave */
+        get: operations["leaveRequest.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List leave types */
+        get: operations["leave-types.index"];
+        put?: never;
+        /** Create leave type */
+        post: operations["leave-types.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/leave-types/{leaveType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get leave type */
+        get: operations["leave-types.show"];
+        /** Update leave type */
+        put: operations["leave-types.update"];
+        post?: never;
+        /** Delete leave type */
+        delete: operations["leave-types.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pending approvals */
+        get: operations["approval.pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/approvals/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Batch approvals */
+        post: operations["approval.batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List announcements */
+        get: operations["announcement.index"];
+        put?: never;
+        /** Create announcement */
+        post: operations["announcement.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{announcement}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get announcement */
+        get: operations["announcement.show"];
+        /** Update announcement */
+        put: operations["announcement.update"];
+        post?: never;
+        /** Delete announcement */
+        delete: operations["announcement.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notifications */
+        get: operations["notification.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unread count notifications */
+        get: operations["notification.unreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List preferences */
+        get: operations["notificationPreferences.index"];
+        /** Update preference */
+        put: operations["notificationPreferences.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Read all notifications */
+        put: operations["notification.markAllAsRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Read notifications */
+        put: operations["notification.markAsRead"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2975,6 +2856,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** List templates */
         get: operations["template.index"];
         put?: never;
         post?: never;
@@ -2991,6 +2873,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get template */
         get: operations["template.show"];
         put?: never;
         post?: never;
@@ -3000,23 +2883,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/webhooks": {
+    "/onboarding/progress": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["webhook.index"];
+        /** List progress */
+        get: operations["onboarding.getProgress"];
         put?: never;
-        post: operations["webhook.store"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/webhooks/{webhook}": {
+    "/onboarding/progress/{step}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3024,15 +2908,16 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["webhook.update"];
+        /** Update progress */
+        put: operations["onboarding.updateStep"];
         post?: never;
-        delete: operations["webhook.destroy"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/webhooks/{webhook}/test": {
+    "/onboarding/apply-template": {
         parameters: {
             query?: never;
             header?: never;
@@ -3041,24 +2926,2183 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["webhook.test"];
+        /** Apply template onboarding */
+        post: operations["onboarding.applyTemplate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/webhooks/{webhook}/deliveries": {
+    "/onboarding/invite": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["webhook.deliveries"];
+        get?: never;
+        put?: never;
+        /** Invite onboarding */
+        post: operations["onboarding.inviteTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete onboarding */
+        post: operations["onboarding.complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/industries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List industries */
+        get: operations["configuration.industries"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/configuration/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview configuration */
+        post: operations["configuration.preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/configuration/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply configuration */
+        post: operations["configuration.apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List access */
+        get: operations["access.show"];
+        /** Update access */
+        put: operations["access.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List readiness */
+        get: operations["readiness.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/go-live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Go live onboarding */
+        post: operations["readiness.goLive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/devices/{device}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create device */
+        post: operations["migration.stageFromDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create row */
+        post: operations["migration.stageFromRows"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get batch */
+        get: operations["migration.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding/migration/rows/{row}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update row */
+        patch: operations["migration.updateRow"];
+        trace?: never;
+    };
+    "/onboarding/migration/batches/{batch}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit batches */
+        post: operations["migration.commit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/attendance/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Today attendance */
+        get: operations["teamMonitoring.attendanceToday"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/attendance/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Summary attendance */
+        get: operations["teamMonitoring.attendanceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/overtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overtime team */
+        get: operations["teamMonitoring.overtime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/team/leave/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Calendar leave */
+        get: operations["teamMonitoring.leaveCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tree organization */
+        get: operations["department.tree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List branches */
+        get: operations["branches.index"];
+        put?: never;
+        /** Create branch */
+        post: operations["branches.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/branches/{branch}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get branch */
+        get: operations["branches.show"];
+        /** Update branch */
+        put: operations["branches.update"];
+        post?: never;
+        /** Delete branch */
+        delete: operations["branches.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List departments */
+        get: operations["departments.index"];
+        put?: never;
+        /** Create department */
+        post: operations["departments.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/departments/{department}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get department */
+        get: operations["departments.show"];
+        /** Update department */
+        put: operations["departments.update"];
+        post?: never;
+        /** Delete department */
+        delete: operations["departments.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List teams */
+        get: operations["teams.index"];
+        put?: never;
+        /** Create team */
+        post: operations["teams.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/teams/{team}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get team */
+        get: operations["teams.show"];
+        /** Update team */
+        put: operations["teams.update"];
+        post?: never;
+        /** Delete team */
+        delete: operations["teams.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List positions */
+        get: operations["positions.index"];
+        put?: never;
+        /** Create position */
+        post: operations["positions.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/positions/{position}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get position */
+        get: operations["positions.show"];
+        /** Update position */
+        put: operations["positions.update"];
+        post?: never;
+        /** Delete position */
+        delete: operations["positions.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List grades */
+        get: operations["grades.index"];
+        put?: never;
+        /** Create grade */
+        post: operations["grades.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/grades/{grade}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get grade */
+        get: operations["grades.show"];
+        /** Update grade */
+        put: operations["grades.update"];
+        post?: never;
+        /** Delete grade */
+        delete: operations["grades.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/cost-centers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List cost centers */
+        get: operations["cost-centers.index"];
+        put?: never;
+        /** Create cost center */
+        post: operations["cost-centers.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/cost-centers/{costCenter}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get cost center */
+        get: operations["cost-centers.show"];
+        /** Update cost center */
+        put: operations["cost-centers.update"];
+        post?: never;
+        /** Delete cost center */
+        delete: operations["cost-centers.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/grades/{grade}/salary-steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List salary steps */
+        get: operations["gradeSalaryStep.index"];
+        put?: never;
+        /** Create salary step */
+        post: operations["gradeSalaryStep.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/grades/{grade}/salary-steps/{salaryStep}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update salary step */
+        put: operations["gradeSalaryStep.update"];
+        post?: never;
+        /** Delete salary step */
+        delete: operations["gradeSalaryStep.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request otp */
+        post: operations["otp.request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify otp */
+        post: operations["otp.verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create process */
+        post: operations["payroll.process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List runs */
+        get: operations["payroll.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get run */
+        get: operations["payroll.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Approve runs */
+        put: operations["payroll.approve"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void runs */
+        post: operations["payroll.void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create reprocess */
+        post: operations["payroll.reprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/export/bank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bank export */
+        get: operations["payroll.bankExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/runs/{payrollRun}/export/bank-csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bank csv export */
+        get: operations["payroll.downloadBankExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/payslips/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My payslips */
+        get: operations["payroll.myPayslips"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/payslips/{employeePublicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get payslip */
+        get: operations["payroll.employeePayslips"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/payslips/{payrollEntry}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pdf payslips */
+        get: operations["payroll.downloadPayslip"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/loans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List loans */
+        get: operations["loan.index"];
+        put?: never;
+        /** Create loan */
+        post: operations["loan.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/loans/{loan}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get loan */
+        get: operations["loan.show"];
+        /**
+         * Adjusts the monthly instalment on an outstanding loan. Settled and
+         *     cancelled loans are frozen — their deduction history is already in
+         *     approved payroll runs
+         */
+        put: operations["loan.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/loans/{loan}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cancels an outstanding loan so it stops being deducted. The row is kept
+         *     (never hard-deleted) because past payroll entries reference it
+         */
+        put: operations["loan.cancel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/tax-brackets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tax brackets */
+        get: operations["taxBracket.index"];
+        /** Update tax bracket */
+        put: operations["taxBracket.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/overtime-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List overtime rates */
+        get: operations["overtimeRate.show"];
+        /** Update overtime rate */
+        put: operations["overtimeRate.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List rules */
+        get: operations["rules.index"];
+        put?: never;
+        /** Create rule */
+        post: operations["rules.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/rules/{payrollRule}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get rule */
+        get: operations["rules.show"];
+        /** Update rule */
+        put: operations["rules.update"];
+        post?: never;
+        /** Delete rule */
+        delete: operations["rules.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounting/chart-of-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List chart of accounts */
+        get: operations["accounting.chartOfAccounts"];
+        /** Update chart of account */
+        put: operations["accounting.updateChartOfAccounts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounting/journal/{payrollRun}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get journal */
+        get: operations["accounting.journal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounting/export/{payrollRun}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get export */
+        get: operations["accounting.export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/personnel-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The employee's employment history — newest first, by effective date */
+        get: operations["personnelAction.index"];
+        put?: never;
+        /** Create personnel action */
+        post: operations["personnelAction.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenants */
+        get: operations["adminTenant.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get tenant */
+        get: operations["adminTenant.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update status */
+        put: operations["adminTenant.updateStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/extend-trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extend trial tenants */
+        post: operations["adminTenant.extendTrial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start impersonating a tenant's admin
+         * @description The minted token is both returned (for API clients that send it as a
+         *     bearer) and planted in the session cookie, because the browser SPA has no
+         *     other way to use it — it sends no Authorization header. Without the
+         *     cookie swap the redirect that follows merely continued the super admin's
+         *     own session against the target tenant, which is not impersonation and
+         *     left no exit path for the audit trail to close.
+         */
+        post: operations["adminTenant.impersonate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/exit-impersonation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an impersonation session and put the super admin back in their own
+         * @description Revoking the token is not enough on its own: the browser is holding that
+         *     token in its session cookie, so a bare revoke turns the next request into
+         *     a 401 that reads as a random logout. The admin's original plaintext token
+         *     is unrecoverable (it was overwritten in the cookie and only its hash is
+         *     stored), so restoring them means minting a fresh session here.
+         */
+        post: operations["adminTenant.exitImpersonation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Backup tenants */
+        post: operations["adminTenant.backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Revenue admin */
+        get: operations["adminDashboard.revenue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health admin */
+        get: operations["adminDashboard.health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audit admin */
+        get: operations["adminDashboard.auditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/failed-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List failed jobs */
+        get: operations["adminDashboard.failedJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/failed-jobs/{uuid}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry failed jobs */
+        post: operations["adminDashboard.retryFailedJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/failed-jobs/retry-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry all failed jobs */
+        post: operations["adminDashboard.retryAllFailedJobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/failed-jobs/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Drop a failed job without re-running it
+         * @description CLAUDE.md's Queue Failure Recovery table specifies "retry/dismiss" actions
+         *     on this screen and only retry existed — so a job that can never succeed (a
+         *     deleted tenant, a payload the current code cannot deserialise) sat in the
+         *     console's Attention Required banner permanently. An operator either re-ran
+         *     it pointlessly or learned to ignore the banner, which is the worse outcome.
+         *
+         *     Audited with the job's display name, not just its uuid: the row is gone
+         *     afterwards, so the audit entry is the only remaining record it existed.
+         */
+        delete: operations["adminDashboard.dismissFailedJob"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find a user across every tenant, by email or phone fragment
+         * @description "Which organisation is this person on?" is where most support requests
+         *     start, and nothing in the console answered it — the only route was a
+         *     database session. Returns the tenant alongside each match so the operator
+         *     can go straight to that tenant's record.
+         *
+         *     Scoped tight on purpose: a lookup, not an export. Minimum two characters,
+         *     capped at 25 rows, identity and account status only — never anything from
+         *     inside the tenant's own data. The search itself is audited, because
+         *     cross-tenant lookups are exactly the operator action worth reviewing.
+         */
+        get: operations["adminDashboard.searchUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/platform-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List platform settings */
+        get: operations["platformSettings.show"];
+        /** Update platform setting */
+        put: operations["platformSettings.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ping v1 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @constant */
+                            status: "ok";
+                            timestamp: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health v1 */
+        get: operations["v1.health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Contact v1 */
+        post: operations["v1.contact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/retirement-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List retirement cases */
+        get: operations["retirementCase.index"];
+        put?: never;
+        /** Create retirement case */
+        post: operations["retirementCase.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/retirement-cases/{retirementCase}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create note */
+        post: operations["retirementCase.addNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/retirement-cases/{retirementCase}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decision retirement cases */
+        post: operations["retirementCase.decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/retirement-cases/{retirementCase}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalize retirement cases */
+        post: operations["retirementCase.finalize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/retirement-cases/{retirementCase}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel retirement cases */
+        post: operations["retirementCase.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sessions */
+        get: operations["session.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke every session except the one making the request
+         * @description Keeping the caller signed in is the point: this is the "something looks
+         *          * wrong, sign everything else out" control, and logging the user out of the
+         *     device they are actively securing from would be hostile.
+         */
+        post: operations["session.revokeAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete session */
+        delete: operations["session.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/session/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim session */
+        post: operations["auth.sessionClaim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List settings */
+        get: operations["settings.index"];
+        /** Update setting */
+        put: operations["settings.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Organization settings */
+        put: operations["settings.updateOrganization"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Branding settings */
+        put: operations["settings.updateBranding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sso settings */
+        put: operations["settings.updateSso"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/scim-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scim token settings */
+        post: operations["settings.generateScimToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/notification-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notification templates */
+        get: operations["notificationTemplate.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/notification-templates/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update notification template */
+        put: operations["notificationTemplate.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List audit logs */
+        get: operations["auditLog.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign shifts */
+        post: operations["shift.assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule shifts */
+        get: operations["shift.schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift-rotations/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign a rotation to an employee, department or branch. Written to the
+         *     same `shift_assignments` table as a plain shift so that resolving "what
+         *          * is this person working" has a single source
+         */
+        post: operations["shiftRotation.assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift-rotations/{rotation}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The resolved day-by-day pattern for a rotation over a date range — what a
+         *     roster view needs, and the only way to see what a cycle actually produces
+         *     without recomputing the modulo arithmetic client-side
+         */
+        get: operations["shiftRotation.preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift-rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List shift rotations */
+        get: operations["shift-rotations.index"];
+        put?: never;
+        /** Create shift rotation */
+        post: operations["shift-rotations.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shift-rotations/{rotation}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get shift rotation */
+        get: operations["shift-rotations.show"];
+        /** Update shift rotation */
+        put: operations["shift-rotations.update"];
+        post?: never;
+        /** Delete shift rotation */
+        delete: operations["shift-rotations.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List shifts */
+        get: operations["shifts.index"];
+        put?: never;
+        /** Create shift */
+        post: operations["shifts.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shifts/{shift}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get shift */
+        get: operations["shifts.show"];
+        /** Update shift */
+        put: operations["shifts.update"];
+        post?: never;
+        /** Delete shift */
+        delete: operations["shifts.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/holidays/auto-detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Auto detect holidays */
+        post: operations["holiday.autoDetect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/holidays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List holidays */
+        get: operations["holidays.index"];
+        put?: never;
+        /** Create holiday */
+        post: operations["holidays.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/holidays/{holiday}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get holiday */
+        get: operations["holidays.show"];
+        /** Update holiday */
+        put: operations["holidays.update"];
+        post?: never;
+        /** Delete holiday */
+        delete: operations["holidays.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/tenant-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenant context auth */
+        get: operations["auth.tenantContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List devices */
+        get: operations["trustedDevice.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete device */
+        delete: operations["trustedDevice.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List users */
+        get: operations["user.index"];
+        put?: never;
+        /** Create user */
+        post: operations["user.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete user */
+        delete: operations["user.destroy"];
+        options?: never;
+        head?: never;
+        /** Update user */
+        patch: operations["user.update"];
+        trace?: never;
+    };
+    "/users/{user}/resend-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resend invite users */
+        post: operations["user.resendInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profile v1 */
+        get: operations["profile.show"];
+        /** Profile v1 */
+        put: operations["profile.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update preference */
+        put: operations["profilePreferences.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Photo profile */
+        post: operations["profilePhoto.store"];
+        /** Photo profile */
+        delete: operations["profilePhoto.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/emergency-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List emergency contacts */
+        get: operations["profileEmergencyContact.index"];
+        put?: never;
+        /** Create emergency contact */
+        post: operations["profileEmergencyContact.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/emergency-contacts/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update emergency contact */
+        put: operations["profileEmergencyContact.update"];
+        post?: never;
+        /** Delete emergency contact */
+        delete: operations["profileEmergencyContact.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile-update-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List profile update requests */
+        get: operations["profileUpdateRequest.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile-update-requests/{publicId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review profile update requests */
+        post: operations["profileUpdateRequest.review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile-update-requests/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * The employee retracts their own pending request
+         * @description Ownership is the authorisation here — an employee has no `employee.update`
+         *     permission, and the lookup is scoped to their own employee record so another
+         *     employee's request id resolves to a 404 rather than a retraction.
+         */
+        delete: operations["profileUpdateRequest.withdraw"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List permissions */
+        get: operations["customRole.permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List roles */
+        get: operations["roles.index"];
+        put?: never;
+        /** Create role */
+        post: operations["roles.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles/{customRole}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get role */
+        get: operations["roles.show"];
+        /** Update role */
+        put: operations["roles.update"];
+        post?: never;
+        /** Delete role */
+        delete: operations["roles.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3068,6 +5112,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccrualType
+         * @enum {string}
+         */
+        AccrualType: "monthly" | "annual" | "immediate" | "one_time";
+        /** AddDisciplinaryNoteRequest */
+        AddDisciplinaryNoteRequest: {
+            note: string;
+        };
+        /** AddRetirementNoteRequest */
+        AddRetirementNoteRequest: {
+            note: string;
+        };
+        /** AdminTenantResource */
+        AdminTenantResource: {
+            public_id: string;
+            name: string;
+            subdomain: string;
+            type: string;
+            status: string;
+            employee_count: string;
+            trial_ends_at: string;
+            created_at: string;
+        };
         /** AnnouncementResource */
         AnnouncementResource: {
             public_id: string;
@@ -3081,6 +5149,28 @@ export interface components {
             expires_at: string | null;
             /** Format: date-time */
             created_at: string | null;
+        };
+        /**
+         * ApplyConfigurationRequest
+         * @description Accepts a (possibly edited) configuration plan for provisioning. Item shapes
+         *     are validated only loosely here — OrganizationProvisioner normalizes every
+         *     entry defensively — but array sizes are capped so an admin cannot push an
+         *     abusive payload through the create path.
+         */
+        ApplyConfigurationRequest: {
+            /** @enum {string|null} */
+            industry?: "federal_government" | "regional_government" | "city_administration" | "woreda_administration" | "ministry" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "retail" | "wholesale" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "custom" | null;
+            plan: {
+                branches?: string[];
+                departments?: string[];
+                positions?: string[];
+                grades?: string[];
+                shifts?: string[];
+                leave_types?: string[];
+                holidays?: string;
+                settings?: string[];
+            };
+            save?: boolean;
         };
         /** ApplyTemplateRequest */
         ApplyTemplateRequest: {
@@ -3097,6 +5187,44 @@ export interface components {
             /** Format: date */
             effective_to?: string | null;
         };
+        /** AssignShiftRotationRequest */
+        AssignShiftRotationRequest: {
+            rotation_id: string;
+            /** @enum {string} */
+            assignable_type: "employee" | "department" | "branch";
+            assignable_id: string;
+            /** Format: date-time */
+            effective_from: string;
+            /** Format: date-time */
+            effective_to?: string | null;
+            /**
+             * Format: date-time
+             * @description The date day_offset 0 falls on. Defaults to effective_from when
+             *     omitted, which is what a caller almost always means; it is
+             *     separate because a rotation may start mid-cycle when an employee
+             *     joins a team already part-way through its pattern.
+             */
+            anchor_date?: string | null;
+        };
+        /** AttendanceConflictResource */
+        AttendanceConflictResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeResource"];
+            employee_public_id: string;
+            record_a?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_a_public_id: string;
+            record_b?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_b_public_id: string;
+            conflict_type: string;
+            resolution: string;
+            resolved_by_public_id: string | null;
+            resolved_at: string | null;
+            resolution_notes: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
         /** AttendanceCorrectionResource */
         AttendanceCorrectionResource: {
             public_id: string;
@@ -3105,8 +5233,8 @@ export interface components {
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
             reason: string;
-            proposed_check_in: string;
-            proposed_check_out: string;
+            proposed_check_in: string | null;
+            proposed_check_out: string | null;
             status: string;
             approval_chain: unknown[] | null;
             /** Format: date-time */
@@ -3127,7 +5255,10 @@ export interface components {
         };
         /** AttendanceImportPreviewRequest */
         AttendanceImportPreviewRequest: {
-            /** Format: binary */
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
             file: string;
         };
         /** AttendanceRecordResource */
@@ -3135,24 +5266,42 @@ export interface components {
             public_id: string;
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
-            shift?: components["schemas"]["ShiftResource"];
+            shift?: components["schemas"]["ShiftResource"] | null;
             date: string;
-            check_in: string;
-            check_out: string;
+            check_in: string | null;
+            check_out: string | null;
             source: string;
-            source_label: string;
+            /** @enum {string} */
+            source_label: "Biometric Device" | "Mobile App" | "Web Portal" | "Manual Entry" | "CSV Import" | "Kiosk" | "QR Code" | "Offline Mobile";
             confidence_score: number;
             latitude: string | null;
             longitude: string | null;
             geofence_verified: boolean | null;
             status: string;
-            status_label: string;
+            /** @enum {string} */
+            status_label: "Pending" | "Present" | "Late" | "Absent" | "Early Leave" | "On Leave" | "Holiday" | "Voided";
             worked_minutes: number;
             overtime_minutes: number;
+            conflict: {
+                action: string;
+                with_record_public_id: string | null;
+            } | null;
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+        };
+        /** AuditLogResource */
+        AuditLogResource: {
+            action: string;
+            auditable_type: string | null;
+            auditable_id: number | null;
+            user_id: number | null;
+            data: unknown[] | null;
+            ip_address: string | null;
+            user_agent: string | null;
+            /** Format: date-time */
+            created_at: string;
         };
         /** AuthenticateKioskRequest */
         AuthenticateKioskRequest: {
@@ -3160,7 +5309,7 @@ export interface components {
         };
         /** BankDetailResource */
         BankDetailResource: {
-            id: string;
+            public_id: string;
             bank_name: string;
             branch_name: string;
             account_number_masked: string;
@@ -3170,7 +5319,7 @@ export interface components {
         BatchApprovalRequest: {
             actions: {
                 /** @enum {string} */
-                type: "leave" | "correction";
+                type: "leave" | "correction" | "profile_update";
                 public_id: string;
                 /** @enum {string} */
                 action: "approve" | "reject";
@@ -3199,14 +5348,26 @@ export interface components {
         };
         /** BulkUpdateRequest */
         BulkUpdateRequest: {
-            department_id?: number | null;
-            branch_id?: number | null;
-            status?: string | null;
             employee_ids: string[];
+            department_id?: string | null;
+            branch_id?: string | null;
+            status?: components["schemas"]["EmployeeStatus"] | null;
+        };
+        /** CancelLoanRequest */
+        CancelLoanRequest: {
+            reason: string;
+        };
+        /** CancelRetirementCaseRequest */
+        CancelRetirementCaseRequest: {
+            notes?: string | null;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             current_password: string;
+            /**
+             * @description `min:8` replaced by the tenant-configurable policy, whose defaults
+             *     are exactly the old behaviour (8 chars, no composition rules).
+             */
             password: string;
             password_confirmation: string;
         };
@@ -3224,6 +5385,10 @@ export interface components {
         CheckOutRequest: {
             idempotency_key: string;
         };
+        /** CloseDisciplinaryCaseRequest */
+        CloseDisciplinaryCaseRequest: {
+            notes?: string | null;
+        };
         /** ContactRequest */
         ContactRequest: {
             name: string;
@@ -3233,6 +5398,11 @@ export interface components {
             organization?: string | null;
             message: string;
         };
+        /**
+         * ContractType
+         * @enum {string}
+         */
+        ContractType: "probation" | "fixed_term" | "permanent" | "casual" | "consultancy";
         /** CostCenterResource */
         CostCenterResource: {
             public_id: string;
@@ -3245,16 +5415,28 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * CostSharingStatus
+         * @enum {string}
+         */
+        CostSharingStatus: "active" | "suspended" | "completed" | "cancelled";
         /** CustomRoleResource */
         CustomRoleResource: {
             public_id: string;
             name: string;
             description: string;
-            is_active: string;
-            permissions?: string;
+            is_active: boolean;
+            permissions?: unknown[];
             users_count?: number;
-            created_at: string;
-            updated_at: string;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** DecideRetirementCaseRequest */
+        DecideRetirementCaseRequest: {
+            decision: components["schemas"]["RetirementDecision"];
+            decision_notes?: string | null;
         };
         /** DepartmentResource */
         DepartmentResource: {
@@ -3263,8 +5445,8 @@ export interface components {
             name_am: string | null;
             code: string | null;
             is_active: boolean;
-            parent?: components["schemas"]["DepartmentResource"];
-            branch?: components["schemas"]["BranchResource"];
+            parent?: components["schemas"]["DepartmentResource"] | null;
+            branch?: components["schemas"]["BranchResource"] | null;
             children?: components["schemas"]["DepartmentResource"][];
             children_recursive?: components["schemas"]["DepartmentResource"][];
             employees_count?: number;
@@ -3285,7 +5467,7 @@ export interface components {
             sync_interval_minutes: number;
             webhook_token?: string | null;
             webhook_url?: string | null;
-            last_sync_at: string;
+            last_sync_at: string | null;
             branch?: components["schemas"]["BranchResource"];
             branch_public_id: string;
             attendance_records_count?: number;
@@ -3307,7 +5489,7 @@ export interface components {
             error_message: string | null;
             duration_ms: number | null;
             started_at: string;
-            completed_at: string;
+            completed_at: string | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -3318,32 +5500,137 @@ export interface components {
             phone: string;
             email: string;
             photo_path: string;
-            department?: string;
-            position?: string;
-            branch?: string;
+            photo_url: string | null;
+            photo_thumb_url: string | null;
+            department?: string | null;
+            position?: string | null;
+            branch?: string | null;
         };
         /** DisableMfaRequest */
         DisableMfaRequest: {
             code: string;
         };
+        /** DisciplinaryCaseResource */
+        DisciplinaryCaseResource: {
+            public_id: string;
+            reference_number: string | null;
+            category: string;
+            description: string;
+            incident_date: string;
+            status: string;
+            reported_by?: unknown;
+            investigation_notes: {
+                note: string;
+                by: number | null;
+                by_name: string | null;
+                at: string;
+            }[];
+            decision: string | null;
+            decision_notes: string | null;
+            decided_at: string | null;
+            decided_by?: unknown;
+            sanction_type: string | null;
+            sanction_details: string | null;
+            sanction_effective_date: string | null;
+            appeal_status: string | null;
+            appeal_grounds: string | null;
+            appeal_filed_at: string | null;
+            appeal_decision_notes: string | null;
+            appeal_decided_at: string | null;
+            appeal_decided_by?: unknown;
+            /** Format: date-time */
+            closed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /**
+         * DisciplinaryCategory
+         * @enum {string}
+         */
+        DisciplinaryCategory: "misconduct" | "absenteeism" | "insubordination" | "negligence" | "policy_violation" | "financial_irregularity" | "harassment" | "other";
+        /**
+         * DisciplinaryDecision
+         * @enum {string}
+         */
+        DisciplinaryDecision: "guilty" | "not_guilty" | "inconclusive";
+        /**
+         * DisciplinarySanctionType
+         * @description Only TERMINATION is wired to a structural effect (the employee's status, via the same transition machinery as `EmployeeTransitionController`, applied when the case closes with the sanction still standing). The others are recorded on the case but not yet applied anywhere else — a suspension would need attendance-system integration and a salary deduction would need payroll integration, neither of which exists yet. Recording the sanction without silently pretending it enforced itself matches this project's documented gaps elsewhere (e.g. cost-sharing, salary-scale) rather than building it blind.
+         * @enum {string}
+         */
+        DisciplinarySanctionType: "verbal_warning" | "written_warning" | "suspension" | "demotion" | "salary_deduction" | "termination";
         /** EducationResource */
         EducationResource: {
-            id: string;
+            public_id: string;
             institution: string;
             degree: string;
             field_of_study: string;
-            start_date: string;
-            end_date: string;
+            start_date: string | null;
+            end_date: string | null;
             grade: string;
         };
         /** EmergencyContactResource */
         EmergencyContactResource: {
-            id: string;
+            public_id: string;
             name: string;
             relationship: string;
             phone: string;
             email: string;
             priority: string;
+        };
+        /** EmployeeContractResource */
+        EmployeeContractResource: {
+            public_id: string;
+            reference_number: string | null;
+            contract_type: string;
+            start_date: string;
+            end_date: string | null;
+            salary_cents: number | null;
+            terms: string | null;
+            status: string;
+            renewed_from_id?: string | null;
+            ended_at: string | null;
+            end_notes: string | null;
+            /**
+             * @description Same S12 badge rule as EmployeeDocumentResource's expiry fields —
+             *     amber within 30 days, red once past end date. Only meaningful
+             *     while the contract is still active; a renewed/ended one has
+             *     already been superseded, not "expiring soon".
+             */
+            is_expired: string;
+            expires_soon: string;
+            days_until_expiry: number | null;
+            /**
+             * @description Populated only on the tenant-wide expiring watchlist, where the
+             *     reader needs to know whose contract is lapsing.
+             */
+            employee_name?: string;
+            employee_public_id?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** EmployeeCostSharingResource */
+        EmployeeCostSharingResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeResource"];
+            employee_public_id: string;
+            total_obligation_cents: number;
+            outstanding_cents: number;
+            /**
+             * @description Derived rather than stored: a stored copy would drift the moment
+             *     an obligation is cancelled with a balance outstanding.
+             */
+            repaid_cents: string;
+            deduction_rate_percent: number;
+            status: string;
+            started_on: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            notes: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         /** EmployeeDocumentResource */
         EmployeeDocumentResource: {
@@ -3353,8 +5640,20 @@ export interface components {
             file_path: string;
             file_size: number;
             mime_type: string | null;
-            expiry_date: string;
+            expiry_date: string | null;
             is_expired: string;
+            /**
+             * @description Drives the S12 badge rule: amber within 30 days, red once expired.
+             *     Mutually exclusive with is_expired so the UI never has to choose.
+             */
+            expires_soon: string;
+            days_until_expiry: number | null;
+            /**
+             * @description Populated only on the tenant-wide expiring list, where the reader
+             *     needs to know whose document is lapsing.
+             */
+            employee_name?: string | null;
+            employee_public_id?: string | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -3367,13 +5666,23 @@ export interface components {
             remaining_cents: number;
             monthly_deduction_cents: number;
             start_date: string;
-            end_date: string;
+            end_date: string | null;
             status: string;
             reason: string | null;
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+        };
+        /** EmployeeReportingNodeResource */
+        EmployeeReportingNodeResource: {
+            public_id: string;
+            name: string;
+            employee_code: string | null;
+            position?: string | null;
+            photo_url: string | null;
+            photo_thumb_url: string | null;
+            direct_reports?: components["schemas"]["EmployeeReportingNodeResource"][];
         };
         /** EmployeeResource */
         EmployeeResource: {
@@ -3384,23 +5693,25 @@ export interface components {
             phone: string | null;
             employee_code: string | null;
             gender: string | null;
-            date_of_birth: string;
+            date_of_birth: string | null;
             nationality: string | null;
             marital_status: string | null;
             status: string;
-            hire_date: string;
-            probation_end_date: string;
-            confirmation_date: string;
-            termination_date: string;
+            hire_date: string | null;
+            probation_end_date: string | null;
+            confirmation_date: string | null;
+            termination_date: string | null;
             salary_cents?: number;
             photo_path: string | null;
-            department?: components["schemas"]["DepartmentResource"];
-            branch?: components["schemas"]["BranchResource"];
-            position?: components["schemas"]["PositionResource"];
-            grade?: components["schemas"]["GradeResource"];
-            team?: components["schemas"]["TeamResource"];
-            cost_center?: components["schemas"]["CostCenterResource"];
-            supervisor?: components["schemas"]["EmployeeSummaryResource"];
+            photo_url: string | null;
+            photo_thumb_url: string | null;
+            department?: components["schemas"]["DepartmentResource"] | null;
+            branch?: components["schemas"]["BranchResource"] | null;
+            position?: components["schemas"]["PositionResource"] | null;
+            grade?: components["schemas"]["GradeResource"] | null;
+            team?: components["schemas"]["TeamResource"] | null;
+            cost_center?: components["schemas"]["CostCenterResource"] | null;
+            supervisor?: components["schemas"]["EmployeeSummaryResource"] | null;
             emergency_contacts?: components["schemas"]["EmergencyContactResource"][];
             bank_details?: components["schemas"]["BankDetailResource"][];
             education?: components["schemas"]["EducationResource"][];
@@ -3410,12 +5721,19 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * EmployeeStatus
+         * @enum {string}
+         */
+        EmployeeStatus: "hired" | "probation" | "confirmed" | "suspended" | "resigned" | "terminated" | "retired";
         /** EmployeeSummaryResource */
         EmployeeSummaryResource: {
             public_id: string;
             name: string;
             employee_code: string;
             photo_path: string;
+            photo_url: string | null;
+            photo_thumb_url: string | null;
         };
         /** EmployeeTransitionResource */
         EmployeeTransitionResource: {
@@ -3424,7 +5742,7 @@ export interface components {
             to_status: string;
             reason: string | null;
             effective_date: string;
-            approved_by?: components["schemas"]["EmployeeSummaryResource"];
+            approved_by?: components["schemas"]["EmployeeSummaryResource"] | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -3433,9 +5751,40 @@ export interface components {
             secret: string;
             code: string;
         };
+        /** EndEmployeeContractRequest */
+        EndEmployeeContractRequest: {
+            /**
+             * @description ACTIVE/RENEWED are not valid outcomes of "end" — RENEWED only
+             *     ever happens via the renew endpoint, and ACTIVE is the state
+             *     being ended, not a result of it.
+             * @enum {string}
+             */
+            status: "expired" | "terminated_early";
+            /** Format: date-time */
+            ended_at?: string | null;
+            end_notes?: string | null;
+        };
         /** ExtendTrialRequest */
         ExtendTrialRequest: {
             days: number;
+        };
+        /** FailedJobResource */
+        FailedJobResource: {
+            uuid: string;
+            connection: string;
+            queue: string;
+            payload: string;
+            exception: string;
+            failed_at: string;
+        };
+        /** FileDisciplinaryAppealRequest */
+        FileDisciplinaryAppealRequest: {
+            grounds: string;
+        };
+        /** FinalizeRetirementCaseRequest */
+        FinalizeRetirementCaseRequest: {
+            /** Format: date-time */
+            effective_date: string;
         };
         /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
@@ -3446,6 +5795,7 @@ export interface components {
         GenerateReportRequest: {
             /** @enum {string} */
             source: "employees" | "attendance" | "leave" | "payroll";
+            columns?: string[];
             filters?: string[];
             group_by?: string | null;
             sort_by?: string | null;
@@ -3453,7 +5803,10 @@ export interface components {
             sort_dir?: "asc" | "desc";
             /** @enum {string} */
             format?: "csv" | "pdf";
-            columns?: string[];
+        };
+        /** GenerateScimTokenRequest */
+        GenerateScimTokenRequest: {
+            name: string;
         };
         /** GradeResource */
         GradeResource: {
@@ -3468,30 +5821,55 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** GradeSalaryStepResource */
+        GradeSalaryStepResource: {
+            public_id: string;
+            step: number;
+            salary_cents: number;
+            /** Format: date-time */
+            created_at: string | null;
+        };
         /** HolidayResource */
         HolidayResource: {
             public_id: string;
             name: string;
             name_am: string | null;
             date: string;
-            branch?: components["schemas"]["BranchResource"];
-            branch_public_id: string;
+            branch?: components["schemas"]["BranchResource"] | null;
+            branch_public_id: string | null;
             ethiopian_calendar: boolean;
             recurring: boolean;
+            /**
+             * @description Computed from the tabular Hijri calendar — HR should confirm
+             *     against the local sighting and adjust if needed.
+             */
+            is_estimated: boolean;
             is_active: boolean;
             /** Format: date-time */
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** ImpersonateTenantRequest */
+        ImpersonateTenantRequest: {
+            code: string;
+        };
         /** ImportAttendanceRequest */
         ImportAttendanceRequest: {
-            /** Format: binary */
+            /**
+             * Format: binary
+             * @description Maximum file size: 10240 kilobytes.
+             */
             file: string;
         };
         /** ImportCommitRequest */
         ImportCommitRequest: {
             import_key: string;
+            /**
+             * @description When true, a login account is provisioned for every imported row
+             *     that has an email (each receives an activation link).
+             */
+            create_logins?: boolean;
             rows: {
                 name: string;
                 /** Format: email */
@@ -3508,10 +5886,31 @@ export interface components {
                 salary_cents?: number | null;
             }[];
         };
+        /**
+         * ImportHistoryRequest
+         * @description Chooses the backfill window for a one-off attendance-history import from a
+         *     device: a preset (last 30 / 90 days), an explicit from-date, or the full
+         *     history the device retains. See ONBOARDING_V2.md decision D8.
+         */
+        ImportHistoryRequest: {
+            /** @enum {string} */
+            window: "last_30" | "last_90" | "from_date" | "full";
+            /** Format: date-time */
+            from_date?: string | null;
+        };
         /** ImportPreviewRequest */
         ImportPreviewRequest: {
-            /** Format: binary */
+            /**
+             * Format: binary
+             * @description Maximum file size: 5120 kilobytes.
+             */
             file: string;
+        };
+        /** InviteTeamRequest */
+        InviteTeamRequest: {
+            emails: string[];
+            /** @enum {string} */
+            role?: "employee" | "supervisor" | "dept_admin" | "finance_admin" | "hr_admin";
         };
         /** KioskAttendanceRequest */
         KioskAttendanceRequest: {
@@ -3539,10 +5938,10 @@ export interface components {
             device_identifier: string | null;
             status: string;
             token?: string;
-            last_activity_at: string;
-            activated_at: string;
-            deactivated_at: string;
-            created_at: string;
+            last_activity_at: string | null;
+            activated_at: string | null;
+            deactivated_at: string | null;
+            created_at: string | null;
         };
         /** LeaveBalanceResource */
         LeaveBalanceResource: {
@@ -3598,10 +5997,40 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** LengthAwarePaginator */
+        LengthAwarePaginator: {
+            current_page: number;
+            data: string[];
+            first_page_url: string | null;
+            from: number | null;
+            last_page_url: string | null;
+            last_page: number;
+            /** @description Generated paginator links. */
+            links: {
+                url: string | null;
+                label: string;
+                active: boolean;
+            }[];
+            next_page_url: string | null;
+            /** @description Base path for paginator generated URLs. */
+            path: string | null;
+            /** @description Number of items shown per page. */
+            per_page: number;
+            prev_page_url: string | null;
+            /** @description Number of the last item in the slice. */
+            to: number | null;
+            /** @description Total number of items being paginated. */
+            total: number;
+        };
         /** LoginRequest */
         LoginRequest: {
-            /** Format: email */
-            email: string;
+            /**
+             * @description `identifier` is the general login value (email, phone, or employee
+             *     number, per the tenant's enabled types). `email` is kept as an
+             *     accepted alias so existing clients keep working unchanged.
+             */
+            identifier?: string | null;
+            email?: string | null;
             password: string;
             /**
              * @description Tenant identifier may be supplied here as a fallback when the
@@ -3625,13 +6054,27 @@ export interface components {
             idempotency_key: string;
             latitude: number;
             longitude: number;
-            photo_path?: string | null;
+            /**
+             * @description Selfie captured on the device, sent inline as a data URL. The
+             *     stored object key comes back from FileStorageService — clients
+             *     never supply `photo_path` themselves.
+             */
+            photo?: string | null;
         };
         /** MobileCheckOutRequest */
         MobileCheckOutRequest: {
             idempotency_key: string;
             latitude?: number | null;
             longitude?: number | null;
+            photo?: string | null;
+        };
+        /** NotificationResource */
+        NotificationResource: {
+            id: string;
+            type: string;
+            data: string;
+            read_at: string;
+            created_at: string;
         };
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
@@ -3646,6 +6089,33 @@ export interface components {
                 longitude?: number | null;
                 offline_token: string;
             }[];
+        };
+        /** OnboardingProgress */
+        OnboardingProgress: {
+            current_step: number;
+            completed_steps: unknown[] | null;
+            step_data: unknown[] | null;
+            /** Format: date-time */
+            completed_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** OrganizationTemplate */
+        OrganizationTemplate: {
+            public_id: string;
+            name: string;
+            slug: string;
+            description: string | null;
+            icon: string | null;
+            template_data: unknown[];
+            is_active: boolean;
+            sort_order: number;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
         };
         /** PayrollEntryResource */
         PayrollEntryResource: {
@@ -3662,6 +6132,23 @@ export interface components {
             other_deductions_cents: number;
             net_cents: number;
             calculation_log?: unknown[] | null;
+        };
+        /** PayrollRuleResource */
+        PayrollRuleResource: {
+            public_id: string;
+            name: string;
+            type: string;
+            category: string;
+            formula: {
+                [key: string]: unknown;
+            } | null;
+            is_taxable: boolean;
+            is_active: boolean;
+            sort_order: number;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
         };
         /** PayrollRunResource */
         PayrollRunResource: {
@@ -3680,7 +6167,61 @@ export interface components {
             /** Format: date-time */
             approved_at: string | null;
             /** Format: date-time */
+            voided_at: string | null;
+            void_reason: string | null;
+            reprocessed_from_public_id?: string | null;
+            /** Format: date-time */
             created_at: string | null;
+        };
+        /** PersonnelActionResource */
+        PersonnelActionResource: {
+            public_id: string;
+            type: string;
+            is_temporary: boolean;
+            effective_date: string;
+            end_date: string | null;
+            reference_number: string | null;
+            reason: string | null;
+            remarks: string | null;
+            changes: unknown[];
+            recorded_by?: unknown;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /**
+         * PersonnelActionType
+         * @description Civil-service personnel actions — the recorded, auditable events that make up an employee's employment history. Complements `EmployeeStatus` transitions (hired → confirmed → retired): those move an employee along the *status* axis, while these move them along the *assignment* axis (post, grade, step, unit). Temporary actions (acting, delegation, secondment) are recorded against the employee's history but do NOT overwrite their substantive posting — the whole point of "acting" is that the permanent post is unchanged.
+         * @enum {string}
+         */
+        PersonnelActionType: "appointment" | "promotion" | "demotion" | "transfer" | "re_designation" | "salary_step_increment" | "acting_assignment" | "delegation" | "secondment" | "reassignment";
+        /** Plan */
+        Plan: {
+            public_id: string;
+            name: string;
+            slug: string;
+            price_cents: number;
+            max_employees: number;
+            max_branches: number;
+            max_devices: number;
+            features: unknown[] | null;
+            is_active: boolean;
+            sort_order: number;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** PlatformSettingResource */
+        PlatformSettingResource: {
+            public_id: string;
+            bank_name: string | null;
+            bank_account_number: string | null;
+            bank_account_name: string | null;
+            payment_instructions: string | null;
+            payment_instructions_am: string | null;
+            is_configured: boolean;
+            /** Format: date-time */
+            updated_at: string | null;
         };
         /** PositionResource */
         PositionResource: {
@@ -3696,12 +6237,46 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** PreviewConfigurationRequest */
+        PreviewConfigurationRequest: {
+            /** @enum {string} */
+            industry: "federal_government" | "regional_government" | "city_administration" | "woreda_administration" | "ministry" | "university" | "tvet" | "school" | "hospital" | "health_center" | "ngo" | "bank" | "insurance" | "microfinance" | "manufacturing" | "construction" | "agriculture" | "hotel" | "retail" | "wholesale" | "logistics" | "transport" | "telecom" | "security_company" | "bpo" | "technology_company" | "custom";
+            employee_count?: number | null;
+            region?: string | null;
+        };
         /** ProcessPayrollRequest */
         ProcessPayrollRequest: {
             /** Format: date-time */
             period_start: string;
             /** Format: date-time */
             period_end: string;
+            idempotency_key: string;
+        };
+        /** ProfileUpdateRequestResource */
+        ProfileUpdateRequestResource: {
+            public_id: string;
+            field_name: string;
+            /**
+             * @description Both values are shown: a reviewer approving a bank-account change is
+             *     deciding on the delta, and cannot judge it from the new value alone.
+             *     Account numbers are masked unless the viewer holds the financial
+             *     permission — `employee.update` is enough to review a name change but
+             *     does not by itself carry the right to read bank details in full.
+             */
+            old_value: string | null;
+            new_value: string | null;
+            status: string;
+            employee_public_id: string;
+            employee_name: string;
+            requested_by_name: string;
+            reviewed_by_name: string;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            review_notes: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
         };
         /** QrAttendanceRequest */
         QrAttendanceRequest: {
@@ -3709,6 +6284,15 @@ export interface components {
             qr_token: string;
             /** @enum {string} */
             type: "check_in" | "check_out";
+        };
+        /** RecordDisciplinaryDecisionRequest */
+        RecordDisciplinaryDecisionRequest: {
+            decision: components["schemas"]["DisciplinaryDecision"];
+            decision_notes?: string | null;
+            sanction_type?: components["schemas"]["DisciplinarySanctionType"] | null;
+            sanction_details?: string | null;
+            /** Format: date-time */
+            sanction_effective_date?: string | null;
         };
         /** RegisterKioskRequest */
         RegisterKioskRequest: {
@@ -3720,11 +6304,25 @@ export interface components {
         /** RegisterTenantRequest */
         RegisterTenantRequest: {
             organization_name: string;
+            /**
+             * @description `not_in` is the only thing actually stopping a tenant from taking
+             *     a reserved slug. The availability endpoint the UI calls is advice;
+             *     this is enforcement. Without it `admin` registered successfully
+             *     and produced a tenant squatting the platform console's hostname
+             *     that ResolveTenant then refused to resolve.
+             */
             subdomain: string;
             admin_name: string;
             /** Format: email */
             admin_email: string;
             admin_phone?: string | null;
+            /**
+             * @description The tenant does not exist yet, so this falls through to
+             *     PasswordPolicy::DEFAULTS — identical to the previous `min:8`. What
+             *     it buys is drift protection: raising the platform floor in
+             *     PasswordPolicy now takes effect at registration too, and it means
+             *     every password entry point in the app enforces the same rule.
+             */
             password: string;
             organization_type?: string | null;
             template_slug?: string | null;
@@ -3738,13 +6336,114 @@ export interface components {
         RejectLeaveRequest: {
             reason: string;
         };
+        /** RenewEmployeeContractRequest */
+        RenewEmployeeContractRequest: {
+            /**
+             * @description Deliberately re-askable rather than defaulted from the expiring
+             *     contract — a renewal is often also where probation converts to
+             *     permanent, or a fixed term changes length.
+             */
+            contract_type: components["schemas"]["ContractType"];
+            reference_number?: string | null;
+            /** Format: date-time */
+            start_date: string;
+            /** Format: date-time */
+            end_date?: string | null;
+            salary_cents?: number | null;
+            terms?: string | null;
+        };
+        /**
+         * ReplaceTaxBracketsRequest
+         * @description Replaces a tenant's whole income-tax ladder in one call. A ladder is only
+         *     meaningful as a set, so the brackets are validated for contiguity here
+         *     rather than allowing per-bracket edits that could leave gaps or overlaps.
+         *
+         *     `max_amount_cents` may be null on the final bracket to mark it open-ended.
+         */
+        ReplaceTaxBracketsRequest: {
+            /** Format: date-time */
+            effective_from: string;
+            brackets: {
+                min_amount_cents: number;
+                max_amount_cents: number | null;
+                rate: number;
+                deduction_cents: number;
+            }[];
+        };
+        /** ReprocessPayrollRunRequest */
+        ReprocessPayrollRunRequest: {
+            idempotency_key: string;
+        };
+        /** RequestOtpRequest */
+        RequestOtpRequest: {
+            phone: string;
+            /**
+             * @description Read by the ResolveTenant middleware when the request is not on a
+             *     tenant subdomain and carries no X-Tenant header.
+             */
+            tenant?: string | null;
+        };
         /** ResetPasswordRequest */
         ResetPasswordRequest: {
-            token: string;
             /** Format: email */
             email: string;
+            token: string;
+            /**
+             * @description `min:8` replaced by the tenant-configurable policy, whose defaults
+             *     are exactly the old behaviour (8 chars, no composition rules).
+             */
             password: string;
             password_confirmation: string;
+        };
+        /** ResolveConflictRequest */
+        ResolveConflictRequest: {
+            /** @enum {string} */
+            resolution: "keep_a" | "keep_b" | "merged" | "dismissed";
+            resolution_notes?: string | null;
+        };
+        /** ResolveDisciplinaryAppealRequest */
+        ResolveDisciplinaryAppealRequest: {
+            /**
+             * @description Only the two resolved outcomes are valid input — PENDING is the
+             *     appeal's own starting state, never something this endpoint sets.
+             * @enum {string}
+             */
+            outcome: "upheld" | "denied";
+            decision_notes?: string | null;
+        };
+        /** RetirementCaseResource */
+        RetirementCaseResource: {
+            public_id: string;
+            retirement_type: string;
+            status: string;
+            service_years: number;
+            eligible_retirement_date: string | null;
+            reason: string | null;
+            notes: string | null;
+            initiated_by?: unknown;
+            decision: string | null;
+            decision_notes: string | null;
+            decided_at: string | null;
+            decided_by?: unknown;
+            finalized_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
+        /**
+         * RetirementDecision
+         * @enum {string}
+         */
+        RetirementDecision: "approved" | "rejected";
+        /**
+         * RetirementType
+         * @enum {string}
+         */
+        RetirementType: "mandatory" | "voluntary" | "early";
+        /** ReviewProfileUpdateRequest */
+        ReviewProfileUpdateRequest: {
+            /** @enum {string} */
+            action: "approve" | "reject";
+            notes?: string | null;
         };
         /** SaveReportRequest */
         SaveReportRequest: {
@@ -3753,6 +6452,18 @@ export interface components {
                 /** @enum {string} */
                 source: "employees" | "attendance" | "leave" | "payroll";
             };
+        };
+        /** ScheduleDashboardDigestRequest */
+        ScheduleDashboardDigestRequest: {
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            recipients: string[];
+            /**
+             * @description Ignored for a dashboard.regional-only caller — the controller
+             *     always forces their own branch, same as every read endpoint in
+             *     ExecutiveDashboardController.
+             */
+            branch_public_id?: string | null;
         };
         /** ScheduleReportRequest */
         ScheduleReportRequest: {
@@ -3763,10 +6474,13 @@ export interface components {
         };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
-            shift?: components["schemas"]["ShiftResource"];
+            shift?: components["schemas"]["ShiftResource"] | null;
+            rotation?: components["schemas"]["ShiftRotationResource"] | null;
+            is_rotation: boolean;
+            anchor_date: string | null;
             assignable_type: string;
             effective_from: string;
-            effective_to: string;
+            effective_to: string | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -3790,6 +6504,52 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** ShiftRotationResource */
+        ShiftRotationResource: {
+            public_id: string;
+            name: string;
+            name_am: string | null;
+            description: string | null;
+            cycle_days: number;
+            is_active: boolean;
+            steps?: components["schemas"]["ShiftRotationStepResource"][];
+            assignments_count?: number;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** ShiftRotationStepResource */
+        ShiftRotationStepResource: {
+            day_offset: number;
+            shift: components["schemas"]["ShiftResource"] | null;
+            is_rest_day: boolean;
+        };
+        /** StageRowsRequest */
+        StageRowsRequest: {
+            /** @enum {string} */
+            source_type?: "csv" | "manual";
+            source_ref?: string | null;
+            rows: {
+                name?: string | null;
+                /** Format: email */
+                email?: string | null;
+                phone?: string | null;
+                employee_code?: string | null;
+                /** Format: date-time */
+                hire_date?: string | null;
+            }[];
+        };
+        /** StoreAlertThresholdRequest */
+        StoreAlertThresholdRequest: {
+            /** @enum {string} */
+            metric: "turnover_rate" | "attendance_rate_today" | "expiring_documents_count" | "probation_overdue_count" | "unused_leave_count";
+            /** @enum {string} */
+            operator: "gt" | "lt";
+            threshold_value: number;
+            /** @enum {string} */
+            severity: "warning" | "critical";
+        };
         /** StoreAnnouncementRequest */
         StoreAnnouncementRequest: {
             title: string;
@@ -3806,9 +6566,9 @@ export interface components {
         /** StoreApiKeyRequest */
         StoreApiKeyRequest: {
             name: string;
+            abilities: ("read" | "write" | "employees" | "attendance" | "leave" | "payroll" | "reports")[];
             /** Format: date-time */
             expires_at?: string | null;
-            abilities: ("read" | "write" | "employees" | "attendance" | "leave" | "payroll" | "reports")[];
         };
         /** StoreBankDetailRequest */
         StoreBankDetailRequest: {
@@ -3845,6 +6605,21 @@ export interface components {
             code?: string | null;
             is_active?: boolean | null;
         };
+        /** StoreCostSharingRequest */
+        StoreCostSharingRequest: {
+            employee_public_id: string;
+            total_obligation_cents: number;
+            /**
+             * @description No default. The rate comes from the graduate's own agreement, and
+             *     silently defaulting to the commonly-cited 10% would withhold a
+             *     number nobody chose from someone's salary. Capped at 100: a rate above that withholds more than the employee
+             *     earns, which is a typo every time (e.g. 1000 for 10.00).
+             */
+            deduction_rate_percent: number;
+            /** Format: date-time */
+            started_on: string;
+            notes?: string | null;
+        };
         /** StoreCustomRoleRequest */
         StoreCustomRoleRequest: {
             name: string;
@@ -3866,22 +6641,39 @@ export interface components {
             name: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type: "hikvision" | "zkteco" | "suprema" | "mock";
+            adapter_type: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
             branch_public_id: string;
             serial_number?: string | null;
             auto_sync?: boolean;
             sync_interval_minutes?: number;
             connection_config: {
+                /**
+                 * @description IP-based vendors need ip/port; the generic HTTP adapter is URL-based
+                 *     and needs base_url instead; mock needs neither.
+                 */
                 ip?: string | null;
                 port?: number | null;
+                /** Format: uri */
+                base_url?: string | null;
                 username?: string | null;
                 password?: string | null;
                 api_key?: string | null;
             };
         };
+        /** StoreDisciplinaryCaseRequest */
+        StoreDisciplinaryCaseRequest: {
+            category: components["schemas"]["DisciplinaryCategory"];
+            description: string;
+            /** Format: date-time */
+            incident_date: string;
+            reference_number?: string | null;
+        };
         /** StoreDocumentRequest */
         StoreDocumentRequest: {
-            /** Format: binary */
+            /**
+             * Format: binary
+             * @description Maximum file size: 10240 kilobytes.
+             */
             file: string;
             title: string;
             /** @enum {string} */
@@ -3909,6 +6701,17 @@ export interface components {
             email?: string | null;
             priority?: number | null;
         };
+        /** StoreEmployeeContractRequest */
+        StoreEmployeeContractRequest: {
+            contract_type: components["schemas"]["ContractType"];
+            reference_number?: string | null;
+            /** Format: date-time */
+            start_date: string;
+            /** Format: date-time */
+            end_date?: string | null;
+            salary_cents?: number | null;
+            terms?: string | null;
+        };
         /** StoreEmployeeRequest */
         StoreEmployeeRequest: {
             name: string;
@@ -3922,23 +6725,33 @@ export interface components {
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
+            /**
+             * @description Encrypted at rest; a blind index drives duplicate detection during
+             *     import and device sync (see IDENTITY_RESOLUTION.md).
+             */
+            national_id?: string | null;
             /** @enum {string|null} */
             marital_status?: "single" | "married" | "divorced" | "widowed" | null;
-            /** @enum {string|null} */
-            status?: "hired" | "probation" | "confirmed" | "suspended" | "resigned" | "terminated" | "retired" | null;
+            status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             hire_date: string;
             /** Format: date-time */
             probation_end_date?: string | null;
             salary_cents?: number | null;
             tin?: string | null;
-            department_id?: number | null;
-            branch_id?: number | null;
-            position_id?: number | null;
-            grade_id?: number | null;
-            team_id?: number | null;
-            cost_center_id?: number | null;
-            supervisor_id?: number | null;
+            department_id?: string | null;
+            branch_id?: string | null;
+            position_id?: string | null;
+            grade_id?: string | null;
+            team_id?: string | null;
+            cost_center_id?: string | null;
+            supervisor_id?: string | null;
+            /**
+             * @description Optionally provision a login account for this employee. Requires an
+             *     email; the person receives an activation link to set their password.
+             */
+            create_login?: boolean;
+            user_role?: components["schemas"]["UserRole"];
         };
         /** StoreGradeRequest */
         StoreGradeRequest: {
@@ -3946,6 +6759,11 @@ export interface components {
             min_salary_cents: number;
             max_salary_cents: number;
             sort_order?: number | null;
+        };
+        /** StoreGradeSalaryStepRequest */
+        StoreGradeSalaryStepRequest: {
+            step: number;
+            salary_cents: number;
         };
         /** StoreHolidayRequest */
         StoreHolidayRequest: {
@@ -3956,6 +6774,7 @@ export interface components {
             branch_public_id?: string | null;
             ethiopian_calendar?: boolean | null;
             recurring?: boolean | null;
+            is_estimated?: boolean | null;
         };
         /** StoreLeaveRequestRequest */
         StoreLeaveRequestRequest: {
@@ -3973,8 +6792,7 @@ export interface components {
             name_am?: string | null;
             code: string;
             default_days: number;
-            /** @enum {string} */
-            accrual_type: "monthly" | "annual" | "immediate" | "one_time";
+            accrual_type: components["schemas"]["AccrualType"];
             carry_forward?: boolean | null;
             max_carry_days?: number | null;
             requires_approval?: boolean | null;
@@ -3993,6 +6811,45 @@ export interface components {
             monthly_deduction_cents: number;
             reason?: string | null;
         };
+        /**
+         * StorePayrollRuleRequest
+         * @description Creates a tenant allowance rule. The `formula` shape depends on `type`:
+         *       fixed      → {"amount_cents": int}
+         *       percentage → {"percent": float}  (of basic salary)
+         */
+        StorePayrollRuleRequest: {
+            name: string;
+            /** @enum {string} */
+            type: "fixed" | "percentage";
+            formula: {
+                amount_cents?: number;
+                percent?: number;
+            };
+            is_taxable?: boolean | null;
+            is_active?: boolean | null;
+            sort_order?: number | null;
+        };
+        /** StorePersonnelActionRequest */
+        StorePersonnelActionRequest: {
+            type: components["schemas"]["PersonnelActionType"];
+            /** Format: date-time */
+            effective_date: string;
+            /** Format: date-time */
+            end_date?: string | null;
+            reference_number?: string | null;
+            reason?: string | null;
+            remarks?: string | null;
+            /**
+             * @description At least one of these must produce an actual change — enforced in
+             *     the service, which alone knows the employee's current values.
+             */
+            position_public_id?: string | null;
+            grade_public_id?: string | null;
+            department_public_id?: string | null;
+            branch_public_id?: string | null;
+            new_salary_cents?: number | null;
+            salary_step?: number | null;
+        };
         /** StorePositionRequest */
         StorePositionRequest: {
             title: string;
@@ -4000,6 +6857,20 @@ export interface components {
             code?: string | null;
             description?: string | null;
             is_active?: boolean | null;
+        };
+        /** StoreProfileEmergencyContactRequest */
+        StoreProfileEmergencyContactRequest: {
+            name: string;
+            relationship: string;
+            phone: string;
+            /** Format: email */
+            email?: string | null;
+            priority?: number | null;
+        };
+        /** StoreRetirementCaseRequest */
+        StoreRetirementCaseRequest: {
+            retirement_type: components["schemas"]["RetirementType"];
+            reason?: string | null;
         };
         /** StoreShiftRequest */
         StoreShiftRequest: {
@@ -4015,6 +6886,26 @@ export interface components {
             is_default?: boolean;
             is_active?: boolean;
         };
+        /** StoreShiftRotationRequest */
+        StoreShiftRotationRequest: {
+            name: string;
+            name_am?: string | null;
+            description?: string | null;
+            /**
+             * @description 366 keeps a cycle inside a year: beyond that it is not a rotation
+             *     but a one-off calendar, and the step list becomes unmanageable.
+             */
+            cycle_days: number;
+            is_active?: boolean;
+            steps: {
+                day_offset: number;
+                /**
+                 * @description Null is a rest day, so nullable is meaningful here rather than
+                 *     merely permissive.
+                 */
+                shift_id?: string | null;
+            }[];
+        };
         /** StoreTeamRequest */
         StoreTeamRequest: {
             name: string;
@@ -4022,11 +6913,37 @@ export interface components {
             department_public_id?: string | null;
             is_active?: boolean | null;
         };
+        /** StoreUserRequest */
+        StoreUserRequest: {
+            /** Format: email */
+            email: string;
+            /**
+             * @description Optional login handle for tenants that enable the `username`
+             *     identifier (see AuthIdentifierResolver). Unique per tenant and
+             *     matched case-insensitively, so it is stored lower-cased.
+             */
+            username?: string | null;
+            role: components["schemas"]["UserRole"];
+            employee_id?: string | null;
+            custom_role_id?: string | null;
+            send_activation?: boolean;
+        };
         /** StoreWebhookRequest */
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
             events: string[];
+        };
+        /** TaxBracketResource */
+        TaxBracketResource: {
+            public_id: string;
+            min_amount_cents: number;
+            /** @description 0 is the open-ended sentinel in storage; the API exposes it as null. */
+            max_amount_cents: number | null;
+            rate: number;
+            deduction_cents: number;
+            effective_from: string;
+            effective_to: string | null;
         };
         /** TeamResource */
         TeamResource: {
@@ -4034,7 +6951,7 @@ export interface components {
             name: string;
             name_am: string | null;
             is_active: boolean;
-            department?: components["schemas"]["DepartmentResource"];
+            department?: components["schemas"]["DepartmentResource"] | null;
             employees_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -4063,11 +6980,19 @@ export interface components {
         TenantStatus: "trial" | "active" | "suspended" | "cancelled";
         /** TransitionEmployeeRequest */
         TransitionEmployeeRequest: {
-            /** @enum {string} */
-            to_status: "hired" | "probation" | "confirmed" | "suspended" | "resigned" | "terminated" | "retired";
+            to_status: components["schemas"]["EmployeeStatus"];
             reason?: string | null;
             /** Format: date-time */
             effective_date: string;
+        };
+        /** UpdateAccessRequest */
+        UpdateAccessRequest: {
+            login_identifiers: ("email" | "phone" | "employee_code" | "username")[];
+            /**
+             * @description Optional per-role default identifier, shown in invite flows. Stored
+             *     as configuration; it does not restrict what the resolver accepts.
+             */
+            role_defaults?: ("email" | "phone" | "employee_code" | "username")[];
         };
         /** UpdateAnnouncementRequest */
         UpdateAnnouncementRequest: {
@@ -4083,6 +7008,7 @@ export interface components {
         };
         /** UpdateAttendanceSettingRequest */
         UpdateAttendanceSettingRequest: {
+            enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[];
             geofence_required?: boolean;
             mobile_photo_required?: boolean;
             kiosk_pin_required?: boolean;
@@ -4092,7 +7018,9 @@ export interface components {
             mobile_accuracy_threshold_meters?: number;
             offline_sync_enabled?: boolean;
             kiosk_auto_reset_seconds?: number;
-            enabled_methods?: ("biometric" | "mobile" | "qr" | "kiosk" | "web" | "manual" | "csv")[];
+            grace_period_minutes?: number;
+            ot_daily_cap_minutes?: number;
+            confidence_threshold?: number;
         };
         /** UpdateBranchRequest */
         UpdateBranchRequest: {
@@ -4128,6 +7056,12 @@ export interface components {
             code?: string | null;
             is_active?: boolean | null;
         };
+        /** UpdateCostSharingRequest */
+        UpdateCostSharingRequest: {
+            deduction_rate_percent?: number;
+            status?: components["schemas"]["CostSharingStatus"];
+            notes?: string | null;
+        };
         /** UpdateCustomRoleRequest */
         UpdateCustomRoleRequest: {
             name?: string;
@@ -4149,7 +7083,7 @@ export interface components {
             name?: string;
             location_description?: string | null;
             /** @enum {string} */
-            adapter_type?: "hikvision" | "zkteco" | "suprema" | "mock";
+            adapter_type?: "hikvision" | "zkteco" | "suprema" | "generic" | "mock";
             branch_public_id?: string;
             serial_number?: string | null;
             auto_sync?: boolean;
@@ -4172,6 +7106,7 @@ export interface components {
             /** Format: date-time */
             date_of_birth?: string | null;
             nationality?: string | null;
+            national_id?: string | null;
             /** @enum {string|null} */
             marital_status?: "single" | "married" | "divorced" | "widowed" | null;
             /** Format: date-time */
@@ -4180,13 +7115,13 @@ export interface components {
             probation_end_date?: string | null;
             salary_cents?: number | null;
             tin?: string | null;
-            department_id?: number | null;
-            branch_id?: number | null;
-            position_id?: number | null;
-            grade_id?: number | null;
-            team_id?: number | null;
-            cost_center_id?: number | null;
-            supervisor_id?: number | null;
+            department_id?: string | null;
+            branch_id?: string | null;
+            position_id?: string | null;
+            grade_id?: string | null;
+            team_id?: string | null;
+            cost_center_id?: string | null;
+            supervisor_id?: string | null;
         };
         /** UpdateGradeRequest */
         UpdateGradeRequest: {
@@ -4194,6 +7129,11 @@ export interface components {
             min_salary_cents?: number;
             max_salary_cents?: number;
             sort_order?: number | null;
+        };
+        /** UpdateGradeSalaryStepRequest */
+        UpdateGradeSalaryStepRequest: {
+            step: number;
+            salary_cents: number;
         };
         /** UpdateHolidayRequest */
         UpdateHolidayRequest: {
@@ -4204,6 +7144,7 @@ export interface components {
             branch_public_id?: string | null;
             ethiopian_calendar?: boolean;
             recurring?: boolean;
+            is_estimated?: boolean;
             is_active?: boolean;
         };
         /** UpdateLeaveTypeRequest */
@@ -4212,8 +7153,7 @@ export interface components {
             name_am?: string | null;
             code?: string;
             default_days?: number;
-            /** @enum {string} */
-            accrual_type?: "monthly" | "annual" | "immediate" | "one_time";
+            accrual_type?: components["schemas"]["AccrualType"];
             carry_forward?: boolean;
             max_carry_days?: number | null;
             requires_approval?: boolean;
@@ -4225,6 +7165,16 @@ export interface components {
             /** @enum {string|null} */
             gender_restriction?: "male" | "female" | null;
             sort_order?: number;
+        };
+        /**
+         * UpdateLoanRequest
+         * @description Adjusts an outstanding loan. The principal (`amount_cents`) and the employee
+         *     are not editable — correcting either means cancelling the loan and issuing a
+         *     new one, so the deduction history stays traceable.
+         */
+        UpdateLoanRequest: {
+            monthly_deduction_cents?: number;
+            reason?: string | null;
         };
         /** UpdateNotificationTemplateRequest */
         UpdateNotificationTemplateRequest: {
@@ -4241,6 +7191,48 @@ export interface components {
             /** @enum {string} */
             locale?: "en" | "am" | "om" | "ti" | "so";
         };
+        /**
+         * UpdateOvertimeRatesRequest
+         * @description Tenant overtime multipliers. The lower bounds are the Ethiopian Labour
+         *     Proclamation minimums — a tenant may pay above them, never below.
+         */
+        UpdateOvertimeRatesRequest: {
+            normal: number;
+            night: number;
+            holiday: number;
+            holiday_night: number;
+        };
+        /**
+         * UpdatePayrollRuleRequest
+         * @description Updates a tenant allowance rule. `type` is always required so the `formula`
+         *     shape can be validated against it, even when only the formula changes.
+         */
+        UpdatePayrollRuleRequest: {
+            name?: string;
+            /** @enum {string} */
+            type: "fixed" | "percentage";
+            formula: {
+                amount_cents?: number;
+                percent?: number;
+            };
+            is_taxable?: boolean | null;
+            is_active?: boolean | null;
+            sort_order?: number | null;
+        };
+        /** UpdatePlatformSettingsRequest */
+        UpdatePlatformSettingsRequest: {
+            bank_name?: string | null;
+            /**
+             * @description Ethiopian bank account numbers are digits, commonly written with
+             *     spaces or dashes for readability. Anything else is a typo on a field
+             *     that decides where customers send money, so reject it rather than
+             *     silently storing it.
+             */
+            bank_account_number?: string | null;
+            bank_account_name?: string | null;
+            payment_instructions?: string | null;
+            payment_instructions_am?: string | null;
+        };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {
             title?: string;
@@ -4253,23 +7245,66 @@ export interface components {
         UpdatePreferencesRequest: {
             preferences: boolean[][];
         };
+        /** UpdateProfilePreferencesRequest */
+        UpdateProfilePreferencesRequest: {
+            /**
+             * @description en + am ship complete; the rest are the architecture-supported set and
+             *     fall back per key. Mirrors the header language switcher.
+             * @enum {string|null}
+             */
+            locale?: "en" | "am" | "om" | "ti" | "so" | "sid" | null;
+            /**
+             * @description Mirrors the header theme menu, high-contrast included.
+             * @enum {string|null}
+             */
+            theme?: "light" | "dark" | "system" | "high-contrast" | null;
+            /**
+             * @description Dual shows Gregorian and Ethiopian side by side; the tenant-level
+             *     `ethiopian_calendar` flag decides whether the choice is offered at all.
+             * @enum {string|null}
+             */
+            calendar?: "gregorian" | "ethiopian" | "dual" | null;
+        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
+            /** @description Applied immediately — keep in sync with ProfileUpdateRequest::SELF_FIELDS. */
             phone?: string | null;
-            address?: string | null;
+            /** @enum {string|null} */
+            marital_status?: "single" | "married" | "divorced" | "widowed" | null;
+            nationality?: string | null;
+            /**
+             * @description Shorthand for the primary emergency contact. The full list is managed
+             *     through /profile/emergency-contacts.
+             */
             emergency_contact_name?: string | null;
             emergency_contact_phone?: string | null;
             emergency_contact_relationship?: string | null;
-            /** Format: binary */
-            photo?: string | null;
-            /** @description Sensitive fields that require HR approval */
+            /**
+             * @description Gated fields — staged into profile_update_requests for HR review
+             *     rather than applied. Keep in sync with ProfileUpdateRequest::GATED_FIELDS;
+             *     a field missing a rule here is silently dropped by validated().
+             */
             name?: string | null;
+            name_am?: string | null;
+            tin?: string | null;
+            /** Format: date */
+            date_of_birth?: string | null;
             bank_account_number?: string | null;
             bank_name?: string | null;
         };
         /** UpdateSettingsRequest */
         UpdateSettingsRequest: {
-            settings: string[];
+            settings: {
+                /**
+                 * @description Ethiopian month 1-13 (Meskerem = 1 ... Pagume = 13). Fiscal years
+                 *     in practice start at Meskerem 1 (private) or Hamle 1 = month 7
+                 *     (government), but any Ethiopian month is accepted.
+                 */
+                fiscal_year_start_month?: number;
+                /** @enum {string} */
+                pagumen_proration_strategy?: "full_month" | "daily_rate";
+                retirement_age?: number;
+            };
         };
         /** UpdateShiftRequest */
         UpdateShiftRequest: {
@@ -4285,6 +7320,32 @@ export interface components {
             is_default?: boolean;
             is_active?: boolean;
         };
+        /** UpdateSsoRequest */
+        UpdateSsoRequest: {
+            is_enabled?: boolean;
+            idp_entity_id?: string | null;
+            /** Format: uri */
+            idp_sso_url?: string | null;
+            /** Format: uri */
+            idp_slo_url?: string | null;
+            idp_certificate?: string | null;
+            /** @enum {string|null} */
+            default_role?: "employee" | "supervisor" | "dept_admin" | "hr_admin" | null;
+            auto_provision?: boolean;
+            attribute_mapping?: string[] | null;
+        };
+        /** UpdateStagingRowRequest */
+        UpdateStagingRowRequest: {
+            /** @enum {string} */
+            action: "merge" | "create" | "skip" | "defer";
+            /**
+             * @description Lets a reviewer pick which candidate an "ambiguous" row merges
+             *     with — resolved tenant-scoped in the controller, same as every
+             *     other `exists:employees,public_id` rule in this codebase (the
+             *     raw validation rule does not itself see the tenant scope).
+             */
+            employee_public_id?: string | null;
+        };
         /** UpdateTeamRequest */
         UpdateTeamRequest: {
             name?: string;
@@ -4297,16 +7358,85 @@ export interface components {
             /** @enum {string} */
             status: "active" | "suspended" | "cancelled";
         };
+        /** UpdateUserRequest */
+        UpdateUserRequest: {
+            /** @description Unique per tenant, ignoring this user's own row so a no-op save passes. */
+            username?: string | null;
+            role?: components["schemas"]["UserRole"];
+            /** @enum {string} */
+            status?: "active" | "inactive" | "suspended";
+            custom_role_id?: string | null;
+            /** @enum {string} */
+            locale?: "en" | "am";
+        };
         /** UpdateWebhookRequest */
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            is_active?: boolean;
             events?: string[];
+            is_active?: boolean;
         };
+        /**
+         * UploadProfilePhotoRequest
+         * @description The photo has its own endpoint because PHP does not parse a multipart body on
+         *     PUT — the `photo` field on `PUT /profile` could never have arrived, no matter
+         *     what the client sent.
+         */
+        UploadProfilePhotoRequest: {
+            /**
+             * Format: binary
+             * @description FileStorageService re-verifies the magic bytes and strips EXIF; these
+             *     rules only keep obviously wrong uploads out of that path.
+             */
+            photo: string;
+        };
+        /** UserResource */
+        UserResource: {
+            public_id: string;
+            email: string;
+            username: string | null;
+            phone: string | null;
+            role: string;
+            status: string;
+            locale: string;
+            mfa_enabled: boolean;
+            /** Format: date-time */
+            invited_at: string | null;
+            /** Format: date-time */
+            activated_at: string | null;
+            /** Format: date-time */
+            last_login_at: string | null;
+            custom_role?: {
+                public_id: string;
+                name: string;
+            } | null;
+            employee?: {
+                public_id: string;
+                name: string;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+        };
+        /**
+         * UserRole
+         * @enum {string}
+         */
+        UserRole: "super_admin" | "tenant_admin" | "hr_admin" | "finance_admin" | "dept_admin" | "supervisor" | "employee";
         /** VerifyMfaRequest */
         VerifyMfaRequest: {
             code: string;
+            /** @description Optional so existing clients that omit it keep working unchanged. */
+            trust_device?: boolean;
+        };
+        /** VerifyOtpRequest */
+        VerifyOtpRequest: {
+            phone: string;
+            code: string;
+            tenant?: string | null;
+        };
+        /** VoidPayrollRunRequest */
+        VoidPayrollRunRequest: {
+            reason: string;
         };
     };
     responses: {
@@ -4370,7 +7500,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    "accounting.chartOfAccounts": {
+    "alertThreshold.index": {
         parameters: {
             query?: never;
             header?: never;
@@ -4385,622 +7515,20 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        accounts: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "accounting.updateChartOfAccounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateChartOfAccountsRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Chart of accounts updated.";
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "accounting.journal": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        period: string;
-                        date: string;
-                        reference: string;
-                        entries: [
-                            {
-                                account_code: string;
-                                account_name: string;
-                                debit_cents: string;
-                                /** @enum {integer} */
-                                credit_cents: 0;
-                            },
-                            {
-                                account_code: string;
-                                account_name: string;
-                                debit_cents: string;
-                                /** @enum {integer} */
-                                credit_cents: 0;
-                            },
-                            {
-                                account_code: string;
-                                account_name: string;
-                                /** @enum {integer} */
-                                debit_cents: 0;
-                                credit_cents: string;
-                            },
-                            {
-                                account_code: string;
-                                account_name: string;
-                                /** @enum {integer} */
-                                debit_cents: 0;
-                                credit_cents: string;
-                            },
-                            {
-                                account_code: string;
-                                account_name: string;
-                                /** @enum {integer} */
-                                debit_cents: 0;
-                                credit_cents: string;
-                            },
-                            {
-                                account_code: string;
-                                account_name: string;
-                                /** @enum {integer} */
-                                debit_cents: 0;
-                                credit_cents: string;
-                            }
-                        ];
-                        total_debits_cents: string;
-                        total_credits_cents: string;
-                        is_balanced: boolean;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "accounting.export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    "Content-Disposition"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "adminDashboard.revenue": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        mrr_cents: number;
-                        total_tenants: string;
-                        active_tenants: string;
-                        trial_tenants: string;
-                        suspended_tenants: string;
-                        cancelled_tenants: string;
-                        conversion_rate: string | 0;
-                        monthly_trend: [
-                            {
-                                month: string;
-                                revenue_cents: number;
-                            }
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminDashboard.health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        services: {
-                            api: {
-                                /** @enum {string} */
-                                status: "healthy";
-                                /** @enum {integer} */
-                                response_ms: 0;
-                            };
-                            database: {
-                                /** @enum {string} */
-                                status: "unhealthy";
-                                error: string;
-                            } | {
-                                /** @enum {string} */
-                                status: "healthy";
-                                response_ms: number;
-                            };
-                            redis: {
-                                /** @enum {string} */
-                                status: "unhealthy";
-                                error: string;
-                            } | {
-                                /** @enum {string} */
-                                status: "healthy";
-                                response_ms: number;
-                            };
-                            storage: {
-                                /** @enum {string} */
-                                status: "unhealthy";
-                                error: string;
-                            } | {
-                                /** @enum {string} */
-                                status: "healthy";
-                                response_ms: number;
-                            };
-                            reverb: {
-                                /** @enum {string} */
-                                status: "unknown";
-                                /** @enum {string} */
-                                note: "WebSocket server — check Horizon";
-                            };
-                        };
-                        queue: unknown[];
-                        failed_jobs: number;
-                        resources: {
-                            php_memory_mb: string;
-                            php_peak_memory_mb: string;
-                            disk_free_gb: string | null;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminDashboard.auditLog": {
-        parameters: {
-            query?: {
-                "filter[action]"?: string;
-                "filter[from]"?: string;
-                "filter[to]"?: string;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminTenant.index": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[status]"?: string;
-                sort?: string;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminTenant.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        name: string;
-                        subdomain: string;
-                        type: string;
-                        status: string;
-                        trial_ends_at: string;
-                        created_at: string;
-                        updated_at: string;
-                        usage: {
-                            employees: string;
-                            devices: string | 0;
-                        };
-                        subscription: {
-                            plan_name: string;
-                            status: string;
-                            current_period_end: string;
-                        } | null;
-                        invoices: string;
-                        audit_log: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminTenant.updateStatus": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateTenantStatusRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        status: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "adminTenant.extendTrial": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExtendTrialRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        trial_ends_at: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "adminTenant.impersonate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        token: string;
-                        tenant: string;
-                        expires_at: string;
-                    } | string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "adminTenant.backup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Backup job queued. You will be notified when the export is ready.";
-                        tenant_id: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "analytics.departments": {
-        parameters: {
-            query?: {
-                sort?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        departments: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "analytics.departmentDetail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The department public id */
-                department: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        name: string;
-                        headcount: string;
-                        avg_salary_cents: number;
-                        gender_breakdown: string;
-                        employees: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "analytics.branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        branches: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "analytics.branchDetail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The branch public id */
-                branch: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        name: string;
-                        headcount: string;
-                        departments: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "announcement.index": {
-        parameters: {
-            query?: {
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `AnnouncementResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AnnouncementResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
+                        thresholds: {
+                            public_id: string;
+                            metric: string;
+                            operator: string;
+                            threshold_value: number;
+                            severity: string;
+                        }[];
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
         };
     };
-    "announcement.store": {
+    "alertThreshold.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -5009,87 +7537,64 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreAnnouncementRequest"];
+                "application/json": components["schemas"]["StoreAlertThresholdRequest"];
             };
         };
         responses: {
-            /** @description `AnnouncementResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnnouncementResource"];
+                    "application/json": {
+                        public_id: string;
+                        metric: string;
+                        operator: string;
+                        threshold_value: number;
+                        severity: string;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
         };
     };
-    "announcement.show": {
+    "alertThreshold.triggered": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The announcement public id */
-                announcement: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `AnnouncementResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnnouncementResource"];
+                    "application/json": {
+                        alerts: {
+                            public_id: string;
+                            metric: string;
+                            operator: string;
+                            threshold_value: string;
+                            current_value: number | null;
+                            severity: string;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "announcement.update": {
+    "alertThreshold.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The announcement public id */
-                announcement: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateAnnouncementRequest"];
-            };
-        };
-        responses: {
-            /** @description `AnnouncementResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnouncementResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "announcement.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The announcement public id */
-                announcement: string;
+                /** @description The alert threshold public id */
+                alertThreshold: string;
             };
             cookie?: never;
         };
@@ -5103,34 +7608,10 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "apiKey.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        keys: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "apiKey.store": {
+    "kioskSession.authenticate": {
         parameters: {
             query?: never;
             header?: never;
@@ -5139,98 +7620,50 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreApiKeyRequest"];
+                "application/json": components["schemas"]["AuthenticateKioskRequest"];
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        public_id: string;
-                        name: string;
-                        key: string;
-                        abilities: string;
-                        expires_at: string;
-                        created_at: string;
+                        session: unknown[];
+                        tenant: {
+                            name: string;
+                            subdomain: string;
+                            logo_path: string | null;
+                        };
+                        settings: {
+                            pin_required: boolean;
+                            auto_reset_seconds: number;
+                        };
                     };
                 };
             };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
-    "apiKey.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The api key public id */
-                apiKey: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "approval.pending": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: [
-                            {
-                                /** @enum {string} */
-                                type: "leave";
-                                public_id: string;
-                                employee_name: string;
-                                employee_public_id: string;
-                                summary: string;
-                                submitted_at: string;
-                            },
-                            {
-                                /** @enum {string} */
-                                type: "correction";
-                                public_id: string;
-                                employee_name: string;
-                                employee_public_id: string;
-                                summary: string;
-                                submitted_at: string;
-                            }
-                        ];
-                        total: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "approval.batch": {
+    "kiosk.kioskCheckIn": {
         parameters: {
             query?: never;
             header?: never;
@@ -5239,7 +7672,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BatchApprovalRequest"];
+                "application/json": components["schemas"]["KioskCheckInRequest"];
             };
         };
         responses: {
@@ -5248,15 +7681,78 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": string;
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": {
-                        results: [
-                            string
-                        ];
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Invalid PIN";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid employee PIN.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Invalid or inactive kiosk session.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/unauthorized";
+                        /** @constant */
+                        title: "Unauthorized";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "Kiosk session token is required.";
                     };
                 };
             };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/forbidden";
+                        /** @constant */
+                        title: "Method Disabled";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "This attendance method is not enabled for your organization.";
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Employee not found with the given code.";
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
@@ -5289,13 +7785,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         type: "https://ethr.et/errors/not-found";
-                        /** @enum {string} */
+                        /** @constant */
                         title: "Not Found";
-                        /** @enum {integer} */
+                        /** @constant */
                         status: 404;
-                        detail: string;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
                     };
                 };
             };
@@ -5332,13 +7829,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         type: "https://ethr.et/errors/not-found";
-                        /** @enum {string} */
+                        /** @constant */
                         title: "Not Found";
-                        /** @enum {integer} */
+                        /** @constant */
                         status: 404;
-                        detail: string;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
                     };
                 };
             };
@@ -5365,7 +7863,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AttendanceRecordResource"][];
+                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -5417,7 +7915,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AttendanceRecordResource"][];
+                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -5466,12 +7964,12 @@ export interface operations {
                 content: {
                     "application/json": {
                         date: string;
-                        total_employees: string;
-                        present: string;
+                        total_employees: number;
+                        present: number;
                         absent: string;
-                        late: string;
-                        early_leave: string;
-                        on_leave: string;
+                        late: number;
+                        early_leave: number;
+                        on_leave: number;
                     };
                 };
             };
@@ -5479,57 +7977,107 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "attendance.index": {
+    "manualAttendance.store": {
         parameters: {
-            query?: {
-                "filter[employee_public_id]"?: string;
-                "filter[department_public_id]"?: string;
-                "filter[branch_public_id]"?: string;
-                "filter[date_from]"?: string;
-                "filter[date_to]"?: string;
-                "filter[status]"?: string;
-                "filter[source]"?: string;
-                per_page?: number;
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualAttendanceRequest"];
             };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            /** @description `AttendanceRecordResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceRecordResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "kioskAttendance.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskAttendanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Employee not found with the given code.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceImport.template": {
+        parameters: {
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `AttendanceRecordResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AttendanceRecordResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
+                        /** @constant */
+                        template: "employee_code,date,check_in_time,check_out_time\n";
+                        headers: [
+                            "employee_code",
+                            "date",
+                            "check_in_time",
+                            "check_out_time"
+                        ];
                     };
                 };
             };
@@ -5537,17 +8085,192 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "attendance.show": {
+    "attendanceImport.preview": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The attendance record public id */
-                attendanceRecord: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["AttendanceImportPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rows: unknown[][];
+                        valid: number;
+                        invalid: number;
+                        errors: string[];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            string
+                        ];
+                    } | {
+                        rows: string[];
+                        valid: number;
+                        invalid: number;
+                        errors: [
+                            "File must have a header row and at least one data row."
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceImport.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttendanceImportCommitRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        skipped: number;
+                        errors: string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceImport.parseLegacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportAttendanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        format: "generic_csv";
+                        records: {
+                            badge: unknown;
+                            datetime: string | null;
+                            /** @enum {string} */
+                            direction: "check_in" | "check_out";
+                        }[];
+                        errors: string[];
+                    } | {
+                        /** @constant */
+                        format: "hikvision";
+                        records: {
+                            badge: unknown;
+                            datetime: string | null;
+                            /** @enum {string} */
+                            direction: "check_out" | "check_in";
+                        }[];
+                        errors: string[];
+                    } | {
+                        /** @constant */
+                        format: "biotime";
+                        records: {
+                            badge: unknown;
+                            datetime: string | null;
+                            /** @enum {string} */
+                            direction: "check_in" | "check_out";
+                        }[];
+                        errors: string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "mobileAttendance.checkIn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileCheckInRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "mobileAttendance.checkOut": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileCheckOutRequest"];
+            };
+        };
         responses: {
             /** @description `AttendanceRecordResource` */
             200: {
@@ -5560,7 +8283,319 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "qrAttendance.generate": {
+        parameters: {
+            query: {
+                branch_public_id: string;
+                shift_public_id?: string | null;
+                expiry_minutes?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                        branch_public_id: string;
+                        branch_name: string;
+                        shift_public_id: string;
+                        shift_name: string;
+                        expires_at: string;
+                        generated_at: string;
+                        expiry_minutes: number;
+                        auto_refresh: string | boolean;
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/tenant-not-found";
+                        /** @constant */
+                        title: "Tenant Required";
+                        /** @constant */
+                        status: 400;
+                        /** @constant */
+                        detail: "Tenant context could not be resolved.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Branch Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "The specified branch was not found.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "qrAttendance.scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrAttendanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No employee profile linked to your account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "offlineSync.sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfflineSyncRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        results: ({
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            /** @constant */
+                            detail: "Employee not found";
+                        } | {
+                            idempotency_key: string;
+                            /** @enum {string} */
+                            status: "duplicate" | "created";
+                            public_id: string;
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            detail: string;
+                        })[];
+                        summary: {
+                            created: number;
+                            duplicate: number;
+                            error: number;
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendanceIntelligence.dashboard": {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        date: unknown;
+                        anomalies: {
+                            count: number;
+                            thresholds: {
+                                /** @constant */
+                                excessive_hours_minutes: 960;
+                                /** @constant */
+                                excessive_overtime_minutes: 240;
+                            };
+                            records: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                types: ("excessive_hours" | "excessive_overtime")[];
+                                worked_minutes: number;
+                                overtime_minutes: number;
+                            }[];
+                        };
+                        late_arrivals: {
+                            count: number;
+                            records: {
+                                employee_public_id: string;
+                                employee_name: string;
+                                minutes_late: number;
+                                check_in: string | null;
+                                shift_start: string | null;
+                            }[];
+                        };
+                        early_departures: {
+                            count: number;
+                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        };
+                        missing_punches: {
+                            count: number;
+                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceIntelligence.overtime": {
+        parameters: {
+            query?: {
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: unknown;
+                        employees: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSetting.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceSetting.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateAttendanceSettingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "attendanceCorrection.index": {
@@ -5582,7 +8617,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AttendanceCorrectionResource"][];
+                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -5634,7 +8669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"];
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -5660,7 +8695,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AttendanceCorrectionResource"][];
+                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -5693,6 +8728,40 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "attendanceCorrection.payrollImpact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The correction public id */
+                correction: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        original_hours: number;
+                        proposed_hours: number;
+                        difference_minutes: string;
+                        estimated_impact_cents: string;
+                        hourly_rate_cents: string;
+                        in_open_payroll_period: boolean;
+                        /** @constant */
+                        currency: "ETB";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "attendanceCorrection.approve": {
         parameters: {
             query?: never;
@@ -5711,12 +8780,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] | string;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This correction request is no longer pending.";
+                    };
+                };
+            };
         };
     };
     "attendanceCorrection.reject": {
@@ -5741,7 +8827,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] | string;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -5750,310 +8836,12 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "attendanceImport.template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        template: "employee_code,date,check_in_time,check_out_time\n";
-                        headers: [
-                            "employee_code",
-                            "date",
-                            "check_in_time",
-                            "check_out_time"
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "attendanceImport.preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["AttendanceImportPreviewRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        rows: [
-                            string
-                        ];
-                        /** @enum {integer} */
-                        valid: 0;
-                        /** @enum {integer} */
-                        invalid: 0;
-                        errors: string[];
-                    } | {
-                        rows: string[];
-                        /** @enum {integer} */
-                        valid: 0;
-                        /** @enum {integer} */
-                        invalid: 0;
-                        errors: [
-                            string
-                        ];
-                    } | {
-                        rows: string[];
-                        /** @enum {integer} */
-                        valid: 0;
-                        /** @enum {integer} */
-                        invalid: 0;
-                        errors: [
-                            "File must have a header row and at least one data row."
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "attendanceImport.commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AttendanceImportCommitRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {integer} */
-                        created: 0;
-                        /** @enum {integer} */
-                        skipped: 0;
-                        errors: [
-                            string
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "attendanceImport.parseLegacy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportAttendanceRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        format: "generic_csv";
-                        records: [
-                            {
-                                badge: string;
-                                datetime: string | null;
-                                /** @enum {string} */
-                                direction: "check_in" | "check_out";
-                            }
-                        ];
-                        errors: [
-                            string,
-                            string
-                        ];
-                    } | {
-                        /** @enum {string} */
-                        format: "hikvision";
-                        records: [
-                            {
-                                badge: string | "";
-                                datetime: string | null;
-                                /** @enum {string} */
-                                direction: "check_out" | "check_in";
-                            }
-                        ];
-                        errors: [
-                            string,
-                            string
-                        ];
-                    } | {
-                        /** @enum {string} */
-                        format: "biotime";
-                        records: [
-                            {
-                                badge: string | "";
-                                datetime: string | null;
-                                /** @enum {string} */
-                                direction: "check_in" | "check_out";
-                            }
-                        ];
-                        errors: [
-                            string,
-                            string
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "attendanceIntelligence.dashboard": {
+    "attendanceConflict.index": {
         parameters: {
             query?: {
-                date?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        date: string;
-                        late_arrivals: {
-                            count: string;
-                            records: string;
-                        };
-                        early_departures: {
-                            count: string;
-                            records: components["schemas"]["AttendanceRecordResource"][];
-                        };
-                        missing_punches: {
-                            count: string;
-                            records: components["schemas"]["AttendanceRecordResource"][];
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "attendanceIntelligence.overtime": {
-        parameters: {
-            query?: {
-                period?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        period: string;
-                        employees: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "attendanceSetting.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "attendanceSetting.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateAttendanceSettingRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "auditLog.index": {
-        parameters: {
-            query?: {
-                "filter[user_id]"?: string;
-                "filter[from]"?: string;
-                "filter[to]"?: string;
+                "filter[resolution]"?: string;
+                "filter[conflict_type]"?: string;
+                "filter[employee_public_id]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -6062,21 +8850,167 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Paginated set of `AttendanceConflictResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        data: (components["schemas"]["AttendanceConflictResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "bankDetail.index": {
+    "attendanceConflict.resolve": {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                /** @description The conflict public id */
+                conflict: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveConflictRequest"];
+            };
+        };
+        responses: {
+            /** @description `AttendanceConflictResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceConflictResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendance.index": {
+        parameters: {
+            query?: {
+                "filter[employee_public_id]"?: string;
+                "filter[department_public_id]"?: string;
+                "filter[branch_public_id]"?: string;
+                "filter[date_from]"?: string;
+                "filter[date_to]"?: string;
+                "filter[status]"?: string;
+                "filter[source]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceRecordResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendance.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attendance record public id */
+                attendanceRecord: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AttendanceRecordResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employee.employeeAttendanceTimeline": {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path: {
                 /** @description The employee public id */
@@ -6086,13 +9020,47 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Array of `BankDetailResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BankDetailResource"][];
+                    "application/json": {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        };
+                        range: {
+                            from: string;
+                            to: string;
+                        };
+                        totals: {
+                            present: number;
+                            late: number;
+                            absent: number;
+                            total_minutes_worked: number;
+                        };
+                        days: ({
+                            date: string;
+                            status: string;
+                            check_in: string | null;
+                            check_out: string | null;
+                            worked_minutes: number | null;
+                            source: string;
+                            late_minutes: null;
+                            is_weekend: boolean;
+                        } | {
+                            date: string;
+                            /** @enum {string} */
+                            status: "weekend" | "absent";
+                            check_in: null;
+                            check_out: null;
+                            worked_minutes: null;
+                            source: null;
+                            late_minutes: null;
+                            is_weekend: boolean;
+                        })[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -6100,79 +9068,84 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "bankDetail.store": {
+    "kioskSession.index": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The employee public id */
-                employee: string;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `KioskSessionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskSessionResource"][];
+                };
             };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "kioskSession.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreBankDetailRequest"];
+                "application/json": components["schemas"]["RegisterKioskRequest"];
             };
         };
         responses: {
-            /** @description `BankDetailResource` */
+            /** @description `KioskSessionResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BankDetailResource"];
+                    "application/json": components["schemas"]["KioskSessionResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
-    "bankDetail.update": {
+    "kioskSession.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The employee public id */
-                employee: string;
-                /** @description The bank detail ID */
-                bankDetail: number;
+                publicId: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreBankDetailRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description `BankDetailResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BankDetailResource"];
+                    "application/json": unknown[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
         };
     };
-    "bankDetail.destroy": {
+    "kioskSession.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The employee public id */
-                employee: string;
-                /** @description The bank detail ID */
-                bankDetail: number;
+                publicId: string;
             };
             cookie?: never;
         };
@@ -6187,7 +9160,764 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "kioskSession.deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "deactivated";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "kioskSession.activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "activated";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "kioskSession.regenerateToken": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "auth.register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterTenantRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: {
+                            public_id: string;
+                            email: string;
+                            role: components["schemas"]["UserRole"];
+                        };
+                        tenant: components["schemas"]["TenantResource"];
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "auth.login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                        mfa_required: string;
+                        /**
+                         * @description Advisory, not a block: the token is still issued so the user can
+                         *     reach the change-password endpoint. Refusing to authenticate would
+                         *     lock them out of the only screen that can clear the condition.
+                         *     Always present, so clients can branch without probing for the key.
+                         */
+                        password_expired: boolean;
+                        mfa_token: string;
+                        mfa_token_expires_in: string;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/account-inactive";
+                        /** @constant */
+                        title: "Account Inactive";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your account has been suspended.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "passwordReset.forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Same response whether user exists or not — prevents enumeration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "If an account with that email exists in this organization, a reset link has been sent.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rate-limit";
+                        /** @constant */
+                        title: "Too Many Requests";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many password reset attempts. Try again in a few minutes.";
+                    };
+                };
+            };
+        };
+    };
+    "passwordReset.reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        message: "Your account is now active. Please sign in with your new password." | "Password has been reset. Please sign in with your new password.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "auth.subdomainCheck": {
+        parameters: {
+            query: {
+                subdomain: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        subdomain: unknown;
+                        available: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "sso.initiate": {
+        parameters: {
+            query?: {
+                relay_state?: string;
+            };
+            header?: never;
+            path: {
+                subdomain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        redirect_url: string;
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/sso-not-configured";
+                        /** @constant */
+                        title: "SSO Not Configured";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Single sign-on is not configured for this organization.";
+                    };
+                };
+            };
+        };
+    };
+    "sso.callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subdomain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default /dashboard */
+                    RelayState?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                        mfa_required: string;
+                        /**
+                         * @description Advisory, not a block: the token is still issued so the user can
+                         *     reach the change-password endpoint. Refusing to authenticate would
+                         *     lock them out of the only screen that can clear the condition.
+                         *     Always present, so clients can branch without probing for the key.
+                         */
+                        password_expired: boolean;
+                        mfa_token: string;
+                        mfa_token_expires_in: string;
+                        relay_state: unknown;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/sso-failed";
+                        /** @constant */
+                        title: "SSO Authentication Failed";
+                        /** @constant */
+                        status: 401;
+                        /** @constant */
+                        detail: "SSO authentication failed. Please try again or contact your administrator.";
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/account-inactive";
+                        /** @constant */
+                        title: "Account Inactive";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your account has been suspended.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/sso-no-account";
+                        /** @constant */
+                        title: "No Account Found";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "No account found for this SSO identity. Contact your administrator.";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/sso-not-configured";
+                        /** @constant */
+                        title: "SSO Not Configured";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Single sign-on is not configured for this organization.";
+                    };
+                };
+            };
+        };
+    };
+    "sso.metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subdomain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+        };
+    };
+    "auth.logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Logged out successfully.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "auth.refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "auth.me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        user: {
+                            public_id: string;
+                            name: string | null;
+                            name_am: string | null;
+                            email: string;
+                            phone: string | null;
+                            role: components["schemas"]["UserRole"];
+                            status: string;
+                            mfa_enabled: boolean;
+                            locale: string;
+                            /**
+                             * @description The shell reads theme/calendar/language from here on boot, so a
+                             *     preference set on one device shows up on the next.
+                             */
+                            preferences: {
+                                locale: string;
+                                theme: string | "system";
+                                calendar: string | "gregorian";
+                            };
+                            /** Format: date-time */
+                            last_login_at: string | null;
+                            employee_code: string | null;
+                            photo_thumb_url: string | null;
+                        };
+                        permissions: {
+                            [key: string]: unknown;
+                        };
+                        tenant: components["schemas"]["TenantResource"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "passwordReset.change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Password changed successfully. Other active sessions have been signed out.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "mfaSetup.setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        secret: string;
+                        qr_code_url: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-already-enabled";
+                        /** @constant */
+                        title: "MFA Already Enabled";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Two-factor authentication is already enabled.";
+                    };
+                };
+            };
+        };
+    };
+    "mfaSetup.enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnableMfaRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Two-factor authentication has been enabled.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-already-enabled";
+                        /** @constant */
+                        title: "MFA Already Enabled";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Two-factor authentication is already enabled.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "mfaSetup.disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisableMfaRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Two-factor authentication has been disabled.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-not-enabled";
+                        /** @constant */
+                        title: "MFA Not Enabled";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Two-factor authentication is not enabled.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "auth.mfaVerify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyMfaRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                        device_trusted: boolean;
+                        /** @constant */
+                        device_trusted_days: 30;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-not-enabled";
+                        /** @constant */
+                        title: "MFA Not Required";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Two-factor authentication is not enabled for this account.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "plan.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"][];
+                    };
+                };
+            };
         };
     };
     "billing.dashboard": {
@@ -6205,15 +9935,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        plan: string;
-                        plan_price_cents: string;
-                        subscription_status: string;
-                        current_period_end: string;
-                        invoices: string;
+                        plan: string | null;
+                        plan_price_cents: number | null;
+                        subscription_status: string | null;
+                        /** Format: date-time */
+                        current_period_end: string | null;
+                        invoices: {
+                            public_id: string;
+                            total_cents: number;
+                            status: string;
+                            due_date: string | null;
+                            /** Format: date-time */
+                            paid_at: string | null;
+                        }[];
+                        /**
+                         * @description Trial state. Every tenant starts on a trial and most have no
+                         *     subscription row at all, so without these the billing page rendered
+                         *     "No plan" and three em-dashes for the whole trial — on the one screen
+                         *     that is supposed to answer "what am I on, and when do I pay?".
+                         */
+                        tenant_status: string;
+                        trial_ends_at: string | null;
+                        trial_days_remaining: number | null;
+                        /**
+                         * @description Where to pay. Owned by the super admin, not hardcoded in the client
+                         *     and not a translation key — a payment destination must not vary by
+                         *     UI language.
+                         */
+                        payment_details: {
+                            bank_name: string;
+                            account_number: string;
+                            account_name: string;
+                            instructions: string | null;
+                            instructions_am: string | null;
+                        } | null;
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "billing.changePlan": {
@@ -6234,15 +9994,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": ({
+                    "application/json": {
                         old_plan: string;
                         new_plan: string;
                         proration_cents: string;
                         effective_immediately: boolean;
                     } | {
-                        /** @enum {string} */
+                        /** @constant */
                         error: "No active subscription";
-                    }) | string;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -6269,7 +10029,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         public_id: string;
-                        /** @enum {string} */
+                        /** @constant */
                         status: "paid";
                         /** Format: date-time */
                         paid_at: string | null;
@@ -6306,12 +10066,11 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "branches.index": {
+    "costSharing.index": {
         parameters: {
             query?: {
-                search?: string;
-                "filter[is_active]"?: boolean;
-                sort?: string;
+                "filter[status]"?: string;
+                "filter[employee_public_id]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -6320,14 +10079,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `BranchResource` */
+            /** @description Paginated set of `EmployeeCostSharingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["BranchResource"][];
+                        data: (components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -6360,7 +10119,7 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "branches.store": {
+    "costSharing.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -6369,17 +10128,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreBranchRequest"];
+                "application/json": components["schemas"]["StoreCostSharingRequest"];
             };
         };
         responses: {
-            /** @description `BranchResource` */
+            /** @description `EmployeeCostSharingResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BranchResource"];
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -6387,25 +10146,25 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "branches.show": {
+    "costSharing.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The branch public id */
-                branch: string;
+                /** @description The cost sharing public id */
+                costSharing: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `BranchResource` */
+            /** @description `EmployeeCostSharingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BranchResource"];
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -6413,444 +10172,35 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "branches.update": {
+    "costSharing.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The branch public id */
-                branch: string;
+                /** @description The cost sharing public id */
+                costSharing: string;
             };
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["UpdateBranchRequest"];
+                "application/json": components["schemas"]["UpdateCostSharingRequest"];
             };
         };
         responses: {
-            /** @description `BranchResource` */
+            /** @description `EmployeeCostSharingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BranchResource"];
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
-        };
-    };
-    "branches.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The branch public id */
-                branch: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "v1.contact": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContactRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        message: string;
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "cost-centers.index": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[is_active]"?: boolean;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `CostCenterResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["CostCenterResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "cost-centers.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreCostCenterRequest"];
-            };
-        };
-        responses: {
-            /** @description `CostCenterResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CostCenterResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "cost-centers.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The cost center public id */
-                costCenter: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description `CostCenterResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CostCenterResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "cost-centers.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The cost center public id */
-                costCenter: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateCostCenterRequest"];
-            };
-        };
-        responses: {
-            /** @description `CostCenterResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CostCenterResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "cost-centers.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The cost center public id */
-                costCenter: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "customRole.permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "roles.index": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[is_active]"?: boolean;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `CustomRoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["CustomRoleResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "roles.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreCustomRoleRequest"];
-            };
-        };
-        responses: {
-            /** @description `CustomRoleResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomRoleResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "roles.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The custom role public id */
-                customRole: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description `CustomRoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomRoleResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "roles.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The custom role public id */
-                customRole: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateCustomRoleRequest"];
-            };
-        };
-        responses: {
-            /** @description `CustomRoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CustomRoleResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "roles.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The custom role public id */
-                customRole: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "business_rule_violation";
-                        /** @enum {string} */
-                        title: "Cannot Delete Role";
-                        /** @enum {integer} */
-                        status: 422;
-                        detail: string;
-                    };
-                };
-            };
         };
     };
     "dashboard.employee": {
@@ -6868,12 +10218,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        attendance_today: unknown[] | null;
-                        leave_balances: string | string[];
-                        latest_payslip: unknown[] | null;
+                        attendance_today: {
+                            /** @enum {string} */
+                            status: "checked_out" | "checked_in";
+                            /** Format: date-time */
+                            check_in: string | null;
+                            /** Format: date-time */
+                            check_out: string | null;
+                            worked_minutes: number | null;
+                        } | {
+                            /** @constant */
+                            status: "not_checked_in";
+                        } | null;
+                        leave_balances: unknown[];
+                        latest_payslip: {
+                            period: string;
+                            net_cents: number;
+                            gross_cents: number;
+                        } | null;
                         upcoming_holidays: unknown[];
-                        /** @enum {integer} */
-                        pending_approvals: 0;
+                        pending_approvals: number;
+                        tenant_summary: {
+                            employee_count: number;
+                            department_count: number;
+                            branch_count: number;
+                        } | {
+                            employee_count: number;
+                            department_count: number;
+                            branch_count: number;
+                        };
+                        onboarding_complete: boolean;
                     };
                 };
             };
@@ -6896,23 +10270,20 @@ export interface operations {
                 content: {
                     "application/json": {
                         team_attendance: {
-                            present: string;
+                            present: number;
                             absent: string;
-                            late: string;
+                            late: number;
                         } | {
-                            /** @enum {integer} */
-                            present: 0;
-                            /** @enum {integer} */
-                            absent: 0;
-                            /** @enum {integer} */
-                            late: 0;
+                            present: number;
+                            absent: number;
+                            late: number;
                         };
                         pending_approvals: {
-                            leave: string;
-                            total: string;
+                            leave: number;
+                            total: number;
                         };
-                        team_on_leave: string | string[];
-                        team_size: string;
+                        team_on_leave: unknown[];
+                        team_size: number;
                     };
                 };
             };
@@ -6920,7 +10291,7 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "department.tree": {
+    "executiveDashboard.overview": {
         parameters: {
             query?: never;
             header?: never;
@@ -6929,75 +10300,266 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Array of `DepartmentResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DepartmentResource"][];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "departments.index": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[is_active]"?: boolean;
-                "filter[branch_public_id]"?: string;
-                sort?: string;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `DepartmentResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["DepartmentResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
+                        headcount: {
                             total: number;
+                            active: number;
+                            by_department: {
+                                department: string;
+                                department_public_id: string | null;
+                                count: string;
+                            }[];
+                        };
+                        attendance_rate: {
+                            today: number;
+                            period: number;
+                        } | {
+                            today: number;
+                            period: number;
+                        };
+                        payroll_summary: {
+                            gross_cents: number;
+                            net_cents: number;
+                            tax_cents: number;
+                            previous_gross_cents: number;
+                            employee_count: number;
+                        };
+                        turnover: {
+                            exits: number;
+                            rate: number;
+                        };
+                        workforce_growth: {
+                            month: string;
+                            hires: number;
+                        }[];
+                        leave_utilization: {
+                            entitled_days: string;
+                            used_days: string;
+                            utilization_rate: number;
                         };
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
         };
     };
-    "departments.store": {
+    "executiveDashboard.attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        daily_trend: unknown[];
+                        by_department: unknown[];
+                        by_source: unknown[];
+                        top_late: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "executiveDashboard.payroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        monthly_trend: unknown[];
+                        overtime_trend: unknown[];
+                        by_department: unknown[];
+                        by_cost_center: unknown[];
+                        totals: {
+                            total_gross_cents: number;
+                            total_net_cents: number;
+                            total_tax_cents: number;
+                            run_count: number;
+                        } | {
+                            total_gross_cents: string;
+                            total_net_cents: string;
+                            total_tax_cents: string;
+                            run_count: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "executiveDashboard.workforce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headcount_trend: {
+                            month: string;
+                            count: number;
+                        }[];
+                        by_department: unknown[];
+                        by_gender: unknown[];
+                        by_tenure: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "executiveDashboard.compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        expiring_documents: {
+                            count: number;
+                            /**
+                             * @description getAttribute() here, not ->employee/->expiry_date: the eager
+                             *     load's column-limited select degrades Larastan's relation
+                             *     inference to a generic Model for this collection.
+                             */
+                            items: {
+                                employee_name: string | null;
+                                employee_public_id: string | null;
+                                document_type: string;
+                                expiry_date: string | null;
+                            }[];
+                        };
+                        probation_overdue: {
+                            count: number;
+                            items: {
+                                employee_name: string;
+                                employee_public_id: string;
+                                department: string | null;
+                                probation_end_date: string | null;
+                            }[];
+                        };
+                        unused_leave: {
+                            count: number;
+                            applicable: boolean;
+                        } | {
+                            count: number;
+                            applicable: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "executiveDashboard.forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headcount: {
+                            history: {
+                                month: string;
+                                count: number;
+                            }[];
+                            projected: {
+                                label: string;
+                                /** @description Never project a negative headcount/currency value. */
+                                value: number;
+                            }[];
+                        };
+                        payroll_gross: {
+                            history: unknown[];
+                            projected: {
+                                label: string;
+                                /** @description Never project a negative headcount/currency value. */
+                                value: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "dashboardDigest.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        digests: {
+                            public_id: string;
+                            branch_name: string | null;
+                            frequency: string;
+                            recipients: unknown[];
+                            /** Format: date-time */
+                            next_run_at: string | null;
+                            /** Format: date-time */
+                            last_run_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "dashboardDigest.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -7006,25 +10568,80 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreDepartmentRequest"];
+                "application/json": components["schemas"]["ScheduleDashboardDigestRequest"];
             };
         };
         responses: {
-            /** @description `DepartmentResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"];
+                    "application/json": {
+                        public_id: string;
+                        branch_name: string | null;
+                        frequency: string;
+                        recipients: unknown[];
+                        /** Format: date-time */
+                        next_run_at: string | null;
+                        /** Format: date-time */
+                        last_run_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "dashboardDigest.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dashboard digest public id */
+                dashboardDigest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "analytics.departments": {
+        parameters: {
+            query?: {
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        departments: unknown[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
         };
     };
-    "departments.show": {
+    "analytics.departmentDetail": {
         parameters: {
             query?: never;
             header?: never;
@@ -7036,13 +10653,19 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description `DepartmentResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"];
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        headcount: number;
+                        avg_salary_cents: number;
+                        gender_breakdown: string;
+                        employees: unknown[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7050,44 +10673,360 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "departments.update": {
+    "analytics.branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        branches: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "analytics.branchDetail": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The department public id */
-                department: string;
+                /** @description The branch public id */
+                branch: string;
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateDepartmentRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description `DepartmentResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"];
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        headcount: number;
+                        departments: {
+                            public_id: string;
+                            name: string;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "report.sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sources: {
+                            employees: {
+                                /** @constant */
+                                label: "Employees";
+                                fields: [
+                                    "name",
+                                    "email",
+                                    "phone",
+                                    "employee_code",
+                                    "gender",
+                                    "status",
+                                    "hire_date",
+                                    "salary_cents",
+                                    "department",
+                                    "branch",
+                                    "position"
+                                ];
+                            };
+                            attendance: {
+                                /** @constant */
+                                label: "Attendance";
+                                fields: [
+                                    "employee_name",
+                                    "date",
+                                    "check_in",
+                                    "check_out",
+                                    "status",
+                                    "source",
+                                    "worked_minutes"
+                                ];
+                            };
+                            leave: {
+                                /** @constant */
+                                label: "Leave Balances";
+                                fields: [
+                                    "employee_name",
+                                    "leave_type",
+                                    "year",
+                                    "entitled_days",
+                                    "used_days",
+                                    "remaining_days"
+                                ];
+                            };
+                            payroll: {
+                                /** @constant */
+                                label: "Payroll";
+                                fields: [
+                                    "employee_name",
+                                    "period",
+                                    "basic_salary_cents",
+                                    "gross_cents",
+                                    "income_tax_cents",
+                                    "employee_pension_cents",
+                                    "net_cents"
+                                ];
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "report.generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        source: string | "employees";
+                        total: number;
+                        data: unknown[];
+                        summary: {
+                            grouped_by: string | null;
+                            groups: string;
+                            group_sums: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
         };
     };
-    "departments.destroy": {
+    "report.export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateReportRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveReportRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        config: unknown[];
+                        /** Format: date-time */
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.savedList": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        reports: {
+                            public_id: string;
+                            name: string;
+                            config: unknown[];
+                            /** Format: date-time */
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "report.deleteSaved": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The department public id */
-                department: string;
+                /** @description The saved report public id */
+                savedReport: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "report.schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleReportRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        frequency: string;
+                        recipients: unknown[];
+                        /** Format: date-time */
+                        next_run_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.scheduledList": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schedules: {
+                            public_id: string;
+                            report_name: string;
+                            frequency: string;
+                            recipients: unknown[];
+                            /** Format: date-time */
+                            next_run_at: string | null;
+                            /** Format: date-time */
+                            last_run_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "report.deleteScheduled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The scheduled report public id */
+                scheduledReport: string;
             };
             cookie?: never;
         };
@@ -7120,13 +11059,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "processed";
                     } | {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "employee_not_found";
                     } | {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "no_badge";
                     };
                 };
@@ -7137,7 +11076,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "unauthorized";
                     };
                 };
@@ -7159,10 +11098,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "processed";
-                        /** @enum {integer} */
-                        count: 0;
+                        count: number;
                     };
                 };
             };
@@ -7172,7 +11110,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "unauthorized";
                     };
                 };
@@ -7194,10 +11132,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "processed";
-                        /** @enum {integer} */
-                        count: 0;
+                        count: number;
                     };
                 };
             };
@@ -7207,7 +11144,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         status: "unauthorized";
                     };
                 };
@@ -7229,19 +11166,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        total: string;
-                        online: string;
-                        offline: string;
-                        error: string;
-                        pending: string;
-                        auto_sync_enabled: string;
-                        events_today: string;
-                        last_sync_at: string;
+                        total: number;
+                        online: number;
+                        offline: number;
+                        error: number;
+                        pending: number;
+                        auto_sync_enabled: number;
+                        events_today: number;
+                        last_sync_at: string | null;
                         sync_stats_24h: {
-                            success: string;
-                            partial: string;
-                            failed: string;
-                            offline: string;
+                            success: unknown;
+                            partial: unknown;
+                            failed: unknown;
+                            offline: unknown;
                         };
                     };
                 };
@@ -7266,8 +11203,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         message: string;
-                        /** @enum {integer} */
-                        dispatched: 0;
+                        dispatched: number;
                     };
                 };
             };
@@ -7324,7 +11260,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        message: string;
+                        /** @constant */
+                        message: "Device event pull has been dispatched to the queue.";
                         device_public_id: string;
                     };
                 };
@@ -7332,6 +11269,42 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "device.importHistory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportHistoryRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Device event pull has been dispatched to the queue.";
+                        device_public_id: string;
+                        window: unknown;
+                        since: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "device.regenerateToken": {
@@ -7353,7 +11326,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         webhook_token: string | null;
-                        /** @enum {string} */
+                        /** @constant */
                         message: "Webhook token regenerated";
                     };
                 };
@@ -7438,7 +11411,87 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["LengthAwarePaginator"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deviceEnrollment.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        device: {
+                            public_id: string;
+                            name: string;
+                            adapter_type: string;
+                        };
+                        enrollments: {
+                            device_user_id: string;
+                            name: string | null;
+                            card_number: string | null;
+                            department: string | null;
+                            fingerprint_count: string | null;
+                            face_registered: string | null;
+                            match: {
+                                /** @enum {string} */
+                                outcome: "ambiguous" | "probable";
+                                employee_public_id: string;
+                                confidence: number;
+                                candidates: unknown[];
+                            } | {
+                                /** @constant */
+                                outcome: "new";
+                                employee_public_id: string;
+                                confidence: number;
+                                candidates: unknown[];
+                            } | {
+                                /** @constant */
+                                outcome: "new";
+                                employee_public_id: string;
+                                confidence: number;
+                                candidates: string;
+                            } | {
+                                /** @constant */
+                                outcome: "matched";
+                                employee_public_id: string;
+                                confidence: number;
+                                candidates: [
+                                    {
+                                        employee_public_id: string;
+                                        employee_name: string;
+                                        score: number;
+                                        reasons: [
+                                            "existing_mapping"
+                                        ];
+                                    }
+                                ];
+                            };
+                        }[];
+                        summary: {
+                            total: number;
+                            matched: string;
+                            probable: string;
+                            ambiguous: string;
+                            new: string;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7469,7 +11522,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["DeviceResource"][];
+                        data: (components["schemas"]["DeviceResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -7521,7 +11574,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"];
+                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7547,7 +11600,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"];
+                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7577,7 +11630,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"];
+                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7610,12 +11663,260 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "directory.index": {
+    "disciplinaryCase.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "disciplinaryCase.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDisciplinaryCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "disciplinaryCase.addNote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The disciplinary case public id */
+                disciplinaryCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddDisciplinaryNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "disciplinaryCase.decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The disciplinary case public id */
+                disciplinaryCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordDisciplinaryDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "disciplinaryCase.appeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The disciplinary case public id */
+                disciplinaryCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileDisciplinaryAppealRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "disciplinaryCase.resolveAppeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The disciplinary case public id */
+                disciplinaryCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveDisciplinaryAppealRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "disciplinaryCase.close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The disciplinary case public id */
+                disciplinaryCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CloseDisciplinaryCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `DisciplinaryCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employee.stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: string;
+                        by_status: string;
+                        by_department: string;
+                        by_branch: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employeeBulk.export": {
         parameters: {
             query?: {
                 search?: string;
+                "filter[status]"?: string;
                 "filter[department_id]"?: string;
-                per_page?: number;
             };
             header?: never;
             path?: never;
@@ -7623,14 +11924,38 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `DirectoryResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["DirectoryResource"][];
+                        csv: string;
+                        count: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employeeDocument.expiring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EmployeeDocumentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EmployeeDocumentResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -7660,9 +11985,307 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
-    "education.index": {
+    "employeeContract.expiring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EmployeeContractResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EmployeeContractResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employeeImport.status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employeeBulk.bulkUpdate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        updated: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeImport.template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        template: string;
+                        headers: [
+                            "name",
+                            "email",
+                            "phone",
+                            "employee_code",
+                            "gender",
+                            "hire_date",
+                            "department_code",
+                            "branch_code",
+                            "position_code",
+                            "salary_cents"
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employeeImport.preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportPreviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        headers: unknown[];
+                        rows: string[];
+                        errors: string;
+                    } | {
+                        headers: unknown[];
+                        rows: string[];
+                        errors: [
+                            [
+                                string
+                            ]
+                        ];
+                    } | {
+                        headers: string[];
+                        rows: string[];
+                        errors: [
+                            [
+                                "CSV file must have a header row and at least one data row."
+                            ]
+                        ];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeImport.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportCommitRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        skipped: number;
+                        matched: number;
+                        users_created: number;
+                        errors: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employees.index": {
+        parameters: {
+            query?: {
+                search?: string;
+                "filter[status]"?: string;
+                "filter[department_id]"?: string;
+                "filter[branch_id]"?: string;
+                "filter[position_id]"?: string;
+                sort?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EmployeeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["EmployeeResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "employees.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEmployeeRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employees.show": {
         parameters: {
             query?: never;
             header?: never;
@@ -7674,13 +12297,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Array of `EducationResource` */
+            /** @description `EmployeeResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EducationResource"][];
+                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7688,7 +12311,7 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "education.store": {
+    "employees.update": {
         parameters: {
             query?: never;
             header?: never;
@@ -7698,52 +12321,19 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["StoreEducationRequest"];
+                "application/json": components["schemas"]["UpdateEmployeeRequest"];
             };
         };
         responses: {
-            /** @description `EducationResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EducationResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "education.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The employee public id */
-                employee: string;
-                /** @description The education ID */
-                education: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreEducationRequest"];
-            };
-        };
-        responses: {
-            /** @description `EducationResource` */
+            /** @description `EmployeeResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EducationResource"];
+                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -7752,15 +12342,13 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "education.destroy": {
+    "employees.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description The employee public id */
                 employee: string;
-                /** @description The education ID */
-                education: number;
             };
             cookie?: never;
         };
@@ -7776,6 +12364,186 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employeeTransition.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `EmployeeTransitionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["EmployeeTransitionResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employeeTransition.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransitionEmployeeRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeTransitionResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeTransitionResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeContract.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `EmployeeContractResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["EmployeeContractResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "employeeContract.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEmployeeContractRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeContractResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeContract.renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The contract public id */
+                contract: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenewEmployeeContractRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeContractResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "employeeContract.end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The contract public id */
+                contract: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndEmployeeContractRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeContractResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "emergencyContact.index": {
@@ -7842,8 +12610,8 @@ export interface operations {
             path: {
                 /** @description The employee public id */
                 employee: string;
-                /** @description The contact ID */
-                contact: number;
+                /** @description The emergency contact public id */
+                emergencyContact: string;
             };
             cookie?: never;
         };
@@ -7875,8 +12643,8 @@ export interface operations {
             path: {
                 /** @description The employee public id */
                 employee: string;
-                /** @description The contact ID */
-                contact: number;
+                /** @description The emergency contact public id */
+                emergencyContact: string;
             };
             cookie?: never;
         };
@@ -7894,165 +12662,88 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "employee.stats": {
+    "bankDetail.index": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Array of `BankDetailResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        total: string;
-                        by_status: string;
-                        by_department: string;
-                        by_branch: string;
-                    };
+                    "application/json": components["schemas"]["BankDetailResource"][];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "employees.index": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[status]"?: string;
-                "filter[department_id]"?: string;
-                "filter[branch_id]"?: string;
-                "filter[position_id]"?: string;
-                sort?: string;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `EmployeeResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["EmployeeResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "employees.store": {
+    "bankDetail.store": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreEmployeeRequest"];
+                "application/json": components["schemas"]["StoreBankDetailRequest"];
             };
         };
         responses: {
-            /** @description `EmployeeResource` */
+            /** @description `BankDetailResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "employees.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The employee public id */
-                employee: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description `EmployeeResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmployeeResource"];
+                    "application/json": components["schemas"]["BankDetailResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
-    "employees.update": {
+    "bankDetail.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description The employee public id */
                 employee: string;
+                /** @description The bank detail public id */
+                bankDetail: string;
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateEmployeeRequest"];
+                "application/json": components["schemas"]["StoreBankDetailRequest"];
             };
         };
         responses: {
-            /** @description `EmployeeResource` */
+            /** @description `BankDetailResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"];
+                    "application/json": components["schemas"]["BankDetailResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8061,13 +12752,15 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "employees.destroy": {
+    "bankDetail.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description The employee public id */
                 employee: string;
+                /** @description The bank detail public id */
+                bankDetail: string;
             };
             cookie?: never;
         };
@@ -8085,12 +12778,9 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "employee.employeeAttendanceTimeline": {
+    "education.index": {
         parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 /** @description The employee public id */
@@ -8100,54 +12790,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Array of `EducationResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        employee: {
-                            public_id: string;
-                            name: string;
-                        };
-                        range: {
-                            from: string;
-                            to: string;
-                        };
-                        totals: {
-                            /** @enum {integer} */
-                            present: 0;
-                            /** @enum {integer} */
-                            late: 0;
-                            /** @enum {integer} */
-                            absent: 0;
-                            /** @enum {integer} */
-                            total_minutes_worked: 0;
-                        };
-                        days: [
-                            {
-                                date: string;
-                                status: string;
-                                check_in: string;
-                                check_out: string;
-                                worked_minutes: string | null;
-                                source: string;
-                                late_minutes: null;
-                                is_weekend: string;
-                            },
-                            {
-                                date: string;
-                                /** @enum {string} */
-                                status: "weekend" | "absent";
-                                check_in: null;
-                                check_out: null;
-                                worked_minutes: null;
-                                source: null;
-                                late_minutes: null;
-                                is_weekend: string;
-                            }
-                        ];
-                    };
+                    "application/json": components["schemas"]["EducationResource"][];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8155,60 +12804,94 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "employeeBulk.export": {
-        parameters: {
-            query?: {
-                search?: string;
-                "filter[status]"?: string;
-                "filter[department_id]"?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        csv: string;
-                        count: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "employeeBulk.bulkUpdate": {
+    "education.store": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkUpdateRequest"];
+                "application/json": components["schemas"]["StoreEducationRequest"];
             };
         };
         responses: {
+            /** @description `EducationResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EducationResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "education.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The education public id */
+                education: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreEducationRequest"];
+            };
+        };
+        responses: {
+            /** @description `EducationResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        updated: string;
-                    } | string;
+                    "application/json": components["schemas"]["EducationResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "education.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The education public id */
+                education: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "employeeDocument.index": {
@@ -8326,545 +13009,11 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "employeeImport.template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        template: string;
-                        headers: [
-                            "name",
-                            "email",
-                            "phone",
-                            "employee_code",
-                            "gender",
-                            "hire_date",
-                            "department_code",
-                            "branch_code",
-                            "position_code",
-                            "salary_cents"
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "employeeImport.preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportPreviewRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        headers: string;
-                        rows: [
-                            string
-                        ];
-                        errors: string;
-                    } | {
-                        headers: string;
-                        rows: string[];
-                        errors: [
-                            [
-                                string
-                            ]
-                        ];
-                    } | {
-                        headers: string[];
-                        rows: string[];
-                        errors: [
-                            [
-                                "CSV file must have a header row and at least one data row."
-                            ]
-                        ];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "employeeImport.commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportCommitRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {integer} */
-                        created: 0;
-                        /** @enum {integer} */
-                        skipped: 0;
-                        errors: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "employeeTransition.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The employee public id */
-                employee: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `EmployeeTransitionResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmployeeTransitionResource"][];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "employeeTransition.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The employee public id */
-                employee: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransitionEmployeeRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description `EmployeeTransitionResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmployeeTransitionResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "executiveDashboard.overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        headcount: {
-                            total: string;
-                            active: string;
-                            by_department: string;
-                        };
-                        attendance_rate: {
-                            today: string;
-                            period: string;
-                        } | {
-                            /** @enum {integer} */
-                            today: 0;
-                            /** @enum {integer} */
-                            period: 0;
-                        };
-                        payroll_summary: {
-                            gross_cents: string;
-                            net_cents: string;
-                            tax_cents: string;
-                            previous_gross_cents: string;
-                            employee_count: string;
-                        };
-                        turnover: {
-                            exits: string;
-                            rate: string | 0;
-                        };
-                        workforce_growth: [
-                            {
-                                month: string;
-                                hires: string;
-                            }
-                        ];
-                        leave_utilization: {
-                            entitled_days: string;
-                            used_days: string;
-                            utilization_rate: string | 0;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "executiveDashboard.attendance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        daily_trend: unknown[];
-                        by_department: unknown[];
-                        by_source: unknown[];
-                        top_late: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "executiveDashboard.payroll": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        monthly_trend: unknown[];
-                        by_department: string | string[];
-                        totals: {
-                            total_gross_cents: string;
-                            total_net_cents: string;
-                            total_tax_cents: string;
-                            run_count: string;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "executiveDashboard.workforce": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        headcount_trend: [
-                            {
-                                month: string;
-                                count: string;
-                            }
-                        ];
-                        by_department: unknown[];
-                        by_gender: unknown[];
-                        by_tenure: unknown[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "grades.index": {
-        parameters: {
-            query?: {
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paginated set of `GradeResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["GradeResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
-                        meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "grades.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreGradeRequest"];
-            };
-        };
-        responses: {
-            /** @description `GradeResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradeResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "grades.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The grade public id */
-                grade: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description `GradeResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradeResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "grades.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The grade public id */
-                grade: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateGradeRequest"];
-            };
-        };
-        responses: {
-            /** @description `GradeResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradeResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "grades.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The grade public id */
-                grade: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "v1.health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-        };
-    };
-    "holiday.autoDetect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    year?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        year: string;
-                        created: number;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "holidays.index": {
+    "directory.index": {
         parameters: {
             query?: {
                 search?: string;
-                "filter[year]"?: string;
-                "filter[is_active]"?: boolean;
+                "filter[department_id]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -8873,14 +13022,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `HolidayResource` */
+            /** @description Paginated set of `DirectoryResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["HolidayResource"][];
+                        data: components["schemas"]["DirectoryResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8910,10 +13059,544 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "employee.reportingTree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `EmployeeReportingNodeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["EmployeeReportingNodeResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "holidays.store": {
+    "scimUser.index": {
+        parameters: {
+            query?: {
+                filter?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                        ];
+                        totalResults: number;
+                        startIndex: Record<string, never> | null;
+                        itemsPerPage: Record<string, never> | null;
+                        Resources: {
+                            schemas: [
+                                "urn:ietf:params:scim:schemas:core:2.0:User"
+                            ];
+                            id: string;
+                            userName: string;
+                            name: {
+                                givenName: string | "";
+                                familyName: string | "";
+                                formatted: string;
+                            };
+                            emails: [
+                                {
+                                    value: string;
+                                    /** @constant */
+                                    type: "work";
+                                    primary: boolean;
+                                }
+                            ];
+                            phoneNumbers: [
+                                {
+                                    value: string | null;
+                                    /** @constant */
+                                    type: "work";
+                                }
+                            ] | string[];
+                            active: string;
+                            meta: {
+                                /** @constant */
+                                resourceType: "User";
+                                created: string | null;
+                                lastModified: string | null;
+                                location: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    "scimUser.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:User"
+                        ];
+                        id: string;
+                        userName: string;
+                        name: {
+                            givenName: string | "";
+                            familyName: string | "";
+                            formatted: string;
+                        };
+                        emails: [
+                            {
+                                value: string;
+                                /** @constant */
+                                type: "work";
+                                primary: boolean;
+                            }
+                        ];
+                        phoneNumbers: [
+                            {
+                                value: string | null;
+                                /** @constant */
+                                type: "work";
+                            }
+                        ] | string[];
+                        active: string;
+                        meta: {
+                            /** @constant */
+                            resourceType: "User";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "userName or emails[0].value is required";
+                        /** @constant */
+                        scimType: "invalidValue";
+                        /** @constant */
+                        status: 400;
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "User already exists";
+                        /** @constant */
+                        scimType: "uniqueness";
+                        /** @constant */
+                        status: 409;
+                    };
+                };
+            };
+        };
+    };
+    "scimUser.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:User"
+                        ];
+                        id: string;
+                        userName: string;
+                        name: {
+                            givenName: string | "";
+                            familyName: string | "";
+                            formatted: string;
+                        };
+                        emails: [
+                            {
+                                value: string;
+                                /** @constant */
+                                type: "work";
+                                primary: boolean;
+                            }
+                        ];
+                        phoneNumbers: [
+                            {
+                                value: string | null;
+                                /** @constant */
+                                type: "work";
+                            }
+                        ] | string[];
+                        active: string;
+                        meta: {
+                            /** @constant */
+                            resourceType: "User";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "scimUser.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:User"
+                        ];
+                        id: string;
+                        userName: string;
+                        name: {
+                            givenName: string | "";
+                            familyName: string | "";
+                            formatted: string;
+                        };
+                        emails: [
+                            {
+                                value: string;
+                                /** @constant */
+                                type: "work";
+                                primary: boolean;
+                            }
+                        ];
+                        phoneNumbers: [
+                            {
+                                value: string | null;
+                                /** @constant */
+                                type: "work";
+                            }
+                        ] | string[];
+                        active: string;
+                        meta: {
+                            /** @constant */
+                            resourceType: "User";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "scimUser.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "scimGroup.index": {
+        parameters: {
+            query?: {
+                filter?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+                        ];
+                        totalResults: number;
+                        startIndex: Record<string, never> | null;
+                        itemsPerPage: Record<string, never> | null;
+                        Resources: {
+                            schemas: [
+                                "urn:ietf:params:scim:schemas:core:2.0:Group"
+                            ];
+                            id: string;
+                            displayName: string;
+                            members: {
+                                value: string;
+                                display: string;
+                            }[];
+                            meta: {
+                                /** @constant */
+                                resourceType: "Group";
+                                created: string | null;
+                                lastModified: string | null;
+                                location: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    "scimGroup.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:Group"
+                        ];
+                        id: string;
+                        displayName: string;
+                        members: {
+                            value: string;
+                            display: string;
+                        }[];
+                        meta: {
+                            /** @constant */
+                            resourceType: "Group";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "displayName is required";
+                        /** @constant */
+                        scimType: "invalidValue";
+                        /** @constant */
+                        status: 400;
+                    };
+                };
+            };
+        };
+    };
+    "scimGroup.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:Group"
+                        ];
+                        id: string;
+                        displayName: string;
+                        members: {
+                            value: string;
+                            display: string;
+                        }[];
+                        meta: {
+                            /** @constant */
+                            resourceType: "Group";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "scimGroup.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:schemas:core:2.0:Group"
+                        ];
+                        id: string;
+                        displayName: string;
+                        members: {
+                            value: string;
+                            display: string;
+                        }[];
+                        meta: {
+                            /** @constant */
+                            resourceType: "Group";
+                            created: string | null;
+                            lastModified: string | null;
+                            location: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "scimGroup.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "apiKey.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        keys: {
+                            public_id: string;
+                            name: string;
+                            key_prefix: string;
+                            abilities: unknown[];
+                            /** Format: date-time */
+                            last_used_at: string | null;
+                            /** Format: date-time */
+                            expires_at: string | null;
+                            is_active: boolean;
+                            /** Format: date-time */
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "apiKey.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -8922,17 +13605,25 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreHolidayRequest"];
+                "application/json": components["schemas"]["StoreApiKeyRequest"];
             };
         };
         responses: {
-            /** @description `HolidayResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"];
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        key: string;
+                        abilities: unknown[];
+                        /** Format: date-time */
+                        expires_at: string | null;
+                        /** Format: date-time */
+                        created_at: string | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8940,55 +13631,124 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "holidays.show": {
+    "apiKey.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The holiday public id */
-                holiday: string;
+                /** @description The api key public id */
+                apiKey: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `HolidayResource` */
-            200: {
+            /** @description No content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HolidayResource"];
-                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "holidays.update": {
+    "webhook.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        webhooks: {
+                            public_id: string;
+                            url: string;
+                            events: unknown[];
+                            is_active: boolean;
+                            failure_count: number;
+                            /** Format: date-time */
+                            last_triggered_at: string | null;
+                            /** Format: date-time */
+                            created_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "webhook.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreWebhookRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        url: string;
+                        secret: string;
+                        events: unknown[];
+                        is_active: boolean;
+                        /** Format: date-time */
+                        created_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "webhook.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The holiday public id */
-                holiday: string;
+                /** @description The webhook public id */
+                webhook: string;
             };
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["UpdateHolidayRequest"];
+                "application/json": components["schemas"]["UpdateWebhookRequest"];
             };
         };
         responses: {
-            /** @description `HolidayResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"];
+                    "application/json": {
+                        public_id: string;
+                        url: string;
+                        events: unknown[];
+                        is_active: boolean;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8997,13 +13757,13 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "holidays.destroy": {
+    "webhook.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The holiday public id */
-                holiday: string;
+                /** @description The webhook public id */
+                webhook: string;
             };
             cookie?: never;
         };
@@ -9021,191 +13781,13 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "kioskAttendance.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["KioskAttendanceRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "kiosk.kioskCheckIn": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["KioskCheckInRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "kioskSession.authenticate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AuthenticateKioskRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        session: string;
-                        tenant: {
-                            name: string;
-                            subdomain: string;
-                            logo_path: string;
-                        };
-                        settings: {
-                            pin_required: string;
-                            auto_reset_seconds: string;
-                        };
-                    } | string;
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "kioskSession.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `KioskSessionResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KioskSessionResource"][];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "kioskSession.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterKioskRequest"];
-            };
-        };
-        responses: {
-            /** @description `KioskSessionResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KioskSessionResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "kioskSession.show": {
+    "webhook.test": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "kioskSession.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "kioskSession.deactivate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
+                /** @description The webhook public id */
+                webhook: string;
             };
             cookie?: never;
         };
@@ -9217,21 +13799,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        status: "deactivated";
+                        /** @constant */
+                        message: "Test event dispatched";
+                        /** @constant */
+                        event: "test";
+                        /** Format: date-time */
+                        delivered_at: string | null;
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "kioskSession.activate": {
+    "webhook.deliveries": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                publicId: string;
+                /** @description The webhook public id */
+                webhook: string;
             };
             cookie?: never;
         };
@@ -9243,38 +13831,21 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        status: "activated";
+                        deliveries: {
+                            event: string;
+                            response_status: number | null;
+                            attempt: number;
+                            /** Format: date-time */
+                            delivered_at: string | null;
+                            /** Format: date-time */
+                            created_at: string | null;
+                        }[];
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "kioskSession.regenerateToken": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                publicId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        token: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "leaveRequest.store": {
@@ -9290,21 +13861,13 @@ export interface operations {
             };
         };
         responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
             /** @description `LeaveRequestResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"];
+                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9331,7 +13894,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["LeaveRequestResource"][];
+                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9382,7 +13945,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["LeaveRequestResource"][];
+                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9432,7 +13995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveBalanceResource"][];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9458,7 +14021,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveBalanceResource"][];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9484,12 +14047,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] | string;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This leave request is no longer pending.";
+                    };
+                };
+            };
         };
     };
     "leaveRequest.reject": {
@@ -9514,7 +14094,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] | string;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9541,10 +14121,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] | string;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/forbidden";
+                        /** @constant */
+                        title: "Forbidden";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "You can only modify your own leave requests.";
+                    };
+                };
+            };
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This leave request is no longer pending.";
+                    };
+                };
+            };
+        };
+    };
+    "leaveRequest.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The leave request public id */
+                leaveRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `LeaveRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
         };
     };
@@ -9709,11 +14349,90 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "loan.index": {
+    "approval.pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: ({
+                            /** @constant */
+                            type: "leave";
+                            public_id: string;
+                            employee_name: string | null;
+                            employee_public_id: string | null;
+                            summary: string;
+                            submitted_at: string;
+                        } | {
+                            /** @constant */
+                            type: "correction";
+                            public_id: string;
+                            employee_name: string | null;
+                            employee_public_id: string | null;
+                            summary: string;
+                            submitted_at: string;
+                        } | {
+                            /** @constant */
+                            type: "profile_update";
+                            public_id: string;
+                            employee_name: string | null;
+                            employee_public_id: string | null;
+                            /**
+                             * @description The delta, not just the field name — approving a bank-account
+                             *     change is a decision about the values, and a reviewer who has
+                             *     to open another screen to see them will approve blind.
+                             */
+                            summary: string;
+                            submitted_at: string;
+                        })[];
+                        total: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "approval.batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchApprovalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        results: unknown[][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "announcement.index": {
         parameters: {
             query?: {
-                "filter[status]"?: string;
-                "filter[employee_public_id]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -9722,14 +14441,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `EmployeeLoanResource` */
+            /** @description Paginated set of `AnnouncementResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["EmployeeLoanResource"][];
+                        data: components["schemas"]["AnnouncementResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9759,10 +14478,9 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
         };
     };
-    "loan.store": {
+    "announcement.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -9771,17 +14489,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreLoanRequest"];
+                "application/json": components["schemas"]["StoreAnnouncementRequest"];
             };
         };
         responses: {
-            /** @description `EmployeeLoanResource` */
+            /** @description `AnnouncementResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"];
+                    "application/json": components["schemas"]["AnnouncementResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9789,395 +14507,84 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "loan.show": {
+    "announcement.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The loan public id */
-                loan: string;
+                /** @description The announcement public id */
+                announcement: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `EmployeeLoanResource` */
+            /** @description `AnnouncementResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"];
+                    "application/json": components["schemas"]["AnnouncementResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "announcement.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateAnnouncementRequest"];
+            };
+        };
+        responses: {
+            /** @description `AnnouncementResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "auth.login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @enum {string} */
-                        token_type: "Bearer";
-                        /** @enum {integer} */
-                        expires_in: 900;
-                        mfa_required: boolean;
-                    };
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/account-inactive";
-                        /** @enum {string} */
-                        title: "Account Inactive";
-                        /** @enum {integer} */
-                        status: 403;
-                        detail: string;
-                    };
-                };
-            };
             422: components["responses"]["ValidationException"];
         };
     };
-    "auth.logout": {
+    "announcement.destroy": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The announcement public id */
+                announcement: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            /** @description No content */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        message: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "manualAttendance.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ManualAttendanceRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description `AttendanceRecordResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"];
-                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "auth.me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        user: {
-                            public_id: string;
-                            email: string;
-                            phone: string;
-                            role: string;
-                            status: string;
-                            mfa_enabled: string;
-                            locale: string;
-                            last_login_at: string;
-                        };
-                        tenant: components["schemas"]["TenantResource"] | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "mfaSetup.setup": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        secret: string;
-                        qr_code_url: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/mfa-already-enabled";
-                        /** @enum {string} */
-                        title: "MFA Already Enabled";
-                        /** @enum {integer} */
-                        status: 409;
-                        /** @enum {string} */
-                        detail: "Two-factor authentication is already enabled.";
-                    };
-                };
-            };
-        };
-    };
-    "mfaSetup.enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EnableMfaRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        message: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/mfa-already-enabled";
-                        /** @enum {string} */
-                        title: "MFA Already Enabled";
-                        /** @enum {integer} */
-                        status: 409;
-                        /** @enum {string} */
-                        detail: "Two-factor authentication is already enabled.";
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "mfaSetup.disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DisableMfaRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        message: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/mfa-not-enabled";
-                        /** @enum {string} */
-                        title: "MFA Not Enabled";
-                        /** @enum {integer} */
-                        status: 409;
-                        /** @enum {string} */
-                        detail: "Two-factor authentication is not enabled.";
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "auth.mfaVerify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VerifyMfaRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @enum {string} */
-                        token_type: "Bearer";
-                        /** @enum {integer} */
-                        expires_in: 900;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/mfa-not-enabled";
-                        /** @enum {string} */
-                        title: "MFA Not Required";
-                        /** @enum {integer} */
-                        status: 409;
-                        /** @enum {string} */
-                        detail: "Two-factor authentication is not enabled for this account.";
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "mobileAttendance.checkIn": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MobileCheckInRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "mobileAttendance.checkOut": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MobileCheckOutRequest"];
-            };
-        };
-        responses: {
-            /** @description `AttendanceRecordResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"] | string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "notification.index": {
@@ -10191,12 +14598,40 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Paginated set of `NotificationResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": {
+                        data: components["schemas"]["NotificationResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10217,54 +14652,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        count: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "notification.markAllAsRead": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "All notifications marked as read";
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "notification.markAsRead": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        read_at: string;
+                        count: number;
                     };
                 };
             };
@@ -10295,7 +14683,8 @@ export interface operations {
                             "payslip_available",
                             "payroll_processed",
                             "announcement",
-                            "approval_reminder"
+                            "approval_reminder",
+                            "profile_update"
                         ];
                         channels: [
                             "in_app",
@@ -10303,6 +14692,16 @@ export interface operations {
                             "sms"
                         ];
                         preferences: string;
+                        /**
+                         * @description Which channels this deployment can actually deliver on. SMS depends
+                         *     on a configured gateway; without one the client disables the toggle
+                         *     rather than letting a user opt into nothing.
+                         */
+                        channel_availability: {
+                            in_app: boolean;
+                            email: boolean;
+                            sms: string;
+                        };
                     };
                 };
             };
@@ -10337,7 +14736,8 @@ export interface operations {
                             "payslip_available",
                             "payroll_processed",
                             "announcement",
-                            "approval_reminder"
+                            "approval_reminder",
+                            "profile_update"
                         ];
                         channels: [
                             "in_app",
@@ -10345,6 +14745,16 @@ export interface operations {
                             "sms"
                         ];
                         preferences: string;
+                        /**
+                         * @description Which channels this deployment can actually deliver on. SMS depends
+                         *     on a configured gateway; without one the client disables the toggle
+                         *     rather than letting a user opt into nothing.
+                         */
+                        channel_availability: {
+                            in_app: boolean;
+                            email: boolean;
+                            sms: string;
+                        };
                     };
                 };
             };
@@ -10352,7 +14762,7 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "notificationTemplate.index": {
+    "notification.markAllAsRead": {
         parameters: {
             query?: never;
             header?: never;
@@ -10367,28 +14777,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        templates: string;
+                        /** @constant */
+                        message: "All notifications marked as read";
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
         };
     };
-    "notificationTemplate.update": {
+    "notification.markAsRead": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                type: string;
+                id: string;
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateNotificationTemplateRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -10396,29 +14802,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        message: "Template updated.";
-                        type: string;
-                    } | string;
+                        /** Format: date-time */
+                        read_at: string | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
         };
     };
-    "offlineSync.sync": {
+    "template.index": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OfflineSyncRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -10426,39 +14825,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        results: [
-                            {
-                                idempotency_key: string;
-                                /** @enum {string} */
-                                status: "error";
-                                /** @enum {string} */
-                                detail: "Employee not found";
-                            },
-                            {
-                                idempotency_key: string;
-                                /** @enum {string} */
-                                status: "duplicate" | "created";
-                                public_id: string;
-                            },
-                            {
-                                idempotency_key: string;
-                                /** @enum {string} */
-                                status: "error";
-                                detail: string;
-                            }
-                        ];
-                        summary: {
-                            created: string;
-                            duplicate: string;
-                            error: string;
-                            total: string;
-                        };
+                        data: components["schemas"]["OrganizationTemplate"][];
                     };
                 };
             };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
+        };
+    };
+    "template.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationTemplate"] | null;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "onboarding.getProgress": {
@@ -10475,10 +14882,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["OnboardingProgress"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "onboarding.updateStep": {
@@ -10497,24 +14921,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["OnboardingProgress"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         type: "https://ethr.et/errors/validation";
-                        /** @enum {string} */
+                        /** @constant */
                         title: "Invalid Step";
-                        /** @enum {integer} */
+                        /** @constant */
                         status: 422;
-                        /** @enum {string} */
-                        detail: "Step must be between 1 and 7.";
+                        detail: string;
                     };
                 };
             };
@@ -10545,11 +14985,63 @@ export interface operations {
                             name: string;
                             slug: string;
                         };
-                        data: string;
+                        provisioned: {
+                            resources: string[];
+                            total_created: number;
+                            warnings: string[];
+                        };
+                        data: unknown[];
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "onboarding.inviteTeam": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteTeamRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: string[];
+                        skipped: string[];
+                        message: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
             422: components["responses"]["ValidationException"];
         };
     };
@@ -10568,73 +15060,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
+                        /** @constant */
                         message: "Onboarding completed successfully.";
-                        /** @enum {string} */
+                        /** @constant */
                         redirect: "/dashboard";
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
-    "passwordReset.forgot": {
+    "configuration.industries": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ForgotPasswordRequest"];
-            };
-        };
-        responses: {
-            /** @description Same response whether user exists or not — prevents enumeration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "If an account with that email exists in this organization, a reset link has been sent.";
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/rate-limit";
-                        /** @enum {string} */
-                        title: "Too Many Requests";
-                        /** @enum {integer} */
-                        status: 429;
-                        /** @enum {string} */
-                        detail: "Too many password reset attempts. Try again in a few minutes.";
-                    };
-                };
-            };
-        };
-    };
-    "passwordReset.reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResetPasswordRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -10642,43 +15102,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        message: "Password has been reset. Please sign in with your new password.";
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "passwordReset.change": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangePasswordRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Password changed successfully. Other active sessions have been signed out.";
+                        data: {
+                            key: string;
+                            label: string;
+                            label_am: string;
+                            base: string;
+                            icon: string;
+                            group: string;
+                        }[];
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            422: components["responses"]["ValidationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
-    "payroll.process": {
+    "configuration.preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -10687,17 +15126,281 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProcessPayrollRequest"];
+                "application/json": components["schemas"]["PreviewConfigurationRequest"];
             };
         };
         responses: {
-            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        industry: {
+                            key: string;
+                            label: string;
+                            label_am: string;
+                            base: string;
+                        };
+                        signals: unknown[];
+                        overall_confidence: number;
+                        sections: string;
+                        plan: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "configuration.apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyConfigurationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                        industry: {
+                            key: string;
+                            label: string;
+                            base: string;
+                        } | null;
+                        provisioned: {
+                            resources: string[];
+                            total_created: number;
+                            warnings: string[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "access.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        available: [
+                            "email",
+                            "phone",
+                            "employee_code",
+                            "username"
+                        ];
+                        login_identifiers: [
+                            "email"
+                        ] | unknown[];
+                        role_defaults: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "access.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccessRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        login_identifiers: [
+                            "email"
+                        ] | unknown[];
+                        role_defaults: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "readiness.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        overall_score: number;
+                        /** @enum {string} */
+                        level: "ready" | "needs_attention" | "not_ready";
+                        categories: string;
+                        gaps: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "readiness.goLive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Organization is live.";
+                        readiness: {
+                            overall_score: number;
+                            /** @enum {string} */
+                            level: "ready" | "needs_attention" | "not_ready";
+                            categories: string;
+                            gaps: unknown[];
+                        };
+                        /** @constant */
+                        redirect: "/dashboard";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "migration.stageFromDevice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The device public id */
+                device: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollRunResource"];
+                    "application/json": {
+                        public_id: string;
+                        source_type: string;
+                        source_ref: string | null;
+                        status: string;
+                        totals: unknown[] | null;
+                        summary: {
+                            [key: string]: number;
+                        };
+                        rows: {
+                            public_id: string;
+                            display_name: string | null;
+                            external_identifier: string | null;
+                            match_outcome: string | null;
+                            match_confidence: number | null;
+                            candidates: unknown[] | null;
+                            resolved_employee_public_id: string | null;
+                            action: string;
+                            processed_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.stageFromRows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageRowsRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        source_type: string;
+                        source_ref: string | null;
+                        status: string;
+                        totals: unknown[] | null;
+                        summary: {
+                            [key: string]: number;
+                        };
+                        rows: {
+                            public_id: string;
+                            display_name: string | null;
+                            external_identifier: string | null;
+                            match_outcome: string | null;
+                            match_confidence: number | null;
+                            candidates: unknown[] | null;
+                            resolved_employee_public_id: string | null;
+                            action: string;
+                            processed_at: string | null;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10705,10 +15408,311 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "payroll.index": {
+    "migration.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        source_type: string;
+                        source_ref: string | null;
+                        status: string;
+                        totals: unknown[] | null;
+                        summary: {
+                            [key: string]: number;
+                        };
+                        rows: {
+                            public_id: string;
+                            display_name: string | null;
+                            external_identifier: string | null;
+                            match_outcome: string | null;
+                            match_confidence: number | null;
+                            candidates: unknown[] | null;
+                            resolved_employee_public_id: string | null;
+                            action: string;
+                            processed_at: string | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "migration.updateRow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The row public id */
+                row: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStagingRowRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        display_name: string | null;
+                        external_identifier: string | null;
+                        match_outcome: string | null;
+                        match_confidence: number | null;
+                        candidates: unknown[] | null;
+                        resolved_employee_public_id: string | null;
+                        action: string;
+                        processed_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "migration.commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The batch public id */
+                batch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                        totals: {
+                            created: number;
+                            merged: number;
+                            skipped: number;
+                            deferred: number;
+                        } | unknown[];
+                        status: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "teamMonitoring.attendanceToday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        employees: {
+                            public_id: string;
+                            name: string;
+                            department: string | null;
+                            photo_path: string | null;
+                            photo_thumb_url: string | null;
+                            /** @constant */
+                            status: "absent";
+                            /** Format: date-time */
+                            check_in: string | null;
+                            /** Format: date-time */
+                            check_out: string | null;
+                        }[];
+                        summary: {
+                            present: number;
+                            absent: number;
+                            late: number;
+                            on_leave: number;
+                        };
+                        date: string;
+                    } | {
+                        employees: string[];
+                        summary: {
+                            present: number;
+                            absent: number;
+                            late: number;
+                            on_leave: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "teamMonitoring.attendanceSummary": {
         parameters: {
             query?: {
-                "filter[status]"?: string;
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: string | unknown[] | null;
+                        from: string;
+                        to: string;
+                        team_size: number;
+                        data: {
+                            date: string;
+                            present: number;
+                            absent: string;
+                            late: number;
+                            rate: number;
+                        }[];
+                    } | {
+                        data: string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "teamMonitoring.overtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        month: string;
+                        employees: {
+                            public_id: string | null;
+                            name: string | null;
+                            days_worked: string;
+                            overtime_hours: number;
+                            overtime_minutes: Record<string, never> | null;
+                        }[];
+                        total_overtime_hours: number;
+                    } | {
+                        employees: string[];
+                        total_hours: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "teamMonitoring.leaveCalendar": {
+        parameters: {
+            query?: {
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        month: string;
+                        team_size: number;
+                        employees: {
+                            public_id: string;
+                            name: string;
+                            photo_path: string | null;
+                            photo_thumb_url: string | null;
+                            days: string;
+                        }[];
+                        daily_summary: string;
+                    } | {
+                        employees: string[];
+                        days: string[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "department.tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `DepartmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "branches.index": {
+        parameters: {
+            query?: {
+                search?: string;
+                "filter[is_active]"?: boolean;
+                sort?: string;
                 per_page?: number;
             };
             header?: never;
@@ -10717,14 +15721,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `PayrollRunResource` */
+            /** @description Paginated set of `BranchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["PayrollRunResource"][];
+                        data: components["schemas"]["BranchResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -10757,25 +15761,52 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "payroll.show": {
+    "branches.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreBranchRequest"];
+            };
+        };
+        responses: {
+            /** @description `BranchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "branches.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
+                /** @description The branch public id */
+                branch: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `PayrollRunResource` */
+            /** @description `BranchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollRunResource"];
+                    "application/json": components["schemas"]["BranchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10783,91 +15814,68 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "payroll.approve": {
+    "branches.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
+                /** @description The branch public id */
+                branch: string;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateBranchRequest"];
+            };
+        };
         responses: {
-            /** @description `PayrollRunResource` */
+            /** @description `BranchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollRunResource"] | string;
+                    "application/json": components["schemas"]["BranchResource"];
                 };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "branches.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The branch public id */
+                branch: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "payroll.bankExport": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        period: string;
-                        total_entries: string;
-                        total_amount_cents: string;
-                        rows: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "payroll.downloadBankExport": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The payroll run public id */
-                payrollRun: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    "Content-Disposition"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/csv": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "payroll.myPayslips": {
+    "departments.index": {
         parameters: {
             query?: {
+                search?: string;
+                "filter[is_active]"?: boolean;
+                "filter[branch_public_id]"?: string;
+                sort?: string;
                 per_page?: number;
             };
             header?: never;
@@ -10876,14 +15884,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `PayrollEntryResource` */
+            /** @description Paginated set of `DepartmentResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["PayrollEntryResource"][];
+                        data: (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -10916,27 +15924,135 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "payroll.employeePayslips": {
+    "departments.store": {
         parameters: {
-            query?: {
-                per_page?: number;
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDepartmentRequest"];
             };
+        };
+        responses: {
+            /** @description `DepartmentResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "departments.show": {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
-                employeePublicId: string;
+                /** @description The department public id */
+                department: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `PayrollEntryResource` */
+            /** @description `DepartmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "departments.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The department public id */
+                department: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateDepartmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `DepartmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "departments.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The department public id */
+                department: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "teams.index": {
+        parameters: {
+            query?: {
+                "filter[is_active]"?: boolean;
+                "filter[department_public_id]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `TeamResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["PayrollEntryResource"][];
+                        data: (components["schemas"]["TeamResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -10969,25 +16085,52 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "payroll.downloadPayslip": {
+    "teams.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description `TeamResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "teams.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The payroll entry public id */
-                payrollEntry: string;
+                /** @description The team public id */
+                team: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description `TeamResource` */
             200: {
                 headers: {
-                    "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/pdf": string;
+                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10995,25 +16138,59 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "plan.index": {
+    "teams.update": {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description The team public id */
+                team: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamRequest"];
+            };
+        };
         responses: {
+            /** @description `TeamResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: string;
-                    };
+                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
                 };
             };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "teams.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The team public id */
+                team: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "positions.index": {
@@ -11178,674 +16355,9 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "profile.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        user: {
-                            public_id: string;
-                            email: string;
-                            phone: string;
-                            locale: string;
-                        };
-                        employee: {
-                            public_id: string;
-                            name: string;
-                            name_am: string;
-                            phone: string;
-                            gender: string;
-                            date_of_birth: string;
-                            nationality: string;
-                            marital_status: string;
-                            hire_date: string;
-                            photo_path: string;
-                            department: string;
-                            position: string;
-                            branch: string;
-                            grade: string;
-                        } | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "profile.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["UpdateProfileRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Profile updated successfully.";
-                        pending_approval: {
-                            /** @enum {string} */
-                            status: "pending_approval";
-                            fields: string;
-                            /** @enum {string} */
-                            message: "Changes to sensitive fields require HR approval.";
-                        };
-                        was_duplicate: boolean;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "qrAttendance.generate": {
-        parameters: {
-            query: {
-                branch_public_id: string;
-                shift_public_id?: string | null;
-                expiry_minutes?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        token: string;
-                        branch_public_id: string;
-                        branch_name: string;
-                        shift_public_id: string;
-                        shift_name: string;
-                        expires_at: string;
-                        generated_at: string;
-                        expiry_minutes: string;
-                        auto_refresh: string;
-                    } | string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "qrAttendance.scan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["QrAttendanceRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "auth.refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @enum {string} */
-                        token_type: "Bearer";
-                        /** @enum {integer} */
-                        expires_in: 900;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "auth.register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterTenantRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        user: {
-                            public_id: string;
-                            email: string;
-                            role: string;
-                        };
-                        tenant: components["schemas"]["TenantResource"];
-                        access_token: unknown;
-                        token_type: unknown;
-                        expires_in: unknown;
-                    };
-                };
-            };
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "report.sources": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        sources: {
-                            employees: {
-                                /** @enum {string} */
-                                label: "Employees";
-                                fields: [
-                                    "name",
-                                    "email",
-                                    "phone",
-                                    "employee_code",
-                                    "gender",
-                                    "status",
-                                    "hire_date",
-                                    "salary_cents",
-                                    "department",
-                                    "branch",
-                                    "position"
-                                ];
-                            };
-                            attendance: {
-                                /** @enum {string} */
-                                label: "Attendance";
-                                fields: [
-                                    "employee_name",
-                                    "date",
-                                    "check_in",
-                                    "check_out",
-                                    "status",
-                                    "source",
-                                    "worked_minutes"
-                                ];
-                            };
-                            leave: {
-                                /** @enum {string} */
-                                label: "Leave Balances";
-                                fields: [
-                                    "employee_name",
-                                    "leave_type",
-                                    "year",
-                                    "entitled_days",
-                                    "used_days",
-                                    "remaining_days"
-                                ];
-                            };
-                            payroll: {
-                                /** @enum {string} */
-                                label: "Payroll";
-                                fields: [
-                                    "employee_name",
-                                    "period",
-                                    "basic_salary_cents",
-                                    "gross_cents",
-                                    "income_tax_cents",
-                                    "employee_pension_cents",
-                                    "net_cents"
-                                ];
-                            };
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "report.generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GenerateReportRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        source: string;
-                        total: string;
-                        data: string;
-                        summary: {
-                            grouped_by: string;
-                            groups: string;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "report.export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GenerateReportRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    "Content-Disposition"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/pdf": string;
-                    "text/csv": string;
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "report.save": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveReportRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        name: string;
-                        config: string;
-                        created_at: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "report.savedList": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        reports: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "report.deleteSaved": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The saved report public id */
-                savedReport: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "report.schedule": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ScheduleReportRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        frequency: string;
-                        recipients: string;
-                        next_run_at: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "report.scheduledList": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        schedules: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "report.deleteScheduled": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The scheduled report public id */
-                scheduledReport: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
-    "settings.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        organization: {
-                            name: string;
-                            subdomain: string;
-                            type: string;
-                            timezone: string;
-                            locale: string;
-                        };
-                        branding: {
-                            logo_url: string;
-                            theme: string;
-                        };
-                        attendance: {
-                            grace_period_minutes: string;
-                            ot_daily_cap_minutes: string;
-                            confidence_threshold: string;
-                        };
-                        leave: {
-                            working_days: string;
-                        };
-                        payroll: {
-                            pay_period: string;
-                            run_day: string;
-                        };
-                        security: {
-                            mfa_policy: string;
-                            session_timeout_minutes: string;
-                        };
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-        };
-    };
-    "settings.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSettingsRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Settings updated";
-                        settings: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "settings.updateOrganization": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateOrganizationRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Organization updated";
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "settings.updateBranding": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateBrandingRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        message: "Branding updated";
-                        logo_url: string;
-                        theme: string;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "shift.assign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignShiftRequest"];
-            };
-        };
-        responses: {
-            /** @description `ShiftAssignmentResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ShiftAssignmentResource"];
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "shift.schedule": {
+    "grades.index": {
         parameters: {
             query?: {
-                "filter[date_from]"?: string;
-                "filter[date_to]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -11854,14 +16366,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `ShiftAssignmentResource` */
+            /** @description Paginated set of `GradeResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["ShiftAssignmentResource"][];
+                        data: components["schemas"]["GradeResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -11892,6 +16404,3368 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "grades.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreGradeRequest"];
+            };
+        };
+        responses: {
+            /** @description `GradeResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "grades.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `GradeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "grades.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateGradeRequest"];
+            };
+        };
+        responses: {
+            /** @description `GradeResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "grades.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "cost-centers.index": {
+        parameters: {
+            query?: {
+                search?: string;
+                "filter[is_active]"?: boolean;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `CostCenterResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CostCenterResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "cost-centers.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreCostCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description `CostCenterResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "cost-centers.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cost center public id */
+                costCenter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `CostCenterResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "cost-centers.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cost center public id */
+                costCenter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateCostCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description `CostCenterResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "cost-centers.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cost center public id */
+                costCenter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "gradeSalaryStep.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `GradeSalaryStepResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeSalaryStepResource"][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "gradeSalaryStep.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreGradeSalaryStepRequest"];
+            };
+        };
+        responses: {
+            /** @description `GradeSalaryStepResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeSalaryStepResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "gradeSalaryStep.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+                /** @description The salary step public id */
+                salaryStep: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGradeSalaryStepRequest"];
+            };
+        };
+        responses: {
+            /** @description `GradeSalaryStepResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeSalaryStepResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "gradeSalaryStep.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grade public id */
+                grade: string;
+                /** @description The salary step public id */
+                salaryStep: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "otp.request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestOtpRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "If the account exists, a verification code has been sent.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/otp-unavailable";
+                        /** @constant */
+                        title: "OTP Unavailable";
+                        /** @constant */
+                        status: 503;
+                        /** @constant */
+                        detail: "Verification codes cannot be sent — no SMS gateway is configured.";
+                    };
+                };
+            };
+        };
+    };
+    "otp.verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyOtpRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        access_token: string;
+                        /** @constant */
+                        token_type: "Bearer";
+                        expires_in: string;
+                        mfa_required: string;
+                        /**
+                         * @description Advisory, not a block: the token is still issued so the user can
+                         *     reach the change-password endpoint. Refusing to authenticate would
+                         *     lock them out of the only screen that can clear the condition.
+                         *     Always present, so clients can branch without probing for the key.
+                         */
+                        password_expired: boolean;
+                        mfa_token: string;
+                        mfa_token_expires_in: string;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/account-inactive";
+                        /** @constant */
+                        title: "Account Inactive";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your account has been suspended.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payroll.process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProcessPayrollRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payroll.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PayrollRunResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "payroll.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRunResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRunResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-state";
+                        /** @constant */
+                        title: "Invalid State";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Payroll run has not been completed yet.";
+                    };
+                };
+            };
+        };
+    };
+    "payroll.void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidPayrollRunRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollRunResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRunResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payroll.reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReprocessPayrollRunRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "payroll.bankExport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: string;
+                        total_entries: number;
+                        total_amount_cents: string;
+                        rows: {
+                            employee_name: string;
+                            employee_code: string | null;
+                            bank_name: string;
+                            branch_name: string;
+                            account_number: string;
+                            net_amount_cents: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.downloadBankExport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "payroll.myPayslips": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollEntryResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "payroll.employeePayslips": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path: {
+                employeePublicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollEntryResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "payroll.downloadPayslip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll entry public id */
+                payrollEntry: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "loan.index": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                "filter[employee_public_id]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `EmployeeLoanResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["EmployeeLoanResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "loan.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreLoanRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeLoanResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "loan.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The loan public id */
+                loan: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `EmployeeLoanResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "loan.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The loan public id */
+                loan: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateLoanRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeLoanResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "loan.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The loan public id */
+                loan: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelLoanRequest"];
+            };
+        };
+        responses: {
+            /** @description `EmployeeLoanResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "taxBracket.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description The ladder is a small fixed set, so it is returned whole rather than
+             *     paginated — still under a `data` key for a consistent collection shape.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TaxBracketResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "taxBracket.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceTaxBracketsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TaxBracketResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "overtimeRate.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rates: {
+                            [key: string]: number;
+                        };
+                        defaults: {
+                            normal: number;
+                            night: number;
+                            holiday: number;
+                            holiday_night: number;
+                        };
+                        is_customized: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "overtimeRate.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOvertimeRatesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rates: {
+                            [key: string]: number;
+                        };
+                        defaults: {
+                            normal: number;
+                            night: number;
+                            holiday: number;
+                            holiday_night: number;
+                        };
+                        is_customized: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "rules.index": {
+        parameters: {
+            query?: {
+                "filter[is_active]"?: boolean;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PayrollRuleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PayrollRuleResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "rules.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePayrollRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollRuleResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRuleResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "rules.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll rule public id */
+                payrollRule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PayrollRuleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRuleResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "rules.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll rule public id */
+                payrollRule: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePayrollRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description `PayrollRuleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollRuleResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "rules.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll rule public id */
+                payrollRule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "accounting.chartOfAccounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        accounts: {
+                            key: string;
+                            account_code: string;
+                            account_name: string;
+                            is_custom: boolean;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "accounting.updateChartOfAccounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateChartOfAccountsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Chart of accounts updated.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "accounting.journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: string;
+                        date: string;
+                        reference: string;
+                        entries: ({
+                            account_code: string;
+                            account_name: string;
+                            debit_cents: string;
+                            credit_cents: number;
+                        } | {
+                            account_code: string;
+                            account_name: string;
+                            debit_cents: number;
+                            credit_cents: string;
+                        })[];
+                        total_debits_cents: string;
+                        total_credits_cents: string;
+                        is_balanced: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "accounting.export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The payroll run public id */
+                payrollRun: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "personnelAction.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PersonnelActionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["PersonnelActionResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "personnelAction.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePersonnelActionRequest"];
+            };
+        };
+        responses: {
+            /** @description `PersonnelActionResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonnelActionResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.index": {
+        parameters: {
+            query?: {
+                search?: string;
+                "filter[status]"?: string;
+                sort?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AdminTenantResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminTenantResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        name: string;
+                        subdomain: string;
+                        type: string | null;
+                        status: string;
+                        /** Format: date-time */
+                        trial_ends_at: string | null;
+                        /** Format: date-time */
+                        created_at: string | null;
+                        /** Format: date-time */
+                        updated_at: string | null;
+                        usage: {
+                            employees: string;
+                            devices: number;
+                        };
+                        subscription: {
+                            plan_name: string;
+                            status: string;
+                            /** Format: date-time */
+                            current_period_end: string | null;
+                        } | null;
+                        invoices: {
+                            public_id: string;
+                            total_cents: number;
+                            status: string;
+                            due_date: string | null;
+                            /** Format: date-time */
+                            paid_at: string | null;
+                        }[];
+                        audit_log: {
+                            action: string;
+                            /** Format: date-time */
+                            created_at: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.updateStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantStatusRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.extendTrial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtendTrialRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        trial_ends_at: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.impersonate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImpersonateTenantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                        tenant: string;
+                        expires_at: string;
+                    } | {
+                        tenant: string;
+                        expires_at: string;
+                        /**
+                         * @description The nonce travels in the fragment of this URL, so it is never
+                         *     sent to a server in a query string or written to a log.
+                         */
+                        handoff_url: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "No Admin User";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "No tenant admin user found for this tenant";
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-required";
+                        /** @constant */
+                        title: "MFA Required";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Multi-factor authentication is required.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.exitImpersonation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        /**
+                         * @description The subdomain the client should send as X-Tenant from here on.
+                         *     Server-authoritative, so exiting still works when the browser has
+                         *     lost whatever it stashed at the start of the session.
+                         */
+                        tenant: string | null;
+                    } | {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-impersonating";
+                        /** @constant */
+                        title: "Not Impersonating";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "No active impersonation session.";
+                    };
+                };
+            };
+        };
+    };
+    "adminTenant.backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Backup job queued. You will be notified when the export is ready.";
+                        tenant_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        mrr_cents: number;
+                        total_tenants: number;
+                        active_tenants: number;
+                        trial_tenants: number;
+                        suspended_tenants: number;
+                        cancelled_tenants: number;
+                        conversion_rate: number;
+                        monthly_trend: {
+                            month: string;
+                            revenue_cents: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        services: {
+                            api: {
+                                /** @constant */
+                                status: "healthy";
+                                response_ms: number;
+                            };
+                            database: {
+                                /** @constant */
+                                status: "unhealthy";
+                                error: string;
+                            } | {
+                                /** @constant */
+                                status: "healthy";
+                                response_ms: number;
+                            };
+                            redis: {
+                                /** @constant */
+                                status: "unhealthy";
+                                error: string;
+                            } | {
+                                /** @constant */
+                                status: "healthy";
+                                response_ms: number;
+                            };
+                            storage: {
+                                /** @constant */
+                                status: "unhealthy";
+                                error: string;
+                            } | {
+                                /** @constant */
+                                status: "healthy";
+                                response_ms: number;
+                            };
+                            reverb: {
+                                /** @constant */
+                                status: "unknown";
+                                /** @constant */
+                                note: "WebSocket server — check Horizon";
+                            };
+                        };
+                        queue: unknown[];
+                        failed_jobs: number;
+                        resources: {
+                            php_memory_mb: number;
+                            php_peak_memory_mb: number;
+                            disk_free_gb: number | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.auditLog": {
+        parameters: {
+            query?: {
+                "filter[action]"?: string;
+                "filter[from]"?: string;
+                "filter[to]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AuditLogResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditLogResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.failedJobs": {
+        parameters: {
+            query?: {
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `FailedJobResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FailedJobResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.retryFailedJob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Job queued for retry.";
+                        uuid: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Job Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Failed job not found.";
+                    };
+                };
+            };
+        };
+    };
+    "adminDashboard.retryAllFailedJobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                        count: number;
+                    } | {
+                        /** @constant */
+                        message: "No failed jobs to retry.";
+                        count: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminDashboard.dismissFailedJob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Job Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Failed job not found.";
+                    };
+                };
+            };
+        };
+    };
+    "adminDashboard.searchUsers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            email: string;
+                            phone: string | null;
+                            role: string;
+                            status: string;
+                            mfa_enabled: boolean;
+                            tenant: {
+                                public_id: string;
+                                name: string;
+                                subdomain: string;
+                            } | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/validation";
+                        /** @constant */
+                        title: "Search Too Short";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "Enter at least 2 characters to search.";
+                    };
+                };
+            };
+        };
+    };
+    "platformSettings.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description The status is pinned to 200 because `current()` uses firstOrCreate: on the
+             *     very first read that leaves the model `wasRecentlyCreated`, and a bare
+             *     JsonResource turns that into a 201 — a GET reporting "Created".
+             *
+             *
+             *
+             *     `PlatformSettingResource`
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformSettingResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "platformSettings.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlatformSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description `PlatformSettingResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformSettingResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "v1.health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+        };
+    };
+    "v1.contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "retirementCase.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `RetirementCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["RetirementCaseResource"] & Record<string, never>)[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "retirementCase.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRetirementCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `RetirementCaseResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetirementCaseResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "retirementCase.addNote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The retirement case public id */
+                retirementCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddRetirementNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description `RetirementCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetirementCaseResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "retirementCase.decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The retirement case public id */
+                retirementCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideRetirementCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `RetirementCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "retirementCase.finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The retirement case public id */
+                retirementCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinalizeRetirementCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `RetirementCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "retirementCase.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+                /** @description The retirement case public id */
+                retirementCase: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelRetirementCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description `RetirementCaseResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "session.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Wrapped explicitly: `JsonResource::withoutWrapping()` is global, so an
+             *     unpaginated collection would otherwise return a bare array while every
+             *     paginated endpoint returns `{ data: … }`. Matches TaxBracketController
+             *     and the sibling TrustedDeviceController.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "session.revokeAll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "All other sessions have been signed out.";
+                        revoked: number;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "session.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Session revoked.";
+                        was_current: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/session-not-found";
+                        /** @constant */
+                        title: "Session Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "That session no longer exists.";
+                    };
+                };
+            };
+        };
+    };
+    "auth.sessionClaim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    nonce?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "ok";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/invalid-handoff";
+                        /** @constant */
+                        title: "Invalid Handoff";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This sign-in link is no longer valid. Start the impersonation again.";
+                    };
+                };
+            };
+        };
+    };
+    "settings.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organization: {
+                            name: string;
+                            subdomain: string;
+                            type: string;
+                            /**
+                             * @description `tenants.timezone` / `tenants.default_locale` are the real
+                             *     columns the rest of the app reads (TenantResource,
+                             *     UserProvisioningService). This endpoint used to read and write
+                             *     only the settings JSON, so changing the language here changed
+                             *     nothing anyone consumed. Both columns are NOT NULL with
+                             *     defaults, so there is no fallback to make — values saved
+                             *     through the old JSON path were moved across in
+                             *     2026_08_22_000001_backfill_tenant_timezone_and_locale.
+                             */
+                            timezone: string;
+                            locale: string;
+                        };
+                        branding: {
+                            logo_url: string;
+                            theme: string | string[];
+                        };
+                        /**
+                         * @description Attendance rules (grace period, OT cap, confidence threshold) live
+                         *     on the AttendanceSetting model and are served by GET/PUT
+                         *     /attendance/settings so all attendance configuration stays in one
+                         *     place.
+                         */
+                        leave: {
+                            working_days: string | [
+                                1,
+                                2,
+                                3,
+                                4,
+                                5
+                            ];
+                        };
+                        payroll: {
+                            pay_period: string | "monthly";
+                            run_day: string | 25;
+                            fiscal_year_start_month: string | 1;
+                            pagumen_proration_strategy: string | "full_month";
+                            /**
+                             * @description Retirement-case eligibility dates are computed against this.
+                             *     No single figure is authoritative across every Ethiopian
+                             *     sector, so it defaults to 60 but stays tenant-overridable
+                             *     rather than hard-coded, the same treatment as the tax
+                             *     brackets and Pagumen strategy above.
+                             */
+                            retirement_age: string | 60;
+                        };
+                        security: {
+                            mfa_policy: string | "optional";
+                            session_timeout_minutes: string | 480;
+                        };
+                        sso: {
+                            is_enabled: boolean;
+                            provider: string;
+                            idp_entity_id: string | null;
+                            idp_sso_url: string | null;
+                            default_role: string;
+                            auto_provision: boolean;
+                            metadata_url: string;
+                        } | {
+                            is_enabled: boolean;
+                            /** @constant */
+                            provider: "saml";
+                            idp_entity_id: null;
+                            idp_sso_url: null;
+                            /** @constant */
+                            default_role: "employee";
+                            auto_provision: boolean;
+                            metadata_url: null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "settings.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Settings updated";
+                        settings: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateOrganization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrganizationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Organization updated";
+                        organization: {
+                            name: string;
+                            subdomain: string;
+                            type: string;
+                            timezone: string;
+                            locale: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateBranding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateBrandingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Branding updated";
+                        logo_url: string;
+                        theme: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.updateSso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateSsoRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "SSO settings updated";
+                        sso: {
+                            is_enabled: boolean;
+                            provider: string;
+                            idp_entity_id: string | null;
+                            idp_sso_url: string | null;
+                            default_role: string;
+                            auto_provision: boolean;
+                            metadata_url: string;
+                        } | {
+                            is_enabled: boolean;
+                            /** @constant */
+                            provider: "saml";
+                            idp_entity_id: null;
+                            idp_sso_url: null;
+                            /** @constant */
+                            default_role: "employee";
+                            auto_provision: boolean;
+                            metadata_url: null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.generateScimToken": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateScimTokenRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                        prefix: string;
+                        expires_at: string;
+                        /** @constant */
+                        message: "Store this token securely — it will not be shown again.";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "notificationTemplate.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        templates: {
+                            /** @enum {string} */
+                            type: "leave_requested" | "leave_approved" | "leave_rejected" | "payslip_available" | "missing_punch" | "trial_expiring";
+                            subject_en: string;
+                            subject_am: string;
+                            body_en: string;
+                            body_am: string;
+                            is_customized: boolean;
+                            variables: string[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "notificationTemplate.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationTemplateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Template updated.";
+                        type: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Template Not Found";
+                        /** @constant */
+                        status: 404;
+                        detail: string;
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "auditLog.index": {
+        parameters: {
+            query?: {
+                "filter[user_id]"?: string;
+                "filter[from]"?: string;
+                "filter[to]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AuditLogResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditLogResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift.assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignShiftRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftAssignmentResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "shift.schedule": {
+        parameters: {
+            query?: {
+                "filter[date_from]"?: string;
+                "filter[date_to]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ShiftAssignmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["ShiftAssignmentResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shiftRotation.assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignShiftRotationRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftAssignmentResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "shiftRotation.preview": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                anchor_date?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The rotation public id */
+                rotation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rotation: components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                        anchor_date: string;
+                        days: {
+                            date: string;
+                            shift: {
+                                public_id: string;
+                                name: string;
+                                start_time: string;
+                                end_time: string;
+                            } | null;
+                            is_rest_day: boolean;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "shift-rotations.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ShiftRotationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["ShiftRotationResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "shift-rotations.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreShiftRotationRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftRotationResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "shift-rotations.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The rotation public id */
+                rotation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ShiftRotationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "shift-rotations.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The rotation public id */
+                rotation: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreShiftRotationRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftRotationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "shift-rotations.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The rotation public id */
+                rotation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "shifts.index": {
@@ -12055,16 +19929,20 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "auth.subdomainCheck": {
+    "holiday.autoDetect": {
         parameters: {
-            query: {
-                subdomain: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    year?: number;
+                };
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -12072,19 +19950,21 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        subdomain: string;
-                        available: string;
+                        year: number;
+                        created: number;
                     };
                 };
             };
-            422: components["responses"]["ValidationException"];
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
-    "teams.index": {
+    "holidays.index": {
         parameters: {
             query?: {
+                search?: string;
+                "filter[year]"?: string;
                 "filter[is_active]"?: boolean;
-                "filter[department_public_id]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -12093,14 +19973,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Paginated set of `TeamResource` */
+            /** @description Paginated set of `HolidayResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["TeamResource"][];
+                        data: (components["schemas"]["HolidayResource"] & Record<string, never>)[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -12133,7 +20013,7 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "teams.store": {
+    "holidays.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -12142,17 +20022,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreTeamRequest"];
+                "application/json": components["schemas"]["StoreHolidayRequest"];
             };
         };
         responses: {
-            /** @description `TeamResource` */
+            /** @description `HolidayResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"];
+                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12160,25 +20040,25 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "teams.show": {
+    "holidays.show": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The team public id */
-                team: string;
+                /** @description The holiday public id */
+                holiday: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description `TeamResource` */
+            /** @description `HolidayResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"];
+                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12186,29 +20066,29 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "teams.update": {
+    "holidays.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The team public id */
-                team: string;
+                /** @description The holiday public id */
+                holiday: string;
             };
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["UpdateTeamRequest"];
+                "application/json": components["schemas"]["UpdateHolidayRequest"];
             };
         };
         responses: {
-            /** @description `TeamResource` */
+            /** @description `HolidayResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"];
+                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12217,13 +20097,13 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "teams.destroy": {
+    "holidays.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The team public id */
-                team: string;
+                /** @description The holiday public id */
+                holiday: string;
             };
             cookie?: never;
         };
@@ -12241,7 +20121,7 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
-    "teamMonitoring.attendanceToday": {
+    "auth.tenantContext": {
         parameters: {
             query?: never;
             header?: never;
@@ -12256,73 +20136,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        employees: string;
-                        summary: {
-                            present: string;
-                            absent: string;
-                            late: string;
-                            on_leave: string;
-                        };
-                        date: string;
-                    } | {
-                        employees: string[];
-                        summary: {
-                            /** @enum {integer} */
-                            present: 0;
-                            /** @enum {integer} */
-                            absent: 0;
-                            /** @enum {integer} */
-                            late: 0;
-                            /** @enum {integer} */
-                            on_leave: 0;
-                        };
+                        tenant: {
+                            name: string;
+                            subdomain: string;
+                            logo_path: string | null;
+                        } | null;
                     };
                 };
             };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
         };
     };
-    "teamMonitoring.attendanceSummary": {
-        parameters: {
-            query?: {
-                period?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        period: string;
-                        from: string;
-                        to: string;
-                        team_size: string;
-                        data: [
-                            {
-                                date: string;
-                                present: string;
-                                absent: string;
-                                late: string;
-                                rate: string | 0;
-                            }
-                        ];
-                    } | {
-                        data: string[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "teamMonitoring.overtime": {
+    "trustedDevice.index": {
         parameters: {
             query?: never;
             header?: never;
@@ -12337,78 +20161,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        month: string;
-                        employees: string;
-                        total_overtime_hours: string;
-                    } | {
-                        employees: string[];
-                        /** @enum {integer} */
-                        total_hours: 0;
+                        data: {
+                            id: number;
+                            device_name: string | null;
+                            /** Format: date-time */
+                            last_used_at: string;
+                            /** Format: date-time */
+                            expires_at: string;
+                        }[];
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
         };
     };
-    "teamMonitoring.leaveCalendar": {
-        parameters: {
-            query?: {
-                month?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        month: string;
-                        team_size: string;
-                        employees: string;
-                        daily_summary: string;
-                    } | {
-                        employees: string[];
-                        days: string[];
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-        };
-    };
-    "template.index": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: string;
-                    };
-                };
-            };
-        };
-    };
-    "template.show": {
+    "trustedDevice.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                slug: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -12419,43 +20191,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": {
+                        /** @constant */
+                        message: "Device removed. MFA will be required on it again.";
+                    };
                 };
             };
+            401: components["responses"]["AuthenticationException"];
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        type: "https://ethr.et/errors/not-found";
-                        /** @enum {string} */
-                        title: "Not Found";
-                        /** @enum {integer} */
+                        /** @constant */
+                        type: "https://ethr.et/errors/device-not-found";
+                        /** @constant */
+                        title: "Device Not Found";
+                        /** @constant */
                         status: 404;
-                        detail: string;
+                        /** @constant */
+                        detail: "That trusted device no longer exists.";
                     };
                 };
             };
         };
     };
-    "webhook.index": {
+    "user.index": {
         parameters: {
-            query?: never;
+            query?: {
+                search?: string;
+                "filter[role]"?: string;
+                "filter[status]"?: string;
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
+            /** @description Paginated set of `UserResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        webhooks: string;
+                        data: (components["schemas"]["UserResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
                     };
                 };
             };
@@ -12463,7 +20271,7 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
-    "webhook.store": {
+    "user.store": {
         parameters: {
             query?: never;
             header?: never;
@@ -12472,23 +20280,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StoreWebhookRequest"];
+                "application/json": components["schemas"]["StoreUserRequest"];
             };
         };
         responses: {
+            /** @description `UserResource` */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        public_id: string;
-                        url: string;
-                        secret: string;
-                        events: string;
-                        is_active: string;
-                        created_at: string;
-                    };
+                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12496,48 +20298,13 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "webhook.update": {
+    "user.destroy": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The webhook public id */
-                webhook: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateWebhookRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        url: string;
-                        events: unknown[];
-                        is_active: boolean;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-            422: components["responses"]["ValidationException"];
-        };
-    };
-    "webhook.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The webhook public id */
-                webhook: string;
+                /** @description The user public id */
+                user: string;
             };
             cookie?: never;
         };
@@ -12553,15 +20320,63 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "You cannot deactivate your own account.";
+                    };
+                };
+            };
         };
     };
-    "webhook.test": {
+    "user.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The webhook public id */
-                webhook: string;
+                /** @description The user public id */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "user.resendInvite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user public id */
+                user: string;
             };
             cookie?: never;
         };
@@ -12573,28 +20388,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        message: "Test event dispatched";
-                        /** @enum {string} */
-                        event: "test";
-                        /** Format: date-time */
-                        delivered_at: string | null;
+                        /** @constant */
+                        message: "Activation link resent.";
+                        sent: boolean;
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/business-rule";
+                        /** @constant */
+                        title: "Request Rejected";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This user is not pending activation.";
+                    };
+                };
+            };
         };
     };
-    "webhook.deliveries": {
+    "profile.show": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The webhook public id */
-                webhook: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -12605,13 +20431,730 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        deliveries: string;
+                        user: {
+                            public_id: string;
+                            email: string;
+                            phone: string | null;
+                            locale: string;
+                            role: components["schemas"]["UserRole"];
+                            status: string;
+                            mfa_enabled: boolean;
+                            email_verified_at: string | null;
+                            last_login_at: string | null;
+                        };
+                        preferences: {
+                            locale: string;
+                            theme: string | "system";
+                            calendar: string | "gregorian";
+                        };
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            name_am: string | null;
+                            employee_code: string | null;
+                            phone: string | null;
+                            gender: string | null;
+                            date_of_birth: string | null;
+                            nationality: string | null;
+                            marital_status: string | null;
+                            hire_date: string | null;
+                            /**
+                             * @description Cast to EmployeeStatus on the model; a backed enum serialises to
+                             *     its value on the way out.
+                             */
+                            status: components["schemas"]["EmployeeStatus"];
+                            /**
+                             * @description The TIN is an encrypted column and a gated field: the employee has
+                             *     to see what is on record to know whether it needs correcting, but
+                             *     only ever the tail of it.
+                             */
+                            tin_masked: string | null;
+                            photo_path: string | null;
+                            photo_url: string | null;
+                            photo_thumb_url: string | null;
+                            department: string | null;
+                            /**
+                             * @description `positions` names its column `title`; reading `name` here returned
+                             *     null for every employee, so the profile has always shown no position.
+                             */
+                            position: string | null;
+                            branch: string | null;
+                            grade: string | null;
+                            supervisor: string | null;
+                        } | null;
+                        /**
+                         * @description Contacts and bank details live in their own tables, and until they were
+                         *     returned here the edit form had nothing to prefill from — an employee
+                         *     updating one emergency-contact field silently blanked the rest.
+                         */
+                        emergency_contacts: unknown[];
+                        bank_details: {
+                            public_id: string;
+                            bank_name: string;
+                            branch_name: string | null;
+                            account_number_masked: string | null;
+                            is_primary: boolean;
+                        }[];
+                        /**
+                         * @description The employee's own view of what they have proposed. Without this the
+                         *     profile page has no way to distinguish "my change is queued" from
+                         *     "my change was ignored" — which is precisely how this used to behave.
+                         *     The relations are the ones ProfileUpdateRequestResource reads; without
+                         *     eager-loading them this 500s under `preventLazyLoading`, which is on
+                         *     everywhere except production.
+                         */
+                        pending_updates: unknown[];
+                        /**
+                         * @description Decided requests, so "HR rejected this and here is why" reaches the
+                         *     employee on the page and not only in a notification they may have
+                         *     dismissed. Capped — this is a recent-activity list, not an archive.
+                         */
+                        recent_updates: unknown[];
+                        /**
+                         * @description Which side of the approval line each field falls on. Shipped rather
+                         *     than hardcoded in the client so the two can never drift.
+                         */
+                        editable_fields: {
+                            self: [
+                                "phone",
+                                "marital_status",
+                                "nationality"
+                            ];
+                            gated: unknown[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "profile.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Profile updated successfully.";
+                        pending_approval: {
+                            /** @constant */
+                            status: "pending_approval";
+                            fields: {
+                                [key: string]: unknown;
+                            };
+                            requests: unknown[];
+                            /** @constant */
+                            message: "Changes to sensitive fields require HR approval.";
+                        };
+                        was_duplicate: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profilePreferences.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfilePreferencesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        locale: string;
+                        theme: string | "system";
+                        calendar: string | "gregorian";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profilePhoto.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadProfilePhotoRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        photo_path: string;
+                        photo_url: string | null;
+                        photo_thumb_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profilePhoto.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/no-employee-record";
+                        /** @constant */
+                        title: "No Employee Record";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "No employee record linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "profileEmergencyContact.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: unknown[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/no-employee-record";
+                        /** @constant */
+                        title: "No Employee Record";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "No employee record linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "profileEmergencyContact.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreProfileEmergencyContactRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profileEmergencyContact.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreProfileEmergencyContactRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Emergency contact not found.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profileEmergencyContact.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Emergency contact not found.";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/no-employee-record";
+                        /** @constant */
+                        title: "No Employee Record";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "No employee record linked to your account.";
+                    };
+                };
+            };
+        };
+    };
+    "profileUpdateRequest.index": {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ProfileUpdateRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProfileUpdateRequestResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "profileUpdateRequest.review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "profileUpdateRequest.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-found";
+                        /** @constant */
+                        title: "Not Found";
+                        /** @constant */
+                        status: 404;
+                        /** @constant */
+                        detail: "Profile update request not found.";
+                    };
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/already-reviewed";
+                        /** @constant */
+                        title: "Already Reviewed";
+                        /** @constant */
+                        status: 422;
+                        /** @constant */
+                        detail: "This profile update request has already been reviewed.";
+                    };
+                };
+            };
+        };
+    };
+    "customRole.permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[][];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "roles.index": {
+        parameters: {
+            query?: {
+                search?: string;
+                "filter[is_active]"?: boolean;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `CustomRoleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: (components["schemas"]["CustomRoleResource"] & Record<string, never>)[];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "roles.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreCustomRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomRoleResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "roles.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The custom role public id */
+                customRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `CustomRoleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "roles.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The custom role public id */
+                customRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomRoleResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "roles.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The custom role public id */
+                customRole: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "business_rule_violation";
+                        /** @constant */
+                        title: "Cannot Delete Role";
+                        /** @constant */
+                        status: 422;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
 }

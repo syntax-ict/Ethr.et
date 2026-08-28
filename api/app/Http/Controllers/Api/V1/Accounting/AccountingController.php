@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\UpdateChartOfAccountsRequest;
+use App\Models\AuditLog;
 use App\Models\ChartOfAccount;
 use App\Models\PayrollRun;
 use App\Services\Accounting\AccountingExportService;
@@ -66,6 +67,10 @@ class AccountingController extends Controller
             );
         }
 
+        AuditLog::record('accounting.chart_of_accounts_updated', app(CurrentTenant::class)->get(), [
+            'accounts' => $request->input('accounts'),
+        ]);
+
         return response()->json(['message' => 'Chart of accounts updated.']);
     }
 
@@ -87,6 +92,8 @@ class AccountingController extends Controller
         $journal = $this->service->journalEntries($payrollRun, $mapping);
 
         $csv = $this->buildCsv($journal);
+
+        AuditLog::record('accounting.journal_exported', $payrollRun);
 
         $filename = 'journal-'.str_replace(['/', ' '], '-', $journal['period']).'.csv';
 

@@ -11,7 +11,10 @@ src/tsconfig.tsbuildinfo
 .env
 .env.local
 .env.*.local
+.env.save
+*.save
 api/.env
+api/.env.save
 
 # IDE
 .idea/
@@ -43,3 +46,6 @@ src/playwright-report/
 src/lighthouse-reports/
 src/e2e/.auth/
 docker-compose.override.yml
+
+# Scratch dir created and removed by scripts/prod-build-test.sh
+.prod-test-tmp/

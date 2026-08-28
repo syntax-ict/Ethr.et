@@ -23,6 +23,8 @@ class HealthController extends Controller
             $services['database'] = 'unhealthy';
         }
 
+        $services['database_read'] = $this->checkReadReplica();
+
         try {
             cache()->store('redis')->put('health_check', true, 5);
             $services['cache'] = cache()->store('redis')->get('health_check') ? 'healthy' : 'unhealthy';
@@ -54,5 +56,21 @@ class HealthController extends Controller
             'timestamp' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], $allHealthy ? 200 : 503);
+    }
+
+    private function checkReadReplica(): string
+    {
+        if (! config('database.connections.mariadb.read')) {
+            return 'not_configured';
+        }
+
+        try {
+            $readPdo = DB::connection()->getReadPdo();
+            $readPdo->query('SELECT 1');
+
+            return 'healthy';
+        } catch (\Throwable) {
+            return 'unhealthy';
+        }
     }
 }

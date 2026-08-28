@@ -79,29 +79,39 @@ function DialogFooter({
   );
 }
 
-function DialogTitle({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h2
-      className={cn(
-        "text-lg font-semibold leading-none tracking-tight",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+/**
+ * Must render Radix's own Title/Description primitives, not a bare `h2`/`p`.
+ * Radix wires `aria-labelledby`/`aria-describedby` on the content element from
+ * the ids these generate; a plain heading leaves every dialog in the app
+ * without an accessible name (a WCAG 4.1.2 failure) and makes Radix log a
+ * "`DialogContent` requires a `DialogTitle`" error on each open.
+ */
+const DialogTitle = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn(
+      "text-lg font-semibold leading-none tracking-tight",
+      className,
+    )}
+    {...props}
+  />
+));
+DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
-function DialogDescription({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLParagraphElement>) {
-  return (
-    <p className={cn("text-sm text-muted-foreground", className)} {...props} />
-  );
-}
+const DialogDescription = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+));
+DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 export {
   Dialog,

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Override with COMPOSE_FILE=docker-compose.lowmem.yml on the 4 GB tier —
+# see that file's header for what it changes vs. this default.
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 BACKUP_DIR="${BACKUP_PATH:-/var/backups/ethr}"
 RESTORE_LOG="/var/log/ethr/restore_$(date '+%Y%m%d_%H%M%S').log"
 
@@ -9,6 +12,10 @@ mkdir -p /var/log/ethr
 log() {
   local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
   echo "$msg" | tee -a "$RESTORE_LOG"
+}
+
+dc() {
+  docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 if [ -z "${1:-}" ]; then
@@ -21,6 +28,7 @@ if [ -z "${1:-}" ]; then
 fi
 
 BACKUP_NAME="$1"
+cd "$(dirname "$0")/.."
 
 log "=== ETHR Restore ==="
 log "Restoring from: $BACKUP_NAME"
@@ -37,39 +45,36 @@ if ! gunzip -t "${BACKUP_DIR}/${BACKUP_NAME}_db.sql.gz" 2>/dev/null; then
 fi
 log "Backup integrity verified"
 
-log ">> Stopping queue workers..."
-cd "$(dirname "$0")/../api"
-php artisan horizon:terminate 2>/dev/null || true
-sleep 3
+log ">> Stopping queue workers and scheduler..."
+dc stop worker-realtime worker-notifications worker-heavy scheduler 2>&1 | tee -a "$RESTORE_LOG"
 
 log ">> Restoring database from ${BACKUP_NAME}..."
 gunzip -c "${BACKUP_DIR}/${BACKUP_NAME}_db.sql.gz" \
-  | mysql -u "${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" 2>>"$RESTORE_LOG"
+  | dc exec -T mariadb sh -c 'exec mysql -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' 2>>"$RESTORE_LOG"
 log "Database restored"
 
 log ">> Restoring files..."
-if [ -d "${BACKUP_DIR}/${BACKUP_NAME}_files/" ] && command -v mc &>/dev/null; then
-  mc mirror "${BACKUP_DIR}/${BACKUP_NAME}_files/" ethr/uploads --overwrite --quiet 2>>"$RESTORE_LOG"
+if [ -f "${BACKUP_DIR}/${BACKUP_NAME}_files.tar.gz" ]; then
+  docker run --rm --volumes-from ethr-minio -v "${BACKUP_DIR}:/backup" alpine \
+    sh -c "rm -rf /data/* && tar xzf /backup/${BACKUP_NAME}_files.tar.gz -C /data" 2>>"$RESTORE_LOG"
   log "Files restored"
 else
-  log "Skipping file restore (no file backup or mc not installed)"
+  log "Skipping file restore (no file backup found: ${BACKUP_NAME}_files.tar.gz)"
 fi
 
-log ">> Restoring .env..."
+log ">> Restoring production env file..."
 if [ -f "${BACKUP_DIR}/${BACKUP_NAME}.env" ]; then
-  cp "${BACKUP_DIR}/${BACKUP_NAME}.env" "$(dirname "$0")/../api/.env"
-  log ".env restored"
+  cp "${BACKUP_DIR}/${BACKUP_NAME}.env" "api/.env.production"
+  log "api/.env.production restored"
 fi
 
-log ">> Clearing caches..."
-php artisan cache:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+log ">> Clearing and rebuilding caches..."
+dc run --rm api php artisan cache:clear
+dc run --rm api php artisan config:cache
+dc run --rm api php artisan route:cache
+dc run --rm api php artisan view:cache
 
 log ">> Restarting services..."
-cd ..
-sudo supervisorctl restart ethr-worker:*
-sudo supervisorctl restart ethr-reverb
+dc restart api worker-realtime worker-notifications worker-heavy scheduler reverb
 
 log "=== Restore complete ==="

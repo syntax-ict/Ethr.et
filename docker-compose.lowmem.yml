@@ -1,0 +1,399 @@
+# ── Low-memory production topology (4 vCPU / 4 GB host) ─────────────────────
+#
+# docker-compose.prod.yml assumes the 8 GB minimum in docs/DEPLOYMENT.md
+# (primary + replica MariaDB, split Redis, three Horizon worker containers).
+# This file targets a 4 GB VPS instead. It is a STANDALONE production compose
+# file, not an overlay of docker-compose.prod.yml — the two differ by whole
+# services (no replica, one Redis, one worker), which Compose cannot express
+# as a merge on top of a file that declares those services. Use exactly one
+# of the two in production, never both:
+#
+#   docker compose -f docker-compose.lowmem.yml up -d
+#
+# What changed from docker-compose.prod.yml, and why:
+#
+#   - No mariadb-replica. A read replica buys nothing on a host too small to
+#     comfortably run one MariaDB instance; DB_READ_HOST is left unset below,
+#     so config/database.php's 'read' connection resolves to null and every
+#     query — read and write — goes to the single `mariadb` service. This also
+#     removes scripts/setup-replication.sh from the deploy runbook entirely:
+#     there is nothing to configure.
+#   - One Redis, not two. maxmemory-policy is instance-wide (see the long
+#     comment on the two-Redis split in docker-compose.prod.yml), so a single
+#     instance has no correct policy, only a least-bad one: volatile-lru,
+#     the same compromise docker-compose.yml's dev `redis` service documents.
+#     REDIS_CACHE_HOST is left unset below so config/database.php's `cache`
+#     connection falls back to REDIS_HOST and lands on REDIS_CACHE_DB (1) —
+#     same instance, different logical database, no code change needed.
+#   - One worker container running every queue, not three. See the
+#     'production-lowmem' environment in api/config/horizon.php for the exact
+#     budget and the capacity trade-off this makes (payroll can occupy half
+#     the pool for up to 30 minutes). Isolating queues into separate
+#     containers is a memory-per-container cost this tier cannot afford.
+#   - docker/mariadb/standalone.cnf, not primary.cnf: smaller
+#     innodb_buffer_pool_size, and log_bin dropped entirely since there is no
+#     replica to ship a binlog to (see that file's own comment).
+#
+# Everything else — Dockerfiles, nginx config, env-file chain, healthchecks —
+# is identical to docker-compose.prod.yml on purpose: this is a resource
+# profile, not a different application.
+#
+# Sizing target: memory limits below sum to ~3 GB (75% of the 4 GB host),
+# leaving ~1 GB for the host OS, the Docker daemon, and page cache headroom.
+# CPU limits sum to exactly 4.0. These are ceilings that cap a misbehaving
+# container, not steady-state usage — most services idle well under their
+# limit — but on a host this size the ceilings are close enough to real RAM
+# that, unlike docker-compose.prod.yml, they are NOT meant to be read as pure
+# safety margin. Watch `docker stats` under real load before trusting them.
+
+services:
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ethr-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx-common.conf:/etc/nginx/snippets/ethr-common.conf:ro
+      - ./api/public:/var/www/ethr/api/public:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./infrastructure/certbot-webroot:/var/www/certbot:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - ethr
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.prod
+    volumes:
+      - api_storage:/var/www/ethr/api/storage
+      - api_cache:/var/www/ethr/api/bootstrap/cache
+    env_file:
+      - ./api/.env.production
+    environment:
+      # Deliberately no REVERB_HOST/PORT/SCHEME override here — see the note
+      # on the api service in docker-compose.prod.yml for why omitting these
+      # is silent and wrong (Laravel falls back to localhost). Same reasoning
+      # applies unchanged in this file; only the DB/Redis topology differs.
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "php", "artisan", "health:check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  # Single container, every queue. See 'production-lowmem' in
+  # api/config/horizon.php for the worker/memory budget and the trade-off it
+  # accepts. The healthcheck greps for the one supervisor this container runs,
+  # same pattern as docker-compose.prod.yml's per-container checks.
+  worker:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.prod
+    container_name: ethr-worker
+    command: php artisan horizon --environment=production-lowmem
+    volumes:
+      - api_storage:/var/www/ethr/api/storage
+    env_file:
+      - ./api/.env.production
+    environment:
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 384M
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:supervisors | grep -q supervisor-lowmem"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.prod
+    container_name: ethr-scheduler
+    command: >
+      sh -c "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    volumes:
+      - api_storage:/var/www/ethr/api/storage
+    env_file:
+      - ./api/.env.production
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "php", "-r", "echo 'ok';"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  reverb:
+    build:
+      context: .
+      dockerfile: api/Dockerfile.prod
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    volumes:
+      - api_storage:/var/www/ethr/api/storage
+    env_file:
+      - ./api/.env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "php", "-r", "echo 'ok';"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./src
+      dockerfile: ../docker/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://ethr.et}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-ETHR}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://ethr.et}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN:-ethr.et}
+        NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST:-ethr.et}
+        NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT:-443}
+        NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME:-https}
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - ./src/.env.production
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: ethr-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_DATABASE:-ethr}
+      MARIADB_USER: ${DB_USERNAME:-ethr}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./docker/mariadb/standalone.cnf:/etc/mysql/conf.d/standalone.cnf:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 640M
+        reservations:
+          cpus: '0.25'
+          memory: 320M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Single instance, queue + sessions + cache locks + Horizon metadata + the
+  # application cache, all together. volatile-lru + appendonly: the same
+  # least-bad compromise docker-compose.yml's dev `redis` documents choosing
+  # NOT to make (dev has nothing durable to lose); here it is the real
+  # trade-off, not a simplification. See the top-of-file comment for the
+  # REDIS_CACHE_HOST reasoning.
+  redis:
+    image: redis:7-alpine
+    container_name: ethr-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy volatile-lru --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: ethr-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ethr-internal
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes:
+  mariadb_data:
+  redis_data:
+  minio_data:
+  api_storage:
+  api_cache:
+
+networks:
+  ethr:
+    driver: bridge
+  ethr-internal:
+    driver: bridge
+    internal: true

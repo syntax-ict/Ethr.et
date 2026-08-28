@@ -15,7 +15,7 @@ class BankDetailResource extends JsonResource
         $masked = str_repeat('*', max(0, strlen($accountNumber) - 4)).substr($accountNumber, -4);
 
         return [
-            'id' => $this->id,
+            'public_id' => $this->public_id,
             'bank_name' => $this->bank_name,
             'branch_name' => $this->branch_name,
             'account_number_masked' => $masked,

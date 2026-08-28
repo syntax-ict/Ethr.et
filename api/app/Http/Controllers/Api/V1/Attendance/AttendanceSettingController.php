@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\UpdateAttendanceSettingRequest;
 use App\Http\Resources\AttendanceSettingResource;
 use App\Models\AttendanceSetting;
+use App\Models\AuditLog;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -38,6 +39,8 @@ class AttendanceSettingController extends Controller
         );
 
         $setting->update($request->validated());
+
+        AuditLog::record('attendance.settings_updated', $setting, $request->validated());
 
         return response()->json((new AttendanceSettingResource($setting->fresh()))->resolve());
     }

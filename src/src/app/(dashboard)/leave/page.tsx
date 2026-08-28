@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +34,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -160,11 +162,10 @@ export default function LeavePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t("leave_page.start_date")}</Label>
-                <Input
-                  type="date"
+                <DualCalendarDateInput
                   value={leaveForm.start_date}
-                  onChange={(e) =>
-                    setLeaveForm((p) => ({ ...p, start_date: e.target.value }))
+                  onChange={(v) =>
+                    setLeaveForm((p) => ({ ...p, start_date: v }))
                   }
                   required
                   className="mt-1"
@@ -172,12 +173,9 @@ export default function LeavePage() {
               </div>
               <div>
                 <Label>{t("leave_page.end_date")}</Label>
-                <Input
-                  type="date"
+                <DualCalendarDateInput
                   value={leaveForm.end_date}
-                  onChange={(e) =>
-                    setLeaveForm((p) => ({ ...p, end_date: e.target.value }))
-                  }
+                  onChange={(v) => setLeaveForm((p) => ({ ...p, end_date: v }))}
                   required
                   className="mt-1"
                 />
@@ -269,71 +267,61 @@ function MyLeaveTab() {
               description={t("leave_page.no_requests_desc")}
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      {t("leave_page.type")}
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      {t("leave_page.dates")}
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-sm font-medium text-muted-foreground sm:table-cell">
-                      {t("leave_page.days")}
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                      {t("common.status")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.data.map((req) => (
-                    <tr
-                      key={req.public_id}
-                      className="border-b last:border-0 hover:bg-muted/30"
+            <div>
+              <SimpleTable
+                caption={t("leave_page.my_requests")}
+                headers={[
+                  t("leave_page.type"),
+                  t("leave_page.dates"),
+                  t("leave_page.days"),
+                  t("common.status"),
+                ]}
+                colClassName={["", "", "hidden sm:table-cell", ""]}
+                rows={requests.data.map((req) => ({
+                  key: req.public_id,
+                  cells: [
+                    <span key="ty" className="font-medium">
+                      {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
+                    </span>,
+                    <span key="d" className="text-muted-foreground">
+                      {req.start_date} — {req.end_date}
+                    </span>,
+                    <span key="days" className="text-muted-foreground">
+                      {req.days}
+                    </span>,
+                    <StatusBadge key="s" status={req.status} />,
+                  ],
+                  actions: req.status === "pending" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        if (confirm(t("leave_page.withdraw_confirm"))) {
+                          cancelLeave.mutate(req.public_id, {
+                            onSuccess: () =>
+                              toast.success(t("leave_page.withdrawn")),
+                            onError: () =>
+                              toast.error(t("leave_page.withdraw_failed")),
+                          });
+                        }
+                      }}
+                      disabled={cancelLeave.isPending}
+                      aria-label={t("leave_page.withdraw")}
                     >
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {req.start_date} — {req.end_date}
-                      </td>
-                      <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                        {req.days}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={req.status} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {req.status === "pending" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-muted-foreground hover:text-red-600"
-                            onClick={() => {
-                              if (confirm(t("leave_page.withdraw_confirm"))) {
-                                cancelLeave.mutate(req.public_id, {
-                                  onSuccess: () =>
-                                    toast.success(t("leave_page.withdrawn")),
-                                  onError: () =>
-                                    toast.error(
-                                      t("leave_page.withdraw_failed"),
-                                    ),
-                                });
-                              }
-                            }}
-                            disabled={cancelLeave.isPending}
-                            aria-label={t("leave_page.withdraw")}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  ),
+                }))}
+              />
+              {/* Without this the `page` state below was write-only: it was sent
+                  to the API but nothing could ever change it, so any request past
+                  the first page was unreachable. */}
+              <PaginationControls
+                meta={requests?.meta}
+                onPageChange={setPage}
+                disabled={requestsLoading}
+              />
             </div>
           )}
         </CardContent>
@@ -408,86 +396,67 @@ function TeamLeaveTab() {
                 description={t("leave_page.no_team_requests_desc")}
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("attendance.employee")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("leave_page.type")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-left text-sm font-medium text-muted-foreground sm:table-cell">
-                        {t("leave_page.dates")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                        {t("common.status")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
-                        {t("common.actions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {requests.map((req) => (
-                      <tr
-                        key={req.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {(req as { employee_name?: string }).employee_name ??
-                            "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {leaveTypeName(
-                            req.leave_type,
-                            t("leave_page.unknown"),
-                          )}
-                        </td>
-                        <td className="hidden px-4 py-3 text-sm text-muted-foreground sm:table-cell">
-                          {req.start_date} — {req.end_date}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={req.status} />
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {req.status === "pending" && (
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-green-600"
-                                onClick={() =>
-                                  approveLeave.mutate(req.public_id)
-                                }
-                                disabled={approveLeave.isPending}
-                                aria-label={t("common.approve")}
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-red-600"
-                                onClick={() =>
-                                  rejectLeave.mutate({
-                                    publicId: req.public_id,
-                                    reason: "Rejected",
-                                  })
-                                }
-                                disabled={rejectLeave.isPending}
-                                aria-label={t("common.reject")}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div>
+                <SimpleTable
+                  caption={t("leave_page.team_requests")}
+                  headers={[
+                    t("attendance.employee"),
+                    t("leave_page.type"),
+                    t("leave_page.dates"),
+                    t("common.status"),
+                  ]}
+                  colClassName={["", "", "hidden sm:table-cell", ""]}
+                  rows={requests.map((req) => ({
+                    key: req.public_id,
+                    cells: [
+                      <span key="e" className="font-medium">
+                        {(req as { employee_name?: string }).employee_name ??
+                          "—"}
+                      </span>,
+                      <span key="ty" className="text-muted-foreground">
+                        {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
+                      </span>,
+                      <span key="d" className="text-muted-foreground">
+                        {req.start_date} — {req.end_date}
+                      </span>,
+                      <StatusBadge key="s" status={req.status} />,
+                    ],
+                    actions: req.status === "pending" && (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-status-success"
+                          onClick={() => approveLeave.mutate(req.public_id)}
+                          disabled={approveLeave.isPending}
+                          aria-label={t("common.approve")}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-destructive"
+                          onClick={() =>
+                            rejectLeave.mutate({
+                              publicId: req.public_id,
+                              reason: "Rejected",
+                            })
+                          }
+                          disabled={rejectLeave.isPending}
+                          aria-label={t("common.reject")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ),
+                  }))}
+                />
+                <PaginationControls
+                  meta={data?.meta}
+                  onPageChange={setPage}
+                  disabled={isLoading}
+                />
               </div>
             )}
           </CardContent>
@@ -497,14 +466,20 @@ function TeamLeaveTab() {
   );
 }
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_KEYS = [
+  { key: "weekday.mon", fallback: "Mon" },
+  { key: "weekday.tue", fallback: "Tue" },
+  { key: "weekday.wed", fallback: "Wed" },
+  { key: "weekday.thu", fallback: "Thu" },
+  { key: "weekday.fri", fallback: "Fri" },
+  { key: "weekday.sat", fallback: "Sat" },
+  { key: "weekday.sun", fallback: "Sun" },
+];
 
 const STATUS_COLORS: Record<string, string> = {
-  approved:
-    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  pending:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  approved: "bg-success-soft text-success-on-soft",
+  pending: "bg-warning-soft text-warning-on-soft",
+  rejected: "bg-destructive-soft text-destructive-on-soft",
 };
 
 function TeamLeaveCalendar({
@@ -512,7 +487,7 @@ function TeamLeaveCalendar({
 }: {
   requests: (LeaveRequest & { employee_name?: string })[];
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -554,10 +529,13 @@ function TeamLeaveCalendar({
     );
   }
 
-  const monthLabel = firstDay.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  const monthLabel = firstDay.toLocaleDateString(
+    locale === "am" ? "am-ET" : "en-US",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < startOffset; i++) cells.push(null);
@@ -573,6 +551,7 @@ function TeamLeaveCalendar({
             variant="outline"
             size="icon"
             className="h-7 w-7"
+            aria-label={t("calendar.previous_month", "Previous month")}
             onClick={prevMonth}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -581,6 +560,7 @@ function TeamLeaveCalendar({
             variant="outline"
             size="icon"
             className="h-7 w-7"
+            aria-label={t("calendar.next_month", "Next month")}
             onClick={nextMonth}
           >
             <ChevronRight className="h-4 w-4" />
@@ -589,12 +569,12 @@ function TeamLeaveCalendar({
       </CardHeader>
       <CardContent className="p-0 pb-4 px-4">
         <div className="grid grid-cols-7 gap-px rounded-lg border bg-muted/50 overflow-hidden">
-          {WEEKDAYS.map((d) => (
+          {WEEKDAY_KEYS.map((wd) => (
             <div
-              key={d}
+              key={wd.key}
               className="bg-muted px-1 py-2 text-center text-xs font-medium text-muted-foreground"
             >
-              {d}
+              {t(wd.key, wd.fallback)}
             </div>
           ))}
           {cells.map((day, i) => {
@@ -656,11 +636,11 @@ function TeamLeaveCalendar({
         </div>
         <div className="mt-3 flex flex-wrap gap-3 text-xs">
           <span className="flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-green-200 dark:bg-green-900" />{" "}
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-status-success/30" />{" "}
             {t("leave_page.approved")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-200 dark:bg-amber-900" />{" "}
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-status-warning/30" />{" "}
             {t("leave_page.pending")}
           </span>
         </div>

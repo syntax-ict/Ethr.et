@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
 class AttendanceSetting extends Model
 {
-    use BelongsToTenant, HasPublicId;
+    use BelongsToTenant, HasAuditLog, HasPublicId;
 
     protected $fillable = [
         'public_id',
@@ -25,6 +26,9 @@ class AttendanceSetting extends Model
         'mobile_accuracy_threshold_meters',
         'offline_sync_enabled',
         'kiosk_auto_reset_seconds',
+        'grace_period_minutes',
+        'ot_daily_cap_minutes',
+        'confidence_threshold',
     ];
 
     protected function casts(): array
@@ -40,6 +44,9 @@ class AttendanceSetting extends Model
             'mobile_accuracy_threshold_meters' => 'integer',
             'offline_sync_enabled' => 'boolean',
             'kiosk_auto_reset_seconds' => 'integer',
+            'grace_period_minutes' => 'integer',
+            'ot_daily_cap_minutes' => 'integer',
+            'confidence_threshold' => 'integer',
         ];
     }
 
@@ -56,6 +63,9 @@ class AttendanceSetting extends Model
             'mobile_accuracy_threshold_meters' => 100,
             'offline_sync_enabled' => true,
             'kiosk_auto_reset_seconds' => 4,
+            'grace_period_minutes' => 15,
+            'ot_daily_cap_minutes' => 120,
+            'confidence_threshold' => 70,
         ];
     }
 

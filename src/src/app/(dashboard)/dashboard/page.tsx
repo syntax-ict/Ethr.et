@@ -1,69 +1,113 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Clock,
-  CalendarDays,
-  Wallet,
-  LogIn,
-  Plus,
-  FileText,
-  Users,
-  ArrowRight,
-  CheckSquare,
-  TrendingUp,
-  UserCheck,
-  UserX,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import dynamic from "next/dynamic";
+import { Clock, CalendarDays, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
-import {
-  useEmployeeDashboard,
-  useManagerDashboard,
-} from "@/features/dashboard/api";
+
+/**
+ * Charts are the heaviest thing on this page (recharts, ~435 KB uncompressed)
+ * and they sit below the fold, so loading them in the initial bundle delays
+ * the KPIs and approvals the user actually landed here for. Split out with a
+ * skeleton that reserves the same height — deferring the import must not cost
+ * a layout shift.
+ */
+const InteractiveCharts = dynamic(
+  () =>
+    import("@/features/dashboard/components/interactive-charts").then(
+      (m) => m.InteractiveCharts,
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[360px] w-full rounded-lg" />,
+  },
+);
+import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { localizedName } from "@/lib/i18n/localizedName";
+import { formatETB } from "@/lib/utils/currency";
+import {
+  WelcomeSection,
+  SetupProgress,
+  KpiCard,
+  PendingApprovalsPanel,
+  RecentActivity,
+  AnnouncementsWidget,
+  CalendarWidget,
+  TeamOverview,
+  LeaveOverview,
+} from "@/features/dashboard/components";
 
+/**
+ * Dashboard layout order is deliberate:
+ *
+ *   1. Header — who/where/when, plus the primary actions.
+ *   2. Setup banner — only while onboarding is incomplete.
+ *   3. "Today" — the supervisor's operational state (present/absent/on leave).
+ *   4. "My Day" — the individual's own state, shown to every role.
+ *   5. Work queue, then trends, then reference material.
+ *
+ * The governing rule is decisions-before-trends: what needs a response today
+ * outranks a chart of the last five days. Previously the analytics card was
+ * the first thing a supervisor met in the main column, so "two people are
+ * absent and three approvals are waiting" sat below a week-over-week graph.
+ */
 export default function DashboardPage() {
+  const { isSupervisor } = usePermissions();
   const { t } = useT();
-  const { role, isSupervisor, can } = usePermissions();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          {t("dashboard.title", "Dashboard")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {can.viewExecutiveDashboard
-            ? t(
-                "dashboard.executive_overview",
-                "Executive overview of your organization",
-              )
-            : isSupervisor
-              ? t("dashboard.team_glance", "Your team at a glance")
-              : t("dashboard.personal_overview", "Your personal overview")}
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="animate-fade-in-up">
+        <WelcomeSection />
       </div>
 
-      <EmployeeSelfServiceCards />
-      {isSupervisor && <ManagerCards />}
-      <QuickActions />
+      <SetupProgress />
+
+      {/* Section headings turn what was a run of seven undifferentiated tiles
+          into two labelled groups of four. Chunking gives the eye an entry
+          point per group instead of asking it to infer where one metric family
+          ends and the next begins. */}
+      {isSupervisor && <TeamOverview />}
+
+      <section aria-labelledby="my-day-heading" className="space-y-3">
+        <h2
+          id="my-day-heading"
+          className="text-sm font-semibold tracking-tight text-foreground"
+        >
+          {t("dashboard.my_day", "My Day")}
+        </h2>
+        <SelfServiceKpis />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <PendingApprovalsPanel />
+          <InteractiveCharts />
+        </div>
+        <div className="space-y-6">
+          <LeaveOverview />
+          <CalendarWidget />
+          <AnnouncementsWidget />
+          {/* The standalone unread-count tile that used to sit here restated
+              what the header bell already shows and what Recent Activity
+              already lists — three renderings of one number. */}
+          <RecentActivity />
+        </div>
+      </div>
     </div>
   );
 }
 
-function EmployeeSelfServiceCards() {
-  const { t } = useT();
+function SelfServiceKpis() {
+  const { t, locale } = useT();
   const { data, isLoading } = useEmployeeDashboard();
 
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-32" />
+          <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
       </div>
     );
@@ -75,336 +119,60 @@ function EmployeeSelfServiceCards() {
   const holidays = data?.upcoming_holidays ?? [];
 
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={Clock}
-          tone="info"
-          title={t("dashboard.attendance", "Attendance")}
-          value={
-            attendance?.status === "checked_in"
-              ? t("dashboard.checked_in", "Checked In")
-              : attendance?.status === "checked_out"
-                ? t("dashboard.checked_out", "Checked Out")
-                : t("dashboard.not_checked_in", "Not Checked In")
-          }
-          sub={
-            attendance?.check_in
-              ? t("dashboard.since", `Since ${attendance.check_in}`)
-              : t("dashboard.no_record_today", "No record today")
-          }
-        />
-        <KpiCard
-          icon={CalendarDays}
-          tone="success"
-          title={t("dashboard.leave_balance", "Leave Balance")}
-          value={balances.length > 0 ? `${balances[0].remaining} days` : "—"}
-          sub={
-            balances.length > 0
-              ? String(balances[0].type)
-              : t("dashboard.no_leave_configured", "No leave configured")
-          }
-        />
-        <KpiCard
-          icon={Wallet}
-          tone="primary"
-          title={t("dashboard.latest_payslip", "Latest Payslip")}
-          value={payslip ? formatETB(payslip.net_cents) : "—"}
-          sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
-        />
-        <KpiCard
-          icon={CalendarDays}
-          tone="warning"
-          title={t("dashboard.next_holiday", "Next Holiday")}
-          value={holidays.length > 0 ? holidays[0].name : "—"}
-          sub={
-            holidays.length > 0
-              ? holidays[0].date
-              : t("dashboard.no_upcoming", "No upcoming")
-          }
-        />
-      </div>
-
-      {balances.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">
-              {t("dashboard.leave_balances", "Leave Balances")}
-            </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs" asChild>
-              <Link href="/leave">
-                {t("common.view_all", "View all")}{" "}
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-5">
-              {balances.map((b, i) => {
-                const pct =
-                  b.entitled > 0 ? Math.round((b.used / b.entitled) * 100) : 0;
-                return (
-                  <div key={i}>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">
-                        {String(b.type)}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {t(
-                          "dashboard.remaining_of",
-                          `${b.remaining} of ${b.entitled} remaining`,
-                        )}
-                      </span>
-                    </div>
-                    <Progress
-                      value={pct}
-                      className="h-2"
-                      aria-label={`${String(b.type)} leave balance: ${pct}% used`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </>
-  );
-}
-
-function ManagerCards() {
-  const { t } = useT();
-  const { data, isLoading } = useManagerDashboard();
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-32" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const attn = data.team_attendance;
-
-  return (
-    <>
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("dashboard.team_overview", "Team Overview")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {t("dashboard.your_direct_reports", "Your direct reports")}
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={Users}
-          tone="primary"
-          title={t("dashboard.team_size", "Team Size")}
-          value={String(data.team_size)}
-          sub={t("dashboard.direct_reports", "Direct reports")}
-        />
-        <KpiCard
-          icon={UserCheck}
-          tone="success"
-          title={t("dashboard.present_today", "Present Today")}
-          value={String(attn.present)}
-          sub={t("dashboard.late_count", `${attn.late} late`)}
-        />
-        <KpiCard
-          icon={UserX}
-          tone="error"
-          title={t("dashboard.absent_today", "Absent Today")}
-          value={String(attn.absent)}
-          sub={t("dashboard.not_checked_in", "Not checked in")}
-        />
-        <KpiCard
-          icon={CheckSquare}
-          tone="warning"
-          title={t("dashboard.pending_approvals", "Pending Approvals")}
-          value={String(data.pending_approvals.total)}
-          sub={t(
-            "dashboard.leave_requests_count",
-            `${data.pending_approvals.leave} leave requests`,
-          )}
-        />
-      </div>
-
-      {data.team_on_leave.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t("dashboard.on_leave_this_week", "On Leave This Week")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {data.team_on_leave.map((member, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <span className="text-sm font-medium">
-                    {member.employee_name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {member.start_date} — {member.end_date}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </>
-  );
-}
-
-function QuickActions() {
-  const { t } = useT();
-  const { can, isSupervisor } = usePermissions();
-
-  const actions = [
-    {
-      label:
-        t("common.check_in", "Check In") +
-        " / " +
-        t("common.check_out", "Check Out"),
-      href: "/attendance",
-      icon: LogIn,
-      color: "text-status-info",
-      show: true,
-    },
-    {
-      label: t("common.apply_leave", "Apply for Leave"),
-      href: "/leave",
-      icon: Plus,
-      color: "text-status-success",
-      show: true,
-    },
-    {
-      label: t("dashboard.view_payslips", "View Payslips"),
-      href: "/payroll/payslips",
-      icon: FileText,
-      color: "text-interactive-primary",
-      show: true,
-    },
-    {
-      label: t("dashboard.pending_approvals", "Pending Approvals"),
-      href: "/approvals",
-      icon: CheckSquare,
-      color: "text-status-warning",
-      show: isSupervisor,
-    },
-    {
-      label: t("dashboard.manage_employees", "Manage Employees"),
-      href: "/employees",
-      icon: Users,
-      color: "text-interactive-primary",
-      show: can.manageEmployees,
-    },
-    {
-      label: t("command.run_payroll", "Run Payroll"),
-      href: "/payroll",
-      icon: Wallet,
-      color: "text-brand-accent",
-      show: can.processPayroll,
-    },
-    {
-      label: t("dashboard.view_reports", "View Reports"),
-      href: "/reports",
-      icon: TrendingUp,
-      color: "text-status-info",
-      show: can.viewReports,
-    },
-  ].filter((a) => a.show);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {t("dashboard.quick_actions", "Quick Actions")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {actions.map((a) => (
-          <Button
-            key={a.href}
-            variant="outline"
-            className="justify-start"
-            asChild
-          >
-            <Link href={a.href}>
-              <a.icon className={`mr-3 h-4 w-4 ${a.color}`} />
-              {a.label}
-            </Link>
-          </Button>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-type KpiTone = "info" | "success" | "warning" | "error" | "primary";
-
-const toneBg: Record<KpiTone, string> = {
-  info: "bg-status-info/10",
-  success: "bg-status-success/10",
-  warning: "bg-status-warning/10",
-  error: "bg-status-error/10",
-  primary: "bg-interactive-primary/10",
-};
-
-const toneText: Record<KpiTone, string> = {
-  info: "text-status-info",
-  success: "text-status-success",
-  warning: "text-status-warning",
-  error: "text-status-error",
-  primary: "text-interactive-primary",
-};
-
-function KpiCard({
-  icon: Icon,
-  tone,
-  title,
-  value,
-  sub,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  tone: KpiTone;
-  title: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
-          </div>
-          <div
-            className={`flex h-11 w-11 items-center justify-center rounded-xl ${toneBg[tone]}`}
-          >
-            <Icon className={`h-5 w-5 ${toneText[tone]}`} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatETB(cents: number): string {
-  return (
-    new Intl.NumberFormat("en-ET", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(cents / 100) + " ETB"
+    <div className="stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <KpiCard
+        icon={Clock}
+        tone="info"
+        title={t("dashboard.attendance", "Attendance")}
+        value={
+          attendance?.status === "checked_in"
+            ? t("dashboard.checked_in", "Checked In")
+            : attendance?.status === "checked_out"
+              ? t("dashboard.checked_out", "Checked Out")
+              : t("dashboard.not_checked_in", "Not Checked In")
+        }
+        sub={
+          attendance?.check_in
+            ? // t() has no interpolation: passing a template string as the
+              // fallback returns the bare translation ("Since") whenever the
+              // key exists, dropping the time. Compose outside the call.
+              `${t("dashboard.since", "Since")} ${attendance.check_in}`
+            : t("dashboard.no_record_today", "No record today")
+        }
+      />
+      <KpiCard
+        icon={CalendarDays}
+        tone="success"
+        title={t("dashboard.leave_balance", "Leave Balance")}
+        value={
+          balances.length > 0
+            ? `${balances[0].remaining} ${t("common.days", "days")}`
+            : "—"
+        }
+        sub={
+          balances.length > 0
+            ? String(balances[0].type)
+            : t("dashboard.no_leave_configured", "No leave configured")
+        }
+      />
+      <KpiCard
+        icon={Wallet}
+        tone="primary"
+        title={t("dashboard.latest_payslip", "Latest Payslip")}
+        value={payslip ? formatETB(payslip.net_cents) : "—"}
+        sub={payslip?.period ?? t("dashboard.no_payslips", "No payslips")}
+      />
+      <KpiCard
+        icon={CalendarDays}
+        tone="warning"
+        title={t("dashboard.next_holiday", "Next Holiday")}
+        value={holidays.length > 0 ? localizedName(holidays[0], locale) : "—"}
+        sub={
+          holidays.length > 0
+            ? holidays[0].date
+            : t("dashboard.no_upcoming", "No upcoming")
+        }
+      />
+    </div>
   );
 }

@@ -242,6 +242,24 @@ test('api responses include required security headers', function () {
     $response->assertHeader('X-Content-Type-Options', 'nosniff');
     $response->assertHeader('X-XSS-Protection', '1; mode=block');
     $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // HSTS pins TLS for a year including subdomains — value is exact by design.
+    $response->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
+    // CSP for a JSON API locks everything down to nothing; assert the lockdown
+    // and framing/base/form directives are present rather than the whole string.
+    $csp = $response->headers->get('Content-Security-Policy');
+    expect($csp)->toContain("default-src 'none'")
+        ->and($csp)->toContain("frame-ancestors 'none'")
+        ->and($csp)->toContain("base-uri 'self'")
+        ->and($csp)->toContain("form-action 'self'");
+
+    // Permissions-Policy must deny microphone/payment/usb and scope camera+geo to self.
+    $permissions = $response->headers->get('Permissions-Policy');
+    expect($permissions)->toContain('microphone=()')
+        ->and($permissions)->toContain('camera=(self)')
+        ->and($permissions)->toContain('geolocation=(self)')
+        ->and($permissions)->toContain('payment=()');
 });
 
 // ── Rate Limiting ──
@@ -431,4 +449,35 @@ test('audit log entries cannot be deleted via API', function () {
 
     test()->deleteJson('http://auditprot.ethr.test/api/v1/audit-log/1')
         ->assertStatus(404);
+});
+
+// ── API Documentation Exposure ──
+
+// GET /api/docs renders every operation with its request and response schemas —
+// a complete map of the product. config/scramble.php shipped with
+// `'middleware' => ['web']`, which authenticates nobody, while the comment above
+// it claimed docs were restricted in production. These pin the behaviour to the
+// intent. Note APP_ENV is `testing` here, so RestrictedDocsAccess's local-env
+// bypass does not apply and the gate is genuinely exercised.
+
+test('api docs are not readable anonymously', function () {
+    test()->get('http://localhost/api/docs')->assertForbidden();
+});
+
+test('api docs are not readable by a tenant admin', function () {
+    $tenant = createTenant(['subdomain' => 'docsdeny']);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    test()->get('http://docsdeny.ethr.test/api/docs')->assertForbidden();
+});
+
+// Slow (~30s) by nature rather than by fault: passing the gate means Scramble
+// actually builds the document for all 310 operations. Kept end-to-end anyway —
+// asserting the gate alone would still pass if the middleware chain were later
+// reordered such that super admins were blocked by something else.
+test('api docs are readable by a super admin', function () {
+    $tenant = createTenant(['subdomain' => 'docsallow']);
+    actingAsUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+
+    test()->get('http://docsallow.ethr.test/api/docs')->assertOk();
 });

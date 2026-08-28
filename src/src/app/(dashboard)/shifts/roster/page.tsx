@@ -23,12 +23,12 @@ import Link from "next/link";
 
 // Shift colour palette — deterministic by shift name hash
 const SHIFT_COLOURS = [
-  "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300",
-  "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
-  "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-950 dark:text-violet-300",
-  "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
-  "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
-  "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300",
+  "bg-info-soft text-info-on-soft border-status-info/20",
+  "bg-success-soft text-success-on-soft border-status-success/20",
+  "bg-primary-soft text-primary-on-soft border-primary-edge",
+  "bg-warning-soft text-warning-on-soft border-status-warning/20",
+  "bg-destructive-soft text-destructive-on-soft border-status-error/20",
+  "bg-brand-accent/10 text-brand-accent border-brand-accent/20",
 ];
 
 function shiftColour(name: string): string {
@@ -129,7 +129,10 @@ export default function RosterPage() {
     queryFn: async () => (await apiClient.get("/shifts?per_page=100")).data,
   });
 
-  const assignments: ShiftAssignment[] = scheduleData?.data ?? [];
+  const assignments: ShiftAssignment[] = useMemo(
+    () => scheduleData?.data ?? [],
+    [scheduleData],
+  );
   const allShifts: Shift[] = shiftsData?.data ?? [];
   const defaultShift = allShifts.find((s) => s.is_default && s.is_active);
 
@@ -232,7 +235,13 @@ export default function RosterPage() {
         className={cn(
           "min-h-[80px] rounded-lg border p-2",
           isToday ? "border-primary bg-primary/5" : "border-border",
-          isPast && "opacity-50",
+          // Past days were dimmed with `opacity-50`, which multiplies down
+          // *everything* inside — including the date number and shift names,
+          // which measured 2.68:1 in dark and 3.31:1 in light. Opacity is not a
+          // safe way to de-emphasise text that still carries information.
+          // A recessed background reads as "past" just as clearly and leaves
+          // every foreground colour at its designed contrast.
+          isPast && "bg-muted/40",
         )}
       >
         <p
@@ -303,6 +312,7 @@ export default function RosterPage() {
               variant="outline"
               size="icon"
               onClick={view === "month" ? prevMonth : prevWeek}
+              aria-label={t("common.previous", "Previous")}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -315,6 +325,7 @@ export default function RosterPage() {
               variant="outline"
               size="icon"
               onClick={view === "month" ? nextMonth : nextWeek}
+              aria-label={t("common.next", "Next")}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -337,7 +348,10 @@ export default function RosterPage() {
             value={view}
             onValueChange={(v) => setView(v as "month" | "week")}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger
+              className="w-32"
+              aria-label={t("shifts.roster_view", "View")}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -371,7 +385,11 @@ export default function RosterPage() {
                   )}
                 >
                   {s.name}
-                  <span className="opacity-70">
+                  {/* `opacity-70` here put the shift times at 3.91:1 against
+                      the chip's tinted background. The times are the most
+                      useful thing in the chip — they stay at full opacity and
+                      are set apart by weight instead. */}
+                  <span className="font-normal tabular-nums">
                     {s.start_time}–{s.end_time}
                   </span>
                   {s.is_default && (

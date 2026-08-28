@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useLoans, useCreateLoan, type Loan } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
@@ -67,55 +68,39 @@ export default function LoansPage() {
         ) : (
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("attendance.employee")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("payroll_page.loans_page.amount")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">
-                        {t("payroll_page.loans_page.remaining")}
-                      </th>
-                      <th className="hidden px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">
-                        {t("payroll_page.loans_page.monthly")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("common.status")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loans.map((loan) => (
-                      <tr
-                        key={loan.public_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {loan.employee?.name ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm">
-                          <CurrencyDisplay cents={loan.amount_cents} />
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm sm:table-cell">
-                          <CurrencyDisplay cents={loan.remaining_cents} />
-                        </td>
-                        <td className="hidden px-4 py-3 text-right text-sm md:table-cell">
-                          <CurrencyDisplay
-                            cents={loan.monthly_deduction_cents}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={loan.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <SimpleTable
+                caption={t("payroll_page.loans_page.title", "Loans")}
+                headers={[
+                  t("attendance.employee"),
+                  t("payroll_page.loans_page.amount"),
+                  t("payroll_page.loans_page.remaining"),
+                  t("payroll_page.loans_page.monthly"),
+                  t("common.status"),
+                ]}
+                align={["left", "right", "right", "right", "left"]}
+                colClassName={[
+                  "",
+                  "",
+                  "hidden sm:table-cell",
+                  "hidden md:table-cell",
+                  "",
+                ]}
+                rows={loans.map((loan) => ({
+                  key: loan.public_id,
+                  cells: [
+                    <span key="e" className="font-medium">
+                      {loan.employee?.name ?? "—"}
+                    </span>,
+                    <CurrencyDisplay key="a" cents={loan.amount_cents} />,
+                    <CurrencyDisplay key="r" cents={loan.remaining_cents} />,
+                    <CurrencyDisplay
+                      key="m"
+                      cents={loan.monthly_deduction_cents}
+                    />,
+                    <StatusBadge key="s" status={loan.status} />,
+                  ],
+                }))}
+              />
             </CardContent>
           </Card>
         )}

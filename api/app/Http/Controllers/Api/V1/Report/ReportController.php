@@ -60,19 +60,7 @@ class ReportController extends Controller
     /** @param array<int, array<string, mixed>> $rows */
     private function exportCsv(array $rows, string $filename): Response
     {
-        $lines = [];
-
-        if ($rows !== []) {
-            $lines[] = implode(',', array_keys($rows[0]));
-            foreach ($rows as $row) {
-                $lines[] = implode(',', array_map(
-                    fn ($value) => '"'.str_replace('"', '""', (string) $value).'"',
-                    $row
-                ));
-            }
-        }
-
-        return response(implode("\r\n", $lines), 200, [
+        return response($this->engine->toCsv($rows), 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
         ]);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
@@ -46,6 +47,46 @@ test('employee cannot list devices', function () {
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices")
         ->assertForbidden();
+});
+
+test('a mock device registers with a minimal non-schema connection_config', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    // Regression: keys with no explicit FormRequest rule used to be stripped by
+    // validated(), storing NULL into the non-null connection_config column → 500.
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices", [
+        'name' => 'Simulator',
+        'adapter_type' => 'mock',
+        'branch_public_id' => $branch->public_id,
+        'connection_config' => ['mode' => 'simulator'],
+    ])->assertStatus(201)->assertJsonPath('adapter_type', 'mock');
+
+    $device = Device::where('tenant_id', $tenant->id)->where('name', 'Simulator')->first();
+    expect($device->connection_config)->toBe(['mode' => 'simulator']);
+});
+
+test('a generic device preserves adapter-specific config keys', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices", [
+        'name' => 'Anviz Gate',
+        'adapter_type' => 'generic',
+        'branch_public_id' => $branch->public_id,
+        'connection_config' => [
+            'base_url' => 'https://anviz.local:8080',
+            'mapping' => ['user_id' => 'id', 'name' => 'full_name'],
+            'auth' => ['type' => 'bearer', 'token' => 'secret'],
+        ],
+    ])->assertStatus(201);
+
+    $device = Device::where('tenant_id', $tenant->id)->where('name', 'Anviz Gate')->first();
+    // The mapping/auth keys (no explicit rule) survive rather than being stripped.
+    expect($device->connection_config['mapping']['user_id'])->toBe('id');
+    expect($device->connection_config['auth']['type'])->toBe('bearer');
 });
 
 test('tenant admin can register a device', function () {
@@ -270,20 +311,22 @@ test('hikvision webhook processes event for known employee', function () {
         'tenant_id' => $tenant->id,
         'branch_id' => $branch->id,
         'serial_number' => 'HIK-SN-001',
+        'webhook_token' => 'hik-secret-token',
     ]);
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'badge_number' => 'BADGE001',
     ]);
 
-    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision", [
-        'AccessControllerEvent' => [
-            'deviceSerialNo' => 'HIK-SN-001',
-            'employeeNoString' => 'BADGE001',
-            'time' => now()->toIso8601String(),
-            'eventType' => 1,
-        ],
-    ]);
+    $response = test()->withHeader('X-Webhook-Token', 'hik-secret-token')
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision", [
+            'AccessControllerEvent' => [
+                'deviceSerialNo' => 'HIK-SN-001',
+                'employeeNoString' => 'BADGE001',
+                'time' => now()->toIso8601String(),
+                'eventType' => 1,
+            ],
+        ]);
 
     $response->assertOk()
         ->assertJsonPath('status', 'processed');
@@ -310,6 +353,105 @@ test('hikvision webhook rejects unknown device', function () {
         ->assertJsonPath('status', 'unauthorized');
 });
 
+// ── F-1: webhook authentication hardening ──
+
+test('hikvision webhook rejects a serial-only call when the device has a token', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->hikvision()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'serial_number' => 'HIK-SN-TOKEN',
+        'webhook_token' => 'the-real-token',
+    ]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'badge_number' => 'BADGE-F1']);
+
+    // No token supplied — a device that has one must not be reachable by serial.
+    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/hikvision", [
+        'AccessControllerEvent' => [
+            'deviceSerialNo' => 'HIK-SN-TOKEN',
+            'employeeNoString' => 'BADGE-F1',
+            'time' => now()->toIso8601String(),
+        ],
+    ]);
+
+    $response->assertStatus(401)->assertJsonPath('status', 'unauthorized');
+    $this->assertDatabaseMissing('attendance_records', ['source' => 'biometric']);
+});
+
+test('zkteco webhook allows a token-less device only from an allowlisted IP', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->zkteco()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'serial_number' => 'ZK-LEGACY',
+        'webhook_token' => null,
+        'webhook_ip_allowlist' => ['203.0.113.5'],
+    ]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-LEGACY']);
+
+    $payload = [
+        'sn' => 'ZK-LEGACY',
+        'records' => [['pin' => 'EMP-LEGACY', 'timestamp' => now()->toIso8601String(), 'punch' => 0]],
+    ];
+
+    // From an allowlisted source IP → accepted.
+    test()->withServerVariables(['REMOTE_ADDR' => '203.0.113.5'])
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/zkteco", $payload)
+        ->assertOk()
+        ->assertJsonPath('status', 'processed');
+
+    $this->assertDatabaseHas('attendance_records', [
+        'employee_id' => $employee->id,
+        'source' => 'biometric',
+    ]);
+});
+
+test('zkteco webhook rejects a token-less device from a non-allowlisted IP', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->zkteco()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'serial_number' => 'ZK-LEGACY-2',
+        'webhook_token' => null,
+        'webhook_ip_allowlist' => ['203.0.113.5'],
+    ]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-LEGACY-2']);
+
+    test()->withServerVariables(['REMOTE_ADDR' => '198.51.100.9'])
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/zkteco", [
+            'sn' => 'ZK-LEGACY-2',
+            'records' => [['pin' => 'EMP-LEGACY-2', 'timestamp' => now()->toIso8601String(), 'punch' => 0]],
+        ])
+        ->assertStatus(401)
+        ->assertJsonPath('status', 'unauthorized');
+
+    $this->assertDatabaseMissing('attendance_records', ['source' => 'biometric']);
+});
+
+test('zkteco webhook rejects a token-less device with no allowlist configured', function () {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->zkteco()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'serial_number' => 'ZK-ORPHAN',
+        'webhook_token' => null,
+        'webhook_ip_allowlist' => null,
+    ]);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-ORPHAN']);
+
+    // Fail-closed: no token, no allowlist → unreachable.
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/zkteco", [
+        'sn' => 'ZK-ORPHAN',
+        'records' => [['pin' => 'EMP-ORPHAN', 'timestamp' => now()->toIso8601String(), 'punch' => 0]],
+    ])->assertStatus(401);
+
+    $this->assertDatabaseMissing('attendance_records', ['source' => 'biometric']);
+});
+
 test('zkteco webhook processes event for known employee', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -319,22 +461,24 @@ test('zkteco webhook processes event for known employee', function () {
         'tenant_id' => $tenant->id,
         'branch_id' => $branch->id,
         'serial_number' => 'ZK-SN-001',
+        'webhook_token' => 'zk-secret-token',
     ]);
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_code' => 'EMP-ZK001',
     ]);
 
-    $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/zkteco", [
-        'sn' => 'ZK-SN-001',
-        'records' => [
-            [
-                'pin' => 'EMP-ZK001',
-                'timestamp' => now()->toIso8601String(),
-                'punch' => 0,
+    $response = test()->withHeader('X-Webhook-Token', 'zk-secret-token')
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/zkteco", [
+            'sn' => 'ZK-SN-001',
+            'records' => [
+                [
+                    'pin' => 'EMP-ZK001',
+                    'timestamp' => now()->toIso8601String(),
+                    'punch' => 0,
+                ],
             ],
-        ],
-    ]);
+        ]);
 
     $response->assertOk()
         ->assertJsonPath('status', 'processed')
@@ -383,6 +527,76 @@ test('devices are isolated per tenant', function () {
 
     $response->assertOk()
         ->assertJsonCount(2, 'data');
+});
+
+// ── Device Events ──
+
+test('device events endpoint returns employee name and code', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Abebe Kebede',
+        'employee_code' => 'EMP-0007',
+    ]);
+
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'device_id' => $device->id,
+    ]);
+
+    // Regression: this endpoint eager-loaded non-existent `first_name`/`last_name`
+    // columns on employees and returned 500 for every device-events request.
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/events");
+
+    $response->assertOk();
+    expect($response->json('data.0.employee_name'))->toBe('Abebe Kebede');
+    expect($response->json('data.0.employee_code'))->toBe('EMP-0007');
+});
+
+test('employee cannot view device events', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/events")
+        ->assertForbidden();
+});
+
+test('device status probe fails fast and gracefully for an unreachable device', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+
+    // TEST-NET-1 (RFC 5737) — guaranteed unreachable. The adapter's connectTimeout must
+    // bound the live probe so an offline device cannot block a worker for ~20s.
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '192.0.2.1', 'port' => 80, 'username' => 'admin', 'password' => 'x'],
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/status")
+        ->assertOk()
+        ->assertJsonPath('status', 'offline');
+
+    // Time the adapter probe itself rather than the whole HTTP request: routing,
+    // migrations and DB work are subject to scheduler contention under a parallel
+    // run, which is unrelated to the connect-timeout budget being asserted here.
+    $start = microtime(true);
+    app(DeviceManager::class)->adapter($device)->getStatus($device);
+    $elapsed = microtime(true) - $start;
+
+    expect($elapsed)->toBeLessThan(12.0);
 });
 
 // ── Authentication ──
