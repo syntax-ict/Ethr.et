@@ -480,95 +480,70 @@ sudo certbot certonly --webroot -w /opt/ethr/infrastructure/certbot-webroot -d e
 
 ## Operational Scripts
 
+The scripts under `scripts/` are the authority — read them directly. This
+section used to inline full copies, which drifted until they described behaviour
+the real scripts never had (a `mc mirror` MinIO backup that was actually a volume
+tar, `mysqldump -u root` where the script uses the container's own account, and
+file names `restore.sh` cannot parse). What follows is a map, not a duplicate.
+
+Every script honours `COMPOSE_FILE` (default `docker-compose.prod.yml`; set
+`docker-compose.lowmem.yml` on the 4 GB tier) and `BACKUP_PATH`.
+
 ### Deploy (`scripts/deploy.sh`)
 
 ```bash
-#!/bin/bash
-set -e
-
-cd /opt/ethr
-echo "$(date): Starting deployment..."
-
-# Pull latest code
-git pull origin main
-
-# Build and restart services
-docker compose -f docker-compose.prod.yml build --no-cache api frontend
-docker compose -f docker-compose.prod.yml up -d
-
-# Run migrations
-docker compose -f docker-compose.prod.yml exec api php artisan migrate --force
-
-# Clear and rebuild caches
-docker compose -f docker-compose.prod.yml exec api php artisan config:cache
-docker compose -f docker-compose.prod.yml exec api php artisan route:cache
-docker compose -f docker-compose.prod.yml exec api php artisan view:cache
-docker compose -f docker-compose.prod.yml exec api php artisan event:cache
-
-# Restart queue workers (pick up new code)
-docker compose -f docker-compose.prod.yml exec api php artisan horizon:terminate
-
-# Health check
-sleep 10
-curl -sf https://ethr.et/api/v1/health || { echo "HEALTH CHECK FAILED"; exit 1; }
-
-echo "$(date): Deployment complete."
+cd /opt/ethr && ./scripts/deploy.sh
 ```
+
+Pulls, rebuilds `api`+`frontend`, `up -d`, migrates `--force`, rebuilds the
+config/route/view/event caches, `horizon:terminate` so workers reload code, then
+health-checks. Reads `HEALTH_URL` (default `https://localhost/api/v1/health`,
+hit with `-k`) with 10 retries. Auto-rollback is opt-in — `ROLLBACK_ON_FAIL=true`
+invokes `rollback.sh` on a failed health check; leave it off until the check is
+trusted, since a false negative reverts a good release. `DEPLOY_NOTIFY_EMAIL`
+mails on failure if `mail` is present.
 
 ### Backup (`scripts/backup.sh`)
 
 ```bash
-#!/bin/bash
-set -e
-
-BACKUP_DIR="/opt/backups/ethr"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mkdir -p $BACKUP_DIR
-
-# Database backup
-docker compose -f /opt/ethr/docker-compose.prod.yml exec -T mariadb \
-  mysqldump -u root -p"$DB_ROOT_PASSWORD" ethr | gzip > "$BACKUP_DIR/db_$TIMESTAMP.sql.gz"
-
-# MinIO backup (sync to local)
-docker compose -f /opt/ethr/docker-compose.prod.yml exec -T minio \
-  mc mirror /data "$BACKUP_DIR/minio_$TIMESTAMP/" --quiet
-
-# Keep last 30 days of backups
-find $BACKUP_DIR -name "db_*.sql.gz" -mtime +30 -delete
-find $BACKUP_DIR -name "minio_*" -type d -mtime +30 -exec rm -rf {} +
-
-echo "$(date): Backup complete: $BACKUP_DIR"
+./scripts/backup.sh          # writes to $BACKUP_PATH, default /var/backups/ethr
 ```
+
+Runs `umask 077` (every artefact holds secrets), then writes three files per run:
+
+- `ethr_backup_<ts>_db.sql.gz` — `mysqldump --single-transaction --routines
+  --triggers`, run as the container's `$MARIADB_USER` so the host never handles
+  DB credentials
+- `ethr_backup_<ts>_files.tar.gz` — the MinIO data volume via
+  `--volumes-from ethr-minio` (no `mc`, no keys, project-name independent)
+- `ethr_backup_<ts>.env` — a `chmod 600` copy of `api/.env.production`
+
+Verifies the dump with `gunzip -t`, prunes past `BACKUP_RETENTION_DAYS`
+(default 30). `BACKUP_NOTIFY_EMAIL` mails on failure.
 
 ### Restore (`scripts/restore.sh`)
 
 ```bash
-#!/bin/bash
-set -e
-
-BACKUP_FILE=$1
-if [ -z "$BACKUP_FILE" ]; then
-  echo "Usage: ./restore.sh /path/to/db_TIMESTAMP.sql.gz"
-  exit 1
-fi
-
-echo "WARNING: This will overwrite the current database. Continue? (yes/no)"
-read CONFIRM
-[ "$CONFIRM" != "yes" ] && exit 1
-
-# Stop workers
-docker compose -f /opt/ethr/docker-compose.prod.yml exec api php artisan horizon:terminate
-
-# Restore database
-gunzip -c "$BACKUP_FILE" | docker compose -f /opt/ethr/docker-compose.prod.yml exec -T mariadb \
-  mysql -u root -p"$DB_ROOT_PASSWORD" ethr
-
-# Restart services
-docker compose -f /opt/ethr/docker-compose.prod.yml restart api scheduler \
-  worker-realtime worker-notifications worker-heavy
-
-echo "$(date): Restore complete."
+./scripts/restore.sh                                 # lists available backups
+./scripts/restore.sh ethr_backup_20260828_120000     # restore by NAME, not path
 ```
+
+Takes the backup **name** (no `_db.sql.gz` suffix), not a file path. Verifies
+integrity, stops the workers and scheduler, restores the database, then the
+MinIO volume and `api/.env.production` if their artefacts are present, rebuilds
+caches, and restarts services. Reads from the same `$BACKUP_PATH` as backup — if
+you customise it for one, set it for both.
+
+### Rollback (`scripts/rollback.sh`)
+
+```bash
+./scripts/rollback.sh 1       # arg = migration steps to undo (default 1)
+```
+
+The argument is the number of `migrate:rollback --step` migrations to undo
+(default 1); the script then reverts the code to the previous commit and
+re-runs a health check. Invoked automatically by `deploy.sh` when
+`ROLLBACK_ON_FAIL=true`.
 
 ---
 
