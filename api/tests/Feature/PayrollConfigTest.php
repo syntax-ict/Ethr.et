@@ -44,6 +44,21 @@ function platformBracket(int $min, int $max, float $rate): void
     ]);
 }
 
+/**
+ * Drop the real platform ladder.
+ *
+ * The migration applying Proclamation 1395/2025 seeds six platform-wide bands,
+ * and RefreshDatabase runs it for every test. The two tests below assert exact
+ * row counts to prove tenant-vs-platform *scoping* — counting the statutory
+ * bands alongside the fixture would make those assertions say nothing about
+ * scoping and everything about how many bands the current schedule happens to
+ * have.
+ */
+function clearPlatformBrackets(): void
+{
+    DB::table('tax_brackets')->whereNull('tenant_id')->delete();
+}
+
 /** A valid, contiguous two-band ladder used by the tax bracket tests. */
 function ladder(): array
 {
@@ -233,6 +248,7 @@ test('tax brackets fall back to the platform ladder when the tenant has none', f
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
 
+    clearPlatformBrackets();
     platformBracket(0, 0, 5);
 
     test()->getJson(configUrl($tenant->subdomain, 'tax-brackets'))
@@ -334,6 +350,8 @@ test('only the final tax bracket may be open-ended', function () {
 });
 
 test('a tenant tax ladder does not leak to another tenant', function () {
+    clearPlatformBrackets();
+
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 

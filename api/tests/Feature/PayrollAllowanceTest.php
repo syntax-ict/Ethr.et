@@ -43,9 +43,11 @@ test('a fixed taxable allowance is added to gross and taxed', function () {
     $entry = runAllowancePayroll($tenant->id, $user->id);
 
     expect($entry->gross_cents)->toBe(600000);              // 500,000 + 100,000
-    expect($entry->income_tax_cents)->toBe(93500);          // tax on 600,000 (bracket 5)
+    // Tax on the full 600,000: band 3 of Proclamation 1395/2025
+    // (4,001-7,000 ETB @ 20%), 120,000 - 50,000 = 70,000.
+    expect($entry->income_tax_cents)->toBe(70000);
     expect($entry->employee_pension_cents)->toBe(35000);    // 7% of basic 500,000
-    expect($entry->net_cents)->toBe(471500);                // 600,000 - 93,500 - 35,000
+    expect($entry->net_cents)->toBe(495000);                // 600,000 - 70,000 - 35,000
 
     expect($entry->allowances)->toHaveCount(1);
     expect($entry->allowances[0]['name'])->toBe('Transport Allowance');
@@ -93,8 +95,10 @@ test('a non-taxable allowance raises gross but not taxable income', function () 
 
     // Gross includes the allowance, but tax is computed on 500,000 (basic only).
     expect($entry->gross_cents)->toBe(600000);
-    expect($entry->income_tax_cents)->toBe(69750);   // tax on 500,000 (bracket 4), not 600,000
-    expect($entry->net_cents)->toBe(495250);         // 600,000 - 69,750 - 35,000
+    // Tax on 500,000, not 600,000: band 3 of Proclamation 1395/2025
+    // (4,001-7,000 ETB @ 20%), 100,000 - 50,000 = 50,000.
+    expect($entry->income_tax_cents)->toBe(50000);
+    expect($entry->net_cents)->toBe(515000);         // 600,000 - 50,000 - 35,000
 
     $taxStep = collect($entry->calculation_log['steps'])->firstWhere('step', 'income_tax');
     expect($taxStep['taxable_amount_cents'])->toBe(500000);

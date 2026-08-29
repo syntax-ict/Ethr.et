@@ -25,9 +25,18 @@ class HealthController extends Controller
 
         $services['database_read'] = $this->checkReadReplica();
 
+        // The configured cache store, not `redis` by name.
+        //
+        // Hardcoding the store meant this probe answered a question nobody
+        // asked: "is Redis reachable?" rather than "is the cache this
+        // application actually uses working?". On any deployment that sets
+        // CACHE_STORE to something else — `database` on shared hosting, where
+        // there is no Redis at all — it reported the cache permanently
+        // `unavailable` while the real cache was fine, so the one endpoint an
+        // uptime monitor watches would have cried wolf forever.
         try {
-            cache()->store('redis')->put('health_check', true, 5);
-            $services['cache'] = cache()->store('redis')->get('health_check') ? 'healthy' : 'unhealthy';
+            cache()->store()->put('health_check', true, 5);
+            $services['cache'] = cache()->store()->get('health_check') ? 'healthy' : 'unhealthy';
         } catch (\Throwable) {
             $services['cache'] = 'unavailable';
         }
@@ -39,8 +48,10 @@ class HealthController extends Controller
             $services['queue'] = 'unavailable';
         }
 
+        // Same reasoning as the cache probe: check the disk the application
+        // stores files on, which is what FileStorageService now resolves too.
         try {
-            Storage::disk('minio')->exists('.health');
+            Storage::disk()->exists('.health');
             $services['storage'] = 'healthy';
         } catch (\Throwable) {
             $services['storage'] = 'unavailable';
@@ -60,7 +71,14 @@ class HealthController extends Controller
 
     private function checkReadReplica(): string
     {
-        if (! config('database.connections.mariadb.read')) {
+        // The connection in use, not `mariadb` by name. Same defect class as the
+        // cache and storage probes above: on a deployment running the `mysql`
+        // connection this inspected a connection the app never opens, so a
+        // configured replica reported `not_configured` and an absent one
+        // reported the same — the probe could not distinguish them.
+        $connection = DB::connection()->getName();
+
+        if (! config("database.connections.{$connection}.read")) {
             return 'not_configured';
         }
 

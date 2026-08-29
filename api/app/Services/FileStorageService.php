@@ -43,7 +43,25 @@ class FileStorageService
 
     public function __construct(private readonly CurrentTenant $currentTenant)
     {
-        $this->disk = 'minio';
+        // The configured disk, not a hardcoded one.
+        //
+        // This read `'minio'` literally, so FILESYSTEM_DISK was inert for every
+        // upload, download, thumbnail and delete in the application — the whole
+        // of file storage was pinned to a MinIO server whether or not one
+        // existed. It looked harmless because production does set
+        // FILESYSTEM_DISK=minio, so the literal and the config agreed.
+        //
+        // They stop agreeing the moment the deployment target has no MinIO to
+        // run (shared hosting), and then nothing about pointing the app at
+        // local storage or an external S3-compatible endpoint would have taken
+        // effect. config/filesystems.php already defines `local`, `public`,
+        // `s3` and `minio`; this is what lets the deployment choose.
+        //
+        // `temporaryUrl()` — see below — works on `local` too: config's local
+        // disk sets `serve => true`, which registers Laravel's signed
+        // /storage/{path} route. So swapping the disk does not silently break
+        // signed downloads.
+        $this->disk = (string) config('filesystems.default');
     }
 
     public function upload(UploadedFile $file, string $directory): array

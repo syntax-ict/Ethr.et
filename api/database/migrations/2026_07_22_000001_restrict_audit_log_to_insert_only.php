@@ -46,12 +46,43 @@ return new class extends Migration
         $driver = $connection->getDriverName();
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $statements = [];
+
             foreach (self::GUARDS as $name => $operation) {
-                DB::unprepared("DROP TRIGGER IF EXISTS `{$name}`");
-                DB::unprepared(
+                $statements[$name] =
                     "CREATE TRIGGER `{$name}` BEFORE {$operation} ON `audit_log` FOR EACH ROW ".
-                    "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '".self::MESSAGE."'"
-                );
+                    "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '".self::MESSAGE."'";
+            }
+
+            // FATAL on failure — deliberately, and this is a security decision
+            // rather than an oversight. See docs/AUDIT_LOG_INTEGRITY_DECISION.md.
+            //
+            // An earlier revision of this file downgraded the failure to
+            // "log and continue", so a host that denies CREATE TRIGGER could
+            // still deploy. That was wrong: `AuditLog`'s update()/delete()
+            // overrides are plain instance methods, so every mass-operation path
+            // — DB::table('audit_log')->update(), AuditLog::where(...)->delete(),
+            // raw SQL — bypasses them. The trigger is the only thing that stops
+            // an audit record being edited, and tests/Feature/AuditLogImmutabilityTest
+            // asserts exactly that by driving the raw query builder.
+            //
+            // Continuing past this point would therefore put production in a
+            // state the test suite contradicts, while CI stayed green because CI
+            // runs SQLite, where the trigger IS created. A deployment that cannot
+            // guarantee an immutable audit log must stop and say so.
+            //
+            // The catch below does not swallow the failure — it adds the
+            // diagnosis and rethrows, because a bare SQLSTATE 42000 tells the
+            // operator nothing about which privilege is missing or how to fix it.
+            foreach ($statements as $name => $statement) {
+                try {
+                    DB::unprepared("DROP TRIGGER IF EXISTS `{$name}`");
+                    DB::unprepared($statement);
+                } catch (Throwable $e) {
+                    $this->reportUnenforceable($statements, $e);
+
+                    throw $e;
+                }
             }
 
             return;
@@ -92,6 +123,43 @@ return new class extends Migration
         }
     }
 
+    /**
+     * Explain a trigger-creation failure before it is rethrown.
+     *
+     * The migration still aborts — this only replaces an opaque SQLSTATE with
+     * the actual cause and the SQL a DBA needs. Called immediately before
+     * `throw`, never instead of it.
+     *
+     * @param  array<string, string>  $statements
+     */
+    private function reportUnenforceable(array $statements, Throwable $e): void
+    {
+        // Each CREATE is paired with its DROP so the block is safe to paste
+        // whatever partial state the failed run left behind. Privilege is
+        // normally all-or-nothing, so the usual case is that none were created —
+        // but if the first succeeded and the second was refused, an unguarded
+        // CREATE would fail on "trigger already exists" and read to the DBA like
+        // a second, unrelated problem.
+        $sql = '';
+
+        foreach ($statements as $name => $statement) {
+            $sql .= "DROP TRIGGER IF EXISTS `{$name}`;\n    {$statement};\n    ";
+        }
+
+        $sql = rtrim($sql);
+
+        $message = 'audit_log append-only triggers could NOT be created — the database user lacks '
+            .'the TRIGGER privilege (or SUPER, required when binary logging is enabled). '
+            ."The migration is being ABORTED: ETHR will not deploy without a database-enforced immutable audit log. \n"
+            ."Have a DBA run:\n    ".$sql;
+
+        Log::warning($message, ['error' => $e->getMessage()]);
+
+        if (PHP_SAPI === 'cli') {
+            fwrite(STDERR, "\n  WARNING: {$message}\n\n");
+        }
+    }
+
     public function down(): void
     {
         $connection = DB::connection();
@@ -99,9 +167,19 @@ return new class extends Migration
 
         if (in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
             foreach (array_keys(self::GUARDS) as $name) {
-                DB::unprepared($driver === 'sqlite'
-                    ? "DROP TRIGGER IF EXISTS {$name}"
-                    : "DROP TRIGGER IF EXISTS `{$name}`");
+                try {
+                    DB::unprepared($driver === 'sqlite'
+                        ? "DROP TRIGGER IF EXISTS {$name}"
+                        : "DROP TRIGGER IF EXISTS `{$name}`");
+                } catch (Throwable $e) {
+                    // `IF EXISTS` suppresses "no such trigger", not "no such
+                    // privilege". Where up() could not create the triggers, this
+                    // cannot drop them either — and a rollback that throws on a
+                    // trigger that was never created would strand the migration
+                    // in a state neither `migrate` nor `migrate:rollback` can
+                    // leave, which is worse than the thing it is guarding.
+                    Log::warning("Could not drop trigger {$name}", ['error' => $e->getMessage()]);
+                }
             }
 
             return;

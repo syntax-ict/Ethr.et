@@ -17,7 +17,11 @@ class HealthCheckCommand extends Command
     {
         try {
             DB::connection()->getPdo();
-            cache()->store('redis')->put('health_check', true, 5);
+            // The configured store, not `redis` by name — see HealthController.
+            // As a hardcoded store this command failed on every deployment that
+            // does not run Redis, reporting the whole application unhealthy
+            // because one driver it does not use was absent.
+            cache()->store()->put('health_check', true, 5);
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

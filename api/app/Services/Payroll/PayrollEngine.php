@@ -312,7 +312,12 @@ final class PayrollEngine
 
         // Taxable income excludes non-taxable allowances (spec S23 step 8).
         $taxableAmount = $grossSalary - $nonTaxableAllowances;
-        $incomeTax = $this->taxCalculator->calculate($taxableAmount, $employee->tenant_id);
+        // The period start, not the run date. Payroll is re-runnable — `void()`
+        // reprocesses a past period — and since Proclamation 1395/2025 there are
+        // two tax ladders in force at different times. Resolving against "now"
+        // would retax a June-2025 period at July-2025 rates and silently produce
+        // a different payslip from the one the employee was actually paid on.
+        $incomeTax = $this->taxCalculator->calculate($taxableAmount, $employee->tenant_id, $periodStart);
 
         $log['steps'][] = [
             'step' => 'income_tax',
