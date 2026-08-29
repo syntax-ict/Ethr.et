@@ -1,0 +1,170 @@
+# Total Cost of Ownership — Architecture Comparison
+
+**Date:** 2026-08-29
+**Currency:** ETB. **All third-party figures require confirmation on the Ethio Telecom
+portal before any decision is made on them.**
+
+---
+
+## ⚠️ Two findings that may invalidate the premise of this migration
+
+### Finding 1 — the shared plan may cost *more* than the VPS
+
+Public sources disagree, and the disagreement is not a rounding error:
+
+| Source | Plan | Figure | Period stated |
+| --- | --- | --- | --- |
+| Ethio Telecom portal (search summary, 2026) | Linux Web Hosting tiers | ETB **452 – 1,009** | **not stated** |
+| whtop directory (data dated 2020) | Linux **Bronze** | ETB **650** | **per month** |
+| whtop directory (data dated 2020) | Linux **Silver** | ETB **2,000** | **per month** |
+| whtop directory (data dated 2020) | **VPS Gold** (4 GB / 50 GB, root) | ETB **10,379** | **per year** |
+| whtop directory (data dated 2020) | **VPS Platinum** (8 GB / 100 GB, root) | ETB **15,845** | **per year** |
+
+If the monthly reading is right, Linux Silver is **ETB 24,000/year** — **2.3× the cost of
+VPS Gold**, which is a full root server that runs ETHR's existing architecture unchanged.
+
+Under that reading the migration costs more money, loses functionality, and adds risk.
+The entire cost rationale disappears.
+
+I cannot resolve this from public data: both Ethio Telecom web properties fail TLS
+certificate verification when fetched, so their live price list could not be read
+first-hand, and the directory data is six years old.
+
+**→ Confirm current pricing and billing period for both the shared tiers and the VPS
+tiers before anything else. This single question may decide the whole migration.**
+
+### Finding 2 — the lower shared tiers cap subdomains numerically
+
+The same directory listing gives **Linux Bronze: 5 subdomains** and **Linux Silver: 10
+subdomains**. Only the top tier advertises "unlimited".
+
+A numeric cap is not merely tight for ETHR — it is **structurally incompatible** with the
+product. ETHR provisions tenants from self-service signup with no operator action, and
+each tenant is a subdomain. A 5- or 10-tenant ceiling is not a SaaS platform.
+
+And "unlimited" on the top tier still does not mean **wildcard** — see gate B1. Unlimited
+manually-created subdomains and one `*` vhost are different capabilities, and only the
+second one works here.
+
+---
+
+## Cost model
+
+### What is NOT known
+
+- **Current VPS cost.** Not recorded anywhere in this repository and not supplied. Every
+  comparison against "today" is therefore incomplete. **Please provide it.**
+- Current storage consumption and growth rate (drives the plan tier and any external
+  object-storage bill).
+- Whether existing SMTP is paid or bundled.
+
+### Option A — Remain on VPS (current)
+
+| Line | Cost | Note |
+| --- | --- | --- |
+| VPS | **UNKNOWN** | Runs all 13 services |
+| Object storage | 0 | MinIO, self-hosted |
+| Redis | 0 | Self-hosted |
+| Workers / WebSockets | 0 | Self-hosted |
+| Database | 0 | MariaDB + replica, self-hosted |
+| Backup | Storage cost only | `scripts/backup.sh` exists |
+| SMTP | External relay | Unchanged in every option |
+| **Operational complexity** | **Medium** | Docker Compose, deploy/rollback scripts exist and work |
+| **Functionality** | **100%** | |
+| **Security posture** | **Full** | Audit-log triggers enforced; verified working (`log_bin=0`) |
+
+### Option B — Ethio Telecom shared hosting
+
+| Line | Cost | Note |
+| --- | --- | --- |
+| Shared plan | **ETB 650–2,000/mo** *or* **452–1,009 one-off** — unresolved | Tier 3–4 needed for storage headroom, and only the top tier claims unlimited subdomains |
+| Object storage | 0, or external S3 | Local disk works (`temporaryUrl` is supported on `local` via `serve => true`) but consumes the plan quota |
+| Redis | 0 | Removed — drivers move to `database` |
+| Workers | 0 | Cron-driven `queue:work` |
+| WebSockets | 0 | Removed — degrades to the existing 30 s poll |
+| Database | Included, 1–10 DBs | ETHR needs **1** (single-DB tenancy, verified) |
+| Backup | **Manual/unknown** | Every existing backup script assumes Docker + SSH |
+| **Operational complexity** | **Low once running, high to get running** | All deploy tooling must be rebuilt |
+| **Functionality** | **~95%** | Loses Horizon dashboard, live push, sub-minute queue latency, read replica; under B2 also marketing SSR |
+| **Security posture** | **Possibly degraded** | Audit-log triggers unverified (H1); compensating control A1 measured as unavailable even on our own dev DB user (`1142 GRANT command denied`) |
+
+### Option C — Hybrid (shared web tier + ET VPS for infrastructure)
+
+| Line | Cost | Note |
+| --- | --- | --- |
+| Shared plan | as Option B | |
+| VPS Gold | **ETB 10,379/yr** (unconfirmed) | Carries Redis, Horizon, Reverb, MinIO, scheduler |
+| **Total** | **shared + VPS** | Strictly more than either alone |
+| **Operational complexity** | **High** | Two environments, two deploy paths, two backup regimes |
+| **Reliability** | **Worst** | Cross-provider network on the hot path; DB or Redis exposed across the internet |
+| **Functionality** | ~100% | |
+
+### Option D — Ethio Telecom VPS (not previously listed; worth stating)
+
+| Line | Cost | Note |
+| --- | --- | --- |
+| VPS Gold 4 GB / 50 GB, root | **ETB 10,379/yr** (unconfirmed) | |
+| VPS Platinum 8 GB / 100 GB, root | **ETB 15,845/yr** (unconfirmed) | |
+| Everything else | 0 | Self-hosted, exactly as today |
+| **Operational complexity** | **Medium** | Identical to today — `docker-compose.prod.yml` runs unchanged |
+| **Functionality** | **100%** | |
+| **Security posture** | **Full** | Root access; triggers work |
+
+**This option deserves serious consideration and was under-weighted in the original
+plan.** It satisfies any "host with Ethio Telecom" requirement, keeps 100% of
+functionality, requires **zero** application changes, has no unverified gates, and — on
+the monthly reading of the shared pricing — may be *cheaper* than the shared plan.
+
+The current architecture is already sized for it: `docker-compose.lowmem.yml` exists in
+the repository, so a 4 GB target has been considered before.
+
+---
+
+## Comparison
+
+| | **A — Current VPS** | **B — ET Shared** | **C — Hybrid** | **D — ET VPS** |
+| --- | --- | --- | --- | --- |
+| Infrastructure cost | UNKNOWN | Disputed (may exceed D) | Highest | ETB 10,379–15,845/yr* |
+| Application code changed | 0 | 3 files (+4 if static export) | 3 files | **0** |
+| Unverified gates | **0** | **5** | 5 | **0** |
+| Functionality | 100% | ~95% | ~100% | **100%** |
+| Realtime push | Native | Poll fallback | Native | Native |
+| Queue latency | Sub-second | 1–5 min | Sub-second | Sub-second |
+| Queue observability | Horizon | `failed_jobs` + logs | Horizon | Horizon |
+| Audit-log DB triggers | **Enforced** | **At risk (H1)** | Enforced | **Enforced** |
+| Wildcard tenant subdomains | Works | **At risk (B1)** | At risk | Works |
+| Scalability | Vertical, in your control | Plan-capped | Mixed | Vertical, in your control |
+| Reliability | Single VPS | Provider-managed | **Worst** — two providers on the hot path | Single VPS |
+| Backup / restore | **Scripts exist and are tested** | Must be rebuilt | Two regimes | **Scripts work unchanged** |
+| Operational complexity | Medium | Low-running / high-to-build | **High** | Medium |
+| Migration risk | **None** | High | High | **Low** |
+
+\* unconfirmed, 2020 directory data.
+
+---
+
+## Reading
+
+The brief's own rule is that the cheapest architecture is not automatically the best, and
+that material security or functionality degradation points back to the VPS. Applying it:
+
+1. **Option C (hybrid) should be rejected.** Once a VPS carries Redis, workers,
+   WebSockets and storage, the shared host contributes only PHP execution the same VPS
+   could do for free — while adding a second provider, a second deploy path, and a
+   cross-internet dependency on the hot path. It costs the most and is the least
+   reliable.
+
+2. **Option B's advantage is entirely financial, and that advantage is currently
+   unproven** — possibly inverted. It also carries five unverified gates, a possible
+   security downgrade, a possible structural blocker (subdomain caps), and requires
+   rebuilding all deployment and backup tooling.
+
+3. **Option D deserves a decision, not an assumption.** If the goal behind this migration
+   is "host with Ethio Telecom", Option D achieves it at zero functional cost, zero code
+   change and zero unverified gates. If the goal is purely "spend less", the pricing
+   question must be settled first — because on one reading of the public data, shared
+   hosting is the more expensive choice.
+
+**No cost-based recommendation can responsibly be made until the pricing question and
+the current VPS cost are both answered.** Those are two questions, and neither requires
+engineering work.
