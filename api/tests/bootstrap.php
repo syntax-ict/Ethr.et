@@ -33,6 +33,7 @@ $phpunitControlledKeys = [
     'DB_CONNECTION',
     'DB_DATABASE',
     'DB_URL',
+    'FILESYSTEM_DISK',
     'MAIL_MAILER',
     'QUEUE_CONNECTION',
     'SESSION_DRIVER',
