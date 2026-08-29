@@ -56,6 +56,38 @@ PHPStan level 6 was the outstanding gap flagged in the Phase A review; it is now
 closed. Backend suite green at **1652 passed / 4904 assertions**, collection check
 139/139 classes.
 
+### Ethiopian income tax — corrected 2026-08-29
+
+`TaxCalculator`, `TaxBracketSeeder` and any seeded database carried the
+**Proclamation No. 979/2016** ladder. That was superseded by **No. 1395/2025 on
+7 July 2025** — thirteen months earlier — so every payslip since had over-deducted
+employment income tax, worst at the bottom of the scale (a 2,000 ETB earner was charged
+157.50 ETB/month, ~8% of gross, on income that is now exempt).
+
+New schedule, monthly ETB: `0–2,000` 0% · `2,001–4,000` 15% · `4,001–7,000` 20% ·
+`7,001–10,000` 25% · `10,001–14,000` 30% · `>14,000` 35%. Pension unchanged at 7%/11%
+and still does not reduce taxable income.
+
+The quick-form deductions (300 / 500 / 850 / 1,350 / 2,050) were derived from the
+statutory cumulative form and cross-checked against an independent source; the method
+was validated by re-deriving 979/2016's published deductions.
+
+**A latent bug was fixed at the same time, because the amendment activates it.**
+`effectiveBrackets()` filtered on `now()` rather than the payroll period. Harmless while
+one ladder existed; with two, voiding and reprocessing a June-2025 period would retax it
+at July-2025 rates and produce a different payslip from the one actually paid.
+`calculate()` now takes an as-of date and `PayrollEngine` passes `$periodStart`. Old
+bands are closed with `effective_to`, never deleted.
+
+**Still outstanding, and both need a human:**
+
+1. **Independent confirmation before the first live payroll.** Sourced from law-firm and
+   payroll-provider summaries corroborating each other, not the Negarit Gazeta text.
+2. **Tenants with their own bracket overrides were deliberately not migrated** and remain
+   on 979/2016. The migration counts them and warns on STDERR. Update via
+   `PUT /api/v1/payroll/tax-brackets`. If payroll already ran on the old ladder,
+   over-deducted tax must be reconciled with the affected employees.
+
 **Green gates are not production readiness.** They prove no regression, not that the
 product is ready — see `docs/DEPLOYMENT.md`'s pre-deployment checklist for the gaps
 that no gate can catch (ERCA tax-bracket confirmation, live SMS handshake, real SMTP
