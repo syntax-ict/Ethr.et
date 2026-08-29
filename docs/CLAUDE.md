@@ -101,42 +101,40 @@ ETHR is developed entirely within the local workspace.
 
 The local filesystem is the ONLY source of truth.
 
-Ignore ALL Git-related functionality.
+**Superseded 2026-08-29 — Git IS in use on this project.**
 
-Never perform, recommend, mention, or wait for:
+This section previously read "Ignore ALL Git-related functionality" and listed
+every Git command as forbidden. That was never true of the repository and had
+become actively misleading:
 
-- git init
-- git clone
-- git status
-- git add
-- git commit
-- git push
-- git pull
-- git fetch
-- git merge
-- git rebase
-- git checkout
-- git switch
-- git branch
-- git stash
-- git tag
-- git reset
-- git revert
-- GitHub
-- GitLab
-- Bitbucket
-- Pull Requests
-- Merge Requests
-- Repository history
-- Repository comparisons
+- The project is a Git repository with a GitHub remote
+  (`syntax-ict/Ethr.et`), 40+ branches, and a full commit history.
+- **This same file** defines a Commit Convention (see below) with required
+  `type(scope):` prefixes — a rule that cannot be followed by anything that is
+  forbidden to commit.
+- The owner directed branch, commit and merge work explicitly on 2026-08-29.
 
-Assume version control is managed externally.
+Keeping a "NON-NEGOTIABLE" ban next to a commit-message standard meant every
+session had to pick one and guess. The ban is the half that was wrong, so it is
+the half that goes.
 
-Never ask the developer to commit, push, pull, merge, or create branches.
+**What survives from the original intent, because it was correct:**
 
-Never use Git as a checkpoint.
+- The local filesystem is the source of truth for *what the code does*. Never
+  infer completeness from commit messages, branch names or documentation — read
+  the code. (See the Enterprise Codebase Audit Protocol below.)
+- Git is not a substitute for verification. A green commit is not a passing
+  gate; run `bash scripts/gates.sh`.
+- Do not block on the developer to commit, push or merge. Continue from the
+  current working-tree state.
 
-Always continue directly from the current local project state.
+**Working rules now:**
+
+- Commit logically separated slices; follow the Commit Convention below.
+- Never commit directly to `main` — branch, then merge with `--no-ff` so a
+  change set has one revert point.
+- Push only when the owner asks. `origin` is a shared remote, and this
+  environment has no non-interactive credentials for it.
 
 # Task Decomposition Rules
 

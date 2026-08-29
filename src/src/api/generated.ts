@@ -6203,7 +6203,7 @@ export interface components {
             max_employees: number;
             max_branches: number;
             max_devices: number;
-            features: unknown[] | null;
+            features: string[] | null;
             is_active: boolean;
             sort_order: number;
             /** Format: date-time */
