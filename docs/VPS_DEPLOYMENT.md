@@ -143,7 +143,10 @@ each secret once and writes it to both files:
 ```bash
 cd /opt/ethr
 cp .env.production.example .env
-cp api/.env.production api/.env.production.bak   # keep the pristine template
+cp api/.env.production.example api/.env.production
+
+# Both targets are gitignored; the .example files are the committed templates
+# and stay pristine, so you can always diff against them or start over.
 
 # Generate once, reuse everywhere
 DB_ROOT_PASSWORD=$(openssl rand -hex 24)
@@ -154,7 +157,11 @@ MINIO_ACCESS_KEY=$(openssl rand -hex 12)
 MINIO_SECRET_KEY=$(openssl rand -hex 24)
 REVERB_APP_KEY=$(openssl rand -hex 16)
 REVERB_APP_SECRET=$(openssl rand -hex 16)
-SUPER_ADMIN_PASSWORD=$(openssl rand -base64 24)
+
+# No SUPER_ADMIN_PASSWORD here. `ethr:create-admin` in Step 6 does not read that
+# variable — it prompts — and generating one produces a password that unlocks
+# nothing. It is consulted only by DatabaseSeeder, the development seeder that
+# also creates a demo tenant and must never run against this host.
 
 # --- root .env (compose variable resolution + frontend build args) ---
 sed -i \
@@ -176,7 +183,6 @@ sed -i \
   -e "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$MINIO_SECRET_KEY|" \
   -e "s|^REVERB_APP_KEY=.*|REVERB_APP_KEY=$REVERB_APP_KEY|" \
   -e "s|^REVERB_APP_SECRET=.*|REVERB_APP_SECRET=$REVERB_APP_SECRET|" \
-  -e "s|^SUPER_ADMIN_PASSWORD=.*|SUPER_ADMIN_PASSWORD=$SUPER_ADMIN_PASSWORD|" \
   api/.env.production
 
 # The SAME Reverb key must also reach the browser bundle at BUILD time.
@@ -188,7 +194,14 @@ sed -i "s|^NEXT_PUBLIC_REVERB_APP_KEY=.*|NEXT_PUBLIC_REVERB_APP_KEY=$REVERB_APP_
 
 chmod 600 .env api/.env.production
 
-echo "SUPER ADMIN PASSWORD (store in your password manager NOW): $SUPER_ADMIN_PASSWORD"
+# Every sed anchor above must have matched something. `s|^VAR=.*|` that finds no
+# such line succeeds and changes nothing, so a renamed or missing variable leaves
+# a blank secret behind — and the stack boots fine and fails only at the first
+# authentication. Print anything still empty:
+for v in DB_ROOT_PASSWORD DB_PASSWORD DB_READ_PASSWORD REDIS_PASSWORD \
+         MINIO_ACCESS_KEY MINIO_SECRET_KEY REVERB_APP_KEY REVERB_APP_SECRET; do
+  grep -qE "^${v}=[^[:space:]]" api/.env.production || echo "STILL BLANK: $v"
+done
 ```
 
 Then generate the Laravel app key:
@@ -211,7 +224,7 @@ nano api/.env.production
 |---|---|
 | `APP_KEY` | from `key:generate --show` above |
 | `MAIL_HOST` / `MAIL_USERNAME` / `MAIL_PASSWORD` | real SMTP. Password reset is dead without it |
-| `SMS_API_KEY` | EthioTelecom. Set `SMS_DRIVER=log` until you have it |
+| `ETHIOTELECOM_SMS_ENDPOINT` / `_USERNAME` / `_PASSWORD` / `_SENDER_ID` | EthioTelecom, all four (`config/sms.php` — there is no `SMS_API_KEY`). Leave `SMS_DRIVER=log` until you have them |
 | `SENTRY_LARAVEL_DSN` | optional but strongly recommended — see Step 9 |
 
 Confirm these are already correct in the template (they should be):
@@ -223,7 +236,7 @@ APP_URL=https://ethr.et
 APP_DOMAIN=ethr.et
 SANCTUM_STATEFUL_DOMAINS=ethr.et,*.ethr.et
 CORS_ALLOWED_ORIGINS=https://ethr.et
-CORS_ALLOWED_ORIGINS_PATTERNS=https://*.ethr.et
+CORS_ALLOWED_ORIGINS_PATTERNS=#^https://[a-z0-9-]+\.ethr\.et$#
 SESSION_DOMAIN=                  # MUST stay empty — see below
 SESSION_SECURE_COOKIE=true
 ```
@@ -317,8 +330,9 @@ docker compose -f docker-compose.prod.yml exec api php artisan migrate --force
 # 6. System data (plans, permissions, tax brackets, templates)
 docker compose -f docker-compose.prod.yml exec api php artisan db:seed --class=ProductionSeeder --force
 
-# 7. Super admin. Refuses to run unless SUPER_ADMIN_PASSWORD is set —
-#    deliberately, so no platform account is ever created with a known password.
+# 7. Super admin. Prompts for email and a password of at least 12 characters,
+#    so no platform account ever exists with a password written in a file.
+#    ProductionSeeder above deliberately creates no accounts at all.
 docker compose -f docker-compose.prod.yml exec api php artisan ethr:create-admin
 
 # 8. Flush nginx's upstream DNS cache (it resolves api:9000 once, at startup)

@@ -72,7 +72,7 @@ Current status: **954 passing tests, 3,092 assertions.**
 |---------|----------|
 | Security headers on every response | `api/app/Http/Middleware/SecurityHeaders.php`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`, HSTS, CSP (`default-src 'none'` for the JSON API), `Referrer-Policy`, `Permissions-Policy` |
 | Headers asserted in tests | `SecurityHardeningTest`: "api responses include required security headers" |
-| `APP_DEBUG=false`, no default creds in prod | `.env.production` template ships `CHANGE_ME` placeholders; documented in `docs/deployment-guide.md` |
+| `APP_DEBUG=false`, no default creds in prod | `api/.env.production.example` ships every secret blank with a `REQUIRED` marker; documented in `docs/DEPLOYMENT.md` |
 | Frontend CSP / server hardening | `infrastructure/nginx.conf` (frontend CSP, directory listing off, version headers suppressed) |
 
 ---

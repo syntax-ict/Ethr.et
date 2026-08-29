@@ -91,13 +91,16 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 NEXT_PUBLIC_REVERB_APP_KEY=$REVERB_APP_KEY
 MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY
 MINIO_SECRET_KEY=$MINIO_SECRET_KEY
-API_REPLICAS=1
-WORKER_REPLICAS=1
-REVERB_REPLICAS=1
+# API_REPLICAS / WORKER_REPLICAS / REVERB_REPLICAS are not written here: nothing
+# reads them any more. docker-compose.prod.yml sets `replicas: 1` literally, and
+# the three workers are separate services rather than copies of one.
 EOF
 
-# The committed api/.env.production is a template with every secret blank, and it
-# is not ours to edit. Copy it and fill in the required values.
+# api/.env.production.example is the committed template, with every secret blank.
+# Copy it and fill in the required values. Deliberately NOT api/.env.production:
+# that file is gitignored, so on a fresh clone it does not exist (this script
+# read it for months on the strength of a comment claiming it was committed),
+# and on a real host it holds live secrets this script has no business reading.
 sed -e "s|^APP_KEY=.*|APP_KEY=$APP_KEY|" \
     -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|" \
     -e "s|^DB_ROOT_PASSWORD=.*|DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" \
@@ -107,7 +110,7 @@ sed -e "s|^APP_KEY=.*|APP_KEY=$APP_KEY|" \
     -e "s|^REVERB_APP_SECRET=.*|REVERB_APP_SECRET=$REVERB_APP_SECRET|" \
     -e "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY|" \
     -e "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$MINIO_SECRET_KEY|" \
-    api/.env.production > "$API_ENV"
+    api/.env.production.example > "$API_ENV"
 
 # Self-signed stand-in for the Let's Encrypt wildcard, so the nginx layer can be
 # exercised without a real certificate. Same SAN set the production cert needs

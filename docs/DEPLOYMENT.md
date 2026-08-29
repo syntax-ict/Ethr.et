@@ -10,7 +10,7 @@ external credential, not a deploy step.
 | Area | Status | Action required before go-live |
 |---|---|---|
 | **Income tax brackets** | Proclamation 979/2016, arithmetic spot-checked | **Confirm with ERCA that 979/2016 is still the operative schedule.** If a newer proclamation raised the exempt threshold, every payslip run against stale brackets over-deducts tax — worst for the lowest earners. Brackets are effective-dated and tenant-overridable once confirmed; this is a compliance check, not a code fix. |
-| **SMS delivery** (`SMS_DRIVER=ethiotelecom`) | Code complete, unit-tested (`Http::fake`) | The live gateway handshake has never run — this environment has no real EthioTelecom operator credentials. Get a real `SMS_API_KEY` and send one real OTP end-to-end before relying on it. |
+| **SMS delivery** (`SMS_DRIVER=ethiotelecom`) | Code complete, unit-tested (`Http::fake`) | The live gateway handshake has never run — this environment has no real EthioTelecom operator credentials. Fill in the four `ETHIOTELECOM_SMS_*` values (`config/sms.php`; there is no `SMS_API_KEY`) and send one real OTP end-to-end before relying on it. |
 | **Email delivery** | Code complete, verified locally against Mailpit | The `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD` values below are placeholders. Get real SMTP/Postmark/Mailgun/SES credentials and confirm one password-reset email actually lands before go-live. |
 | **Plan tier feature gating** | Partial | `PlanLimitService` enforces per-tenant employee/branch/device **count** caps only. It does not gate *features* by plan tier — a Starter tenant can still use payroll/reports/webhooks, since `Plan.features` has no enforcement code anywhere. Open if pricing depends on feature-gating by tier. |
 | **Google Workspace SSO** | Missing | No code exists. `SsoProviderInterface` is SAML-shaped; Google needs OAuth2/OIDC, a different contract. Don't advertise this as available. |
@@ -88,19 +88,31 @@ until it has.
 git clone https://github.com/your-org/ethr.git /opt/ethr
 cd /opt/ethr
 
-# 2. Copy environment files
-cp .env.example .env                     # docker-compose secrets (DB/Redis/MinIO passwords)
-cp api/.env.production api/.env
-cp src/.env.production src/.env.local
+# 2. Copy environment files — TWO files, and only these two.
+#    Root .env resolves ${VAR} inside docker-compose.prod.yml (DB/Redis/MinIO
+#    credentials and the NEXT_PUBLIC_* frontend BUILD args).
+#    api/.env.production is injected into api, worker-*, scheduler and reverb.
+#    Both are gitignored; the .example files are the committed templates.
+cp .env.production.example .env
+cp api/.env.production.example api/.env.production
 
-# 3. Edit environment files (see Environment Variables below)
-#    Passwords in .env and api/.env must match (REDIS_PASSWORD, DB_PASSWORD, MinIO keys).
+# 3. Edit both (see Environment Variables below).
+#    DB_PASSWORD, DB_READ_PASSWORD, REDIS_PASSWORD, MINIO_ACCESS_KEY and
+#    MINIO_SECRET_KEY appear in BOTH files and nothing keeps them in sync —
+#    a mismatch boots cleanly and then fails every connection.
 nano .env
-nano api/.env
-nano src/.env.local
+nano api/.env.production
+chmod 600 .env api/.env.production
 
-# 4. Generate application key
-docker compose -f docker-compose.prod.yml run --rm api php artisan key:generate
+#    There is no src/.env.local in production: the Next.js image bakes every
+#    NEXT_PUBLIC_* at BUILD time from the root .env build args above.
+
+# 4. Generate the application key
+#    --show, then paste. A bare `key:generate` writes to a .env INSIDE the
+#    container — api/Dockerfile.prod excludes api/.env*, and the container is
+#    thrown away by --rm — so the key never reaches the file the stack reads.
+docker compose -f docker-compose.prod.yml run --rm api php artisan key:generate --show
+nano api/.env.production                 # paste into APP_KEY=
 
 # 5. Start all services
 docker compose -f docker-compose.prod.yml up -d
@@ -258,156 +270,92 @@ Genuine horizontal scaling requires `resolver 127.0.0.11 valid=10s;` plus a
 variable-based `fastcgi_pass`/`proxy_pass` in nginx first. Until that is done,
 raising a replica count buys nothing but memory pressure — which is why the
 `API_REPLICAS` / `WORKER_REPLICAS` / `REVERB_REPLICAS` variables were removed
-from `.env.example` rather than left as a trap.
+from `.env.production.example` rather than left as a trap.
 
 ---
 
 ## Environment Variables
 
-### API (`api/.env`)
+Two files, both gitignored, each with a committed template:
 
-```bash
-# Application
-APP_NAME=ETHR
-APP_ENV=production
-APP_DEBUG=false
-APP_KEY=                          # CHANGE: php artisan key:generate
-APP_URL=https://ethr.et
-APP_TIMEZONE=UTC
+| File | Read by | Template |
+|---|---|---|
+| `.env` (repo root) | `${VAR}` interpolation inside `docker-compose.prod.yml` — MariaDB/Redis/MinIO credentials and the `NEXT_PUBLIC_*` frontend **build args** | `.env.production.example` |
+| `api/.env.production` | `env_file:` on `api`, `worker-*`, `scheduler`, `reverb` | `api/.env.production.example` |
 
-# Database
-DB_CONNECTION=mysql
-DB_HOST=mariadb
-DB_PORT=3306
-DB_DATABASE=ethr
-DB_USERNAME=ethr
-DB_PASSWORD=                      # CHANGE: strong random password
-DB_ROOT_PASSWORD=                 # CHANGE: strong random password
+The templates carry the complete variable list and the reason behind every
+non-obvious value; read them there. This section used to inline both, which is
+how it came to document `DB_CONNECTION=mysql`, `AWS_*` storage keys, a
+`SMS_API_KEY` nothing reads, an `api/.env` no container opens and an
+`src/.env.local` that production never sees. What follows is only what needs a
+decision, plus the settings whose wrong value is silent.
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=null
+### Must be identical in both files
 
-# MinIO (S3-compatible)
-FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=                # CHANGE
-AWS_SECRET_ACCESS_KEY=            # CHANGE
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=ethr
-AWS_ENDPOINT=http://minio:9000
-AWS_USE_PATH_STYLE_ENDPOINT=true
+`DB_PASSWORD`, `DB_READ_USERNAME`, `DB_READ_PASSWORD`, `REDIS_PASSWORD`,
+`MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` — and `REVERB_APP_KEY` in
+`api/.env.production` must equal `NEXT_PUBLIC_REVERB_APP_KEY` in the root `.env`.
+Nothing links the two files. A mismatch starts cleanly and then fails every
+connection of that kind; the Reverb pair fails only the WebSocket handshake, so
+real-time features die while the REST API looks perfectly healthy.
 
-# Mail
-MAIL_MAILER=smtp
-MAIL_HOST=                        # CHANGE: SMTP server
-MAIL_PORT=587
-MAIL_USERNAME=                    # CHANGE
-MAIL_PASSWORD=                    # CHANGE
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@ethr.et
-MAIL_FROM_NAME=ETHR
+### Wrong values that fail silently
 
-# Queue
-QUEUE_CONNECTION=redis
-HORIZON_PREFIX=ethr_horizon:
+| Setting | Correct value | What a wrong value does |
+|---|---|---|
+| `DB_CONNECTION` | `mariadb` | Only the `mariadb` connection in `config/database.php` declares a `read` array. `mysql` parses fine, discards `DB_READ_HOST`, sends every read to the primary, and the health endpoint reports `database_read: not_configured`. |
+| `APP_DOMAIN` | `ethr.et` | Unset, `ResolveTenant` falls back to counting labels and reads the apex `ethr.et` as a tenant named "ethr". Note `APP_DOMAIN=` is an empty *string*, not null — hence `App\Support\TenancyDomain`. |
+| `SANCTUM_STATEFUL_DOMAINS` | `ethr.et,*.ethr.et` | Sanctum matches with `Str::is()`, and `*.ethr.et` does **not** match the bare apex. With the wildcard alone, `EncryptCookies`/`StartSession` never run for apex requests and login there cannot set a session cookie. |
+| `SESSION_DOMAIN` | *(empty)* | Empty gives host-only cookies — what stops `habru.ethr.et`'s session from being sent to `woldia.ethr.et`. `.ethr.et` turns every session into a domain-wide credential. A tenant-isolation boundary, not a convenience setting. |
+| `CORS_ALLOWED_ORIGINS_PATTERNS` | `#^https://[a-z0-9-]+\.ethr\.et$#` | `config/cors.php` hands this straight to `preg_match`. A glob like `https://*.ethr.et` is not a valid pattern — it errors on the delimiter and matches nothing. Invisible from a browser (nginx serves SPA and API same-origin), fatal for genuine cross-origin clients. |
+| `FILESYSTEM_DISK` | `minio` | The `s3` disk reads `AWS_ACCESS_KEY_ID`/`AWS_BUCKET`/`AWS_DEFAULT_REGION`, which these files do not define, so the default disk resolves to a credential-less client and the SDK throws "A 'region' configuration value is required" at first use. `BackupTenantJob` is the one caller of the default disk. |
+| Mail TLS | `MAIL_SCHEME` (or unset) | There is no `MAIL_ENCRYPTION` in Laravel 12 — `config/mail.php` reads `MAIL_SCHEME`. Leave it unset on port 587 (STARTTLS is negotiated); set `smtps` only for port 465. |
+| SMS credentials | `ETHIOTELECOM_SMS_ENDPOINT` / `_USERNAME` / `_PASSWORD` / `_SENDER_ID` | `config/sms.php` reads these four. `SMS_API_KEY` is read by nothing; with `SMS_DRIVER=ethiotelecom` and no endpoint, every send fails at the gateway rather than at boot. |
+| `SUPER_ADMIN_PASSWORD` | *(leave unset)* | Not part of the production path. The platform account is created interactively by `php artisan ethr:create-admin`, which never reads this variable. It is consulted only by `DatabaseSeeder` — the development seeder, which also creates a demo tenant — where it exists to refuse a known-password super admin. |
 
-# Session
-SESSION_DRIVER=redis
-SESSION_LIFETIME=120
+`DB_SLOW_QUERY_TIME` used to be documented here and is read by nothing; the slow
+query threshold is `long_query_time` in `docker/mariadb/primary.cnf`.
 
-# Reverb (WebSocket)
-REVERB_APP_ID=ethr
-REVERB_APP_KEY=                   # CHANGE: random string
-REVERB_APP_SECRET=                # CHANGE: random string
-REVERB_HOST=reverb
-REVERB_PORT=8080
+Trusted proxies are deliberately not configured — see `api/bootstrap/app.php`.
+nginx talks to PHP over FastCGI and already passes `REMOTE_ADDR` and `HTTPS`, so
+trusting `X-Forwarded-*` would only let a client choose its own IP.
 
-# Tenancy root domain — REQUIRED in production.
-# Tells ResolveTenant which host is the apex and which is a tenant. Without it
-# the middleware falls back to counting labels, which cannot distinguish
-# `ethr.et` (apex, no tenant) from `acme.com` (would be read as tenant "acme"),
-# and gets a multi-label TLD such as `ethr.co.uk` wrong outright.
-APP_DOMAIN=ethr.et
+`ERROR_ALERT_EMAIL` likewise used to be documented here and is read by nothing —
+there is no mail-based error alerting. Errors and failed queue jobs go to the log
+channel and, when `SENTRY_LARAVEL_DSN` is set, to Sentry: unhandled exceptions
+via `bootstrap/app.php`, failed queued jobs via the `Queue::failing` listener in
+`AppServiceProvider`. A failed job otherwise leaves only a `failed_jobs` row and
+an admin-screen count, which is how a scheduled job once failed on every run
+unnoticed. Alert on that log event or on Sentry — not on a variable nothing reads.
 
-# Sanctum
-# BOTH entries are required. Sanctum matches with Str::is(), and `*.ethr.et`
-# does NOT match the bare apex `ethr.et` — with the wildcard alone, requests
-# from https://ethr.et are not treated as stateful, so EncryptCookies /
-# StartSession never run and login on the apex cannot set a session cookie.
-SANCTUM_STATEFUL_DOMAINS=ethr.et,*.ethr.et
+### Frontend
 
-# CORS — required, and easy to miss. config/cors.php defaults to
-# http://localhost:3000 with supports_credentials=true, so leaving these unset
-# blocks every tenant browser in production. The pattern covers both tenant
-# subdomains and admin.ethr.et.
-CORS_ALLOWED_ORIGINS=https://ethr.et
-CORS_ALLOWED_ORIGINS_PATTERNS=https://*.ethr.et
+**There is no production `src/.env.local`.** Next.js inlines `NEXT_PUBLIC_*` into
+the browser bundle at image **build** time, so the values that matter come from
+the build args in the root `.env` (`docker-compose.prod.yml` passes them to
+`docker/frontend/Dockerfile`). `env_file: ./src/.env.production` on the frontend
+service only reaches the Node process at runtime, which is too late for anything
+`NEXT_PUBLIC_`. Changing one of these requires
+`docker compose -f docker-compose.prod.yml build frontend`, not a restart —
+a restart appears to succeed and changes nothing.
 
-# Session cookies
-# Leave SESSION_DOMAIN EMPTY. An empty value gives host-only cookies, which is
-# what stops habru.ethr.et's session from ever being sent to woldia.ethr.et.
-# Setting it to `.ethr.et` would "fix" cross-subdomain flows by turning every
-# user's session into a domain-wide credential — do not.
-SESSION_DOMAIN=
-SESSION_SECURE_COOKIE=true
+Set in the root `.env`: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL`,
+`NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_ROOT_DOMAIN`, `NEXT_PUBLIC_REVERB_HOST`,
+`NEXT_PUBLIC_REVERB_PORT`, `NEXT_PUBLIC_REVERB_SCHEME`,
+`NEXT_PUBLIC_REVERB_APP_KEY`.
 
-# Super admin — REQUIRED in production.
-# The seeder refuses to run without it rather than create a platform account,
-# which bypasses every permission check, with a known password.
-SUPER_ADMIN_PASSWORD=              # CHANGE: strong random secret
-
-# Trusted proxies are deliberately NOT configured — see api/bootstrap/app.php.
-# nginx talks to PHP over FastCGI and already passes REMOTE_ADDR and HTTPS, so
-# trusting X-Forwarded-* would only let a client choose its own IP.
-
-# SMS
-SMS_DRIVER=ethiotelecom           # or 'log' for testing
-SMS_API_KEY=                      # CHANGE (production only)
-
-# Error Alerting
-#
-# ERROR_ALERT_EMAIL used to be documented here and is read by nothing — there is
-# no mail-based error alerting in the codebase. Errors and failed queue jobs go
-# to the log channel and, when SENTRY_LARAVEL_DSN is set, to Sentry:
-#   - unhandled exceptions via bootstrap/app.php
-#   - failed queued jobs via the Queue::failing listener in AppServiceProvider
-#
-# A failed job otherwise leaves only a `failed_jobs` row and an admin-screen
-# count, which is how a scheduled job once failed on every run unnoticed. If you
-# want paging, alert on that log event or on Sentry — not on a variable that
-# nothing reads.
-
-# Slow Query Log
-DB_SLOW_QUERY_TIME=1000           # Log queries > 1 second
-```
-
-### Frontend (`src/.env.local`)
-
-```bash
-NEXT_PUBLIC_API_URL=https://ethr.et/api/v1
-
-# WebSocket (Reverb).
-#
-# NEXT_PUBLIC_WS_URL used to be documented here and is NOT read by anything —
-# src/lib/echo.ts builds the connection from the three variables below. It also
-# carried the wrong path: Reverb's client path is /app, which is what
-# infrastructure/nginx.conf proxies; /ws has no location and 404s.
-NEXT_PUBLIC_REVERB_HOST=ethr.et
-NEXT_PUBLIC_REVERB_PORT=443
-NEXT_PUBLIC_REVERB_SCHEME=https
-NEXT_PUBLIC_REVERB_APP_KEY=          # must match REVERB_APP_KEY in the API env
-
-NEXT_PUBLIC_APP_NAME=ETHR
-NEXT_PUBLIC_DEFAULT_LOCALE=en
-
-# Makes the hostname the tenant selector. With this set, the apex login form
-# routes the browser to https://{tenant}.ethr.et/login rather than signing in
-# on the apex (the session cookie is host-only and would not survive the hop),
-# and the SPA stops sending X-Tenant — which the API refuses outside
-# local/testing anyway. Leave unset only for single-host local development.
-NEXT_PUBLIC_ROOT_DOMAIN=ethr.et
-```
+- `NEXT_PUBLIC_ROOT_DOMAIN` makes the hostname the tenant selector: the apex
+  login form routes the browser to `https://{tenant}.ethr.et/login` rather than
+  signing in on the apex (the session cookie is host-only and would not survive
+  the hop), and the SPA stops sending `X-Tenant`, which the API refuses outside
+  local/testing anyway. Leave it unset only for single-host local development.
+- `NEXT_PUBLIC_REVERB_APP_KEY` has no default, deliberately: `src/lib/echo.ts`
+  falls back to the literal `ethr-key`, so a default here would make an unset
+  value look intentional while every handshake fails against the real server key.
+- `NEXT_PUBLIC_WS_URL` is read by nothing — `src/lib/echo.ts` builds the
+  connection from the three `REVERB` variables. It also carried the wrong path:
+  Reverb's client path is `/app`, which is what `infrastructure/nginx.conf`
+  proxies; `/ws` has no location and 404s.
 
 ---
 
@@ -551,35 +499,72 @@ re-runs a health check. Invoked automatically by `deploy.sh` when
 
 ### Health Endpoint
 
-`GET /api/v1/health` returns:
+`GET /api/v1/health` returns a flat `services` map — one string per service, no
+timings, no queue depths, no disk or memory checks:
 
 ```json
 {
   "status": "healthy",
-  "checks": {
-    "database": { "status": "up", "response_time_ms": 2 },
-    "redis": { "status": "up", "response_time_ms": 1 },
-    "minio": { "status": "up", "response_time_ms": 15 },
-    "queue": { "status": "up", "depth": { "attendance": 0, "payroll": 0, "default": 3 } },
-    "disk": { "status": "up", "used_percent": 45 },
-    "memory": { "status": "up", "used_percent": 62 }
+  "services": {
+    "database": "healthy",
+    "database_read": "healthy",
+    "cache": "healthy",
+    "queue": "healthy",
+    "storage": "healthy",
+    "api": "healthy"
   },
-  "version": "1.0.0",
-  "timestamp": "2026-07-15T10:30:00Z"
+  "timestamp": "2026-07-15T10:30:00Z",
+  "version": "1.0.0"
 }
 ```
 
-### Horizon Dashboard
+Read the values carefully — they are not interchangeable, and the HTTP status
+follows only one of them:
 
-Access at: `https://admin.ethr.et/horizon` (super admin only)
+- `unhealthy` (database, database_read) → `status: degraded` and **HTTP 503**.
+- `unavailable` (cache, queue, storage) → `status: healthy` and **HTTP 200**.
+  A missing MinIO bucket, a Redis that refuses writes, or a broken queue
+  connection all report this. Neither `scripts/deploy.sh` nor a load balancer
+  watching the status code will notice. Alert on the body, not the code.
+- `database_read: not_configured` means `config('database.connections.mariadb.read')`
+  is empty — usually `DB_CONNECTION=mysql`, or `DB_READ_HOST` not reaching the
+  container. The replica is then idle and every read goes to the primary.
 
-Monitors: queue depth, job throughput, failed jobs, worker status.
+### Queue and worker monitoring
+
+`/horizon` is **not exposed in production**, and two independent things stop it:
+`infrastructure/nginx-common.conf` routes only `/api`, `/sanctum` and `*.php` to
+PHP-FPM, so `/horizon` falls through `location /` to the Next.js container and
+404s; and Horizon's default gate authorises the `local` environment only, so it
+would return 403 even if routed. Use the CLI on any worker container instead:
+
+```bash
+dcp() { docker compose -f docker-compose.prod.yml "$@"; }
+
+dcp exec worker-realtime php artisan horizon:status        # cluster-wide
+dcp exec worker-heavy    php artisan horizon:supervisors   # per-container
+dcp exec api             php artisan queue:failed
+```
+
+Failed jobs also surface on the Super Admin dashboard with retry/dismiss
+actions, and every failure goes through the `Queue::failing` hook in
+`AppServiceProvider` (a `Log::error`, plus Sentry when `SENTRY_LARAVEL_DSN` is
+set). **Open item:** exposing the dashboard needs both an nginx `location
+/horizon` pointing at `api_backend` and a `Horizon::auth` gate restricted to
+super admins — it is a deliberate change to the platform's auth surface, not a
+config toggle.
 
 ### Slow Query Log
 
-Enabled in MariaDB: queries > 1 second logged to `mariadb-data/slow-query.log`.
+`docker/mariadb/primary.cnf` (and `replica.cnf`) set `slow_query_log = 1` with
+`long_query_time = 1`, writing to `/var/log/mysql/slow.log` — inside the
+container, **not** under `/var/lib/mysql`, which is the only path on a volume.
+The log therefore does not survive `docker compose down`; copy it out before
+recreating the container if you need it.
 
-Review: `docker compose exec mariadb tail -f /var/lib/mysql/slow-query.log`
+```bash
+docker compose -f docker-compose.prod.yml exec mariadb tail -f /var/log/mysql/slow.log
+```
 
 ### Log Aggregation
 
@@ -604,10 +589,19 @@ Add to server crontab:
 ```cron
 # Daily backup at 2 AM EAT (23:00 UTC)
 0 23 * * * /opt/ethr/scripts/backup.sh >> /var/log/ethr-backup.log 2>&1
-
-# Weekly full MinIO sync on Sunday
-0 1 * * 0 /opt/ethr/scripts/backup-minio-full.sh >> /var/log/ethr-backup.log 2>&1
 ```
+
+One entry, not two. A second weekly `backup-minio-full.sh` line was documented
+here for months; no such script exists, and cron mailed the failure to a root
+mailbox nobody reads. `backup.sh` already captures MinIO in full every run — it
+tars the `ethr-minio` data volume via `--volumes-from`, so there is nothing a
+separate full sync would add.
+
+No `cd` is needed — `backup.sh` relocates to the repo root itself. Set
+`BACKUP_PATH` / `BACKUP_RETENTION_DAYS` / `COMPOSE_FILE` on the cron line if you
+need non-defaults: the scripts read them from their own environment, and nothing
+sources an env file for them, so a value written into `api/.env.production` is
+inert here.
 
 ---
 
@@ -630,11 +624,16 @@ free -h
 ### Database connection refused
 
 ```bash
-# Verify MariaDB is running
+# Verify MariaDB is running (root password is DB_ROOT_PASSWORD in the root .env)
 docker compose -f docker-compose.prod.yml exec mariadb mysql -u root -p -e "SELECT 1"
 
-# Check credentials match .env
-grep DB_ api/.env
+# The two files that must agree — api/.env.production, not api/.env
+grep -E '^(DB_|REDIS_PASSWORD|MINIO_)' .env api/.env.production
+
+# Reads failing but writes fine? That is the replica, not the primary.
+curl -sk https://localhost/api/v1/health | grep database_read
+docker compose -f docker-compose.prod.yml exec mariadb-replica \
+  mysql -u"$DB_READ_USERNAME" -p -e "SELECT 1"
 ```
 
 ### Queue jobs failing
@@ -656,21 +655,21 @@ docker compose -f docker-compose.prod.yml exec api php artisan horizon:status
 ### Slow performance
 
 ```bash
-# Check slow query log
-docker compose -f docker-compose.prod.yml exec mariadb tail -20 /var/lib/mysql/slow-query.log
+# Check slow query log — /var/log/mysql, not /var/lib/mysql
+docker compose -f docker-compose.prod.yml exec mariadb tail -20 /var/log/mysql/slow.log
 
 # Check Redis memory — both instances. `redis` is the one that matters under
 # pressure: it runs noeviction, so a full instance starts REFUSING writes
 # (queued jobs, sessions, locks) rather than degrading. redis-cache filling up
 # is normal and self-correcting — allkeys-lru just evicts the coldest keys.
-docker compose -f docker-compose.prod.yml exec redis redis-cli info memory
-docker compose -f docker-compose.prod.yml exec redis-cache redis-cli info memory
+# Both instances require AUTH — a bare redis-cli returns NOAUTH, not a reading.
+docker compose -f docker-compose.prod.yml exec redis \
+  redis-cli -a "$REDIS_PASSWORD" info memory
+docker compose -f docker-compose.prod.yml exec redis-cache \
+  redis-cli -a "$REDIS_PASSWORD" info memory
 
-# Check PHP-FPM status
-docker compose -f docker-compose.prod.yml exec api php-fpm-healthcheck
-
-# Check queue depth
-docker compose -f docker-compose.prod.yml exec api php artisan horizon:status
+# Check queue depth and worker health
+docker compose -f docker-compose.prod.yml exec worker-realtime php artisan horizon:status
 ```
 
 ### SSL certificate renewal failed
