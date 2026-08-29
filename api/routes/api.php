@@ -108,6 +108,7 @@ use App\Http\Middleware\EnsurePlatformContext;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
+use App\Http\Middleware\RequiresPlanFeature;
 use App\Http\Middleware\ScimAuth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
@@ -432,13 +433,22 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::apiResource('leave-types', LeaveTypeController::class);
 
     // Payroll
+    //
+    // Plan gating is on the paths that *produce* payroll, not the ones that read
+    // it back. A tenant that downgrades keeps its runs, payslips and bank
+    // exports visible — withdrawing sight of a period an employee was already
+    // paid for would be a records problem, not a billing control.
     Route::prefix('payroll')->group(function () {
-        Route::post('/process', [PayrollController::class, 'process'])->middleware('throttle:payroll-process');
+        Route::post('/process', [PayrollController::class, 'process'])
+            ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
         Route::get('/runs', [PayrollController::class, 'index']);
         Route::get('/runs/{payrollRun}', [PayrollController::class, 'show']);
-        Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve']);
-        Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void']);
-        Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])->middleware('throttle:payroll-process');
+        Route::put('/runs/{payrollRun}/approve', [PayrollController::class, 'approve'])
+            ->middleware(RequiresPlanFeature::class.':payroll');
+        Route::post('/runs/{payrollRun}/void', [PayrollController::class, 'void'])
+            ->middleware(RequiresPlanFeature::class.':payroll');
+        Route::post('/runs/{payrollRun}/reprocess', [PayrollController::class, 'reprocess'])
+            ->middleware(['throttle:payroll-process', RequiresPlanFeature::class.':payroll']);
         Route::get('/runs/{payrollRun}/export/bank', [PayrollController::class, 'bankExport']);
         Route::get('/runs/{payrollRun}/export/bank-csv', [PayrollController::class, 'downloadBankExport']);
         Route::get('/payslips/my', [PayrollController::class, 'myPayslips']);
@@ -500,12 +510,21 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     // Reports
     Route::prefix('reports')->group(function () {
         Route::get('/sources', [ReportController::class, 'sources']);
-        Route::post('/generate', [ReportController::class, 'generate']);
-        Route::post('/export', [ReportController::class, 'export']);
-        Route::post('/save', [ReportController::class, 'save']);
+        Route::post('/generate', [ReportController::class, 'generate'])
+            ->middleware(RequiresPlanFeature::class.':reports');
+        Route::post('/export', [ReportController::class, 'export'])
+            ->middleware(RequiresPlanFeature::class.':reports');
+
+        // `custom_reports` is the Enterprise tier's own key, distinct from
+        // `reports`: saving and scheduling a report definition is the paid
+        // capability, running one ad hoc is not. Deletes stay ungated so a
+        // downgraded tenant can still clean up what it created.
+        Route::post('/save', [ReportController::class, 'save'])
+            ->middleware(RequiresPlanFeature::class.':custom_reports');
         Route::get('/saved', [ReportController::class, 'savedList']);
         Route::delete('/saved/{savedReport}', [ReportController::class, 'deleteSaved']);
-        Route::post('/schedule', [ReportController::class, 'schedule']);
+        Route::post('/schedule', [ReportController::class, 'schedule'])
+            ->middleware(RequiresPlanFeature::class.':custom_reports');
         Route::get('/scheduled', [ReportController::class, 'scheduledList']);
         Route::delete('/scheduled/{scheduledReport}', [ReportController::class, 'deleteScheduled']);
     });
@@ -568,15 +587,22 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     // API Keys
     Route::prefix('api-keys')->group(function () {
         Route::get('/', [ApiKeyController::class, 'index']);
-        Route::post('/', [ApiKeyController::class, 'store']);
+        // Issuing a key is the capability; listing and revoking stay open so a
+        // downgraded tenant can see and withdraw keys that are still live.
+        Route::post('/', [ApiKeyController::class, 'store'])
+            ->middleware(RequiresPlanFeature::class.':api_access');
         Route::delete('/{apiKey}', [ApiKeyController::class, 'destroy']);
     });
 
     // Webhooks
     Route::prefix('webhooks')->group(function () {
         Route::get('/', [WebhookController::class, 'index']);
-        Route::post('/', [WebhookController::class, 'store']);
-        Route::put('/{webhook}', [WebhookController::class, 'update']);
+        Route::post('/', [WebhookController::class, 'store'])
+            ->middleware(RequiresPlanFeature::class.':webhooks');
+        Route::put('/{webhook}', [WebhookController::class, 'update'])
+            ->middleware(RequiresPlanFeature::class.':webhooks');
+        // Delete stays open: a downgraded tenant must be able to switch off an
+        // endpoint that is still receiving its data.
         Route::delete('/{webhook}', [WebhookController::class, 'destroy']);
         // The `webhooks-test` limiter (10/hour per tenant, CLAUDE.md rate-limit
         // policy) was defined but applied to no route, so the abuse control it
@@ -655,7 +681,16 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::put('/settings/notification-templates/{type}', [NotificationTemplateController::class, 'update']);
 
     // Audit logs
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    //
+    // The one gate applied to a read, and deliberately so: for every other
+    // feature the paid capability is *doing* something, so gating the write
+    // enforces the tier while leaving history visible. Here the capability IS
+    // the read — gating anything else would leave `audit_log` unenforceable.
+    // Records are still written for every tenant regardless of plan (convention
+    // #5 is a compliance guarantee, not a tier benefit); only reading them back
+    // through the API is tiered.
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])
+        ->middleware(RequiresPlanFeature::class.':audit_log');
 
     // Custom roles
     Route::get('/permissions', [CustomRoleController::class, 'permissions']);
