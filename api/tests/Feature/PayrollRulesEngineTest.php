@@ -14,95 +14,98 @@ use App\Services\Payroll\TaxCalculator;
 use Carbon\Carbon;
 
 // ── Tax Calculator: Ethiopian Income Tax Brackets ──
-// All amounts in cents. Brackets per ETB:
-// 0-600 ETB (0-60000 cents): 0%
-// 601-1650 (60001-165000): 10% - 6000
-// 1651-3200 (165001-320000): 15% - 14250
-// 3201-5250 (320001-525000): 20% - 30250
-// 5251-7800 (525001-780000): 25% - 56500
-// 7801-10900 (780001-1090000): 30% - 95500
-// 10901+ (1090001+): 35% - 150000
+// Proclamation No. 1395/2025, in force since 7 July 2025 (superseding
+// No. 979/2016). All amounts in cents. Bands per monthly ETB:
+//     0-2,000      (0-200000):        0%
+//     2,001-4,000  (200001-400000):  15% - 30000
+//     4,001-7,000  (400001-700000):  20% - 50000
+//     7,001-10,000 (700001-1000000): 25% - 85000
+//    10,001-14,000 (1000001-1400000):30% - 135000
+//    14,001+       (1400001+):       35% - 205000
+//
+// The pre-amendment ladder and the effective-date switch between the two are
+// covered in tests/Unit/TaxCalculatorTest.php; these cases pin the current one.
 
 test('tax calculator: 0 ETB income', function () {
     $calc = new TaxCalculator;
     expect($calc->calculate(0))->toBe(0);
 });
 
-test('tax calculator: bracket 1 — 500 ETB (exempt)', function () {
+test('tax calculator: band 1 — 500 ETB (exempt)', function () {
     $calc = new TaxCalculator;
     expect($calc->calculate(50000))->toBe(0);
 });
 
-test('tax calculator: bracket 2 — 1000 ETB', function () {
+test('tax calculator: band 1 — 1000 ETB is exempt under 1395/2025', function () {
     $calc = new TaxCalculator;
-    // 100000 * 10% - 6000 = 4000
-    expect($calc->calculate(100000))->toBe(4000);
+    // Taxed 4000 cents under 979/2016; the threshold rose from 600 to 2,000 ETB.
+    expect($calc->calculate(100000))->toBe(0);
 });
 
-test('tax calculator: bracket 3 — 2500 ETB', function () {
+test('tax calculator: band 2 — 2500 ETB', function () {
     $calc = new TaxCalculator;
-    // 250000 * 15% - 14250 = 37500 - 14250 = 23250
-    expect($calc->calculate(250000))->toBe(23250);
+    // 250000 * 15% - 30000 = 37500 - 30000 = 7500
+    expect($calc->calculate(250000))->toBe(7500);
 });
 
-test('tax calculator: bracket 4 — 4000 ETB', function () {
+test('tax calculator: band 2 ceiling — 4000 ETB', function () {
     $calc = new TaxCalculator;
-    // 400000 * 20% - 30250 = 80000 - 30250 = 49750
-    expect($calc->calculate(400000))->toBe(49750);
+    // 400000 * 15% - 30000 = 60000 - 30000 = 30000
+    expect($calc->calculate(400000))->toBe(30000);
 });
 
-test('tax calculator: bracket 5 — 6000 ETB', function () {
+test('tax calculator: band 3 — 6000 ETB', function () {
     $calc = new TaxCalculator;
-    // 600000 * 25% - 56500 = 150000 - 56500 = 93500
-    expect($calc->calculate(600000))->toBe(93500);
+    // 600000 * 20% - 50000 = 120000 - 50000 = 70000
+    expect($calc->calculate(600000))->toBe(70000);
 });
 
-test('tax calculator: bracket 6 — 9000 ETB', function () {
+test('tax calculator: band 4 — 9000 ETB', function () {
     $calc = new TaxCalculator;
-    // 900000 * 30% - 95500 = 270000 - 95500 = 174500
-    expect($calc->calculate(900000))->toBe(174500);
+    // 900000 * 25% - 85000 = 225000 - 85000 = 140000
+    expect($calc->calculate(900000))->toBe(140000);
 });
 
-test('tax calculator: bracket 7 — 15000 ETB', function () {
+test('tax calculator: band 6 — 15000 ETB', function () {
     $calc = new TaxCalculator;
-    // 1500000 * 35% - 150000 = 525000 - 150000 = 375000
-    expect($calc->calculate(1500000))->toBe(375000);
+    // 1500000 * 35% - 205000 = 525000 - 205000 = 320000
+    expect($calc->calculate(1500000))->toBe(320000);
 });
 
-test('tax calculator: exact bracket 6/7 boundary — 10900.00 ETB stays in bracket 6', function () {
+test('tax calculator: exact band 5/6 boundary — 14000.00 ETB stays in band 5', function () {
     $calc = new TaxCalculator;
-    // 1090000 * 30% - 95500 = 327000 - 95500 = 231500
-    expect($calc->calculate(1090000))->toBe(231500);
+    // 1400000 * 30% - 135000 = 420000 - 135000 = 285000
+    expect($calc->calculate(1400000))->toBe(285000);
 });
 
-test('tax calculator: one cent over the boundary — 10900.01 ETB moves into bracket 7', function () {
+test('tax calculator: one cent over the boundary — 14000.01 ETB moves into band 6', function () {
     $calc = new TaxCalculator;
-    // 1090001 * 35% - 150000 = 381500.35 - 150000 = 231500.35, rounds to 231500
-    expect($calc->calculate(1090001))->toBe(231500);
+    // 1400001 * 35% - 205000 = 490000.35 - 205000 = 285000.35, rounds to 285000
+    expect($calc->calculate(1400001))->toBe(285000);
 });
 
-test('tax calculator: the bracket boundary is continuous, not a cliff', function () {
+test('tax calculator: the band boundary is continuous, not a cliff', function () {
     $calc = new TaxCalculator;
 
-    $justBelow = $calc->calculate(1090000);
-    $justAbove = $calc->calculate(1090001);
+    $justBelow = $calc->calculate(1400000);
+    $justAbove = $calc->calculate(1400001);
 
     // A one-cent raise must not produce a jump in tax owed.
     expect(abs($justAbove - $justBelow))->toBeLessThanOrEqual(1);
 });
 
-test('tax calculator: a mid-month raise crossing a bracket boundary taxes only the new gross, not a blend', function () {
+test('tax calculator: a mid-month raise crossing a band boundary taxes only the new gross, not a blend', function () {
     $calc = new TaxCalculator;
 
-    // Employee starts the month at 900000 cents (bracket 6) and gets a raise
-    // to 1500000 cents (bracket 7) mid-month. Payroll taxes the period's
-    // actual gross taxable amount for that bracket — there is no proration
-    // of the tax calculation itself across brackets mid-period.
+    // Employee starts the month at 900000 cents (band 4) and gets a raise to
+    // 1500000 cents (band 6) mid-month. Payroll taxes the period's actual gross
+    // taxable amount for that band — there is no proration of the tax
+    // calculation itself across bands mid-period.
     $beforeRaise = $calc->calculate(900000);
     $afterRaise = $calc->calculate(1500000);
 
-    expect($beforeRaise)->toBe(174500);
-    expect($afterRaise)->toBe(375000);
+    expect($beforeRaise)->toBe(140000);
+    expect($afterRaise)->toBe(320000);
     expect($afterRaise)->toBeGreaterThan($beforeRaise);
 });
 
