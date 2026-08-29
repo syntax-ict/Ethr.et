@@ -29,11 +29,37 @@ the Next.js standalone build unchanged; B5 absent → static export. B3 fail →
 and queue must move behind an authenticated HTTP endpoint (a real design change, to be
 costed, not assumed).
 
-### Working tree at the time of pause
+### Work is committed — branch `migration/phase-a-and-hosting-audit`
 
-Uncommitted. HEAD is `07ff61e`. 6 modified files, 1 new test, 10 new docs, 1 new script.
-The full inventory is under FILES CHANGED below, and complete reversal is one command.
-Backend suite was green at **1652 passed / 4904 assertions / 0 failures**.
+`main` is untouched.
+
+```
+1685ee8  docs(deploy): correct stale "cost-sharing is missing" go-live blocker
+f0f6888  fix(migrations): diagnose audit-log trigger failure without swallowing it
+80cac67  fix(config): resolve infrastructure from configuration, not hardcoded names
+9c0450b  docs(migration): audit ETHR against Ethio Telecom shared hosting
+07ff61e  (main)
+```
+
+### Full gate suite: ALL 9 PASS (2026-08-29)
+
+`./scripts/gates.sh`, after applying the 5 pending dev-DB migrations Larastan needs
+to read the schema:
+
+```
+✓ Pint (format)        ✓ i18n (keys + en/am)     ✓ TypeScript (tsc)
+✓ PHPStan (level 6)    ✓ Prettier (format)       ✓ Vitest (435 tests / 70 files)
+✓ Pest (backend)       ✓ ESLint (frontend)       ✓ API types (contract)
+```
+
+PHPStan level 6 was the outstanding gap flagged in the Phase A review; it is now
+closed. Backend suite green at **1652 passed / 4904 assertions**, collection check
+139/139 classes.
+
+**Green gates are not production readiness.** They prove no regression, not that the
+product is ready — see `docs/DEPLOYMENT.md`'s pre-deployment checklist for the gaps
+that no gate can catch (ERCA tax-bracket confirmation, live SMS handshake, real SMTP
+credentials, plan-tier feature gating, Google Workspace SSO, biometric hardware).
 
 ```
 OWNER DECISION (2026-08-29):  NO VPS. Options A, C and D withdrawn.
