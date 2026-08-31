@@ -106,7 +106,17 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
   - Seed system roles with default permissions
   - Create default shift (8:30-17:30, Mon-Sat)
   - Initialize audit log
-- [x] Trial enforcement: middleware checks `trial_ends_at`, returns 402 if expired with upgrade CTA (`EnforceTrialExpiration`)
+- [x] Trial enforcement: a trial-expired tenant is blocked. **Not** via the dedicated
+      402-with-upgrade-CTA path this line originally claimed — `EnforceTrialExpiration`
+      was never registered on any route or in `bootstrap/app.php` and has been removed
+      (2026-08-31; verified zero references anywhere in `api/` or `src/` before deletion).
+      Enforcement is real but generic: `Tenant::isActive()` already composes
+      `status IN (trial, active) AND NOT isTrialExpired()`, and `ResolveTenant::lookupTenant()`
+      calls it on every request, refusing an expired-trial tenant with the same
+      403 `tenant-inactive` response a suspended or cancelled tenant gets — which the
+      frontend already renders (`tenant-lookup-error-state.tsx`). A trial-specific
+      402 + upgrade CTA does not exist on either side and would be new product work
+      (a billing/conversion UX decision), not a bug fix — flagged, not built.
 - [x] Trial expiry notifications: 30 days, 7 days, 1 day before expiry (`TrialExpiringNotification`)
 
 ### Frontend
