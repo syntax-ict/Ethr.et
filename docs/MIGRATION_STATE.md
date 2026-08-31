@@ -210,9 +210,14 @@ Owner said "decide for me". These are settled; they are not open questions.
 
 ## IN PROGRESS
 
-Nothing on either thread. **Hosting migration code is frozen** pending the four facts.
-The parallel work is finished and merged — see NEXT ACTION for what's left, all of it
-external (credentials, hardware, or an owner decision already flagged, never invented).
+Nothing. **The full deployment package is now built and merged** —
+`deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
+`docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
+`docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the
+remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
+each file's own "branch on B3/B5" sections for exactly what changes once those answers
+land. Hosting migration *execution* (upload, migrate, cutover) has not started and is
+correctly blocked on the same four facts it always was. See NEXT ACTION.
 
 ---
 
