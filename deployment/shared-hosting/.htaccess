@@ -1,0 +1,163 @@
+# ETHR — Document root .htaccess for Ethio Telecom shared hosting (Plesk)
+#
+# Goes at ~/httpdocs/.htaccess. Companion to the repointed ~/httpdocs/index.php
+# (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing
+# and security work nginx did on the VPS (infrastructure/nginx-common.conf),
+# translated to what Apache/Plesk actually offers on shared hosting.
+#
+# Layout this assumes:
+#   ~/ethr/              Laravel app — NOT web-accessible (outside httpdocs)
+#   ~/httpdocs/           document root
+#     index.php           copy of api/public/index.php, require paths repointed
+#     .htaccess           this file
+#     .well-known/        leave alone — ACME HTTP-01 challenge path
+#     _next/, assets, …   frontend static output, IF B5 says no Node runtime
+#
+# Two things this file cannot do that nginx did, and what replaces them:
+#   - Per-route rate limiting (nginx `limit_req`) — Laravel's own throttle
+#     middleware already covers every route CLAUDE.md's rate-limit policy
+#     lists (RateLimitLoginAttempts, AppServiceProvider's named limiters), so
+#     nothing is actually unenforced — it just moved from the edge to the app.
+#   - A separate WebSocket upgrade block for Reverb — moot, Reverb is not
+#     deployed here (BROADCAST_CONNECTION=log; see B1-B5_GATE_REPORT.md).
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ── Security: deny everything that must never be served ────────────────
+    # Defence in depth even though .env/.git/vendor are NOT under this
+    # document root in this layout (they live in ~/ethr, outside httpdocs
+    # entirely) — a future document-root change or a misplaced file must not
+    # silently become web-accessible.
+    RewriteRule ^(\.env.*|\.git|composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml)$ - [F,L]
+
+    # Never serve storage/ or bootstrap/cache/ directly if either is ever
+    # placed under this document root by mistake — Laravel's own public/
+    # boundary is the only thing that should ever be reachable.
+    RewriteRule ^(storage|bootstrap/cache)(/|$) - [F,L]
+
+    # ── Handle Authorization Header ─────────────────────────────────────────
+    # Some Apache/FastCGI configurations drop the Authorization header before
+    # PHP sees it. Laravel's own default .htaccess (api/public/.htaccess)
+    # carries this same rule — kept identical rather than reinvented.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # ── Handle X-XSRF-Token Header ──────────────────────────────────────────
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # ── ACME HTTP-01 challenge path — never rewrite this ────────────────────
+    # This is what makes the per-tenant TLS fallback work (B2) — see
+    # B1-B5_GATE_REPORT.md. Must resolve to a real file under .well-known/,
+    # untouched by anything below.
+    RewriteCond %{REQUEST_URI} ^/\.well-known/acme-challenge/ [NC]
+    RewriteRule ^ - [L]
+
+    # ── API and Sanctum routes → Laravel's front controller ─────────────────
+    # Laravel's own public/.htaccess pattern: rewrite to index.php UNLESS the
+    # request already matches a real file or directory. Since api/public/*
+    # (this file, index.php, favicon.ico, robots.txt) is now the whole
+    # document root alongside the frontend build, this single rule handles
+    # BOTH the API and Laravel's own static assets (favicon, robots.txt)
+    # correctly — a real file always wins over the rewrite.
+    RewriteCond %{REQUEST_URI} ^/(api|sanctum)(/|$) [NC]
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+    # ── Everything else → frontend ───────────────────────────────────────────
+    #
+    # ============================================================
+    # BRANCH A — Node.js runtime available (B5 = yes). DO NOT USE
+    # this .htaccess branch; delete this whole "Everything else"
+    # block instead and let Plesk's Node.js/Passenger integration
+    # own routing for every non-/api, non-/sanctum path. Passenger
+    # inserts its own front-controller rule ahead of this file when
+    # the Node.js app is enabled for the domain — a second catch-all
+    # rule here would conflict with it. See DEPLOYMENT.md "Frontend
+    # (Node.js path)".
+    # ============================================================
+    #
+    # ============================================================
+    # BRANCH B — no Node.js runtime (B5 = no): static export served
+    # from this same document root. UNCOMMENT the two rules below.
+    # They serve the exported HTML file for a directory-style route
+    # (Next static export writes app/foo/page.tsx to /foo/index.html)
+    # and fall back to a client-rendered 404 page for anything that
+    # doesn't match a real file — required because this is a client-
+    # side-routed SPA past the first paint (see D6 in
+    # docs/MIGRATION_STATE.md: 0 API routes, 0 server actions, but
+    # middleware.ts's host-based rules must be reimplemented here —
+    # see the commented block further down).
+    # ============================================================
+    #
+    # RewriteCond %{REQUEST_FILENAME} !-f
+    # RewriteCond %{REQUEST_FILENAME}/index.html -f
+    # RewriteRule ^(.*)$ $1/index.html [L]
+    #
+    # RewriteCond %{REQUEST_FILENAME} !-f
+    # RewriteCond %{REQUEST_FILENAME} !-d
+    # RewriteRule ^ 404.html [L]
+
+    # ── middleware.ts's host-based rule, BRANCH B ONLY ──────────────────────
+    # src/src/middleware.ts refuses /admin on any host except
+    # admin.ethr.et, and redirects tenant routes (/dashboard, /employees,
+    # /attendance, /leave, /payroll, /organization, /directory, /devices,
+    # /shifts, /reports, /settings, /announcements, /approvals, /profile —
+    # the exact list in that file) away from the platform host. Under a
+    # static export the middleware never runs, so — same as the VPS's own
+    # nginx already does independently, per that file's own comment — this
+    # is the actual enforcement, not a duplicate of one:
+    #
+    # RewriteCond %{HTTP_HOST} ^admin\.ethr\.et$ [NC]
+    # RewriteCond %{REQUEST_URI} !^/admin
+    # RewriteCond %{REQUEST_URI} !^/(login|logout|_next|favicon\.ico|sw\.js|manifest)
+    # RewriteRule ^ /admin/ [L,R=302]
+    #
+    # RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]
+    # RewriteRule ^admin(/|$) - [F,L]
+</IfModule>
+
+# ── Response headers ─────────────────────────────────────────────────────
+# Mirrors infrastructure/nginx-common.conf's security headers. Kept
+# byte-identical in content (not just intent) so a security scan run against
+# this deployment matches the one already run against the VPS.
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
+
+    # img-src widened for tenant branding logos (PUT /settings/branding
+    # stores a URL, rendered straight into <img src> across the sidebar,
+    # header, mobile nav and kiosk) — same reasoning as next.config.ts's CSP.
+    # connect-src has no wss: — Reverb is not deployed here.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+# ── Static asset caching ──────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)$">
+        ExpiresDefault "access plus 1 year"
+        Header set Cache-Control "public, immutable"
+    </FilesMatch>
+</IfModule>
+
+# ── PHP execution time for the payroll/import routes ─────────────────────
+# nginx gave /api/v1/payroll and /api/v1/employees/import 120s
+# (infrastructure/nginx-common.conf's `@payroll_php` block); everything else
+# got 30s. Apache/PHP-FPM here has one execution-time budget for the whole
+# vhost — set it to the higher figure and rely on Horizon's `payroll` queue
+# timeout (1800s, config/horizon.php) no longer applying (jobs run under cron
+# now — see DEPLOYMENT.md "Queue and scheduler"), not on a route-specific
+# override this layer cannot express.
+<IfModule mod_php.c>
+    php_value max_execution_time 120
+</IfModule>
+# If PHP runs as PHP-FPM/CGI rather than mod_php (verify with B4), set the
+# same value in Plesk → PHP Settings instead; php_value directives are
+# silently ignored under FPM and Plesk logs nothing when they are.
