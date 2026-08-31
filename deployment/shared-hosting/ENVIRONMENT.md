@@ -68,6 +68,18 @@ already guarded on `config('broadcasting.default') === 'reverb'`, and
 `FileStorageService` (fixed in commit `80cac67`) resolves `filesystems.default` instead
 of a hardcoded disk name.
 
+**`CACHE_STORE=database` specifically live-verified, not just asserted** (2026-08-31):
+`config/database.php`'s `cache_locks` table is what Laravel's database cache driver
+needs for `Cache::lock()` — the primitive `->withoutOverlapping()` uses internally, and
+the *only* thing in `routes/console.php` (8 call sites) that could behave differently
+under a driver swap this invisible-looking. Confirmed against real MariaDB, not the
+SQLite test suite: `Cache::lock()` acquire → contended-refuse → release → reacquire all
+correct; `RateLimiter` (backing every named limiter in `AppServiceProvider` — `api`,
+`auth`, `health`, `platform-admin`, `uploads`, `otp`, `payroll-process`, `imports`,
+`dashboard`, `webhooks-test`) hit 32 times against a 30/min limit: 30 allowed, 2
+correctly blocked. `cache_locks` is already created by
+`0001_01_01_000001_create_cache_table.php` — nothing to add.
+
 `FILESYSTEM_DISK=local` assumes Bronze's own storage quota is sufficient — see
 "Storage sizing" below. If a customer's storage need exceeds it, repoint this at an
 external S3-compatible endpoint instead (`s3` disk, same six `AWS_*` variables the disk
