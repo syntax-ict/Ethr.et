@@ -193,6 +193,71 @@ it('refuses a dump that does not match its manifest', function () {
         ->toThrow(RuntimeException::class, 'does not match the sha256');
 });
 
+it('round-trips text containing a semicolon followed by a newline', function () {
+    // The dump's one-statement-per-line layout is the contract
+    // BackupService::executeSqlFile() uses to find where a statement ends: it
+    // buffers lines until one ends in a semicolon. A stored value containing a
+    // raw newline can therefore end a statement early — and the exact trigger
+    // is narrower than it first looks. `executeSqlFile` rtrims only "\r\n", so:
+    //
+    //   "clause 4; \nmore"   line ends "; "  -> trailing space, no flush, SAFE
+    //   "clause 4;\nmore"    line ends ";"   -> flushes early, TEARS
+    //   "clause 4;\r\nmore"  rtrim strips \r -> flushes early, TEARS
+    //
+    // Measured 2026-09-15: with the semicolon immediately before the newline,
+    // restoring throws `unrecognized token: "'Signed clause 4;"` partway
+    // through — after some tables have already been dropped and recreated. So
+    // the failure is loud, but the backup is unrestorable and the attempt
+    // leaves a half-built database.
+    //
+    // PDO does not close this uniformly, and the asymmetry runs the wrong way:
+    //
+    //   mysql   quote("a;\nb")  ->  'a;\nb'      newline escaped
+    //   sqlite  quote("a;\nb")  ->  'a; <LF> b'  newline literal
+    //
+    // Production is MySQL and was safe. Every test in this file is SQLite and
+    // was not — so the suite proving backups work was proving it on the weaker
+    // driver, and no fixture happened to contain the byte pair that shows it.
+    $tenant = createTenant();
+
+    // Every newline here is immediately preceded by a semicolon, so each one is
+    // a real trigger rather than a decorative one. Both line endings, and a
+    // trailing newline, because they take different branches.
+    $nasty = "Signed clause 4;\nthen clause 5;\r\nWindows line too;\n";
+
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_code' => 'EMP-TEAR-1',
+        'name_am' => $nasty,
+    ]);
+
+    // A second carrier, because the JSON payload of an audit row is where
+    // multi-line free text actually reaches the database in this system.
+    AuditLog::record('backup.tear', null, ['note' => $nasty]);
+
+    $backup = app(BackupService::class)->create('tear');
+
+    // Prove the dump itself is well formed before restoring it: no line of the
+    // INSERT section may contain a raw newline inside a literal, which is the
+    // same as saying every statement line ends in a semicolon.
+    $sql = File::get($backup['path'].DIRECTORY_SEPARATOR.'database.sql');
+    expect($sql)->toContain('char(10)');
+
+    destroyDatabase();
+    app(BackupService::class)->restore($backup['path']);
+
+    $restored = Employee::withoutGlobalScopes()->where('employee_code', 'EMP-TEAR-1')->first();
+
+    expect($restored)->not->toBeNull()
+        ->and($restored->name_am)->toBe($nasty)
+        ->and($restored->public_id)->toBe($employee->public_id);
+
+    $log = AuditLog::withoutGlobalScopes()->where('action', 'backup.tear')->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->payload['note'])->toBe($nasty);
+});
+
 it('writes a manifest that describes what was captured', function () {
     $tenant = createTenant();
     Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);

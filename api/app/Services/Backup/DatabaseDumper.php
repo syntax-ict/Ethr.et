@@ -273,6 +273,71 @@ class DatabaseDumper
             return '0x'.bin2hex((string) $value);
         }
 
-        return DB::connection($this->connection)->getPdo()->quote((string) $value);
+        return $this->quoteFlat((string) $value);
+    }
+
+    /**
+     * Guarantee a literal contains no raw newline.
+     *
+     * The dump's one-statement-per-line layout is not cosmetic — it is the
+     * contract `BackupService::executeSqlFile()` relies on to know where a
+     * statement ends. A value carrying a newline breaks that contract, and if
+     * the text before the newline happens to end in a semicolon the restore
+     * executes half an INSERT and then fails on the remainder. An employee note
+     * reading "see clause 4; \nsigned" is enough.
+     *
+     * PDO's own quoting does not close this uniformly, which is the trap:
+     *
+     *   mysql   quote("a; \nb")  ->  'a; \nb'        newline escaped, safe
+     *   sqlite  quote("a; \nb")  ->  'a; <LF> b'     newline literal, TEARS
+     *
+     * So the MySQL path — production — was already correct, and the SQLite path
+     * — every backup test in this repository — was not. A driver difference
+     * that makes the *tested* path the weaker one is exactly the shape that
+     * survives a green suite, so this normalises both rather than special-casing
+     * the one known to be broken.
+     *
+     * `char(N)` concatenation is used instead of a backslash escape because
+     * SQLite string literals have no backslash escapes at all: '\n' there is a
+     * two-character string, which would silently corrupt the value rather than
+     * tear the statement. Both drivers accept `char()` and `||`.
+     *
+     * The split happens on the RAW value and each fragment is quoted
+     * separately. Splitting the already-quoted string instead would leave the
+     * opening quote on the first fragment and the closing quote on the last,
+     * with everything between unterminated — a subtler corruption than the one
+     * being fixed.
+     */
+    private function quoteFlat(string $value): string
+    {
+        $pdo = DB::connection($this->connection)->getPdo();
+
+        if (! str_contains($value, "\n") && ! str_contains($value, "\r")) {
+            return $pdo->quote($value);
+        }
+
+        $parts = preg_split('/(\r\n|\r|\n)/', $value, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $out = [];
+
+        foreach ($parts as $part) {
+            $piece = match ($part) {
+                "\r\n" => 'char(13)||char(10)',
+                "\r" => 'char(13)',
+                "\n" => 'char(10)',
+                // An empty fragment is what a leading, trailing or doubled
+                // newline produces. Dropping it would silently lose nothing;
+                // quoting it would emit a pointless ''. Skip it.
+                '' => null,
+                default => $pdo->quote($part),
+            };
+
+            if ($piece !== null) {
+                $out[] = $piece;
+            }
+        }
+
+        // A value that is nothing but newlines leaves no quoted fragment, and
+        // char(10) alone is already a valid string expression.
+        return $out === [] ? "''" : implode('||', $out);
     }
 }
