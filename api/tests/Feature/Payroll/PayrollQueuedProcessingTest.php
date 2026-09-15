@@ -7,6 +7,7 @@ use App\Jobs\ProcessPayrollJob;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Services\Payroll\PayrollEngine;
 use Illuminate\Support\Facades\Queue;
 
 /**
@@ -73,7 +74,7 @@ it('computes the entries when the job runs', function () {
     expect(PayrollEntry::where('payroll_run_id', $run->id)->count())->toBe(0);
 
     // Run the job the way the worker would.
-    (new ProcessPayrollJob($run->id))->handle(app(\App\Services\Payroll\PayrollEngine::class));
+    (new ProcessPayrollJob($run->id))->handle(app(PayrollEngine::class));
 
     $run->refresh();
 
@@ -117,7 +118,7 @@ it('refuses to recompute a run that is no longer processing', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", payrollPayload('guard-1'));
     $run = PayrollRun::where('tenant_id', $tenant->id)->firstOrFail();
 
-    $engine = app(\App\Services\Payroll\PayrollEngine::class);
+    $engine = app(PayrollEngine::class);
     (new ProcessPayrollJob($run->id))->handle($engine);
     $countAfterFirst = PayrollEntry::where('payroll_run_id', $run->id)->count();
 
@@ -158,7 +159,7 @@ it('leaves a finished run alone when failed() fires late', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", payrollPayload('late-fail'));
     $run = PayrollRun::where('tenant_id', $tenant->id)->firstOrFail();
 
-    (new ProcessPayrollJob($run->id))->handle(app(\App\Services\Payroll\PayrollEngine::class));
+    (new ProcessPayrollJob($run->id))->handle(app(PayrollEngine::class));
     expect($run->refresh()->status)->toBe('completed');
 
     (new ProcessPayrollJob($run->id))->failed(new RuntimeException('a stale worker reporting in'));
