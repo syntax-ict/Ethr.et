@@ -17,6 +17,15 @@ class CleanupExpiredDataJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * Declared rather than inherited: prunes notifications, webhook deliveries and import staging across every tenant.
+     *
+     * Without this the job silently takes the worker's --timeout (60s by
+     * default), and the queue retry_after invariant cannot be computed at all -
+     * see tests/Feature/QueueRetryAfterInvariantTest.php.
+     */
+    public int $timeout = 600;
+
     public function handle(): void
     {
         $deleted = 0;

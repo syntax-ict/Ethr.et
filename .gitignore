@@ -43,6 +43,17 @@ mariadb_data/
 redis_data/
 minio_data/
 
+# Backups. A single backup directory contains the ENTIRE dataset - salary
+# history, bank details, scanned identity documents - plus every audit_log row.
+# Committing one would be a larger disclosure than any credential in this repo.
+# The default BACKUP_PATH is api/storage/backups; anywhere else it lands, the
+# *.sql and archive patterns below still catch the artefacts.
+api/storage/backups/
+storage/backups/
+*.sql
+*.sql.gz
+ethr-*.tar.gz
+
 # PHP
 api/storage/logs/*.log
 api/storage/framework/cache/data/*

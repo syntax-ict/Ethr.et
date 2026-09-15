@@ -94,6 +94,23 @@ export interface CostSharing {
 
 // ── Payroll Runs ──────────────────────────────────────────────────────────────
 
+/**
+ * How often to re-check a run that is still computing.
+ *
+ * Payroll moved off the request and onto the queue — the API now returns 202
+ * with the run at `processing`, and a cron-driven worker fills it in. Without
+ * polling the UI would show `processing` until the user happened to reload,
+ * which is indistinguishable from a run that failed.
+ *
+ * Only polls while something is actually in flight; a settled list goes back to
+ * the normal staleTime and costs nothing.
+ */
+const PROCESSING_POLL_MS = 3000;
+
+function hasRunInFlight(runs: PayrollRun[] | undefined): boolean {
+  return (runs ?? []).some((run) => run.status === "processing");
+}
+
 export function usePayrollRuns(params?: { page?: number }) {
   return useQuery<PaginatedResponse<PayrollRun>>({
     queryKey: ["payroll", "runs", params],
@@ -102,6 +119,8 @@ export function usePayrollRuns(params?: { page?: number }) {
       return data;
     },
     staleTime: 5 * 60 * 1000,
+    refetchInterval: (query) =>
+      hasRunInFlight(query.state.data?.data) ? PROCESSING_POLL_MS : false,
   });
 }
 
@@ -114,6 +133,11 @@ export function usePayrollRun(publicId: string) {
     },
     enabled: !!publicId,
     staleTime: 5 * 60 * 1000,
+    // Stops on its own once the run reaches completed, approved, voided or
+    // failed — `failed` matters as much as `completed` here, because a run that
+    // crashed must stop being shown as in progress.
+    refetchInterval: (query) =>
+      query.state.data?.status === "processing" ? PROCESSING_POLL_MS : false,
   });
 }
 

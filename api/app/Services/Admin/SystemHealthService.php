@@ -20,7 +20,7 @@ final class SystemHealthService
                 'database' => $this->databaseStatus(),
                 'redis' => $this->redisStatus(),
                 'storage' => $this->storageStatus(),
-                'reverb' => ['status' => 'unknown', 'note' => 'WebSocket server — check Horizon'],
+                'reverb' => $this->broadcastStatus(),
             ],
             'queue' => $this->queueStatus(),
             'failed_jobs' => $this->failedJobsCount(),
@@ -60,10 +60,39 @@ final class SystemHealthService
         }
     }
 
+    /**
+     * Whether broadcasting is configured, rather than whether Reverb is up.
+     *
+     * This row used to read "check Horizon", which was wrong twice over: Horizon
+     * is a queue dashboard and never had anything to say about the WebSocket
+     * server, and Horizon has since been removed entirely (it hard-required
+     * ext-pcntl and ext-posix, which shared hosting does not provide).
+     *
+     * On the shared-hosting target Reverb is not deployed at all - no shared
+     * tier offers a WebSocket server - so BROADCAST_CONNECTION is `log` and
+     * "disabled" is the correct, healthy answer rather than a fault.
+     */
+    private function broadcastStatus(): array
+    {
+        $connection = config('broadcasting.default');
+
+        if (! in_array($connection, ['reverb', 'pusher'], true)) {
+            return ['status' => 'disabled', 'driver' => (string) $connection];
+        }
+
+        return ['status' => 'unknown', 'driver' => (string) $connection,
+            'note' => 'configured, but liveness is not probed from here'];
+    }
+
     private function storageStatus(): array
     {
         try {
-            $disk = Storage::disk('minio');
+            // Resolve from configuration, not a hardcoded name. This was the one
+            // site 80cac67 missed when it fixed the other four, so on any
+            // non-MinIO deployment the admin health page showed storage
+            // permanently red - and a panel that is always red is a panel people
+            // stop reading, which is worse than no panel at all.
+            $disk = Storage::disk(config('filesystems.default'));
             $start = microtime(true);
             // Lightweight check: list root (may throw if MinIO is down)
             $disk->directories('/');
@@ -77,7 +106,13 @@ final class SystemHealthService
 
     private function queueStatus(): array
     {
-        $queues = ['default', 'high', 'low'];
+        // The queues this application actually dispatches onto. It used to poll
+        // 'default', 'high' and 'low' - names nothing in the codebase uses - so
+        // the panel reported depth for three queues that do not exist while
+        // ignoring the four that do. A bare `queue:work` reads only `default`
+        // (DB_QUEUE), so a misconfigured worker starves the other three; this is
+        // the panel that has to make that visible.
+        $queues = ['default', 'attendance', 'notifications', 'exports'];
         $depths = [];
 
         foreach ($queues as $queue) {

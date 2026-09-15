@@ -34,6 +34,15 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
 
     public int $tries = 2;
 
+    /**
+     * Declared rather than inherited: fans out one notification per audience member.
+     *
+     * Without this the job silently takes the worker's --timeout (60s by
+     * default), and the queue retry_after invariant cannot be computed at all -
+     * see tests/Feature/QueueRetryAfterInvariantTest.php.
+     */
+    public int $timeout = 600;
+
     public function __construct(private readonly int $announcementId) {}
 
     public function handle(CurrentTenant $currentTenant): void

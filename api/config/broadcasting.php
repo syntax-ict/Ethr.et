@@ -4,7 +4,25 @@ declare(strict_types=1);
 
 return [
 
-    'default' => env('BROADCAST_CONNECTION', 'reverb'),
+    // `?? 'null'` is load-bearing, not defensive noise.
+    //
+    // A `null` connection is defined below, so BROADCAST_CONNECTION=null reads
+    // as the obvious way to turn broadcasting off — and it is exactly what the
+    // shared-hosting deployment wants, since Reverb needs a WebSocket server no
+    // shared tier provides.
+    //
+    // But Laravel's env() parses the literal string "null" into PHP null and
+    // returns it *instead of* the default, so `default` became null rather than
+    // 'null'. BroadcastManager then threw "Broadcast connection [] is not
+    // defined" on the first broadcast — a runtime failure produced by writing
+    // down precisely what the config appears to invite.
+    //
+    // Coalescing back to the 'null' driver honours the intent. `log` remains
+    // the better choice for a first deployment: it satisfies the twelve
+    // notification classes that guard on
+    // `config('broadcasting.default') === 'reverb'` just as 'null' does, and it
+    // leaves a trace when something tries to broadcast.
+    'default' => env('BROADCAST_CONNECTION', 'reverb') ?? 'null',
 
     'connections' => [
 

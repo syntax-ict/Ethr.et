@@ -144,7 +144,7 @@ test('finance admin can process payroll via api', function () {
         'idempotency_key' => 'run-2026-06-alpha',
     ]);
 
-    $response->assertStatus(201)
+    $response->assertStatus(202)
         ->assertJsonPath('status', 'completed')
         ->assertJsonPath('employee_count', 1)
         ->assertJsonPath('was_duplicate', false)
@@ -190,7 +190,7 @@ test('replaying the same idempotency key does not double-process payroll', funct
     ];
 
     $first = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", $payload);
-    $first->assertStatus(201)->assertJsonPath('was_duplicate', false);
+    $first->assertStatus(202)->assertJsonPath('was_duplicate', false);
 
     $second = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", $payload);
     $second->assertStatus(200)
@@ -215,13 +215,13 @@ test('different idempotency keys allow separate payroll runs for the same period
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
         'idempotency_key' => 'run-2026-06-first',
-    ])->assertStatus(201);
+    ])->assertStatus(202);
 
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", [
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
         'idempotency_key' => 'run-2026-06-second',
-    ])->assertStatus(201);
+    ])->assertStatus(202);
 
     expect(PayrollRun::where('tenant_id', $tenant->id)->count())->toBe(2);
 });
@@ -613,7 +613,7 @@ test('payroll processing is audit logged', function () {
         'period_start' => '2026-06-01',
         'period_end' => '2026-06-30',
         'idempotency_key' => 'run-2026-06-audit',
-    ])->assertStatus(201);
+    ])->assertStatus(202);
 
     $this->assertDatabaseHas('audit_log', [
         'action' => 'payroll.processed',

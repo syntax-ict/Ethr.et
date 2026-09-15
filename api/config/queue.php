@@ -40,7 +40,19 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // MUST exceed the longest job timeout, which is BackupTenantJob at
+            // 900s. Laravel releases a reserved job back onto the queue after
+            // retry_after seconds; at the old default of 90 a job still running
+            // was re-reserved and executed a SECOND time while the first was
+            // mid-flight. That affected five jobs with 300-900s timeouts -
+            // duplicate leave accrual, duplicate carry-forward, duplicate
+            // tenant backups - and looked like success, because neither run
+            // errors.
+            //
+            // tests/Feature/QueueRetryAfterInvariantTest.php asserts this
+            // against the declared timeouts, so a new long job fails the suite
+            // rather than silently reintroducing the bug.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 1200),
             'after_commit' => false,
         ],
 

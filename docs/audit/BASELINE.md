@@ -205,7 +205,13 @@ Horizon: see §3a. Removal is a package change plus one line in `bootstrap/provi
 
 **Queue names in use:** `attendance`, `notifications`, `exports`, `default`. A bare `queue:work` reads only `default` (`DB_QUEUE=default`), so the other three would never drain.
 
-### 7a. DEFECT — `retry_after` is below five job timeouts
+### 7a. ~~DEFECT — `retry_after` is below five job timeouts~~ — **fixed 2026-09-15** (`76ca983`)
+
+> Raised to 1200s, above `BackupTenantJob`'s 900s. Five jobs that declared **no** timeout at all now do — including `GenerateMonthlyInvoicesJob`, which is how the business bills; they had been silently inheriting the worker's 60s default, which also made the invariant uncomputable.
+>
+> `tests/Feature/QueueRetryAfterInvariantTest.php` asserts the invariant by reflection over the job classes, so a future long-running job fails the suite rather than quietly reintroducing the bug. Proven to fail at the old value.
+>
+> The original text follows, for the record.
 
 **[verified]** `api/config/queue.php:43`:
 
@@ -419,7 +425,17 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 
 ## 13. Known blockers
 
-### 13a. Payroll runs synchronously in the HTTP request **[verified]**
+### 13a. ~~Payroll runs synchronously in the HTTP request~~ — **fixed 2026-09-15**
+
+> `PayrollController::process` now calls `PayrollEngine::begin()` (reserve the run) and dispatches `ProcessPayrollJob`, returning **202** with the run at `processing`. The engine was **split, not rewritten** — `process()` still calls `begin()` plus `runEntries()`, so every existing caller and all 34 payroll tests pass unchanged. Master plan §20 says do not redesign payroll calculation, and none of it moved.
+>
+> `tries = 1` deliberately: idempotency protects against a client replaying the request, not against the job running twice on the same run, which would append a second set of entries. `failed()` marks the run `failed` so a crashed run cannot sit at `processing` — that ambiguity was half of what made the 504 bad.
+>
+> Frontend polls while a run is in flight and stops on `completed`, `failed`, `approved` or `voided`.
+>
+> Six tests fake the queue, because the rest of the suite runs under `QUEUE_CONNECTION=sync` where the job executes inline and would pass either way. Reverted to inline processing, three go red.
+>
+> Original finding follows.
 
 `api/app/Http/Controllers/Api/V1/Payroll/PayrollController.php:38` calls `$engine->process(...)` inline. `api/app/Services/Payroll/PayrollEngine.php:89` chunks (`chunkById(100)`) over every active employee, computing tax, pension, overtime, loans, allowances and cost-sharing per row. **No job wrapper, no `set_time_limit`.**
 
@@ -466,12 +482,12 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 | # | Risk | Evidence | Severity |
 |---|---|---|---|
-| 1 | **No backup or restore path for any non-Docker host** | `scripts/backup.sh:53,63` **[verified]** | **Critical** — unrecoverable HR/payroll loss |
+| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally; **not yet rehearsed on the host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]** | **High** (was Critical) — still a go-live gate |
 | 2 | **Cross-tenant import lookup (P0-1)** | `EmployeeImporter.php:94` **[verified]** | **Critical** — isolation breach + silent data loss |
-| 3 | **Payroll times out mid-transaction** | `PayrollController.php:38` + `CLAUDE.md:858` **[verified]** | High |
-| 4 | **Duplicate job execution** — `retry_after` 90s vs 900s | `config/queue.php:43` **[verified]** | High |
+| 3 | ~~Payroll times out mid-transaction~~ — **queued** (`ProcessPayrollJob`), 202 + polling | `PayrollQueuedProcessingTest` **[verified]** | Resolved |
+| 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |
 | 5 | **Audit-log `DEFINER` breaks after restore** → all writes 500 | 206 call sites **[verified]** | High |
-| 6 | **Horizon aborts `composer install`** | `composer.lock:2000-2001` **[verified]** | High |
+| 6 | ~~Horizon aborts `composer install`~~ — **removed** (`cdf85d1`); lockfile carries **zero** hard `pcntl`/`posix` requires | lockfile parsed **[verified]** | Resolved |
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
