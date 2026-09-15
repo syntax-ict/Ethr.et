@@ -17,7 +17,7 @@ Several documents in this tree describe things that are not true of the code. Th
 
 Three standing caveats:
 
-- **There is no CI.** Documents that said otherwise were corrected in Phase 1. `./scripts/gates.sh` is the gate, run by a person.
+- **CI is configured but has never run.** Phase 1 corrected four documents that asserted a pipeline which did not exist; Phase 2 built one. It still has not executed — nothing has been pushed — so it is untested configuration. The pre-push hook (`git config core.hooksPath .githooks`) is the part that works today.
 - **`phases/` is not maintained.** The checkboxes badly under-report what is built. Specifications, not progress trackers.
 - **"Migration" means three different things here.** See the naming note at the bottom.
 

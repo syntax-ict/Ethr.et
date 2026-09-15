@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# ETHR pre-push gate.
+#
+# Enable once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# Runs `scripts/gates.sh quick` — every gate that does not run a test suite.
+# The suites are left to CI deliberately: the backend suite takes ~10 minutes,
+# and a hook that costs ten minutes is a hook people learn to pass --no-verify
+# to, which protects nothing at all.
+#
+#   ETHR_PREPUSH_SCOPE=all git push     # the full sweep, if you want it
+#   ETHR_PREPUSH_SCOPE=skip git push    # honest opt-out, same as --no-verify
+#
+# This existed before CI did. scripts/gates.sh has always said any runner "or a
+# pre-push hook, or a person" could invoke it; for a long time nothing did.
+
+set -uo pipefail
+
+SCOPE="${ETHR_PREPUSH_SCOPE:-quick}"
+
+if [[ "$SCOPE" == "skip" ]]; then
+    printf '\033[33mpre-push: skipped (ETHR_PREPUSH_SCOPE=skip)\033[0m\n'
+    exit 0
+fi
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+printf '\033[1mpre-push: scripts/gates.sh %s\033[0m\n' "$SCOPE"
+
+if ! bash "$REPO_ROOT/scripts/gates.sh" "$SCOPE"; then
+    printf '\n\033[31mpre-push: gates failed — push aborted.\033[0m\n'
+    printf 'Fix them, or push anyway with:  git push --no-verify\n'
+    exit 1
+fi
+
+# Sensitive-file check (master plan §15). Not a substitute for a secret scanner;
+# it catches the specific mistakes this repository has actually made — a
+# committed APP_KEY in START_BACKEND.ps1, and a real .env slipping past a
+# .gitignore that did not cover its filename.
+RANGE_BASE="$(git merge-base HEAD origin/main 2>/dev/null || echo '')"
+if [[ -n "$RANGE_BASE" ]]; then
+    # --diff-filter=A: only newly ADDED files. A tracked file that merely
+    # changed is not a new secret, and flagging it would make the hook cry
+    # wolf on every push - which is how hooks get disabled.
+    #
+    # src/.env.production is excluded by name. It is tracked on purpose:
+    # NEXT_PUBLIC_* only, compiled into the client bundle, public by
+    # definition, and the production build needs it. Its own header says so.
+    # Anything else matching .env is not that.
+    SUSPECT=$(git diff --name-only --diff-filter=A "$RANGE_BASE"..HEAD \
+        | grep -E '(^|/)\.env($|\.)|\.pem$|\.key$|\.p12$|\.pfx$|_rsa$' \
+        | grep -v '\.example$' \
+        | grep -vx 'src/\.env\.production' || true)
+
+    if [[ -n "$SUSPECT" ]]; then
+        printf '\n\033[31mpre-push: these look like secrets:\033[0m\n%s\n' "$SUSPECT"
+        printf 'If they are genuinely safe, push with --no-verify and say why in the PR.\n'
+        exit 1
+    fi
+
+    if git diff "$RANGE_BASE"..HEAD -- . ':!*.example' ':!docs/*' ':!CHANGELOG.md' \
+        | grep -qE '^\+.*base64:[A-Za-z0-9+/]{40,}'; then
+        printf '\n\033[31mpre-push: an APP_KEY literal is being added.\033[0m\n'
+        printf 'Generate one at runtime instead — see START_BACKEND.ps1.\n'
+        exit 1
+    fi
+fi
+
+printf '\033[32mpre-push: ok\033[0m\n'

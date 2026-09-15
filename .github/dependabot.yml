@@ -1,0 +1,63 @@
+version: 2
+
+# Note for whoever reads the first batch of PRs: as of 2026-09-15 this project
+# had 5 advisories in production dependencies — including two CRITICAL
+# unauthenticated-RCE advisories against next@16.2.12 — and 22 more in dev-only
+# tooling. Expect a busy first week. docs/security-audit.md's note that there
+# was "no clean in-range fix" was true when written and is not any more.
+
+updates:
+  - package-ecosystem: composer
+    directory: /api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Addis_Ababa
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      # Laravel's own packages move together; separate PRs for each produce
+      # conflicts rather than information.
+      laravel:
+        patterns: ["laravel/*", "illuminate/*"]
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: /src
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Addis_Ababa
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      next:
+        patterns: ["next", "@next/*", "eslint-config-next"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # src/package.json carries a hand-maintained `overrides` block for
+      # postcss, sharp and nanoid with a documented rationale. Let Dependabot
+      # raise the real dependency and leave the override alone, rather than
+      # fighting it every week.
+      - dependency-name: postcss
+        update-types: [version-update:semver-patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"

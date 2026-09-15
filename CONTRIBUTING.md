@@ -41,8 +41,34 @@ One entry point, for people and for CI alike:
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ```
 
-Run it before pushing. There is currently no CI enforcing this — see
-`docs/audit/BASELINE.md` §15 — so the gate is you.
+Two more scopes exist:
+
+```bash
+./scripts/gates.sh quick      # everything except the test suites — for the hook
+./scripts/gates.sh docs       # markdown links resolve
+./scripts/gates.sh security   # composer audit + npm audit (production deps)
+```
+
+### Enable the pre-push hook
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Once per clone. It runs `gates.sh quick` and refuses the push if anything fails,
+and it checks the diff for `.env` files and `APP_KEY` literals — both mistakes
+this repository has actually made.
+
+It runs `quick` rather than the full sweep on purpose: the backend suite takes
+about ten minutes, and a hook that costs ten minutes is a hook people learn to
+pass `--no-verify` to. `ETHR_PREPUSH_SCOPE=all git push` if you want everything.
+
+### On CI
+
+`.github/workflows/` calls `gates.sh` rather than restating the gate list, so
+there is one definition of "does this pass". **It has never run** — nothing has
+been pushed to the remote yet — so treat it as configuration that has not been
+tested. The hook is the part that works today.
 
 ### Do not run `vendor/bin/pest` directly over a Docker bind mount
 

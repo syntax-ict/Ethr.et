@@ -42,12 +42,28 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 ## Quality gates
 
 ```bash
-./scripts/gates.sh            # all nine
-./scripts/gates.sh backend    # Pint, PHPStan, Pest
+./scripts/gates.sh            # the full sweep
+./scripts/gates.sh quick      # everything except the test suites — seconds
+./scripts/gates.sh backend    # composer validate, Pint, PHPStan, Pest
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
+./scripts/gates.sh docs       # markdown link integrity
+./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ```
 
-**There is no CI.** Several documents in this tree say there is; they are wrong, and `docs/audit/BASELINE.md` §15 records it as an open risk. Until that changes, the gate is you.
+`security` is deliberately outside the full sweep, like `performance`. It goes
+red when a third party publishes an advisory, not when you break something, and
+a gate that is permanently red stops being read. **It is red right now** — see
+`docs/audit/BASELINE.md` §15.
+
+**CI is configured but has never run.** `.github/workflows/` was added in Phase 2 and calls `gates.sh` rather than restating it. It has executed zero times, because `main` is 19 commits ahead of `origin/main` and nothing has been pushed. Treat it as untested configuration, not as a control.
+
+What *is* active is the pre-push hook, once you enable it:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+It runs `gates.sh quick` — every gate except the test suites — plus a check for `.env` files and `APP_KEY` literals in the diff.
 
 ---
 

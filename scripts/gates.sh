@@ -3,8 +3,11 @@
 # ETHR quality gates — the full CLAUDE.md gate list in one command.
 #
 #   ./scripts/gates.sh             run every gate, report all failures
-#   ./scripts/gates.sh backend     Pint + PHPStan + Pest only
-#   ./scripts/gates.sh frontend    i18n + prettier + eslint + tsc + Vitest only
+#   ./scripts/gates.sh backend     Pint + PHPStan + Pest + composer validate
+#   ./scripts/gates.sh frontend    i18n + prettier + eslint + tsc + Vitest
+#   ./scripts/gates.sh quick       everything except the test suites (~seconds)
+#   ./scripts/gates.sh docs        markdown link integrity only
+#   ./scripts/gates.sh security    composer audit + npm audit (production deps)
 #   ./scripts/gates.sh performance the tests/Performance benchmarks only
 #
 # The API-contract gate needs both halves, so it only runs in a full sweep.
@@ -64,6 +67,71 @@ i18n_gate() { (cd "$WEB_DIR" && node "$REPO_ROOT/scripts/i18n-check.js"); }
 # Fails when src/api/generated.ts no longer matches the live routes. tsc cannot
 # catch this: it type-checks happily against a stale contract.
 api_types_gate() { bash "$REPO_ROOT/scripts/api-types-check.sh"; }
+
+# Every relative markdown link must resolve. Added after Phase 1 found 33 broken
+# links that no amount of reading had caught: ten phase documents pointed at
+# ENTERPRISE_ROADMAP.md as a sibling when it lives one directory up, and twenty
+# cited audit files that are not in the tree and never were. All of it sat in a
+# header whose only job was to route readers to current status.
+docs_gate() { (cd "$REPO_ROOT" && node scripts/docs-link-check.js); }
+
+# composer.json and composer.lock agree, and the manifest is well-formed.
+# --no-check-publish because this is a private application, not a package:
+# without it, `name`/`description`/`license` requirements fail the gate for
+# no reason.
+composer_validate_gate() {
+    if have_php; then
+        (cd "$API_DIR" && composer validate --no-check-publish --no-interaction)
+    elif container_up; then
+        docker exec "$CONTAINER" sh -c 'cd /var/www/api && composer validate --no-check-publish --no-interaction'
+    else
+        no_php_msg
+        return 1
+    fi
+}
+
+# ── Security gates ───────────────────────────────────────────────────────────
+#
+# Deliberately NOT part of `all`, for the same reason tests/Performance is not:
+# a gate that is permanently red stops being read. These depend on the advisory
+# databases, so they go red when a new CVE lands rather than when someone breaks
+# something, and `all` needs to mean "I broke nothing".
+#
+# They are blocking in CI (.github/workflows/security.yml), where a red result
+# is a notification rather than an obstacle to the next commit.
+#
+# npm audit runs with --omit=dev on purpose. Dev-only advisories are real but
+# they do not ship: as of 2026-09-15 this repository had 27 total and 5 in
+# production dependencies, and lumping them together buries the five that
+# reach users. Dev findings are printed separately and do not fail the gate.
+
+composer_audit_gate() {
+    if have_php; then
+        (cd "$API_DIR" && composer audit --no-interaction)
+    elif container_up; then
+        docker exec "$CONTAINER" sh -c 'cd /var/www/api && composer audit --no-interaction'
+    else
+        no_php_msg
+        return 1
+    fi
+}
+
+npm_audit_gate() {
+    (
+        cd "$WEB_DIR" || return 1
+        printf 'Production dependencies (these ship):
+'
+        npm audit --omit=dev --audit-level=high
+        local rc=$?
+
+        printf '
+Dev-only dependencies (informational, does not fail this gate):
+'
+        npm audit --include=dev --audit-level=high 2>&1 | tail -5 || true
+
+        return $rc
+    )
+}
 
 # PHP tooling runs natively where a php binary exists (Linux CI, a WSL2-native
 # checkout) and inside the api container otherwise. On the documented Windows +
@@ -156,7 +224,22 @@ pest_gate() {
     )
 }
 
+# `quick` is the pre-push scope: every gate that does not run a test suite.
+# Seconds rather than ten minutes, which is the difference between a hook people
+# keep and a hook people learn to pass --no-verify to. The suites run in CI, and
+# `all` is still there for anyone who wants the lot locally.
+if [[ "$SCOPE" == "quick" ]]; then
+    run_gate "Composer (manifest)"   composer_validate_gate
+    run_gate "Pint (format)"         pint_gate
+    run_gate "i18n (keys + en/am)"   i18n_gate
+    run_gate "Prettier (format)"     prettier_gate
+    run_gate "ESLint (frontend)"     eslint_gate
+    run_gate "TypeScript (tsc)"      tsc_gate
+    run_gate "Docs (link integrity)" docs_gate
+fi
+
 if [[ "$SCOPE" == "all" || "$SCOPE" == "backend" ]]; then
+    run_gate "Composer (manifest)" composer_validate_gate
     run_gate "Pint (format)"       pint_gate
     run_gate "PHPStan (level 6)"   phpstan_gate
     run_gate "Pest (backend)"      pest_gate
@@ -170,9 +253,19 @@ if [[ "$SCOPE" == "all" || "$SCOPE" == "frontend" ]]; then
     run_gate "Vitest (frontend)"   vitest_gate
 fi
 
+if [[ "$SCOPE" == "all" || "$SCOPE" == "docs" ]]; then
+    run_gate "Docs (link integrity)" docs_gate
+fi
+
 # Needs both halves of the stack, so it only runs in a full sweep.
 if [[ "$SCOPE" == "all" ]]; then
     run_gate "API types (contract)" api_types_gate
+fi
+
+# Opt-in, never part of `all` — see the comment above composer_audit_gate.
+if [[ "$SCOPE" == "security" ]]; then
+    run_gate "Composer audit (backend deps)" composer_audit_gate
+    run_gate "npm audit (production deps)"   npm_audit_gate
 fi
 
 # Opt-in, never part of `all`. These assert the CLAUDE.md "Performance Targets"

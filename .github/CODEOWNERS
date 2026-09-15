@@ -1,0 +1,28 @@
+# Every change gets a review by default.
+*                                   @syntax-ict
+
+# Areas where a wrong change is expensive and quiet rather than loud.
+# Listed for visibility as much as for approval rights — these are the files
+# where "it still passed the tests" has already turned out not to mean "it is
+# still correct".
+
+# Tenant isolation. The global scope is fail-closed, but ~147 call sites bypass
+# it and nothing enforces the tenant predicate they must re-apply.
+/api/app/Traits/BelongsToTenant.php  @syntax-ict
+/api/app/Services/CurrentTenant.php  @syntax-ict
+/api/app/Http/Middleware/            @syntax-ict
+/api/tests/Feature/Security/         @syntax-ict
+
+# Money and statutory calculation. Proclamation 1395/2025 rates are here.
+/api/app/Services/Payroll/           @syntax-ict
+/api/app/Services/Billing/           @syntax-ict
+
+# Schema. The audit-log trigger migration aborts the whole run by design.
+/api/database/migrations/            @syntax-ict
+
+# Deployment, gates and hooks — a change here can disable the checks silently.
+/scripts/                            @syntax-ict
+/.github/                            @syntax-ict
+/.githooks/                          @syntax-ict
+/docker/                             @syntax-ict
+/infrastructure/                     @syntax-ict

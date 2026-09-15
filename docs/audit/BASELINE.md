@@ -472,7 +472,8 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 4 | **Duplicate job execution** — `retry_after` 90s vs 900s | `config/queue.php:43` **[verified]** | High |
 | 5 | **Audit-log `DEFINER` breaks after restore** → all writes 500 | 206 call sites **[verified]** | High |
 | 6 | **Horizon aborts `composer install`** | `composer.lock:2000-2001` **[verified]** | High |
-| 7 | **No CI of any kind** — `.github/` does not exist | `ls` **[verified]** | High |
+| 7 | **Two critical RCE advisories in a production dependency** | `npm audit --omit=dev` **[verified 2026-09-15]** | **Critical** |
+| 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | **19 commits exist only on this machine**, unbacked | `git rev-list` **[verified]** | Medium — total loss of 3 days' work |
 | 9 | **Queue can stop silently** — no supervisor, no dashboard | design **[verified]** | Medium |
 | 10 | **No coverage instrumentation**; billing near-untested | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
@@ -483,12 +484,41 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 ---
 
+### 15a. Frontend dependency advisories — amended 2026-09-15
+
+`scripts/gates.sh security` was added in Phase 2 and is **red on first run**.
+
+**Production dependencies: 5 advisories (1 critical, 3 high, 1 moderate)** — these ship to users:
+
+| Package | Severity | Advisory |
+|---|---|---|
+| `next` 16.2.12 | **CRITICAL** | [GHSA-p293-qw3h-jr36](https://github.com/advisories/GHSA-p293-qw3h-jr36) — unauthenticated RCE on Windows-hosted servers |
+| `next` 16.2.12 | **CRITICAL** | [GHSA-2xp9-vwfh-vxw4](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4) — unauthenticated RCE in the Image Optimization API via AVIF |
+| `sharp` | high | libheif vulnerabilities, reached transitively through `next` |
+| `browserslist` | high | unbounded memory growth; prototype write via untrusted stats |
+| `fast-uri` | high | SSRF and host confusion |
+
+A further 22 advisories are in dev-only tooling (`@lhci/cli`, `vitest`, `puppeteer`, `@redocly/openapi-core`). Real, but they do not ship, which is why the gate separates them — 27 reported together buries the 5 that reach users.
+
+**Three things make this more actionable than it looks:**
+
+1. **The fix is in range.** Affected versions end at `16.3.2`; `16.3.3` is fixed and `16.3.5` is current. `package.json` declares `^16.2.9`, so this is `npm update`, not a major upgrade.
+2. **`docs/security-audit.md`'s plan would not have worked.** It records "no clean in-range fix … revisit on Next 16.3.0 stable". The affected range now extends past 16.3.0, so that revisit would have found the problem unfixed.
+3. **Exposure is narrower than the headline** — but not zero, and not by design. The Windows RCE needs a Windows-hosted Next server; the production target is Linux, though development is Windows. The AVIF RCE needs the Image Optimization endpoint, and §11 records **zero `next/image` usages** — but `/_next/image` exists whenever the Next server runs, whatever the application calls.
+
+**Not fixed here.** A dependency upgrade touching the whole frontend is a §53 HIGH RISK change and needs its own slice with the frontend suite run against it — not a footnote to a CI commit. See §16.5.
+
+**Backend is clean:** `composer audit` passes.
+
+---
+
 ## 16. Decisions required from the owner
 
 1. **P0-1 remediation timing** — fix the import scope leak in Phase 0.5 (security hygiene) or defer to the tenant-isolation phase? One line plus a regression test. Recommendation: Phase 0.5, since §10 classes it as a security finding.
 2. **The 19 unbacked commits** — the owner elected to leave them. Re-flagged only because §15.8 rates it Medium and it is the cheapest risk on the list to retire.
 3. **Master plan §5 identity block** — confirm it should be corrected to `F:\et` / `main` / `syntax-ict/Ethr.et.git` in Phase 1.
-4. **Docker availability** — test counts, `gates.sh` and the API-contract gate all require the stack running. Confirm Docker will be available for later phases, or those gates stay unmeasurable.
+4. **Docker availability** — the API-contract gate still needs a migrated database. Native PHP covers the rest (§12), so this is narrower than first recorded.
+5. **Upgrade `next` to 16.3.5** (§15a). Two critical RCE advisories, fix is in-range, needs a slice of its own with the frontend suite run against it. Recommended as the next action after Gate 0.
 
 ---
 
