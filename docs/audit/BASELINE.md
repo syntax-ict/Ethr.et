@@ -456,7 +456,13 @@ Whether the production DB user holds `TRIGGER` is **NOT VERIFIED**.
 
 ### 13d. Unindexable login lookups **[verified]**
 
-`api/app/Services/Auth/AuthIdentifierResolver.php:104-118` runs a 6-deep nested `REPLACE(REPLACE(...))` on `phone` inside `whereRaw` — a **full table scan of `users`, then of `employees`, on every phone login**. Lines `:86`, `:136`, `:147` and `LoginRequest.php:69` use `LOWER(email) = ?` with no functional index. Invisible on dedicated hardware; the slowest request a user makes on a contended shared CPU, on the one request where slowness is most visible.
+`api/app/Services/Auth/AuthIdentifierResolver.php:104-118` runs a 6-deep nested `REPLACE(REPLACE(...))` on `phone` inside `whereRaw`, and lines `:86`, `:136`, `:147` plus `LoginRequest.php:69` use `LOWER(email) = ?`. Neither expression can use an index; there is no `phone` index at all and no functional index on `email`.
+
+> **Corrected 2026-09-15 — this entry originally said "full table scan of `users`, then of `employees`". That overstated it.** Both queries filter on `tenant_id` first, and both tables carry `index('tenant_id')` (`0001_01_01_000000_create_users_table.php:77`, `0001_01_01_000003_create_organization_tables.php:31`), so the scan is bounded to **one tenant's rows**, not the whole table.
+>
+> The defect is real but smaller: O(rows-in-this-tenant) `REPLACE` evaluations per phone login. Negligible at a few hundred employees; it starts to matter in the thousands, on a contended shared vCPU, on the one request where slowness is most visible.
+>
+> Recorded rather than quietly edited, because the original claim was repeated in several commit messages that cannot now be amended — and because overstating a finding is the same failure as understating one.
 
 ### 13e. No performance baseline exists
 
@@ -491,7 +497,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
-| 9 | **Queue can stop silently** — no supervisor, no dashboard | design **[verified]** | Medium |
+| 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
 | 10 | **No coverage instrumentation**; billing near-untested | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
 | 11 | **No tenant-isolation regression enforcement** | no Layer-4 check **[verified]** | Medium |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
