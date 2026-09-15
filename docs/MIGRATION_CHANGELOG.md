@@ -103,7 +103,7 @@ had a `[x]` claiming this was done; corrected.
 three days of merged work rather than describing Phase A as an uncommitted working-tree
 diff that had in fact been merged three times over.
 
-**This merge:** the shared-hosting deployment package (`deployment/shared-hosting/`) —
+**This merge:** the shared-hosting deployment package (`docs/deployment/shared-hosting/`) —
 runbook, environment reference, `.htaccess`, pre-cutover checklist, health-check guide —
 plus `DATABASE_MIGRATION_PLAN.md`, `ROLLBACK_RUNBOOK.md`, `PRODUCTION_CHECKLIST.md`, and
 this changelog. Built ahead of the remaining B3/B5 answers deliberately: written as

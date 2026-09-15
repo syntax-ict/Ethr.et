@@ -1,0 +1,156 @@
+name: Quality gates
+
+# CI calls scripts/gates.sh rather than restating the gate list here. The script
+# is provider-neutral by design (see its header) and is already what people run
+# locally, so there is exactly one definition of "does this pass" and no way for
+# the two to drift.
+#
+# Note for anyone reading this after a confusing local failure: the elaborate
+# pest-isolated.sh / phpstan-isolated.sh workarounds exist because PHP's
+# recursive directory scan returns partial results over a Docker Desktop Windows
+# bind mount. On a Linux runner with native PHP, gates.sh takes the have_php
+# branch and none of that applies.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Pint, PHPStan, Pest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          # The 18 the application actually needs. gd is required by
+          # FileStorageService for thumbnails; fileinfo by its MIME check.
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run backend gates
+        run: ./scripts/gates.sh backend
+
+  frontend:
+    name: Frontend (i18n, Prettier, ESLint, tsc, Vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src
+        run: npm ci
+
+      - name: Run frontend gates
+        run: ./scripts/gates.sh frontend
+
+  docs:
+    name: Documentation integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # No install step: docs-link-check.js uses only Node built-ins, which is
+      # deliberate so this can run on its own in seconds.
+      - name: Check markdown links
+        run: ./scripts/gates.sh docs
+
+  api-contract:
+    name: API contract (OpenAPI drift)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Needs both halves plus a migrated database: Scramble types responses by
+    # reading information_schema, so the export is wrong without one.
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ethr
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd api && composer install --prefer-dist --no-interaction --no-progress
+          cd ../src && npm ci
+
+      - name: Prepare the application
+        working-directory: api
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+
+      - name: Check for API contract drift
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: ./scripts/api-types-check.sh

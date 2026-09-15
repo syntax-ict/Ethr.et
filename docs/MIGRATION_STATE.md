@@ -39,13 +39,22 @@ keep the Next.js standalone build unchanged; B5 absent → static export. B3 fai
 scheduler and queue must move behind an authenticated HTTP endpoint (a real design
 change, to be costed, not assumed).
 
-### `main` is at `2eb2e42`, 13 commits ahead of `origin/main`, **not pushed**
+### ~~`main` is at `2eb2e42`, 13 commits ahead of `origin/main`, **not pushed**~~
 
-Push is genuinely blocked, not merely undone: `git push` and `git credential fill` both
-hang on the identical interactive Git-Credential-Manager prompt this non-interactive
-session cannot answer (confirmed twice, 2026-08-30 and 2026-08-31). No token is
-available in the environment. **Run `git push origin main` from an interactive terminal
-when able** — everything is safely committed locally in the meantime.
+> **Resolved 2026-09-15. The push blocker no longer exists.**
+>
+> `git push -u origin docs/phase-0-baseline` succeeded from a non-interactive
+> session, exit 0, publishing 32 commits — the 19 that had accumulated on `main`
+> plus 13 from Phases 0–2. Credentials resolve now; whatever made Git Credential
+> Manager prompt in August does not any more.
+>
+> This entry is struck through rather than deleted because it was shaping
+> decisions for two and a half weeks, including the sequencing of this session's
+> work. A blocker recorded as permanent and never re-tested is its own kind of
+> drift — worth re-checking a "confirmed blocked" claim before planning around it.
+>
+> `origin/main` is deliberately untouched: `docs/CLAUDE.md` says never commit
+> directly to `main`, so the work sits on a branch awaiting a `--no-ff` merge.
 
 ```
 2eb2e42  Merge: remove dead trial-expiry middleware, correct PHASE_01
@@ -211,7 +220,7 @@ Owner said "decide for me". These are settled; they are not open questions.
 ## IN PROGRESS
 
 Nothing. **The full deployment package is now built and merged** —
-`deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
+`docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
 `docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
@@ -459,12 +468,12 @@ even to our own dev database user.
 Nothing further is available to do without external input. Two independent things are
 needed from the owner, unrelated to each other. Neither requires the other.
 
-### 1. Push to GitHub
+### 1. ~~Push to GitHub~~ — done 2026-09-15
 
-`git push origin main` from an interactive terminal. Confirmed blocked in this
-non-interactive session twice (2026-08-30, 2026-08-31) — `git push` and even a bare
-`git credential fill` both hang on the same Git-Credential-Manager prompt. Not a
-retry-worthy failure; needs a human at a real terminal.
+`docs/phase-0-baseline` is pushed (32 commits, exit 0). The August finding that
+this was "not a retry-worthy failure" no longer holds; it was retried and it
+worked. What remains is a reviewed `--no-ff` merge into `main`, which is a
+decision rather than a blocker.
 
 ### 2. Resume the hosting migration
 

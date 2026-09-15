@@ -9,11 +9,24 @@
  * panel questions and are listed separately in that document.
  *
  * USAGE
- *   1. Upload to the hosting account (web root is fine).
- *   2. Open it in a browser, or run `php ethr-hosting-check.php` over SSH.
- *   3. Save the output.
- *   4. *** DELETE IT IMMEDIATELY. *** It discloses environment detail that is
- *      useful to an attacker.
+ *   1. Upload to the account's HOME directory (`~/`), NOT the web root.
+ *      This file prints disable_functions, database grants and the filesystem
+ *      layout verbatim. Anything web-reachable is one guessed filename away
+ *      from disclosing all of it, and shared hosting has no IP allowlist to
+ *      fall back on. docs/MIGRATION_STATE.md says the same.
+ *   2. Run it over SSH: `php ethr-hosting-check.php`. If there is no shell,
+ *      run it from Plesk -> Scheduled Tasks as a one-off PHP CLI task and read
+ *      the mailed or logged output.
+ *   3. Save the output locally.
+ *   4. *** DELETE IT FROM THE SERVER IMMEDIATELY. ***
+ *
+ *   Serving it from httpdocs is a last resort. If you must, give it a random
+ *   filename, read it once, and delete it in the same sitting.
+ *
+ *   `.htaccess` and mod_rewrite cannot be answered from here at all - a file in
+ *   ~/ is never served by Apache. Use the companion canary,
+ *   scripts/hosting-verification/htaccess-canary/, which is designed to be
+ *   web-reachable precisely because it discloses nothing.
  *
  * SAFETY
  *   - Read-only apart from one temp file and (optionally) one temp database
@@ -107,6 +120,34 @@ foreach ($limits as [$id, $key, $min, $why]) {
         $raw === '' ? '(unset)' : $raw);
 }
 
+// ── Section 2b: server identity and Node.js ──────────────────────────────────
+//
+// Which web server is in front of PHP decides whether the deployment can rely
+// on .htaccess at all (see the canary), and Node availability decides whether
+// the frontend ships as a Next.js server or as static files.
+
+record($results, 'Runtime', 'W0', 'PHP SAPI', 'VERIFIED', PHP_SAPI);
+record($results, 'Runtime', 'W0', 'server software', 'VERIFIED',
+    (string) ($_SERVER['SERVER_SOFTWARE'] ?? '(unknown - run over the web to see this)'));
+record($results, 'Runtime', 'W0', 'document root', 'VERIFIED',
+    (string) ($_SERVER['DOCUMENT_ROOT'] ?? '(unknown - CLI run)'));
+
+// Node is a panel setting on Plesk, but if a shell exists we can just look.
+$nodeVersion = null;
+if (function_exists('exec') && ! in_array('exec', array_map('trim', explode(',', (string) ini_get('disable_functions'))), true)) {
+    foreach (['node -v', '/opt/plesk/node/*/bin/node -v', 'nodejs -v'] as $cmd) {
+        $out = [];
+        @exec($cmd.' 2>/dev/null', $out, $rc);
+        if ($rc === 0 && ! empty($out[0])) {
+            $nodeVersion = trim($out[0]);
+            break;
+        }
+    }
+}
+record($results, 'Runtime', 'B5', 'Node.js >= 20.9 (needed only to BUILD the frontend)',
+    $nodeVersion === null ? 'UNKNOWN' : (version_compare(ltrim($nodeVersion, 'v'), '20.9.0', '>=') ? 'VERIFIED' : 'UNSUPPORTED'),
+    $nodeVersion ?? 'not found from PHP - check Plesk -> Node.js, and see the panel checklist');
+
 // ── Section 3: process / shell capability ────────────────────────────────────
 //
 // ETHR's application code calls none of these — verified by grep across app/.
@@ -197,6 +238,32 @@ if ($dbHost === null || $dbName === null || $dbUser === null) {
         $version = $one('SELECT VERSION()');
         record($results, 'Database', 'DB1', 'server version', 'VERIFIED', $version);
 
+        // config/database.php declares `mysql` and `mariadb` as SEPARATE
+        // connections. DB_CONNECTION must follow what the server actually
+        // reports - not what the VPS .env happened to say.
+        $isMaria = stripos($version, 'mariadb') !== false;
+        record($results, 'Database', 'DB1b', 'DB_CONNECTION to put in .env', 'VERIFIED',
+            $isMaria ? 'mariadb' : 'mysql');
+
+        // Index-length floor. Every `string()` column is varchar(255); at
+        // utf8mb4 that is 1020 bytes, and `cache`, `sessions` and `job_batches`
+        // use one as a PRIMARY KEY. Under the old 767-byte limit `migrate`
+        // fails on the very first migrations. No defaultStringLength() override
+        // exists in this codebase to soften it.
+        $floor = $isMaria ? '10.2.7' : '5.7.9';
+        preg_match('/^(\d+\.\d+\.\d+)/', $version, $vm);
+        $numeric = $vm[1] ?? '0.0.0';
+        record($results, 'Database', 'DB1c', "version >= {$floor} (MANDATORY - index length, JSON, SIGNAL)",
+            version_compare($numeric, $floor, '>=') ? 'VERIFIED' : 'UNSUPPORTED', $numeric);
+
+        record($results, 'Database', 'DB14', 'innodb_default_row_format (want dynamic)', 'UNKNOWN', '');
+        try {
+            record($results, 'Database', 'DB14', 'innodb_default_row_format (want dynamic)',
+                'VERIFIED', $one('SELECT @@innodb_default_row_format'));
+        } catch (Throwable $e) {
+            // Older servers do not expose it; the version check above covers the risk.
+        }
+
         $charset = $one('SELECT @@character_set_server');
         record($results, 'Database', 'DB10', 'server charset is utf8mb4 (REQUIRED for Amharic)',
             str_starts_with($charset, 'utf8mb4') ? 'VERIFIED' : 'UNSUPPORTED', $charset);
@@ -256,6 +323,88 @@ if ($dbHost === null || $dbName === null || $dbUser === null) {
     } catch (Throwable $e) {
         record($results, 'Database', 'DB', 'connection', 'UNSUPPORTED', $e->getMessage());
     }
+}
+
+// ── Section 7: performance sanity ────────────────────────────────────────────
+//
+// docs/CLAUDE.md:850-862 sets budgets - API p95 < 200ms, "payroll calculation
+// (500 employees) < 30s" - every one of them measured on dedicated hardware.
+// Shared hosting is oversubscribed by design, and nothing in this repository
+// has ever measured it. These are crude numbers, deliberately: they exist to
+// catch a host that is an order of magnitude slower than the assumption, not
+// to benchmark the application.
+//
+// The payroll figure is the one that matters. PayrollEngine::process() runs
+// inline in the HTTP request today, and the documented 30s best case already
+// sits at or past a typical max_execution_time.
+
+$t0 = microtime(true);
+$acc = 0;
+for ($i = 0; $i < 3_000_000; $i++) {
+    $acc += $i % 7;
+}
+$cpuMs = (int) round((microtime(true) - $t0) * 1000);
+record($results, 'Performance', 'P1', 'CPU: 3M-iteration loop (a modern dedicated core: ~60-120ms)',
+    $cpuMs < 400 ? 'VERIFIED' : 'UNSUPPORTED', $cpuMs.' ms');
+
+$t0 = microtime(true);
+$h = 0;
+for ($i = 0; $i < 20000; $i++) {
+    $h = crc32((string) $h.$i);
+}
+$hashMs = (int) round((microtime(true) - $t0) * 1000);
+record($results, 'Performance', 'P2', 'CPU: 20k string+hash ops', 'VERIFIED', $hashMs.' ms');
+
+$t0 = microtime(true);
+$f = $dir.'/.ethr_io_'.bin2hex(random_bytes(4));
+for ($i = 0; $i < 200; $i++) {
+    @file_put_contents($f, str_repeat('x', 4096));
+    @file_get_contents($f);
+}
+@unlink($f);
+$ioMs = (int) round((microtime(true) - $t0) * 1000);
+record($results, 'Performance', 'P3', 'disk: 200 x (write+read 4KB)',
+    $ioMs < 2000 ? 'VERIFIED' : 'UNSUPPORTED', $ioMs.' ms');
+
+if (isset($pdo) && $pdo instanceof PDO) {
+    try {
+        $bt = '_ethr_bench_'.bin2hex(random_bytes(3));
+        $pdo->exec("CREATE TABLE `{$bt}` (id INT AUTO_INCREMENT PRIMARY KEY, v VARCHAR(64), n INT, KEY `k_n` (`n`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $t0 = microtime(true);
+        $ins = $pdo->prepare("INSERT INTO `{$bt}` (v, n) VALUES (?, ?)");
+        $pdo->beginTransaction();
+        for ($i = 0; $i < 1000; $i++) {
+            $ins->execute(['row-'.$i, $i % 250]);
+        }
+        $pdo->commit();
+        $insMs = (int) round((microtime(true) - $t0) * 1000);
+        record($results, 'Performance', 'P4', 'db: 1000 inserts in one transaction',
+            $insMs < 3000 ? 'VERIFIED' : 'UNSUPPORTED', $insMs.' ms');
+
+        $t0 = microtime(true);
+        for ($i = 0; $i < 200; $i++) {
+            $pdo->query("SELECT COUNT(*) FROM `{$bt}` WHERE n = ".($i % 250))->fetchColumn();
+        }
+        $selMs = (int) round((microtime(true) - $t0) * 1000);
+        record($results, 'Performance', 'P5', 'db: 200 indexed SELECTs',
+            $selMs < 1500 ? 'VERIFIED' : 'UNSUPPORTED', $selMs.' ms');
+
+        // A payroll row is roughly: read employee, compute, write entry. This
+        // is not that - it is the database floor underneath it. If 1000 inserts
+        // already cost seconds here, 500 employees inline in one request will
+        // not fit inside max_execution_time.
+        $perRowMs = $insMs / 1000;
+        record($results, 'Performance', 'P6', 'extrapolated: 500-employee payroll, DB writes alone',
+            'UNKNOWN', round($perRowMs * 500, 1).' ms floor (excludes all calculation)');
+
+        $pdo->exec("DROP TABLE IF EXISTS `{$bt}`");
+    } catch (Throwable $e) {
+        record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN', $e->getMessage());
+    }
+} else {
+    record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN',
+        'skipped - no database credentials passed');
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────

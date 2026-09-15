@@ -3,13 +3,13 @@
 The 24-item acceptance list from the original migration brief, with the real status of
 each against what has actually been verified. **Not a checkbox exercise** — every row
 either points at the evidence or says plainly what's still needed and from whom. Run
-this pass after `deployment/shared-hosting/deploy-checklist.md` (the pre-cutover
+this pass after `docs/deployment/shared-hosting/deploy-checklist.md` (the pre-cutover
 technical pass) and after DNS cutover, against the real `www.ethr.et` domain.
 
 | # | Item | Status | Evidence / what's left |
 | --- | --- | --- | --- |
 | 1 | ETHR builds successfully | ✅ | All 9 gates green, `main` at `92c9f03` |
-| 2 | Existing tests pass | ✅ | 1669 passed, 4957 assertions, zero regressions across the whole migration effort |
+| 2 | Existing tests pass | ✅ | **1673 passed, 4966 assertions** (measured 2026-09-15, `pest --compact`, exit 0). Zero regressions across the migration effort |
 | 3 | Production environment works | ⬜ | Not yet deployed — this is the whole remaining execution phase, gated on B3/B4/B5/H1 |
 | 4 | Database works | ◐ | Schema and migrations verified against real MariaDB locally; not yet run against the actual Plesk MySQL — `docs/DATABASE_MIGRATION_PLAN.md` |
 | 5 | Authentication works | ✅ (locally/live-tested) | Real Sanctum login exercised this session against the demo tenant; not yet against the target host |
@@ -32,7 +32,7 @@ technical pass) and after DNS cutover, against the real `www.ethr.et` domain.
 | 22 | Backup works | ⬜ | VPS backup scripts (`scripts/backup.sh`) assume Docker + SSH into a container; do not apply as-is. `docs/DATABASE_MIGRATION_PLAN.md` documents the manual equivalent for the one-time migration; a recurring backup mechanism for the shared-hosting deployment itself is not yet built |
 | 23 | Restore has been tested | ⬜ | Depends on #22 existing first |
 | 24 | Rollback procedure exists | ✅ | `docs/ROLLBACK_RUNBOOK.md`, written this session — three scenarios by how much has happened, plus the code-level `git revert -m 1` path since every migration merge is `--no-ff` |
-| 25 | Production deployment is documented | ✅ | `deployment/shared-hosting/` (this package) — `DEPLOYMENT.md`, `ENVIRONMENT.md`, `.htaccess`, `deploy-checklist.md`, `health-check.md`, `rollback.md`, plus this file |
+| 25 | Production deployment is documented | ✅ | `docs/deployment/shared-hosting/` (this package) — `DEPLOYMENT.md`, `ENVIRONMENT.md`, `.htaccess`, `deploy-checklist.md`, `health-check.md`, `rollback.md`, plus this file |
 
 **Legend:** ✅ done · ◐ partial / code-ready but not verified against the real target ·
 ⬜ not started, and honestly says so rather than being marked partial to look further

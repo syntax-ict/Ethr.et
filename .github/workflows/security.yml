@@ -1,0 +1,57 @@
+name: Security audit
+
+# Separate from gates.yml on purpose.
+#
+# These checks go red when a new advisory is published, not when someone breaks
+# something. Mixing them into the main gate would mean a red build caused by a
+# third party, which teaches people to ignore red builds — the same failure that
+# let `prettier --check` sit broken on 36 files while it existed only as a line
+# in a document.
+#
+# So: scheduled, plus on pull requests that touch a lockfile, and never blocking
+# an unrelated commit.
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC (09:00 EAT).
+    - cron: "0 6 * * 1"
+  pull_request:
+    paths:
+      - "api/composer.lock"
+      - "api/composer.json"
+      - "src/package-lock.json"
+      - "src/package.json"
+      - ".github/workflows/security.yml"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd api && composer install --prefer-dist --no-interaction --no-progress
+          cd ../src && npm ci
+
+      # Runs composer audit plus npm audit --omit=dev. Production dependencies
+      # fail the job; dev-only advisories are printed and do not, because they
+      # do not ship. As of 2026-09-15 that split was 5 production findings out
+      # of 27 total, and reporting the 27 together buries the 5 that reach users.
+      - name: Run security gates
+        run: ./scripts/gates.sh security

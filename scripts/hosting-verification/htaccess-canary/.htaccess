@@ -1,0 +1,60 @@
+# ETHR web-server canary — a deliberately harmless .htaccess.
+#
+# This exists because the main probe cannot answer these questions. That probe
+# lives in ~/ and is never served by Apache, by design: it prints grants and
+# disable_functions. But "is .htaccess honoured?" can only be answered by
+# something the web server actually serves.
+#
+# So this directory is the opposite trade: it IS web-reachable, and it
+# discloses nothing. It reports four booleans and no environment detail.
+#
+# What it proves, and why each matters for ETHR:
+#
+#   1. mod_rewrite        - the whole deployment routes through a repointed
+#                           index.php. Without it, nothing resolves.
+#   2. mod_headers        - next.config.ts defines CSP, HSTS, X-Frame-Options
+#                           and Permissions-Policy. Under static hosting those
+#                           vanish with the Node server and must come from here.
+#   3. deny rules         - the deployment blocks .env, .git, composer.json and
+#                           storage/ with exactly this mechanism. If Apache
+#                           ignores .htaccess, APP_KEY and the database password
+#                           become web-readable while the app still appears to
+#                           work. That is the failure mode worth paying for.
+#   4. Authorization pass - Sanctum needs the Authorization and X-XSRF-Token
+#                           headers forwarded to PHP. Under CGI/FastCGI they are
+#                           stripped unless restored here.
+#
+# If the server is nginx-only, or Apache runs AllowOverride None, every rule
+# below is silently ignored - no error, no log. That is exactly what we are
+# testing for, and it is why "the page loaded" is not a pass.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1. Rewrite proof. /REWRITE_OK must reach canary.php with the flag set.
+    RewriteRule ^REWRITE_OK$ canary.php?rewrite=1 [L,QSA]
+
+    # 4. Header forwarding, same directives the real deployment uses.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # 2. Header proof, plus the real security headers so a scan of this
+    #    directory reflects what the deployment would set.
+    Header always set X-Ethr-Canary "headers-ok"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
+
+# 3. Deny proof. secret.txt.probe stands in for .env and must return 403.
+#    Two mechanisms, because which one works varies by Apache version.
+<FilesMatch "^secret\.txt\.probe$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

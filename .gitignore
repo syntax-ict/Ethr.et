@@ -16,6 +16,18 @@ src/tsconfig.tsbuildinfo
 api/.env
 api/.env.save
 
+# Real production env files. api/.env.production holds APP_KEY, the database
+# password and ETHIOTELECOM_SMS_PASSWORD; only the *.example templates belong
+# in Git. Laravel's own api/.gitignore already covers it - this repeats the rule
+# at the root so the whole env policy is readable in one place.
+#
+# src/.env.production is the deliberate exception and stays tracked: it holds
+# only NEXT_PUBLIC_* values, which are compiled into the client bundle and are
+# public by definition, and the production build needs them. Nothing secret may
+# be added to it - a server-side secret belongs in the host environment.
+api/.env.production
+.env.production.local
+
 # IDE
 .idea/
 .vscode/

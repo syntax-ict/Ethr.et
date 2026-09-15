@@ -6,10 +6,16 @@
 > phases read as 0% complete while the features they describe are live and
 > covered by tests. **Do not use them to judge what is done.**
 >
-> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
-> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
-> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
-> the source of truth is the code — verify against it, not against this file.
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md),
+> and the measured state of the codebase is [`audit/BASELINE.md`](../audit/BASELINE.md).
+> Per the project rule, the source of truth is the code — verify against it, not
+> against this file.
+>
+> This header previously cited `ETHR_AUDIT.md` and `ETHR_AUDIT_2026-08-14.md`.
+> Neither is in the tree and, as far as git history shows, neither ever was; the
+> roadmap link was also written as a sibling path and resolved nowhere from this
+> directory. Corrected in Phase 1 — a header whose only job is to route readers
+> to current truth was routing them to nothing.
 >
 > Keep this document for its design intent: scope, data model, and acceptance
 > criteria, which remain accurate and useful.
@@ -162,7 +168,7 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
 > two settings keys — it created **no** records, and the frontend still toasted
 > "departments, positions, shifts, and leave types created". That is now real,
 > via `App\Services\Onboarding\OrganizationProvisioner`. Marks corrected below and
-> the divergence recorded in [ONBOARDING_V2.md](ONBOARDING_V2.md).
+> the divergence recorded in [ONBOARDING_V2.md](../ONBOARDING_V2.md).
 
 ### Backend
 - [x] `organization_templates` table + seeder with 8 templates:
@@ -182,9 +188,9 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
   - `PUT /api/v1/onboarding/progress/{step}` — step-keyed save; `{step}` validated against the `OnboardingStep` enum
   - `POST /api/v1/onboarding/apply-template`, `POST /api/v1/onboarding/invite`, `POST /api/v1/onboarding/complete`
   - `[~]` The named per-step deep-config routes (`org_structure`, `work_schedule`, `leave_policies`, `payroll_config`, `employee_import`, `review_launch`) were spec-only and never existed as distinct endpoints; that configuration lives in the `Organization`, `Settings`, and `Employees → Import` modules as noted in the Phase 1 completion status
-- [x] `OnboardingStep` enum: 7 canonical steps (`App\Enums\OnboardingStep`; see [ONBOARDING_V2.md](ONBOARDING_V2.md) D1 for the eleven→seven mapping)
+- [x] `OnboardingStep` enum: 7 canonical steps (`App\Enums\OnboardingStep`; see [ONBOARDING_V2.md](../ONBOARDING_V2.md) D1 for the eleven→seven mapping)
 - [x] Progress auto-saved on each step (resume on refresh/return)
-- [x] **Smart configuration engine** (`OnboardingStep::SMART_CONFIGURATION`; [ONBOARDING_V2.md](ONBOARDING_V2.md) D2–D3):
+- [x] **Smart configuration engine** (`OnboardingStep::SMART_CONFIGURATION`; [ONBOARDING_V2.md](../ONBOARDING_V2.md) D2–D3):
   - `IndustryCatalog` — 27 selectable industries, each aliased to one of the 8 maintained base templates plus a thin override patch
   - `IndustryProfileResolver` → `ConfigurationPlan`: a scored, editable plan where each section carries provenance (`ConfigurationSource`: explicit 1.0 / industry_default 0.8 / heuristic 0.6 / global_fallback 0.4) and a confidence derived purely from it — a deterministic, auditable substitute for an LLM score (no model call)
   - `GET /api/v1/onboarding/industries` — the picker list

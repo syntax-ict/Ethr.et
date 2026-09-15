@@ -1,0 +1,94 @@
+<?php
+
+/**
+ * ETHR web-server canary.
+ *
+ * Safe to be web-reachable — that is the point. It reports booleans about the
+ * web server and nothing about the environment: no phpinfo, no paths, no
+ * grants, no disable_functions. The sensitive probe
+ * (scripts/hosting-verification/ethr-hosting-check.php) stays in ~/ and is
+ * never served; this answers the questions that one structurally cannot.
+ *
+ * DEPLOY
+ *   1. Upload this whole directory to httpdocs/ethr-canary/ (.htaccess,
+ *      canary.php, secret.txt.probe — all three).
+ *   2. Visit  https://<host>/ethr-canary/canary.php
+ *   3. Follow the two manual checks it prints.
+ *   4. Save the output, then DELETE THE DIRECTORY.
+ *
+ * It writes nothing, reads no database, and sends no mail.
+ */
+
+declare(strict_types=1);
+
+header('Content-Type: text/plain; charset=utf-8');
+
+$rewriteHit = isset($_GET['rewrite']);
+$scriptDir = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
+if ($scriptDir === '' || $scriptDir[0] !== '/') {
+    // CLI has no SCRIPT_NAME worth using; show the intended deploy path instead
+    // of a mangled one, so the printed curl commands stay copy-pasteable.
+    $scriptDir = '/ethr-canary';
+}
+$selfUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
+    .'://'.($_SERVER['HTTP_HOST'] ?? '<host>')
+    .$scriptDir;
+
+$authForwarded = isset($_SERVER['HTTP_AUTHORIZATION']) || isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+
+$modules = function_exists('apache_get_modules') ? apache_get_modules() : null;
+
+$line = str_repeat('=', 72);
+echo "$line\nETHR WEB-SERVER CANARY\nGenerated: ".date('c')."\n$line\n\n";
+
+printf("server software      : %s\n", $_SERVER['SERVER_SOFTWARE'] ?? '(not reported)');
+printf("php sapi             : %s\n", PHP_SAPI);
+if ($modules === null) {
+    // Normal under FPM/CGI and not itself a problem: PHP cannot see the Apache
+    // module list from there. The live tests below are what count.
+    $moduleNote = 'not visible from this SAPI - the live tests below are what count';
+} else {
+    $interesting = array_values(array_filter(
+        $modules,
+        static fn ($m) => in_array($m, ['mod_rewrite', 'mod_headers', 'mod_authz_core'], true)
+    ));
+    $moduleNote = $interesting === [] ? 'none of the three we need' : implode(', ', $interesting);
+}
+
+printf("modules visible      : %s\n\n", $moduleNote);
+
+echo "── Automatic ───────────────────────────────────────────────────────\n";
+
+printf("[%s] G0-B.1  mod_rewrite honoured\n", $rewriteHit ? ' PASS ' : ' ???? ');
+if (! $rewriteHit) {
+    echo "         Not yet tested. Open this URL and re-read the result:\n";
+    echo "           {$selfUrl}/REWRITE_OK\n";
+    echo "         If that 404s, .htaccess rewriting is NOT active.\n";
+}
+
+printf("\n[%s] G0-B.4  Authorization header reaches PHP\n", $authForwarded ? ' PASS ' : ' ???? ');
+echo "         Only meaningful when the request actually carries one. Test:\n";
+echo "           curl -s -H 'Authorization: Bearer probe' {$selfUrl}/canary.php | grep G0-B.4\n";
+echo "         Sanctum auth and CSRF break silently without this.\n";
+
+echo "\n── Manual, and the one that matters ────────────────────────────────\n\n";
+echo "[ ???? ] G0-B.2  mod_headers honoured\n";
+echo "         curl -sI {$selfUrl}/canary.php | grep -i x-ethr-canary\n";
+echo "         Expect: X-Ethr-Canary: headers-ok\n";
+echo "         Nothing back means the CSP, HSTS and X-Frame-Options that\n";
+echo "         next.config.ts currently sets would not be applied in\n";
+echo "         production either.\n\n";
+
+echo "[ ???? ] G0-B.3  deny rules enforced   <-- DEPLOYMENT BLOCKER IF THIS FAILS\n";
+echo "         curl -s -o /dev/null -w '%{http_code}\\n' {$selfUrl}/secret.txt.probe\n";
+echo "         Expect: 403\n";
+echo "         A 200 means .htaccess deny rules are ignored on this host, so\n";
+echo "         api/.env, .git/ and composer.json would be web-readable in\n";
+echo "         production while the application still appeared to work.\n";
+echo "         A 404 is NOT a pass — it means the file is missing, so upload\n";
+echo "         secret.txt.probe and try again.\n\n";
+
+echo "$line\n";
+echo "Record all four in docs/deployment/GATE-0-RESULT.md, then DELETE this\n";
+echo "directory from the server.\n";
+echo "$line\n";

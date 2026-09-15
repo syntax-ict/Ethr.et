@@ -21,7 +21,7 @@ itself one of the still-open facts).
     app/ config/ routes/ database/ vendor/ storage/ bootstrap/ .env
 ~/httpdocs/                 document root
   index.php                 copy of api/public/index.php, 2 lines repointed
-  .htaccess                 deployment/shared-hosting/.htaccess
+  .htaccess                 docs/deployment/shared-hosting/.htaccess
   favicon.ico  robots.txt    copied from api/public/
   .well-known/               leave alone — ACME
   (frontend build output, IF B5 says no Node.js — see step 5)
@@ -132,7 +132,7 @@ build's own entry) and its port per Plesk's assignment.
 
 `middleware.ts` and the `headers()`-reading `(auth)/layout.tsx` need **zero code
 changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
-"Everything else → frontend, BRANCH B" block from `deployment/shared-hosting/.htaccess`
+"Everything else → frontend, BRANCH B" block from `docs/deployment/shared-hosting/.htaccess`
 before deploying it (leave BRANCH A as a comment for documentation, per that file's own
 instructions).
 
@@ -148,7 +148,7 @@ risks doing frontend work that turns out to be unnecessary. When B5 resolves neg
    present in this package, currently duplicated from the VPS nginx config — keep it in
    sync if this branch is taken).
 2. Delete `middleware.ts`; its host-based `/admin` rule is reimplemented in
-   `deployment/shared-hosting/.htaccess`'s commented BRANCH B block — uncomment it.
+   `docs/deployment/shared-hosting/.htaccess`'s commented BRANCH B block — uncomment it.
 3. `(auth)/layout.tsx`: replace the `headers()` read with a client-side
    `window.location.host` read. Accepts a first-paint flash on the tenant login page
    (React hydration error #418's original cause) in exchange for removing the last SSR
@@ -204,7 +204,7 @@ fixed in commit `80cac67` to check the *configured* cache store and disk rather 
 hardcoded `redis`/`minio`, specifically so this endpoint tells the truth on a
 deployment like this one.
 
-Then work through `deployment/shared-hosting/deploy-checklist.md` and
+Then work through `docs/deployment/shared-hosting/deploy-checklist.md` and
 `docs/PRODUCTION_CHECKLIST.md` before pointing DNS at this host.
 
 ## 8. DNS cutover

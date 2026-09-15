@@ -260,7 +260,7 @@ Not started. Listed so the shape of the work is visible before approval.
 | --- | --- | --- | --- |
 | 1 | `migration/audit` | These three documents + `docs/MIGRATION_STATE.md` | — |
 | 2 | `migration/config` | Driver-agnostic health check and `FileStorageService` disk; conditional trigger migration guard | H1 |
-| 3 | `migration/deployment` | `deployment/shared-hosting/` — `.htaccess`, env template, deploy checklist, health-check and rollback docs | B1–B4 |
+| 3 | `migration/deployment` | `docs/deployment/shared-hosting/` — `.htaccess`, env template, deploy checklist, health-check and rollback docs | B1–B4 |
 | 4 | `migration/frontend` | Static export **only if B5 fails** | B5 |
 | 5 | `migration/queue` | Cron entries for `schedule:run` and `queue:work --stop-when-empty` | B3 |
 | 6 | `migration/storage` | Local-disk or external-S3 configuration; verify `temporaryUrl` signing | — |

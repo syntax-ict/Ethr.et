@@ -27,7 +27,17 @@
 
 ### Automated Verification
 
-**TenantIsolationTest (CI — every commit):**
+**TenantIsolationTest — run by `./scripts/gates.sh`, by a person:**
+
+> **This previously said "CI — every commit", when no pipeline existed.**
+> Corrected in Phase 1; Phase 2 then added `.github/workflows/gates.yml`, which
+> runs this test via `scripts/gates.sh backend`.
+>
+> It is still not "every commit": the workflow has never executed, because
+> nothing has been pushed to the remote. Restore the original wording once a
+> run exists to point at — not before. A control is a control when it has been
+> observed working.
+
 1. Dynamically discovers all Eloquent models
 2. Asserts non-global models have `tenant_id` column
 3. Asserts non-global models use `BelongsToTenant` trait
@@ -295,7 +305,7 @@ add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
 | A03 | Injection | Eloquent ORM only, parameterized bindings, no raw SQL | Codebase grep, PHPStan rule |
 | A04 | Insecure Design | State machine enforcement, approval chain validation | Feature tests per workflow |
 | A05 | Security Misconfiguration | APP_DEBUG=false, secure headers, no default creds | Deployment checklist, Pest test |
-| A06 | Vulnerable Components | composer audit + npm audit | CI job, monthly review |
+| A06 | Vulnerable Components | composer audit + npm audit | `scripts/gates.sh security`, wired into `.github/workflows/security.yml` (weekly + on lockfile changes). **Currently failing:** 5 advisories in production frontend dependencies, 2 of them critical RCE against `next` — see `docs/audit/BASELINE.md` §15 |
 | A07 | Authentication Failures | Rate limiting, lockout, MFA, token rotation | Pest test suite |
 | A08 | Data Integrity | HMAC on offline attendance, idempotency keys, immutable audit log | Pest assertions |
 | A09 | Security Logging | Audit log on all sensitive ops, failed login tracking | Audit log completeness test |
