@@ -6,10 +6,17 @@ one tenant's data to another, or to the public.
 
 ## Reporting a vulnerability
 
-> **TODO (owner): set the reporting address before this file is published
-> anywhere outside the team.** No address is invented here on purpose — a
-> security policy that routes reports into a mailbox nobody reads is worse than
-> one that admits it has no route yet.
+**Use GitHub's private vulnerability reporting** on the repository:
+**Security → Report a vulnerability**. It is private to the maintainers, needs
+no address to be published, and cannot be mistaken for a public issue.
+
+If that is not enabled on the repository, a maintainer should turn it on
+(Settings → Code security → Private vulnerability reporting). Until then,
+contact a maintainer directly through the organization that owns the repository.
+
+No email address is published here deliberately. An address on a security policy
+has to be monitored to mean anything, and one that routes into a mailbox nobody
+reads is worse than admitting there is no route yet.
 
 Do **not** open a public issue for a security report.
 
