@@ -59,7 +59,20 @@ Restore a conventional dump under a *different* database user — which Plesk's 
 
 `DatabaseDumper` emits `CREATE TRIGGER` with no `DEFINER` clause, so the triggers belong to whoever ran the restore. That is both what you want and the only option on a host where `SUPER` cannot be granted.
 
-Recorded as an open risk in `docs/audit/BASELINE.md` §13b; this is the half of it that can be fixed without the host.
+### Measured 2026-09-15 — and it is worse than the paragraph above
+
+The description above was inference. Tested against MariaDB 10.4.32 with a restricted user holding `ALL PRIVILEGES` on its own database and no `SUPER` — the shared-hosting shape:
+
+| Trigger as restored | Result |
+|---|---|
+| `CREATE DEFINER=\`ghost\`@\`localhost\` TRIGGER …` | **refused outright** — `1227 Access denied; you need (at least one of) the SUPER privilege(s)` |
+| `CREATE TRIGGER …`, no DEFINER | created; `INSERT` succeeds, `UPDATE` rejected, definer becomes the restoring user |
+
+So the damage does not arrive later as failing inserts. **The restore stops dead at the trigger statement**, because naming a definer other than yourself needs `SUPER`. And `SHOW CREATE TRIGGER` on this schema returns `CREATE DEFINER=\`root\`@\`localhost\` TRIGGER \`audit_log_no_update\` …` verbatim — confirmed, not assumed — which is exactly what `mysqldump` and Plesk's panel export write into a dump file.
+
+The consequence for operations: **a Plesk-generated database backup of ETHR may be unrestorable on ETHR's own host.** Do not treat the panel's backup as the recovery path until someone has restored one on the host and watched both triggers come back. `ethr:backup` exists precisely so there is a path that does not have this property.
+
+Recorded in `docs/audit/BASELINE.md` §13b.
 
 ---
 
@@ -121,15 +134,56 @@ A backup on the same 5 GB account it is protecting is a convenience, not a backu
 
 `api/tests/Feature/BackupRestoreRehearsalTest.php` performs the §31 sequence for real: populate representative data, back up, **drop every table**, restore, and assert the schema, rows, triggers and documents came back. It also asserts a tampered dump is refused and that retention prunes correctly.
 
-Six tests, and the destructive one verifies the database was genuinely empty before restoring — otherwise it would pass by accident.
+Seven tests, and the destructive one verifies the database was genuinely empty before restoring — otherwise it would pass by accident.
 
-**What that does not prove:** that a restore works on Ethio Telecom's MySQL. The suite runs on SQLite. Every hosting capability in `GATE-0-RESULT.md` is still `NOT VERIFIED`, including whether the database user may `CREATE TRIGGER` at all (G0-F). A green suite here is a necessary condition, not the rehearsal that closes the gate.
+### The rehearsal command
+
+```bash
+php artisan ethr:backup:rehearse          # back up, DROP EVERY TABLE, restore, check
+php artisan ethr:backup:rehearse --keep   # leave the backup behind to inspect
+```
+
+A test proves the round-trip on the driver the test suite uses. This proves it on
+whatever database it is pointed at, which is the only way to answer the question
+for a host nobody has run this code on. It drops every table, so two guards stand
+in front of it: the environment must not be `production`, and the database name
+must contain one of `test`, `rehears`, `scratch`, `staging`, `sandbox`. `--force`
+overrides both, and should be needed about never.
+
+**A failed rehearsal leaves the database destroyed.** That is not a defect — it is
+what "destructively verify" means — but it is why the name guard exists and why
+this is run against a scratch database, before the first real record.
+
+**First real-MySQL run, 2026-09-15, MariaDB 10.4.32 (local XAMPP), demo tenant —
+150 employees, 6 months attendance, 3 months payroll:**
+
+| | |
+|---|---|
+| Tables / rows / triggers before | 80 / 18,688 / 2 |
+| Dump size | 11,296,908 bytes |
+| `CREATE TRIGGER` in dump | 2 |
+| `DEFINER` clauses in dump | none |
+| Statements executed on restore | 18,855 |
+| Tables / rows / triggers after | 80 / 18,688 / 2 |
+| `audit_log` INSERT after restore | ok |
+| `audit_log` UPDATE after restore | rejected |
+
+That is the first time `DatabaseDumper::dumpMysql()` has ever executed — `SHOW
+CREATE TABLE`, `SHOW TRIGGERS` and the DEFINER omission were, until this run,
+code that had never run anywhere.
+
+**What none of this proves:** that a restore works on Ethio Telecom's MySQL. 10.4.32 is
+a local XAMPP build against a documented target of MariaDB 10.11, the host's
+version is unread (G0-E), and whether the production user may `CREATE TRIGGER`
+at all is still `NOT VERIFIED` (G0-F). Every hosting capability in
+`GATE-0-RESULT.md` remains unmeasured. A green rehearsal here is a necessary
+condition, not the one that closes the gate.
 
 ## Before the first real employee record
 
 - [ ] Run `ethr:backup` on the host and read the output
 - [ ] Configure the off-host disk and confirm `--off-host` lands an archive
-- [ ] **Restore into a scratch database and complete all five verification steps above**
+- [ ] **Run `php artisan ethr:backup:rehearse` against a scratch database on the host** and complete all five verification steps above
 - [ ] Confirm `BACKUP_PATH` is not web-reachable — `curl` it and expect 403 or 404
 - [ ] Time a backup against production-sized data; confirm it fits `max_execution_time`
 - [ ] Record the result in `GATE-0-RESULT.md`

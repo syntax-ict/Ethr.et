@@ -452,6 +452,21 @@ Two risks are recorded nowhere:
 
 Whether the production DB user holds `TRIGGER` is **NOT VERIFIED**.
 
+#### Measured 2026-09-15 — MariaDB 10.4.32, local **[verified]**
+
+The first bullet above was reasoning, not measurement. It has now been measured, and the reality is **worse in a different way than it described**. Against a restricted user (`ALL PRIVILEGES` on its own database, no `SUPER` — the shared-hosting shape):
+
+| Trigger as restored | Result |
+|---|---|
+| `CREATE DEFINER=\`ghost\`@\`localhost\` TRIGGER …` | **`CREATE TRIGGER` itself is refused** — `SQLSTATE[42000] 1227 Access denied; you need (at least one of) the SUPER privilege(s)` |
+| `CREATE TRIGGER …`, no DEFINER clause | Created. `INSERT` succeeds, `UPDATE` rejected, definer recorded as the restoring user |
+
+So the failure does not arrive later as failing inserts. **The restore aborts at the trigger statement**, because naming any definer other than yourself requires `SUPER` and shared hosting does not grant it. A conventional `mysqldump` — and `SHOW CREATE TRIGGER`, which emits `CREATE DEFINER=\`root\`@\`localhost\` TRIGGER …` verbatim, confirmed here — therefore produces a dump this product **cannot restore on its own production host at all**.
+
+That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` without a DEFINER clause a requirement rather than a precaution, and it means Plesk's own database backup tooling must not be relied on as the recovery path until someone has restored one of its dumps on the host and watched the triggers come back.
+
+**Still NOT VERIFIED:** any of this on Ethio Telecom's server. 10.4.32 is the local XAMPP build; the documented target is MariaDB 10.11, and the host's version is unread (G0-E).
+
 ### 13c. Horizon blocks `composer install` — see §3a.
 
 ### 13d. Unindexable login lookups **[verified]**

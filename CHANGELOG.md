@@ -48,6 +48,17 @@ shared-hosting migration in more detail than belongs here.
   to `backend`. `security` sits outside the full sweep like `performance`: it
   goes red when a third party publishes an advisory, and a permanently red gate
   stops being read.
+- **`php artisan ethr:backup:rehearse`** — destructively verifies the backup
+  path against whatever database it is pointed at: back up, drop every table,
+  restore, then check tables, rows and triggers all came back and that
+  `audit_log` still accepts an INSERT and refuses an UPDATE. Master plan §30's
+  standard is a restore *performed*, and a test that only ever runs on SQLite
+  does not meet it for a MySQL host. Two guards, because it drops everything:
+  not in `production`, and the database name must look disposable.
+- `docs/deployment/shared-hosting/nginx-directives.conf` — the prepared answer
+  if Gate 0's G0-B finds `.htaccess` is not honoured. Covers the silently
+  failing half (headers, deny rules, timeouts) and deliberately leaves routing
+  alone until the gate says which way nginx is configured.
 - `scripts/docs-link-check.js`, `.github/dependabot.yml`, `CODEOWNERS`,
   a pull-request template.
 - `docs/README.md` — an index for 37 documents that had none.
@@ -61,6 +72,16 @@ shared-hosting migration in more detail than belongs here.
 - `SECURITY.md`, `CONTRIBUTING.md`, `LICENSE`, `.editorconfig`, this file.
 
 ### Fixed
+
+- **A backup could be unrestorable if any stored text contained a semicolon
+  immediately followed by a newline.** The dump's one-statement-per-line layout
+  is what `BackupService::executeSqlFile()` uses to find statement boundaries,
+  and `PDO::quote()` does not close this uniformly: MySQL escapes the newline,
+  SQLite leaves it literal. So production was safe and every backup test in the
+  repository — all SQLite — was validating the weaker path. Measured: the
+  restore throws `unrecognized token` partway through, after tables have already
+  been dropped and recreated. `DatabaseDumper` now emits `char(10)`
+  concatenation so no literal can carry a raw newline on either driver.
 
 - **Monthly invoicing had no idempotency guard.** `generateMonthlyInvoice()`
   created an invoice unconditionally, so any second execution of
