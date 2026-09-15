@@ -1,6 +1,16 @@
 # Gate 0 — Real Plesk Feasibility Verification
 
-**Status: NOT RUN. Every row below is `NOT VERIFIED`.**
+**Status: NOT RUN against the account.** Some rows are already settled by external probing (see *Already settled*, below), so the panel session only has to measure what is genuinely unknown.
+
+> ### Read this first: the stack reports `Server: nginx`
+>
+> `docs/B1-B5_GATE_REPORT.md` records the live response headers on `213.55.96.154` as **`Server: nginx`**, `X-Powered-By: PleskLin`.
+>
+> That is a **signal, not a verdict**. Plesk commonly runs nginx in front of Apache, in which case `.htaccess` is still honoured for whatever Apache handles. It also commonly serves static files from nginx directly, or runs nginx-only — in which case `.htaccess` does nothing at all, **and fails silently**.
+>
+> **G0-B is therefore the gate most likely to come back negative**, and it is the one the whole deployment currently rests on. `docs/deployment/shared-hosting/.htaccess` is the only thing blocking `.env`, `.git` and `composer.json`, forwarding the `Authorization` and `X-XSRF-Token` headers Sanctum needs, and setting every security header.
+>
+> Run the canary early, and treat `curl -i https://<host>/.env` returning **403** as the thing that must be true before anything is deployed.
 
 **Target:** Ethio Telecom Linux shared hosting (Plesk) · account `etrhet` · `213.55.96.154`
 **Prepared:** 2026-09-15
@@ -71,8 +81,8 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-B.3** | `.htaccess` deny rules enforced | **403** | | NOT VERIFIED | canary |
 | **G0-B.4** | `Authorization` reaches PHP | yes | | NOT VERIFIED | canary |
 | **G0-A** | reverse proxy for `/api/` | permitted | | NOT VERIFIED | panel |
-| **G0-C** | wildcard subdomain `*` as one vhost | works | | NOT VERIFIED | panel |
-| G0-C | wildcard TLS | issued | | NOT VERIFIED | panel |
+| **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29); vhost not yet created | PARTIAL | B1-B5 + panel |
+| G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
 | **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
@@ -90,7 +100,21 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | — | database size limit | measured | | NOT VERIFIED | panel |
 | — | document root editable | yes | | NOT VERIFIED | panel |
 | — | `symlink()` works | yes | | NOT VERIFIED | probe ST5 |
-| — | parent of docroot writable | yes | | NOT VERIFIED | probe ST6 |
+| — | parent of docroot writable | yes | **PASS** — home sits above `httpdocs` | VERIFIED | B1-B5 |
+
+### Already settled — do not re-measure
+
+External probing on 2026-08-29 (`docs/B1-B5_GATE_REPORT.md`) closed these without account access:
+
+| Item | Result | Evidence |
+|---|---|---|
+| Wildcard **DNS** | **PASS** | A wildcard `A` record resolves for names never configured |
+| App outside the document root | **PASS** | Home sits a level above `httpdocs`, so `.env` and `storage/` are unreachable over HTTP by construction |
+| Plesk panel | **CONFIRMED** | Port 8443 open, `X-Powered-By: PleskLin` |
+| MySQL not internet-exposed | **CONFIRMED** | Port 3306 refused — connections must use `DB_HOST=localhost` |
+| Let's Encrypt via HTTP-01 | **PROVEN on this account** | A valid per-hostname certificate is already live; `httpdocs/.well-known/` corroborates the challenge path |
+| Wildcard TLS | **BLOCKED, understood** | Needs DNS-01, and the zone is on `ns2.telecom.net.et`, not Plesk. Per-hostname issuance is the fallback — budget for Let's Encrypt's 50-certs-per-week ceiling |
+| Composer, SSH | **Strong evidence, unconfirmed** | `~/.composer` and `~/.ssh` exist; port 22 open. Plesk can still set the shell to `/bin/false` — confirm by logging in |
 
 **Every FAIL needs four lines recorded underneath it: impact · workaround · decision · owner action.** A FAIL with no decision is an open gate, not a closed one.
 
