@@ -34,6 +34,15 @@ class NotifyExpiringTrialsJob implements ShouldQueue
 
     public int $tries = 2;
 
+    /**
+     * Declared rather than inherited: scans tenants at three trial-expiry thresholds.
+     *
+     * Without this the job silently takes the worker's --timeout (60s by
+     * default), and the queue retry_after invariant cannot be computed at all -
+     * see tests/Feature/QueueRetryAfterInvariantTest.php.
+     */
+    public int $timeout = 300;
+
     /** Days before expiry at which the tenant admin is warned. */
     public const MILESTONES = [30, 7, 1];
 
