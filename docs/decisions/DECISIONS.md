@@ -8,17 +8,19 @@ A decision belongs here when someone could reasonably have chosen otherwise and 
 
 ---
 
-## D-010 — Dunning stays inert until someone decides what "sent" means
+## D-010 — A generated invoice counts as sent
 
-**Date:** 2026-09-15 · **Phase:** billing · **Status:** open, deliberately
+**Date:** 2026-09-15 · **Phase:** billing · **Status:** decided by the owner
 
 `BillingService::generateMonthlyInvoice()` writes `status => 'draft'`. `HandleOverdueInvoicesJob` tier 1 matches `status = 'sent'`. Nothing in `app/` transitions between them, so no invoice ever enters dunning: no reminders, no past-due subscriptions, no suspensions for non-payment (§15d).
 
 The one-line fix is obvious and wrong. Making invoices `sent` on creation would mean "sent" = "generated" — and **nothing emails invoices either**. Dunning would then suspend customers at 60 days for not paying a bill they were never sent. That is worse than an inert chain, and it fails quietly.
 
-**Decision:** leave it. The missing piece is a send step, not a status default, and whether one should exist is a billing-process question. Pinned by a `todo` test that fails the day someone changes it.
+**Owner decision, 2026-09-15: invoices are created `sent`.** `generateMonthlyInvoice()` now writes that status, and the dunning chain is verified end to end — generate, remind at 7 days, past-due at 30, suspend at 60.
 
-**Reverse it when:** the owner says whether a generated invoice counts as sent, or specifies the send step.
+The concern above was raised and overruled, which is recorded here rather than argued again. What it means in practice: dunning escalates on a bill the tenant has only seen in-app, and tier 3 suspends them. **The 7-day reminder still sends nothing** — it logs a warning saying so. If a send step is built later, that warning is where to hook it.
+
+**Revisit if:** customers are suspended without having been contacted. That is the failure this shape allows, and it is now reachable.
 
 ---
 
