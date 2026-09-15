@@ -12,6 +12,12 @@ shared-hosting migration in more detail than belongs here.
 
 ### Security
 
+- **Cleared both critical advisories in production frontend dependencies.**
+  `next` 16.2.12 → 16.3.5 (GHSA-p293-qw3h-jr36, GHSA-2xp9-vwfh-vxw4 —
+  unauthenticated RCE) and the `sharp` override ^0.35.3 → ^0.35.4
+  (GHSA-rgj7-g3m4-5g8c). Production advisories 5 → 3, criticals 2 → 0. Verified
+  against a baseline captured before the upgrade: Vitest 70 files / 435 tests
+  identical either side, `next build` exit 0, all frontend gates green.
 - **Fixed a cross-tenant lookup in employee import.**
   `EmployeeImporter::commit()` de-duplicated on `import_key` through
   `withoutGlobalScopes()` with no tenant predicate, so it read every tenant's
@@ -90,9 +96,7 @@ Carried from `docs/audit/BASELINE.md` §15, unfixed and ranked:
   audit write after a restore under a different database user.
 - `laravel/horizon` hard-requires `ext-pcntl` and `ext-posix`, so
   `composer install --no-dev` fails on most shared hosting.
-- **Two critical RCE advisories against `next` 16.2.12**, a production
-  dependency (GHSA-p293-qw3h-jr36, GHSA-2xp9-vwfh-vxw4). The fix is in-range —
-  16.3.3 fixes it, 16.3.5 is current, and `package.json` already declares
-  `^16.2.9`. Not applied here: upgrading the frontend framework needs its own
-  slice with the suite run against it. See `docs/audit/BASELINE.md` §15a.
-- CI is configured but has never run, because nothing has been pushed.
+- `fast-uri` (high, SSRF) and `browserslist` (high) remain in production
+  dependencies. Both transitive, neither with a direct override path.
+- The `audit_log` triggers carry an implicit `DEFINER`; a Plesk-assisted restore
+  under a different database user breaks every audit write.

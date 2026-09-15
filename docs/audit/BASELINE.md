@@ -472,9 +472,9 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 4 | **Duplicate job execution** — `retry_after` 90s vs 900s | `config/queue.php:43` **[verified]** | High |
 | 5 | **Audit-log `DEFINER` breaks after restore** → all writes 500 | 206 call sites **[verified]** | High |
 | 6 | **Horizon aborts `composer install`** | `composer.lock:2000-2001` **[verified]** | High |
-| 7 | **Two critical RCE advisories in a production dependency** | `npm audit --omit=dev` **[verified 2026-09-15]** | **Critical** |
+| 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
-| 8 | **19 commits exist only on this machine**, unbacked | `git rev-list` **[verified]** | Medium — total loss of 3 days' work |
+| 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | **Queue can stop silently** — no supervisor, no dashboard | design **[verified]** | Medium |
 | 10 | **No coverage instrumentation**; billing near-untested | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
 | 11 | **No tenant-isolation regression enforcement** | no Layer-4 check **[verified]** | Medium |
@@ -506,7 +506,30 @@ A further 22 advisories are in dev-only tooling (`@lhci/cli`, `vitest`, `puppete
 2. **`docs/security-audit.md`'s plan would not have worked.** It records "no clean in-range fix … revisit on Next 16.3.0 stable". The affected range now extends past 16.3.0, so that revisit would have found the problem unfixed.
 3. **Exposure is narrower than the headline** — but not zero, and not by design. The Windows RCE needs a Windows-hosted Next server; the production target is Linux, though development is Windows. The AVIF RCE needs the Image Optimization endpoint, and §11 records **zero `next/image` usages** — but `/_next/image` exists whenever the Next server runs, whatever the application calls.
 
-**Not fixed here.** A dependency upgrade touching the whole frontend is a §53 HIGH RISK change and needs its own slice with the frontend suite run against it — not a footnote to a CI commit. See §16.5.
+### Resolved 2026-09-15 — `ae52e08`
+
+`next` 16.2.12 → **16.3.5**, `sharp` override `^0.35.3` → **`^0.35.4`**.
+
+| | Before | After |
+|---|---|---|
+| Critical | 2 | **0** |
+| High | 3 | 2 |
+| Moderate | 1 | 1 |
+
+Verified against a pre-upgrade baseline captured deliberately first, so a failure would have been attributable rather than ambiguous:
+
+| Check | Before | After |
+|---|---|---|
+| Vitest | 70 files / 435 tests | **70 / 435, identical** |
+| i18n · Prettier · ESLint · tsc | pass | **pass** |
+| `next build` | — | **exit 0** |
+
+**Still open:** `fast-uri` (high, SSRF) and `browserslist` (high), both transitive with no direct override path. Reported rather than forced.
+
+**Two things the upgrade surfaced:**
+
+- **`middleware` is deprecated in Next 16.3**, in favour of `proxy`; the build now reports `ƒ Proxy (Middleware)`. Low impact here — §11 records `src/src/middleware.ts` as already inert in production and self-declaring nginx as the authoritative control, and under static export it would be deleted rather than migrated. Do not spend a codemod on it before G0-G answers whether the frontend keeps a Node server at all.
+- **Nearly every route printed `○ (Static) prerendered as static content`.** That corroborates §11's finding that this is substantively a client-rendered SPA, and makes static export look more tractable than a count of 78 pages suggests. It does not resolve the actual constraint, which remains the relative `baseURL` at `src/src/api/client.ts:14` and its dependence on `rewrites()`.
 
 **Backend is clean:** `composer audit` passes.
 
@@ -518,7 +541,8 @@ A further 22 advisories are in dev-only tooling (`@lhci/cli`, `vitest`, `puppete
 2. **The 19 unbacked commits** — the owner elected to leave them. Re-flagged only because §15.8 rates it Medium and it is the cheapest risk on the list to retire.
 3. **Master plan §5 identity block** — confirm it should be corrected to `F:\et` / `main` / `syntax-ict/Ethr.et.git` in Phase 1.
 4. **Docker availability** — the API-contract gate still needs a migrated database. Native PHP covers the rest (§12), so this is narrower than first recorded.
-5. **Upgrade `next` to 16.3.5** (§15a). Two critical RCE advisories, fix is in-range, needs a slice of its own with the frontend suite run against it. Recommended as the next action after Gate 0.
+5. ~~Upgrade `next`~~ — **done** (`ae52e08`), verified, both criticals cleared.
+6. **Merge `docs/phase-0-baseline` into `main`** with `--no-ff`, per `docs/CLAUDE.md`. 32 commits are on `origin` awaiting review; `origin/main` is untouched.
 
 ---
 
