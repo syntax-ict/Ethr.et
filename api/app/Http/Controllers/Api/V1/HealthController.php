@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\Observability\QueueHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -41,11 +42,36 @@ class HealthController extends Controller
             $services['cache'] = 'unavailable';
         }
 
+        // `services.queue` stays a REACHABILITY check, and deliberately so.
+        //
+        // This endpoint answers one question for one audience: can an uptime
+        // monitor still reach a working instance? Its non-200 means "the site
+        // is down, page someone". A scheduler that stopped an hour ago is a
+        // real problem and emphatically not that one — the site is up, requests
+        // are served, and somebody needs to look at cron in the morning.
+        //
+        // Wiring scheduler staleness into this status was tried and reverted in
+        // the same change. It made /health return 503 on any deployment whose
+        // scheduler had not yet beaten — including every fresh install, before
+        // the first `schedule:run`. That is the failure this file already warns
+        // about twice above: a probe that cries wolf gets muted, and then it is
+        // worth nothing when the site really is down.
+        //
+        // The liveness picture is still published, under `queue_detail`, for
+        // anything that wants it. The thing that acts on it is
+        // `ethr:queue:check`, which runs from cron and exits non-zero — see
+        // docs/operations/QUEUE-MONITORING.md.
         try {
-            Queue::size('default');
+            DB::table('jobs')->count();
             $services['queue'] = 'healthy';
         } catch (\Throwable) {
             $services['queue'] = 'unavailable';
+        }
+
+        try {
+            $queueDetail = app(QueueHealth::class)->snapshot();
+        } catch (\Throwable) {
+            $queueDetail = null;
         }
 
         // Same reasoning as the cache probe: check the disk the application
@@ -61,9 +87,12 @@ class HealthController extends Controller
 
         $allHealthy = ! in_array('unhealthy', $services, true);
 
+        // Outside `services` on purpose: everything in there feeds the 503
+        // above, and scheduler staleness must not.
         return response()->json([
             'status' => $allHealthy ? 'healthy' : 'degraded',
             'services' => $services,
+            'queue_detail' => $queueDetail,
             'timestamp' => now()->toIso8601String(),
             'version' => '1.0.0',
         ], $allHealthy ? 200 : 503);

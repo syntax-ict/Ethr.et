@@ -12,6 +12,7 @@ use App\Jobs\ScanAttendanceAnomaliesJob;
 use App\Jobs\ScanMissingPunchesJob;
 use App\Jobs\SendApprovalRemindersJob;
 use App\Models\Tenant;
+use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -103,3 +104,16 @@ Schedule::command('ethr:backup', ['--keep=7'])
     ->dailyAt('01:00')
     ->name('ethr-backup')
     ->withoutOverlapping();
+
+// Scheduler heartbeat — the cheapest entry here and the one that makes the rest
+// observable. Everything asynchronous in ETHR arrives through a single Plesk
+// Scheduled Task running `schedule:run`; if that stops, jobs stop and nothing
+// says so. This records that the scheduler ran, so `ethr:queue:check` and the
+// health endpoint can tell "quiet" from "dead".
+//
+// Deliberately not ->withoutOverlapping(): that takes a cache lock, and a lock
+// left behind by a killed run would suppress the very signal this exists to
+// emit.
+Schedule::call(fn () => app(QueueHealth::class)->beat())
+    ->everyMinute()
+    ->name('scheduler-heartbeat');

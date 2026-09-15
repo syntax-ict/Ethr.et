@@ -1,6 +1,16 @@
 # Queue Monitoring
 
-**Status: design. Not built.** The alert transport depends on Gate 0 (`../deployment/GATE-0-RESULT.md`, G0-D and G0-H).
+**Status: built and tested. The alert transport still depends on Gate 0** (`../deployment/GATE-0-RESULT.md`, G0-D and G0-H).
+
+```bash
+php artisan ethr:queue:check                # exit 1 if the scheduler stopped or a queue is starving
+php artisan ethr:queue:check --json         # for an uptime monitor
+GET /api/v1/health                          # same picture, under `queue_detail`
+```
+
+A heartbeat runs every minute from `routes/console.php`; `QueueHealth::snapshot()` compares it against a staleness threshold and checks all four queues for starving jobs. Eight tests in `api/tests/Feature/QueueHealthTest.php` drive it through every state it exists to detect, including the CLI exit code — a monitor nobody has watched fail is an assumption with a dashboard.
+
+What is **not** built is the part that needs the host: which transport carries the alert. That is G0-H (is outbound SMTP open?) and G0-D (does Plesk offer a real cron?). Until then the switch exists and nothing is wired to listen to it.
 
 ---
 
@@ -82,6 +92,35 @@ Transport depends on **G0-H** (outbound SMTP 587/465, and the plan mailbox's sen
 Thresholds should start generous and tighten with evidence. A false alarm at 3am teaches people to ignore the alarm.
 
 ---
+
+## Why scheduler staleness does not make `/health` return 503
+
+Worth recording, because the first implementation got it wrong and the full test
+suite caught it — twenty failures, all of them health-endpoint tests.
+
+`QueueHealth::snapshot()` was wired straight into `services.queue`, and that
+array decides the endpoint's 200-vs-503. Since a fresh deployment has never run
+`schedule:run`, the heartbeat was absent, the snapshot said `unhealthy`, and
+**`/health` returned 503 on every new install** — before anything was actually
+wrong.
+
+That is the exact failure this file and `HealthController` both already warn
+about: a probe that cries wolf gets muted, and a muted probe is worth nothing on
+the day the site really is down. It had already happened twice in this codebase
+— a hardcoded `redis` cache check and a hardcoded `minio` disk check, each
+reporting a permanent fault on deployments that used neither.
+
+The separation that works:
+
+| | Question | Audience | Signal |
+|---|---|---|---|
+| `services.queue` in `/health` | Can I reach the `jobs` table? | uptime monitor | 503 = the site is down, page someone |
+| `queue_detail` in `/health` | Is anything actually running? | dashboards, humans | informational |
+| `ethr:queue:check` | Is anything actually running? | cron, uptime check | exit 1 = look at cron in the morning |
+
+A scheduler that stopped an hour ago is a real problem and **not** "the site is
+down". Requests are still served. Conflating the two means either paging someone
+at 3am for a cron job, or — far more likely — learning to ignore the page.
 
 ## Fix `SystemHealthService` alongside this
 

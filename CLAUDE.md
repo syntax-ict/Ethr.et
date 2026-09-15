@@ -55,7 +55,9 @@ red when a third party publishes an advisory, not when you break something, and
 a gate that is permanently red stops being read. **It is red right now** — see
 `docs/audit/BASELINE.md` §15.
 
-**CI is configured but has never run.** `.github/workflows/` was added in Phase 2 and calls `gates.sh` rather than restating it. It has executed zero times, because `main` is 19 commits ahead of `origin/main` and nothing has been pushed. Treat it as untested configuration, not as a control.
+**CI calls `gates.sh` rather than restating it**, so the two cannot drift. `main` has been pushed, so the workflows should now be running — but no run has been read from here (`gh` is not installed and the repository is private), so treat a green build as unconfirmed until someone has actually looked at the Actions tab.
+
+This paragraph previously said the workflows had "executed zero times, because `main` is 19 commits ahead and nothing has been pushed". That was true on 2026-09-15 and stopped being true the same day. It is the third stale fact this file has carried; if you are reading it long after that date, check rather than trust it.
 
 What *is* active is the pre-push hook, once you enable it:
 
