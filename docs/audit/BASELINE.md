@@ -498,11 +498,29 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
+| 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 11 | **No tenant-isolation regression enforcement** | no Layer-4 check **[verified]** | Medium |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
 | 13 | **Documentation asserts controls that do not exist** | 4 documents **[verified]** | Medium |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |
+
+---
+
+### 15b. Monthly invoicing had no idempotency guard — **found and fixed 2026-09-15**
+
+Not a Phase 0 finding. It surfaced while writing the billing tests §12 flagged as missing, which is the argument for writing them.
+
+`BillingService::generateMonthlyInvoice()` created an `Invoice` unconditionally, and `GenerateMonthlyInvoicesJob` called it for every active subscription without checking. **Any second execution billed every active tenant again.**
+
+Reachable two ways, both real:
+
+1. **The queue.** Until the same day, this job declared no `$timeout`, inheriting the worker's 60s default against a `retry_after` of 90s (§7a). A run over 90 seconds — plausible, it walks every subscription — was re-reserved and executed twice while the first was still going. Both halves were fixed on 2026-09-15; this is the half that survives the queue being configured correctly.
+2. **The documented recovery.** The job's own `failed()` handler tells operators to *"re-run manually if needed"*. Without a guard, that advice double-bills everyone invoiced before the failure.
+
+Fixed by keying on the calendar month, since no billing-period column exists and the schedule is `monthlyOn(1)`. Honest about its limit: a run starting at 23:59 on the last day and retrying after midnight would still produce two. A `period` column on `invoices` is the fuller fix and a schema change — **still open**.
+
+Five tests, and the first two were **proven to fail before the fix** ("a second run in the same month created a duplicate invoice", 2 instead of 1). One deliberately guards the opposite failure: that the guard must not be so broad it stops billing altogether, which would be worse and silent.
 
 ---
 

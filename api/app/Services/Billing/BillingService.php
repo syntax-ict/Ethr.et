@@ -56,6 +56,37 @@ final class BillingService
             return null;
         }
 
+        // Idempotency. Neither this method nor GenerateMonthlyInvoicesJob used to
+        // check, so any second execution billed every active tenant again.
+        //
+        // That was reachable in practice: until 2026-09-15 the job declared no
+        // $timeout, inheriting the worker's 60s default against a database queue
+        // retry_after of 90s, so a run over 90 seconds was re-reserved and ran
+        // twice. The job's own failed() handler also tells operators to "re-run
+        // manually if needed", which without this guard double-bills everyone
+        // already invoiced before the failure.
+        //
+        // Keyed on the calendar month because there is no billing-period column
+        // to key on, and the schedule is monthlyOn(1). That is correct for the
+        // real failure - a re-run within the same month - and honest about its
+        // limit: a run starting at 23:59 on the last day and retrying after
+        // midnight would still produce two. A `period` column on invoices is the
+        // fuller fix and a schema change; recorded rather than smuggled in here.
+        $existing = Invoice::withoutGlobalScope('tenant')
+            ->where('subscription_id', $subscription->id)
+            ->whereBetween('created_at', [
+                Carbon::now()->startOfMonth(),
+                Carbon::now()->endOfMonth(),
+            ])
+            ->first();
+
+        if ($existing) {
+            // Returned rather than null so the caller can distinguish "already
+            // covered" from "no active subscription" - those need different
+            // responses, and null would conflate them.
+            return $existing;
+        }
+
         $plan = $subscription->plan;
         $amount = $plan->price_cents ?? 0;
 
