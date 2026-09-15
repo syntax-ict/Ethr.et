@@ -51,7 +51,7 @@ if [[ -n "$RANGE_BASE" ]]; then
     # definition, and the production build needs it. Its own header says so.
     # Anything else matching .env is not that.
     SUSPECT=$(git diff --name-only --diff-filter=A "$RANGE_BASE"..HEAD \
-        | grep -E '(^|/)\.env($|\.)|\.pem$|\.key$|\.p12$|\.pfx$|_rsa$' \
+        | grep -E '(^|/)\.env($|\.)|\.pem$|\.key$|\.p12$|\.pfx$|_rsa$|\.sql$|\.sql\.gz$' \
         | grep -v '\.example$' \
         | grep -vx 'src/\.env\.production' || true)
 

@@ -472,7 +472,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 | # | Risk | Evidence | Severity |
 |---|---|---|---|
-| 1 | **No backup or restore path for any non-Docker host** | `scripts/backup.sh:53,63` **[verified]** | **Critical** — unrecoverable HR/payroll loss |
+| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally; **not yet rehearsed on the host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]** | **High** (was Critical) — still a go-live gate |
 | 2 | **Cross-tenant import lookup (P0-1)** | `EmployeeImporter.php:94` **[verified]** | **Critical** — isolation breach + silent data loss |
 | 3 | **Payroll times out mid-transaction** | `PayrollController.php:38` + `CLAUDE.md:858` **[verified]** | High |
 | 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |

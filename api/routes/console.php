@@ -87,3 +87,19 @@ Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00');
 // Cleanup expired data daily at 02:00 UTC (05:00 EAT)
 // Notifications: 90 days, Webhook deliveries: 30 days, Import staging: 7 days
 Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');
+
+// Full backup daily at 01:00 UTC (04:00 EAT) — before the 02:00 cleanup, so a
+// backup always exists from before data was pruned rather than after.
+//
+// --off-host is not set here on purpose. Off-host credentials may not exist
+// yet, and a scheduled task that fails every night is a scheduled task people
+// mute. Add it to this line once the disk is configured; until then the command
+// warns on every run that the backup only exists on the host it protects.
+//
+// On shared hosting this arrives via one Plesk Scheduled Task running
+// `artisan schedule:run` every minute, not via a daemon. See
+// docs/deployment/BACKUP-RESTORE.md.
+Schedule::command('ethr:backup', ['--keep=7'])
+    ->dailyAt('01:00')
+    ->name('ethr-backup')
+    ->withoutOverlapping();
