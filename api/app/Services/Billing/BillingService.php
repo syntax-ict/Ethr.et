@@ -120,9 +120,38 @@ final class BillingService
             'amount_cents' => $amount,
             'tax_cents' => 0,
             'total_cents' => $amount,
-            'status' => 'draft',
+
+            // `sent`, not `draft` - owner decision, 2026-09-15.
+            //
+            // This is what starts dunning. HandleOverdueInvoicesJob tier 1
+            // matches `status = 'sent'`, and nothing anywhere transitioned an
+            // invoice out of `draft`, so before this change no invoice ever
+            // entered dunning: no reminders, no past-due subscriptions, and no
+            // tenant was ever suspended for non-payment. The whole escalation
+            // chain was inert end to end.
+            //
+            // Worth knowing what is now live: there is still no email step. An
+            // invoice is `sent` in the sense that it exists and is visible in
+            // the product, not in the sense that anything delivered it. Dunning
+            // therefore escalates on a bill the tenant has only seen in-app, and
+            // tier 3 SUSPENDS them at 60 days. See DECISIONS.md D-010.
+            'status' => 'sent',
             'line_items' => $lineItems,
-            'due_date' => Carbon::now()->addDays(15),
+            // startOfDay(), not a bare addDays(). `due_date` is declared
+            // $table->date(), and MySQL truncates the time on insert - so this
+            // worked there by accident, not by intent.
+            //
+            // SQLite does not enforce column types, so the same code stored
+            // "2026-09-30 15:59:20". HandleOverdueInvoicesJob compares against
+            // Carbon::today()->subDays(7), which binds midnight, and
+            // "15:59:20 <= 00:00:00" is false - so an invoice was not picked up
+            // on the day it fell 7 days overdue, but on the day after.
+            //
+            // A whole-day difference in when a customer is reminded, marked past
+            // due, and suspended, present in tests and absent in production. The
+            // production target is MySQL and the suite runs on SQLite, so this
+            // is exactly the divergence worth removing rather than relying on.
+            'due_date' => Carbon::now()->addDays(15)->startOfDay(),
         ]);
     }
 
