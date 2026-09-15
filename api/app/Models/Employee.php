@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Larastan types columns from the schema, which cannot see the date casts below —
@@ -127,18 +126,65 @@ class Employee extends Model
         return hash_hmac('sha256', $normalized, (string) config('app.key'));
     }
 
+    /**
+     * One implementation, on every driver.
+     *
+     * This used to branch: `MATCH … AGAINST` on MySQL, `LIKE` everywhere else.
+     * The suite runs on SQLite, so **only the LIKE branch had ever been executed
+     * by a test** — the branch that runs in production was unexercised code in
+     * the one place users touch most.
+     *
+     * Running the suite against MariaDB 10.4.32 found the defect it was hiding.
+     * The MySQL branch stripped boolean operators from the term, `-` among them,
+     * so `EMP-1234` became `EMP1234`. FULLTEXT had indexed that value as the two
+     * tokens `EMP` and `1234`, and no token is `EMP1234`:
+     *
+     *   user types `1234`      -> `1234*`     -> 1 row
+     *   user types `EMP-1234`  -> `EMP1234*`  -> 0 rows   <- the whole code
+     *
+     * Typing an employee's code in full — the most natural thing anyone can do
+     * on this screen — returned nothing in production and worked in every test.
+     *
+     * ## Why not repair the fulltext expression
+     *
+     * The obvious repair is to tokenise and require each token: `+EMP* +1234*`.
+     * Measured, that fixes the code (1 row) and breaks a name: an employee
+     * called `Ab Kebede` is found today and is *not* found by `+Ab* +Kebede*`,
+     * because `innodb_ft_min_token_size` is 3, the two-character token `Ab` was
+     * never indexed, and a required term matching nothing eliminates the row.
+     * Working around that means reading a server variable this project cannot
+     * see on its target host — exactly the kind of assumption master plan §8
+     * forbids.
+     *
+     * ## What it costs
+     *
+     * `LIKE '%term%'` cannot use an index, so this is a scan — but bounded by
+     * `tenant_id`, which is indexed, so it is one tenant's rows and not the
+     * table. Measured on MariaDB 10.4.32 with 5,000 employees in one tenant:
+     * **~13ms**, against the 100ms budget at `docs/CLAUDE.md:850-862`. On that
+     * hardware the budget is reached somewhere around 40,000 employees in a
+     * single tenant; revisit this if a tenant approaches that, and see
+     * `docs/audit/BASELINE.md` §13f for the numbers.
+     *
+     * The `emp_search` FULLTEXT index is now unused. Dropping it is a migration
+     * and a separate change; until then it costs write throughput and nothing
+     * else.
+     *
+     * Amharic is **not** a reason for this change. An earlier draft of the
+     * baseline claimed Ethiopic terms returned nothing through FULLTEXT; that
+     * was an artefact of a probe that seeded through a connection with no
+     * charset and stored mojibake. Re-measured over utf8mb4, `MATCH` and `LIKE`
+     * agree on every Amharic term tried.
+     */
     public function scopeSearch(Builder $query, string $term): Builder
     {
-        if (DB::getDriverName() === 'mysql' || DB::getDriverName() === 'mariadb') {
-            $boolean = str_replace(['@', '+', '-', '<', '>', '(', ')', '~', '*', '"'], '', $term);
-
-            return $query->whereRaw(
-                'MATCH (name, name_am, email, employee_code) AGAINST (? IN BOOLEAN MODE)',
-                [$boolean.'*'],
-            );
-        }
-
         return $query->where(function (Builder $q) use ($term) {
+            // Not escaping `%` and `_` here, deliberately. Doing it portably
+            // needs an explicit `ESCAPE` clause — SQLite's LIKE has no default
+            // escape character, MySQL's does — and adding one would reintroduce
+            // the driver divergence this method just removed. A user who types
+            // `%` gets a broad match, which is a wide net rather than a leak:
+            // the tenant scope still applies.
             $like = "%{$term}%";
             $q->where('name', 'like', $like)
                 ->orWhere('name_am', 'like', $like)

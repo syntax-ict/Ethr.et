@@ -112,6 +112,53 @@ both before and after proves nothing. Revert the change, watch it go red, put
 the change back. `tests/Feature/Security/TenantImportIsolationTest.php` was
 written that way and says so.
 
+### Running the suite against MySQL
+
+The default suite runs on SQLite `:memory:`. Production runs on MariaDB, and
+the two are not interchangeable — every defect below was invisible on SQLite
+and real on MySQL:
+
+- `DATE` columns truncate the time component on insert; SQLite keeps it, so a
+  `due_date` carrying a time made dunning fire a day late on one driver and on
+  time on the other.
+- `PDO::quote()` escapes newlines on MySQL and not on SQLite, so a backup dump
+  could tear on the driver every backup test happened to use.
+- `TRUNCATE` is DDL on MySQL and implicitly commits; SQLite has no TRUNCATE at
+  all and Laravel compiles it to `DELETE FROM`.
+
+So run it on MySQL before a release, and after touching anything that writes
+dates, raw SQL, or schema:
+
+```bash
+mysql -e "CREATE DATABASE ethr_suite_mysql CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+cd api && vendor/bin/pest -c phpunit.mysql.xml
+```
+
+`phpunit.mysql.xml` differs from `phpunit.xml` in seven `<env>` lines and
+nothing else. Point it elsewhere with the `DB_*` values in that file.
+
+It is **not** wired into `scripts/gates.sh`, deliberately. It needs a running
+server, so on a machine without one it would either fail or skip — and a gate
+that skips reports success. Run it on purpose.
+
+**The trap, already paid for twice:** on MySQL, DDL implicitly commits —
+`TRUNCATE`, `CREATE`, `ALTER`, `DROP`, `LOCK TABLES`. `RefreshDatabase` wraps
+each test in a transaction, and DDL ends that transaction for good. There is no
+rollback afterwards. Two different shapes of this bit:
+
+- **In a `beforeEach`.** `PermissionSeeder` called `truncate()`. Laravel finds
+  the transaction gone at teardown, sets `RefreshDatabaseState::$migrated =
+  false`, and runs a full `migrate:fresh` before the next test — ~20s each,
+  putting the suite at roughly nine hours. See
+  `database/seeders/PermissionSeeder.php:32`.
+- **In a test body.** `BackupRestoreRehearsalTest` drops every table on purpose.
+  On SQLite the rollback undoes it; on MySQL the database simply stays destroyed
+  and every later test fails on a missing table — including tests in other files
+  that have nothing to do with it. That file now skips on non-SQLite drivers and
+  `php artisan ethr:backup:rehearse` covers MySQL instead.
+
+So: a test that must issue DDL needs a driver guard, not a hopeful rollback.
+
 ## Tenant isolation
 
 The single thing most worth being careful about. `BelongsToTenant` adds a

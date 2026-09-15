@@ -29,7 +29,28 @@ class PermissionSeeder extends Seeder
 
         $permissionIds = Permission::pluck('id', 'name')->all();
 
-        DB::table('role_permissions')->truncate();
+        // `delete()`, not `truncate()`, and the difference is load-bearing.
+        //
+        // TRUNCATE is DDL on MySQL, and DDL causes an implicit commit. This
+        // seeder runs in `beforeEach` for the whole suite, inside the
+        // transaction `RefreshDatabase` opened — so on MySQL the truncate
+        // committed that transaction out from under the test. Laravel notices
+        // at teardown (`RefreshDatabase.php:159`: if the connection is no longer
+        // in a transaction, `RefreshDatabaseState::$migrated = false`) and runs
+        // a full `migrate:fresh` before the next test.
+        //
+        // Measured on MariaDB 10.4.32: every test re-migrated, ~20s each, which
+        // put the 1720-test suite at roughly nine hours and made running it on
+        // the production driver impossible in practice.
+        //
+        // None of this is visible on SQLite, which has no TRUNCATE — Laravel
+        // compiles `truncate()` to `DELETE FROM`, which is transactional. So the
+        // driver the suite runs on was the one where the bug could not appear.
+        //
+        // `delete()` differs only in leaving the auto-increment counter alone.
+        // Nothing has a foreign key onto `role_permissions.id` and nothing reads
+        // it, so that difference is not observable here.
+        DB::table('role_permissions')->delete();
 
         $grants = $this->roleGrants();
         $rows = [];

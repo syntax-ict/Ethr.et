@@ -90,12 +90,19 @@ test('health endpoint reports the configured storage disk as healthy', function 
 test('read replica probe inspects the connection actually in use', function () {
     $connection = DB::connection()->getName();
 
+    // The decoy must be a connection the application is NOT using, so it cannot
+    // be hardcoded: under phpunit.mysql.xml the connection in use IS `mariadb`,
+    // and the two config lines below then collided — the second undid the first
+    // and the test asserted the opposite of its own intent. It passed on SQLite
+    // by luck of the default connection's name.
+    $decoy = $connection === 'mariadb' ? 'mysql' : 'mariadb';
+
     // The connection in use has no replica…
     config(["database.connections.{$connection}.read" => null]);
     // …while a connection the application is NOT using does. Reading the wrong
     // one therefore reports a replica that this deployment does not have, which
     // is precisely the state the hardcoded `mariadb` lookup produced.
-    config(['database.connections.mariadb.read' => ['host' => ['replica.invalid']]]);
+    config(["database.connections.{$decoy}.read" => ['host' => ['replica.invalid']]]);
 
     expect(test()->getJson('/api/v1/health')->json('services.database_read'))
         ->toBe('not_configured');

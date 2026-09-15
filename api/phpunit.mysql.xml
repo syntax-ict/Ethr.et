@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+>
+    <!--
+        The same suite, against MySQL/MariaDB instead of SQLite.
+
+            vendor/bin/pest -c phpunit.mysql.xml
+
+        ## Why this file exists
+
+        phpunit.xml pins DB_CONNECTION=sqlite and DB_DATABASE=:memory:, which is
+        right for the default suite: it is fast, needs no service, and runs
+        anywhere. What it is not is the database ETHR ships on.
+
+        The two drivers are not interchangeable, and the differences have
+        already produced defects in this repository that a green SQLite run did
+        not see:
+
+          - MySQL DATE columns truncate the time component on insert; SQLite
+            keeps it. A due_date carrying a time therefore made dunning fire a
+            day late on SQLite and on time on MySQL.
+          - PDO::quote() escapes newlines on MySQL and does not on SQLite, so a
+            dump could tear on one driver and not the other. Every backup test
+            in this repository ran on the driver where it tore.
+
+        Both were found by looking, not by the suite. This file makes the
+        question answerable by running it.
+
+        ## Not a replacement for phpunit.xml
+
+        This is slower, needs a running server, and is not wired into
+        scripts/gates.sh. A gate that cannot run on a developer's machine
+        without a service is a gate that gets skipped, and a skipped gate
+        reports success. Run it deliberately: before a release, after touching
+        anything that writes dates or raw SQL, and when a test behaves
+        differently in production than it did locally.
+
+        ## Setup
+
+            CREATE DATABASE ethr_suite_mysql CHARACTER SET utf8mb4
+                COLLATE utf8mb4_unicode_ci;
+
+        Override host, user and password with MYSQL_TEST_* in the real
+        environment if the defaults below do not match. RefreshDatabase
+        migrates this database on the first test and wraps every test in a
+        transaction, so it is rebuilt rather than accumulated - but point it at
+        a scratch database regardless.
+    -->
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <ini name="memory_limit" value="1G"/>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+
+        <!-- The only lines that differ from phpunit.xml. -->
+        <env name="DB_CONNECTION" value="mariadb" force="true"/>
+        <env name="DB_HOST" value="127.0.0.1" force="true"/>
+        <env name="DB_PORT" value="3306" force="true"/>
+        <env name="DB_DATABASE" value="ethr_suite_mysql" force="true"/>
+        <env name="DB_USERNAME" value="root" force="true"/>
+        <env name="DB_PASSWORD" value="" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+
+        <env name="FILESYSTEM_DISK" value="minio" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
+        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
+        <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
+    </php>
+</phpunit>
