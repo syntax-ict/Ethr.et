@@ -111,6 +111,15 @@ $limits = [
     ['L4', 'post_max_size', 10 * 1024 * 1024, 'employee document upload'],
 ];
 
+// max_execution_time is 0 (unlimited) under CLI, always. The number that decides
+// whether payroll survives is the WEB SAPI value, and a CLI run cannot see it -
+// so say so rather than reporting a pass that measured nothing.
+if ($isCli) {
+    record($results, 'Limits', 'L2!', 'max_execution_time below is the CLI value, NOT the web limit', 'UNKNOWN',
+        'CLI always reports 0/unlimited. Read the real one in Plesk -> PHP Settings, or serve this file '
+        .'once over HTTP. Payroll is what depends on it.');
+}
+
 foreach ($limits as [$id, $key, $min, $why]) {
     $raw = (string) ini_get($key);
     $actual = $key === 'max_execution_time' ? ((int) $raw ?: PHP_INT_MAX) : toBytes($raw);
@@ -434,7 +443,9 @@ echo "$line\n";
 echo $fail > 0
     ? "RESULT: {$fail} MANDATORY item(s) unsupported — Laravel 12 will not run as-is.\n"
     : "RESULT: no mandatory PHP item failed. Check FAIL/???? rows above individually.\n";
-echo "\nThis probe cannot answer: cron, Node.js, wildcard DNS, wildcard TLS,\n";
-echo "document-root configuration. Those are Plesk panel questions — see\n";
-echo "docs/HOSTING_VERIFICATION_CHECKLIST.md sections 2, 3, 4, 5 and 6.\n";
+echo "\nThis probe cannot answer: cron type and interval, wildcard DNS, wildcard\n";
+echo "TLS, reverse-proxy directives, document-root configuration, or plan quotas."."\n";
+echo "Those are Plesk panel questions - see docs/deployment/GATE-0-RESULT.md."."\n";
+echo "\nNor whether .htaccess is honoured: a file in ~/ is never served by Apache."."\n";
+echo "Use scripts/hosting-verification/htaccess-canary/ for that."."\n";
 echo "\n*** DELETE THIS FILE FROM THE SERVER NOW. ***\n$line\n";
