@@ -377,16 +377,22 @@ Classification: **P0 tenant-isolation defect.** Remediation (adding a `tenant_id
 
 ## 12. Test status *(§65.9)*
 
-**Test case counts: NOT MEASURED — Docker unavailable this pass.**
+**Backend suite, measured 2026-09-15 [verified]:**
 
 ```
-$ docker ps
-failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
+$ php -d memory_limit=-1 vendor/bin/pest --compact
+  Tests:    1673 passed (4966 assertions)
+  Duration: 584.17s
+  [exited with code 0]
 ```
 
-There is no native PHP on this machine, so `scripts/pest-isolated.sh` — and therefore `gates.sh` — cannot run. Per the approved plan, **no figure is copied from documentation**; that is precisely how the existing drift began.
+> **Amended after first publication.** This section originally read `NOT MEASURED — Docker unavailable`, which was true of Docker and wrong about the machine: XAMPP provides native PHP 8.2.12 at `/c/xampp/php/php.exe` with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo` — everything `phpunit.xml` needs.
+>
+> The collection guard passes natively: **140 of 140** test classes collected. The lossy directory scan documented in `README.md` and `scripts/gates.sh:108-117` is a **Docker Desktop Windows bind-mount** artefact; a native run against a local disk does not have it. So the full suite is runnable here without Docker, which also means `gates.sh` gates are reachable in later phases.
 
-**File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs.
+This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
+
+**File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.
 
