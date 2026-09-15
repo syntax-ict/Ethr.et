@@ -46,7 +46,7 @@
     "html5-qrcode": "^2.3.8",
     "laravel-echo": "^1.16.1",
     "lucide-react": "^1.21.0",
-    "next": "^16.2.9",
+    "next": "^16.3.5",
     "next-themes": "^0.4.6",
     "pusher-js": "^8.4.0",
     "qrcode.react": "^4.2.0",
@@ -84,10 +84,10 @@
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
   },
-  "_overridesNote": "Security overrides. `next` itself carries no advisory — npm rates it HIGH purely by inheritance from these two transitive deps (audit `via: [postcss, sharp]`). Next 16.2.12 is already the latest STABLE release, so there is no framework upgrade that fixes this; the only versions above the advisory range are 16.3.0-preview builds. Pinning the vulnerable deps directly resolves it without shipping a pre-release framework. postcss uses $postcss so the override cannot drift from the direct devDependency.",
+  "_overridesNote": "Security overrides, last reviewed 2026-09-15. sharp is pinned at ^0.35.4 because GHSA-rgj7-g3m4-5g8c (libheif) affects <0.35.4, and sharp arrives transitively through next rather than as a direct dependency, so an override is the only way to raise it. nanoid ^3.3.18 is the patched line. postcss uses $postcss so the override cannot drift from the direct devDependency. REVIEW THIS NOTE, NOT JUST THE VERSIONS: the previous text said next carried no advisory of its own and that 16.2.12 was the latest stable, and by 2026-09-15 both were false — next 16.2.12 had two CRITICAL RCE advisories (GHSA-p293-qw3h-jr36, GHSA-2xp9-vwfh-vxw4) fixed in 16.3.3, with 16.3.5 current. An accurate note with no date reads as current long after it stops being true. Check ./scripts/gates.sh security rather than trusting this paragraph.",
   "overrides": {
     "postcss": "$postcss",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "nanoid": "^3.3.18"
   }
 }
