@@ -8,9 +8,13 @@
 >
 > That is a **signal, not a verdict**. Plesk commonly runs nginx in front of Apache, in which case `.htaccess` is still honoured for whatever Apache handles. It also commonly serves static files from nginx directly, or runs nginx-only — in which case `.htaccess` does nothing at all, **and fails silently**.
 >
-> **G0-B is therefore the gate most likely to come back negative**, and it is the one the whole deployment currently rests on. `docs/deployment/shared-hosting/.htaccess` is the only thing blocking `.env`, `.git` and `composer.json`, forwarding the `Authorization` and `X-XSRF-Token` headers Sanctum needs, and setting every security header.
+> **G0-B is therefore the gate most likely to come back negative**, and it is the one the whole deployment currently rests on. `docs/deployment/shared-hosting/.htaccess` routes `/api/*` to Laravel's front controller, forwards the `Authorization` and `X-XSRF-Token` headers Sanctum needs, sets every security header, and denies the repository files.
 >
-> Run the canary early, and treat `curl -i https://<host>/.env` returning **403** as the thing that must be true before anything is deployed.
+> Of those, the **security headers are the silent failure** — the site works perfectly without them and nothing logs their absence. Routing failure is loud. The deny rules matter less than they first appear, because in this layout the application lives in `~/ethr`, outside the document root, so `.env` is not reachable either way; they are defence in depth. The canary README ranks all four.
+>
+> Run the canary early, and treat `curl -i https://<host>/.env` returning **403** as a necessary condition before anything is deployed.
+>
+> **If it fails, the answer is already written.** [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) translates the silently-failing half into Plesk's *Additional nginx directives* panel, and explains why it stops short of translating the routing rules. Unverified against any live host — it is a prepared answer, not a measurement.
 
 **Target:** Ethio Telecom Linux shared hosting (Plesk) · account `etrhet` · `213.55.96.154`
 **Prepared:** 2026-09-15
@@ -182,7 +186,8 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | Gate | If it fails |
 |---|---|
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
-| **G0-B.3** | **Deployment blocker.** Not an error — a silent one: `api/.env` becomes web-readable while the application appears to work. Move every rule into the nginx directives panel and do not deploy until a request for `/.env` returns **403**. A 404 is not a pass. |
+| **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §1, then verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
+| **G0-B.3** | Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §2 and do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
 | **G0-A** | Frontend goes cross-origin. ~1 day becomes ~2 weeks plus an auth-security review. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap. Settle before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. Unbuilt; must be costed. |
