@@ -6,10 +6,16 @@
 > phases read as 0% complete while the features they describe are live and
 > covered by tests. **Do not use them to judge what is done.**
 >
-> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md),
-> with the standing audits in [`ETHR_AUDIT.md`](ETHR_AUDIT.md) and
-> [`ETHR_AUDIT_2026-08-14.md`](ETHR_AUDIT_2026-08-14.md). Per the project rule,
-> the source of truth is the code — verify against it, not against this file.
+> The live, code-grounded status is [`ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md),
+> and the measured state of the codebase is [`audit/BASELINE.md`](../audit/BASELINE.md).
+> Per the project rule, the source of truth is the code — verify against it, not
+> against this file.
+>
+> This header previously cited `ETHR_AUDIT.md` and `ETHR_AUDIT_2026-08-14.md`.
+> Neither is in the tree and, as far as git history shows, neither ever was; the
+> roadmap link was also written as a sibling path and resolved nowhere from this
+> directory. Corrected in Phase 1 — a header whose only job is to route readers
+> to current truth was routing them to nothing.
 >
 > Keep this document for its design intent: scope, data model, and acceptance
 > criteria, which remain accurate and useful.
