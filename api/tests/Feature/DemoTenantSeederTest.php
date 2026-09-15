@@ -18,10 +18,15 @@ test('demo tenant seeder produces a realistic, sales-demo-ready tenant', functio
 
     expect(Employee::where('tenant_id', $tenant->id)->count())->toBeGreaterThanOrEqual(150);
 
+    // Grouped in PHP rather than SQL. This was `selectRaw("strftime('%Y-%m',
+    // date)")`, which is an SQLite built-in and does not exist in MySQL — so the
+    // test failed with "FUNCTION strftime does not exist" the first time the
+    // suite was pointed at MariaDB. `date` is cast to a date, so the model gives
+    // a Carbon instance on either driver and no raw SQL is needed at all.
     $months = AttendanceRecord::where('tenant_id', $tenant->id)
-        ->selectRaw("strftime('%Y-%m', date) as ym")
-        ->distinct()
-        ->pluck('ym');
+        ->pluck('date')
+        ->map(fn ($date) => $date->format('Y-m'))
+        ->unique();
     expect($months->count())->toBeGreaterThanOrEqual(6);
 
     $payrollRuns = PayrollRun::where('tenant_id', $tenant->id)->orderBy('period_start')->get();

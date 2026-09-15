@@ -479,6 +479,48 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 >
 > Recorded rather than quietly edited, because the original claim was repeated in several commit messages that cannot now be amended — and because overstating a finding is the same failure as understating one.
 
+### 13f. Employee search behaved differently on the driver production uses **[verified 2026-09-15, MariaDB 10.4.32 — FIXED]**
+
+`api/app/Models/Employee.php:130` has **two implementations of the same feature**:
+
+```php
+if (DB::getDriverName() === 'mysql' || 'mariadb') {
+    // MATCH (name, name_am, email, employee_code) AGAINST (? IN BOOLEAN MODE)
+}
+// else: LIKE %term% across the same four columns
+```
+
+The suite runs on SQLite, so **only the `LIKE` branch has ever been executed by a test**. Running the suite against MariaDB executes the other branch for the first time. Measured against a real `FULLTEXT` index (`emp_search`, 4 columns), with committed rows:
+
+| A user types | Expression built | Rows found |
+|---|---|---|
+| `1234` (part of a code) | `1234*` | 1 ✓ |
+| `Meseret` | `Meseret*` | 1 ✓ |
+| **`EMP-1234`** (the whole code) | `EMP1234*` | **0** ✗ |
+
+**The defect.** `scopeSearch()` stripped boolean operators — including `-` — from the term before appending `*`, so `EMP-1234` became `EMP1234`. `FULLTEXT` had indexed that value as the two tokens `EMP` and `1234`; no token is `EMP1234`, so the most natural thing a user can type found nothing. Invisible on SQLite, where `LIKE '%EMP-1234%'` matches.
+
+**A correction to an earlier draft of this section.** It also claimed Amharic search returned nothing through `FULLTEXT`, with a table of zeroes. That was wrong, and wrong through my own error: the probe that produced it seeded through a PDO connection with no `charset`, so the Ethiopic text was stored double-encoded and every number taken from it described mojibake rather than behaviour. Re-measured over `utf8mb4`, `MATCH` and `LIKE` agree on every Amharic term tried — `አበበ`, `ከበደ`, `ትዕግስት`, `መሰረት`, `አበበ ከበደ`, all 1/1. **Amharic search was never broken.** Recorded rather than quietly deleted, because a fabricated defect wastes the same attention a missed one does.
+
+**Why the fulltext expression was not repaired instead.** The obvious fix is to tokenise and require each token, `+EMP* +1234*`. Measured, that fixes the code (1 row) and **regresses a name**: an employee called `Ab Kebede` is found by `Ab Kebede*` and is *not* found by `+Ab* +Kebede*`, because `innodb_ft_min_token_size = 3`, the two-character token `Ab` was never indexed, and a required term matching nothing eliminates the row. Working around that means reading a server variable this project cannot see on its target host.
+
+**Fixed 2026-09-15 by deleting the branch.** `scopeSearch()` now uses `LIKE` on every driver, so the tested path and the production path are the same code. Cost, measured on MariaDB 10.4.32 with 5,000 employees in one tenant: **~13ms**, against the **100ms** budget at `docs/CLAUDE.md:850-862`. The scan is bounded by `tenant_id`, which is indexed. On that hardware the budget is reached somewhere near 40,000 employees in a single tenant — revisit if a tenant approaches that. §13e still applies: no measurement of any budget exists on the actual host.
+
+**Left behind:** the `emp_search` `FULLTEXT` index is now unused. Dropping it is a migration and a separate change; until then it costs write throughput and nothing else.
+
+### 13g. Fulltext indexes are invisible inside a transaction **[verified — no longer affects search]**
+
+While diagnosing §13f: **InnoDB maintains `FULLTEXT` indexes at commit.** `RefreshDatabase` wraps every test in a transaction it never commits, so rows a test creates cannot be found by `MATCH … AGAINST` at all. Measured:
+
+| | plain `WHERE name = ?` | `MATCH … AGAINST` |
+|---|---|---|
+| Committed row | 1 | 1 |
+| Row inside an open transaction | **1** | **0** |
+
+This meant the MySQL search branch was not merely untested but **untestable** under this harness at any driver setting — a second, independent reason the §13f defect survived. The §13f fix removes it as a search concern, because `LIKE` reads uncommitted rows normally; the two `EmployeeManagementTest` search cases now pass on MariaDB.
+
+Recorded because the property is general, not specific to search: **any future feature built on `MATCH … AGAINST` will appear broken under the test suite and work in production.** `emp_search` is the only fulltext index in the schema today.
+
 ### 13e. No performance baseline exists
 
 `api/tests/Performance/ResponseTimeTest.php` runs against SQLite and is excluded from the default sweep. The budgets at `docs/CLAUDE.md:850-862` were set against dedicated hardware. **No shared-hosting measurement exists — NOT VERIFIED.**

@@ -172,8 +172,13 @@ describe('tenant isolation', function () {
     });
 
     it('returns empty when no tenant is resolved', function () {
-        Tenant::factory()->create();
-        User::factory()->create(['tenant_id' => 1]);
+        // Use the tenant's real id, not the literal 1. MySQL does not roll back
+        // AUTO_INCREMENT, so after a few hundred tests the first tenant of a
+        // test is id 1173, not 1, and the hardcoded value violated the foreign
+        // key. SQLite's rowid effectively restarts once the transaction unwinds,
+        // which is the only reason the literal ever worked.
+        $tenant = Tenant::factory()->create();
+        User::factory()->create(['tenant_id' => $tenant->id]);
 
         app(CurrentTenant::class)->forget();
         expect(User::count())->toBe(0);

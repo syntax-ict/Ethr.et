@@ -55,6 +55,11 @@ shared-hosting migration in more detail than belongs here.
   standard is a restore *performed*, and a test that only ever runs on SQLite
   does not meet it for a MySQL host. Two guards, because it drops everything:
   not in `production`, and the database name must look disposable.
+- **`api/phpunit.mysql.xml`** — the same suite against MariaDB rather than
+  SQLite `:memory:`, for the divergences a SQLite run structurally cannot see.
+  Seven `<env>` lines differ and nothing else. Deliberately outside
+  `scripts/gates.sh`: it needs a running server, and a gate that skips reports
+  success. See `docs/decisions/DECISIONS.md` D-011.
 - `docs/deployment/shared-hosting/nginx-directives.conf` — the prepared answer
   if Gate 0's G0-B finds `.htaccess` is not honoured. Covers the silently
   failing half (headers, deny rules, timeouts) and deliberately leaves routing
@@ -72,6 +77,50 @@ shared-hosting migration in more detail than belongs here.
 - `SECURITY.md`, `CONTRIBUTING.md`, `LICENSE`, `.editorconfig`, this file.
 
 ### Fixed
+
+- **Searching an employee by their full employee code returned nothing in
+  production.** `Employee::scopeSearch()` had two implementations — `MATCH …
+  AGAINST` on MySQL, `LIKE` on SQLite — and since the suite runs on SQLite, the
+  branch that runs in production had never been executed by a test. It stripped
+  boolean operators from the term, `-` among them, so `EMP-1234` became
+  `EMP1234`; FULLTEXT had indexed that value as the tokens `EMP` and `1234`, and
+  no token is `EMP1234`. Searching `1234` worked, searching `EMP-1234` found
+  nobody. Now one `LIKE` implementation on every driver, so the tested path is
+  the production path. Measured cost at 5,000 employees in one tenant: ~13ms
+  against a 100ms budget. See `docs/decisions/DECISIONS.md` D-012 and
+  `docs/audit/BASELINE.md` §13f.
+
+- **A test passed an Employee id where a User id was required, and SQLite hid
+  it.** `WriteEndpointSmokeTest` built a `SavedReport` with `created_by =>
+  $employee->id`; that column is a foreign key to `users`. It was green because
+  under SQLite `:memory:` with per-test rollback both tables sit at the same low
+  auto-increment value, so the employee id was coincidentally a valid user id.
+  MySQL does not roll back `AUTO_INCREMENT`, the counters diverge, and the
+  constraint fails.
+
+- **Five tests encoded SQLite-only behaviour and failed on MySQL.**
+  `DemoTenantSeederTest` called `strftime()`, an SQLite built-in that does not
+  exist in MySQL; `TenantIsolationTest` hardcoded `tenant_id => 1`, which only
+  resolves because SQLite's rowid effectively restarts after a rollback while
+  MySQL's `AUTO_INCREMENT` does not; and `InfrastructureAgnosticTest`'s
+  read-replica probe used `mariadb` as its "connection we are not using" decoy,
+  which is the connection actually in use under `phpunit.mysql.xml` — so its two
+  `config()` calls collided and the test asserted the opposite of its intent.
+  `BackupRestoreRehearsalTest` drops every table by design; on MySQL that DDL
+  implicitly commits and cannot be rolled back, so it left the database
+  destroyed for every test scheduled after it. It now skips on non-SQLite
+  drivers, with `ethr:backup:rehearse` covering MySQL.
+
+- **The test suite could not be run against MySQL in any practical time.**
+  `PermissionSeeder` runs in `beforeEach` for the whole suite and called
+  `DB::table('role_permissions')->truncate()`. `TRUNCATE` is DDL on MySQL and
+  implicitly commits, which ended the transaction `RefreshDatabase` had opened;
+  Laravel detects the missing transaction at teardown and runs a full
+  `migrate:fresh` before the next test. Measured on MariaDB 10.4.32: ~20s per
+  test, putting the 1720-test suite at roughly nine hours. SQLite has no
+  `TRUNCATE` — Laravel compiles it to `DELETE FROM` — so the driver the suite
+  ran on was the one where this could not appear. Now `delete()`, which differs
+  only in leaving an auto-increment counter nothing reads.
 
 - **A backup could be unrestorable if any stored text contained a semicolon
   immediately followed by a newline.** The dump's one-statement-per-line layout

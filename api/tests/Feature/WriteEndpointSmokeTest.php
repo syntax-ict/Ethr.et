@@ -52,7 +52,7 @@ test('write api/v1 endpoints never return 5xx', function () {
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'department_id' => $dept->id,
     ]);
-    actingAsUser(['role' => UserRole::TENANT_ADMIN, 'employee_id' => $employee->id], $tenant);
+    $actor = actingAsUser(['role' => UserRole::TENANT_ADMIN, 'employee_id' => $employee->id], $tenant);
 
     $device = Device::factory()->create([
         'tenant_id' => $tenant->id, 'branch_id' => $branch->id, 'adapter_type' => 'mock',
@@ -83,7 +83,13 @@ test('write api/v1 endpoints never return 5xx', function () {
     ]);
     $rule = PayrollRule::factory()->create(['tenant_id' => $tenant->id]);
     $kiosk = KioskSession::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
-    $savedReport = SavedReport::factory()->create(['tenant_id' => $tenant->id, 'created_by' => $employee->id]);
+    // `created_by` is a foreign key to `users`, so it takes the acting User's
+    // id - not the Employee's. This passed `$employee->id` and was green on
+    // SQLite for the worst possible reason: with :memory: and per-test
+    // rollback both tables sit at the same low auto-increment value, so the
+    // employee id happened to also be a valid user id. On MySQL the counters
+    // diverge and the constraint fails.
+    $savedReport = SavedReport::factory()->create(['tenant_id' => $tenant->id, 'created_by' => $actor->id]);
     $customRole = CustomRole::create([
         'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'name' => 'Auditor',
         'description' => 'Read-only', 'is_active' => true, 'org_scope' => OrgScope::ALL,

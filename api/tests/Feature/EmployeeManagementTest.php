@@ -205,6 +205,56 @@ describe('employee search and filter', function () {
         expect($response->json('data.0.name'))->toBe('Abebe Kebede');
     });
 
+    it('finds an employee by their employee code typed in full', function () {
+        // The regression test for the search defect. Until 2026-09-15
+        // `scopeSearch()` had a separate MySQL implementation using
+        // `MATCH … AGAINST`, and the suite — SQLite — never ran it. That branch
+        // stripped `-` from the term, so `EMP-1234` became `EMP1234`, which
+        // matches no FULLTEXT token: the row is indexed as `EMP` and `1234`.
+        //
+        // Measured on MariaDB 10.4.32 before the fix: searching `1234` found the
+        // employee and searching `EMP-1234` found nobody.
+        //
+        // This test passes on SQLite whether or not the fix is present, because
+        // SQLite always used LIKE. It is meaningful on MySQL, which is the point
+        // of `phpunit.mysql.xml` — see CONTRIBUTING.md.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1234']);
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-5678']);
+
+        $response = $this->getJson('/api/v1/employees?search=EMP-1234');
+
+        $response->assertOk();
+        expect($response->json('data'))->toHaveCount(1);
+        expect($response->json('data.0.employee_code'))->toBe('EMP-1234');
+    });
+
+    it('finds an employee by an Amharic name fragment', function () {
+        // `name_am` is half the name search in a product whose first-class
+        // languages are en and am, and nothing covered it on any driver.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+
+        Employee::factory()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Abebe Kebede',
+            'name_am' => 'አበበ ከበደ',
+        ]);
+        Employee::factory()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Tigist Hailu',
+            'name_am' => 'ትዕግስት ኃይሉ',
+        ]);
+
+        $response = $this->getJson('/api/v1/employees?search='.urlencode('ከበደ'));
+
+        $response->assertOk();
+        expect($response->json('data'))->toHaveCount(1);
+        expect($response->json('data.0.name_am'))->toBe('አበበ ከበደ');
+    });
+
     it('searches employees by employee code', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);

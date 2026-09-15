@@ -8,6 +8,85 @@ A decision belongs here when someone could reasonably have chosen otherwise and 
 
 ---
 
+## D-012 — Employee search drops FULLTEXT and uses `LIKE` everywhere
+
+**Date:** 2026-09-15 · **Phase:** testing · **Status:** implemented
+
+`Employee::scopeSearch()` branched on driver: `MATCH … AGAINST` on MySQL, `LIKE`
+on SQLite. The suite runs on SQLite, so the production branch had never executed
+in a test, and it was wrong — stripping `-` from the term turned `EMP-1234` into
+`EMP1234`, which matches no token, so searching an employee's code in full found
+nobody (§13f).
+
+Three repairs were considered.
+
+**Fix the boolean expression** — tokenise and require each token, `+EMP* +1234*`.
+Measured: fixes the code, breaks `Ab Kebede`, because `innodb_ft_min_token_size`
+is 3 and a required term matching nothing eliminates the row. Compensating for
+that means reading a server variable we cannot see on the target host, which §8
+forbids assuming.
+
+**`MATCH … OR LIKE …`** — a strict superset, so no result can be lost. Rejected
+as the worst of both: the `LIKE` half forces the scan anyway, so the index buys
+nothing, and the method keeps two behaviours to reason about.
+
+**`LIKE` on every driver.** Chosen. One implementation, so the tested path *is*
+the production path — which is the property whose absence caused the defect, not
+merely a tidiness argument.
+
+**What it costs:** `LIKE '%term%'` cannot use an index. The scan is bounded by
+`tenant_id`, which is indexed, so it covers one tenant's rows. Measured on
+MariaDB 10.4.32 at 5,000 employees in a tenant: **~13ms** against the **100ms**
+budget in `docs/CLAUDE.md`. The budget is reached near 40,000 employees in a
+single tenant on that hardware.
+
+**Revisit if:** a tenant approaches that size, or a host measurement (§13e, still
+absent) shows the shared-hosting figure is much worse than the local one. The
+answer then is a prefix/trigram index or a search service — not a return to the
+branch, which would restore the divergence.
+
+**Left undone:** the `emp_search` FULLTEXT index is now unused and still present.
+Dropping it is a migration.
+
+---
+
+## D-011 — The suite can be run on MySQL, but is not gated on it
+
+**Date:** 2026-09-15 · **Phase:** testing · **Status:** implemented
+
+The suite runs on SQLite `:memory:`; production runs on MariaDB. Three defects
+this session were driver-specific and invisible on SQLite — a `DATE` column
+truncating a time component, `PDO::quote()` not escaping newlines, and
+`TRUNCATE` implicitly committing. In each case **the driver the tests ran on was
+the one where the bug could not appear.**
+
+The obvious response is to switch the suite to MySQL, or to add a MySQL run to
+`scripts/gates.sh`. Both were rejected.
+
+Switching outright costs the property that makes the suite useful: SQLite
+`:memory:` needs no service, runs anywhere, and is fast enough that people run
+it. Measured on MariaDB 10.4.32, the same tests are roughly 3× slower even
+after the seeder fix, and need a server that a fresh clone does not have.
+
+Gating on it is worse, and for a reason this repository has already written
+down twice: a gate that cannot run reports success. On a machine with no MySQL
+the run would either fail — making the gate permanently red, which is how
+`security` and `performance` ended up outside the full sweep — or skip, which
+is indistinguishable from passing.
+
+**Decision:** add `api/phpunit.mysql.xml`, differing from `phpunit.xml` in seven
+`<env>` lines, and document when to reach for it: before a release, and after
+touching dates, raw SQL or schema. Deliberately outside `gates.sh`.
+
+**Reverse it if:** CI gains a MySQL service container. There the server is
+guaranteed, so the run cannot silently skip, and it should become a gate.
+
+**Related:** `database/seeders/PermissionSeeder.php:32` — the `truncate()` →
+`delete()` change that made a MySQL run finish in minutes rather than hours. Its
+comment is the reference for the implicit-commit trap.
+
+---
+
 ## D-010 — A generated invoice counts as sent
 
 **Date:** 2026-09-15 · **Phase:** billing · **Status:** decided by the owner

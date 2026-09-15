@@ -37,6 +37,25 @@ use Illuminate\Support\Facades\File;
  * that closes the go-live gate.
  */
 beforeEach(function () {
+    // SQLite only, and not merely because the helpers below read `sqlite_master`.
+    //
+    // These tests DROP EVERY TABLE, which is the whole point — a restore into a
+    // surviving schema proves nothing. On SQLite that is undone by the
+    // transaction `RefreshDatabase` rolls back. On MySQL, DDL implicitly
+    // commits, so the drop is permanent: the database stays destroyed and every
+    // test that runs afterwards fails with a missing table. Measured on
+    // MariaDB 10.4.32 — these three failures took `WriteEndpointSmokeTest` down
+    // with them, which is how the cause was found.
+    //
+    // The MySQL equivalent is `php artisan ethr:backup:rehearse`, which does the
+    // same sequence against a scratch database where destroying it is safe. See
+    // docs/deployment/BACKUP-RESTORE.md.
+    if (DB::connection()->getDriverName() !== 'sqlite') {
+        test()->markTestSkipped(
+            'Destructive restore rehearsal is SQLite-only; use `artisan ethr:backup:rehearse` on MySQL.'
+        );
+    }
+
     config(['backup.path' => storage_path('framework/testing/backups')]);
     File::deleteDirectory(config('backup.path'));
 });
