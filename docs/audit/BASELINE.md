@@ -205,7 +205,13 @@ Horizon: see §3a. Removal is a package change plus one line in `bootstrap/provi
 
 **Queue names in use:** `attendance`, `notifications`, `exports`, `default`. A bare `queue:work` reads only `default` (`DB_QUEUE=default`), so the other three would never drain.
 
-### 7a. DEFECT — `retry_after` is below five job timeouts
+### 7a. ~~DEFECT — `retry_after` is below five job timeouts~~ — **fixed 2026-09-15** (`76ca983`)
+
+> Raised to 1200s, above `BackupTenantJob`'s 900s. Five jobs that declared **no** timeout at all now do — including `GenerateMonthlyInvoicesJob`, which is how the business bills; they had been silently inheriting the worker's 60s default, which also made the invariant uncomputable.
+>
+> `tests/Feature/QueueRetryAfterInvariantTest.php` asserts the invariant by reflection over the job classes, so a future long-running job fails the suite rather than quietly reintroducing the bug. Proven to fail at the old value.
+>
+> The original text follows, for the record.
 
 **[verified]** `api/config/queue.php:43`:
 
@@ -469,9 +475,9 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 1 | **No backup or restore path for any non-Docker host** | `scripts/backup.sh:53,63` **[verified]** | **Critical** — unrecoverable HR/payroll loss |
 | 2 | **Cross-tenant import lookup (P0-1)** | `EmployeeImporter.php:94` **[verified]** | **Critical** — isolation breach + silent data loss |
 | 3 | **Payroll times out mid-transaction** | `PayrollController.php:38` + `CLAUDE.md:858` **[verified]** | High |
-| 4 | **Duplicate job execution** — `retry_after` 90s vs 900s | `config/queue.php:43` **[verified]** | High |
+| 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |
 | 5 | **Audit-log `DEFINER` breaks after restore** → all writes 500 | 206 call sites **[verified]** | High |
-| 6 | **Horizon aborts `composer install`** | `composer.lock:2000-2001` **[verified]** | High |
+| 6 | ~~Horizon aborts `composer install`~~ — **removed** (`cdf85d1`); lockfile carries **zero** hard `pcntl`/`posix` requires | lockfile parsed **[verified]** | Resolved |
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |

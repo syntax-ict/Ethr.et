@@ -60,6 +60,29 @@ shared-hosting migration in more detail than belongs here.
   `[verified]` / `[documented-done]` / `NOT VERIFIED` / `NOT MEASURED`.
 - `SECURITY.md`, `CONTRIBUTING.md`, `LICENSE`, `.editorconfig`, this file.
 
+### Fixed
+
+- **`retry_after` was below five job timeouts.** At the old default of 90s
+  against timeouts of 300–900s, the database queue driver re-reserved jobs that
+  were still running and executed them a second time — duplicate leave accrual,
+  duplicate year-end carry-forward, duplicate tenant backups. Nothing errors
+  when this happens; both runs succeed and the data is wrong afterwards. Raised
+  to 1200s, and five jobs that declared no timeout at all now declare one.
+  `QueueRetryAfterInvariantTest` asserts the invariant by reflection, so a new
+  long-running job fails the suite instead.
+- **Removed `laravel/horizon`.** It declared `ext-pcntl` and `ext-posix` as hard
+  requirements, so `composer install --no-dev` failed outright on any host
+  lacking them. Nothing depended on it — no `HorizonServiceProvider` existed in
+  the app, so `/horizon` was unreachable anyway. The lockfile now carries zero
+  hard requires of either extension.
+- **`BROADCAST_CONNECTION=null` threw on the first broadcast.** A `null`
+  connection is defined, so that value reads as the obvious way to disable
+  broadcasting, but `env()` parses the string into PHP null and returns it
+  instead of the default.
+- **The admin health panel reported three things that were not true**: a
+  hardcoded MinIO disk (permanently red on any other backend), three queue names
+  nothing dispatches to, and a Reverb row pointing at Horizon.
+
 ### Fixed (documentation)
 
 - **Repaired 33 broken links** found by the new checker, none of them visible to
