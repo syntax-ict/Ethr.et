@@ -9,7 +9,7 @@ technical pass) and after DNS cutover, against the real `www.ethr.et` domain.
 | # | Item | Status | Evidence / what's left |
 | --- | --- | --- | --- |
 | 1 | ETHR builds successfully | ✅ | All 9 gates green, `main` at `92c9f03` |
-| 2 | Existing tests pass | ✅ | 1669 passed, 4957 assertions, zero regressions across the whole migration effort |
+| 2 | Existing tests pass | ✅ | **1673 passed, 4966 assertions** (measured 2026-09-15, `pest --compact`, exit 0). Zero regressions across the migration effort |
 | 3 | Production environment works | ⬜ | Not yet deployed — this is the whole remaining execution phase, gated on B3/B4/B5/H1 |
 | 4 | Database works | ◐ | Schema and migrations verified against real MariaDB locally; not yet run against the actual Plesk MySQL — `docs/DATABASE_MIGRATION_PLAN.md` |
 | 5 | Authentication works | ✅ (locally/live-tested) | Real Sanctum login exercised this session against the demo tenant; not yet against the target host |

@@ -266,7 +266,7 @@ These are hard constraints on every slice. No exceptions.
 
 | # | Convention | Detail |
 |---|---|---|
-| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with global scope. `TenantIsolationTest` validates every model in CI. |
+| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, not by CI, which does not exist yet. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; ~147 sites do, nothing enforces it. |
 | 2 | UTC storage | Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3). Ethiopia does not observe DST — the +3 offset is constant. |
 | 3 | Integer currency | ETB stored as `BIGINT` minor units (cents). Never use `FLOAT` or `DECIMAL`. Format: `X,XXX.XX ETB`. Use `formatETB(cents)` helper everywhere. |
 | 4 | ULID public IDs | `BIGINT` auto-increment PK (internal). `CHAR(26)` ULID `public_id` (API-facing). Never expose numeric PK in any API response. |
@@ -713,7 +713,7 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 - Run against Docker staging environment
 - Test at 375px and 1280px viewport widths
 
-**Tenant Isolation (CI — every commit):**
+**Tenant Isolation (run by `./scripts/gates.sh` — there is no CI yet):**
 - `TenantIsolationTest` dynamically discovers all Eloquent models
 - Asserts every tenant-scoped model has `tenant_id` column
 - Asserts cross-tenant queries return empty results

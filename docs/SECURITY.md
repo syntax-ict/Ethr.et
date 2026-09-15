@@ -27,7 +27,14 @@
 
 ### Automated Verification
 
-**TenantIsolationTest (CI — every commit):**
+**TenantIsolationTest — run by `./scripts/gates.sh`, by a person:**
+
+> **There is no CI.** This section previously said "CI — every commit". No
+> pipeline of any kind exists in this repository (`docs/audit/BASELINE.md` §15);
+> the test is real and passing, but nothing runs it automatically. Corrected in
+> Phase 1 rather than left asserting a control that does not exist. Restore the
+> original wording when Phase 3 wires the pipeline.
+
 1. Dynamically discovers all Eloquent models
 2. Asserts non-global models have `tenant_id` column
 3. Asserts non-global models use `BelongsToTenant` trait
@@ -295,7 +302,7 @@ add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
 | A03 | Injection | Eloquent ORM only, parameterized bindings, no raw SQL | Codebase grep, PHPStan rule |
 | A04 | Insecure Design | State machine enforcement, approval chain validation | Feature tests per workflow |
 | A05 | Security Misconfiguration | APP_DEBUG=false, secure headers, no default creds | Deployment checklist, Pest test |
-| A06 | Vulnerable Components | composer audit + npm audit | CI job, monthly review |
+| A06 | Vulnerable Components | composer audit + npm audit | **Not automated — no CI exists.** Planned for Phase 2/3 |
 | A07 | Authentication Failures | Rate limiting, lockout, MFA, token rotation | Pest test suite |
 | A08 | Data Integrity | HMAC on offline attendance, idempotency keys, immutable audit log | Pest assertions |
 | A09 | Security Logging | Audit log on all sensitive ops, failed login tracking | Audit log completeness test |

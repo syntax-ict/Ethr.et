@@ -12,10 +12,27 @@ Unless noted otherwise, test references are Pest tests under `api/tests/`. Run t
 full suite with:
 
 ```bash
-php -d memory_limit=-1 vendor/bin/pest
+./scripts/gates.sh backend
 ```
 
-Current status: **954 passing tests, 3,092 assertions.**
+`memory_limit=-1` is required either way — the DomPDF payslip tests exhaust the
+default and take the suite down with them.
+
+> **Do not run `vendor/bin/pest` over a Docker bind mount.** On Docker Desktop
+> for Windows, PHP's recursive directory scan returns partial results: measured
+> 2026-08-21, it collected 21 of 132 test classes, ran them, and exited 0 with a
+> green summary. A security-evidence document must not prescribe a command that
+> can report a pass while proving almost nothing. `scripts/gates.sh` routes
+> around it and fails on an undercount.
+>
+> Run natively against a local disk and the problem does not occur — measured
+> 2026-09-15 at 140/140 classes collected. The trap is the bind mount, not the
+> command.
+
+**Status as of the last full run (2026-09-15): 1673 passing tests, 4966
+assertions.** The figure below is kept as it stood when this audit was written.
+
+*Status at time of audit (2026-07-30): 954 passing tests, 3,092 assertions.*
 
 ---
 
@@ -81,7 +98,7 @@ Current status: **954 passing tests, 3,092 assertions.**
 
 | Control | Evidence |
 |---------|----------|
-| Backend dependency audit | `composer audit` — **could not complete**: packagist advisory API returned HTTP 502 in this (network-restricted) environment. Must be run in CI. |
+| Backend dependency audit | `composer audit` — **could not complete**: packagist advisory API returned HTTP 502 in this (network-restricted) environment. **Still not run: there is no CI** (`docs/audit/BASELINE.md` §15). Scheduled for Phase 2/3. |
 | Frontend dependency audit | `npm audit --omit=dev` — **3 high-severity findings** (see below). Patched where possible; residual has no clean in-range fix. |
 
 ### npm audit findings (2026-07-30)

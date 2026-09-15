@@ -33,8 +33,19 @@ with the constraints Ethiopian deployments actually impose:
 | Testing | Pest · Vitest · Playwright |
 | Infrastructure | Docker · Nginx · Supervisor |
 
-Roughly 92 controllers, 60 models, 44 migrations and 311 routes under
-`/api/v1`, covered by ~1330 Pest and ~305 Vitest tests.
+Measured 2026-09-15: **102 controllers, 69 models, 55 migrations** under
+`/api/v1`, covered by **1673 backend tests (4966 assertions)** across 141 Pest
+files, plus 70 Vitest files and 12 Playwright specs.
+
+Reproduce the backend figure rather than trusting this line — it is only true
+on the day it was written:
+
+```bash
+cd api && php -d memory_limit=-1 vendor/bin/pest --compact
+```
+
+Check the collected class count against `find api/tests -name '*Test.php'`
+before believing any green run; see the root [`CLAUDE.md`](CLAUDE.md) for why.
 
 ## Repository layout
 
@@ -119,7 +130,8 @@ immutable audit log, RFC-7807 errors, and the rest) that every change is held to
 | [`DATABASE.md`](docs/DATABASE.md) · [`PERMISSIONS.md`](docs/PERMISSIONS.md) | Schema and the permission model |
 | [`DEPLOYMENT.md`](docs/DEPLOYMENT.md) · [`SECURITY.md`](docs/SECURITY.md) | Production deployment and security posture |
 | [`LOCALIZATION.md`](docs/LOCALIZATION.md) · [`DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | i18n and the design system |
-| [`ETHR_AUDIT_2026-08-14.md`](docs/ETHR_AUDIT_2026-08-14.md) | Most recent production-readiness audit |
+| [`audit/BASELINE.md`](docs/audit/BASELINE.md) | **Measured state of the codebase** — what is verified vs merely documented |
+| [`deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) | Plesk hosting verification — every row still `NOT VERIFIED` |
 | `PHASE_00.md` – `PHASE_09.md` | Original design records — **their checkboxes are not maintained** |
 
 The phase documents are specifications, not progress trackers; their checkboxes
