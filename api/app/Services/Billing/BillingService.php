@@ -28,7 +28,27 @@ final class BillingService
         $oldPlan = $subscription->plan;
         $daysRemaining = Carbon::now()->diffInDays($subscription->current_period_end);
         $totalDays = $subscription->current_period_start->diffInDays($subscription->current_period_end);
-        $prorationFactor = $totalDays > 0 ? $daysRemaining / $totalDays : 0;
+        // Clamped to [0, 1]. Unclamped this produced two money errors that reach
+        // customers, both measured in tests/Feature/Billing/PlanChangeProrationTest.php:
+        //
+        //   Expired period   Carbon 3 returns SIGNED floats from diffInDays, so
+        //                    a current_period_end in the past makes daysRemaining
+        //                    negative and inverts the whole calculation. An
+        //                    upgrade from a 1,000.00 plan to a 3,000.00 plan
+        //                    reported a CREDIT of 1,266.67 instead of a charge.
+        //                    That state is reachable whenever renewal has not
+        //                    run - on shared hosting, whenever the scheduler
+        //                    stopped, which is what ethr:queue:check watches for.
+        //
+        //   Future period    A current_period_start ahead of now makes the factor
+        //                    exceed 1, charging 4,066.67 where the entire
+        //                    difference between the two plans is 2,000.00.
+        //
+        // Zero is the honest answer for a period with nothing left in it, and a
+        // whole period is the most that can be owed.
+        $prorationFactor = $totalDays > 0
+            ? max(0.0, min(1.0, $daysRemaining / $totalDays))
+            : 0;
 
         $oldRemaining = (int) round(($oldPlan->price_cents ?? 0) * $prorationFactor);
         $newRemaining = (int) round(($newPlan->price_cents ?? 0) * $prorationFactor);

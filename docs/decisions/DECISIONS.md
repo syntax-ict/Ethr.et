@@ -8,6 +8,60 @@ A decision belongs here when someone could reasonably have chosen otherwise and 
 
 ---
 
+## D-010 — Dunning stays inert until someone decides what "sent" means
+
+**Date:** 2026-09-15 · **Phase:** billing · **Status:** open, deliberately
+
+`BillingService::generateMonthlyInvoice()` writes `status => 'draft'`. `HandleOverdueInvoicesJob` tier 1 matches `status = 'sent'`. Nothing in `app/` transitions between them, so no invoice ever enters dunning: no reminders, no past-due subscriptions, no suspensions for non-payment (§15d).
+
+The one-line fix is obvious and wrong. Making invoices `sent` on creation would mean "sent" = "generated" — and **nothing emails invoices either**. Dunning would then suspend customers at 60 days for not paying a bill they were never sent. That is worse than an inert chain, and it fails quietly.
+
+**Decision:** leave it. The missing piece is a send step, not a status default, and whether one should exist is a billing-process question. Pinned by a `todo` test that fails the day someone changes it.
+
+**Reverse it when:** the owner says whether a generated invoice counts as sent, or specifies the send step.
+
+---
+
+## D-009 — `retry_after` is asserted, not simulated
+
+**Date:** 2026-09-15 · **Phase:** 3 · **Status:** implemented
+
+Master plan §19 requires the `retry_after` > job-timeout invariant to be tested. Reproducing the actual race needs two workers, real elapsed time, and a job that sleeps past the window — slow, flaky, and it would prove Laravel's behaviour rather than this application's configuration.
+
+**Decision:** assert the invariant by reflection over `app/Jobs/*.php`. The configuration was the part that was wrong, so the configuration is what is checked, and a new long-running job fails the suite rather than silently reintroducing the bug.
+
+The same reasoning produced a second assertion nobody asked for: every job must *declare* a timeout. Five did not, so the invariant could not be computed even in principle.
+
+---
+
+## D-008 — Scheduler staleness does not make `/health` return 503
+
+**Date:** 2026-09-15 · **Phase:** ops · **Status:** implemented, after being wrong first
+
+`QueueHealth::snapshot()` was wired into `services.queue`, which decides the endpoint's 200-vs-503. A fresh deployment has never run `schedule:run`, so `/health` returned **503 on every new install**. Caught by the full suite — 20 failures — not by the eight tests written for the feature, which exercised `QueueHealth` in isolation and never touched the endpoint.
+
+That is the failure `HealthController` already warned about twice in its own comments, having been bitten by a hardcoded `redis` probe and a hardcoded `minio` probe. Third time, by me.
+
+**Decision:** separate the questions rather than tune a threshold. `/health` answers "can an uptime monitor reach a working instance?" — its non-200 means *page someone*. A stopped scheduler is real and is not that. Liveness is published under `queue_detail`; `ethr:queue:check` is what acts on it.
+
+**Reverse it if:** never. A probe that cries wolf gets muted, and then it is worth nothing on the day it matters.
+
+---
+
+## D-007 — Payroll: the engine is split, not rewritten
+
+**Date:** 2026-09-15 · **Phase:** 3 · **Status:** implemented
+
+Payroll had to move off the request thread — chunking over every active employee against a documented 30s/500-employee budget measured on dedicated hardware, with a shared host's `max_execution_time` typically 30–120s.
+
+The tempting shape was to restructure `PayrollEngine` around the job. Master plan §20 says do not redesign payroll calculation unless tests prove a defect, and none do.
+
+**Decision:** split `process()` into `begin()` (reserve the run) and `runEntries()` (compute it), with `process()` still calling both. Every existing caller and all 34 payroll tests pass untouched; nothing below that line moved.
+
+`tries = 1` on the job, also deliberate: idempotency protects against a *client* replaying the request, not against the job running twice on the same run, which would append a second set of entries.
+
+---
+
 ## D-001 — `withoutGlobalScopes()` stays in the import de-duplication
 
 **Date:** 2026-09-15 · **Phase:** 0.5 · **Status:** implemented
