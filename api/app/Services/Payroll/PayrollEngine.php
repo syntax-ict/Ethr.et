@@ -38,7 +38,42 @@ final class PayrollEngine
         private readonly EthiopianCalendar $calendar,
     ) {}
 
+    /**
+     * Create the run, then compute it, in one call.
+     *
+     * Kept as-is so existing synchronous callers and tests keep working. The
+     * HTTP path no longer uses it: PayrollController calls begin() and lets
+     * ProcessPayrollJob call runEntries(), because computing every employee
+     * inline in a request does not fit inside a shared host's
+     * max_execution_time. See docs/audit/BASELINE.md §13a.
+     *
+     * The split is deliberately a split and not a rewrite. Nothing below this
+     * line changed; master plan §20 says do not redesign payroll calculation
+     * unless tests prove a defect, and none do.
+     */
     public function process(
+        int $tenantId,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        int $processedBy,
+        ?string $idempotencyKey = null,
+    ): PayrollProcessResult {
+        $result = $this->begin($tenantId, $periodStart, $periodEnd, $processedBy, $idempotencyKey);
+
+        if ($result->wasDuplicate) {
+            return $result;
+        }
+
+        return new PayrollProcessResult($this->runEntries($result->run));
+    }
+
+    /**
+     * Reserve a run without computing it. Fast enough for a request.
+     *
+     * Returns the existing run with wasDuplicate when the idempotency key has
+     * been seen before — convention 10, replay must not double-process.
+     */
+    public function begin(
         int $tenantId,
         Carbon $periodStart,
         Carbon $periodEnd,
@@ -66,6 +101,28 @@ final class PayrollEngine
             'processed_by' => $processedBy,
             'processed_at' => now(),
         ]);
+
+        return new PayrollProcessResult($run);
+    }
+
+    /**
+     * Compute every entry for a run that begin() reserved.
+     *
+     * The slow half — chunked over every active employee, computing tax,
+     * pension, overtime, loans, allowances and cost-sharing per row. This is
+     * what ProcessPayrollJob runs.
+     */
+    public function runEntries(PayrollRun $run): PayrollRun
+    {
+        $tenantId = $run->tenant_id;
+
+        // PayrollRun casts both to `date`, so these are already Carbon at
+        // runtime. Carbon::parse() accepts a Carbon instance unchanged, so this
+        // is correct either way and does not need an instanceof guard - PHPStan
+        // rightly flagged one as dead, because the model has no @property
+        // docblock telling it what the cast produces.
+        $periodStart = Carbon::parse($run->period_start);
+        $periodEnd = Carbon::parse($run->period_end);
 
         $settings = Tenant::findOrFail($tenantId)->settings ?? [];
         $pagumenStrategy = $settings['pagumen_proration_strategy'] ?? 'full_month';
@@ -118,7 +175,7 @@ final class PayrollEngine
             'tax_total_cents' => $totalTax,
         ]);
 
-        return new PayrollProcessResult($run);
+        return $run->refresh();
     }
 
     public function void(PayrollRun $run, int $voidedBy, string $reason): PayrollRun

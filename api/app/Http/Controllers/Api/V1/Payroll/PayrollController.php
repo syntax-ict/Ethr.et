@@ -11,6 +11,7 @@ use App\Http\Requests\Payroll\ReprocessPayrollRunRequest;
 use App\Http\Requests\Payroll\VoidPayrollRunRequest;
 use App\Http\Resources\PayrollEntryResource;
 use App\Http\Resources\PayrollRunResource;
+use App\Jobs\ProcessPayrollJob;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
@@ -30,6 +31,23 @@ class PayrollController extends Controller
 {
     use DispatchesWebhooks;
 
+    /**
+     * Reserve a payroll run and queue the computation.
+     *
+     * Returns 202 with the run, at status `processing`. Poll GET
+     * /payroll/{public_id} until it reaches `completed` or `failed`.
+     *
+     * This used to compute everything inline. PayrollEngine chunks over every
+     * active employee, and docs/CLAUDE.md:858 budgets "payroll calculation (500
+     * employees) < 30s" on dedicated hardware — at or past a typical shared
+     * host's max_execution_time before any contention. A 504 mid-run left the
+     * row at `processing` with no way to tell what had been written. See
+     * docs/audit/BASELINE.md §13a and master plan §20.
+     *
+     * Idempotency is unchanged and still enforced before anything is queued: a
+     * replayed key returns the existing run with 200 and was_duplicate, per
+     * convention 10.
+     */
     public function process(ProcessPayrollRequest $request, PayrollEngine $engine): JsonResponse
     {
         $this->authorize('process', PayrollRun::class);
@@ -37,7 +55,7 @@ class PayrollController extends Controller
         $tenant = app(CurrentTenant::class)->get();
         $user = $request->user();
 
-        $result = $engine->process(
+        $result = $engine->begin(
             $tenant->id,
             Carbon::parse($request->validated('period_start')),
             Carbon::parse($request->validated('period_end')),
@@ -48,25 +66,22 @@ class PayrollController extends Controller
         $run = $result->run;
 
         if (! $result->wasDuplicate) {
-            AuditLog::record('payroll.processed', $run, [
-                'period' => $run->period_label,
-                'employees' => $run->employee_count,
-            ]);
-            $this->webhook($run->tenant_id, 'payroll.processed', [
-                'public_id' => $run->public_id,
-                'period' => $run->period_label,
-                'employee_count' => $run->employee_count,
-            ]);
-
-            PayrollProcessed::dispatch($run);
+            // The audit entry, webhook and PayrollProcessed event moved into the
+            // job: they announce a *completed* run, and at this point nothing
+            // has been computed. Firing them here would have told every
+            // subscriber payroll was done before a single entry existed.
+            ProcessPayrollJob::dispatch($run->id);
         }
 
-        $run->load('entries.employee');
+        // Re-read: under QUEUE_CONNECTION=sync the job has already run to
+        // completion by now, so the response should say `completed` rather than
+        // the `processing` that was true a moment ago.
+        $run->refresh()->load('entries.employee');
 
         $data = (new PayrollRunResource($run))->resolve();
         $data['was_duplicate'] = $result->wasDuplicate;
 
-        return response()->json($data, $result->wasDuplicate ? 200 : 201);
+        return response()->json($data, $result->wasDuplicate ? 200 : 202);
     }
 
     public function index(Request $request): AnonymousResourceCollection

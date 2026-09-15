@@ -62,6 +62,20 @@ shared-hosting migration in more detail than belongs here.
 
 ### Fixed
 
+- **Payroll ran synchronously in the HTTP request.** `PayrollEngine` chunks over
+  every active employee computing tax, pension, overtime, loans, allowances and
+  cost-sharing per row, with no job wrapper and no `set_time_limit`. The
+  project's own budget (`docs/CLAUDE.md:858`, "500 employees < 30s") is measured
+  on dedicated hardware and already sits at or past a typical shared host's
+  `max_execution_time`; the failure mode was a 504 partway through, leaving the
+  run at `processing` with no way to tell what had been written. The endpoint now
+  returns **202** with the run and queues `ProcessPayrollJob`; the UI polls while
+  a run is in flight. Idempotency and the `calculation_log` trace are unchanged.
+- **Added a backup and restore path that works without Docker.** `ethr:backup`
+  and `ethr:restore`, plain PHP CLI, no `mysqldump`. The dumper emits
+  `CREATE TRIGGER` without a `DEFINER`, which also fixes the restore hazard that
+  would have made every `audit_log` write fail after a restore under a different
+  database user.
 - **`retry_after` was below five job timeouts.** At the old default of 90s
   against timeouts of 300–900s, the database queue driver re-reserved jobs that
   were still running and executed them a second time — duplicate leave accrual,
