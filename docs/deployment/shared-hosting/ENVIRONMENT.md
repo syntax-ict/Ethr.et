@@ -139,7 +139,7 @@ SENTRY_AUTH_TOKEN=
 
 ```
 # storage/ and bootstrap/cache/ live at ~/ethr, one level above the ~/httpdocs
-# document root — see deployment/shared-hosting/DEPLOYMENT.md "Layout" for why.
+# document root — see docs/deployment/shared-hosting/DEPLOYMENT.md "Layout" for why.
 # Laravel resolves these relative to the app's own base path regardless of
 # where the document root points, so no variable is actually required for
 # this — noted here only so the reason isn't rediscovered from scratch later.

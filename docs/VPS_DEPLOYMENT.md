@@ -1,5 +1,32 @@
 # ETHR — VPS Deployment Runbook (91.99.81.71 / ethr.et)
 
+> **DEPRECATED — but deliberately kept. Do not delete yet.**
+>
+> The production target is Ethio Telecom Linux shared hosting under Plesk
+> (owner decision 2026-08-29, "NO VPS"). Nothing here describes the target
+> platform, and no new work should follow it.
+>
+> It is retained for two reasons:
+>
+> 1. **It is the rollback path.** Master plan §60 keeps VPS production assets
+>    until the Plesk cutover has actually succeeded and been observed. Deleting
+>    the only server-specific runbook before then removes the fallback at
+>    precisely the moment it might be needed.
+> 2. **It carries corrections that are not written down anywhere else** —
+>    `27f2f0b` (backup directory and restore usage) and `f20c169` (the stale
+>    `/api/health` path, which is actually `/api/v1/health`). Those were learned
+>    from a real first deploy, and the same class of mistake is waiting on
+>    Plesk.
+>
+> This file was staged for deletion in the working tree with no successor and
+> was restored during Phase 1 (`docs/audit/BASELINE.md` §1). Its replacement,
+> `docs/deployment/PLESK_DEPLOYMENT.md`, cannot be written until Gate 0 has
+> measured the host — see `docs/deployment/GATE-0-RESULT.md`. Writing it from
+> assumption is what this whole sequence exists to avoid.
+>
+> **Retire it when:** the Plesk cutover is verified, the rollback rehearsal has
+> been performed, and the observation period in master plan §60 has passed.
+
 The concrete, copy-pasteable procedure for this one server. `docs/DEPLOYMENT.md`
 is the reference manual — it explains *why* each piece is shaped the way it is.
 This is the *order of operations*, with the traps that actually break a first

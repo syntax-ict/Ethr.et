@@ -1,6 +1,6 @@
 # Database Migration Plan — VPS MariaDB → Shared Hosting MySQL
 
-Referenced by `deployment/shared-hosting/DEPLOYMENT.md` step 2. This assumes there is
+Referenced by `docs/deployment/shared-hosting/DEPLOYMENT.md` step 2. This assumes there is
 **existing data to migrate** — if the shared-hosting deployment is instead a fresh
 start with `ProductionSeeder` and no prior tenants, skip straight to "Fresh deployment"
 at the end.
@@ -93,7 +93,7 @@ string alone.
 SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = ?;
 ```
 
-Then the application-level checks: `deployment/shared-hosting/deploy-checklist.md`'s
+Then the application-level checks: `docs/deployment/shared-hosting/deploy-checklist.md`'s
 "Database" section, plus logging in as an existing (migrated) user to confirm
 authentication survived the move — password hashes are portable (bcrypt is
 implementation-independent), but this is worth confirming rather than assumed.
@@ -110,6 +110,6 @@ the shared-hosting deployment has already gone live and accepted new writes.
 
 If there is no existing tenant data — e.g., this shared-hosting deployment is the first
 production instance of ETHR rather than a migration of a live one — skip everything
-above. `deployment/shared-hosting/DEPLOYMENT.md` step 4 (`migrate --force`,
+above. `docs/deployment/shared-hosting/DEPLOYMENT.md` step 4 (`migrate --force`,
 `db:seed --class=ProductionSeeder`) is the entire database setup; there is nothing to
 back up or transfer.

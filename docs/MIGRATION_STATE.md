@@ -211,7 +211,7 @@ Owner said "decide for me". These are settled; they are not open questions.
 ## IN PROGRESS
 
 Nothing. **The full deployment package is now built and merged** —
-`deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
+`docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
 `docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see

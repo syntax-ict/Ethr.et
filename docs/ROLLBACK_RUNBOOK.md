@@ -10,7 +10,7 @@ verified in `docs/B1-B5_GATE_REPORT.md`). The shared-hosting deployment exists i
 isolation, reachable only by IP or a manually-resolved hostname during verification.
 Abandoning it means: stop, delete the account's files if desired, done. No DNS change,
 no data reconciliation, no user impact — this is why
-`deployment/shared-hosting/DEPLOYMENT.md` puts verification (steps 1–7) before cutover
+`docs/deployment/shared-hosting/DEPLOYMENT.md` puts verification (steps 1–7) before cutover
 (step 8) rather than the reverse.
 
 ## Scenario B — after DNS cutover, before any new write on the shared-hosting side
@@ -52,7 +52,7 @@ shared-hosting deployment immediately, then decide what to do with what it accep
    the shared-hosting side is itself immutable (assuming H1 passed) and is evidence of
    exactly what happened during the live window — pull it before discarding anything.
 
-This scenario is why `deployment/shared-hosting/deploy-checklist.md` exists: the
+This scenario is why `docs/deployment/shared-hosting/deploy-checklist.md` exists: the
 whole point is to make Scenario C unlikely by catching problems in Scenario A's
 window, where rollback costs nothing.
 
