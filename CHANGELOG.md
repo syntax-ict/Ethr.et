@@ -62,6 +62,12 @@ shared-hosting migration in more detail than belongs here.
 
 ### Fixed
 
+- **Monthly invoicing had no idempotency guard.** `generateMonthlyInvoice()`
+  created an invoice unconditionally, so any second execution of
+  `GenerateMonthlyInvoicesJob` billed every active tenant again — reachable both
+  through the queue (the job declared no timeout against a 90s `retry_after`) and
+  through the job's own failure advice to "re-run manually if needed". Found
+  while writing the billing tests the baseline had flagged as missing.
 - **Payroll ran synchronously in the HTTP request.** `PayrollEngine` chunks over
   every active employee computing tax, pension, overtime, loans, allowances and
   cost-sharing per row, with no job wrapper and no `set_time_limit`. The
