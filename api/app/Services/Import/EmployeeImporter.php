@@ -91,7 +91,25 @@ class EmployeeImporter
         foreach ($rows as $i => $row) {
             $rowKey = $importKey.'_'.($row['employee_code'] ?? $i);
 
-            $existing = Employee::withoutGlobalScopes()->where('import_key', $rowKey)->first();
+            // `import_key` is caller-supplied (`required|string|max:50`) and has
+            // no uniqueness constraint and no tenant binding, so this lookup has
+            // to state the tenant itself.
+            //
+            // `withoutGlobalScopes()` is deliberate and stays: it drops the
+            // soft-delete scope, so re-importing a key whose employee was
+            // soft-deleted is still skipped rather than duplicated. But it drops
+            // the tenant scope along with it, and without the predicate below the
+            // de-duplication read every tenant's rows — a colliding key silently
+            // skipped another tenant's row and reported it as `skipped`, which is
+            // both a cross-tenant existence oracle and silent data loss.
+            //
+            // The sibling read path, EmployeeImportController::status(), was
+            // always scoped (see "import status does not count another tenant
+            // rows"); only this write path was not.
+            $existing = Employee::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('import_key', $rowKey)
+                ->first();
             if ($existing) {
                 $skipped++;
 
