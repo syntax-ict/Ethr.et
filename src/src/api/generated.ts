@@ -3542,7 +3542,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create process */
+        /**
+         * Reserve a payroll run and queue the computation
+         * @description Returns 202 with the run, at status `processing`. Poll GET
+         *     /payroll/{public_id} until it reaches `completed` or `failed`.
+         *
+         *     This used to compute everything inline. PayrollEngine chunks over every
+         *     active employee, and docs/CLAUDE.md:858 budgets "payroll calculation (500
+         *          * employees) < 30s" on dedicated hardware — at or past a typical shared
+         *     host's max_execution_time before any contention. A 504 mid-run left the
+         *     row at `processing` with no way to tell what had been written. See
+         *     docs/audit/BASELINE.md §13a and master plan §20.
+         *
+         *     Idempotency is unchanged and still enforced before anything is queued: a
+         *     replayed key returns the existing run with 200 and was_duplicate, per
+         *     convention 10.
+         */
         post: operations["payroll.process"];
         delete?: never;
         options?: never;
@@ -18338,8 +18353,13 @@ export interface operations {
                             reverb: {
                                 /** @constant */
                                 status: "unknown";
+                                driver: string;
                                 /** @constant */
-                                note: "WebSocket server — check Horizon";
+                                note: "configured, but liveness is not probed from here";
+                            } | {
+                                /** @constant */
+                                status: "disabled";
+                                driver: string;
                             };
                         };
                         queue: unknown[];
@@ -18690,6 +18710,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /**
+             * @description Outside `services` on purpose: everything in there feeds the 503
+             *     above, and scheduler staleness must not.
+             */
             200: {
                 headers: {
                     [name: string]: unknown;
