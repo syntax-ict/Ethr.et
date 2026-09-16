@@ -30,10 +30,47 @@ SCOPE="${1:-all}"
 FAILED=()
 PASSED=()
 
+# Failed gate name -> file holding its captured output. Populated only under
+# GitHub Actions, where the job log is unreadable without an account and the
+# failure has to be republished somewhere visible. `set -o pipefail` above is
+# what makes the capture honest: without it the `| tee` in run_gate would report
+# tee's exit status and every gate would pass.
+declare -A GATE_OUTPUT=()
+
 run_gate() {
     local name="$1"
     shift
     printf '\n\033[1m━━━ %s ━━━\033[0m\n' "$name"
+
+    # Under GitHub Actions the output is also captured, so a failure can be
+    # published where it can actually be read.
+    #
+    # Job *logs* need a signed-in account even on a public repository — the REST
+    # API answers 403, the web log endpoint 404s, and the viewer will not expand
+    # steps for a signed-out client. Annotations and the job summary are visible
+    # to anyone. Naming the failed gate (below) turned "the Frontend job failed"
+    # into "Vitest failed", which was already the difference between guessing and
+    # knowing; this turns it into the actual assertion.
+    #
+    # `tee` keeps the live log identical, so nothing is hidden from someone who
+    # *can* read it. Outside Actions this branch is skipped entirely and the gate
+    # streams exactly as before.
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+        local capture
+        capture="$(mktemp)"
+
+        if "$@" 2>&1 | tee "$capture"; then
+            PASSED+=("$name")
+        else
+            FAILED+=("$name")
+            printf '\033[31m✗ %s failed\033[0m\n' "$name"
+            GATE_OUTPUT["$name"]="$capture"
+            return 0
+        fi
+
+        rm -f "$capture"
+        return 0
+    fi
 
     if "$@"; then
         PASSED+=("$name")
@@ -427,6 +464,30 @@ if [[ ${#FAILED[@]} -gt 0 ]]; then
         for gate in "${FAILED[@]:-}"; do
             [[ -n "$gate" ]] && printf '::error title=Gate failed::%s\n' "$gate"
         done
+
+        # And the actual output, in the job summary — which renders on the run
+        # page for anyone, signed in or not. The tail rather than the whole
+        # thing: a Pest or Vitest run is tens of thousands of lines and the
+        # failures are at the end, where both reporters print their summary.
+        if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            {
+                printf '## Failed gates\n\n'
+                for gate in "${FAILED[@]:-}"; do
+                    [[ -z "$gate" ]] && continue
+                    printf '### %s\n\n' "$gate"
+                    local_capture="${GATE_OUTPUT[$gate]:-}"
+                    if [[ -n "$local_capture" && -f "$local_capture" ]]; then
+                        printf '```\n'
+                        # Strip ANSI so the summary renders as text rather than
+                        # escape soup.
+                        tail -n 60 "$local_capture" | sed 's/\x1b\[[0-9;]*m//g'
+                        printf '```\n\n'
+                    else
+                        printf '_No output captured._\n\n'
+                    fi
+                done
+            } >> "$GITHUB_STEP_SUMMARY"
+        fi
     fi
 
     exit 1
