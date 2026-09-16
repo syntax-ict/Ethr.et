@@ -72,3 +72,6 @@ docker-compose.override.yml
 
 # Scratch dir created and removed by scripts/prod-build-test.sh
 .prod-test-tmp/
+
+# Claude Code local dev-server wiring (machine-specific, not team config)
+.claude/launch.json
