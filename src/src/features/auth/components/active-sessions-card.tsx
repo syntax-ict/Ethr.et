@@ -13,13 +13,26 @@ import {
   useSessions,
   useTrustedDevices,
 } from "@/features/auth/sessions-api";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-function formatWhen(value: string | null, never: string): string {
+/**
+ * `toLocaleString()` with no arguments renders in the *browser's* timezone and
+ * locale, which is the bug BASELINE §12g describes. It matters more here than
+ * on most screens: these timestamps are how a user decides whether a session is
+ * theirs, and an hour shifted the wrong way turns "that was me, this morning"
+ * into "someone signed in overnight" or the reverse. The zone comes from the
+ * tenant, not the machine the browser happens to be on.
+ */
+function formatWhen(
+  value: string | null,
+  never: string,
+  formatDateTime: (value: string) => string,
+): string {
   if (!value) return never;
 
-  return new Date(value).toLocaleString();
+  return formatDateTime(value);
 }
 
 /**
@@ -31,6 +44,7 @@ function formatWhen(value: string | null, never: string): string {
  */
 export function ActiveSessionsCard() {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const { data, isLoading, isError, refetch } = useSessions();
   const revoke = useRevokeSession();
   const revokeAll = useRevokeAllSessions();
@@ -144,6 +158,7 @@ export function ActiveSessionsCard() {
                     {formatWhen(
                       session.last_used_at,
                       t("security_page.never_used", "Not used yet"),
+                      formatDateTime,
                     )}
                   </p>
                 </div>
@@ -173,6 +188,7 @@ export function ActiveSessionsCard() {
 /** Browsers that skip this user's MFA prompt. */
 export function TrustedDevicesCard() {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const { data, isLoading, isError, refetch } = useTrustedDevices();
   const revoke = useRevokeTrustedDevice();
 
@@ -222,7 +238,7 @@ export function TrustedDevicesCard() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {t("security_page.trusted_until", "Trusted until")}{" "}
-                  {formatWhen(device.expires_at, "—")}
+                  {formatWhen(device.expires_at, "—", formatDateTime)}
                 </p>
               </div>
               <Button
