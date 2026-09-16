@@ -13,12 +13,12 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Notifications\PasswordResetLinkNotification;
 use App\Services\CurrentTenant;
+use App\Support\PasswordTokens;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
@@ -67,7 +67,7 @@ class PasswordResetController extends Controller
 
         if ($user) {
             // Generate token via Laravel's password broker so it's stored properly
-            $token = Password::broker()->createToken($user);
+            $token = PasswordTokens::broker()->createToken($user);
 
             try {
                 $user->notify(new PasswordResetLinkNotification($token, $tenant->get()->subdomain));
@@ -114,7 +114,7 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        $broker = Password::broker();
+        $broker = PasswordTokens::broker();
 
         if (! $broker->tokenExists($user, $request->input('token'))) {
             return response()->json([
