@@ -398,6 +398,30 @@ $ php -d memory_limit=-1 vendor/bin/pest --compact
 
 This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
 
+### 12c. PHPStan disagrees between this machine and CI, and the reason is unknown **[open]**
+
+CI run #56 (2026-09-16, commit `49e2ee9`) was the **first run in which PHPStan had ever executed** — until `phpstan_gate` stopped requiring a Docker container it had never run there at all. It reported exactly four errors, all the same shape:
+
+```
+app/Services/UserProvisioningService.php:109                    PasswordBroker::createToken()
+app/Http/Controllers/Api/V1/Auth/PasswordResetController.php:70   PasswordBroker::createToken()
+app/Http/Controllers/Api/V1/Auth/PasswordResetController.php:119  PasswordBroker::tokenExists()
+app/Http/Controllers/Api/V1/Auth/PasswordResetController.php:149  PasswordBroker::deleteToken()
+```
+
+**A local run of the same PHPStan against the same lockfile reports `[OK] No errors`.** Ruled out, each by direct test rather than reasoning:
+
+| Hypothesis | Test | Result |
+|---|---|---|
+| CI has no `.env`, changing Larastan's bootstrap | hid `.env`, re-ran | bootstrap threw (Reverb); **not** CI's case, which sets `BROADCAST_CONNECTION` |
+| …with `BROADCAST_CONNECTION=null`, as CI has | hid `.env`, set the variable, re-ran | `[OK] No errors` |
+| Local `vendor/` drifted from `composer.lock` | compared installed vs lock | identical — larastan v3.10.0, phpstan 2.2.2, framework v12.64.0, php-parser v5.8.0 |
+| Stale PHPStan result cache | `clear-result-cache`, re-ran | `[OK] No errors` |
+
+Remaining untested differences: PHP patch version (local 8.2.12 via XAMPP vs whatever `shivammathur/setup-php` resolves for 8.2), and Windows vs Linux — the latter including path case-sensitivity, which matters because every `path:` in `phpstan-baseline.neon` is matched case-insensitively here and case-sensitively there. **That last one is the most likely candidate and has not been checked.**
+
+The four findings themselves are true on both platforms and were fixed on their merits (`app/Support/PasswordTokens.php`) — `Illuminate\Contracts\Auth\PasswordBroker` genuinely declares only `sendResetLink()` and `reset()`. But **the divergence means a green local PHPStan does not imply a green CI PHPStan**, which is worth knowing before trusting either.
+
 **File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.

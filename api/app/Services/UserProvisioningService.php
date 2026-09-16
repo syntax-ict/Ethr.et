@@ -9,9 +9,9 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\User;
 use App\Notifications\AccountActivationNotification;
+use App\Support\PasswordTokens;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 /**
@@ -106,7 +106,7 @@ class UserProvisioningService
         }
 
         try {
-            $token = Password::broker()->createToken($user);
+            $token = PasswordTokens::broker()->createToken($user);
             $user->notify(new AccountActivationNotification($token, $tenant->subdomain, $tenant->name));
 
             return true;
