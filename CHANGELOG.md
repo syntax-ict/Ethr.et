@@ -108,6 +108,22 @@ shared-hosting migration in more detail than belongs here.
   "null"`. The same ordering trap applies to deployment — `composer install`
   needs `.env` to exist first — now noted in `shared-hosting/DEPLOYMENT.md`.
 
+- **A third structural cause: `phpstan_gate` required Docker.** It delegated
+  unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 when there is
+  no `et-api-1` container. A CI runner has native PHP and no container, so
+  PHPStan could never have passed there whatever the code said — and a developer
+  with Docker stopped hit the same wall on a machine where PHPStan runs fine.
+  Now native-first with the container as fallback, the shape `pest_gate` already
+  had. The isolation is for one specific defect — Larastan enumerating
+  migrations over a Windows bind mount — which a native run on a local disk does
+  not have.
+
+  This also corrects the entry below: the backend CI failure was attributed to
+  the stale `phpstan-baseline.neon` entry, but that was inferred from a local
+  native run rather than read from the CI log. PHPStan never ran in CI, so the
+  baseline error cannot have been what CI reported. Both defects were real; the
+  attribution was not.
+
 - **A test failed every Wednesday.** `NotificationDispatchTest`'s leave-request
   case asked for `now()->addDays(10)` to `addDays(11)`. That range is
   Saturday–Sunday exactly when today is a Wednesday, and the endpoint rejects a
