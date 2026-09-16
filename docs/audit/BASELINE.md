@@ -562,7 +562,7 @@ The suite runs on SQLite, so **only the `LIKE` branch has ever been executed by 
 
 **Fixed 2026-09-15 by deleting the branch.** `scopeSearch()` now uses `LIKE` on every driver, so the tested path and the production path are the same code. Cost, measured on MariaDB 10.4.32 with 5,000 employees in one tenant: **~13ms**, against the **100ms** budget at `docs/CLAUDE.md:850-862`. The scan is bounded by `tenant_id`, which is indexed. On that hardware the budget is reached somewhere near 40,000 employees in a single tenant — revisit if a tenant approaches that. §13e still applies: no measurement of any budget exists on the actual host.
 
-**Left behind:** the `emp_search` `FULLTEXT` index is now unused. Dropping it is a migration and a separate change; until then it costs write throughput and nothing else.
+**Left behind — removed 2026-09-16** by `2026_09_16_000001_drop_employee_fulltext_index`. While it stood it cost write throughput on most employee writes and implied a fulltext search that no longer existed. Round-tripped on MariaDB 10.4.32 (drop, restore, drop) with existence guards both ways; SQLite skips.
 
 ### 13g. Fulltext indexes are invisible inside a transaction **[verified — no longer affects search]**
 
@@ -575,7 +575,7 @@ While diagnosing §13f: **InnoDB maintains `FULLTEXT` indexes at commit.** `Refr
 
 This meant the MySQL search branch was not merely untested but **untestable** under this harness at any driver setting — a second, independent reason the §13f defect survived. The §13f fix removes it as a search concern, because `LIKE` reads uncommitted rows normally; the two `EmployeeManagementTest` search cases now pass on MariaDB.
 
-Recorded because the property is general, not specific to search: **any future feature built on `MATCH … AGAINST` will appear broken under the test suite and work in production.** `emp_search` is the only fulltext index in the schema today.
+Recorded because the property is general, not specific to search: **any future feature built on `MATCH … AGAINST` will appear broken under the test suite and work in production.** The schema now has no fulltext index at all — `emp_search` was the only one, and it was dropped on 2026-09-16 — so this is a warning for whoever adds the next one, not a description of anything present.
 
 ### 13e. No performance baseline exists
 

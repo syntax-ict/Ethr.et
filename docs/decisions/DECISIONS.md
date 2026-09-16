@@ -45,8 +45,22 @@ absent) shows the shared-hosting figure is much worse than the local one. The
 answer then is a prefix/trigram index or a search service — not a return to the
 branch, which would restore the divergence.
 
-**Left undone:** the `emp_search` FULLTEXT index is now unused and still present.
-Dropping it is a migration.
+**Left undone — closed 2026-09-16.** The `emp_search` FULLTEXT index was left in
+place, unused. `2026_09_16_000001_drop_employee_fulltext_index` removes it.
+
+An unused FULLTEXT index is not free: InnoDB maintains it on every insert and on
+every update touching `name`, `name_am`, `email` or `employee_code` — most
+employee writes, bulk imports included — and it carries its own auxiliary
+tables. It also misleads, implying a fulltext search that no longer exists.
+
+Verified on MariaDB 10.4.32 through a full round trip: `up()` drops it, `down()`
+restores all four columns, `up()` again drops it. Both directions are guarded by
+an existence check, so neither fails on a database where it was already dropped
+by hand. SQLite skips, as the original migration did.
+
+`down()` is for rollback, not as a plan. The revisit condition above names a
+prefix or trigram index, or a search service — **not** a return to the branch
+this index existed to serve.
 
 ---
 
