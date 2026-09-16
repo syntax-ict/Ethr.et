@@ -801,6 +801,23 @@ Risk #11 recorded that `TenantScopeBypassInventoryTest` pins all 156 `withoutGlo
 
 **What this pass does not claim.** The 123 sites with a nearby predicate were *not* individually audited. Having a predicate is necessary, not sufficient — it could be the wrong one. This pass covered the 33 that had none, which is where the one known prior defect (P0-1) would also have shown up.
 
+**And the webhook defect was a symptom of something wider.** `CurrentTenant` was bound with `$this->app->singleton(...)`.
+
+Inside an HTTP request `singleton` and `scoped` are indistinguishable — resolved once, cached. The difference is the queue worker, which is a long-running process handling many tenants' jobs in turn. `Illuminate\Queue\QueueServiceProvider:262` hands the Worker a `$resetScope` callback that calls `$app->forgetScopedInstances()`, and `Worker::daemon()` invokes it at the top of every loop iteration, *before* reserving the next job (`Worker.php:191`). A `scoped` binding is cleared between jobs. A `singleton` is not.
+
+**Eight queued jobs and one queued listener call `$currentTenant->set($tenant)`. Nothing in `app/` calls `forget()` — not once.** So the next job on that worker inherited whichever tenant ran before it, and `BelongsToTenant` scoped its queries to a tenant it had never heard of instead of failing closed.
+
+Measured, calling the framework's own reset rather than simulating one:
+
+```
+Tenant A resolved, one employee created   ->  Employee::count() === 1
+app()->forgetScopedInstances()            ->  Employee::count() === 1   <-- leaked
+```
+
+Fail-closed is the property this whole product rests on, and it only holds while "no tenant resolved" is actually reachable. Bound as a singleton in a worker, it was not.
+
+Now `$this->app->scoped(...)`. The same measurement returns 0. `TenantContextLeakBetweenJobsTest` pins both halves, and the full backend suite is green on the change — **1730 passed, 5115 assertions** — so nothing was relying on the context surviving.
+
 ---
 
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**
