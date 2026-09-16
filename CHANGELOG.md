@@ -55,11 +55,17 @@ shared-hosting migration in more detail than belongs here.
   standard is a restore *performed*, and a test that only ever runs on SQLite
   does not meet it for a MySQL host. Two guards, because it drops everything:
   not in `production`, and the database name must look disposable.
-- **`api/phpunit.mysql.xml`** — the same suite against MariaDB rather than
-  SQLite `:memory:`, for the divergences a SQLite run structurally cannot see.
-  Seven `<env>` lines differ and nothing else. Deliberately outside
-  `scripts/gates.sh`: it needs a running server, and a gate that skips reports
-  success. See `docs/decisions/DECISIONS.md` D-011.
+- **`api/phpunit.mysql.xml` and a `mysql` gate, run by CI on every push.** The
+  same suite against MariaDB rather than SQLite `:memory:`, for the divergences
+  a SQLite run structurally cannot see — the first time anyone ran it, it found
+  a search defect that returned nothing in production and passed every test.
+  `./scripts/gates.sh mysql` **fails rather than skips** when no server is
+  reachable, because a skipped gate reports success. It stays out of the full
+  sweep so a fresh clone can still run `gates.sh` with no services; the
+  `backend-mysql` workflow job calls it by name against a `mariadb:10.11`
+  service container, **as a non-root user** — which also exercises whether the
+  `audit_log` trigger migration survives without `SUPER`. See
+  `docs/decisions/DECISIONS.md` D-011.
 - `docs/deployment/shared-hosting/nginx-directives.conf` — the prepared answer
   if Gate 0's G0-B finds `.htaccess` is not honoured. Covers the silently
   failing half (headers, deny rules, timeouts) and deliberately leaves routing

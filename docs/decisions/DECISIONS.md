@@ -81,6 +81,32 @@ touching dates, raw SQL or schema. Deliberately outside `gates.sh`.
 **Reverse it if:** CI gains a MySQL service container. There the server is
 guaranteed, so the run cannot silently skip, and it should become a gate.
 
+### Reversed the same day, 2026-09-16 — the condition was already met
+
+`.github/workflows/gates.yml` already ran a `mariadb:10.11` service container
+for the API-contract job, so the premise of the paragraph above was wrong when
+it was written: CI *did* have a guaranteed server, and the only thing missing
+was a job that used it for the suite.
+
+There is now a `mysql` scope and a `backend-mysql` CI job that calls it. Two
+details carry the reasoning that the original decision was protecting:
+
+- **The scope fails when no server is reachable. It does not skip.** That is the
+  point: a skipped gate reports success, and this repository has been caught
+  twice by checks that were green because they had not run. Someone without a
+  local MySQL asks for a different scope rather than being handed a false pass.
+- **It stays out of `all`**, so a fresh clone can still run the full sweep with
+  no services. CI calls it by name, the way it calls `security`.
+
+The CI job connects as the non-root `ethr` user rather than root, which also
+exercises whether the `audit_log` trigger migration survives without `SUPER` —
+the question gate **G0-F** asks about the production host, and the closest
+answer available without the host itself.
+
+**Reverse *that* if:** the job proves flaky for environmental reasons rather than
+code ones. The answer then is to fix the environment, not to downgrade the job
+to non-blocking — a gate nobody has to pass is documentation.
+
 **Related:** `database/seeders/PermissionSeeder.php:32` — the `truncate()` →
 `delete()` change that made a MySQL run finish in minutes rather than hours. Its
 comment is the reference for the implicit-commit trap.

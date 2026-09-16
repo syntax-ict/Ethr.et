@@ -43,11 +43,21 @@
             CREATE DATABASE ethr_suite_mysql CHARACTER SET utf8mb4
                 COLLATE utf8mb4_unicode_ci;
 
-        Override host, user and password with MYSQL_TEST_* in the real
-        environment if the defaults below do not match. RefreshDatabase
-        migrates this database on the first test and wraps every test in a
-        transaction, so it is rebuilt rather than accumulated - but point it at
-        a scratch database regardless.
+        RefreshDatabase migrates this database on the first test and wraps every
+        test in a transaction, so it is rebuilt rather than accumulated - but
+        point it at a scratch database regardless: a test that issues DDL (see
+        BackupRestoreRehearsalTest) cannot be rolled back on MySQL.
+
+        ## Connection settings are overridable, and deliberately so
+
+        DB_CONNECTION is forced - this file exists to pin the driver and would
+        be pointless otherwise. The five settings that locate the server are
+        NOT forced, so exporting DB_HOST / DB_PORT / DB_DATABASE / DB_USERNAME /
+        DB_PASSWORD wins over the defaults below. That is what CI does: the
+        workflow's service container issues credentials this file cannot know.
+
+        (An earlier version of this file forced all of them while its own
+        comment claimed they could be overridden. They could not.)
     -->
     <testsuites>
         <testsuite name="Unit">
@@ -72,11 +82,12 @@
 
         <!-- The only lines that differ from phpunit.xml. -->
         <env name="DB_CONNECTION" value="mariadb" force="true"/>
-        <env name="DB_HOST" value="127.0.0.1" force="true"/>
-        <env name="DB_PORT" value="3306" force="true"/>
-        <env name="DB_DATABASE" value="ethr_suite_mysql" force="true"/>
-        <env name="DB_USERNAME" value="root" force="true"/>
-        <env name="DB_PASSWORD" value="" force="true"/>
+        <!-- Not forced: the environment wins. See the header. -->
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="ethr_suite_mysql"/>
+        <env name="DB_USERNAME" value="root"/>
+        <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value="" force="true"/>
 
         <env name="FILESYSTEM_DISK" value="minio" force="true"/>

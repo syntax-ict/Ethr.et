@@ -224,6 +224,45 @@ pest_gate() {
     )
 }
 
+# The same suite against MySQL/MariaDB instead of SQLite :memory:.
+#
+# It exists because the two drivers are not interchangeable and the differences
+# are not theoretical: the first time this suite was pointed at MariaDB it found
+# a search defect that returned nothing in production and passed every test, a
+# seeder whose TRUNCATE implicitly committed RefreshDatabase's transaction, and
+# five tests that were green only because SQLite reuses low row ids. See
+# docs/decisions/DECISIONS.md D-011 and D-012.
+#
+# **It fails rather than skips when no server is reachable.** That is the whole
+# design: a gate that skips reports success, and this repository has already
+# been bitten twice by checks that were green because they had not run. If you
+# want to run the other gates without a database, ask for a different scope.
+pest_mysql_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    (
+        cd "$API_DIR" || return 1
+
+        local host port
+        host="${DB_HOST:-127.0.0.1}"
+        port="${DB_PORT:-3306}"
+
+        if ! php -r 'exit(@fsockopen($argv[1], (int) $argv[2], $e, $s, 3) ? 0 : 1);' "$host" "$port"; then
+            printf '\033[31mNo MySQL/MariaDB reachable at %s:%s.\033[0m\n' "$host" "$port"
+            printf 'This gate runs the suite against the driver production uses, so it\n'
+            printf 'refuses to pass without one. Start a server and create the database:\n\n'
+            printf '  CREATE DATABASE ethr_suite_mysql CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n\n'
+            printf 'Override DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD if yours differ.\n'
+            return 1
+        fi
+
+        php -d memory_limit=-1 vendor/bin/pest -c phpunit.mysql.xml
+    )
+}
+
 # `quick` is the pre-push scope: every gate that does not run a test suite.
 # Seconds rather than ten minutes, which is the difference between a hook people
 # keep and a hook people learn to pass --no-verify to. The suites run in CI, and
@@ -260,6 +299,13 @@ fi
 # Needs both halves of the stack, so it only runs in a full sweep.
 if [[ "$SCOPE" == "all" ]]; then
     run_gate "API types (contract)" api_types_gate
+fi
+
+# Opt-in, never part of `all`: it needs a database server, and `all` has to stay
+# runnable on a fresh clone. CI does have one, so the workflow calls this scope
+# by name — which is why it fails rather than skips when the server is missing.
+if [[ "$SCOPE" == "mysql" ]]; then
+    run_gate "Pest (backend, MySQL)" pest_mysql_gate
 fi
 
 # Opt-in, never part of `all` — see the comment above composer_audit_gate.
