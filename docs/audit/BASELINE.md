@@ -490,7 +490,7 @@ $ cd src && npx vitest run --coverage --coverage.reporter=text-summary
   Lines        : 32.34% ( 15287/47260 )
 ```
 
-**321 files in the report, and 170 of them at 0%** — better than half the frontend is never imported by any test. That is the number worth carrying, more than the percentage: the 32% is diluted by large files partially touched, while the 170 are untouched entirely.
+**321 files in the report, and 170 of them at 0%** (measured before the offline-pipeline tests of 2026-09-16; see the note below) — better than half the frontend is never imported by any test. That is the number worth carrying, more than the percentage: the 32% is diluted by large files partially touched, while the 170 are untouched entirely.
 
 The denominator is honest. Vitest 2's `coverage.all` counts files no test imports, which is why the zero-coverage files appear at all; a report that only counted imported files would have shown a much higher and much less useful figure.
 
@@ -499,6 +499,24 @@ Branches at 69.81% against statements at 32.34% is the expected shape: the code 
 Needed `@vitest/coverage-v8`, pinned to `2.1.9` to match `vitest` — the provider and the runner are versioned together. No extension, unlike the backend (§12e).
 
 **Not wired into `scripts/gates.sh`.** It roughly doubles the frontend gate's wall time (127s against ~60s), and a threshold set at today's 32% would be a number nobody chose. Run it deliberately, the way `security` and `performance` are run.
+
+#### What was done with the measurement, 2026-09-16
+
+The 170 were classified by what the file does rather than by how many statements it holds. 77 of them are `app/(dashboard)` pages — presentational, and better served by Playwright than by unit tests. The risk was concentrated somewhere else entirely, and in one place the coverage was **inverted**:
+
+| File | Before | After |
+|---|---|---|
+| `components/shared/offline-banner.tsx` — the badge that *displays* the pending count | 97.05% | 97.05% |
+| `lib/offline-queue.ts` — the IndexedDB store holding unsent punches | **2.7%** | **91.89%** |
+| `lib/hooks/useOfflineSync.ts` — the engine that empties the queue | **0%** | **96.66%** |
+
+ETHR is offline-first. A punch captured with no signal lives only in that store until the sync engine delivers it, and **the backend cannot compensate for a failure there** — a record that never arrives cannot be reconciled server-side. The UI reporting the queue was thoroughly tested; the code responsible for not losing it was not tested at all.
+
+18 tests across the two files, each written against a way a punch is lost or double-counted. Both suites were verified by mutation rather than assumed: making `markSyncError` also mark a record synced, and making the sync engine treat `duplicate` as a failure, each failed exactly the tests that assert the property and no others.
+
+Total coverage moved **32.34% → 32.74%**. That the headline barely moved is the point — the files were chosen for what they do, not for their statement count.
+
+**Still at 0% and worth a look next**, in rough risk order: `lib/utils/date.ts` (35 stmts — date handling under convention #2's UTC-store / EAT-display split), `components/shared/auth-guard.tsx` (26 — a route authorization control, though defence-in-depth since the API enforces independently), `features/auth/sessions-api.ts` (50 — session revocation), and `app/kiosk/page.tsx` (417 — shared-device PIN check-in, which captures attendance).
 
 ### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
 
