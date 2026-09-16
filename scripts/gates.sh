@@ -45,7 +45,24 @@ run_gate() {
 
 # Node binaries are invoked directly rather than through `npm run`: it keeps the
 # script working where npm's shell resolution is broken, and skips a process layer.
-tsc_gate() { (cd "$WEB_DIR" && node node_modules/typescript/bin/tsc --noEmit); }
+# `next typegen` first, because tsc cannot pass on a fresh checkout without it.
+#
+# Next writes `.next/types/*` and `.next/dev/types/*` during a build or a dev
+# run, `next-env.d.ts` imports them by path, and tsconfig.json includes
+# `next-env.d.ts` — so on a machine that has ever run `next dev` the imports
+# resolve and tsc is green, while on a clean clone `.next/` does not exist and
+# tsc fails on a file nobody wrote and the repository does not track.
+#
+# That is exactly how this gate passed locally for months and failed the first
+# time CI ever managed to run it (2026-09-16). `typegen` generates those
+# definitions without a full build, which is seconds rather than minutes.
+tsc_gate() {
+    (
+        cd "$WEB_DIR" || return 1
+        node node_modules/next/dist/bin/next typegen || return 1
+        node node_modules/typescript/bin/tsc --noEmit
+    )
+}
 vitest_gate() { (cd "$WEB_DIR" && node node_modules/vitest/vitest.mjs run --reporter=dot); }
 
 # CLAUDE.md lists both of these as mandatory gates, but neither was wired in here
