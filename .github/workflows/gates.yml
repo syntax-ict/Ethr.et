@@ -74,6 +74,27 @@ jobs:
         working-directory: api
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      # Without this the suite fails 156 tests with MissingAppKeyException.
+      #
+      # Employee.tin and national_id use the `encrypted` cast, and Laravel's
+      # encrypter refuses to boot without APP_KEY — so every test touching an
+      # employee dies, which is most of them. A runner has no .env.
+      #
+      # This is why `Backend suite on MySQL` passed while `Backend` failed: that
+      # job already did exactly this and this one never did. Found on
+      # 2026-09-16, once gates.sh started publishing the failing gate's output
+      # in its annotation; the job log itself is not readable without an account.
+      #
+      # key:generate rather than a committed literal: an APP_KEY in the
+      # repository is what `START_BACKEND.ps1` did, and removing it was logged
+      # as a security fix. A fresh random key per run has the same effect here
+      # and reintroduces nothing.
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
       - name: Run backend gates
         run: ./scripts/gates.sh backend
 
