@@ -30,8 +30,8 @@ export function MarketingFooter() {
       titleKey: "marketing.footer.legal",
       fallback: "Legal",
       links: [
-        { label: t("marketing.footer.privacy", "Privacy"), href: "#" },
-        { label: t("marketing.footer.terms", "Terms"), href: "#" },
+        { label: t("marketing.footer.privacy", "Privacy"), href: "/privacy" },
+        { label: t("marketing.footer.terms", "Terms"), href: "/terms" },
       ],
     },
   ];
