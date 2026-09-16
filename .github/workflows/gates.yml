@@ -54,6 +54,72 @@ jobs:
       - name: Run backend gates
         run: ./scripts/gates.sh backend
 
+  backend-mysql:
+    name: Backend suite on MySQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The backend job above runs the suite on SQLite :memory:. Production runs
+    # on MariaDB, and until 2026-09-15 nothing had ever run the tests against
+    # it. Doing so found a search defect that returned nothing in production and
+    # passed every test, plus five tests that were green only because SQLite
+    # reuses low row ids. A one-off run does not stop that recurring; this does.
+    #
+    # Runs as the non-root `ethr` user on purpose. That also exercises whether
+    # the audit_log trigger migration succeeds without SUPER, which is the
+    # question gate G0-F asks about the production host.
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: ethr_suite_mysql
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      # The encrypted casts on Employee.tin and national_id need a real APP_KEY.
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # phpunit.mysql.xml does not force these five, so the service container's
+      # credentials win over its local defaults.
+      - name: Run the backend suite against MariaDB
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr_suite_mysql
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: ./scripts/gates.sh mysql
+
   frontend:
     name: Frontend (i18n, Prettier, ESLint, tsc, Vitest)
     runs-on: ubuntu-latest

@@ -47,6 +47,7 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 ./scripts/gates.sh backend    # composer validate, Pint, PHPStan, Pest
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ./scripts/gates.sh docs       # markdown link integrity
+./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ```
 
@@ -54,6 +55,13 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 red when a third party publishes an advisory, not when you break something, and
 a gate that is permanently red stops being read. **It is red right now** — see
 `docs/audit/BASELINE.md` §15.
+
+`mysql` is outside it too, for a different reason: it needs a database server,
+and the full sweep has to stay runnable on a fresh clone. **It fails rather than
+skipping when no server is reachable** — the whole point is that the suite
+otherwise only ever runs on SQLite while production runs on MariaDB. The first
+time anyone pointed it at MariaDB (2026-09-15) it found a search defect that
+returned nothing in production and passed every test. CI runs it on every push.
 
 **CI calls `gates.sh` rather than restating it**, so the two cannot drift. `main` has been pushed, so the workflows should now be running — but no run has been read from here (`gh` is not installed and the repository is private), so treat a green build as unconfirmed until someone has actually looked at the Actions tab.
 

@@ -131,15 +131,22 @@ dates, raw SQL, or schema:
 
 ```bash
 mysql -e "CREATE DATABASE ethr_suite_mysql CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-cd api && vendor/bin/pest -c phpunit.mysql.xml
+./scripts/gates.sh mysql
 ```
 
 `phpunit.mysql.xml` differs from `phpunit.xml` in seven `<env>` lines and
-nothing else. Point it elsewhere with the `DB_*` values in that file.
+nothing else. Only `DB_CONNECTION` is forced; export `DB_HOST`, `DB_PORT`,
+`DB_DATABASE`, `DB_USERNAME` or `DB_PASSWORD` to point it at your own server.
 
-It is **not** wired into `scripts/gates.sh`, deliberately. It needs a running
-server, so on a machine without one it would either fail or skip — and a gate
-that skips reports success. Run it on purpose.
+The `mysql` scope is **outside the full sweep**, like `security` and
+`performance`, so `./scripts/gates.sh` still runs on a fresh clone with no
+services. **It fails rather than skips when no server is reachable** — a gate
+that skips reports success, and this repository has twice been caught by checks
+that were green because they had not run.
+
+CI runs it on every push (`backend-mysql` in `.github/workflows/gates.yml`),
+against a `mariadb:10.11` service container and as a **non-root user**, which
+also exercises whether the `audit_log` trigger migration works without `SUPER`.
 
 **The trap, already paid for twice:** on MySQL, DDL implicitly commits —
 `TRUNCATE`, `CREATE`, `ALTER`, `DROP`, `LOCK TABLES`. `RefreshDatabase` wraps

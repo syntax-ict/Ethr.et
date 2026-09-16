@@ -28,6 +28,7 @@ use App\Notifications\PayslipAvailableNotification;
 use App\Notifications\TrialExpiringNotification;
 use App\Services\Attendance\AttendanceIntelligence;
 use App\Services\CurrentTenant;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -86,10 +87,19 @@ test('requesting leave notifies the approver', function () {
 
     test()->actingAs($staff);
 
+    // A Monday and the Tuesday after it, rather than "ten days from now".
+    //
+    // The endpoint rejects a request whose range contains no working day —
+    // `{"title":"Invalid Leave Dates","detail":"The selected dates do not
+    // include any working days."}`. `now()->addDays(10)` is a Saturday exactly
+    // when today is a Wednesday, so this test failed every Wednesday, on both
+    // drivers, from the day it was written. Found 2026-09-16, which was one.
+    $start = now()->addDays(10)->next(Carbon::MONDAY);
+
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
         'leave_type_public_id' => $leaveType->public_id,
-        'start_date' => now()->addDays(10)->toDateString(),
-        'end_date' => now()->addDays(11)->toDateString(),
+        'start_date' => $start->toDateString(),
+        'end_date' => $start->copy()->addDay()->toDateString(),
         'reason' => 'Family matter',
     ])->assertStatus(201);
 

@@ -191,11 +191,28 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | **G0-A** | Frontend goes cross-origin. ~1 day becomes ~2 weeks plus an auth-security review. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap. Settle before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. Unbuilt; must be costed. |
-| **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. |
+| **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. **Less likely to fail than it looks — see below.** |
 | **G0-G** | Frontend must ship as static files. Bounded work; see the baseline §11. |
 | **G0-H** | Mail may cap tenant count before CPU or storage does, and the queue dead-man's-switch needs a non-email alert path. |
 | **G0-I** | Below the floor, `migrate` fails on the *first* migrations (255-char `utf8mb4` primary keys at 1020 bytes vs the old 767-byte limit). |
 | **G0-J** | Payroll already runs synchronously in the request (`PayrollController.php:38`) against a documented *dedicated-hardware* budget of 30s for 500 employees. A slow shared CPU makes queueing it mandatory rather than advisable. |
+
+### G0-F — what a non-root user can actually do **[measured 2026-09-16, MariaDB 10.4.32, local]**
+
+G0-F is still `NOT VERIFIED` on the host and nothing below changes that. But the gate reads as more dangerous than the evidence supports, so:
+
+A user holding **`GRANT ALL PRIVILEGES ON <database>.*` and nothing else — no `SUPER`, no global grants** — runs `2026_07_22_000001` successfully. Both `audit_log` triggers are created, and the recorded definer becomes that user:
+
+```
+audit_log_no_update  definer=ethr@localhost
+audit_log_no_delete  definer=ethr@localhost
+```
+
+`TRIGGER` is part of `ALL PRIVILEGES` on a schema and does **not** require `SUPER`. `SUPER` is only needed to name a definer *other than yourself* — which is the §13b restore hazard, and is why `DatabaseDumper` emits no `DEFINER` clause.
+
+So the failure mode G0-F guards against is not "shared hosting withholds `TRIGGER`" in general; it is a provider that grants something narrower than `ALL` on the account's own database. Plesk's default is `ALL` on the databases it creates. **Still run the probe** — this is an argument about priors, not a measurement of Ethio Telecom's server.
+
+Evidence: `.github/workflows/gates.yml`, job `backend-mysql`, which connects as a non-root user for exactly this reason and migrates on every push.
 
 ---
 

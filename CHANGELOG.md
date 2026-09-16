@@ -55,11 +55,17 @@ shared-hosting migration in more detail than belongs here.
   standard is a restore *performed*, and a test that only ever runs on SQLite
   does not meet it for a MySQL host. Two guards, because it drops everything:
   not in `production`, and the database name must look disposable.
-- **`api/phpunit.mysql.xml`** — the same suite against MariaDB rather than
-  SQLite `:memory:`, for the divergences a SQLite run structurally cannot see.
-  Seven `<env>` lines differ and nothing else. Deliberately outside
-  `scripts/gates.sh`: it needs a running server, and a gate that skips reports
-  success. See `docs/decisions/DECISIONS.md` D-011.
+- **`api/phpunit.mysql.xml` and a `mysql` gate, run by CI on every push.** The
+  same suite against MariaDB rather than SQLite `:memory:`, for the divergences
+  a SQLite run structurally cannot see — the first time anyone ran it, it found
+  a search defect that returned nothing in production and passed every test.
+  `./scripts/gates.sh mysql` **fails rather than skips** when no server is
+  reachable, because a skipped gate reports success. It stays out of the full
+  sweep so a fresh clone can still run `gates.sh` with no services; the
+  `backend-mysql` workflow job calls it by name against a `mariadb:10.11`
+  service container, **as a non-root user** — which also exercises whether the
+  `audit_log` trigger migration survives without `SUPER`. See
+  `docs/decisions/DECISIONS.md` D-011.
 - `docs/deployment/shared-hosting/nginx-directives.conf` — the prepared answer
   if Gate 0's G0-B finds `.htaccess` is not honoured. Covers the silently
   failing half (headers, deny rules, timeouts) and deliberately leaves routing
@@ -89,6 +95,14 @@ shared-hosting migration in more detail than belongs here.
   the production path. Measured cost at 5,000 employees in one tenant: ~13ms
   against a 100ms budget. See `docs/decisions/DECISIONS.md` D-012 and
   `docs/audit/BASELINE.md` §13f.
+
+- **A test failed every Wednesday.** `NotificationDispatchTest`'s leave-request
+  case asked for `now()->addDays(10)` to `addDays(11)`. That range is
+  Saturday–Sunday exactly when today is a Wednesday, and the endpoint rejects a
+  request containing no working day — `"The selected dates do not include any
+  working days."` One day in seven, on both drivers, since the day it was
+  written; found on 2026-09-16, which was one. Now pinned to a Monday and the
+  Tuesday after it, verified across all seven weekdays with `Carbon::setTestNow`.
 
 - **A test passed an Employee id where a User id was required, and SQLite hid
   it.** `WriteEndpointSmokeTest` built a `SavedReport` with `created_by =>
