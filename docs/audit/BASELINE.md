@@ -477,6 +477,27 @@ That is the next step, and it should be the *first* step. Four hypotheses were t
 
 **Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
 
+### 12g. The frontend renders timestamps in the browser's timezone, not EAT **[verified 2026-09-16 — decision required]**
+
+Convention #2 is "Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3)."
+
+`src/src/lib/utils/date.ts` — `formatDate`, `formatDateTime`, `formatTime`, `timeAgo` — passes **no `timeZone` option** to `toLocaleDateString` / `toLocaleString` / `toLocaleTimeString`. A grep for `timeZone` across the whole frontend returns **nothing**. So every rendered timestamp follows whatever timezone the browser is set to.
+
+`formatTime` is what the attendance page shows for a punch (`app/(dashboard)/attendance/page.tsx:58`). A check-in stored as `05:30Z` displays as **08:30** to a browser in Addis and **05:30** to a browser in UTC — against the same employee, on the same shift.
+
+**Why it has not been noticed:** users are in Ethiopia and their browsers are set accordingly, so the host timezone and the intended one coincide. The machine this was measured on is `Africa/Nairobi` — UTC+3, the same offset as EAT — so the formatters render correctly here by luck of the host clock.
+
+**Why it is not fixed here.** There are two defensible answers and they are not equivalent:
+
+1. **Always EAT.** Matches convention #2's literal wording, and is right if the product is only ever used inside Ethiopia.
+2. **The tenant's configured timezone.** The product already stores one — `features/settings/components/organization-card.tsx` exposes a `timezone` field defaulting to `Africa/Addis_Ababa` — and these pure functions have no access to it, so honouring it needs the tenant timezone threaded through a context or passed by every caller.
+
+Picking (1) would quietly break any tenant that has set a different zone, and that setting exists. **This is an owner decision, not a refactor.**
+
+`src/test/date-utils.test.ts` pins current behaviour with `process.env.TZ` set to UTC before import, so the tests are deterministic on any runner and will fail loudly when this is changed.
+
+> **A second environment-dependence found while writing those tests.** en-GB renders September as `Sep` under older ICU and `Sept` under newer. Node 24 locally produces `Sept`; CI pins Node 20. Asserting either literal would pass on one runtime and fail on the other, so the month is matched as `/Sept?/` while the day, year and time are asserted exactly.
+
 ### 12f. Frontend coverage — first measurement **[verified 2026-09-16]**
 
 ```
