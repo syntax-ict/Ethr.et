@@ -477,6 +477,29 @@ That is the next step, and it should be the *first* step. Four hypotheses were t
 
 **Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
 
+### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
+
+Risk 10 is "no coverage instrumentation". The obvious dodge is `phpdbg`, which ships with XAMPP and historically produced coverage without installing anything:
+
+```
+phpdbg -qrr vendor/bin/pest --coverage
+```
+
+**It does not work, and the reason is not obvious from the error.** Pest reports `Coverage not found in path: vendor/pestphp/pest/.temp/coverage.php`, which reads like a Pest bug. It is not. `phpunit/php-code-coverage` **removed the PHPDBG driver in v10**; this project is on **11.0.12**, and `vendor/phpunit/php-code-coverage/src/Driver/` contains exactly two drivers:
+
+```
+PcovDriver.php
+XdebugDriver.php
+```
+
+Nor can PHPUnit be called directly to route around Pest — `vendor/bin/phpunit` refuses with `InvalidPestCommand: Please run [./vendor/bin/pest] instead`.
+
+So backend coverage requires **PCOV or Xdebug installed into the PHP runtime**. PCOV is the better choice for a coverage-only job: it is far faster than Xdebug and does nothing else, whereas Xdebug slows every run it is loaded into.
+
+This is recorded because `phpdbg` being on PATH makes the dodge look available, and the failure mode points at the wrong component. Anyone who tries it will lose the same twenty minutes.
+
+Frontend coverage is unaffected — Vitest uses v8 coverage and needs no extension.
+
 ---
 
 ## 13. Known blockers
@@ -611,7 +634,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium — **blocked on a PHP extension**, see §12e |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
