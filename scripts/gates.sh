@@ -461,8 +461,31 @@ if [[ ${#FAILED[@]} -gt 0 ]]; then
     # the two cannot drift — the same reason .github/workflows/gates.yml gives
     # in its own header.
     if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+        # The failure text goes in the annotation itself, not only the job
+        # summary. Run #62 wrote a summary and nothing rendered on the run page,
+        # while the annotations from the same run rendered fine — so annotations
+        # are the channel that is actually known to work for a signed-out reader.
+        # The summary block below is kept as well; it costs nothing and is
+        # pleasanter to read when it does show up.
+        #
+        # Actions requires newlines in an annotation to be escaped as %0A, and a
+        # literal % as %25. Escape % first or it eats the escapes that follow.
         for gate in "${FAILED[@]:-}"; do
-            [[ -n "$gate" ]] && printf '::error title=Gate failed::%s\n' "$gate"
+            [[ -z "$gate" ]] && continue
+
+            local_capture="${GATE_OUTPUT[$gate]:-}"
+
+            if [[ -n "$local_capture" && -f "$local_capture" ]]; then
+                printf '::error title=Gate failed: %s::%s%%0A%%0A%s\n' \
+                    "$gate" \
+                    "$gate" \
+                    "$(tail -n 25 "$local_capture" \
+                        | sed 's/\x1b\[[0-9;]*m//g' \
+                        | sed 's/%/%25/g' \
+                        | sed ':a;N;$!ba;s/\n/%0A/g')"
+            else
+                printf '::error title=Gate failed::%s\n' "$gate"
+            fi
         done
 
         # And the actual output, in the job summary — which renders on the run
