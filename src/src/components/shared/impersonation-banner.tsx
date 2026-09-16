@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/useT";
 
 function readImpersonating(): boolean {
   if (typeof window === "undefined") return false;
@@ -14,6 +15,7 @@ function readImpersonating(): boolean {
 }
 
 export function ImpersonationBanner() {
+  const { t } = useT();
   const [isImpersonating] = useState(readImpersonating);
 
   async function exitImpersonation() {
@@ -52,8 +54,14 @@ export function ImpersonationBanner() {
     <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-status-warning px-4 py-2 text-text-inverse">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
+        {/* Translated, not a literal. This is the only thing on screen telling
+            a super admin they are acting as somebody else, and a warning the
+            reader cannot read is not a warning. */}
         <span className="text-sm font-medium">
-          You are impersonating a tenant admin. Actions taken are logged.
+          {t(
+            "impersonation.banner",
+            "You are impersonating a tenant admin. Actions taken are logged.",
+          )}
         </span>
       </div>
       <Button
@@ -63,7 +71,7 @@ export function ImpersonationBanner() {
         onClick={exitImpersonation}
       >
         <X className="mr-1 h-3 w-3" />
-        Exit Impersonation
+        {t("impersonation.exit", "Exit Impersonation")}
       </Button>
     </div>
   );

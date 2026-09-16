@@ -1556,6 +1556,8 @@
   "holidays_page.recurring": "ተደጋጋሚ",
   "holidays_page.recurring_every_year": "በየዓመቱ ይደጋገማል",
   "holidays_page.title": "በዓላት",
+  "impersonation.banner": "እንደ ተከራይ አስተዳዳሪ ሆነው እየሠሩ ነው። የሚወስዷቸው እርምጃዎች ይመዘገባሉ።",
+  "impersonation.exit": "መወከልን አቁም",
   "impersonation.handoff_failed_body": "ይህ አገናኝ አስቀድሞ ጥቅም ላይ ውሏል ወይም ጊዜው አልፎበታል። እባክዎ ከአስተዳዳሪ ኮንሶል እንደገና ይጀምሩ።",
   "impersonation.handoff_failed_title": "የመግቢያ አገናኝ ጊዜው አልፎበታል",
   "impersonation.handoff_pending": "በመግባት ላይ…",

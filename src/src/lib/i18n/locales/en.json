@@ -1556,6 +1556,8 @@
   "holidays_page.recurring": "Recurring",
   "holidays_page.recurring_every_year": "Recurring every year",
   "holidays_page.title": "Holidays",
+  "impersonation.banner": "You are impersonating a tenant admin. Actions taken are logged.",
+  "impersonation.exit": "Exit Impersonation",
   "impersonation.handoff_failed_body": "This link has already been used or has expired. Start the impersonation again from the admin console.",
   "impersonation.handoff_failed_title": "Sign-in link expired",
   "impersonation.handoff_pending": "Signing you in…",
