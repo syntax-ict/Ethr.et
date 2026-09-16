@@ -1095,3 +1095,18 @@
     animation-name: ethr-flow-travel-x;
   }
 }
+
+/* The global reduced-motion block above collapses `animation-duration` and
+   `animation-iteration-count` — but NOT `animation-delay`, and this sequence is
+   built almost entirely out of delays. With `fill-mode: both`, an element holds
+   its `from` state for the whole delay, so step 2 stayed invisible for 1.5s and
+   step 3 for 3.3s: a reduced-motion visitor got one card, then watched the rest
+   pop in over three seconds. Exactly the staggered motion they asked not to see.
+   Caught by screenshotting with `reducedMotion: "reduce"`, not by reading. */
+@media (prefers-reduced-motion: reduce) {
+  .ethr-flow *,
+  .ethr-flow *::before,
+  .ethr-flow *::after {
+    animation-delay: 0ms !important;
+  }
+}

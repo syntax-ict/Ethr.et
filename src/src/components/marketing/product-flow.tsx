@@ -25,10 +25,18 @@ import { useT } from "@/lib/i18n/useT";
  * applies `animation-duration: 0.01ms` and `animation-iteration-count: 1` under
  * `prefers-reduced-motion`, which snaps every animation to its FINAL keyframe.
  * So every keyframe below ends in the completed state and the sequence plays
- * once and settles, rather than looping back to empty. A reduced-motion visitor
- * gets the finished diagram immediately; everyone else watches it assemble.
- * That also rules out a looping hero, which reads as restless on an enterprise
- * page and competes with the call to action.
+ * once and settles, rather than looping back to empty. That also rules out a
+ * looping hero, which reads as restless on an enterprise page and competes
+ * with the call to action.
+ *
+ * The global block is NOT sufficient on its own, which a screenshot caught and
+ * reading did not: it collapses duration but leaves `animation-delay` intact,
+ * and this sequence is built almost entirely out of delays. With
+ * `fill-mode: both` an element holds its `from` state — opacity 0 — for the
+ * whole delay, so a reduced-motion visitor saw step 1, then watched steps 2 and
+ * 3 pop in over the next three seconds. `globals.css` therefore zeroes
+ * `animation-delay` inside `.ethr-flow` under the same query. Only with that
+ * does the diagram actually arrive complete and at once.
  *
  * Meaning lives in the text, never in the motion: the offline→synced pill
  * animates, but step two's description states the same fact, so nothing is lost
@@ -39,7 +47,7 @@ export function ProductFlow() {
 
   return (
     <div className="ethr-flow mx-auto w-full max-w-4xl">
-      <ol className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:gap-0">
+      <ol className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-stretch sm:gap-0">
         {/* 1 — Check in */}
         <li className="ethr-flow-step ethr-flow-step-1 flex-1 rounded-2xl border border-border/60 bg-card p-5 text-start shadow-sm">
           <div className="flex items-center gap-3">
@@ -179,7 +187,7 @@ function PayrollRow({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-14 shrink-0 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <span className="w-20 shrink-0 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
