@@ -376,6 +376,30 @@ done
 
 if [[ ${#FAILED[@]} -gt 0 ]]; then
     printf '\n\033[31m%d gate(s) failed.\033[0m\n' "${#FAILED[@]}"
+
+    # Name the failed gates as GitHub Actions annotations, not just in stdout.
+    #
+    # This is not decoration. A workflow job's log is readable only by someone
+    # signed in with access, and on 2026-09-16 that made a Frontend failure
+    # undiagnosable from outside: the job said "Process completed with exit
+    # code 1" and nothing else, while the step that failed — one of five run by
+    # this script — stayed inside a log nobody could open. Four hypotheses were
+    # tested locally and all four were wrong; see docs/audit/BASELINE.md §12d.
+    #
+    # Annotations are visible on the run page without signing in. Emitting one
+    # per failed gate turns "the Frontend job failed" into "ESLint failed",
+    # which is the difference between guessing and knowing.
+    #
+    # Deliberately only the gate *names*, which this script already knows. The
+    # workflow still calls `gates.sh` rather than restating the gate list, so
+    # the two cannot drift — the same reason .github/workflows/gates.yml gives
+    # in its own header.
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+        for gate in "${FAILED[@]:-}"; do
+            [[ -n "$gate" ]] && printf '::error title=Gate failed::%s\n' "$gate"
+        done
+    fi
+
     exit 1
 fi
 

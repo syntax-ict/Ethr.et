@@ -475,6 +475,8 @@ Ruled out by direct test:
 
 That is the next step, and it should be the *first* step. Four hypotheses were tested and all four were wrong; a fifth guess is worth less than one look at the output. Recorded here so the work is not repeated.
 
+**Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
+
 ---
 
 ## 13. Known blockers
