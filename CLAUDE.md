@@ -89,6 +89,12 @@ Once 1 and 2 were fixed the workflows ran for the first time (run #55): **Docume
 
 The lesson worth keeping: this file twice told readers to treat CI as *probably fine but unconfirmed*. It was not fine. **Read the Actions tab rather than reasoning about it** — the whole reason the workflows exist is to tell you something you do not already know. And when it fails, read *its* log rather than reproducing locally and assuming the cause matches.
 
+**Run #66 (2026-09-16, `1cf9083`) is the first fully green run** — Backend,
+Backend suite on MySQL, Frontend, Documentation integrity and API contract all
+passing together, 51 runs after the first push. Treat that as a starting line,
+not a finish: five separate structural defects had to be fixed before a single
+gate executed, and every one of them was invisible from the working tree.
+
 What *is* active is the pre-push hook, once you enable it:
 
 ```bash
