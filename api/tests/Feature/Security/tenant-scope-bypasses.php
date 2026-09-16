@@ -59,7 +59,7 @@ return [
     'Http/Middleware/ScimAuth.php' => 1,
     'Http/Requests/Auth/LoginRequest.php' => 1,
     'Jobs/BackupTenantJob.php' => 3,
-    'Jobs/DispatchWebhookJob.php' => 1,
+    'Jobs/DispatchWebhookJob.php' => 2,
     'Jobs/GenerateMonthlyInvoicesJob.php' => 2,
     'Jobs/HandleOverdueInvoicesJob.php' => 7,
     'Jobs/NotifyAnnouncementAudienceJob.php' => 2,

@@ -39,7 +39,18 @@ class DispatchWebhookJob implements ShouldQueue
     public function handle(): void
     {
         $webhook = Webhook::withoutGlobalScopes()->find($this->webhookId);
-        $delivery = WebhookDelivery::find($this->deliveryId);
+
+        // Scoped by hand for the same reason the line above is: a queue worker
+        // resolves no tenant, so `BelongsToTenant` would apply `0 = 1` and this
+        // would silently find nothing -- and the guard below would return as if
+        // the delivery had been deleted. The tenant predicate is re-applied by
+        // deriving from the webhook, which is itself tenant-owned.
+        $delivery = $webhook === null
+            ? null
+            : WebhookDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $webhook->tenant_id)
+                ->where('webhook_id', $webhook->id)
+                ->find($this->deliveryId);
 
         if (! $webhook || ! $delivery) {
             return;

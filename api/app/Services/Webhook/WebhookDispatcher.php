@@ -32,7 +32,18 @@ final class WebhookDispatcher
             'data' => $data,
         ];
 
+        // `tenant_id` is stated, not inferred. `BelongsToTenant::creating` fills
+        // it from `CurrentTenant`, which a queue worker has not resolved --
+        // `ProcessPayrollJob` dispatches `payroll.processed` and says so in its
+        // own comment -- and `webhook_deliveries.tenant_id` is NOT NULL, so the
+        // insert died on an integrity violation that `DispatchesWebhooks`
+        // swallowed. Worse, `CurrentTenant` is a singleton rather than a scoped
+        // binding, so a worker still holds the previous job's tenant: the row
+        // was filed against whoever happened to be resolved last.
+        //
+        // The owning tenant is the webhook's own, which is itself tenant-owned.
         $delivery = WebhookDelivery::create([
+            'tenant_id' => $webhook->tenant_id,
             'webhook_id' => $webhook->id,
             'event' => $event,
             'payload' => $payload,

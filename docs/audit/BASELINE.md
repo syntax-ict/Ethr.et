@@ -770,6 +770,39 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 ---
 
+### 11c. The tenant-scope bypass audit — first pass **[2026-09-16]**
+
+Risk #11 recorded that `TenantScopeBypassInventoryTest` pins all 156 `withoutGlobalScope(s)` call sites but "does not audit the 156 that exist — that audit is still unowned". This is the first pass of it.
+
+**Method.** For every call site, read ±8 lines and ask whether a tenant predicate is stated or derived there — `tenant_id`, `tenant()`, `CurrentTenant`. **123 of 156 had one. 33 did not**, and all 33 were read individually.
+
+**Result: one real defect, and it was reachable.**
+
+| Verdict | Sites | Notes |
+|---|---|---|
+| Cross-tenant by design, behind `Gate::authorize('admin.manage')` | 12 | `AdminTenantController` ×7, `AdminDashboardController`, `PlatformAnalyticsService` ×3, plus the platform billing jobs' super-admin lookups |
+| Pre-authentication, where the presented secret *is* the authority | 4 | `ScimAuth` (API key hash), `PersonalAccessToken::tokenable()`, `SubdomainCheckController` (a signup availability check is global by definition), `EnsurePlatformContext` (asserts *no* tenant is resolved) |
+| Derived from a key that is itself tenant-owned | 12 | `PayrollEntry` by a `$run` already scoped by `tenant_id`; `Invoice` by `$subscription`; `Employee` by `$balance->employee_id`; the device-webhook resolver, already hardened by audit finding F-1 — a token authenticates, a serial only *selects* and needs an allowlisted source IP |
+| False positive of the ±8-line window | 1 | `EmployeeImporter` states its predicate 10 lines below the bypass |
+| **Defect** | **4** | `DispatchWebhookJob` / `WebhookDispatcher`, below |
+
+**What was wrong.** `WebhookDispatcher::queue()` wrote `WebhookDelivery::create()` with no `tenant_id`, leaving `BelongsToTenant::creating` to supply one from `CurrentTenant`. Two ways that fails, both measured:
+
+1. **A queue worker resolves no tenant.** `webhook_deliveries.tenant_id` is `foreignId()->constrained()` — NOT NULL — so the insert died on `SQLSTATE[23000]: NOT NULL constraint failed: webhook_deliveries.tenant_id`. The payload JSON being inserted *contained* `"tenant_id":1`; the correct value was in hand and simply never written to the column.
+2. **`CurrentTenant` is a `singleton`, not a `scoped` binding**, so it is not flushed between jobs. A worker still holds whatever the previous job set. Measured: dispatching for tenant 1 while tenant 2 was resolved filed the delivery **against tenant 2**.
+
+**Why nobody saw it.** `DispatchesWebhooks::webhook()` wrapped the call in `catch (\Throwable)` with an empty body — "never let webhook dispatch fail a business operation". That reasoning is right; the empty body is not. It swallowed an integrity violation that meant `payroll.processed` could never be delivered from a queued context at all, and logged nothing.
+
+**Reachable, not hypothetical.** `ProcessPayrollJob` uses the trait and dispatches `payroll.processed`. Its own comment says jobs "carry no HTTP tenant context, so the global scope would resolve to `whereRaw('0 = 1')`" — and it scopes its own `PayrollRun` lookup by hand because of it. The webhook path beneath it did not.
+
+**The read side had the same hole.** `DispatchWebhookJob::handle()` looked the delivery up through the global scope, so in a worker it resolved to `0 = 1`, found nothing, and returned through its `! $delivery` guard — indistinguishable from a delivery that had been deleted. The endpoint was never called.
+
+**Fixed.** `queue()` states `tenant_id` from the webhook, which is itself tenant-owned; the job re-applies the predicate by deriving from the webhook; the trait still suppresses the failure but logs it at `error`. `WebhookDeliveryTenantScopeTest` — 3 tests — fails on each half of the old behaviour. The inventory for `DispatchWebhookJob.php` moves 1 → 2, which is the gate working as designed.
+
+**What this pass does not claim.** The 123 sites with a nearby predicate were *not* individually audited. Having a predicate is necessary, not sufficient — it could be the wrong one. This pass covered the 33 that had none, which is where the one known prior defect (P0-1) would also have shown up.
+
+---
+
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**
 
 Third and fourth findings from the billing tests §12 flagged as missing.

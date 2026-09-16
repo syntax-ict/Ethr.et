@@ -35,7 +35,11 @@ The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate
 
 There are **156** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 53 files, counted 2026-09-16. Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
 
-`TenantScopeBypassInventoryTest` now pins that inventory per file and fails when a count moves, so **a new bypass cannot enter unnoticed**. Be clear about what that buys: it makes adding one a deliberate act, which is exactly what was missing when the shipped defect went in. It does **not** audit the 156 that already exist — a count cannot — and that audit is still unowned.
+`TenantScopeBypassInventoryTest` now pins that inventory per file and fails when a count moves, so **a new bypass cannot enter unnoticed**. Be clear about what that buys: it makes adding one a deliberate act, which is exactly what was missing when the shipped defect went in. It does **not** audit the ones that already exist — a count cannot.
+
+**A first pass of that audit ran on 2026-09-16** (`docs/audit/BASELINE.md` §11c). 123 of the 156 sites state or derive a tenant predicate within a few lines; the other **33 were read individually**. Twelve are platform-admin surfaces behind `admin.manage`, four are pre-authentication lookups where the presented secret is the authority, twelve derive from a key that is itself tenant-owned — and **four were a real defect**: `WebhookDispatcher` wrote delivery rows with no `tenant_id`, so a queue worker either violated a NOT NULL constraint or filed the row against whichever tenant the *previous* job had left resolved. `CurrentTenant` is a `singleton`, not a `scoped` binding, so it survives between jobs. Fixed, with tests that fail on each half.
+
+The 123 with a predicate were **not** individually audited. Having one is necessary, not sufficient.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
