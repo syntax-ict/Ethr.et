@@ -51,11 +51,14 @@ export const PLANS_SNAPSHOT_GENERATED_AT: number = Date.parse(
 /**
  * A limit column is nullable, and null means "no ceiling".
  *
- * `PlanSeeder` currently expresses Enterprise's ceiling as the sentinel
- * 999999/999/999 rather than null, so those render as literal numbers today —
- * truthful, since `PlanLimitService` enforces exactly those figures, but almost
- * certainly not what was meant. Switching the seeder to null is a data change
- * that needs no code change here, because this already handles it.
+ * That is now true of the schema as well as of this function.
+ * `PlanLimitService:53` has always returned null for an uncapped resource, and
+ * the API contract has always typed these columns nullable — but the columns
+ * themselves were NOT NULL, and `PlanSeeder` bridged the gap with a
+ * 999999/999/999 sentinel. Harmless while the figure stayed internal; less so
+ * once the public pricing page began rendering it as "Up to 999,999 employees".
+ * `make_plan_limits_nullable` and the seeder closed that, so a plan with no
+ * ceiling now says so.
  */
 export function isUnlimited(limit: number | null): boolean {
   return limit === null;
