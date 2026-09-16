@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -127,6 +128,8 @@ export default function DeviceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { t } = useT();
+  // Punch times render in the tenant's timezone, not the browser's — §12g.
+  const { formatTime } = useDateFormatters();
   const { id } = use(params);
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -609,14 +612,10 @@ export default function DeviceDetailPage({
                             {ev.date}
                           </span>,
                           <span key="ci" className="text-muted-foreground">
-                            {ev.check_in
-                              ? new Date(ev.check_in).toLocaleTimeString()
-                              : "—"}
+                            {ev.check_in ? formatTime(ev.check_in) : "—"}
                           </span>,
                           <span key="co" className="text-muted-foreground">
-                            {ev.check_out
-                              ? new Date(ev.check_out).toLocaleTimeString()
-                              : "—"}
+                            {ev.check_out ? formatTime(ev.check_out) : "—"}
                           </span>,
                           <Badge
                             key="s"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import {
   Activity,
   Clock,
@@ -66,6 +67,9 @@ interface IntelligenceResponse {
 }
 
 export default function AttendanceIntelligencePage() {
+  // Punch times render in the tenant's timezone, not the browser's — see
+  // BASELINE §12g.
+  const { formatTime } = useDateFormatters();
   const { t } = useT();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -258,9 +262,7 @@ export default function AttendanceIntelligencePage() {
                             {r.employee_name}
                           </span>,
                           <span key="ci" className="text-muted-foreground">
-                            {r.check_in
-                              ? new Date(r.check_in).toLocaleTimeString()
-                              : "—"}
+                            {r.check_in ? formatTime(r.check_in) : "—"}
                           </span>,
                           <span key="ss" className="text-muted-foreground">
                             {r.shift_start ?? "—"}
@@ -304,9 +306,7 @@ export default function AttendanceIntelligencePage() {
                               {r.employee?.name ?? "—"}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {r.check_out
-                                ? new Date(r.check_out).toLocaleTimeString()
-                                : "—"}
+                              {r.check_out ? formatTime(r.check_out) : "—"}
                             </span>
                           </div>
                         ))}
