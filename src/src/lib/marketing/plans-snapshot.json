@@ -10,11 +10,7 @@
       "max_employees": 10,
       "max_branches": 1,
       "max_devices": 2,
-      "features": [
-        "attendance",
-        "leave",
-        "employee_management"
-      ],
+      "features": ["attendance", "leave", "employee_management"],
       "sort_order": 1
     },
     {
