@@ -477,6 +477,29 @@ That is the next step, and it should be the *first* step. Four hypotheses were t
 
 **Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
 
+### 12f. Frontend coverage — first measurement **[verified 2026-09-16]**
+
+```
+$ cd src && npx vitest run --coverage --coverage.reporter=text-summary
+  Test Files  70 passed (70)
+       Tests  435 passed (435)
+
+  Statements   : 32.34% ( 15287/47260 )
+  Branches     : 69.81% ( 1781/2551 )
+  Functions    : 58.97% ( 700/1187 )
+  Lines        : 32.34% ( 15287/47260 )
+```
+
+**321 files in the report, and 170 of them at 0%** — better than half the frontend is never imported by any test. That is the number worth carrying, more than the percentage: the 32% is diluted by large files partially touched, while the 170 are untouched entirely.
+
+The denominator is honest. Vitest 2's `coverage.all` counts files no test imports, which is why the zero-coverage files appear at all; a report that only counted imported files would have shown a much higher and much less useful figure.
+
+Branches at 69.81% against statements at 32.34% is the expected shape: the code that *is* exercised is exercised fairly thoroughly, and the gap is breadth, not depth.
+
+Needed `@vitest/coverage-v8`, pinned to `2.1.9` to match `vitest` — the provider and the runner are versioned together. No extension, unlike the backend (§12e).
+
+**Not wired into `scripts/gates.sh`.** It roughly doubles the frontend gate's wall time (127s against ~60s), and a threshold set at today's 32% would be a number nobody chose. Run it deliberately, the way `security` and `performance` are run.
+
 ### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
 
 Risk 10 is "no coverage instrumentation". The obvious dodge is `phpdbg`, which ships with XAMPP and historically produced coverage without installing anything:
@@ -634,7 +657,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | Medium — **blocked on a PHP extension**, see §12e |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend still blocked on PCOV or Xdebug (§12e) |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |

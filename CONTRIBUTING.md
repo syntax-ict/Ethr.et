@@ -104,6 +104,17 @@ before believing a green run.
   those two as testsuites; `tests/Performance` is deliberately outside them
   because it holds benchmarks, not gates.
 - Frontend: Vitest + MSW in `src/src/test/`, Playwright in `src/e2e/`.
+- Frontend coverage, run deliberately rather than as a gate — it roughly doubles
+  the frontend gate's wall time:
+
+  ```bash
+  cd src && npx vitest run --coverage
+  ```
+
+  Baseline 2026-09-16: **32.34% statements, and 170 of 321 files at 0%** — better
+  than half the frontend is never imported by a test. See `docs/audit/BASELINE.md`
+  §12f. Backend coverage needs PCOV or Xdebug installed and is not currently
+  possible; `phpdbg` looks like a way round it and is not (§12e).
 - Helpers `createTenant()`, `createUser()`, `actingAsUser()` and
   `selfieDataUrl()` live in `api/tests/Pest.php`.
 
