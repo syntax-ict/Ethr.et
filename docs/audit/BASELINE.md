@@ -447,7 +447,7 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 4. **Six different test counts across seven documents** — 954 / 1328 / 1330 / 1647 / 1652 / 1669. Only `docs/security-audit.md` carries a `Last reviewed:` stamp, and it is the most stale.
 5. **Ten dead cross-references**, including a live markdown link at `README.md:122` to `ETHR_AUDIT_2026-08-14.md`, and a `docs/audits/` directory cited twice that has never existed.
 6. **`docs/security-audit.md` prescribes `vendor/bin/pest` directly** — the command `README.md` documents as silently collecting 22 of 132 test classes and exiting green.
-7. **Stack-table drift** — `docs/CLAUDE.md` says Next.js 15; the lockfile says 16.
+7. ~~**Stack-table drift** — `docs/CLAUDE.md` says Next.js 15; the lockfile says 16.~~ **Fixed 2026-09-16.** Both occurrences now read 16. The version was the smaller half of the problem: the same "v1.0 — Locked" table still lists Redis, Horizon, Reverb and MinIO, none of which are deployed to the shared-hosting target, and calls the infrastructure "Ethiopian VPS". The table is kept — it *is* the locked v1.0 specification — with a preamble naming each row that no longer ships and pointing at the decision that retired it.
 8. **`docs/phases/` (252 KB) is self-declared unmaintained** by `README.md`, and still shipped.
 9. **No `docs/README.md` index** for 53 files; `README.md` maps 8 of them.
 10. **Master plan §5's repository identity block is wrong for this tree** (§1a).
