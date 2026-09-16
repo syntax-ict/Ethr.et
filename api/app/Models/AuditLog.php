@@ -77,8 +77,27 @@ class AuditLog extends Model
             $payload['impersonated_by'] = $impersonatorId;
         }
 
+        $tenantId = $tenant->id();
+
+        // A queue worker resolves no tenant, and `audit_log.tenant_id` is
+        // nullable — so the insert succeeded and the row was written with no
+        // owner. Not a missing entry: an entry the tenant cannot see, because
+        // their audit view scopes by `tenant_id` and NULL never matches, while
+        // the platform view shows it unattributed. `ProcessPayrollJob` records
+        // `payroll.processed` and `payroll.failed` that way, which are close to
+        // the most audit-relevant events this product has.
+        //
+        // The auditable is already here and already carries the owner, so this
+        // corrects all 206 call sites without touching one of them. A resolved
+        // tenant still wins, and an action with no auditable stays unowned
+        // rather than having an owner invented for it.
+        if ($tenantId === null && $auditable !== null) {
+            $ownerId = $auditable->getAttribute('tenant_id');
+            $tenantId = is_int($ownerId) ? $ownerId : null;
+        }
+
         return self::create([
-            'tenant_id' => $tenant->id(),
+            'tenant_id' => $tenantId,
             'user_id' => $user?->id,
             'action' => $action,
             'auditable_type' => $auditable ? get_class($auditable) : null,

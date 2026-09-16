@@ -833,6 +833,15 @@ Both are fixed and pinned — `WebhookDeliveryTenantScopeTest` (4) and `QueuedLi
 
 That asymmetry follows from the design. `BelongsToTenant` fails closed, so getting the context wrong usually loses the operation rather than exposing it — and a lost operation has nothing to report itself. It is the quieter failure, and therefore the one that survives longest.
 
+**The same question, asked of the audit trail.** `AuditLog::record()` takes its tenant from `CurrentTenant` and nothing else. `audit_log.tenant_id` is **nullable**, so with no tenant resolved the insert succeeds and the row is written with no owner — no error, no warning, nothing to notice.
+
+The consequence is not a missing row. It is a row **the tenant cannot see**: their audit view scopes by `tenant_id` and NULL never matches, while the platform-admin view (`withoutGlobalScopes()`) shows it unattributed. Two call sites reach `record()` from a context with no tenant, and the first is the one that matters:
+
+- **`ProcessPayrollJob`** — `payroll.processed` and `payroll.failed`. In an HCM product those are close to the most audit-relevant events there are, and both were landing unowned.
+- **`BackupRehearsalCommand`** — a console command, same shape.
+
+`record()` already receives the auditable model, and that model carries the tenant. Using it when the context has none corrects **all 206 call sites without touching one of them**, in the same shape as the timezone default: a correct fallback rather than 206 edits. A resolved tenant still wins, and a platform action with no auditable stays unowned rather than having an owner invented for it — `AuditLogTenantAttributionTest` pins all four cases, and the two controls passed before the change as well as after, which is what makes the other two meaningful.
+
 ---
 
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**
