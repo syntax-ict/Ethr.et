@@ -166,9 +166,10 @@ class Employee extends Model
      * single tenant; revisit this if a tenant approaches that, and see
      * `docs/audit/BASELINE.md` §13f for the numbers.
      *
-     * The `emp_search` FULLTEXT index is now unused. Dropping it is a migration
-     * and a separate change; until then it costs write throughput and nothing
-     * else.
+     * The `emp_search` FULLTEXT index this used to rely on was dropped on
+     * 2026-09-16 (`2026_09_16_000001_drop_employee_fulltext_index`), so there is
+     * no index behind this scope on any driver — the `LIKE` scan is the whole
+     * implementation.
      *
      * Amharic is **not** a reason for this change. An earlier draft of the
      * baseline claimed Ethiopic terms returned nothing through FULLTEXT; that
