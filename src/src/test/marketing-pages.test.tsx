@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LandingContent } from "@/app/landing-content";
 import { PricingContent } from "@/app/(marketing)/pricing/pricing-content";
 import { FaqContent } from "@/app/(marketing)/faq/faq-content";
 
-// Marketing pages are pure presentational client components: they only depend on
+// Landing and FAQ are pure presentational client components: they depend only on
 // the i18n layer (en is registered in the test setup) and next/link, both of
-// which work in jsdom. No router or network is involved.
+// which work in jsdom.
+//
+// Pricing is no longer one of them. It reads the plan catalog from the API, so
+// it needs a QueryClient — see `renderPricing` below.
 
 describe("Landing page", () => {
   it("renders every headline section (S06)", () => {
@@ -52,8 +56,29 @@ describe("Landing page", () => {
 });
 
 describe("Pricing page", () => {
-  it("shows all three plan tiers with the popular flag (S06)", () => {
-    render(<PricingContent />);
+  /**
+   * The pricing page now reads the plan catalog from `GET /api/v1/plans`, so it
+   * needs a QueryClient where it previously needed nothing. In the app that
+   * comes from the root `Providers`; here it is supplied per test.
+   *
+   * No request is stubbed on purpose. The point of the build-time snapshot is
+   * that the page renders real prices with no network at all — which is what a
+   * crawler gets — so a test that had to mock the API would be testing the
+   * wrong path.
+   */
+  function renderPricing() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <PricingContent />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("renders every plan in the catalog, priced from the database (S06)", () => {
+    renderPricing();
 
     expect(
       screen.getByRole("heading", { name: "Starter" }),
@@ -65,16 +90,48 @@ describe("Pricing page", () => {
       screen.getByRole("heading", { name: "Enterprise" }),
     ).toBeInTheDocument();
 
-    // Professional is flagged as the popular tier.
-    expect(screen.getByText("Most Popular")).toBeInTheDocument();
+    // The catalog prices, not the literals the page used to carry. It advertised
+    // "2,500" for Professional while `plans.price_cents` said 99900 — and
+    // BillingService bills price_cents, so the advertised figure was never the
+    // charged one. These assertions are what stop that drifting back.
+    expect(screen.getByText("999")).toBeInTheDocument();
+    expect(screen.getByText("2,999")).toBeInTheDocument();
+    expect(screen.getByText("Free")).toBeInTheDocument();
+  });
 
-    // Two "Start Free Trial" CTAs (Starter + Professional) and one "Contact Sales".
-    expect(screen.getAllByText("Start Free Trial")).toHaveLength(2);
-    expect(screen.getByText("Contact Sales")).toBeInTheDocument();
+  it("renders the limits the product actually enforces", () => {
+    renderPricing();
+
+    // PlanLimitService enforces these. The old page promised "up to 50" for
+    // Starter and "up to 200" for Professional — five and two times the real
+    // ceilings, which a customer would discover on the day they hit one.
+    expect(screen.getByText("Up to 10 employees")).toBeInTheDocument();
+    expect(screen.getByText("Up to 100 employees")).toBeInTheDocument();
+    expect(screen.getByText("Up to 20 devices")).toBeInTheDocument();
+
+    // Starter allows exactly one branch. "Up to 1 branches" is the plural bug
+    // that a count-interpolated string gets wrong on the very first card.
+    expect(screen.getByText("1 branch")).toBeInTheDocument();
+
+    // A null limit is "no ceiling" — PlanLimitService:53 returns null and every
+    // caller honours it. The seeder used to express this as 999999, which the
+    // page duly advertised as "Up to 999,999 employees".
+    expect(screen.getByText("Unlimited employees")).toBeInTheDocument();
+    expect(screen.queryByText(/999,999/)).not.toBeInTheDocument();
+  });
+
+  it("translates capability keys rather than printing them raw", () => {
+    renderPricing();
+
+    // `plans.features` holds PlanFeature enum values — "api_access", not a
+    // sentence. The dashboard renders them raw; a public page must not.
+    expect(screen.getByText("API access")).toBeInTheDocument();
+    expect(screen.queryByText("api_access")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Payroll processing").length).toBeGreaterThan(0);
   });
 
   it("renders the FAQ accordion", () => {
-    render(<PricingContent />);
+    renderPricing();
     expect(
       screen.getByRole("heading", { name: "Frequently Asked Questions" }),
     ).toBeInTheDocument();

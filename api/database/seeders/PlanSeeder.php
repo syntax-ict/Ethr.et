@@ -36,9 +36,15 @@ class PlanSeeder extends Seeder
                 'name' => 'Enterprise',
                 'slug' => 'enterprise',
                 'price_cents' => 299900,
-                'max_employees' => 999999,
-                'max_branches' => 999,
-                'max_devices' => 999,
+                // null, not a 999999 sentinel: PlanLimitService:53 returns
+                // null for "no ceiling" and every caller already honours it, so
+                // the sentinel was never enforcement — just a number large
+                // enough to look like infinity. It stopped being harmless when
+                // the public pricing page began reading these columns and
+                // advertised "Up to 999,999 employees".
+                'max_employees' => null,
+                'max_branches' => null,
+                'max_devices' => null,
                 'features' => ['attendance', 'leave', 'employee_management', 'payroll', 'reports', 'notifications', 'api_access', 'webhooks', 'custom_reports', 'audit_log'],
                 'sort_order' => 3,
             ],
