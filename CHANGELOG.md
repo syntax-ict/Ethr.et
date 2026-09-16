@@ -96,6 +96,14 @@ shared-hosting migration in more detail than belongs here.
   against a 100ms budget. See `docs/decisions/DECISIONS.md` D-012 and
   `docs/audit/BASELINE.md` §13f.
 
+- **A test failed every Wednesday.** `NotificationDispatchTest`'s leave-request
+  case asked for `now()->addDays(10)` to `addDays(11)`. That range is
+  Saturday–Sunday exactly when today is a Wednesday, and the endpoint rejects a
+  request containing no working day — `"The selected dates do not include any
+  working days."` One day in seven, on both drivers, since the day it was
+  written; found on 2026-09-16, which was one. Now pinned to a Monday and the
+  Tuesday after it, verified across all seven weekdays with `Carbon::setTestNow`.
+
 - **A test passed an Employee id where a User id was required, and SQLite hid
   it.** `WriteEndpointSmokeTest` built a `SavedReport` with `created_by =>
   $employee->id`; that column is a foreign key to `users`. It was green because
