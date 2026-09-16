@@ -22,6 +22,7 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductFlow } from "@/components/marketing/product-flow";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { useT } from "@/lib/i18n/useT";
@@ -129,6 +130,12 @@ export function LandingContent() {
                   "6-month free trial · No credit card required",
                 )}
               </p>
+            </div>
+
+            {/* The hero was text-only: it asserted "offline-first" and asked the
+                visitor to take it on faith. This shows the claim instead. */}
+            <div className="mt-14 sm:mt-16">
+              <ProductFlow />
             </div>
           </div>
         </section>
