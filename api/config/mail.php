@@ -110,6 +110,20 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Contact Inbox
+    |--------------------------------------------------------------------------
+    |
+    | Where public contact-form enquiries are announced. Null is a supported
+    | state, not a misconfiguration: the lead is persisted either way, and the
+    | row is the record. ContactController logs when no inbox is set so the
+    | silence is discoverable rather than mysterious.
+    |
+    */
+
+    'contact_inbox' => env('CONTACT_INBOX'),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),

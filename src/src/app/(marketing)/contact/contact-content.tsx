@@ -37,6 +37,10 @@ export function ContactContent() {
       phone: form.get("phone") as string,
       organization: form.get("organization") as string,
       message: form.get("message") as string,
+      // Honeypot. Empty for a person, filled by a form-filler bot; the API
+      // answers 201 either way and simply does not store the submission, so a
+      // bot cannot learn which field gave it away.
+      website: form.get("website") as string,
     };
 
     try {
@@ -209,6 +213,25 @@ export function ContactContent() {
                         <Input name="organization" />
                       </FormField>
                     </div>
+                    {/* Off-screen rather than `display: none` — a bot that
+                        skips hidden inputs would sail past a display:none trap,
+                        and this one is still unreachable by tab, invisible to
+                        screen readers, and never autofilled. */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -left-[9999px] h-px w-px overflow-hidden"
+                    >
+                      <label htmlFor="website">Website</label>
+                      <input
+                        id="website"
+                        name="website"
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        defaultValue=""
+                      />
+                    </div>
+
                     <FormField
                       id="message"
                       label={t("marketing.contact.message", "Message")}

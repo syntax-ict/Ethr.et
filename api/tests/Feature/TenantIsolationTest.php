@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\FeatureFlag;
+use App\Models\Lead;
 use App\Models\OrganizationTemplate;
 use App\Models\OtpCode;
 use App\Models\Permission;
@@ -30,6 +31,12 @@ const GLOBAL_MODELS = [
     OrganizationTemplate::class, // global industry template catalogue
     PersonalAccessToken::class,  // Sanctum's own table
     PlatformSetting::class,      // super-admin settings; every tenant reads the same row
+    // Unlike every other entry here, this one is not a catalogue tenants read.
+    // A lead comes from a prospect, so there is no tenant to own the row and no
+    // tenant that should ever see it: the missing tenant_id is an absent owner,
+    // not shared access. Nothing reads the table today; any future read path
+    // belongs behind admin.manage on the platform host.
+    Lead::class,                 // public contact-form enquiries; platform-only
     // Both hang off `user_id` and their tables carry no `tenant_id`. A user
     // belongs to exactly one tenant, so keying on the user is strictly narrower
     // than keying on the tenant — there is no query in either model's access path
