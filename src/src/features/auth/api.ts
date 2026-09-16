@@ -11,6 +11,12 @@ interface MeResponse {
     name: string;
     subdomain: string;
     status: string;
+    /**
+     * IANA zone the tenant displays timestamps in, e.g. `Africa/Addis_Ababa`.
+     * `TenantResource` has always sent this; the type simply did not declare
+     * it, so nothing on the frontend could use it. See BASELINE §12g.
+     */
+    timezone?: string | null;
     logo_path?: string | null;
     theme?: {
       primary_color?: string;

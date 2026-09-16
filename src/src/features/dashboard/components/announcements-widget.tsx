@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, Megaphone, AlertTriangle, Info } from "lucide-react";
-import { timeAgo } from "@/lib/utils/date";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { cn } from "@/lib/utils";
 import { WidgetError } from "./widget-error";
 
@@ -34,6 +34,7 @@ const priorityConfig = {
 };
 
 export function AnnouncementsWidget() {
+  const { timeAgo } = useDateFormatters();
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useAnnouncements({ page: 1 });
 

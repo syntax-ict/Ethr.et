@@ -17,7 +17,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { timeAgo } from "@/lib/utils/date";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { WidgetError } from "./widget-error";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,7 @@ const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string }> = {
 };
 
 export function RecentActivity() {
+  const { timeAgo } = useDateFormatters();
   const { t } = useT();
   const { data, isLoading, isError, refetch } = useNotifications({ page: 1 });
 

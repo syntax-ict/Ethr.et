@@ -477,7 +477,30 @@ That is the next step, and it should be the *first* step. Four hypotheses were t
 
 **Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
 
-### 12g. The frontend renders timestamps in the browser's timezone, not EAT **[verified 2026-09-16 — decision required]**
+### 12g. The frontend rendered timestamps in the browser's timezone **[found and FIXED 2026-09-16]**
+
+> **Resolved.** The requirement was already settled in planning and is not an open question: **ETHR displays timestamps in the tenant's configured IANA timezone, defaulting to `Africa/Addis_Ababa`.** UTC remains the storage and transport baseline; conversion happens at the display boundary. An earlier draft of this section framed it as a product decision — it was not one, and that framing is corrected here rather than deleted.
+>
+> **What was implemented**
+>
+> | | |
+> |---|---|
+> | `lib/utils/date.ts` | Every formatter takes an optional IANA `timeZone`, defaulting to `DEFAULT_TIMEZONE` = `Africa/Addis_Ababa`. `resolveTimeZone()` validates it against `Intl` and falls back rather than throwing. |
+> | `lib/hooks/useTenantTimezone.ts` | `useTenantTimezone()` and `useDateFormatters()` read `tenant.timezone` from the **existing** `/auth/me` TanStack query. |
+> | `features/auth/api.ts` | `tenant.timezone` declared on `MeResponse`. |
+> | 3 call sites | attendance page, announcements widget, recent activity — migrated to the hook. |
+>
+> **No new request, no provider, no prop drilling.** `TenantResource` has always returned `timezone`; the frontend type simply never declared it, so nothing could use it. That is why this is a contained change rather than a refactor.
+>
+> **Pure functions stay pure.** The zone is a parameter with a correct default, not injected context — so a call site that has not been migrated still renders Addis time rather than falling back to the host clock. That property is what makes this safe to land incrementally.
+>
+> **No fixed offset anywhere.** Zones are IANA names, never `+03:00`. Addis does not observe DST, but the tenant zone is configurable and other zones do; two tests pin a DST transition (`Europe/London` in January vs July) to keep it that way.
+>
+> **Determinism.** The tests set no `TZ`. They pass identically under `Africa/Nairobi` (this machine, UTC+3), `UTC` (CI) and `America/New_York` — verified by running all three. Removing the `timeZone` option, i.e. reverting to the old behaviour, fails **9 of 20**.
+>
+> **Still to migrate:** other surfaces that format dates inline rather than through these helpers — schedules, shifts, payroll dates, reports, notification and audit displays. The default makes them render Addis time today instead of the browser's, so they are correct for the common case; they become tenant-aware as each is moved onto `useDateFormatters()`.
+
+The original finding follows, for the record.
 
 Convention #2 is "Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3)."
 
