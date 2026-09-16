@@ -418,7 +418,14 @@ app/Http/Controllers/Api/V1/Auth/PasswordResetController.php:149  PasswordBroker
 | Local `vendor/` drifted from `composer.lock` | compared installed vs lock | identical — larastan v3.10.0, phpstan 2.2.2, framework v12.64.0, php-parser v5.8.0 |
 | Stale PHPStan result cache | `clear-result-cache`, re-ran | `[OK] No errors` |
 
-Remaining untested differences: PHP patch version (local 8.2.12 via XAMPP vs whatever `shivammathur/setup-php` resolves for 8.2), and Windows vs Linux — the latter including path case-sensitivity, which matters because every `path:` in `phpstan-baseline.neon` is matched case-insensitively here and case-sensitively there. **That last one is the most likely candidate and has not been checked.**
+| Path case-sensitivity in `phpstan-baseline.neon` | walked all **150** distinct `path:` entries, comparing each component against the real directory listing with exact string equality | every one resolves with exact case — **not the cause** |
+| Laravel using a cached config, making the `.env` test meaningless | checked `bootstrap/cache/` | only `packages.php` and `services.php`, no `config.php`; the `.env` test above stands |
+
+Case-sensitivity was written here as "the most likely candidate" before it was checked. It was checked, and it is wrong. Recorded rather than edited away, because a plausible-sounding untested hypothesis is exactly what this section exists to warn against.
+
+**Still untested:** PHP patch version (local 8.2.12 via XAMPP; `shivammathur/setup-php` resolves `8.2` to its newest patch) and Windows vs Linux generally.
+
+The likeliest remaining mechanism, offered as a hypothesis and labelled as one: Larastan boots the application to resolve a facade to its container binding. Resolved that way, `Password::broker()` goes through `PasswordBrokerManager::broker()`, whose body returns a concrete `Illuminate\Auth\Passwords\PasswordBroker` — which has the three methods. If the boot fails or is skipped, Larastan falls back to the facade's `@method` docblock, which names the *contract* — which does not. That would produce exactly this split. **Untested.**
 
 The four findings themselves are true on both platforms and were fixed on their merits (`app/Support/PasswordTokens.php`) — `Illuminate\Contracts\Auth\PasswordBroker` genuinely declares only `sendResetLink()` and `reset()`. But **the divergence means a green local PHPStan does not imply a green CI PHPStan**, which is worth knowing before trusting either.
 
