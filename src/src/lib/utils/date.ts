@@ -1,30 +1,101 @@
-export function formatDate(dateStr: string): string {
+/**
+ * Tenant-timezone-aware date rendering.
+ *
+ * Convention #2: timestamps are stored and transported in UTC, and displayed in
+ * the tenant's configured timezone. `Africa/Addis_Ababa` is the default when a
+ * tenant has not set one — it is the default on `tenants.timezone` in the
+ * database too, so the two agree.
+ *
+ * Until 2026-09-16 none of these functions passed a `timeZone` at all, so every
+ * timestamp in the product rendered in whatever zone the *browser* happened to
+ * be in. A check-in stored as 05:30Z showed as 08:30 in Addis and 05:30 in UTC,
+ * for the same employee on the same shift. It went unnoticed because users are
+ * in Ethiopia and their browsers agreed with the intent. See
+ * `docs/audit/BASELINE.md` §12g.
+ *
+ * ## Why a parameter with a default, rather than a context
+ *
+ * These stay pure functions. The default makes every existing call site correct
+ * without being touched, and a caller that knows the tenant — via
+ * `useTenantTimezone()` or `useDateFormatters()` — passes it explicitly. Nothing
+ * needs a provider, and nothing silently falls back to the host clock.
+ *
+ * ## No fixed offset
+ *
+ * The zone is an IANA name, never `+03:00`. Addis does not observe DST, but the
+ * tenant timezone is configurable and other zones do; an offset would be wrong
+ * twice a year for them and would need changing if Ethiopia ever adopted one.
+ */
+export const DEFAULT_TIMEZONE = "Africa/Addis_Ababa";
+
+/**
+ * A tenant timezone that `Intl` will accept, or the default.
+ *
+ * `Intl.DateTimeFormat` throws `RangeError` on an unknown `timeZone`, so an
+ * invalid or stale value stored against a tenant would otherwise break every
+ * date on every screen. Falling back is the right failure: a slightly wrong
+ * clock is recoverable, a crashed dashboard is not.
+ */
+export function resolveTimeZone(timeZone?: string | null): string {
+  if (!timeZone) return DEFAULT_TIMEZONE;
+
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone });
+    return timeZone;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
+export function formatDate(
+  dateStr: string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   return new Date(dateStr).toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: resolveTimeZone(timeZone),
   });
 }
 
-export function formatDateTime(dateStr: string): string {
+export function formatDateTime(
+  dateStr: string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   return new Date(dateStr).toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: resolveTimeZone(timeZone),
   });
 }
 
-export function formatTime(dateStr: string): string {
+export function formatTime(
+  dateStr: string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   return new Date(dateStr).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: resolveTimeZone(timeZone),
   });
 }
 
-export function timeAgo(dateStr: string): string {
+/**
+ * Elapsed time, which is zone-independent until it gives up and shows a date.
+ *
+ * The thresholds work on a millisecond difference, so no zone is involved. Only
+ * the fallback past thirty days renders an actual date, and that one needs the
+ * tenant zone like everything else.
+ */
+export function timeAgo(
+  dateStr: string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 1) return "just now";
@@ -34,5 +105,5 @@ export function timeAgo(dateStr: string): string {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
   if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
-  return formatDate(dateStr);
+  return formatDate(dateStr, timeZone);
 }

@@ -55,10 +55,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
-import { formatTime } from "@/lib/utils/date";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { toast } from "sonner";
 
 export default function AttendancePage() {
+  const { formatTime } = useDateFormatters();
   const { t } = useT();
   const [page, setPage] = useState(1);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
