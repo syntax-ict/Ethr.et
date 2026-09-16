@@ -487,8 +487,8 @@ if [[ ${#FAILED[@]} -gt 0 ]]; then
                 printf '::error title=Gate failed: %s::%s%%0A%%0A%s%%0A%%0A--- tail ---%%0A%s\n' \
                     "$gate" \
                     "$gate" \
-                    "$(grep -aE '^\s*(FAIL|×|⨯|✕)|Tests:|Test Files' "$local_capture" \
-                        | sed 's/\x1b\[[0-9;]*m//g' \
+                    "$(sed 's/\x1b\[[0-9;]*m//g' "$local_capture" \
+                        | grep -aE '(FAIL|✕|×|⨯|⨉)|Tests:|Test Files' \
                         | head -n 40 \
                         | sed 's/%/%25/g' \
                         | sed ':a;N;$!ba;s/\n/%0A/g')" \
