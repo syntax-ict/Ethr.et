@@ -53,8 +53,11 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 
 `security` is deliberately outside the full sweep, like `performance`. It goes
 red when a third party publishes an advisory, not when you break something, and
-a gate that is permanently red stops being read. **It is red right now** — see
-`docs/audit/BASELINE.md` §15.
+a gate that is permanently red stops being read. **It is green as of 2026-09-16**
+— `npm audit --omit=dev` reports 0 vulnerabilities and `composer audit` is
+clean. It was red from the day it was added; see `docs/audit/BASELINE.md` §15a
+for what closed it. Expect it to go red again without warning, because that is
+what this gate is for.
 
 `mysql` is outside it too, for a different reason: it needs a database server,
 and the full sweep has to stay runnable on a fresh clone. **It fails rather than

@@ -666,9 +666,27 @@ Five tests, and the first two were **proven to fail before the fix** ("a second 
 
 ---
 
-### 15a. Frontend dependency advisories — amended 2026-09-15
+### 15a. Frontend dependency advisories — amended 2026-09-15, **closed 2026-09-16**
 
-`scripts/gates.sh security` was added in Phase 2 and is **red on first run**.
+> **The production half of this gate is now green.** `npm audit --omit=dev` reports **0 vulnerabilities**, and `scripts/gates.sh security` passes both halves for the first time.
+>
+> The two criticals went on 2026-09-15 with the `next` 16.2.12 → 16.3.5 upgrade (`ae52e08`). The remaining three — `browserslist`, `fast-uri` and `baseline-browser-mapping` — went on 2026-09-16 via `npm audit fix`, which moved five transitive packages by patch or minor and nothing else:
+>
+> | Package | From | To |
+> |---|---|---|
+> | `baseline-browser-mapping` | 2.10.40 | 2.11.24 |
+> | `browserslist` | 4.28.4 | 4.29.0 |
+> | `caniuse-lite` | 1.0.30001799 | 1.0.30001810 |
+> | `electron-to-chromium` | 1.5.380 | 1.5.430 |
+> | `fast-uri` | 3.1.5 | 3.1.8 |
+>
+> All three arrived transitively through `@sentry/nextjs`'s webpack and babel chain, so they are **build-time** tools rather than code that reaches a browser. That lowers the exposure; it does not change that the fix was in range and free.
+>
+> The lockfile change is 26 insertions and 26 deletions — pure version swaps, no package added or removed. Verified with `npm ci` (which also proves the lockfile installs cleanly, as CI does) followed by all five frontend gates.
+>
+> The text below is the state before that, kept because point 2 is a standing lesson about revisit conditions.
+
+`scripts/gates.sh security` was added in Phase 2 and was **red on first run**.
 
 **Production dependencies: 5 advisories (1 critical, 3 high, 1 moderate)** — these ship to users:
 
