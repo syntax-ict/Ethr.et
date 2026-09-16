@@ -452,6 +452,29 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 9. **No `docs/README.md` index** for 53 files; `README.md` maps 8 of them.
 10. **Master plan §5's repository identity block is wrong for this tree** (§1a).
 
+### 12d. The Frontend CI job fails and does not reproduce locally **[open]**
+
+CI run #56 (2026-09-16, `49e2ee9`): the `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` job exits 1 after 2m 23s, with no file-level annotations — only "Process completed with exit code 1".
+
+Locally the same gate passes in the **exact CI shape**, meaning with no `.next/` directory present at all:
+
+```
+✓ i18n   ✓ Prettier   ✓ ESLint   ✓ TypeScript (tsc)   ✓ Vitest (70 files, 435 tests)
+```
+
+Ruled out by direct test:
+
+| Hypothesis | Test | Result |
+|---|---|---|
+| `tsc` needs `.next/types`, absent on a clean checkout | deleted `.next/` entirely, ran the gate | passes — `tsc_gate`'s `next typegen` step handles it |
+| Node engine incompatibility (CI pins Node 20, local is 24) | read `engines` from next/eslint/typescript/vitest | all declare ≥20.9 or lower; `setup-node` "20" satisfies every one |
+| `node_modules` drifted from the lockfile | `npm ls --depth=0`, then a full `npm ci` | only extraneous `sharp` WASM fallbacks; nothing missing or invalid |
+| Import path case-sensitivity (Linux resolves case-sensitively, Windows does not) | resolved **1,850** imports — 115 relative and 1,735 `@/` alias — comparing every path component against the real directory listing with exact string equality | zero mismatches, zero unresolved |
+
+**Not yet read: the CI log itself.** The repository is public, but job logs are not available to an anonymous client — the REST API returns 403, `…/checks/<id>/logs` returns 404, and GitHub's log viewer does not expand steps for a signed-out viewer. Reading it needs a signed-in session.
+
+That is the next step, and it should be the *first* step. Four hypotheses were tested and all four were wrong; a fifth guess is worth less than one look at the output. Recorded here so the work is not repeated.
+
 ---
 
 ## 13. Known blockers
