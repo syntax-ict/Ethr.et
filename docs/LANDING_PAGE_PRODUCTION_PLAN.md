@@ -2,6 +2,12 @@
 
 **Prepared:** 2026-09-16 · **Scope:** the unauthenticated public site — `/`, `/features`, `/pricing`, `/faq`, `/contact`, and the header and footer they share.
 
+> ### Audited 2026-09-16 — read this first
+>
+> This document was audited after publication and **was wrong in nine places**, one of which had already shipped. The corrections, the evidence, and three findings it missed entirely are in [`PLATFORM_MANAGED_CONTENT_PLAN.md`](PLATFORM_MANAGED_CONTENT_PLAN.md) §6.
+>
+> Most consequentially: **F10 below is false** — `e2e/ux-audit.spec.ts:78-87` does visit all five public pages. And the premise of the content half is superseded: the fabricated claims are not a copy problem to fix in place, they are facts that should never have been code. See that document instead.
+
 **Method, stated up front because this repository has been burned by the alternative:** every finding below was read out of the source, and the file and line are given so it can be checked. **None of it was measured against a build.** `src/node_modules` is not installed in the session this was written in, so no `next build` ran, no HTML was inspected, no Lighthouse score was taken. Where a finding depends on what the build actually emits — F1 above all — the plan's first step is to build and read the output, not to start fixing.
 
 That distinction is the whole point of [`audit/BASELINE.md`](audit/BASELINE.md), and this document is not exempt from it. Nothing here is tagged `[verified]`.

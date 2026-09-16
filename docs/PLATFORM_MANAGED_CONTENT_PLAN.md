@@ -1,0 +1,207 @@
+# Platform-Managed Public Content — what the admin owns, and how
+
+**Prepared:** 2026-09-16 · **Supersedes the content half of** [`LANDING_PAGE_PRODUCTION_PLAN.md`](LANDING_PAGE_PRODUCTION_PLAN.md), whose premise was that the public site's copy should be corrected in place. It should not be corrected in place. It should stop being code.
+
+**Method, same rule as every document in this tree:** everything below was read out of the source, with the file and line given so it can be checked. Nothing was measured against a running build. Nothing is tagged `[verified]`.
+
+---
+
+## The argument, in one paragraph
+
+The public site states facts about the business — prices, limits, a phone number, a logo, a tagline, how many customers there are. Every one of them is currently a literal in a component or a translation key. A fact in a component has no owner, no audit trail, and no way to be corrected by the person who actually knows it. That is why the pricing page advertises numbers the product will refuse to honour, and why a fabricated customer count has survived in two languages. **The fix is not better copy. It is moving the facts to where facts belong.**
+
+This repository already made this exact argument once and acted on it. `2026_08_01_000002_create_platform_settings_table.php` exists because the bank account tenants pay into *"lived as literal JSX in the billing page — a placeholder account number … shipped in the browser bundle, with the bank name stored as a translation key, so the payment destination could differ between the English and Amharic UI."* Every word of that applies to `info@ethr.et` and `+251 11 123 4567` today.
+
+---
+
+## 1. What the platform admin should control
+
+### Already in the database, and already exposed — just never connected
+
+| Fact | Where it lives | Status |
+|---|---|---|
+| Plan prices | `plans.price_cents` | `GET /api/v1/plans` is **public and unauthenticated**, typed in `src/src/api/generated.ts`, wrapped by `usePlans()` in `features/billing/api.ts` |
+| Plan limits | `plans.max_employees` / `max_branches` / `max_devices` | Same endpoint. These are the limits `PlanLimitService` actually enforces |
+| Plan capabilities | `plans.features` (JSON, `App\Enums\PlanFeature`) | Same endpoint. Gates real routes via `RequiresPlanFeature` |
+| Plan ordering / visibility | `plans.sort_order`, `plans.is_active` | Same endpoint |
+| Trial length | `AuthService.php:49` — `now()->addMonths(6)` | Hardcoded, but real |
+
+**The pricing page uses none of it.** `pricing-content.tsx:70` hardcodes `priceText: "2,500"` and lines 9-29 hardcode the limits.
+
+**Every number on that page is wrong:**
+
+| | Page says | Database says |
+|---|---|---|
+| Starter | up to 50 employees, 5 branches, 10 devices | **10 / 1 / 2**, 0 ETB |
+| Professional | **2,500** ETB, up to 200, 15 branches, 50 devices | **999** ETB, **100 / 5 / 20** |
+| Enterprise | "Custom" | **2,999** ETB |
+
+Advertising limits five times higher than the ones the product enforces is the kind of thing a customer discovers on day two.
+
+### Missing columns — the facts with nowhere to live
+
+`plans` has no `currency` (ETB is implicit, hardcoded at render), no `billing_interval` (monthly is assumed by `BillingService`), no `description`, and no `is_popular` — so the "Most Popular" badge has no database home. And `features` holds *capability* keys, not sales copy; the marketing bullets (`priority_support`, `sla`, `on_premise`, `training`) exist only in `en.json`.
+
+### Not in the database at all — must be created
+
+| Fact | Where it is hardcoded today |
+|---|---|
+| Contact email, phone | `contact-content.tsx:14-18` — `"info@ethr.et"`, `"+251 11 123 4567"` |
+| Office address | `en.json` translation key |
+| Platform logo | An `E` in a box, as JSX, duplicated in `marketing-header.tsx:56-60` and `marketing-footer.tsx:48-56` |
+| Platform name | The literal string `ETHR`, same two files |
+| Motto / tagline | `marketing-footer.tsx:94` — `t("marketing.footer.tagline", "Made in Ethiopia for Ethiopia")` |
+| Social links, legal URLs | Do not exist; footer links to `href="#"` |
+| The metrics row | `landing-content.tsx:58-61` — `"500+"`, `"50,000+"`, `"1M+"`, `"99.9%"`, all invented |
+| Testimonials | `en.json` — a named person at a named company, both invented |
+
+**There is no platform-level logo, name, tagline or contact concept anywhere in this repo.** Every `logo_url` / `logo_path` in the frontend resolves to a *tenant*.
+
+---
+
+## 2. Two things must be fixed before an admin price field exists
+
+### 2a. Editing a price would re-price every existing subscriber
+
+`BillingService.php:111-112` resolves the price live, at invoice time:
+
+```php
+$plan = $subscription->plan;
+$amount = $plan->price_cents ?? 0;
+```
+
+`Subscription`'s fillable (`app/Models/Subscription.php:19-29`) carries `plan_id` and **no price column**. `GenerateMonthlyInvoicesJob` runs monthly; `HandleOverdueInvoicesJob` escalates unpaid invoices through three tiers to **tenant suspension at 60 days**; `tax_cents => 0`, so the plan price *is* the billed figure.
+
+So an admin editing a marketing number would silently re-bill every subscriber on that plan, with no notice and no record of what they were promised — and non-payment ends in a lockout. The repo's own PR template classes this HIGH RISK.
+
+**Decision — the catalog price becomes a *list* price.** Add `price_cents` and `currency` to `subscriptions`, captured on create and on plan change, backfilled from the current plan. `BillingService` reads the subscription's price. Editing the catalog then changes what new customers are quoted and what the site advertises, and changes nothing for existing subscribers. Re-pricing an existing subscriber becomes a separate, explicit, audited action — never a side effect of editing a web page.
+
+### 2b. Trialing tenants cannot upgrade, which is the entire funnel
+
+Plan change already exists and is well built: `POST /billing/change-plan` → `BillingService::changePlan`, with proration, a `billing.plan_changed` audit entry, and a working dialog at `(dashboard)/billing/page.tsx:406-436`.
+
+But it requires `status === SubscriptionStatus::ACTIVE` (`BillingService.php:21`), and `AuthService.php:65-75` puts **every new tenant** on a `trial` subscription for six months. Every "Start Free Trial" button on the public site leads to a tenant who cannot then convert to paid through the product.
+
+Also here: `proration_cents` is computed, returned, and never persisted as an invoice or credit; `ChangePlanRequest` validates only that `plan_public_id` is a string, so an inactive plan is accepted; and there is no admin-side plan change for a tenant at all.
+
+---
+
+## 3. The decisions
+
+Chosen rather than offered, as asked. Each is reversible with knowledge of why.
+
+### D1 — What becomes data, and what does not
+
+**If changing it is a business decision, it is data. If changing it is a design decision, it stays in i18n.**
+
+Data: prices, limits, marketing bullets, plan visibility and ordering, contact channels, logo, platform name, tagline, social and legal links, metrics, testimonials, trial length.
+
+i18n: section headings, button labels, nav labels, form labels, structural page copy.
+
+Moving interface chrome into the database would dismantle a tested, gate-enforced system — `scripts/i18n-check.js` fails on locale drift and is green in CI — and replace it with an untested CMS.
+
+### D2 — Marketing bullets get a new column; `features` is left alone
+
+`plans.features` holds `App\Enums\PlanFeature` keys that gate real routes through `RequiresPlanFeature`. The enum's own docblock warns that renaming one is a data migration. Conflating sales copy with capability keys would let an admin editing a bullet accidentally grant or revoke a product capability. Keep two columns.
+
+### D3 — Bilingual via paired `_am` columns
+
+`platform_settings` already carries `payment_instructions` **and** `payment_instructions_am`. That is this repo's established pattern for bilingual admin content. Follow it rather than introducing a competing JSON `{am, en}` convention. Every editable text field gets its pair — a single-language CMS breaks the bilingual promise the moment an admin saves anything.
+
+### D4 — The platform logo is a URL field, not an upload
+
+Three reasons, all already documented here:
+
+- `FileStorageService::tenantPrefix()` hardcodes `tenants/{publicId}`, and platform-admin routes deliberately run with **no tenant resolved** (`EnsurePlatformContext`). Reusing `upload()` writes to a malformed path.
+- `temporaryUrl()` returns **15-minute signed URLs** — unusable on a cacheable public page.
+- `next.config.ts:56-65` and `branding-card.tsx:22-25` already made this exact call for *tenant* logos, and said why: every consumer renders the value straight into an `<img src>`, so a storage key renders broken.
+
+This removes an entire upload subsystem — and a reusable upload component that does not exist — from the work.
+
+### D5 — Delivery: build-time snapshot + client revalidation, upgradeable to ISR for free
+
+The load-bearing call, because **hosting gate B5 (is Node.js available on the Plesk host?) is NOT VERIFIED** — `MIGRATION_STATE.md:137`, `B1-B5_GATE_REPORT.md:27`, `GATE-0-RESULT.md:93`, `HOSTING_VERIFICATION_CHECKLIST.md:117-125`, under the rule *"NOT VERIFIED is not a soft yes."* If B5 is no, the frontend becomes `output: "export"`: no middleware, no `headers()`, nothing rendered on the server. There is also **no precedent in this codebase for a Server Component fetching the API** — zero exist.
+
+1. Public, cached, unauthenticated reads — **`GET /api/v1/plans` as-is** for pricing, plus one sibling for site content, both on the 60/min-per-IP `api` limiter that `/plans` and `/templates` already ride.
+2. At **build time**, a script fetches both and writes a generated module the pages import — so the static HTML always carries real content, which is what protects the SEO work rather than undoing it.
+3. On the **client**, the page revalidates and swaps in newer content when `version` differs. Admin edits reach humans immediately.
+4. **If B5 comes back yes**, flip the marketing pages to ISR and step 2 becomes redundant. Schema, endpoints, admin UI, caching and audit trail are untouched.
+
+Rejected: pure SSR/ISR dies under static export. Pure client-fetch re-breaks the SEO problem this work exists to fix — a crawler gets an empty shell. Build-time-only means every admin edit needs a manual rebuild and Plesk redeploy, which is not "fully managed by the platform admin" in any useful sense.
+
+### D6 — A typed registry, not a block editor
+
+A fixed schema of known fields can be validated, typed into `generated.ts` (which the contract gate then keeps honest), and tested; it cannot produce a structurally broken page. The admin controls the *values*, not the page's anatomy. In `platform_settings` the validation rules in `UpdatePlatformSettingsRequest` **are** the registry — there is no key/value store, deliberately.
+
+### D7 — Every content and price change is audited
+
+`AuditLog::record($action, $auditable, $payload)` — platform-level, `tenant_id` null, surfacing in the existing platform audit view. `PlatformSettingsController::update` already does this; `BillingController::changePlan` already does this. New writes follow.
+
+---
+
+## 4. Where the work goes
+
+`platform_settings` is already the right home for the non-plan content: a global model with no `tenant_id`, already on `TenantIsolationTest`'s `GLOBAL_MODELS` allow-list, already gated by `admin.manage` (super-admin only), already audited. **No new table, no new tenant-isolation decision, no new entry for `TenantScopeBypassInventoryTest` to pin.**
+
+| | Extend | Build |
+|---|---|---|
+| Plans | `GET /plans` gains public fields | Admin CRUD + `admin/plans` screen — **no plan write path exists today**; prices are seeder-only |
+| Site content | `platform_settings` columns, `UpdatePlatformSettingsRequest`, `PlatformSettingResource`, the admin screen's second card | A public unauthenticated read endpoint, and the **first cache** on this model |
+| Billing | `BillingService`, `ChangePlanRequest` | `subscriptions.price_cents` + `currency` |
+
+Patterns to follow, not reinvent: `RoleGate minRole="super_admin"` → `PageHeader` → `QueryBoundary`; the seed/re-seed idiom at `admin/platform-settings/page.tsx:72-77`; `useId()` for every label/control pair (that file documents an a11y bug where only a placeholder gave the input an accessible name); query gating with `useIsSuperAdmin()`, because `features/admin/api.ts:16` explains that `RoleGate` guards the render while hooks fire regardless, producing 403s indistinguishable from probing.
+
+Caching convention: fixed key, integer-second TTL, `Cache::forget()` from a model `saved` hook so any writer invalidates — matching `Tenant.php:216-217`. Never `Cache::tags`; Redis was removed for the shared-hosting target.
+
+A new admin screen needs nav registration in six places — `lib/route-meta.ts`, `sidebar-nav.tsx` (twice), `mobile-bottom-nav.tsx`, `command-palette.tsx`, `admin/page.tsx` — plus `test/platform-admin-nav.test.tsx`, which pins the route-meta label.
+
+The public content endpoint must **not** sit behind `EnsurePlatformContext`: that middleware 404s whenever a tenant *is* resolved, so it would break on every tenant subdomain.
+
+---
+
+## 5. Order of work
+
+The rule: **nothing that can mis-bill a customer ships after the UI that triggers it.**
+
+| Phase | Work | Days |
+|---|---|---|
+| 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
+| 1 | Correct the shipped documentation errors (below) | 0.5 |
+| **2** | **Billing safety: subscription price capture; trial→paid conversion; persist proration; validate `is_active`** | 2–3 |
+| 3 | Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen | 3–4 |
+| 4 | Platform site content: extend `platform_settings`, public read endpoint, first cache | 2–3 |
+| 5 | Wire the marketing pages to the data — **the fabricated metrics and testimonial are deleted here by construction**, becoming data that starts empty | 2–3 |
+| 6 | Contact form actually captures leads | 1–2 |
+| 7 | SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font | 3–4 |
+| 8 | Performance, accessibility, self-hosted analytics, reuse the shared language switcher | 3–4 |
+| 9 | Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope | 1–2 |
+
+Phases 3 and 4 are independent of each other; both depend on 2.
+
+---
+
+## 6. Corrections to `LANDING_PAGE_PRODUCTION_PLAN.md`
+
+That document was audited on 2026-09-16 and was wrong in nine places. Recorded rather than quietly fixed, per this repo's convention.
+
+- **F10 is false.** It claims no Playwright spec visits a public page. `e2e/ux-audit.spec.ts:78-87` visits `/`, `/pricing`, `/features`, `/faq` and `/contact`, nine times each, axe-scanned at WCAG 2.1 AA. The real gap is narrower: only as a **logged-in admin**, only with **locale pinned to `en`**, only when `UX_PHASE` allows.
+- **"Five of thirteen footer links"** — there are **ten** anchors in `marketing-footer.tsx`; five are inert.
+- **"470 lines, 20 icons"** — `landing-content.tsx` is **413** lines with **18** icons.
+- **The `docs/README.md` index count.** The original "37" was correct — it counts indexed documents excluding the index itself. Changing it to 39 introduced an error.
+- **The no-production claim was cited on the wrong document.** `GATE-0-RESULT.md` only rules out the Plesk target. The evidence is `B1-B5_GATE_REPORT.md:161-169` (external probe: dormant Hetzner host, all ports closed) and `VPS_DEPLOYMENT.md:535` ("Before you take real customers", future tense throughout). And `PRD.md:400` targets 99.5% uptime and 50+ tenants **six months post-launch** — one tenth of what the page claims as present fact.
+- **i18n parity was overstated** as "checked key by key"; it is in fact **gate-enforced** by `scripts/i18n-check.js`, which is stronger.
+- **The PII claim needs scoping** — `LOG_STACK` defaults to a local file, but `slack` and `papertrail` drivers are configured, so blast radius is deployment-dependent.
+- **The public-surface inventory was incomplete** — `app/offline/page.tsx` (which hardcodes both English and Amharic, bypassing `useT`), `not-found.tsx` and `kiosk/` are also unauthenticated.
+- **It missed the most serious claim on the site.** `en.json` publishes *"Each organization has fully isolated data. No cross-tenant access is possible"* — while root `CLAUDE.md` records 123 never-individually-audited scope bypasses, one isolation defect already shipped, and four more fixed on 2026-09-16. The engineering is good precisely because it fails closed and gets audited; the copy should describe that mechanism, not promise an absolute.
+
+Three further findings the audit added: the public language switcher offers four `coming_soon` locales as dead buttons (`marketing-header.tsx:93,167`) when `components/shared/language-switcher.tsx` already solves this and `app-header.tsx:63` already applies it; `marketing-pages.test.tsx:37` asserts `"99.9%"`, so deleting the fabricated metric breaks a green test; and **no test renders any marketing page in Amharic**, which is the locale the server actually emits — the mechanism by which all of this stayed invisible.
+
+---
+
+## 7. What is left to the owner
+
+1. **Which price is right** — the seeded 999 ETB or the page's 2,500? Whichever it is becomes an admin-editable value, but someone must set it before launch. Same for the limits, where the database numbers are the enforced ones.
+2. **Is the 6-month trial a standing offer or a launch promotion?** It is real in code (`AuthService.php:49`) and more generous than advertised — during trial *all* features and limits are unlocked, not Starter's.
+3. **Is there one real customer who will go on the record?** One true testimonial replaces the invented one. If not, the section stays empty.
+4. **Where should contact submissions go**, and with what retention? The retention period also belongs in the privacy policy.
+5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact. The verifiable ones (AES-256, tax per 979/2016, pension 7%/11%) will be checked against the implementation and kept where the code supports them.
