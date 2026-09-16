@@ -123,3 +123,33 @@ it('delivers from the worker, where no tenant is resolved', function () {
     expect($reloaded->delivered_at)->not->toBeNull()
         ->and($reloaded->response_status)->toBe(200);
 });
+
+it('records a permanent failure on the delivery the tenant can see', function () {
+    // The same defect again, in `failed()`. After the last retry is exhausted
+    // the job writes "Permanently failed" onto the delivery row -- except it
+    // looked the row up through the global scope, so on the worker it found
+    // nothing. The log line fired and the row the tenant reads in the
+    // deliveries dialog kept whatever transient state it had.
+    $tenant = webhookTenant('acme');
+    $webhook = activeWebhook($tenant);
+
+    app(WebhookDispatcher::class)->dispatch($tenant->id, 'payroll.processed', [
+        'period' => '2026-09',
+    ]);
+
+    $delivery = WebhookDelivery::withoutGlobalScopes()->firstOrFail();
+
+    app(CurrentTenant::class)->forget();
+
+    (new DispatchWebhookJob(
+        $webhook->id,
+        'payroll.processed',
+        ['event' => 'payroll.processed'],
+        $delivery->id,
+    ))->failed(new RuntimeException('endpoint unreachable'));
+
+    $reloaded = WebhookDelivery::withoutGlobalScopes()->findOrFail($delivery->id);
+
+    expect($reloaded->response_body)->toContain('Permanently failed')
+        ->and($reloaded->response_body)->toContain('endpoint unreachable');
+});

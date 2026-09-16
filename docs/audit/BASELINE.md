@@ -818,6 +818,21 @@ Fail-closed is the property this whole product rests on, and it only holds while
 
 Now `$this->app->scoped(...)`. The same measurement returns 0. `TenantContextLeakBetweenJobsTest` pins both halves, and the full backend suite is green on the change — **1730 passed, 5115 assertions** — so nothing was relying on the context surviving.
 
+**Failing closed made two more defects findable, and they are the same defect twice.** With the context no longer inherited by accident, "this code needs a tenant and does not have one" becomes deterministic instead of intermittent. A scan of `app/Jobs`, `app/Listeners`, `app/Console/Commands`, `app/Notifications` and `app/Observers` for queries against the 60 tenant-scoped models, in files that neither set a tenant nor drop the scope, returned exactly two:
+
+| Site | What happened |
+|---|---|
+| `DispatchWebhookJob::failed()` | A second `WebhookDelivery::find()`, in the failure handler. After the last retry is exhausted the job writes "Permanently failed" onto the delivery row — but looked it up through the global scope, so on a worker it found nothing. The log line fired; the row the tenant reads in the deliveries dialog kept whatever transient state it had. |
+| `NotifyDeviceOffline` | Queued listener. It **did** state the predicate — `User::where('tenant_id', $device->tenant_id)` — but never dropped the scope, so the query became `where 0 = 1 and tenant_id = <the right tenant>` and matched nobody, always. A device going offline is a monitoring alert; the failure mode was notifying no one, silently. |
+
+The second is worth dwelling on: **stating the tenant is not sufficient on its own.** `withoutGlobalScope` and the predicate are two halves of the same requirement, and a call site with only the predicate fails exactly as completely as one with neither — just more confusingly, because the code looks correct. It is also the same shape §15d already recorded in `HandleOverdueInvoicesJob` ("the job carries no HTTP tenant context, so `BelongsToTenant` resolved to `whereRaw('0 = 1')` and it found nobody, every time"). Fixed there in September; still live here until now.
+
+Both are fixed and pinned — `WebhookDeliveryTenantScopeTest` (4) and `QueuedListenerTenantScopeTest` (2), each failing against the old behaviour. The second listener test also checks the fix did not simply widen the query: another tenant's admin must still not be notified.
+
+**Running total for this audit: four call-site defects plus the container binding, across four files** — `WebhookDispatcher::queue()`, `DispatchWebhookJob::handle()` and `::failed()`, `NotifyDeviceOffline`, and `TenantServiceProvider`. One of them wrote a row against the wrong tenant; the other three were the opposite — a silent no-op where a tenant should have been told something.
+
+That asymmetry follows from the design. `BelongsToTenant` fails closed, so getting the context wrong usually loses the operation rather than exposing it — and a lost operation has nothing to report itself. It is the quieter failure, and therefore the one that survives longest.
+
 ---
 
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**

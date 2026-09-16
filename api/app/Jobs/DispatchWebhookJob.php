@@ -160,7 +160,15 @@ class DispatchWebhookJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
-        $delivery = WebhookDelivery::find($this->deliveryId);
+        // Same scoping as handle(), and for the same reason: `failed()` runs on
+        // the worker with no tenant resolved, so a plain find() resolves to
+        // `0 = 1` and the permanent-failure record is never written to the row
+        // the tenant actually reads in the deliveries dialog. The log line fired
+        // and the delivery kept whatever transient state it had.
+        $delivery = WebhookDelivery::withoutGlobalScopes()
+            ->where('webhook_id', $this->webhookId)
+            ->find($this->deliveryId);
+
         if ($delivery && ! $delivery->delivered_at) {
             $delivery->update([
                 'response_body' => 'Permanently failed: '.$exception->getMessage(),
