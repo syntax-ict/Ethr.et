@@ -72,9 +72,38 @@ vitest_gate() { (cd "$WEB_DIR" && node node_modules/vitest/vitest.mjs run --repo
 # tsc and Vitest are both blind to.
 prettier_gate() { (cd "$WEB_DIR" && node node_modules/prettier/bin/prettier.cjs --check src/); }
 
-# Exits non-zero on errors only; warnings (currently 2, both React-Compiler
-# "incompatible library" notes on react-hook-form and TanStack Table) do not fail
-# the gate. Do not add --max-warnings=0 without first retiring those two.
+# Exits non-zero on errors only. Warnings — 8 as of 2026-09-16 — do not fail the
+# gate. Do not add --max-warnings=0 without first reading both groups:
+#
+#   2x  React-Compiler "Compilation Skipped: Use of incompatible library"
+#       on react-hook-form and TanStack Table. Nothing to do here; they go when
+#       those libraries ship compiler-compatible releases.
+#
+#   6x  @next/next/no-location-assign-relative-destination — `window.location
+#       .href = "/..."` instead of a router push. The rule is right in general
+#       and wrong at four of these five call sites, so do not "fix" them
+#       wholesale:
+#
+#         api/client.ts:70                     -> /login  on a 401
+#         features/auth/api.ts:63              -> /login  after logout
+#         features/admin/api.ts:165            -> /dashboard on impersonate
+#         components/shared/impersonation-banner.tsx:46
+#                                              -> /admin or /login on exit
+#
+#       Every one of those follows a change of *identity*. A full reload is the
+#       point: a soft navigation keeps the React tree, and with it cached
+#       queries and component state belonging to the previous user. Turning
+#       these into router.push() would convert a lint warning into a
+#       cross-session data leak.
+#
+#         app/(dashboard)/devices/[id]/page.tsx:200  -> /devices after delete
+#
+#       That last one is an ordinary redirect and is a fair candidate for
+#       router.push(), if anyone wants the warning count at 7.
+#
+# The count in this comment was stale once already — it said "currently 2" after
+# eslint-config-next moved from 16.2.12 to 16.3.5 and added the rule above. If
+# it disagrees with a run, trust the run.
 eslint_gate() { (cd "$WEB_DIR" && node node_modules/eslint/bin/eslint.js .); }
 
 # Catches untranslated keys, en/am drift, and interpolated fallbacks — all of which
