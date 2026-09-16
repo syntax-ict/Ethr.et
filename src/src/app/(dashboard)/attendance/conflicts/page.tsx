@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import {
+  DEFAULT_TIMEZONE,
+  formatTime as sharedFormatTime,
+} from "@/lib/utils/date";
 import { AlertTriangle, GitMerge, Loader2, ShieldCheck } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -375,6 +380,8 @@ function RecordSummary({
   record?: AttendanceRecord | null;
 }) {
   const { t } = useT();
+  // Punch times render in the tenant's timezone, not the browser's — §12g.
+  const { timeZone } = useDateFormatters();
 
   if (!record) {
     return (
@@ -398,7 +405,8 @@ function RecordSummary({
         )}
       </div>
       <p className="mt-1 font-mono text-foreground">
-        {formatTime(record.check_in)} → {formatTime(record.check_out)}
+        {formatTime(record.check_in, timeZone)} →{" "}
+        {formatTime(record.check_out, timeZone)}
       </p>
       <p className="mt-1 text-muted-foreground">
         {record.date ?? "—"}
@@ -415,12 +423,20 @@ function RecordSummary({
   );
 }
 
-function formatTime(iso: string | null | undefined): string {
+/**
+ * A module-level helper, so it takes the zone rather than reading a hook.
+ *
+ * Punch times display in the tenant's timezone (BASELINE §12g). The null and
+ * NaN guards are why this exists rather than calling the shared `formatTime`
+ * directly — a conflict record can carry a missing or malformed punch.
+ */
+function formatTime(
+  iso: string | null | undefined,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? "—" : sharedFormatTime(iso, timeZone);
 }
 
 /**
