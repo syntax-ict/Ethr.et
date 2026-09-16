@@ -12,6 +12,20 @@ shared-hosting migration in more detail than belongs here.
 
 ### Security
 
+- **The security gate is green for the first time since it was added.**
+  `npm audit --omit=dev` reports **0 vulnerabilities** and `composer audit` is
+  clean, so `./scripts/gates.sh security` passes both halves. The last three
+  production advisories — `browserslist` and `fast-uri` (high) and
+  `baseline-browser-mapping` (moderate) — cleared with `npm audit fix`, which
+  moved five transitive packages by patch or minor and nothing else:
+  `baseline-browser-mapping` 2.10.40→2.11.24, `browserslist` 4.28.4→4.29.0,
+  `caniuse-lite` →1.0.30001810, `electron-to-chromium` →1.5.430, `fast-uri`
+  3.1.5→3.1.8. All three reached the production tree transitively through
+  `@sentry/nextjs`'s webpack and babel chain — build-time tooling rather than
+  shipped code, which lowers the exposure without changing that the fix was in
+  range and free. Lockfile diff is 26 insertions / 26 deletions, pure version
+  swaps. Verified with `npm ci` and all five frontend gates.
+
 - **Cleared both critical advisories in production frontend dependencies.**
   `next` 16.2.12 → 16.3.5 (GHSA-p293-qw3h-jr36, GHSA-2xp9-vwfh-vxw4 —
   unauthenticated RCE) and the `sharp` override ^0.35.3 → ^0.35.4
