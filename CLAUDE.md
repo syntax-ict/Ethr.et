@@ -70,9 +70,13 @@ returned nothing in production and passed every test. CI runs it on every push.
 1. **No shell script had its executable bit.** Every `scripts/*.sh` was mode `100644`, so `./scripts/gates.sh` exited **126** (Permission denied) on a Linux runner. Git on Windows does not track the bit unless `core.filemode` is set, so it was never committed. Fixed with `git update-index --chmod=+x`.
 2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed with a workflow-level `BROADCAST_CONNECTION: "null"`.
 
-The lesson worth keeping: this file twice told readers to treat CI as *probably fine but unconfirmed*. It was not fine. **Read the Actions tab rather than reasoning about it** — the whole reason the workflows exist is to tell you something you do not already know.
+3. **`phpstan_gate` required Docker.** It delegated unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no `et-api-1`. A CI runner has native PHP and no container, so **PHPStan could never have passed in CI regardless of the code**. Now native-first with the container as fallback, the same shape `pest_gate` already had.
 
-That said, the fix above has itself only been verified locally (exit bits, and `package:discover` exiting 0 under the null driver). Whether the runs now go green is, again, something to look at rather than assume.
+Once 1 and 2 were fixed the workflows ran for the first time (run #55): **Documentation integrity and Backend suite on MySQL passed**, three jobs failed. Those three were real — a stale `phpstan-baseline.neon` entry, `tsc` needing `.next/types` that only exists after a build, and genuine OpenAPI drift.
+
+**A correction, recorded rather than quietly fixed:** the backend failure was attributed to the stale baseline entry. That was inferred from a local *native* PHPStan run, never from the CI log. Because of cause 3 above, PHPStan never ran in CI at all, so the baseline error cannot have been what CI reported. Both defects were real and both needed fixing; the attribution was wrong.
+
+The lesson worth keeping: this file twice told readers to treat CI as *probably fine but unconfirmed*. It was not fine. **Read the Actions tab rather than reasoning about it** — the whole reason the workflows exist is to tell you something you do not already know. And when it fails, read *its* log rather than reproducing locally and assuming the cause matches.
 
 What *is* active is the pre-push hook, once you enable it:
 

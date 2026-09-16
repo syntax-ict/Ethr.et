@@ -179,13 +179,37 @@ pint_gate() {
     fi
 }
 
-# Off the bind mount, for the same reason as pest_gate below: Larastan reads the
-# schema by enumerating migration files with RecursiveDirectoryIterator, which
-# returns roughly half of them over a Docker Desktop Windows mount. The missing
-# tables become ~990 "Access to an undefined property" errors — the noise that
-# made this gate unusable, and which is entirely an artefact of where the files
-# live. Measured 2026-08-22: 990 errors on the mount, 0 off it, same config.
-phpstan_gate() { bash "$REPO_ROOT/scripts/phpstan-isolated.sh"; }
+# Native PHP first, container only as the fallback — the same shape as
+# pest_gate below, and for the same reason.
+#
+# The isolation exists for one specific defect: Larastan reads the schema by
+# enumerating migration files with RecursiveDirectoryIterator, which returns
+# roughly half of them over a Docker Desktop Windows bind mount. The missing
+# tables become ~990 "Access to an undefined property" errors — noise that is
+# entirely an artefact of where the files live. Measured 2026-08-22: 990 errors
+# on the mount, 0 off it, same config.
+#
+# That is a property of the bind mount, not of PHP: a native run against a local
+# disk sees all 55 migrations. So native is not a compromise, it is the better
+# path wherever it exists.
+#
+# This used to delegate to phpstan-isolated.sh unconditionally, which requires a
+# running `et-api-1` container — so the gate was unpassable in two places at
+# once:
+#
+#   - a CI runner has native PHP and no container, so it exited 1 with
+#     "Container et-api-1 is not running" every time. PHPStan could never have
+#     passed in CI, whatever the code said.
+#   - a developer with native PHP and Docker stopped got the same, on a machine
+#     where PHPStan runs perfectly.
+phpstan_gate() {
+    if have_php; then
+        (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/phpstan analyse --no-progress)
+        return $?
+    fi
+
+    bash "$REPO_ROOT/scripts/phpstan-isolated.sh"
+}
 
 # memory_limit=-1 is required, not cosmetic: the DomPDF payslip tests exhaust the
 # default limit and take the whole suite down with them.
