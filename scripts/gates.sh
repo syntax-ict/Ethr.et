@@ -476,10 +476,23 @@ if [[ ${#FAILED[@]} -gt 0 ]]; then
             local_capture="${GATE_OUTPUT[$gate]:-}"
 
             if [[ -n "$local_capture" && -f "$local_capture" ]]; then
-                printf '::error title=Gate failed: %s::%s%%0A%%0A%s\n' \
+                # The failing test NAMES first, then the tail.
+                #
+                # A blind tail is the wrong shape for these reporters. Run #63
+                # reported "3 failed" and the 25-line tail showed one of them,
+                # because Vitest prints the rendered DOM on a query failure and a
+                # single dump swallowed the window. Grepping the failure lines
+                # gives every failure in a few lines; the tail then adds the
+                # detail for whichever one came last.
+                printf '::error title=Gate failed: %s::%s%%0A%%0A%s%%0A%%0A--- tail ---%%0A%s\n' \
                     "$gate" \
                     "$gate" \
-                    "$(tail -n 25 "$local_capture" \
+                    "$(grep -aE '^\s*(FAIL|×|⨯|✕)|Tests:|Test Files' "$local_capture" \
+                        | sed 's/\x1b\[[0-9;]*m//g' \
+                        | head -n 40 \
+                        | sed 's/%/%25/g' \
+                        | sed ':a;N;$!ba;s/\n/%0A/g')" \
+                    "$(tail -n 20 "$local_capture" \
                         | sed 's/\x1b\[[0-9;]*m//g' \
                         | sed 's/%/%25/g' \
                         | sed ':a;N;$!ba;s/\n/%0A/g')"
