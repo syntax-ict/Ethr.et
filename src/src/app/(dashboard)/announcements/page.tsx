@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Megaphone, Plus, Loader2, Trash2, Pencil } from "lucide-react";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +50,7 @@ const priorityColors: Record<string, string> = {
 
 export default function AnnouncementsPage() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -184,7 +186,7 @@ export default function AnnouncementsPage() {
                     </p>
                     <p className="mt-2 text-xs text-muted-foreground">
                       {a.published_at
-                        ? new Date(a.published_at).toLocaleDateString()
+                        ? formatDate(a.published_at)
                         : t("common.draft", "Draft")}
                     </p>
                   </div>

@@ -43,6 +43,8 @@ import {
   useTenantBackup,
 } from "@/features/admin/api";
 import { formatETB } from "@/lib/utils/currency";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
+import { formatDateOnly } from "@/lib/utils/date";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -80,6 +82,10 @@ export default function AdminTenantDetailPage({
 
 function TenantDetail({ id }: { id: string }) {
   const { t } = useT();
+  // Same choice as the tenant list: the operator's own zone, so every date on
+  // this page sits on one clock. `due_date` below is the exception -- it is a
+  // calendar date, not an instant, and must not be converted at all.
+  const { formatDate, formatDateTime } = useDateFormatters();
 
   const statusActionLabel = (status: string | null) =>
     status === "active"
@@ -288,9 +294,7 @@ function TenantDetail({ id }: { id: string }) {
             icon={Calendar}
             label={t("admin_tenants_page.trial_ends")}
             value={
-              tenant.trial_ends_at
-                ? new Date(tenant.trial_ends_at).toLocaleDateString()
-                : "—"
+              tenant.trial_ends_at ? formatDate(tenant.trial_ends_at) : "—"
             }
           />
           <StatCard
@@ -432,17 +436,17 @@ function TenantDetail({ id }: { id: string }) {
               label={t("admin_tenants_page.trial_ends")}
               value={
                 tenant.trial_ends_at
-                  ? new Date(tenant.trial_ends_at).toLocaleString()
+                  ? formatDateTime(tenant.trial_ends_at)
                   : "—"
               }
             />
             <Row
               label={t("attendance.kiosks_page.created")}
-              value={new Date(tenant.created_at).toLocaleString()}
+              value={formatDateTime(tenant.created_at)}
             />
             <Row
               label={t("admin_tenant_detail_page.updated")}
-              value={new Date(tenant.updated_at).toLocaleString()}
+              value={formatDateTime(tenant.updated_at)}
             />
           </CardContent>
         </Card>
@@ -489,9 +493,7 @@ function TenantDetail({ id }: { id: string }) {
                     label={t("admin_tenant_detail_page.renews")}
                     value={
                       tenant.subscription.current_period_end
-                        ? new Date(
-                            tenant.subscription.current_period_end,
-                          ).toLocaleDateString()
+                        ? formatDate(tenant.subscription.current_period_end)
                         : "—"
                     }
                   />
@@ -545,9 +547,10 @@ function TenantDetail({ id }: { id: string }) {
                       {inv.status}
                     </span>,
                     <span key="d" className="text-muted-foreground">
-                      {inv.due_date
-                        ? new Date(inv.due_date).toLocaleDateString()
-                        : "—"}
+                      {/* `Invoice::$casts` types due_date as `date` -- the day the
+                          invoice falls due, not a moment. It renders as
+                          written rather than being shifted into a zone. */}
+                      {inv.due_date ? formatDateOnly(inv.due_date) : "—"}
                     </span>,
                   ],
                 }))}
@@ -627,7 +630,7 @@ function TenantDetail({ id }: { id: string }) {
                 {t("admin_tenant_detail_page.current_trial_ends")}:{" "}
                 <span className="font-medium">
                   {tenant.trial_ends_at
-                    ? new Date(tenant.trial_ends_at).toLocaleDateString()
+                    ? formatDate(tenant.trial_ends_at)
                     : t("admin_tenant_detail_page.no_trial_set")}
                 </span>
               </DialogDescription>

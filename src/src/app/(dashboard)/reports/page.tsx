@@ -64,6 +64,7 @@ import {
   type SavedReport,
 } from "@/features/reports/api";
 
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -877,6 +878,7 @@ function QuickTab() {
 
 function SavedTab() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const { data, isLoading } = useSavedReports();
   const deleteReport = useDeleteSavedReport();
   const runReport = useGenerateReport();
@@ -950,8 +952,7 @@ function SavedTab() {
                       </span>
                     )}
                     <span>
-                      · {t("reports_page.saved_lc")}{" "}
-                      {new Date(r.created_at).toLocaleDateString()}
+                      · {t("reports_page.saved_lc")} {formatDate(r.created_at)}
                     </span>
                   </div>
                 </div>
@@ -1144,6 +1145,9 @@ function ScheduleDialog({
 
 function ScheduledTab() {
   const { t } = useT();
+  // A schedule is only meaningful in the zone the tenant reads it in: "next run
+  // 06:00" has to mean 06:00 to the person who set it, not 03:00 UTC.
+  const { formatDateTime } = useDateFormatters();
   const { data, isLoading } = useScheduledReports();
   const deleteScheduled = useDeleteScheduledReport();
 
@@ -1198,13 +1202,12 @@ function ScheduledTab() {
                     </span>
                     <span className="flex items-center gap-1">
                       <CalendarClock className="h-3 w-3" />{" "}
-                      {t("reports_page.next")}:{" "}
-                      {new Date(s.next_run_at).toLocaleString()}
+                      {t("reports_page.next")}: {formatDateTime(s.next_run_at)}
                     </span>
                     {s.last_run_at && (
                       <span>
                         {t("reports_page.last")}:{" "}
-                        {new Date(s.last_run_at).toLocaleString()}
+                        {formatDateTime(s.last_run_at)}
                       </span>
                     )}
                   </div>

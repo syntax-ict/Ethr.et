@@ -29,6 +29,7 @@ import {
   useUploadProfilePhoto,
   type ProfileResponse,
 } from "@/features/profile/api";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -55,6 +56,7 @@ function ProfileOverview({
   t: (key: string, fallback?: string) => string;
 }) {
   const { data: tenant } = useCurrentTenant();
+  const { formatDateTime } = useDateFormatters();
   const employee = profile.employee;
   const user = profile.user;
   const pendingUpdates = profile.pending_updates ?? [];
@@ -187,7 +189,7 @@ function ProfileOverview({
               <InfoRow
                 icon={Calendar}
                 label={t("profile.last_login", "Last Login")}
-                value={new Date(user.last_login_at).toLocaleString()}
+                value={formatDateTime(user.last_login_at)}
               />
             )}
           </CardContent>

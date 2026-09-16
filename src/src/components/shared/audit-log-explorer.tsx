@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 
@@ -63,6 +64,7 @@ export function AuditLogExplorer({
   exportPrefix?: string;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ action: "", from: "", to: "" });
 
@@ -221,7 +223,7 @@ export function AuditLogExplorer({
                         key="t"
                         className="whitespace-nowrap text-xs text-muted-foreground"
                       >
-                        {new Date(log.created_at).toLocaleString()}
+                        {formatDateTime(log.created_at)}
                       </span>,
                       <Badge
                         key="a"

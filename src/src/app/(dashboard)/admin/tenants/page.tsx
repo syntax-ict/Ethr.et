@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useAdminTenants } from "@/features/admin/api";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,12 @@ function trialDaysLeft(trialEndsAt: string | null): number | null {
 
 export default function AdminTenantsPage() {
   const { t } = useT();
+  // A platform-admin surface reads other tenants' data, so "the tenant
+  // timezone" here is the operator's own — one consistent clock across every
+  // row rather than a different zone per tenant, which would make the trial
+  // dates in this table incomparable. A platform admin with no tenant of their
+  // own falls back to the product default, Africa/Addis_Ababa.
+  const { formatDate } = useDateFormatters();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
@@ -210,9 +217,7 @@ export default function AdminTenantsPage() {
                                   "text-muted-foreground",
                               )}
                             >
-                              {new Date(
-                                tenant.trial_ends_at,
-                              ).toLocaleDateString()}
+                              {formatDate(tenant.trial_ends_at)}
                             </span>
                             {expiringSoon && (
                               <Badge
@@ -237,7 +242,7 @@ export default function AdminTenantsPage() {
                           </span>
                         ),
                         <span key="c" className="text-muted-foreground">
-                          {new Date(tenant.created_at).toLocaleDateString()}
+                          {formatDate(tenant.created_at)}
                         </span>,
                         <StatusBadge key="st" status={tenant.status} />,
                       ],

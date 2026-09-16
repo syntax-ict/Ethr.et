@@ -16,6 +16,7 @@ import {
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { useTeamAttendanceSummary } from "@/features/dashboard/team-api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { formatWeekday } from "@/lib/utils/date";
 import { useT } from "@/lib/i18n/useT";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,9 +107,12 @@ function AttendanceTrendChart() {
   }
 
   const chartData = days.map((day) => ({
-    name: new Date(day.date).toLocaleDateString(undefined, {
-      weekday: "short",
-    }),
+    // `day.date` is a `Y-m-d` calendar date from the API, not an instant, so
+    // it takes no timezone -- reading it through the host zone would name the
+    // previous day's weekday anywhere behind UTC. `undefined` as the locale
+    // also meant the axis was labelled in whatever language the browser was
+    // set to, which is not the language the rest of the chart is in.
+    name: formatWeekday(day.date),
     present: day.present,
     late: day.late,
     absent: day.absent,

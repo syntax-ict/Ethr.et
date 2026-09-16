@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import {
   Receipt,
@@ -49,6 +50,7 @@ import { toast } from "sonner";
 
 export default function BillingPage() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const { data: dashboard, isLoading } = useBillingDashboard();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
@@ -117,11 +119,9 @@ export default function BillingPage() {
                 title={t("billing.next_billing", "Next Billing")}
                 value={
                   dashboard?.current_period_end
-                    ? new Date(
-                        dashboard.current_period_end,
-                      ).toLocaleDateString()
+                    ? formatDate(dashboard.current_period_end)
                     : dashboard?.trial_ends_at
-                      ? new Date(dashboard.trial_ends_at).toLocaleDateString()
+                      ? formatDate(dashboard.trial_ends_at)
                       : "—"
                 }
                 sub={
@@ -258,6 +258,7 @@ function PaymentInstructions({ details }: { details: PaymentDetails | null }) {
 
 function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const markPaid = useMarkInvoicePaid();
 
   function handleMarkPaid(invoice: BillingInvoice) {
@@ -338,9 +339,7 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                     )}
                   </span>,
                   <span key="paid" className="text-muted-foreground">
-                    {invoice.paid_at
-                      ? new Date(invoice.paid_at).toLocaleDateString()
-                      : "—"}
+                    {invoice.paid_at ? formatDate(invoice.paid_at) : "—"}
                   </span>,
                   <StatusBadge key="s" status={invoice.status} />,
                 ],

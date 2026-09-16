@@ -11,12 +11,14 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
 } from "@/features/notifications/api";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const { data, isLoading } = useNotifications();
   const markRead = useMarkAsRead();
   const markAllRead = useMarkAllAsRead();
@@ -108,7 +110,7 @@ export default function NotificationsPage() {
                       {(n.data?.message as string) ?? n.type}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatTimeAgo(n.created_at)}
+                      {timeAgo(n.created_at)}
                     </p>
                   </div>
                   {!n.read_at && (
@@ -124,17 +126,7 @@ export default function NotificationsPage() {
   );
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString();
-}
+// `formatTimeAgo` lived here as a second copy of `lib/utils/date.ts`'s
+// `timeAgo`, identical apart from its final branch: past a week it fell back to
+// `toLocaleDateString()` and rendered in the browser's zone. Deleted rather
+// than fixed -- one implementation cannot drift from itself.

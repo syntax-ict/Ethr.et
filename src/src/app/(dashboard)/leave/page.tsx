@@ -529,6 +529,13 @@ function TeamLeaveCalendar({
     );
   }
 
+  // Deliberately no `timeZone`, and not a candidate for the tenant-timezone
+  // migration. `firstDay` is `new Date(month.year, month.month, 1)` -- a local
+  // midnight built from this component's own paging state, not a value from the
+  // API -- and `startOffset` and `daysInMonth` read it back with the local
+  // `getDay()`/`getDate()`. Formatting it in another zone would desynchronise
+  // the label from the grid beneath it and, for any zone behind the host, name
+  // the previous month. Construction and formatting have to agree; they do.
   const monthLabel = firstDay.toLocaleDateString(
     locale === "am" ? "am-ET" : "en-US",
     {

@@ -47,6 +47,50 @@ export function resolveTimeZone(timeZone?: string | null): string {
   }
 }
 
+/**
+ * Whether a value denotes a calendar date rather than an instant.
+ *
+ * `2026-10-01` is a date. `2026-10-01T05:30:00Z` is a moment that happens to
+ * fall on it. The difference decides whether a timezone may be applied at all:
+ * converting a calendar date shifts it, and a hire date that reads 30 Sep for
+ * one viewer and 01 Oct for another is simply wrong — neither rendering is
+ * "in their timezone", because the value never had a time of day to convert.
+ */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isDateOnly(value: string): boolean {
+  return DATE_ONLY.test(value.trim());
+}
+
+/**
+ * A calendar date, rendered exactly as written.
+ *
+ * Formatting in UTC is the mechanism, not the intent: `new Date("2026-10-01")`
+ * and `new Date("2026-10-01T00:00:00.000000Z")` are both UTC midnight, so
+ * reading them back in UTC returns the date on the wire whatever zone the
+ * tenant or the host is in. Laravel's `date` cast serialises as the second
+ * form — `Invoice::$casts` has `due_date => date` — so both shapes arrive.
+ *
+ * Use this for values that are dates: due dates, hire dates, a day on a chart
+ * axis. Use `formatDate` for instants.
+ */
+export function formatDateOnly(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** The weekday of a calendar date, on the same terms as `formatDateOnly`. */
+export function formatWeekday(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function formatDate(
   dateStr: string,
   timeZone: string = DEFAULT_TIMEZONE,
@@ -55,7 +99,11 @@ export function formatDate(
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: resolveTimeZone(timeZone),
+    // A bare `YYYY-MM-DD` carries no time of day, so there is nothing to
+    // convert — and converting it into a zone behind UTC moves it to the
+    // previous day. Ethiopian tenants are at UTC+3 and would never have seen
+    // that, which is exactly why it would have sat here unnoticed.
+    timeZone: isDateOnly(dateStr) ? "UTC" : resolveTimeZone(timeZone),
   });
 }
 

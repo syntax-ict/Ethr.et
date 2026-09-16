@@ -56,6 +56,7 @@ import {
   ImportHistoryDialog,
 } from "@/features/devices/components/device-workforce-dialogs";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -480,6 +481,7 @@ function DeviceCard({
   testing: boolean;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const isOnline = device.status === "online";
   const isError = device.status === "error";
 
@@ -598,7 +600,7 @@ function DeviceCard({
           <p>
             {t("attendance.kiosks_page.last_active")}:{" "}
             {device.last_sync_at
-              ? new Date(device.last_sync_at).toLocaleString()
+              ? formatDateTime(device.last_sync_at)
               : t("devices_page.never")}
           </p>
         </div>

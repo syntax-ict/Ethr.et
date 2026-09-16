@@ -46,6 +46,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -64,6 +65,7 @@ interface KioskSession {
 
 export default function KioskSessionsPage() {
   const { t } = useT();
+  const { formatDate, formatDateTime } = useDateFormatters();
   const queryClient = useQueryClient();
   const [showRegister, setShowRegister] = useState(false);
   const [showToken, setShowToken] = useState<string | null>(null);
@@ -284,12 +286,12 @@ export default function KioskSessionsPage() {
                   {k.last_activity_at && (
                     <p>
                       {t("attendance.kiosks_page.last_active")}:{" "}
-                      {new Date(k.last_activity_at).toLocaleString()}
+                      {formatDateTime(k.last_activity_at)}
                     </p>
                   )}
                   <p>
                     {t("attendance.kiosks_page.created")}:{" "}
-                    {new Date(k.created_at).toLocaleDateString()}
+                    {formatDate(k.created_at)}
                   </p>
                 </CardContent>
               </Card>

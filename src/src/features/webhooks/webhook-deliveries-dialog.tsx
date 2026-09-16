@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { History } from "lucide-react";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,6 +46,7 @@ export function WebhookDeliveriesDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
 
   const { data, isLoading } = useQuery({
     queryKey: ["webhooks", webhookId, "deliveries"],
@@ -111,7 +113,7 @@ export function WebhookDeliveriesDialog({
                     {d.attempt}
                   </span>,
                   <span key="d" className="text-muted-foreground">
-                    {formatWhen(d.delivered_at ?? d.created_at)}
+                    {formatWhen(d.delivered_at ?? d.created_at, formatDateTime)}
                   </span>,
                 ],
               }))}
@@ -151,8 +153,17 @@ function StatusBadge({ status }: { status: number | null }) {
   );
 }
 
-function formatWhen(value: string | null): string {
+/**
+ * A delivery attempt is an instant, so it renders in the tenant's zone. The
+ * formatter is passed in rather than read here: this is a module-level helper,
+ * and reaching for a hook inside one would either not work or quietly turn it
+ * into a component.
+ */
+function formatWhen(
+  value: string | null,
+  formatDateTime: (value: string) => string,
+): string {
   if (!value) return "—";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+
+  return Number.isNaN(new Date(value).getTime()) ? "—" : formatDateTime(value);
 }

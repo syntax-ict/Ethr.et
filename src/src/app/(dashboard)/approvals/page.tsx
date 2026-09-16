@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
@@ -34,6 +35,7 @@ interface PendingItem {
 
 export default function ApprovalsPage() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const queryClient = useQueryClient();
 
   /** The item awaiting a rejection reason, and the reason being typed. */
@@ -154,7 +156,7 @@ export default function ApprovalsPage() {
                         {item.summary}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {new Date(item.submitted_at).toLocaleDateString()}
+                        {formatDate(item.submitted_at)}
                       </p>
                     </div>
                   </div>

@@ -3,8 +3,11 @@ import {
   DEFAULT_TIMEZONE,
   resolveTimeZone,
   formatDate,
+  formatDateOnly,
   formatDateTime,
   formatTime,
+  formatWeekday,
+  isDateOnly,
   timeAgo,
 } from "@/lib/utils/date";
 
@@ -101,9 +104,10 @@ describe("daylight saving", () => {
 
 describe("formatDate", () => {
   // The month abbreviation is matched loosely on purpose. en-GB renders
-  // September as "Sep" under older ICU and "Sept" under newer — Node 24 here
-  // produces "Sept", CI pins Node 20. Asserting either literal would pass on one
-  // runtime and fail on the other. Day, year and time are stable and exact.
+  // September as "Sep" under older ICU and "Sept" under newer. CI and local
+  // both run Node 24 today (§12d), but the loose matcher stays: agreeing today
+  // is not the same as being version-independent. Day, year and time are stable
+  // and exact.
   it("renders a UTC instant as a day-month-year date in the tenant zone", () => {
     expect(formatDate("2026-09-16T05:30:00.000Z")).toMatch(/^16 Sept? 2026$/);
   });
@@ -202,5 +206,84 @@ describe("timeAgo", () => {
     expect(at("2026-09-16T12:05:00.000Z", "2026-09-16T12:00:00.000Z")).toBe(
       "just now",
     );
+  });
+});
+
+describe("zones that share an offset, and zones that do not", () => {
+  const punch = "2026-09-16T05:30:00.000Z";
+
+  it("renders identically for Addis and another UTC+3 zone", () => {
+    // Asia/Riyadh is UTC+3 with no DST, exactly like Addis. Equal output here
+    // says the offset is what drives the result, not the string in the column.
+    expect(formatTime(punch, "Asia/Riyadh")).toBe(
+      formatTime(punch, DEFAULT_TIMEZONE),
+    );
+    expect(formatTime(punch, "Asia/Riyadh")).toBe("08:30");
+  });
+
+  it("renders differently for zones that do not share it", () => {
+    expect(formatTime(punch, "UTC")).toBe("05:30");
+    expect(formatTime(punch, "Europe/London")).toBe("06:30");
+    expect(formatTime(punch, "America/New_York")).toBe("01:30");
+  });
+
+  it("cannot be passing by agreeing with the host", () => {
+    // The machine this was written on is Africa/Nairobi — UTC+3, the same
+    // offset as Addis — so an Addis assertion alone could be a coincidence.
+    expect(formatTime(punch, "Pacific/Kiritimati")).toBe("19:30");
+
+    // The real guard, and the one that holds on any host: an implementation
+    // that ignored `timeZone` and read the host clock would render the same
+    // instant identically for every zone, collapsing this to a single value.
+    // Asserting "the host is not X" instead would itself fail on a host that
+    // happened to be X — measured, when this file was run under
+    // TZ=Pacific/Kiritimati.
+    const distinct = new Set(
+      ["UTC", "Europe/London", DEFAULT_TIMEZONE, "Pacific/Kiritimati"].map(
+        (zone) => formatTime(punch, zone),
+      ),
+    );
+    expect(distinct.size).toBe(4);
+  });
+});
+
+describe("calendar dates, which have no time of day to convert", () => {
+  it("tells a date apart from an instant", () => {
+    expect(isDateOnly("2026-10-01")).toBe(true);
+    expect(isDateOnly("  2026-10-01  ")).toBe(true);
+    expect(isDateOnly("2026-10-01T00:00:00.000Z")).toBe(false);
+    expect(isDateOnly("2026-09-16T05:30:00.000Z")).toBe(false);
+  });
+
+  it("never shifts a bare date, in any tenant zone", () => {
+    // The defect this closes. A hire date or a due date is a day, not a moment.
+    // Converting it into a zone behind UTC moves it backwards: before this,
+    // formatDate("2026-10-01", "America/New_York") returned "30 Sept 2026".
+    // Ethiopian tenants sit at UTC+3 and would never have seen it, which is
+    // precisely why it could have stayed here indefinitely.
+    for (const zone of [
+      "Africa/Addis_Ababa",
+      "Asia/Riyadh",
+      "UTC",
+      "Europe/London",
+      "America/New_York",
+      "Pacific/Kiritimati",
+    ]) {
+      expect(formatDate("2026-10-01", zone)).toBe("01 Oct 2026");
+    }
+  });
+
+  it("renders a Laravel `date` cast as the day on the wire", () => {
+    // Laravel serialises a `date` cast with a midnight time component --
+    // `Invoice::$casts` has `due_date => date` -- so both shapes reach the UI.
+    expect(formatDateOnly("2026-10-01")).toBe("01 Oct 2026");
+    expect(formatDateOnly("2026-10-01T00:00:00.000000Z")).toBe("01 Oct 2026");
+  });
+
+  it("names the weekday of the date as written", () => {
+    // 2026-10-01 is a Thursday. Read through a zone behind UTC it would be
+    // Wednesday, which is what the dashboard chart axis used to do.
+    expect(formatWeekday("2026-10-01")).toBe("Thu");
+    expect(formatWeekday("2026-10-01T00:00:00.000000Z")).toBe("Thu");
   });
 });

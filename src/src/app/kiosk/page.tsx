@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
 import { apiClient } from "@/api/client";
 import { cn } from "@/lib/utils";
 
@@ -311,12 +312,21 @@ export default function KioskPage() {
             </p>
           </div>
         </div>
+        {/* The kiosk has no authenticated tenant query, so this clock cannot
+            read the tenant's configured zone -- `/kiosk/authenticate` returns
+            the tenant's name, subdomain and logo, but not its timezone. It is
+            pinned to the product default instead of the device clock, which is
+            the same fallback every other screen uses when the tenant is
+            unknown, and which a mis-set kiosk OS cannot skew. A tenant on a
+            different zone still sees Addis here; closing that means adding
+            `timezone` to the kiosk payload. See BASELINE 12g. */}
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-3xl font-bold font-mono tabular-nums">
               {now.toLocaleTimeString("en-ET", {
                 hour: "2-digit",
                 minute: "2-digit",
+                timeZone: DEFAULT_TIMEZONE,
               })}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -324,6 +334,7 @@ export default function KioskPage() {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
+                timeZone: DEFAULT_TIMEZONE,
               })}
             </p>
           </div>
@@ -357,7 +368,12 @@ export default function KioskPage() {
             </div>
             <p className="text-4xl font-bold text-foreground">{message}</p>
             <p className="text-sm text-muted-foreground">
-              Recorded at {now.toLocaleTimeString()}
+              Recorded at{" "}
+              {now.toLocaleTimeString("en-ET", {
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: DEFAULT_TIMEZONE,
+              })}
             </p>
           </div>
         ) : mode === "error" ? (

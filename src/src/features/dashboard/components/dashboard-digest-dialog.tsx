@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "sonner";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import {
   useDashboardDigests,
@@ -50,6 +51,7 @@ export function DashboardDigestDialog({
   branchPublicId?: string;
 }) {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const { data, isLoading } = useDashboardDigests();
   const schedule = useScheduleDashboardDigest();
   const deleteDigest = useDeleteDashboardDigest();
@@ -229,7 +231,7 @@ export function DashboardDigestDialog({
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarClock className="h-3 w-3" />{" "}
-                            {new Date(d.next_run_at).toLocaleString()}
+                            {formatDateTime(d.next_run_at)}
                           </span>
                         </div>
                       </div>

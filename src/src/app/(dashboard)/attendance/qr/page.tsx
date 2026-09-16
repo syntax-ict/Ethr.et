@@ -26,6 +26,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ interface QrResult {
 
 export default function QrGeneratorPage() {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const [branchId, setBranchId] = useState("");
   const [shiftId, setShiftId] = useState("none");
   const [expiry, setExpiry] = useState(30);
@@ -338,7 +340,7 @@ export default function QrGeneratorPage() {
                       <br />
                       {t("attendance.qr_page.valid_until")}{" "}
                       <span className="font-medium text-foreground">
-                        {new Date(result.expires_at).toLocaleString()}
+                        {formatDateTime(result.expires_at)}
                       </span>
                     </p>
                   </div>

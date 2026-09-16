@@ -29,6 +29,7 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -67,6 +68,7 @@ type ApiKeyValues = z.infer<typeof apiKeySchema>;
 
 export default function ApiKeysPage() {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -239,7 +241,7 @@ export default function ApiKeysPage() {
                       ))}
                     </div>,
                     <span key="c" className="text-muted-foreground">
-                      {new Date(k.created_at).toLocaleDateString()}
+                      {formatDate(k.created_at)}
                     </span>,
                   ],
                   actions: (

@@ -507,9 +507,36 @@ Two independent causes, not one:
 >
 > **No fixed offset anywhere.** Zones are IANA names, never `+03:00`. Addis does not observe DST, but the tenant zone is configurable and other zones do; two tests pin a DST transition (`Europe/London` in January vs July) to keep it that way.
 >
-> **Determinism.** The tests set no `TZ`. They pass identically under `Africa/Nairobi` (this machine, UTC+3), `UTC` (CI) and `America/New_York` — verified by running all three. Removing the `timeZone` option, i.e. reverting to the old behaviour, fails **9 of 20**.
+> **Determinism.** The tests set no `TZ`. Removing the `timeZone` option, i.e. reverting to the old behaviour, fails **9 of 20**.
 >
-> **Still to migrate:** other surfaces that format dates inline rather than through these helpers — schedules, shifts, payroll dates, reports, notification and audit displays. The default makes them render Addis time today instead of the browser's, so they are correct for the common case; they become tenant-aware as each is moved onto `useDateFormatters()`.
+> **The inline call sites are now migrated too — 2026-09-16.** 30 inline `toLocale*` date expressions across 20 files, classified one at a time rather than replaced globally, because three of them should *not* have taken a tenant zone.
+>
+> | Classification | Sites | Treatment |
+> |---|---|---|
+> | Instants — audit and event timestamps, webhook triggers, QR expiry, report schedules, last login, last sync, kiosk-session activity, trial and subscription dates, invoice `paid_at`, announcement and approval dates | 28 | `useDateFormatters()` |
+> | Calendar date — `Invoice::$casts` types `due_date` as `date`; the dashboard chart axis labels `Y-m-d` days | 2 | `formatDateOnly` / `formatWeekday`, which apply **no** zone |
+> | Local UI state — the leave calendar's month label | 1 | **Preserved**, and commented so it survives the next sweep |
+> | Standalone — the kiosk wall clock | 3 | Pinned to the default; see below |
+>
+> **A defect the migration exposed.** `formatDate` applied the tenant zone to bare `YYYY-MM-DD` strings. Those carry no time of day, so there is nothing to convert — and converting one into a zone behind UTC moves it to the previous day. Measured: `formatDate("2026-10-01", "America/New_York")` returned **`30 Sept 2026`**. Ethiopian tenants sit at UTC+3 and could never have seen it, which is exactly why it could have stayed indefinitely. `formatDate` now detects a date-only value and renders it as written; `formatDateOnly` states the same intent explicitly for values that arrive from a Laravel `date` cast with a midnight time component.
+>
+> **The kiosk is pinned, not solved.** `/kiosk/authenticate` returns the tenant's name, subdomain and logo — not its timezone — and the kiosk has no authenticated session to ask. Its clock now uses `DEFAULT_TIMEZONE` rather than the device's own, which is the same fallback every other screen uses when the tenant is unknown and which a mis-set kiosk OS cannot skew. **A tenant on another zone still sees Addis there.** Closing it means adding `timezone` to that payload — additive, but the response is explicitly typed in `openapi.json`, so it needs a contract regeneration against a migrated database. Not done here.
+>
+> **Host independence, measured rather than asserted.** 44 tests across `date-utils`, `audit-log-timezone`, `webhook-deliveries` and `active-sessions`, run under six host zones on Linux + Node 24:
+>
+> ```
+> TZ=UTC                 44 passed    TZ=America/New_York    44 passed
+> TZ=Africa/Addis_Ababa  44 passed    TZ=Europe/London       44 passed
+> TZ=Africa/Nairobi      44 passed    TZ=Pacific/Kiritimati  44 passed
+> ```
+>
+> That matrix had to run in WSL: **Node on this Windows host ignores `TZ`.** `TZ=America/New_York node -e "…resolvedOptions().timeZone"` still reports `Africa/Nairobi`. Any earlier claim on this machine that a test "passes under TZ=X" was therefore measuring nothing — recorded because it is an easy mistake to repeat.
+>
+> The first version of the coincidence guard asserted `resolvedOptions().timeZone !== "Pacific/Kiritimati"`, and was the single failure under `TZ=Pacific/Kiritimati` — a test that fails on a legitimate host is a flaky test. It now asserts that one instant renders as four *distinct* strings across four zones, which a host-clock implementation collapses to one and which holds on every host.
+>
+> **Mutation-checked.** Reverting the date-only guard fails 1 test; reverting the audit-log and webhook-delivery migrations fails 5. The tests fail against the old behaviour rather than merely describing the new one.
+>
+> **Still open, and a different axis:** several `.toLocaleString()` calls on *numbers* pass no locale at all — `grade-salary-steps-dialog.tsx:143-144`, the device record counts — so thousands separators follow the browser. Not a timezone problem and not changed here, but the same class of host-dependent rendering.
 
 The original finding follows, for the record.
 

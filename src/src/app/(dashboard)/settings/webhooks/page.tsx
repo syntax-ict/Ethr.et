@@ -30,6 +30,7 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -73,6 +74,7 @@ type WebhookValues = z.infer<typeof webhookSchema>;
 
 export default function WebhooksPage() {
   const { t } = useT();
+  const { formatDateTime } = useDateFormatters();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
@@ -252,7 +254,7 @@ export default function WebhooksPage() {
                       {w.last_triggered_at && (
                         <p className="mt-2 text-xs text-muted-foreground">
                           {t("webhooks_page.last_triggered")}:{" "}
-                          {new Date(w.last_triggered_at).toLocaleString()}
+                          {formatDateTime(w.last_triggered_at)}
                         </p>
                       )}
                     </div>
