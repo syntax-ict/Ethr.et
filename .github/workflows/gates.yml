@@ -21,6 +21,29 @@ concurrency:
   group: gates-${{ github.ref }}
   cancel-in-progress: true
 
+# Without this, `composer install` itself fails — before any gate runs.
+#
+# config/broadcasting.php defaults to `reverb` when BROADCAST_CONNECTION is
+# unset, and a runner has no .env. `routes/channels.php` calls
+# Broadcast::channel() at load time, so `package:discover` (a post-autoload-dump
+# script) builds the Reverb broadcaster, Pusher gets a null auth key, and the
+# whole composer step exits 1:
+#
+#   Failed to create broadcaster for connection "reverb" with error:
+#   Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type
+#   string, null given
+#
+# The quoted "null" is load-bearing. Laravel's env() parses the string "null"
+# into PHP null, and broadcasting.php's `?? 'null'` then selects the null
+# driver — that idiom exists for exactly this. Unquoted, YAML would make it a
+# genuine null and the variable would not be set at all.
+#
+# CI does not run Reverb, so nothing is being masked here. phpunit.xml already
+# forces the same value for the suites; this covers the composer step that runs
+# before them.
+env:
+  BROADCAST_CONNECTION: "null"
+
 jobs:
   backend:
     name: Backend (Pint, PHPStan, Pest)

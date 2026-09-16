@@ -96,6 +96,18 @@ shared-hosting migration in more detail than belongs here.
   against a 100ms budget. See `docs/decisions/DECISIONS.md` D-012 and
   `docs/audit/BASELINE.md` §13f.
 
+- **CI had never passed — 50 runs, zero gates executed.** Read the Actions tab
+  for the first time on 2026-09-16. Two structural causes: every `scripts/*.sh`
+  was committed mode `100644`, so `./scripts/gates.sh` exited **126**
+  (Permission denied) on Linux runners — Git on Windows does not track the
+  executable bit unless `core.filemode` is set; and `composer install` itself
+  died in `package:discover`, because `config/broadcasting.php` defaults to
+  `reverb` with no `.env` present and `routes/channels.php` builds the
+  broadcaster at load time, handing Pusher a null key. Fixed with
+  `git update-index --chmod=+x` and a workflow-level `BROADCAST_CONNECTION:
+  "null"`. The same ordering trap applies to deployment — `composer install`
+  needs `.env` to exist first — now noted in `shared-hosting/DEPLOYMENT.md`.
+
 - **A test failed every Wednesday.** `NotificationDispatchTest`'s leave-request
   case asked for `now()->addDays(10)` to `addDays(11)`. That range is
   Saturday–Sunday exactly when today is a Wednesday, and the endpoint rejects a

@@ -49,6 +49,24 @@ composer install --no-dev --optimize-autoloader
 warmed by a prior CI run, and `phpunit`/`pest`/`larastan` in `require-dev` are ~40% of
 `vendor/`'s size for zero production benefit.
 
+> **`composer install` needs a readable `.env` to exist first.** It is safe here
+> because this step runs on your own machine, where one does. If you ever run it
+> *on the host* — through Plesk's Composer UI, or over SSH after uploading — do it
+> **after** step 3 writes `.env`, never before.
+>
+> The failure is not obvious from the message. `composer install` runs
+> `package:discover` as a post-autoload-dump script; `config/broadcasting.php`
+> defaults to `reverb` when `BROADCAST_CONNECTION` is unset, `routes/channels.php`
+> calls `Broadcast::channel()` at load time, and Pusher is handed a null key:
+>
+> ```
+> Failed to create broadcaster for connection "reverb" with error:
+> Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type string, null given
+> ```
+>
+> It reads like a Reverb problem on a deployment that does not run Reverb. Measured
+> in CI on 2026-09-16, where it failed every workflow run since the first push.
+
 Do **not** run `npm run build` locally and upload `.next/standalone` unconditionally —
 that decision depends on B5. See step 5.
 

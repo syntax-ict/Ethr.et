@@ -24,6 +24,12 @@ on:
       - ".github/workflows/security.yml"
   workflow_dispatch:
 
+# Same reason as gates.yml: without it, `composer install` dies in
+# package:discover building a Reverb broadcaster with no key, and this workflow
+# never reaches the audit. The quoted "null" is deliberate — see gates.yml.
+env:
+  BROADCAST_CONNECTION: "null"
+
 jobs:
   audit:
     name: Dependency advisories

@@ -63,9 +63,16 @@ otherwise only ever runs on SQLite while production runs on MariaDB. The first
 time anyone pointed it at MariaDB (2026-09-15) it found a search defect that
 returned nothing in production and passed every test. CI runs it on every push.
 
-**CI calls `gates.sh` rather than restating it**, so the two cannot drift. `main` has been pushed, so the workflows should now be running — but no run has been read from here (`gh` is not installed and the repository is private), so treat a green build as unconfirmed until someone has actually looked at the Actions tab.
+**CI calls `gates.sh` rather than restating it**, so the two cannot drift.
 
-This paragraph previously said the workflows had "executed zero times, because `main` is 19 commits ahead and nothing has been pushed". That was true on 2026-09-15 and stopped being true the same day. It is the third stale fact this file has carried; if you are reading it long after that date, check rather than trust it.
+**The Actions tab was finally read on 2026-09-16, and every run had failed — 50 of them, since the first push.** Not one gate had ever executed. Two causes, both structural rather than code:
+
+1. **No shell script had its executable bit.** Every `scripts/*.sh` was mode `100644`, so `./scripts/gates.sh` exited **126** (Permission denied) on a Linux runner. Git on Windows does not track the bit unless `core.filemode` is set, so it was never committed. Fixed with `git update-index --chmod=+x`.
+2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed with a workflow-level `BROADCAST_CONNECTION: "null"`.
+
+The lesson worth keeping: this file twice told readers to treat CI as *probably fine but unconfirmed*. It was not fine. **Read the Actions tab rather than reasoning about it** — the whole reason the workflows exist is to tell you something you do not already know.
+
+That said, the fix above has itself only been verified locally (exit bits, and `package:discover` exiting 0 under the null driver). Whether the runs now go green is, again, something to look at rather than assume.
 
 What *is* active is the pre-push hook, once you enable it:
 
