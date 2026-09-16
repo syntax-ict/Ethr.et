@@ -602,10 +602,10 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | # | Risk | Evidence | Severity |
 |---|---|---|---|
 | 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally; **not yet rehearsed on the host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]** | **High** (was Critical) — still a go-live gate |
-| 2 | **Cross-tenant import lookup (P0-1)** | `EmployeeImporter.php:94` **[verified]** | **Critical** — isolation breach + silent data loss |
+| 2 | ~~**Cross-tenant import lookup (P0-1)**~~ — **fixed in Phase 0.5**; the lookup now states `tenant_id` itself (`EmployeeImporter.php:110`), and `withoutGlobalScopes()` deliberately stays so the soft-delete scope is still dropped (D-001) | `TenantImportIsolationTest` — 4 tests, 9 assertions, green **[verified]** | Resolved |
 | 3 | ~~Payroll times out mid-transaction~~ — **queued** (`ProcessPayrollJob`), 202 + polling | `PayrollQueuedProcessingTest` **[verified]** | Resolved |
 | 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |
-| 5 | **Audit-log `DEFINER` breaks after restore** → all writes 500 | 206 call sites **[verified]** | High |
+| 5 | ~~**Audit-log `DEFINER` breaks after restore** → all writes 500~~ — **fixed**; `DatabaseDumper` reconstructs triggers from `SHOW TRIGGERS` with no `DEFINER` clause, so the restoring user becomes the definer. Measured 2026-09-16 on MariaDB: a DEFINER-carrying dump is refused outright without `SUPER` (§13b), and a non-root user restores and enforces both triggers | `ethr:backup:rehearse` on MariaDB; `BackupRestoreRehearsalTest` **[verified]** | Resolved — but only for `ethr:backup`. A Plesk panel export still carries a DEFINER and may be unrestorable; see §13b |
 | 6 | ~~Horizon aborts `composer install`~~ — **removed** (`cdf85d1`); lockfile carries **zero** hard `pcntl`/`posix` requires | lockfile parsed **[verified]** | Resolved |
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
@@ -619,7 +619,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
 | 11 | **No tenant-isolation regression enforcement** | no Layer-4 check **[verified]** | Medium |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
-| 13 | **Documentation asserts controls that do not exist** | 4 documents **[verified]** | Medium |
+| 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |
 
 ---
