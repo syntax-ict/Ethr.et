@@ -25,6 +25,13 @@ so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
 docker compose up -d
 ```
 
+**Node comes from `.nvmrc`** — currently 24, which `nvm use` / `fnm use` picks
+up from the repository root and which CI reads via `node-version-file`. It is
+not a preference. Two frontend test files fail on Node 20 and one of them on 22
+as well, for reasons that have nothing to do with the application code; that
+pin is what kept `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` red on every
+CI run until 2026-09-16. `docs/audit/BASELINE.md` §12d has the measurements.
+
 `RUN_ALL.ps1`, `START_BACKEND.ps1` and `START_FRONTEND.ps1` are older
 Windows-only launchers that predate the Docker setup. `RUN_ALL.ps1` in
 particular prints "SQLite" while the documented stack is MariaDB on port 3307,

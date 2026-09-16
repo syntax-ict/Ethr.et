@@ -172,9 +172,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Read from .nvmrc so the toolchain version is declared once, the same
+      # way CI calls gates.sh rather than restating the gate list.
+      #
+      # It says 24 because these jobs were pinned to "20" until 2026-09-16, and
+      # Node 20 went end-of-life on 2026-04-30. That pin was not merely stale:
+      # it was the whole reason `Vitest (frontend)` had never passed. Measured
+      # on Linux, the same two files, in isolation:
+      #
+      #   Node 20 -> 3 failed    Node 22 -> 2 failed    Node 24 -> all pass
+      #
+      # employees-import.test.tsx posts multipart/form-data through axios, and
+      # MSW's Node interceptor never returns the response on 20 or 22 — the
+      # handler runs, the promise never settles, and the test dies on the
+      # testing-library timeout. Nothing in the application is involved; the
+      # request is intercepted before it leaves the process.
+      #
+      # So this bump does not weaken Node 20 coverage of the product. The other
+      # frontend gates (tsc, ESLint, Prettier, i18n) always passed on 20, and
+      # jsdom unit tests never exercised a production runtime anyway. What the
+      # product actually needs is still Next 16's floor of Node 20.9+ — the
+      # hosting question is gate B5 in the shared-hosting compatibility doc and
+      # remains unanswered.
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: src/package-lock.json
 
@@ -194,7 +216,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
 
       # No install step: docs-link-check.js uses only Node built-ins, which is
       # deliberate so this can run on its own in seconds.
@@ -232,7 +254,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: src/package-lock.json
 

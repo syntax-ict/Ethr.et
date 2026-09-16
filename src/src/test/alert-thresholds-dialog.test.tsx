@@ -50,8 +50,19 @@ describe("<AlertThresholdsDialog>", () => {
     );
     renderDialog();
 
-    expect(await screen.findByText(/Turnover rate/)).toBeInTheDocument();
-    expect(screen.getByText(/exceeds 5/)).toBeInTheDocument();
+    // Query the rule's own text, not the metric name. "Turnover rate" is also
+    // what the metric <Select> trigger displays, so `findByText(/Turnover
+    // rate/)` resolves against the form control on the very first poll and
+    // never waits for the list — leaving the following assertion to race the
+    // query. That is why this test passed on Node 22/24 and failed on Node 20,
+    // where CI is fast enough to lose the race (BASELINE §12d).
+    const row = (await screen.findByText(/exceeds 5/)).parentElement!;
+
+    // The row carries metric, operator, value and severity together, which is
+    // what this test claims to check.
+    expect(row).toHaveTextContent("Turnover rate");
+    expect(row).toHaveTextContent("exceeds 5");
+    expect(row).toHaveTextContent("warning");
   });
 
   it("creates a new rule with the entered value", async () => {

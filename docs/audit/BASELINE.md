@@ -452,30 +452,41 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 9. **No `docs/README.md` index** for 53 files; `README.md` maps 8 of them.
 10. **Master plan §5's repository identity block is wrong for this tree** (§1a).
 
-### 12d. The Frontend CI job fails and does not reproduce locally **[open]**
+### 12d. The Frontend CI job ran on an end-of-life Node **[found and FIXED 2026-09-16]**
 
-CI run #56 (2026-09-16, `49e2ee9`): the `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` job exits 1 after 2m 23s, with no file-level annotations — only "Process completed with exit code 1".
+`Frontend (i18n, Prettier, ESLint, tsc, Vitest)` had failed on every run since the workflows first executed. The cause was a single line: all four `setup-node` steps pinned `node-version: "20"`, and **Node 20 reached end-of-life on 2026-04-30** (`nodejs/Release/schedule.json`) — four and a half months before this was read.
 
-Locally the same gate passes in the **exact CI shape**, meaning with no `.next/` directory present at all:
+**Measured on Linux (WSL Ubuntu 26.04), the two failing files, run in isolation:**
 
-```
-✓ i18n   ✓ Prettier   ✓ ESLint   ✓ TypeScript (tsc)   ✓ Vitest (70 files, 435 tests)
-```
+| Node | Result |
+|---|---|
+| 20.20.2 | 3 failed, 2 passed |
+| 22.23.2 | 2 failed, 3 passed |
+| 24.21.0 | **5 passed** |
 
-Ruled out by direct test:
+Two independent causes, not one:
+
+1. **`employees-import.test.tsx` (2 tests) — fails on Node 20 *and* 22.** The page posts `multipart/form-data` through axios. Probed directly: MSW's handler *is* invoked (hit count 1, `content-type: multipart/form-data; boundary=----formdata-undici-…`), but the promise never settles — a bare `apiClient.post` of a `FormData` hangs until the 20s test timeout. The request is intercepted before it leaves the process, so **no application code is involved**.
+2. **`alert-thresholds-dialog.test.tsx` (1 test) — fails on Node 20 only.** This one was a real defect in the test. It waited on `findByText(/Turnover rate/)`, which is *also* the text Radix renders in the metric `<Select>` trigger — so the query resolved against the form control on the first poll and never waited for the rule list, leaving `getByText(/exceeds 5/)` to race the network. It passed on 22/24 by luck of timing. Now it waits on the rule's own text and asserts metric, operator, value and severity on one row, which is what the test's name always claimed. Green on 20, 22 and 24.
+
+**Fix:** `.nvmrc` at the repository root declares `24`; all four `setup-node` steps read `node-version-file: .nvmrc`. One declaration, the same reason CI calls `gates.sh` rather than restating the gate list.
+
+**Verified:** the full suite on Linux + Node 24 — the exact CI configuration — `73 passed (73)`, `473 passed (473)`. That is the first time the frontend suite has been run green in a CI-equivalent environment rather than only on a developer's Windows machine.
+
+**What this does *not* claim.** It is not a finding that the product needs Node 24. `tsc`, ESLint, Prettier and i18n always passed on Node 20, and jsdom unit tests never exercised a production runtime. The application's floor is still Next 16's Node 20.9+, and which Node the shared host offers is **gate B5 — still unanswered**.
+
+**Four hypotheses were tested before this, and all four were wrong.** Recorded so the work is not repeated — and because one of them was wrong in an instructive way:
 
 | Hypothesis | Test | Result |
 |---|---|---|
 | `tsc` needs `.next/types`, absent on a clean checkout | deleted `.next/` entirely, ran the gate | passes — `tsc_gate`'s `next typegen` step handles it |
-| Node engine incompatibility (CI pins Node 20, local is 24) | read `engines` from next/eslint/typescript/vitest | all declare ≥20.9 or lower; `setup-node` "20" satisfies every one |
+| ~~Node engine incompatibility (CI pins Node 20, local is 24)~~ | read `engines` from next/eslint/typescript/vitest | **WRONG — this was the cause.** Every package declares `>=20.9` or lower, and `setup-node` "20" does satisfy all of them, so the hypothesis was dismissed. Declared engine ranges say what a package *claims*; they say nothing about whether the test harness works. It should have been tested by running the suite on Node 20, not by reading metadata. |
 | `node_modules` drifted from the lockfile | `npm ls --depth=0`, then a full `npm ci` | only extraneous `sharp` WASM fallbacks; nothing missing or invalid |
 | Import path case-sensitivity (Linux resolves case-sensitively, Windows does not) | resolved **1,850** imports — 115 relative and 1,735 `@/` alias — comparing every path component against the real directory listing with exact string equality | zero mismatches, zero unresolved |
 
-**Not yet read: the CI log itself.** The repository is public, but job logs are not available to an anonymous client — the REST API returns 403, `…/checks/<id>/logs` returns 404, and GitHub's log viewer does not expand steps for a signed-out viewer. Reading it needs a signed-in session.
+**The lesson is the one this file keeps having to relearn: read the output.** Job logs are not available to an anonymous client (REST API 403 "Must have admin rights to Repository"), so `scripts/gates.sh` was changed to publish the failing gate's output as a GitHub Actions *annotation*, which **is** readable signed-out. That named all three tests. Everything above followed in one pass. Four rounds of reasoning produced four wrong answers; one round of reading produced the right one.
 
-That is the next step, and it should be the *first* step. Four hypotheses were tested and all four were wrong; a fifth guess is worth less than one look at the output. Recorded here so the work is not repeated.
-
-**Partly fixed at the source.** `scripts/gates.sh` now emits a GitHub Actions error annotation naming each failed gate when `GITHUB_ACTIONS` is set. Annotations *are* visible without signing in — that is how §12c's four PHPStan errors were read — so the next run of this job will say which of the five gates failed, rather than only "Process completed with exit code 1". It does not give the error text, but it converts a blind guess into a one-line answer, and it applies to every job rather than just this one.
+> A self-inflicted delay worth recording: the first version of that annotation grepped the captured output for `FAIL`/`×` **and then** stripped ANSI escapes. Vitest colours those markers, so the pattern never matched and the annotation came back empty — which looked like "the gate failed silently" rather than "my grep is broken". Verified after reordering by running it against a deliberately failing test, since a green run has no `FAIL` lines and would have "passed" the check while proving nothing.
 
 ### 12g. The frontend rendered timestamps in the browser's timezone **[found and FIXED 2026-09-16]**
 
@@ -519,7 +530,7 @@ Picking (1) would quietly break any tenant that has set a different zone, and th
 
 `src/test/date-utils.test.ts` pins current behaviour with `process.env.TZ` set to UTC before import, so the tests are deterministic on any runner and will fail loudly when this is changed.
 
-> **A second environment-dependence found while writing those tests.** en-GB renders September as `Sep` under older ICU and `Sept` under newer. Node 24 locally produces `Sept`; CI pins Node 20. Asserting either literal would pass on one runtime and fail on the other, so the month is matched as `/Sept?/` while the day, year and time are asserted exactly.
+> **A second environment-dependence found while writing those tests.** en-GB renders September as `Sep` under older ICU and `Sept` under newer. Asserting either literal would pass on one runtime and fail on the other, so the month is matched as `/Sept?/` while the day, year and time are asserted exactly. CI and local development now both run Node 24 (§12d), so the two agree today — the loose matcher is kept because agreeing *today* is not the same as being version-independent, and this is exactly the class of drift that hid §12d for fifty runs.
 
 ### 12f. Frontend coverage — first measurement **[verified 2026-09-16]**
 

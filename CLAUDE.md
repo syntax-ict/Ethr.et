@@ -72,12 +72,16 @@ returned nothing in production and passed every test. CI runs it on every push.
 
 **CI calls `gates.sh` rather than restating it**, so the two cannot drift.
 
-**The Actions tab was finally read on 2026-09-16, and every run had failed — 50 of them, since the first push.** Not one gate had ever executed. Two causes, both structural rather than code:
+**The Actions tab was finally read on 2026-09-16, and every run had failed — 50 of them, since the first push.** Not one gate had ever executed. Five causes, every one structural rather than code:
 
 1. **No shell script had its executable bit.** Every `scripts/*.sh` was mode `100644`, so `./scripts/gates.sh` exited **126** (Permission denied) on a Linux runner. Git on Windows does not track the bit unless `core.filemode` is set, so it was never committed. Fixed with `git update-index --chmod=+x`.
 2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed with a workflow-level `BROADCAST_CONNECTION: "null"`.
 
 3. **`phpstan_gate` required Docker.** It delegated unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no `et-api-1`. A CI runner has native PHP and no container, so **PHPStan could never have passed in CI regardless of the code**. Now native-first with the container as fallback, the same shape `pest_gate` already had.
+
+4. **The backend job had no `APP_KEY`.** `Employee.tin` and `national_id` use the `encrypted` cast, and Laravel's encrypter refuses to boot without a key, so **156 tests** died with `MissingAppKeyException`. `Backend suite on MySQL` ran `key:generate` and passed; `Backend` never did and failed. Found only once `gates.sh` began publishing the failing gate's output as an annotation.
+
+5. **Every `setup-node` pinned Node 20, which went end-of-life on 2026-04-30.** Two frontend test files fail on it — one because MSW's Node interceptor never settles a `multipart/form-data` request on Node 20 *or* 22, one because of a genuinely ambiguous query that only Node 20 was fast enough to expose. Node is now declared once in `.nvmrc` (24) and read by `node-version-file`. See `docs/audit/BASELINE.md` §12d; the full suite is verified green on Linux + Node 24, which is the first CI-equivalent green the frontend suite has ever had.
 
 Once 1 and 2 were fixed the workflows ran for the first time (run #55): **Documentation integrity and Backend suite on MySQL passed**, three jobs failed. Those three were real — a stale `phpstan-baseline.neon` entry, `tsc` needing `.next/types` that only exists after a build, and genuine OpenAPI drift.
 
