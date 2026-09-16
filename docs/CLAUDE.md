@@ -239,12 +239,27 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 
 ## Stack (v1.0 — Locked)
 
+> **This table describes the VPS-era v1.0 stack, and four of its rows are no
+> longer what ships.** It is kept because it is the locked v1.0 specification,
+> not because it is a current inventory. What actually changed:
+>
+> | Row | Status |
+> |---|---|
+> | Cache / Queue — Redis 7+ | **Not used in production.** `SHARED_HOSTING_AUDIT.md` §B removed Redis for the shared-hosting target; the queue runs on the `database` driver. Coupling is configuration-only — `audit/BASELINE.md` §6 found no application code calling Redis. |
+> | Horizon | **Not deployed.** It hard-requires `ext-pcntl` and `ext-posix`, which aborts `composer install --no-dev` on shared hosting (`BASELINE.md` §3a). |
+> | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=log` in production. |
+> | File Storage — MinIO | **Not deployed** for the shared-hosting target; the `local` disk serves documents through signed `temporaryUrl()` routes. |
+>
+> `Infrastructure` likewise still says "Ethiopian VPS"; the production target is
+> Ethio Telecom shared hosting under Plesk. The VPS assets are kept only until
+> that cutover is verified — see `deployment/GATE-0-RESULT.md`.
+
 | Layer | Technology | Notes |
 |---|---|---|
 | Backend | Laravel 12, PHP 8.2 | Sanctum, Horizon, Reverb |
 | Database | MariaDB 10.11 | SQLite in-memory for tests |
 | Cache / Queue | Redis 7+ | Horizon for queue dashboard |
-| Frontend | Next.js 15, React 19, TypeScript strict | Tailwind CSS 4, shadcn/ui |
+| Frontend | Next.js 16, React 19, TypeScript strict | Tailwind CSS 4, shadcn/ui |
 | Forms | React Hook Form + Zod | Server + client validation |
 | Data Fetching | TanStack Query v5 | Optimistic updates per policy |
 | Tables | TanStack Table v8 | Enterprise DataTable foundation |
@@ -754,7 +769,7 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
     /en                  Full coverage (15+ files)
     /am                  Full coverage (15+ files)
 
-/src                    Next.js 15 frontend
+/src                    Next.js 16 frontend (the real source is one level down, in src/src)
   /app                  App router pages
     /(auth)              Auth layout pages (login, register, verify)
     /(dashboard)         Dashboard layout pages (all authenticated views)
