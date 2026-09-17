@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
+import { SITE_URL } from "@/lib/site-url";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,6 +10,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for Open Graph and canonical links. Without this Next emits
+  // relative og:url and og:image values, which every social and chat preview
+  // resolves against its own origin — so a shared link renders a broken card.
+  metadataBase: new URL(SITE_URL),
   title: {
     template: "%s | ETHR",
     default: "ETHR — Ethiopian Workforce Operating System",
