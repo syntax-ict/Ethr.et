@@ -360,6 +360,49 @@ required it.
 
 ---
 
+## B-5 — the database has no import route either, and one question may delete it
+
+`docs/DATABASE_MIGRATION_PLAN.md` was reviewed on 2026-09-17 and had not been checked
+against SSH being Forbidden. **Both of its paths are blocked, by the same missing
+capability class as B-4 but by different mechanisms:**
+
+| Path | The blocking step | Why it is blocked |
+| --- | --- | --- |
+| **Existing-data migration** | `mysql -h localhost -u… "$DB" < ethr_pre_migration_*.sql` (§ *Schema transfer*) | Runs the import **on the shared host**. Needs a shell there. The `mysqldump` half is fine — that runs on the VPS, which has SSH |
+| **Fresh deployment** | `php artisan migrate` + `ProductionSeeder` | This is **B-4**. Same blocker, already recorded |
+
+So there is currently no route to get a schema into the shared-hosting database at all,
+by either path. Recorded as **B-5**, distinct from B-4 because the remedy differs: B-4
+needs something that runs `artisan`; B-5 needs either that *or* a database import UI.
+
+### The question that might delete B-5 entirely
+
+**Which path applies has never been decided**, and the repository's own evidence points
+hard at one of them. `MIGRATION_STATE.md` records `ethr.et` as having had **no live
+traffic** — *"nothing is serving the domain today, so there is no live-traffic cutover
+risk… the VPS is dormant, not serving."* The plan's own opening says: *"This assumes there
+is existing data to migrate — if the shared-hosting deployment is instead a fresh start
+with `ProductionSeeder` and no prior tenants, skip straight to 'Fresh deployment'."*
+
+If the VPS holds no real tenant data, then:
+
+- the `mysqldump` → `mysql <` half of the plan **does not apply at all**, and B-5 collapses
+  into B-4;
+- the storage-transfer section likewise;
+- and the whole database migration becomes `artisan migrate` + `ProductionSeeder`, which
+  is one blocker rather than two.
+
+**This is answerable without Plesk.** It is a question about the VPS, not the shared host,
+and it is the only outstanding item on the critical path that does not require the panel —
+which is why it is queued ahead of the panel work below.
+
+Held, not fixed: `DATABASE_MIGRATION_PLAN.md` is **not** in the frozen directory, so it
+could be rewritten now. It is not being rewritten, for the same reason as U-2 — if the
+path turns out to be "fresh deployment", half the document becomes irrelevant rather than
+wrong, and rewriting it before that answer means writing it twice.
+
+---
+
 ## UNFIXED — held deliberately, 2026-09-17
 
 Known defects and unresolved states that are **not** being repaired right now, each with
@@ -474,6 +517,7 @@ gate it unlocks. **Do not do 8 before 5.**
 
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
 | --- | --- | --- | --- | --- | --- |
+| **0** | **Does the VPS hold real tenant data?** — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | **1** | **Scheduled Tasks capability** | Websites & Domains → *Scheduled Tasks* (or Tools & Settings) | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary | No | **G0-D**, and it decides whether the migration is performable at all without SSH — see B-1/B-4 |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
