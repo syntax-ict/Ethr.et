@@ -232,19 +232,19 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | Phase | Work | Days |
 |---|---|---|
 | 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
-| 1 | Correct the shipped documentation errors (below) | 0.5 |
+| ~~**1**~~ | ~~Correct the shipped documentation errors~~ — **done by recording, §6**. The nine errors are listed there rather than edited into `LANDING_PAGE_PRODUCTION_PLAN.md`, per this repo's convention; that document carries a banner naming the load-bearing one (F10) and pointing here. Its inline figures — "470 lines", "20 icons", "five of thirteen footer links" — are therefore still the original wrong ones, deliberately | 0.5 |
 | ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
 | ~~**3**~~ | ~~Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen~~ — **done, §8** | 3–4 |
 | ~~**4**~~ | ~~Platform site content: extend `platform_settings`, public read endpoint, first cache~~ — **done, §8** | 2–3 |
 | ~~**5**~~ | ~~Wire the marketing pages to the data~~ — **done, §8**. Pricing, metrics and contact read the database; the invented testimonial is **deleted** (it was still rendering when §8 claimed otherwise — see the correction there) | 2–3 |
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
-| 8 | Performance and accessibility. The shared language switcher is already reused (Phase 5). **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10 | 3–4 |
-| 9 | Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope | 1–2 |
+| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB | 3–4 |
+| 9 | **Two of three left.** The Amharic render assertion is done — `document-lang.test.tsx` and `locale-routes.test.tsx` both render in `am` and assert Amharic text. Still open: the anonymous-visitor e2e path, and a `lighthouse` scope in `gates.sh` (there is a `performance` scope at :431 to copy the shape from; there is no `lighthouse` one) | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
 
-**Remaining: 8 and 9.** Phase 0's Lighthouse measurement and the B5 hosting
+**Remaining: Phase 8's performance work, and two of Phase 9's three items.** Phase 0's Lighthouse measurement and the B5 hosting
 answer are still owner actions — a Plesk panel lookup cannot be done from here.
 First Load JS *has* now been measured: 427 KB gzipped of client JS on the
 landing page, of which Sentry is 87 KB (measured by building with
