@@ -44,4 +44,41 @@ return [
         'error_body' => 'We could not load this page. Please try again shortly.',
         'cta' => 'Go to ETHR',
     ],
+
+    /*
+     * Section headings.
+     *
+     * Used two ways: as the pre-filled heading when a preset seeds a tenant's
+     * page, and as the fallback a partial renders when an administrator has
+     * cleared the heading but left the section in place. Keyed by the
+     * PublicSectionKind value, which SectionKindWiringTest checks is complete
+     * in both locales — a kind with no heading here renders a blank <h2>.
+     */
+    'sections' => [
+        'hero' => ['heading' => 'Welcome'],
+        'about' => ['heading' => 'About us'],
+        'services' => ['heading' => 'Our services'],
+        'stats' => ['heading' => 'At a glance'],
+        'notices' => ['heading' => 'Public notices'],
+        'leadership' => ['heading' => 'Leadership'],
+        'gallery' => ['heading' => 'Gallery'],
+        'faq' => ['heading' => 'Frequently asked questions'],
+        'hours' => ['heading' => 'Opening hours'],
+        'contact' => ['heading' => 'Contact'],
+        'cta' => ['heading' => 'Work with us'],
+    ],
+
+    'days' => [
+        'monday' => 'Monday',
+        'tuesday' => 'Tuesday',
+        'wednesday' => 'Wednesday',
+        'thursday' => 'Thursday',
+        'friday' => 'Friday',
+        'saturday' => 'Saturday',
+        'sunday' => 'Sunday',
+    ],
+
+    'closed' => 'Closed',
+    'read_more' => 'Read more',
+    'posted_on' => 'Posted :date',
 ];

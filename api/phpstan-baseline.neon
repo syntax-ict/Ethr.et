@@ -3961,6 +3961,18 @@ parameters:
 			path: app/Models/TenantPublicProfile.php
 
 		-
+			message: '#^Method App\\Models\\TenantPublicSection\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicSection\)\|null but returns App\\Models\\TenantPublicSection\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicSection.php
+
+		-
+			message: '#^Method App\\Models\\TenantPublicItem\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicItem\)\|null but returns App\\Models\\TenantPublicItem\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicItem.php
+
+		-
 			message: '#^Method App\\Models\\TenantPublicProfile\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1

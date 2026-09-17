@@ -46,4 +46,37 @@ return [
         'error_body' => 'ይህን ገጽ መጫን አልቻልንም። እባክዎ ከጥቂት ጊዜ በኋላ እንደገና ይሞክሩ።',
         'cta' => 'ወደ ETHR ይሂዱ',
     ],
+
+    /*
+     * Section headings — see the English file for what these are used for.
+     * PublicLangParityTest fails if the two drift apart, which matters more
+     * here than usual: Amharic is the default locale.
+     */
+    'sections' => [
+        'hero' => ['heading' => 'እንኳን ደህና መጡ'],
+        'about' => ['heading' => 'ስለ እኛ'],
+        'services' => ['heading' => 'አገልግሎቶቻችን'],
+        'stats' => ['heading' => 'በአጭሩ'],
+        'notices' => ['heading' => 'የሕዝብ ማስታወቂያዎች'],
+        'leadership' => ['heading' => 'አመራር'],
+        'gallery' => ['heading' => 'ማዕከለ ስዕላት'],
+        'faq' => ['heading' => 'ተደጋጋሚ ጥያቄዎች'],
+        'hours' => ['heading' => 'የሥራ ሰዓት'],
+        'contact' => ['heading' => 'አድራሻ'],
+        'cta' => ['heading' => 'ከእኛ ጋር ይሥሩ'],
+    ],
+
+    'days' => [
+        'monday' => 'ሰኞ',
+        'tuesday' => 'ማክሰኞ',
+        'wednesday' => 'ረቡዕ',
+        'thursday' => 'ሐሙስ',
+        'friday' => 'ዓርብ',
+        'saturday' => 'ቅዳሜ',
+        'sunday' => 'እሑድ',
+    ],
+
+    'closed' => 'ዝግ',
+    'read_more' => 'ተጨማሪ ያንብቡ',
+    'posted_on' => ':date ተለጠፈ',
 ];

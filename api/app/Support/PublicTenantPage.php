@@ -50,6 +50,8 @@ final class PublicTenantPage
         public readonly bool $hasHero,
         public readonly bool $isIndexable,
         public readonly PublicPagePreset $preset,
+        /** @var list<PublicSection> */
+        public readonly array $sections,
     ) {}
 
     /**
@@ -61,10 +63,12 @@ final class PublicTenantPage
      * away from a template — so the blob is read outside, and only the
      * resulting enum case crosses the boundary.
      */
+    /** @param list<PublicSection> $sections */
     public static function from(
         Tenant $tenant,
         TenantPublicProfile $profile,
         PublicPagePreset $preset = PublicPagePreset::GENERAL,
+        array $sections = [],
     ): self {
         return new self(
             name: $tenant->name,
@@ -85,6 +89,7 @@ final class PublicTenantPage
             hasHero: TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::HERO) !== null,
             isIndexable: $profile->is_indexable,
             preset: $preset,
+            sections: $sections,
         );
     }
 
@@ -170,6 +175,27 @@ final class PublicTenantPage
         | JSON_HEX_AMP
         | JSON_HEX_APOS
         | JSON_HEX_QUOT;
+
+    /**
+     * The description split into paragraphs.
+     *
+     * The classic template does this inline; the preset layout asks for it
+     * here so the about partial holds no expression, keeping every public
+     * Blade file free of logic that could grow into an unescaped echo.
+     *
+     * @return list<string>
+     */
+    public function descriptionParagraphs(): array
+    {
+        if (! filled($this->description)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            preg_split('/\R{2,}/', trim((string) $this->description)) ?: [],
+            static fn (string $p): bool => trim($p) !== '',
+        ));
+    }
 
     /** The full address as one line, or null when no part of it was given. */
     public function formattedAddress(): ?string

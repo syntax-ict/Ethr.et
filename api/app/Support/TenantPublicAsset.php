@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\Tenant;
+use App\Models\TenantPublicItem;
 use App\Models\TenantPublicProfile;
 
 /**
@@ -33,6 +34,34 @@ final class TenantPublicAsset
 
     /** The kinds the public route will serve. Anything else is a 404. */
     public const KINDS = [self::LOGO, self::HERO];
+
+    /**
+     * The storage path behind one section item's image, or null.
+     *
+     * The same ownership test as the logo and hero. It is applied again here
+     * rather than trusted from the upload, because this path is reached from an
+     * anonymous route by a ULID in the URL: the ULID is resolved through the
+     * tenant-scoped model, so it cannot name another tenant's row, and then the
+     * path itself is re-checked so a row whose column was written by some other
+     * means still cannot point outside the tenant's own prefix.
+     */
+    public static function sectionImagePath(Tenant $tenant, TenantPublicItem $item): ?string
+    {
+        return self::isOwnedPath($tenant, $item->image_path) ? $item->image_path : null;
+    }
+
+    /**
+     * The public URL for a section item's image.
+     *
+     * A ULID, never a path. The route takes the item's `public_id` and the
+     * controller resolves it through the scoped model, so the URL reveals
+     * nothing about where files live and cannot be edited into one that reads
+     * somewhere else.
+     */
+    public static function sectionUrl(TenantPublicItem $item): string
+    {
+        return '/media/section/'.$item->public_id;
+    }
 
     /**
      * The storage path backing a kind, or null when there is nothing to serve.

@@ -21,6 +21,7 @@ use App\Models\TenantPublicProfile;
 use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
 use App\Services\Public\PresetResolver;
+use App\Services\Public\SectionSeeder;
 use App\Support\TenantPublicAsset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -258,8 +259,21 @@ class SettingsController extends Controller
         }
 
         $wasPublished = (bool) $profile->is_published;
+        $previousPreset = $profile->preset;
 
         $profile->fill($attributes)->save();
+
+        // Seeded on every preset change, not only the first opt-in. A tenant
+        // that switches to the hotel layout should get the gallery that layout
+        // leads with, rather than an empty frame it has to discover.
+        //
+        // Safe to repeat because the seeder skips kinds the tenant already
+        // has: nothing written is duplicated and nothing is discarded. And
+        // the blocks that need new content seed hidden, so changing layout
+        // never puts a heading over nothing onto the live page.
+        if ($profile->preset !== null && $profile->preset !== $previousPreset) {
+            app(SectionSeeder::class)->seed($tenant, PublicPagePreset::from($profile->preset));
+        }
 
         // Publication gets its own audit entry. An organisation's page becoming
         // visible on the public internet is a different event from someone

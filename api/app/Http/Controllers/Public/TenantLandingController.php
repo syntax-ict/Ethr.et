@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Enums\PublicPagePreset;
+use App\Enums\PublicSectionKind;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\PublicSecurityHeaders;
+use App\Models\Tenant;
+use App\Models\TenantPublicSection;
 use App\Services\CurrentTenant;
 use App\Services\Public\PresetResolver;
 use App\Services\Public\PublishedTenantLocator;
+use App\Support\PublicSection;
 use App\Support\PublicTenantPage;
 use App\Support\TenancyDomain;
 use Illuminate\Http\Request;
@@ -67,10 +71,17 @@ class TenantLandingController extends Controller
         // structured data from Organization to Hospital — invisible to a
         // visitor, visible to every crawler, and a change to a live page that
         // nobody asked for. "Unchanged" has to mean unchanged.
+        $preset = $classic
+            ? PublicPagePreset::GENERAL
+            : $this->presets->resolve($tenant, $profile);
+
         $page = PublicTenantPage::from(
             $tenant,
             $profile,
-            $classic ? PublicPagePreset::GENERAL : $this->presets->resolve($tenant, $profile),
+            $preset,
+            // The classic layout renders no sections, so it does not pay for
+            // the query either.
+            $classic ? [] : $this->sectionsFor($tenant),
         );
 
         $canonicalUrl = $request->getSchemeAndHttpHost().'/';
@@ -94,6 +105,12 @@ class TenantLandingController extends Controller
             ...($classic ? [] : [
                 'bodyClass' => $page->preset->bodyClass(),
                 'alternates' => self::alternatesFor($canonicalUrl),
+                // The hero is the one kind the template special-cases, so it
+                // needs the enum case to compare against. Supplied here
+                // because a public Blade file may not open an @php block —
+                // the rule that keeps an unescaped echo from ever appearing
+                // in one.
+                'heroKind' => PublicSectionKind::HERO,
             ]),
         ]);
 
@@ -118,6 +135,45 @@ class TenantLandingController extends Controller
         }
 
         return $response;
+    }
+
+    /**
+     * The visible sections for this tenant, as view-models.
+     *
+     * Two queries for the whole tree regardless of how many sections or items
+     * there are — one for the sections, one eager-load for their items. A
+     * partial that lazily touched `$section->items` would turn a twenty-block
+     * page into twenty-one queries, on an anonymous route, on shared hosting;
+     * PublicPageQueryBudgetTest fails if that ever happens.
+     *
+     * @return list<PublicSection>
+     */
+    private function sectionsFor(Tenant $tenant): array
+    {
+        $locale = app()->getLocale();
+
+        return TenantPublicSection::query()
+            ->with('items')
+            ->where('tenant_id', $tenant->id)
+            ->where('is_visible', true)
+            ->orderBy('position')
+            ->get()
+            ->map(fn (TenantPublicSection $section) => PublicSection::from($tenant, $section, $locale))
+            ->filter(fn (PublicSection $section): bool => $section->hasContent())
+            // The kinds that read the profile appear once or not at all. Two
+            // hero blocks would put two <h1> elements on the page, which
+            // breaks heading navigation for anyone using a screen reader —
+            // and the builder is exactly where that creeps in, because every
+            // section is somebody's idea of the most important one.
+            //
+            // The API refuses to create a second one; this is what keeps the
+            // page correct for rows that predate that rule or arrive by some
+            // other route.
+            ->unique(fn (PublicSection $section) => $section->kind->readsProfile()
+                ? $section->kind->value
+                : spl_object_id($section))
+            ->values()
+            ->all();
     }
 
     /**

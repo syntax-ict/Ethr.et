@@ -85,6 +85,52 @@
 @endsection
 
 @section('body')
+    {{--
+        The icon sprite.
+
+        One inline SVG for every icon the builder offers, defined once and
+        referenced by `<use href="#icon-name">`. Not an icon font — this page
+        deliberately makes no webfont request — and not a file per icon, which
+        would be a network request each on a page whose whole point is to load
+        fast on an Ethiopian connection. External URLs are not an option at
+        all: the CSP is `default-src 'none'` with `img-src 'self'`.
+
+        Hidden from assistive technology and removed from the layout: it is a
+        definition, not content. Every icon that uses it is itself
+        aria-hidden, because an icon beside a heading repeats the heading.
+
+        IconAllowListTest keeps these symbols and PublicSectionIcons::NAMES in
+        step, in both directions.
+    --}}
+    <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" class="icon-sprite">
+        <symbol id="icon-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+        <symbol id="icon-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/></symbol>
+        <symbol id="icon-file-text" viewBox="0 0 24 24"><path d="M6 2h8l4 4v16H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+        <symbol id="icon-stamp" viewBox="0 0 24 24"><path d="M5 20h14"/><path d="M8 16v-3a4 4 0 1 1 8 0v3"/><rect x="5" y="16" width="14" height="3"/></symbol>
+        <symbol id="icon-scale" viewBox="0 0 24 24"><path d="M12 3v18M5 7h14"/><path d="M5 7 2 14h6zM19 7l-3 7h6z"/></symbol>
+        <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+        <symbol id="icon-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 11a3 3 0 1 0 0-6"/></symbol>
+        <symbol id="icon-user-tie" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 21a6 6 0 0 1 12 0"/><path d="M12 11l-1 4h2z"/></symbol>
+        <symbol id="icon-building" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></symbol>
+        <symbol id="icon-landmark" viewBox="0 0 24 24"><path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10"/><path d="M12 3l9 5H3z"/></symbol>
+        <symbol id="icon-map-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+        <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+        <symbol id="icon-phone" viewBox="0 0 24 24"><path d="M6 3h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z"/></symbol>
+        <symbol id="icon-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+        <symbol id="icon-message" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+        <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+        <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+        <symbol id="icon-graduation-cap" viewBox="0 0 24 24"><path d="m12 4 10 5-10 5L2 9z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></symbol>
+        <symbol id="icon-stethoscope" viewBox="0 0 24 24"><path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v3a5 5 0 0 0 9 3"/><circle cx="19" cy="17" r="2"/></symbol>
+        <symbol id="icon-bank" viewBox="0 0 24 24"><path d="M3 21h18M5 21V10M19 21V10M9 21V10M15 21V10"/><path d="M12 3l9 5H3z"/></symbol>
+        <symbol id="icon-factory" viewBox="0 0 24 24"><path d="M3 21V11l6 4V11l6 4V7l6 4v10z"/></symbol>
+        <symbol id="icon-bed" viewBox="0 0 24 24"><path d="M3 20v-9h18v9M3 15h18"/><circle cx="8" cy="11" r="2"/></symbol>
+        <symbol id="icon-leaf" viewBox="0 0 24 24"><path d="M4 20C4 10 10 4 20 4c0 10-6 16-16 16z"/><path d="M4 20 14 10"/></symbol>
+        <symbol id="icon-star" viewBox="0 0 24 24"><path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.8l6.5-.9z"/></symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+        <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    </svg>
+
     <header class="site-header">
         <div class="shell site-header__inner">
             <div class="brand">
@@ -108,76 +154,41 @@
     </header>
 
     <main id="main">
-        <section class="hero {{ $page->hasHero ? 'hero--with-image' : '' }}">
-            @if ($page->hasHero)
-                <img class="hero__image" src="{{ url('/media/hero') }}" alt="" aria-hidden="true">
-            @endif
+        {{--
+            The page body, one block per section the tenant has chosen.
 
-            <div class="shell hero__content">
-                <h1 class="hero__title">{{ $page->name }}</h1>
+            The hero renders outside the generic wrapper because it owns the
+            page's only <h1> and its own full-bleed layout; every other kind
+            gets the same <section> shell with a heading and an
+            aria-labelledby that points at it, so the document outline is
+            consistent whatever an administrator has assembled.
 
-                @if ($page->headline)
-                    <p class="hero__headline">{{ $page->headline }}</p>
-                @endif
+            Sections with no content were dropped before they reached this
+            template — a visible block whose items were all deleted would
+            otherwise render as a heading over nothing, which reads as broken.
+        --}}
+        @foreach ($page->sections as $index => $section)
+            @if ($section->kind === $heroKind)
+                @include('public.sections.hero')
 
-                <p class="hero__actions">
-                    <a class="btn btn--primary btn--lg" href="/login">
-                        {{ __('public.employee_sign_in') }}
-                    </a>
-                </p>
-            </div>
-        </section>
+                @include('public.partials.tibeb')
+            @else
+                <section class="section" aria-labelledby="section-{{ $index }}">
+                    <div class="shell">
+                        @include('public.sections._heading', [
+                            'section' => $section,
+                            'headingId' => 'section-'.$index,
+                        ])
 
-        @include('public.partials.tibeb')
-
-        @if ($page->description)
-            <section class="section" aria-labelledby="about-heading">
-                <div class="shell shell--narrow">
-                    <h2 id="about-heading" class="section__title">
-                        {{ __('public.about_heading', ['organization' => $page->name]) }}
-                    </h2>
-                    {{-- Split into paragraphs and echoed normally. The obvious
-                         alternative is an unescaped echo of nl2br() over an
-                         escaped string, which is safe in itself but puts a raw
-                         echo on a page that renders tenant-entered text — and
-                         then "no raw echoes here" needs an exception, which is
-                         one review away from a second one. A loop costs nothing
-                         and keeps the rule absolute and greppable. --}}
-                    <div class="prose">
-                        @foreach (preg_split('/\R{2,}/', trim($page->description)) as $paragraph)
-                            <p>{{ $paragraph }}</p>
-                        @endforeach
+                        @include('public.sections.'.$section->kind->value, ['section' => $section])
                     </div>
-                </div>
-            </section>
-        @endif
+                </section>
 
-        @if ($page->hasContactDetails())
-            @include('public.partials.tibeb')
-
-            <section class="section" aria-labelledby="contact-heading">
-                <div class="shell shell--narrow">
-                    <h2 id="contact-heading" class="section__title">{{ __('public.contact_heading') }}</h2>
-
-                    <dl class="contact">
-                        @if ($page->contactPhone)
-                            <dt>{{ __('public.phone') }}</dt>
-                            <dd><a href="tel:{{ $page->contactPhone }}">{{ $page->contactPhone }}</a></dd>
-                        @endif
-
-                        @if ($page->contactEmail)
-                            <dt>{{ __('public.email') }}</dt>
-                            <dd><a href="mailto:{{ $page->contactEmail }}">{{ $page->contactEmail }}</a></dd>
-                        @endif
-
-                        @if ($page->formattedAddress())
-                            <dt>{{ __('public.address') }}</dt>
-                            <dd>{{ $page->formattedAddress() }}</dd>
-                        @endif
-                    </dl>
-                </div>
-            </section>
-        @endif
+                @if (! $loop->last)
+                    @include('public.partials.tibeb')
+                @endif
+            @endif
+        @endforeach
     </main>
 
     <footer class="site-footer">

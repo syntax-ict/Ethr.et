@@ -42,6 +42,17 @@ Route::get('/media/{kind}', TenantPublicAssetController::class)
     ->whereIn('kind', TenantPublicAsset::KINDS)
     ->name('public.tenant.asset');
 
+// A section entry's image, addressed by that entry's ULID.
+//
+// Declared before nothing and after `/media/{kind}` deliberately: `section` is
+// not one of TenantPublicAsset::KINDS, so the route above cannot match it and
+// the two cannot shadow each other. The ULID is resolved through the
+// tenant-scoped model, so an identifier from another tenant is simply not
+// found — the URL still carries no path of any kind.
+Route::get('/media/section/{item}', [TenantPublicAssetController::class, 'section'])
+    ->where('item', '[0-9A-HJKMNP-TV-Z]{26}')
+    ->name('public.tenant.section-asset');
+
 /*
  * The two files every crawler asks for before it asks for anything else.
  *

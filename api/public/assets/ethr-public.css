@@ -584,3 +584,230 @@ body[class*="preset--"] .brand__logo {
     --preset-radius: var(--radius-card);
     --preset-section-gap: 64px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Section builder
+ *
+ * Every rule below is driven by --preset-* so the eight skins can change
+ * density and roundness without restating a single layout. Grids use
+ * auto-fit/minmax rather than fixed breakpoints, because an administrator
+ * chooses how many cards there are and a three-column rule would strand a
+ * fourth.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+.section__intro {
+    margin: 0 auto 24px;
+    max-width: 68ch;
+    color: var(--text-muted);
+}
+
+.icon {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--tenant-primary);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon-sprite {
+    display: none;
+}
+
+/* Cards — services */
+.cards {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.cards.section--list {
+    grid-template-columns: 1fr;
+}
+
+.card {
+    padding: 20px;
+    border: var(--preset-rule);
+    border-radius: var(--preset-radius);
+    background: var(--surface);
+}
+
+.card__title {
+    margin: 0 0 8px;
+    font-size: 1.125rem;
+}
+
+.card__body {
+    margin: 0 0 8px;
+    color: var(--text-muted);
+}
+
+.card__image {
+    width: 100%;
+    height: auto;
+    margin-top: 12px;
+    border-radius: var(--preset-radius);
+}
+
+.card__link {
+    font-weight: 600;
+}
+
+/* Stats */
+.stats {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    margin: 0;
+}
+
+.stat {
+    padding: 20px;
+    border-radius: var(--preset-radius);
+    background: var(--preset-band);
+    text-align: center;
+}
+
+.stat__value {
+    margin: 4px 0 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--tenant-primary);
+}
+
+.stat__label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Notices */
+.notices {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.notice {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.notice:last-child {
+    border-bottom: 0;
+}
+
+.notice__title {
+    margin: 0 0 4px;
+    font-size: 1.0625rem;
+}
+
+.notice__date {
+    margin: 0 0 8px;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.notice__body {
+    margin: 0 0 8px;
+}
+
+/* People — leadership */
+.people {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.person__photo {
+    width: 100%;
+    max-width: 160px;
+    height: auto;
+    border-radius: var(--preset-radius);
+}
+
+.person__name {
+    margin: 12px 0 2px;
+    font-size: 1rem;
+}
+
+.person__role {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Gallery */
+.gallery {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gallery__item img {
+    width: 100%;
+    height: auto;
+    border-radius: var(--preset-radius);
+}
+
+.gallery__caption {
+    margin: 6px 0 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* FAQ — the browser's own disclosure widget, no JavaScript anywhere */
+.faq__item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.faq__question {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.faq__question:focus-visible {
+    outline: 3px solid var(--tenant-accent);
+    outline-offset: 2px;
+}
+
+.faq__answer {
+    margin: 8px 0 0;
+    color: var(--text-muted);
+}
+
+/* Hours */
+.hours {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: start;
+}
+
+.hours__row {
+    border-bottom: 1px solid var(--border);
+}
+
+.hours__day {
+    padding: 10px 0;
+    font-weight: 600;
+    text-align: start;
+}
+
+.hours__time {
+    padding: 10px 0;
+    text-align: end;
+    color: var(--text-muted);
+}
+
+/* Closing call to action */
+.cta {
+    text-align: center;
+}

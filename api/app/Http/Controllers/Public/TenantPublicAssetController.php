@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\TenantPublicProfile;
-use App\Services\CurrentTenant;
+use App\Models\TenantPublicItem;
 use App\Services\FileStorageService;
-use App\Support\TenancyDomain;
+use App\Services\Public\PublishedTenantLocator;
 use App\Support\TenantPublicAsset;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,7 +36,7 @@ class TenantPublicAssetController extends Controller
     private const MAX_AGE = 604800;
 
     public function __construct(
-        private readonly CurrentTenant $currentTenant,
+        private readonly PublishedTenantLocator $locator,
         private readonly FileStorageService $storage,
     ) {}
 
@@ -47,27 +46,10 @@ class TenantPublicAssetController extends Controller
             throw new NotFoundHttpException;
         }
 
-        if (! TenancyDomain::isHostnameAuthoritative()) {
-            throw new NotFoundHttpException;
-        }
-
-        $tenant = $this->currentTenant->get();
-
-        if ($tenant === null || ! $tenant->isActive()) {
-            throw new NotFoundHttpException;
-        }
-
         // Same visibility rule as the page itself. An unpublished tenant's logo
         // must not be fetchable just because someone guessed the asset URL —
         // otherwise unpublishing would hide the page and leave the branding.
-        $profile = TenantPublicProfile::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('is_published', true)
-            ->first();
-
-        if ($profile === null) {
-            throw new NotFoundHttpException;
-        }
+        [$tenant, $profile] = $this->locator->locate();
 
         $path = TenantPublicAsset::pathFor($tenant, $profile, $kind);
 
@@ -75,6 +57,53 @@ class TenantPublicAssetController extends Controller
             throw new NotFoundHttpException;
         }
 
+        return $this->stream($request, $path);
+    }
+
+    /**
+     * One section entry's image, addressed by the entry's ULID.
+     *
+     * The URL carries an identifier, never a path — the same rule the fixed
+     * `kind` route follows, for the same reason. The ULID is resolved through
+     * the tenant-scoped model, so an identifier belonging to another tenant
+     * simply is not found: isolation comes from the query failing closed, not
+     * from a comparison someone has to remember to write.
+     */
+    public function section(Request $request, string $item): Response
+    {
+        [$tenant] = $this->locator->locate();
+
+        $model = TenantPublicItem::query()->where('public_id', $item)->first();
+
+        if ($model === null) {
+            throw new NotFoundHttpException;
+        }
+
+        // An image inside a hidden section is not public. Hiding a block has to
+        // hide what is in it, or unpublishing a notice would leave its
+        // photograph fetchable by anyone holding the URL.
+        if ($model->section === null || ! $model->section->is_visible) {
+            throw new NotFoundHttpException;
+        }
+
+        $path = TenantPublicAsset::sectionImagePath($tenant, $model);
+
+        if ($path === null) {
+            throw new NotFoundHttpException;
+        }
+
+        return $this->stream($request, $path);
+    }
+
+    /**
+     * Stream a storage path that has already been proven to belong here.
+     *
+     * Shared by both routes so the cache, ETag and content-type rules cannot
+     * drift apart — a section image served without `nosniff` would be a hole
+     * the logo route does not have.
+     */
+    private function stream(Request $request, string $path): Response
+    {
         $contentType = TenantPublicAsset::contentTypeFor($path);
         $signature = $this->storage->cacheSignature($path);
 
