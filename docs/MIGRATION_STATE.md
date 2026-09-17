@@ -360,6 +360,35 @@ required it.
 
 ---
 
+## UNFIXED — held deliberately, 2026-09-17
+
+Known defects and unresolved states that are **not** being repaired right now, each with
+why. Distinct from the blocked gates: those are *unmeasured*. These are *known wrong or
+known unresolved and consciously left*. Listed so none of them becomes a surprise.
+
+| # | Unfixed | Why it is held | What changes it |
+| --- | --- | --- | --- |
+| **U-1** | **None of this session's corrections are on `main`.** PR #19 and #20 are green and unmerged, so `main` still carries: §0's file list telling you to copy `robots.txt` into the document root, no step 4a at all, an 18-extension probe list **missing `simplexml`**, Node "≥ 20.9", a canary without `shadow.txt`, and no manual action queue. An operator working from `main` today gets the defective procedure. | Merging is the owner's decision, not mine | Merge #19, then #20 |
+| **U-2** | **`DEPLOYMENT.md` steps 3 and 4 describe a procedure nobody can perform here** — `rsync` over SSH, `artisan` over SSH — on an account where SSH is Forbidden | Freeze discipline. The exception test is *branch-independent **and** blocks Gate 0*; this is branch-independent but does not block Gate 0. Rewriting before the SSH question resolves means writing it twice | SSH granted → steps stand as written. SSH refused → rewrite around Git + Composer + a task runner |
+| **U-3** | **B-4 — nothing can run `artisan`.** `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner. The Git route delivers code and Composer delivers `vendor/`; neither executes anything | External capability, not a repository defect | Manual queue #1 (command-type Scheduled Task) or #2 (SSH) |
+| **U-4** | **B-3 — `httpdocs/ethr.et/` is an unidentified Plesk object** with its document root inside `httpdocs/` | Identification needs the panel. Deleting a vhost is not deleting a folder, so it is not being touched on a guess | Manual queue #5 |
+| **U-5** | **The host carries a Git deployment at `716ab93`, 47 commits behind `origin/main`** | Not reconciled, and reconciling it before Gate 0 would deploy an unverified configuration | Gate 0 completing, then a deliberate first deployment |
+| **U-6** | **`httpdocs/public/` and `httpdocs/et/` were removed without the disposability confirmation `B1-B5_GATE_REPORT.md` required** | Irreversible. `et/` was recorded empty; `public/` was never inspected | Nothing — recorded as a permanent gap rather than quietly dropped |
+
+**U-1 is the one with a deadline.** Every other entry waits on evidence or on a decision
+with no cost to delay. U-1 degrades: the longer the corrections sit on branches, the more
+likely someone runs Gate 0 from `main` and gets the four-check canary, the missing
+`simplexml` row, and the instruction to copy `robots.txt` into the document root.
+
+### Checked and clean — recorded so it is not re-checked
+
+`api/.env.production.example` carries **no real secret**. Every `*_KEY`, `*_PASSWORD`,
+`*_SECRET` and `*_TOKEN` value is an instruction-style placeholder or empty (verified by
+pattern, values never printed). A first-pass entropy heuristic flagged nine of them; that
+was a false positive and is recorded as such rather than left as a scare.
+
+---
+
 ## GIT DEPLOYMENT ROUTE — verified from the repository, 2026-09-17
 
 `DEPLOYMENT.md` step 3 uploads with `rsync` over SSH and step 4 runs `artisan` over SSH.
