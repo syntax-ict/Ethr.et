@@ -259,9 +259,19 @@ executable step, and the silent path-level failure has a check that catches it
 (`deploy-checklist.md` → *Public paths*).
 
 **Not touched: PR #17 (tenant public pages, `claude/ethr-tenant-landing-pages-a59gly`).**
-It is open, unmerged, and a separate workstream; `/media/` and `/preview` do not exist
-on `main` and are therefore not in step 4a's path table. When it merges, that table
-needs those two rows added — it is the one place they belong.
+Open, unmerged, a separate workstream, and it changes no file this run touched — its
+routing table lives in a new `docs/TENANT_PUBLIC_PAGES.md`, so there is no overlap and
+no conflict to resolve.
+
+Its five paths (`/`, `/media/`, `/robots.txt`, `/sitemap.xml`, `/preview`) are **tenant-
+host** rules, in the `*.ethr.et` block only, and they route to **Laravel**. Two of them
+carry the same names as rows in step 4a's table and are answered by the other half of
+the stack there — which is precisely the kind of same-name-different-vhost pair this
+repository has drifted on before, so step 4a's table now says on its face that it
+describes the platform host. PR #17 already fences its own Plesk `.htaccess` equivalent
+until G0-B answers. When it merges, step 4a needs a **pointer** to
+`docs/TENANT_PUBLIC_PAGES.md` → *Deployment*, not a copy of its rows: one table
+authoritative per vhost.
 
 ---
 
