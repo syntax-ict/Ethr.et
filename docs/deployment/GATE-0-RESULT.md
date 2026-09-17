@@ -148,6 +148,54 @@ The probe above sits in `~/` and is never served by Apache, so it structurally c
 
 Answers: G0-B.
 
+#### G0-B.2 measured on `canary.php` says nothing about static assets
+
+**Found 2026-09-17 by reading the canary against the deployment `.htaccess`, before either
+was run on the host.** This is a scope gap, not a defect in the canary.
+
+The canary measures G0-B.2 by curling `canary.php` — a PHP file, which by definition
+reaches Apache. But the Apache & nginx panel carries its own warning about *"Serve static
+files directly by nginx"*: **"Requests for these files will be handled by nginx and never
+reach Apache. Caution: Apache rewrite rules will not be applied."**
+
+`docs/deployment/shared-hosting/.htaccess:144` applies far-future caching and
+`Cache-Control: public, immutable` to exactly
+`js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot` — which is precisely the extension set
+such nginx lists contain by default. Two consequences follow, and both are silent:
+
+1. **The `mod_expires` block may be dead code.** Static assets would get no far-future
+   caching, the site would work perfectly, and nothing would log it.
+2. **The security headers may never apply to static assets.** CSP, HSTS, X-Frame-Options
+   and Permissions-Policy are set by `mod_headers` in the same file; a request that never
+   reaches Apache never gets them.
+
+So **a G0-B.2 PASS on `canary.php` does not mean headers reach a `.css` or `.js` file.**
+The FAIL consequence for G0-B.2 already says to verify on three path types; this says the
+static-asset check is required **even when G0-B.2 passes**, and it is the one most likely
+to differ.
+
+**Measure it with a file already on the host — no upload needed.** `httpdocs/favicon.ico`
+exists (110.8 KB, dated 2026-07-25), and `.ico` is in the `FilesMatch` list above:
+
+```bash
+# Apache reaches this one — the canary's own G0-B.2 test
+curl --resolve www.ethr.et:443:213.55.96.154 -sI \
+  https://www.ethr.et/ethr-canary/canary.php | grep -i -E 'x-ethr-canary|x-frame-options'
+
+# Does Apache reach this one?
+curl --resolve www.ethr.et:443:213.55.96.154 -sI \
+  https://www.ethr.et/favicon.ico | grep -i -E 'x-frame-options|cache-control|expires'
+```
+
+Headers on the PHP file but **not** on `favicon.ico` → nginx is serving static files
+directly, the `mod_expires` block is inert, and the security headers must move to the
+panel's *Additional headers* field (which **is** present on this account, unlike the
+directive textareas) or to `nginx-directives.conf` §1. Headers on both → Apache is serving
+static files too, and `.htaccess` governs everything.
+
+Record the result against **G0-B.2** and cross-reference **G0-B.5**; the two are the same
+mechanism seen from different ends.
+
 #### Pin every G0-B request to the Plesk host
 
 **Do not rely on DNS or on the vhost being the one you expect.** `docs/B1-B5_GATE_REPORT.md`
