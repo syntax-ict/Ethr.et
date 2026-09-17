@@ -9,6 +9,7 @@ import {
   Users,
   ArrowRight,
   ScrollText,
+  Layers,
   RefreshCw,
   AlertTriangle,
   Loader2,
@@ -218,6 +219,12 @@ export default function AdminConsolePage() {
             <Link href="/admin/platform-settings">
               <Settings className="mr-1.5 h-3.5 w-3.5" />
               {t("admin_console_page.platform_settings", "Platform Settings")}
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/admin/plans">
+              <Layers className="mr-1.5 h-3.5 w-3.5" />
+              {t("admin_console_page.plans", "Plans")}
             </Link>
           </Button>
           <Button
