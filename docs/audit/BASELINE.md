@@ -429,6 +429,24 @@ The likeliest remaining mechanism, offered as a hypothesis and labelled as one: 
 
 The four findings themselves are true on both platforms and were fixed on their merits (`app/Support/PasswordTokens.php`) — `Illuminate\Contracts\Auth\PasswordBroker` genuinely declares only `sendResetLink()` and `reset()`. But **the divergence means a green local PHPStan does not imply a green CI PHPStan**, which is worth knowing before trusting either.
 
+> **Re-opened and narrowed, 2026-09-17 — the leading hypothesis above is wrong, tested directly rather than reasoned about.**
+>
+> First, reproduced from scratch rather than trusted from memory: `git show` restored the exact two files to their state immediately before `bff4fb3` (the commit that introduced `PasswordTokens.php`), result cache cleared (`phpstan clear-result-cache`), and the real gate function run verbatim (`bash scripts/gates.sh backend`, not a hand-tuned `analyse` invocation). Result: **`[OK] No errors`**, on this machine, today, on the exact code that produced 4 errors in CI. The divergence is confirmed live, not archaeological.
+>
+> Then the hypothesis above — "Larastan resolves the facade to its concrete class when the app boots successfully" — was tested directly using PHPStan's own `\PHPStan\dumpType()` diagnostic, which prints what PHPStan actually infers for an expression, not what it should infer. Added a throwaway `app/ZZZDebugPhpstan.php`:
+>
+> ```php
+> $broker = Password::broker();
+> \PHPStan\dumpType($broker);   // -> Illuminate\Contracts\Auth\PasswordBroker
+> $broker->createToken(new \App\Models\User);   // -> no error
+> ```
+>
+> **The inferred type is the narrow interface, correctly — and the call is still not flagged.** So the hypothesis is refuted: it is not that app-boot success swaps in the concrete return type. Something else is letting a method call through on a value PHPStan itself reports as typed to an interface that, reflected directly at the PHP level (`(new ReflectionClass(PasswordBroker::class))->getMethods()`), genuinely has only `sendResetLink` and `reset` — confirmed on this exact vendored file, pinned by `composer.lock`, identical to whatever CI installs.
+>
+> **A more specific mechanism now exists to test, in place of the disproven one.** `vendor/larastan/larastan/src/Methods/ManagersMethodsExtension.php` grants extra methods to a value by resolving it through the live container and calling `->driver()` on it — but only when `$classReflection->is(Manager::class)`, i.e. when PHPStan considers the *value's* class to be `Illuminate\Support\Manager` (which `PasswordBrokerManager` extends) rather than the plain contract interface. Whether PHPStan consults this extension for a receiver statically typed as the *interface* — and whether that consultation itself depends on the container actually being reachable — is the next concrete thing to trace, not "boot succeeded or not" in the abstract.
+>
+> **What this rules out, precisely:** a config or invocation mismatch on this machine. Same command, same freshly-cleared cache, same gate function, same lockfile — the isolation is real. What remains open is genuinely internal to PHPStan/Larastan's interaction with either the OS or the exact PHP patch build, which this machine cannot distinguish from itself. Attempted a cross-OS check via a static, no-root PHP 8.2.32 Linux binary in WSL (no `sudo`, no Docker available for an apt-based or containerized PHP 8.2 on this host) — the download proved unreliable over two attempts today and was not completed. Left as the next concrete step, not abandoned: a working Linux PHP 8.2 build, `composer install --ignore-platform-reqs` against this same lockfile, and the identical `dumpType()` probe would either reproduce CI's error (confirming OS/build-specific PHPStan behaviour) or also pass (pointing at something GitHub-Actions-specific in how `shivammathur/setup-php` assembles the runtime, rather than Linux itself).
+
 **File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.
