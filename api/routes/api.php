@@ -86,6 +86,7 @@ use App\Http\Controllers\Api\V1\Payroll\PayrollController;
 use App\Http\Controllers\Api\V1\Payroll\PayrollRuleController;
 use App\Http\Controllers\Api\V1\Payroll\TaxBracketController;
 use App\Http\Controllers\Api\V1\PlanController;
+use App\Http\Controllers\Api\V1\SiteContentController;
 use App\Http\Controllers\Api\V1\Profile\ProfileController;
 use App\Http\Controllers\Api\V1\Profile\ProfileEmergencyContactController;
 use App\Http\Controllers\Api\V1\Profile\ProfilePhotoController;
@@ -121,6 +122,12 @@ Route::get('/health', HealthController::class)->middleware('throttle:health');
 
 // Public endpoints
 Route::get('/plans', [PlanController::class, 'index']);
+
+// Contact details, brand and published figures for the marketing site.
+// Unauthenticated and deliberately NOT behind EnsurePlatformContext, which
+// 404s whenever a tenant is resolved — the marketing pages are served from
+// tenant subdomains too. See SiteContentResource for what is published.
+Route::get('/site-content', [SiteContentController::class, 'index']);
 Route::get('/templates', [TemplateController::class, 'index']);
 Route::get('/templates/{slug}', [TemplateController::class, 'show']);
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');

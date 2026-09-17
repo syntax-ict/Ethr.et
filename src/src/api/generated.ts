@@ -4856,6 +4856,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/site-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The contact details, brand and figures the public site renders */
+        get: operations["siteContent.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-context": {
         parameters: {
             query?: never;
@@ -6609,6 +6626,25 @@ export interface components {
             shift: components["schemas"]["ShiftResource"] | null;
             is_rest_day: boolean;
         };
+        /** SiteContentResource */
+        SiteContentResource: {
+            platform_name: string | null;
+            platform_name_am: string | null;
+            tagline: string | null;
+            tagline_am: string | null;
+            logo_url: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            office_address: string | null;
+            office_address_am: string | null;
+            social_linkedin: string | null;
+            social_x: string | null;
+            social_facebook: string | null;
+            metric_organisations: number | null;
+            metric_employees: number | null;
+            metric_uptime_note: string | null;
+            metric_uptime_note_am: string | null;
+        };
         /** StageRowsRequest */
         StageRowsRequest: {
             /** @enum {string} */
@@ -7348,6 +7384,27 @@ export interface components {
             bank_account_name?: string | null;
             payment_instructions?: string | null;
             payment_instructions_am?: string | null;
+            platform_name?: string | null;
+            platform_name_am?: string | null;
+            tagline?: string | null;
+            tagline_am?: string | null;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** Format: email */
+            contact_email?: string | null;
+            contact_phone?: string | null;
+            office_address?: string | null;
+            office_address_am?: string | null;
+            /** Format: uri */
+            social_linkedin?: string | null;
+            /** Format: uri */
+            social_x?: string | null;
+            /** Format: uri */
+            social_facebook?: string | null;
+            metric_organisations?: number | null;
+            metric_employees?: number | null;
+            metric_uptime_note?: string | null;
+            metric_uptime_note_am?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {
@@ -20350,6 +20407,27 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "siteContent.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteContentResource"];
+                    };
+                };
+            };
         };
     };
     "auth.tenantContext": {
