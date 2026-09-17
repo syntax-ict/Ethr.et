@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Public\TenantLandingController;
 use App\Http\Controllers\Public\TenantPublicAssetController;
+use App\Http\Controllers\Public\TenantRobotsController;
+use App\Http\Controllers\Public\TenantSitemapController;
 use App\Support\TenantPublicAsset;
 use Illuminate\Support\Facades\Route;
 
@@ -39,3 +41,19 @@ Route::get('/', TenantLandingController::class)->name('public.tenant.landing');
 Route::get('/media/{kind}', TenantPublicAssetController::class)
     ->whereIn('kind', TenantPublicAsset::KINDS)
     ->name('public.tenant.asset');
+
+/*
+ * The two files every crawler asks for before it asks for anything else.
+ *
+ * Both answer 404 in exactly the cases the landing page does — see
+ * PublishedTenantLocator — so neither becomes a way to learn that an
+ * organisation uses ETHR but has not published.
+ *
+ * These need a web-server rule as well as a route. On a tenant host only
+ * `location = /` and `^~ /media/` reach Laravel; everything else proxies to
+ * the Next.js frontend, so without the matching rules in
+ * infrastructure/nginx.conf these would be served by the wrong application
+ * with every test still green.
+ */
+Route::get('/robots.txt', TenantRobotsController::class)->name('public.tenant.robots');
+Route::get('/sitemap.xml', TenantSitemapController::class)->name('public.tenant.sitemap');

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Cache;
  * @property TenantStatus $status
  * @property array<string, mixed>|null $settings
  * @property array<string, mixed>|null $theme
- * @property \Illuminate\Support\Carbon|null $government_verified_at
+ * @property Carbon|null $government_verified_at
  */
 class Tenant extends Model
 {

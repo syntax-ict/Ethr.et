@@ -30,6 +30,25 @@
 @endif
 
 @section('meta')
+    {{--
+        Both language variants, declared to crawlers.
+
+        The page has always been bilingual — SetPublicLocale honours `?lang`
+        and the header offers the switch — but nothing told a search engine the
+        other version existed, so only whichever one happened to be crawled
+        could ever rank. `x-default` is the unsuffixed URL, which serves the
+        tenant's own default locale.
+
+        Declared here rather than in the shared layout on purpose: the layout
+        is also rendered by the classic page, and adding a block there changed
+        that page's bytes even when the variable was unset, because Blade keeps
+        the newlines around a directive it did not emit. The snapshot test
+        caught it. Only the page that has alternates should talk about them.
+    --}}
+    @foreach ($alternates as $hreflang => $href)
+        <link rel="alternate" hreflang="{{ $hreflang }}" href="{{ $href }}">
+    @endforeach
+
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ $page->name }}">
     <meta property="og:title" content="{{ $page->name }}">

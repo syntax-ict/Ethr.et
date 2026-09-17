@@ -134,7 +134,11 @@ final class PublicTenantPage
     {
         return array_filter([
             '@context' => 'https://schema.org',
-            '@type' => 'Organization',
+            // The type comes from the preset, which is the most useful thing
+            // organisation-awareness buys: a crawler that is told this host is
+            // a GovernmentOrganization or a Hospital can present it as one,
+            // where a blanket `Organization` says only "a company, probably".
+            '@type' => $this->preset->schemaType(),
             'name' => $this->name,
             'url' => $canonicalUrl,
             'description' => $this->metaDescription,

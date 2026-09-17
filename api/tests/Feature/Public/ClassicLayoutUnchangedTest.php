@@ -120,3 +120,55 @@ it('skins each preset with its own class', function (string $preset) {
     // could reach it, which GovernmentPresetLockTest exists to deny.
     array_filter(PublicPagePreset::cases(), static fn ($c) => $c !== PublicPagePreset::GOVERNMENT),
 ));
+
+it('keeps the classic pages structured data generic whatever the tenant does', function () {
+    // A hospital that never opted in. Its derived preset is HOSPITAL, and
+    // wiring the schema type to the *resolved* preset rather than the *stored*
+    // one would quietly change this page's JSON-LD from Organization to
+    // Hospital on deploy — invisible to a visitor, visible to every crawler,
+    // and exactly the kind of change the opt-in exists to prevent.
+    //
+    // The byte snapshot alone does not catch this: its fixture is a
+    // manufacturing tenant, and manufacturing maps to Organization anyway.
+    $tenant = createTenant([
+        'subdomain' => 'tikur',
+        'name' => 'Tikur Anbessa',
+        'type' => 'hospital',
+        'settings' => ['industry' => 'hospital'],
+    ]);
+
+    TenantPublicProfile::factory()->create([
+        'tenant_id' => $tenant->id,
+        'is_published' => true,
+        'preset' => null,
+    ]);
+
+    app(CurrentTenant::class)->forget();
+
+    $html = $this->get('http://tikur.ethr.et/')->assertOk()->getContent();
+
+    expect($html)
+        ->toContain('"@type":"Organization"')
+        ->not->toContain('"@type":"Hospital"');
+});
+
+it('uses the specific structured data type once that tenant opts in', function () {
+    $tenant = createTenant([
+        'subdomain' => 'tikur',
+        'name' => 'Tikur Anbessa',
+        'type' => 'hospital',
+        'settings' => ['industry' => 'hospital'],
+    ]);
+
+    TenantPublicProfile::factory()->create([
+        'tenant_id' => $tenant->id,
+        'is_published' => true,
+        'preset' => 'hospital',
+    ]);
+
+    app(CurrentTenant::class)->forget();
+
+    $this->get('http://tikur.ethr.et/')
+        ->assertOk()
+        ->assertSee('"@type":"Hospital"', escape: false);
+});
