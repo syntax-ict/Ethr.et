@@ -6,6 +6,20 @@
 
 ---
 
+> **Partially superseded, 2026-09-17.** Account access now exists and some rows below are
+> answered. The authoritative gate register is
+> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) — it carries the measured
+> values, the blocker register (B-1…B-6) and the manual action queue.
+>
+> **The two documents use different gate names for the same account**, which is a drift
+> hazard worth naming: this file numbers by area (`P*` PHP, `W*` web server, `C*` cron,
+> `N*` Node, `D*` DNS, `S*` SSL, database, storage) and by the old `B1`–`B5`/`H1` gate IDs;
+> `GATE-0-RESULT.md` numbers `G0-A`–`G0-J`. Roughly: `P*` → G0-E, `C*`/B3 → G0-D,
+> `N*`/B5 → G0-G, `W*` → G0-A and G0-B, `D*`/B1 and `S*`/B2 → G0-C, database/H1 → G0-F and
+> G0-I, storage → the storage rows, and **G0-J (CPU and database benchmarks) has no
+> counterpart here at all.** Work from `GATE-0-RESULT.md`; use this file for the
+> finer-grained per-extension rows it carries.
+
 ## ACCOUNT ACCESS: NOT AVAILABLE
 
 **I have no access to an Ethio Telecom Plesk account, so I cannot run any of these tests
@@ -76,10 +90,10 @@ configuration. Those are panel questions and are listed separately below.
 
 | # | Item | Method | Status |
 | --- | --- | --- | --- |
-| P1 | PHP version ≥ 8.2 | Probe: `PHP_VERSION`. Panel: *PHP Settings* | NOT VERIFIED |
+| P1 | PHP version ≥ 8.2 | Probe: `PHP_VERSION`. Panel: *PHP Settings* | **VERIFIED — 8.3.33** (panel, 2026-09-17) |
 | P2 | PHP handler (FPM / CGI / module) | Panel: *PHP Settings → Run PHP as* | NOT VERIFIED |
 | P3 | PHP-FPM availability | Panel: same dropdown | NOT VERIFIED |
-| P4 | Composer available on CLI | SSH: `composer --version` | NOT VERIFIED |
+| P4 | Composer available on CLI | ~~SSH: `composer --version`~~ — **this method is dead: SSH is Forbidden** (2026-09-17). Panel: *Dev Tools → PHP Composer* | **PARTIAL** — present as a Plesk extension; CLI availability unverifiable without a shell |
 | P5 | `gd` — **mandatory** | Probe | NOT VERIFIED |
 | P6 | `pdo`, `pdo_mysql` — **mandatory** | Probe | NOT VERIFIED |
 | P7 | `mbstring` — **mandatory** | Probe | NOT VERIFIED |
@@ -88,12 +102,22 @@ configuration. Those are panel questions and are listed separately below.
 | P10 | `intl` | Probe | NOT VERIFIED |
 | P11 | `zip` — needed by dompdf | Probe | NOT VERIFIED |
 | P12 | `curl` — **mandatory** | Probe | NOT VERIFIED |
-| P13 | `xml`, `dom`, `simplexml` — **mandatory** | Probe | NOT VERIFIED |
+| P13 | `xml`, `dom`, `simplexml` — **mandatory** | Probe | NOT VERIFIED — *this row was right and the probe was not; see the note below* |
 | P14 | `bcmath` — payroll arithmetic | Probe | NOT VERIFIED |
 | P15 | `tokenizer` — **mandatory** | Probe | NOT VERIFIED |
 | P16 | `ctype` — **mandatory** | Probe | NOT VERIFIED |
 | P17 | `iconv` — **mandatory** | Probe | NOT VERIFIED |
 | P18 | `sodium` — Laravel encryption paths | Probe | NOT VERIFIED |
+
+> **P13 was right and the probe was wrong — worth recording.** This row has listed
+> `simplexml` as **mandatory** since this checklist was written. The probe script
+> (`scripts/hosting-verification/ethr-hosting-check.php`), which is the artifact that
+> actually *enforces* the list, carried it as **optional** until 2026-09-17. It is a hard
+> requirement of `aws/aws-sdk-php` via `league/flysystem-aws-s3-v3`, and
+> `composer install --no-dev` aborts without it — so a host could have passed the probe
+> and then failed to install. The knowledge was in the repository; it was in the document
+> nobody executes rather than the script everybody runs. Fixed in the probe; noted here
+> because that asymmetry is the general hazard, not this one extension.
 
 > `gd` is the one whose absence is silent rather than fatal: `FileStorageService`
 > returns original bytes and skips thumbnails when it is missing. Uploads keep working
@@ -134,10 +158,10 @@ configuration. Those are panel questions and are listed separately below.
 | --- | --- | --- | --- |
 | W1 | `.htaccess` honoured | Probe writes and requests a test rule | NOT VERIFIED |
 | W2 | `mod_rewrite` active | Probe | NOT VERIFIED |
-| W3 | **Document root configurable** (→ `api/public`) | Panel: *Hosting Settings* | NOT VERIFIED |
+| W3 | **Document root configurable** (→ `api/public`) | Panel: *Hosting Settings* | **PARTIAL** — it *displays* as `/`, which is relative to the webspace root and resolves to `httpdocs` (confirmed 2026-09-17 via `.well-known/acme-challenge/` inside it). Whether the field is **editable** is still unverified |
 | W4 | PHP routes through `index.php` front controller | Follows W1/W2 | NOT VERIFIED |
 | W5 | `.env` can be denied | `.htaccess` rule, then request `/.env` | NOT VERIFIED |
-| W6 | Private files storable **outside** the docroot | Probe: write one level above | NOT VERIFIED |
+| W6 | Private files storable **outside** the docroot | Probe: write one level above | **VERIFIED PASS** — `B1-B5_GATE_REPORT.md:89` recorded this on 2026-08-29 and this row simply never caught up; re-confirmed 2026-09-17 |
 | W7 | Custom response headers (CSP, HSTS) settable | `.htaccess` `Header set` | NOT VERIFIED |
 
 > If W3 is locked, the standard workaround is `public/`'s contents at the web root with
