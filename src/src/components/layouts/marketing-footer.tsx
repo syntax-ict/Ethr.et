@@ -2,9 +2,28 @@
 
 import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
+import { pickLocalised, useSiteContent } from "@/features/marketing/api";
 
 export function MarketingFooter() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const site = useSiteContent();
+
+  // The name falls back to the literal that was hardcoded here, so an operator
+  // who has set nothing sees exactly what shipped before.
+  const brandName =
+    pickLocalised(locale, site.platform_name_am, site.platform_name) ?? "ETHR";
+  const tagline = pickLocalised(locale, site.tagline_am, site.tagline);
+
+  // Named links rather than icons: lucide-react ships no brand marks, and the
+  // nearest generic glyph would tell a visitor the wrong thing about where the
+  // link goes. A word is unambiguous and needs no aria-label to explain it.
+  const socials = [
+    { key: "linkedin", href: site.social_linkedin, label: "LinkedIn" },
+    { key: "x", href: site.social_x, label: "X" },
+    { key: "facebook", href: site.social_facebook, label: "Facebook" },
+  ].filter((entry): entry is typeof entry & { href: string } =>
+    Boolean(entry.href),
+  );
 
   const footerSections = [
     {
@@ -45,22 +64,58 @@ export function MarketingFooter() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
           {/* Brand column */}
           <div className="lg:col-span-2">
+            {/* Name and mark come from platform_settings when an operator has
+                set them. The E-in-a-box is the fallback, not the default — it
+                was duplicated verbatim here and in the header, so a rebrand
+                meant finding both. */}
             <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-                <span className="text-sm font-bold text-primary-foreground">
-                  E
-                </span>
-              </div>
+              {site.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- the URL
+                // is operator-supplied and arbitrary, so it cannot be in
+                // next.config's remotePatterns; the same call branding-card.tsx
+                // documents for tenant logos.
+                <img
+                  src={site.logo_url}
+                  alt=""
+                  className="h-8 w-8 rounded-lg object-contain"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
+                  <span className="text-sm font-bold text-primary-foreground">
+                    E
+                  </span>
+                </div>
+              )}
               <span className="text-lg font-bold tracking-tight text-foreground">
-                ETHR
+                {brandName}
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              {t(
-                "marketing.footer.description",
-                "Ethiopian Workforce Operating System. Enterprise-grade HR for Ethiopian organizations.",
-              )}
+              {tagline ??
+                t(
+                  "marketing.footer.description",
+                  "Ethiopian Workforce Operating System. Enterprise-grade HR for Ethiopian organizations.",
+                )}
             </p>
+
+            {/* Social links appear only where an operator has given a URL.
+                Rendering an icon that goes nowhere is the same defect as the
+                footer's three remaining `#` links, one layer prettier. */}
+            {socials.length > 0 && (
+              <div className="mt-6 flex items-center gap-4">
+                {socials.map(({ key, href, label }) => (
+                  <a
+                    key={key}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Link columns */}

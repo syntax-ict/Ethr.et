@@ -10,19 +10,34 @@ import { FormField } from "@/components/patterns/FormField";
 import { apiClient } from "@/api/client";
 import { fieldErrors, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
-
-const contactChannels = [
-  { icon: Mail, key: "email" as const, value: "info@ethr.et" },
-  { icon: Phone, key: "phone" as const, value: "+251 11 123 4567" },
-  { icon: MapPin, key: "office" as const, value: "" },
-];
+import { pickLocalised, useSiteContent } from "@/features/marketing/api";
 
 export function ContactContent() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
-  const { t } = useT();
+  const { t, locale } = useT();
+
+  // Was three literals in this file: "info@ethr.et", "+251 11 123 4567" and an
+  // office address that lived as a translation key — so the address could
+  // differ between the English and Amharic site, the same defect that moved the
+  // bank account out of the billing page's JSX.
+  //
+  // A channel with no value is not rendered. An address nobody has entered is
+  // better absent than guessed, and the previous default ("Addis Ababa,
+  // Ethiopia") was a guess.
+  const site = useSiteContent();
+
+  const contactChannels = [
+    { icon: Mail, key: "email" as const, value: site.contact_email },
+    { icon: Phone, key: "phone" as const, value: site.contact_phone },
+    {
+      icon: MapPin,
+      key: "office" as const,
+      value: pickLocalised(locale, site.office_address_am, site.office_address),
+    },
+  ].filter((channel) => channel.value);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -129,12 +144,7 @@ export function ContactContent() {
                               : t("common.phone", "Phone")}
                         </h3>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {channel.key === "office"
-                            ? t(
-                                "marketing.contact.office_address",
-                                "Addis Ababa, Ethiopia",
-                              )
-                            : channel.value}
+                          {channel.value}
                         </p>
                       </div>
                     </div>

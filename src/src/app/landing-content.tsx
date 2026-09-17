@@ -18,7 +18,6 @@ import {
   Briefcase,
   Shield,
   CheckCircle2,
-  Zap,
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import { ProductFlow } from "@/components/marketing/product-flow";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { useT } from "@/lib/i18n/useT";
+import { useSiteContent } from "@/features/marketing/api";
 
 const featureIcons = [
   Clock,
@@ -55,15 +55,39 @@ const industryData = [
   { icon: Briefcase, key: "general" },
 ];
 
-const socialProofMetrics = [
-  { key: "organizations", value: "500+", icon: Building2 },
-  { key: "employees_managed", value: "50,000+", icon: CheckCircle2 },
-  { key: "payrolls_processed", value: "1M+", icon: Wallet },
-  { key: "uptime", value: "99.9%", icon: Zap },
-];
-
 export function LandingContent() {
   const { t } = useT();
+
+  // Headline figures come from platform_settings and start empty. Every one of
+  // them is a claim, and the page must be able to make none.
+  const site = useSiteContent();
+
+  // Only figures an operator has actually published. Null is not zero: it means
+  // no claim is being made, and the band vanishes rather than rendering a
+  // placeholder.
+  const publishedMetrics = [
+    site.metric_organisations !== null
+      ? {
+          key: "organizations",
+          Icon: Building2,
+          value: new Intl.NumberFormat("en-ET").format(
+            site.metric_organisations,
+          ),
+          label: t("marketing.social_proof.organizations", "Organizations"),
+        }
+      : null,
+    site.metric_employees !== null
+      ? {
+          key: "employees_managed",
+          Icon: CheckCircle2,
+          value: new Intl.NumberFormat("en-ET").format(site.metric_employees),
+          label: t(
+            "marketing.social_proof.employees_managed",
+            "Employees managed",
+          ),
+        }
+      : null,
+  ].filter((m): m is NonNullable<typeof m> => m !== null);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -79,16 +103,29 @@ export function LandingContent() {
 
           <div className="mx-auto max-w-7xl px-4 pb-16 pt-20 sm:px-6 sm:pb-24 sm:pt-28 lg:px-8 lg:pt-32">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-status-success" />
-                </span>
-                {t(
-                  "marketing.hero.badge",
-                  "Now serving 500+ Ethiopian organizations",
-                )}
-              </div>
+              {/* The badge said "Now serving 500+ Ethiopian organizations".
+                  Nobody can substantiate that — ethr.et serves nothing yet, per
+                  the external probe in B1-B5_GATE_REPORT.md — so it is rendered
+                  only once an operator has published a figure, and the figure
+                  comes from the database rather than from this file. An
+                  unpublished metric renders no badge at all. */}
+              {site.metric_organisations !== null && (
+                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-status-success" />
+                  </span>
+                  {t(
+                    "marketing.hero.badge_count",
+                    "Now serving :count Ethiopian organizations",
+                    {
+                      count: new Intl.NumberFormat("en-ET").format(
+                        site.metric_organisations,
+                      ),
+                    },
+                  )}
+                </div>
+              )}
 
               <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                 {t(
@@ -140,29 +177,50 @@ export function LandingContent() {
           </div>
         </section>
 
-        {/* Social Proof Metrics */}
-        <section className="border-y border-border/50 bg-muted/30">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-              {socialProofMetrics.map((metric) => {
-                const Icon = metric.icon;
-                return (
-                  <div key={metric.key} className="text-center">
+        {/* Social proof, when there is any.
+
+            This band read "500+ organizations", "50,000+ employees", "1M+
+            payrolls processed" and "99.9% uptime". Every one of those was
+            written into this file by a developer, and none can be
+            substantiated: ethr.et serves nothing yet — B1-B5_GATE_REPORT.md
+            records an external probe finding a dormant host with every port
+            closed — so there are no organisations, no employees and no
+            payrolls, and with nothing deployed there is no uptime to measure.
+            The fourth figure was the worst of them, because "99.9%" reads as an
+            SLA and the terms page states plainly that no SLA exists.
+
+            They are columns on platform_settings now, editable at
+            /admin/platform-settings, and they start empty. An operator
+            publishes what they can stand behind; the band renders only those,
+            and disappears entirely when there are none. That is what the plan
+            means by the fabrications becoming empty rows rather than code. */}
+        {publishedMetrics.length > 0 && (
+          <section className="border-y border-border/50 bg-muted/30">
+            <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+              <div
+                className={
+                  publishedMetrics.length === 1
+                    ? "grid grid-cols-1 gap-8"
+                    : "grid grid-cols-2 gap-8"
+                }
+              >
+                {publishedMetrics.map(({ key, value, Icon, label }) => (
+                  <div key={key} className="text-center">
                     <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                       <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                      {metric.value}
+                      {value}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {t(`marketing.social_proof.${metric.key}`)}
+                      {label}
                     </p>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Features */}
         <section className="py-20 sm:py-24">

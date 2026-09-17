@@ -357,6 +357,28 @@ export interface PlatformSettings {
   payment_instructions: string | null;
   payment_instructions_am: string | null;
   is_configured: boolean;
+
+  // The facts the public marketing site states about ETHR. Same row and same
+  // permission as the bank details above — see the migration for why these are
+  // columns here rather than a new table.
+  platform_name: string | null;
+  platform_name_am: string | null;
+  tagline: string | null;
+  tagline_am: string | null;
+  logo_url: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  office_address: string | null;
+  office_address_am: string | null;
+  social_linkedin: string | null;
+  social_x: string | null;
+  social_facebook: string | null;
+  metric_organisations: number | null;
+  metric_employees: number | null;
+  metric_uptime_note: string | null;
+  metric_uptime_note_am: string | null;
+  has_published_metrics: boolean;
+
   updated_at: string | null;
 }
 
@@ -384,6 +406,9 @@ export function useUpdatePlatformSettings() {
       qc.invalidateQueries({ queryKey: ["admin", "platform-settings"] });
       // Tenants read these values on their billing page.
       qc.invalidateQueries({ queryKey: ["billing", "dashboard"] });
+      // And the public marketing site reads the contact details and metrics
+      // from the same row.
+      qc.invalidateQueries({ queryKey: ["site-content"] });
     },
   });
 }

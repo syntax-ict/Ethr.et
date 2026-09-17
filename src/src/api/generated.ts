@@ -6321,6 +6321,23 @@ export interface components {
             payment_instructions: string | null;
             payment_instructions_am: string | null;
             is_configured: boolean;
+            platform_name: string | null;
+            platform_name_am: string | null;
+            tagline: string | null;
+            tagline_am: string | null;
+            logo_url: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            office_address: string | null;
+            office_address_am: string | null;
+            social_linkedin: string | null;
+            social_x: string | null;
+            social_facebook: string | null;
+            metric_organisations: number | null;
+            metric_employees: number | null;
+            metric_uptime_note: string | null;
+            metric_uptime_note_am: string | null;
+            has_published_metrics: boolean;
             /** Format: date-time */
             updated_at: string | null;
         };

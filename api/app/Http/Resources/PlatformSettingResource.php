@@ -26,6 +26,25 @@ class PlatformSettingResource extends JsonResource
             'payment_instructions' => $this->payment_instructions,
             'payment_instructions_am' => $this->payment_instructions_am,
             'is_configured' => $this->hasPaymentDetails(),
+
+            'platform_name' => $this->platform_name,
+            'platform_name_am' => $this->platform_name_am,
+            'tagline' => $this->tagline,
+            'tagline_am' => $this->tagline_am,
+            'logo_url' => $this->logo_url,
+            'contact_email' => $this->contact_email,
+            'contact_phone' => $this->contact_phone,
+            'office_address' => $this->office_address,
+            'office_address_am' => $this->office_address_am,
+            'social_linkedin' => $this->social_linkedin,
+            'social_x' => $this->social_x,
+            'social_facebook' => $this->social_facebook,
+            'metric_organisations' => $this->metric_organisations,
+            'metric_employees' => $this->metric_employees,
+            'metric_uptime_note' => $this->metric_uptime_note,
+            'metric_uptime_note_am' => $this->metric_uptime_note_am,
+            'has_published_metrics' => $this->hasPublishedMetrics(),
+
             'updated_at' => $this->updated_at,
         ];
     }

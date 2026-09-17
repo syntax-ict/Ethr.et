@@ -5,16 +5,26 @@ import { LandingContent } from "@/app/landing-content";
 import { PricingContent } from "@/app/(marketing)/pricing/pricing-content";
 import { FaqContent } from "@/app/(marketing)/faq/faq-content";
 
-// Landing and FAQ are pure presentational client components: they depend only on
-// the i18n layer (en is registered in the test setup) and next/link, both of
-// which work in jsdom.
+// FAQ is still a pure presentational client component: it depends only on the
+// i18n layer (en is registered in the test setup) and next/link.
 //
-// Pricing is no longer one of them. It reads the plan catalog from the API, so
-// it needs a QueryClient — see `renderPricing` below.
+// Landing and Pricing are not. Pricing reads the plan catalog and Landing reads
+// the published site metrics, so both need a QueryClient. Neither test stubs a
+// request: the point is that the page renders correctly with no network at all,
+// which is what a crawler gets and what an operator who has published nothing
+// gets.
+function withQuery(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+}
 
 describe("Landing page", () => {
   it("renders every headline section (S06)", () => {
-    render(<LandingContent />);
+    withQuery(<LandingContent />);
 
     // Hero
     expect(
@@ -36,10 +46,6 @@ describe("Landing page", () => {
     expect(screen.getByText("Banking")).toBeInTheDocument();
     expect(screen.getByText("Manufacturing")).toBeInTheDocument();
 
-    // Social proof metrics
-    expect(screen.getByText("Organizations")).toBeInTheDocument();
-    expect(screen.getByText("99.9%")).toBeInTheDocument();
-
     // CTA banner
     expect(
       screen.getByText("Start Your 6-Month Free Trial"),
@@ -47,11 +53,32 @@ describe("Landing page", () => {
   });
 
   it("points its primary CTAs at the registration flow", () => {
-    render(<LandingContent />);
+    withQuery(<LandingContent />);
     const trialLinks = screen
       .getAllByRole("link")
       .filter((a) => a.getAttribute("href") === "/register");
     expect(trialLinks.length).toBeGreaterThan(0);
+  });
+
+  it("states no figure it cannot substantiate", () => {
+    withQuery(<LandingContent />);
+
+    // The page carried "500+ organizations", "50,000+ employees", "1M+ payrolls
+    // processed" and "99.9% uptime", all written into the component. ethr.et
+    // serves nothing yet, so none of them were true — and "99.9%" reads as an
+    // SLA the terms page says does not exist.
+    //
+    // They are columns now, and empty. With nothing published the band is not
+    // rendered at all, which is what this pins: the failure mode to guard
+    // against is someone reintroducing a default.
+    expect(screen.queryByText("99.9%")).not.toBeInTheDocument();
+    expect(screen.queryByText("500+")).not.toBeInTheDocument();
+    expect(screen.queryByText("50,000+")).not.toBeInTheDocument();
+    expect(screen.queryByText("1M+")).not.toBeInTheDocument();
+    expect(screen.queryByText("Organizations")).not.toBeInTheDocument();
+
+    // And the hero badge that counted them is gone with them.
+    expect(screen.queryByText(/Now serving/i)).not.toBeInTheDocument();
   });
 });
 
