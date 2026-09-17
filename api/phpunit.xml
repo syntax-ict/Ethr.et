@@ -43,6 +43,21 @@
         <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <!--
+            Pinned empty so the suite does not inherit a developer's .env.
+
+            docker-compose.hostnames.yml exists to let someone run the tenant
+            hostname model locally, and doing so means setting APP_DOMAIN. With
+            it inherited, 59 host-based tests fail: they address `acme.ethr.et`
+            and a non-empty APP_DOMAIN of `localhost` makes that host name no
+            tenant. The failures point at shift rotations and payroll, nowhere
+            near the cause.
+
+            Tests that need the hostname model authoritative set it themselves
+            with config(['app.domain' => 'ethr.et']), so forcing it empty here
+            costs nothing and makes the suite independent of local setup.
+        -->
+        <env name="APP_DOMAIN" value="" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
         <env name="BROADCAST_CONNECTION" value="null" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>

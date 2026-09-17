@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\PublicSecurityHeaders;
 use App\Models\TenantPublicProfile;
 use App\Services\CurrentTenant;
 use App\Support\PublicTenantPage;
@@ -39,7 +40,12 @@ class TenantLandingController extends Controller
         // host, not just tenant ones — and on a non-tenant host it must answer
         // exactly as before, or a request to the apex starts 404ing.
         if (! $this->isTenantHost()) {
-            return response()->view('welcome');
+            // Exempt from the tenant page's CSP: this is the stock `welcome`
+            // view, which loads a webfont and inline styles and is not a page
+            // this feature owns. Found in a browser — the policy rendered it
+            // unstyled and filled the console, for no security gain, on a page
+            // production never serves (nginx sends the apex to Next.js).
+            return PublicSecurityHeaders::exempt(response()->view('welcome'));
         }
 
         $page = $this->resolvePage();

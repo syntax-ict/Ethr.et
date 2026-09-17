@@ -98,6 +98,38 @@ it('sends the same headers on the not-found page', function () {
         ->assertHeader('X-Content-Type-Options', 'nosniff');
 });
 
+it('does not impose the tenant page CSP on the stock welcome view', function () {
+    config(['app.domain' => null]);
+
+    $response = $this->get('/')->assertOk();
+
+    // The fallback on a non-tenant host is the `welcome` view, which loads a
+    // webfont and uses inline styles. It is not a page this feature owns, and
+    // the policy written for the tenant page only rendered it unstyled and
+    // filled the console — caught in Chromium, not by any assertion here
+    // before this one existed.
+    expect($response->headers->get('Content-Security-Policy'))->toBeNull();
+});
+
+it('still hardens the welcome fallback in every other way', function () {
+    config(['app.domain' => null]);
+
+    // Only the CSP is skipped. Framing, sniffing, referrer and HSTS are right
+    // for any page and still apply.
+    $this->get('/')
+        ->assertOk()
+        ->assertHeader('X-Frame-Options', 'DENY')
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
+it('leaks no internal marker header to the browser', function () {
+    config(['app.domain' => null]);
+
+    // The opt-out travels as a header the middleware strips on the way out.
+    $this->get('/')->assertOk()->assertHeaderMissing('X-Ethr-Not-Public-Surface');
+});
+
 // ── The regression that matters ─────────────────────────────────────────────
 
 it('leaves the API content security policy exactly as strict as it was', function () {

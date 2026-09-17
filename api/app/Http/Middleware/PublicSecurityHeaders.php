@@ -36,9 +36,48 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PublicSecurityHeaders
 {
+    /**
+     * Marks a response as not being the public tenant surface.
+     *
+     * `/` is answered by TenantLandingController on every host, because
+     * registering it here overrode the route routes/web.php used to own. On a
+     * non-tenant host it hands back the stock `welcome` view unchanged — and
+     * that page is not ours: it loads a webfont from fonts.bunny.net and uses
+     * inline styles, both of which the policy below forbids.
+     *
+     * Applying our CSP to it bought nothing and broke its rendering, so the
+     * response can opt out. Only the CSP is skipped; the framing, sniffing,
+     * referrer and HSTS headers still apply, because those are right for any
+     * page.
+     */
+    private const NOT_PUBLIC_SURFACE = 'X-Ethr-Not-Public-Surface';
+
+    /**
+     * Mark a response so the tenant-page CSP is not applied to it.
+     *
+     * Generic over the response type so a caller holding an
+     * Illuminate\Http\Response gets one back — otherwise every call site would
+     * have to widen its own return type to Symfony's base class to accommodate
+     * a helper that only sets a header.
+     *
+     * @template TResponse of Response
+     *
+     * @param  TResponse  $response
+     * @return TResponse
+     */
+    public static function exempt(Response $response): Response
+    {
+        $response->headers->set(self::NOT_PUBLIC_SURFACE, '1');
+
+        return $response;
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
+
+        $isPublicSurface = ! $response->headers->has(self::NOT_PUBLIC_SURFACE);
+        $response->headers->remove(self::NOT_PUBLIC_SURFACE);
 
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
@@ -48,16 +87,18 @@ class PublicSecurityHeaders
             'max-age=31536000; includeSubDomains; preload'
         );
 
-        $response->headers->set('Content-Security-Policy', implode('; ', [
-            "default-src 'none'",
-            "img-src 'self'",
-            "style-src 'self'",
-            "style-src-attr 'unsafe-inline'",
-            "font-src 'self'",
-            "form-action 'self'",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-        ]));
+        if ($isPublicSurface) {
+            $response->headers->set('Content-Security-Policy', implode('; ', [
+                "default-src 'none'",
+                "img-src 'self'",
+                "style-src 'self'",
+                "style-src-attr 'unsafe-inline'",
+                "font-src 'self'",
+                "form-action 'self'",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+            ]));
+        }
 
         $response->headers->set(
             'Permissions-Policy',
