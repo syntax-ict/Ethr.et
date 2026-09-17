@@ -49,7 +49,18 @@ final class BillingService
         // carries `error: "No active subscription"` as a constant — so a second
         // return site risks emitting a second response shape and drifting
         // `generated.ts`. Only the database write differs.
-        $isTrialConversion = $subscription->status === SubscriptionStatus::TRIAL;
+        //
+        // Compared against the stored value rather than `$subscription->status`
+        // because Larastan resolves cast properties to their raw backing type:
+        // it reads this one as `string`, calls `=== SubscriptionStatus::TRIAL`
+        // always false, and then both branches below dead code. That is a false
+        // positive — the cast is real at runtime, and TrialConversionTest
+        // exercises the branch — but the gate fails on it, and
+        // phpstan-baseline.neon already records the same limitation for this
+        // file. getAttributes() returns the uncast value, which is `mixed`, so
+        // the comparison is analysable and still exactly what the database
+        // holds.
+        $isTrialConversion = ($subscription->getAttributes()['status'] ?? null) === SubscriptionStatus::TRIAL->value;
 
         $oldPlan = $subscription->plan;
 

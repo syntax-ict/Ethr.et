@@ -81,10 +81,31 @@ class Subscription extends Model
      */
     public function effectivePriceCents(): int
     {
-        if ($this->price_cents !== null) {
-            return $this->price_cents;
+        // Read through getAttributes() rather than `$this->price_cents`, and
+        // annotate the relation, because Larastan infers model property types
+        // from the migrations and gets both of these wrong in ways that are
+        // invisible here and fatal in CI.
+        //
+        // It resolves cast properties to their raw backing type — the same
+        // limitation phpstan.neon documents for RetirementCase and
+        // DisciplinaryCase, and that phpstan-baseline.neon already records
+        // against this very file ("Cannot access property $value on string",
+        // for `$subscription->status?->value`). A null check against a property
+        // it has decided cannot be null is then reported as dead code, and the
+        // gate fails on correct code.
+        //
+        // getAttributes() returns the uncast attribute as `mixed`, which is
+        // both what this method actually wants — the stored figure, not a cast
+        // view of it — and a type no always-true/false analysis can fire on.
+        $captured = $this->getAttributes()['price_cents'] ?? null;
+
+        if ($captured !== null) {
+            return (int) $captured;
         }
 
-        return $this->plan?->price_cents ?? 0;
+        /** @var Plan|null $plan */
+        $plan = $this->getRelationValue('plan');
+
+        return $plan?->price_cents ?? 0;
     }
 }
