@@ -41,6 +41,7 @@ Three standing caveats:
 | [`PERMISSIONS.md`](PERMISSIONS.md) | Roles, permissions, the RBAC model |
 | [`FRONTEND.md`](FRONTEND.md) · [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | Frontend structure, visual language, semantic tokens |
 | [`LOCALIZATION.md`](LOCALIZATION.md) | i18n, Amharic, the Ethiopian calendar |
+| [`TENANT_PUBLIC_PAGES.md`](TENANT_PUBLIC_PAGES.md) | The public landing page at `{tenant}.ethr.et` — what it may show, and what it may never |
 
 ## Features
 
