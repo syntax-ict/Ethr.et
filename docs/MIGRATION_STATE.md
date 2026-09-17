@@ -360,6 +360,77 @@ required it.
 
 ---
 
+## B-6 — the DNS cutover already happened, and the rollback target may not serve
+
+**Reviewed 2026-09-17. This is the most serious finding of that review, and it is not a
+gate — it is a safety property that has quietly stopped holding.**
+
+### The runbook's stated current state is false
+
+`docs/ROLLBACK_RUNBOOK.md:8`, Scenario A — *"before DNS cutover (**the current state, as of
+this writing**)"*:
+
+> *"Nothing to roll back. `ethr.et` still points at the VPS (dormant — no live traffic)."*
+
+**It does not.** Measured twice on 2026-09-17 from this workstation:
+
+```
+213.55.96.154   ethr.et
+213.55.96.154   www.ethr.et
+213.55.96.154   zzq7x.ethr.et      <- wildcard, never configured
+```
+
+`213.55.96.154` is the **Plesk host**. The DNS half of the cutover has already been
+performed — and nothing in this repository records who did it, when, or under what plan.
+`MIGRATION_STATE.md:177` still says the opposite (`91.99.81.71`, Hetzner), because that
+observation is dated 2026-08-29.
+
+**Scenario A therefore does not apply.** We are not "before DNS cutover". We are after it,
+with an unverified deployment target and no record of the transition.
+
+### Scenario B tells you to roll back to a host with no open ports
+
+Scenario B's instruction is *"Repoint the A/AAAA records … back to the VPS IP."* The
+repository's own measurement of that IP, `MIGRATION_STATE.md:177`:
+
+> *"`91.99.81.71` = Hetzner, Falkenstein DE, where ports **80/443/8080/22/21 are all
+> closed**. **Nothing is serving the domain today**."*
+
+If that is still true, **executing Scenario B produces a total outage, not a
+restoration.** A rollback plan whose target serves nothing is worse than an admitted
+absence of one, because it will be trusted in the exact moment there is no time to check
+it.
+
+**Stated precisely, because the two halves have different evidence:** the DNS change is
+**measured by me today**. The port state is the **repository's own 2026-08-29
+measurement**, which I could not re-verify — this session's proxy refuses outbound to both
+hosts. The VPS may well have been brought back up. That is exactly why it needs checking
+rather than assuming, in either direction.
+
+### Why this outranks the Gate 0 work
+
+Every Gate 0 blocker is a question about whether the migration *can* proceed. This is a
+question about whether it can be *undone*. `deploy-checklist.md` is run "before step 8
+(DNS cutover)" — and step 8 appears to have already happened, out of order, with the
+pre-cutover checklist unrun.
+
+### Actions — neither needs the Plesk panel
+
+1. **Is the VPS actually serving?** `curl -sI http://91.99.81.71/` and check ports 80/443.
+   Serving → Scenario B is viable and only the runbook's Scenario A text is wrong. Not
+   serving → **there is no rollback target**, and that must be fixed or accepted
+   explicitly before anything is deployed to Plesk.
+2. **Who repointed DNS, and when?** It changes the risk model: if `ethr.et` now resolves to
+   a Plesk host serving a placeholder, the domain is publicly live against an unverified
+   deployment.
+
+Held, not fixed: `ROLLBACK_RUNBOOK.md` is not frozen and Scenario A's premise is provably
+wrong, so it *could* be corrected now. It is not, because the correct replacement text
+depends on answer 1 — "roll back to a working VPS" and "there is no rollback target" are
+different documents, and writing one before knowing which would mean writing it twice.
+
+---
+
 ## B-5 — the database has no import route either, and one question may delete it
 
 `docs/DATABASE_MIGRATION_PLAN.md` was reviewed on 2026-09-17 and had not been checked
@@ -517,7 +588,8 @@ gate it unlocks. **Do not do 8 before 5.**
 
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
 | --- | --- | --- | --- | --- | --- |
-| **0** | **Does the VPS hold real tenant data?** — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
+| **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
+| **0b** | **Does the VPS hold real tenant data?** — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | **1** | **Scheduled Tasks capability** | Websites & Domains → *Scheduled Tasks* (or Tools & Settings) | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary | No | **G0-D**, and it decides whether the migration is performable at all without SSH — see B-1/B-4 |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
