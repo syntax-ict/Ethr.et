@@ -46,6 +46,19 @@ class UpdatePlatformSettingsRequest extends FormRequest
      *                       today` because consent given in the future is not
      *                       consent.
      *
+     *                       Those two carry no `sometimes`, unlike every other
+     *                       field here, and that is not an oversight.
+     *                       `sometimes` means "validate only when the key is
+     *                       present", which silently cancels the
+     *                       `required_with` beside it — the rule that exists
+     *                       precisely to fire when the field is missing. With
+     *                       both, a payload carrying a quote and nothing else
+     *                       returned 200. Absence is still safe without it:
+     *                       `required_with` fires only when
+     *                       `testimonial_quote` is present, and an absent key
+     *                       never reaches `validated()`, so updating some
+     *                       unrelated field cannot blank these.
+     *
      * @return array<string, list<string>>
      */
     public function rules(): array
@@ -84,14 +97,6 @@ class UpdatePlatformSettingsRequest extends FormRequest
 
             'testimonial_quote' => ['sometimes', 'nullable', 'string', 'max:500'],
             'testimonial_quote_am' => ['sometimes', 'nullable', 'string', 'max:500'],
-            // No 'sometimes' on these two, unlike every other field here.
-            // 'sometimes' means "only validate when the key is present", which
-            // silently disables the very rule beside it: a payload carrying a
-            // quote and nothing else skipped both checks and returned 200. The
-            // absent case still passes, because required_with only fires when
-            // testimonial_quote is present, and an absent key is left out of
-            // validated() either way — so a partial update of some other field
-            // cannot blank these.
             'testimonial_author' => ['nullable', 'required_with:testimonial_quote', 'string', 'max:120'],
             'testimonial_role' => ['sometimes', 'nullable', 'string', 'max:150'],
             'testimonial_role_am' => ['sometimes', 'nullable', 'string', 'max:150'],
