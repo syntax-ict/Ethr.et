@@ -53,11 +53,11 @@ Answers: G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
 ### Step 2 — the web-server canary (safe to be web-reachable)
 
-The probe above sits in `~/` and is never served by Apache, so it structurally cannot answer *"is `.htaccess` honoured?"*. `scripts/hosting-verification/htaccess-canary/` is the opposite trade: it is web-reachable and discloses nothing — four booleans, no environment detail.
+The probe above sits in `~/` and is never served by Apache, so it structurally cannot answer *"is `.htaccess` honoured?"*. `scripts/hosting-verification/htaccess-canary/` is the opposite trade: it is web-reachable and discloses nothing — five booleans, no environment detail.
 
-1. Upload all three files (`.htaccess`, `canary.php`, `secret.txt.probe`) to `httpdocs/ethr-canary/`.
+1. Upload all four files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`) to `httpdocs/ethr-canary/`.
 2. Open `https://<host>/ethr-canary/canary.php` and follow the printed checks.
-3. Run the three `curl` commands it gives you.
+3. Run the four `curl` commands it gives you.
 4. Save the output, **delete the directory.**
 
 Answers: G0-B.
@@ -84,6 +84,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-B.2** | `mod_headers` honoured | yes | | NOT VERIFIED | canary |
 | **G0-B.3** | `.htaccess` deny rules enforced | **403** | | NOT VERIFIED | canary |
 | **G0-B.4** | `Authorization` reaches PHP | yes | | NOT VERIFIED | canary |
+| **G0-B.5** | a real file shadows the rewrite | *record which* — no failing answer | | NOT VERIFIED | canary |
 | **G0-A** | reverse proxy for `/api/` | permitted | | NOT VERIFIED | panel |
 | **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29); vhost not yet created | PARTIAL | B1-B5 + panel |
 | G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
@@ -138,12 +139,24 @@ from `api/public/` into the shared document root. On the VPS that file serves th
 vhost and reads `User-agent: * / Disallow:`. Copied here it would be served at
 `https://www.ethr.et/robots.txt`, silently replacing the frontend's generated
 `robots.txt` — losing the `Disallow` list and the `Sitemap:` pointer, with the site
-fully functional and nothing logged. Corrected in the runbook; the check that catches a
-regression is in the deploy checklist, not here, because it can only be run against a
-real deployment.
+fully functional and nothing logged.
+
+**Corrected, and then pinned**, because the first correction was itself incomplete in the
+way prose is: it named `robots.txt` and `favicon.ico` and missed `api/public/.htaccess`,
+which `ls` does not show and whose stock Laravel catch-all would swallow every frontend
+route. `api/tests/Feature/DocumentRootInventoryTest.php` now enumerates `api/public/`
+against a manifest and fails on any file with no recorded decision — the same shape as
+`Security/TenantScopeBypassInventoryTest`, and for the same reason: a rule that only
+exists in prose is one edit from being wrong again. It found the `.htaccess` omission on
+its first run.
+
+That test asserts **repository shape**, not host behaviour. It cannot tell you anything
+about Ethio Telecom's server, and it is not evidence for any row in the table above.
 
 **This changes no G0-B row.** Every one of them remains `NOT VERIFIED` and requires the
-Plesk account.
+Plesk account. `G0-B.5` is new and equally unverified — added because the runbook had
+asserted the shadowing behaviour as fact, and the canary can measure it in the same
+session as the other four.
 
 **Every FAIL needs four lines recorded underneath it: impact · workaround · decision · owner action.** A FAIL with no decision is an open gate, not a closed one.
 
@@ -248,3 +261,15 @@ Evidence: `.github/workflows/gates.yml`, job `backend-mysql`, which connects as 
 3. Confirm the probe and canary are **deleted from the server**.
 4. Record the tier decision and its reason.
 5. Only then unfreeze the fenced work: `docs/deployment/shared-hosting/*` stays untouched until the facts exist, because editing it now means writing it twice.
+
+   **The freeze stands. One narrow exception has been taken, and it is recorded here rather than left as a silent contradiction.**
+
+   The rule exists so that *branch-dependent* content is not written twice — anything whose text depends on how B3 or B5 resolves. It was never written to cover a step that is **absent under every branch**, and on 2026-09-17 exactly that was found: §0 of `DEPLOYMENT.md` drew the document root and named its contents, but no step in the runbook assembled it. Steps 3–4 fill `~/ethr/api/`, step 5 deploys the frontend, and nothing in between copied `index.php` or `.htaccess` into `~/httpdocs/`. Every rule G0-B measures is inert until that file is in place, so the gate rested on a step that did not exist — and leaving it that way until Gate 0 runs would have meant running Gate 0 against a deployment nobody could perform.
+
+   Scope of the exception, deliberately narrow:
+
+   - `DEPLOYMENT.md` — step 4a (document-root assembly) and the §0 file list it corrects.
+   - Nothing branch-dependent was touched. Step 4a's B5 = yes / B5 = no material is written as the same explicit branches the rest of the package already uses, so it is not written twice either.
+   - No gate row was filled, and no gate moved.
+
+   **This is not a general unfreeze.** `ENVIRONMENT.md`, `nginx-directives.conf`, `.htaccess`, `health-check.md` and `rollback.md` remain frozen. A further exception needs the same test this one passed: *is the defect branch-independent, and does leaving it block Gate 0 itself?* If the answer to either is no, wait for the facts.

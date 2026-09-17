@@ -1,0 +1,14 @@
+NOT-A-SECRET. This file is the ETHR canary's G0-B.5 bait.
+
+A .htaccess rule rewrites /shadow.txt to canary.php. This file also exists on
+disk at that exact path. Whichever one answers tells you which layer resolved
+the request first:
+
+  this text          -> a real file on disk wins; the rewrite never ran
+  canary.php output  -> the rewrite ran; Apache resolved the path
+
+Both answers are fine for the deployment — see DEPLOYMENT.md step 4a, which is
+safe either way. This measures WHICH, so that unexpected behaviour later has a
+known cause instead of a guess.
+
+Nothing here is confidential.

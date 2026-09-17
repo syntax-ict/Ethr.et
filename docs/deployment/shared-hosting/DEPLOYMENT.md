@@ -197,22 +197,47 @@ document root would make `storage:link` look runnable again.
 
 ### What is deliberately not copied
 
-`api/public/` also contains `robots.txt` and `favicon.ico`. On the VPS those serve the
-**API vhost** (`infrastructure/nginx.conf` roots three server blocks at
-`api/public`) — a different origin from the marketing site. This deployment merges the
-API and the public site into one document root, so copying them changes what they mean.
+`api/public/` contains three other files: `.htaccess`, `robots.txt` and `favicon.ico`.
+On the VPS all three serve the **API vhost** (`infrastructure/nginx.conf` roots three
+server blocks at `api/public`) — a different origin from the marketing site. This
+deployment merges the API and the public site into one document root, so copying them
+changes what they mean.
+
+**This list is pinned by a test**, because an earlier version of it was wrong in exactly
+the way prose is wrong: it named two files and missed `.htaccess`, which `ls` does not
+show. `api/tests/Feature/DocumentRootInventoryTest.php` enumerates `api/public/` against
+`document-root-inventory.php` and fails on any file with no recorded decision, so a
+fourth file cannot arrive here unnoticed. Add a file to `api/public/` and answer its
+question before this table can go stale again.
 
 | File | If copied here | Do instead |
 | --- | --- | --- |
+| `.htaccess` | **The dangerous one.** Laravel's stock rules end in a catch-all — `RewriteCond !-d`, `!-f`, `RewriteRule ^ index.php [L]` — that sends *every* unmatched path to Laravel. This document root also serves the frontend, so under B5 = no that swallows `/pricing`, `/dashboard` and every other client-routed path. Loud rather than silent, unlike the two below — but the confusion is easy, because both files are called `.htaccess`. | Use `docs/deployment/shared-hosting/.htaccess`, which is the purpose-built replacement: its front-controller rule is restricted to `^/(api\|sanctum)` for exactly this reason, and it adds the security headers and deny rules Laravel's has no reason to carry. |
 | `robots.txt` | `api/public/robots.txt` is `User-agent: * / Disallow:` — **allow everything, no sitemap**. Served at `https://www.ethr.et/robots.txt` it silently replaces the frontend's own `robots.txt` (`src/src/app/robots.ts`), dropping the `Disallow` list for `/admin`, `/dashboard`, `/login`, `/register` and the reset-password routes, and dropping the `Sitemap:` pointer that is how a crawler finds `/sitemap.xml` at all. Nothing logs this; the site works perfectly. | Leave it in `~/ethr/api/public/`. `/robots.txt` is the frontend's, in both B5 branches. |
 | `favicon.ico` | Laravel's default icon shadows the frontend's, which ships its own under `src/public/`. Cosmetic, not silent — but the same shadowing mechanism. | Leave it. |
 
-This is the general rule, and it is worth stating once rather than per file: **in this
-layout a real file in `~/httpdocs/` always wins over the rewrite** (`.htaccess`'s API
-rule is guarded by `!-f`/`!-d`, and Plesk serves static files from disk before any
-handler). Anything copied into the document root is therefore a permanent override of
-whatever the application would otherwise have produced at that path. Copy only what §0
-lists.
+The general rule, worth stating once rather than per file: **a real file in
+`~/httpdocs/` wins over the rewrite**, so anything copied into the document root is a
+permanent override of whatever the application would otherwise have produced at that
+path. Copy only what §0 lists.
+
+Be precise about how much of that rule is measured, because this file's own standard is
+that inference is not evidence:
+
+- **Apache-side: verifiable from the repository.** The front-controller rule in
+  `shared-hosting/.htaccess` is guarded by `RewriteCond %{REQUEST_FILENAME} !-f` and
+  `!-d`. A request matching a real file therefore never reaches the rewrite. Read it in
+  the file; nothing about the host is assumed.
+- **nginx/Plesk-side: NOT measured.** Whether Plesk's nginx serves a static file from
+  disk before Apache ever sees the request is a property of this host's configuration and
+  has never been tested. An earlier version of this section stated it as fact. It is now
+  gate **G0-B.5**, which the canary answers in the same session as the other four —
+  see `docs/deployment/GATE-0-RESULT.md`.
+
+Both paths lead to the same instruction, which is why the rule is safe to act on now: on
+Apache the file wins by the `!-f` guard, and on nginx-first it wins even harder. G0-B.5
+tells you *which*, which matters when something behaves unexpectedly, not *whether* to
+copy the file.
 
 ### The public paths, and what serves each
 
@@ -248,9 +273,21 @@ Two caveats, neither of which this repository can close:
 - **B5 = yes is gated on G0-A, not just G0-B.** §5's Node branch puts the Node app in
   its own document root, separate from `~/httpdocs`. For one domain to serve both
   `/api/*` from `~/httpdocs/index.php` and `/` from the Node app, something has to split
-  the traffic — that split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
-  `NOT VERIFIED`. Do not deploy the Node branch on the assumption that it resolves
-  favourably.
+  the traffic. That split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
+  `NOT VERIFIED`. There are exactly two shapes it can take, written out here so that
+  when G0-A answers this is a lookup rather than a design session:
+
+  | | **A1 — nginx splits the traffic** | **A2 — the frontend goes cross-origin** |
+  | --- | --- | --- |
+  | Selected when | G0-A **PASS** — *Additional nginx directives* accepts a `location` block | G0-A **FAIL** — the field is absent, read-only, or rejects the probe |
+  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `~/httpdocs/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
+  | Frontend change | **None.** `src/src/api/client.ts:14`'s relative `baseURL: "/api/v1"` keeps working, and so does the service worker's same-origin API cache (`src/public/sw.js:59`). | `baseURL` becomes absolute; CORS with credentials; `SameSite=None; Secure` cookies; Sanctum stateful-domain config; a widened CSP `connect-src`; **and the service worker's API cache silently stops working**, because it intercepts same-origin only. |
+  | Cost | ~1 day | ~1–2 weeks **plus an auth-security review** — the cookie and CORS changes are exactly the surface where a mistake is both easy and serious |
+
+  A1 is strongly preferred and is what the rest of this package assumes. Do not start A2
+  on a guess: it is the expensive branch, and G0-A is one directive and one `curl` to
+  settle (`GATE-0-RESULT.md` → *Plesk panel checklist* → G0-A, which says to answer it
+  first for this reason).
 - **B5 = no is where the collision actually bites.** Both `api/public/` and the exported
   `out/` land in the same directory, so whichever is copied last wins and neither step
   says so. Following this runbook as written — copy nothing from `api/public/` but

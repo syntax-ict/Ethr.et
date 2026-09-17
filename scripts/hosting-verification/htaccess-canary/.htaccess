@@ -23,6 +23,12 @@
 #   4. Authorization pass - Sanctum needs the Authorization and X-XSRF-Token
 #                           headers forwarded to PHP. Under CGI/FastCGI they are
 #                           stripped unless restored here.
+#   5. Static shadowing  - step 4a of the deployment runbook rests on a real
+#                           file in the document root winning over the rewrite.
+#                           The Apache half is readable in that .htaccess (!-f);
+#                           whether Plesk's nginx serves from disk before Apache
+#                           sees the request at all is a property of THIS host
+#                           and was previously asserted rather than measured.
 #
 # If the server is nginx-only, or Apache runs AllowOverride None, every rule
 # below is silently ignored - no error, no log. That is exactly what we are
@@ -33,6 +39,13 @@
 
     # 1. Rewrite proof. /REWRITE_OK must reach canary.php with the flag set.
     RewriteRule ^REWRITE_OK$ canary.php?rewrite=1 [L,QSA]
+
+    # 5. Shadow proof. shadow.txt exists on disk AND is rewritten here, so the
+    #    response says which layer resolved the request first. Deliberately
+    #    unguarded by !-f: that guard is what the real deployment's .htaccess
+    #    uses, and guarding here would answer the question by construction
+    #    rather than by measurement.
+    RewriteRule ^shadow\.txt$ canary.php?shadow=1 [L,QSA]
 
     # 4. Header forwarding, same directives the real deployment uses.
     RewriteCond %{HTTP:Authorization} .

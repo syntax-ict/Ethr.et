@@ -13,31 +13,74 @@ drew `~/httpdocs/` and named its contents, but no step in the runbook ever assem
 it: steps 3–4 put the application in `~/ethr/api/`, step 5 deploys the frontend, and
 nothing in between copied `index.php` or `.htaccess` into the document root. Every rule
 G0-B measures is inert until that file is in place, so the gate rested on a step that
-did not exist.
+did not exist — and running Gate 0 without it would have measured a deployment nobody
+could perform.
 
-Written as **step 4a**, from §0's own specification. Three defects in that file list
-surfaced in the writing:
+Written as **step 4a**, from §0's own specification. **Four** defects in that file list
+surfaced, the last of them found by the control written to prevent the first three:
 
-- **"2 lines repointed" is three.** `api/public/index.php:9` reads
-  `storage/framework/maintenance.php` and was missing from the list. Unrepointed,
-  `php artisan down` succeeds on the CLI and changes nothing about what is served.
-- **`robots.txt` was listed as copied from `api/public/`, and must not be.** On the VPS
-  that file serves the API vhost and reads `User-agent: * / Disallow:`. This deployment
-  merges the API and the public site into one document root, so copying it serves
-  allow-all at `/robots.txt`, silently replacing the frontend's generated file — losing
-  the `Disallow` list and the `Sitemap:` pointer, with the site fully functional and
-  nothing logged. `favicon.ico` is the same mechanism at cosmetic severity.
-- **Under B5 = no it is order-dependent**: the exported `out/` and `api/public/` land in
-  the same directory and neither step said which wins.
+1. **"2 lines repointed" is three.** `api/public/index.php:9` reads
+   `storage/framework/maintenance.php` and was missing from the list. Unrepointed it
+   resolves to `~/storage/…`, which never exists, so `php artisan down` succeeds on the
+   CLI and changes nothing about what is served — maintenance mode inert exactly when it
+   is relied on.
+2. **`robots.txt` was listed as copied from `api/public/`, and must not be.** On the VPS
+   that file serves the API vhost (`infrastructure/nginx.conf` roots three server blocks
+   at `api/public`) and reads `User-agent: * / Disallow:`. This deployment merges the API
+   and the public site into one document root, so copying it serves allow-all at
+   `/robots.txt`, silently replacing the frontend's generated file — losing the
+   `Disallow` list and the `Sitemap:` pointer, with the site fully functional and nothing
+   logged. `favicon.ico` is the same mechanism at cosmetic severity.
+3. **Under B5 = no it is order-dependent**: the exported `out/` and `api/public/` land in
+   the same directory and neither step said which wins.
+4. **`api/public/.htaccess` was missed entirely** — by the original §0 list *and* by the
+   first correction of it, because `ls` does not show dotfiles. It is the most dangerous
+   of the four to copy: Laravel's stock rules end in a catch-all (`!-d`, `!-f`,
+   `RewriteRule ^ index.php`) that sends every unmatched path to Laravel, which under
+   B5 = no swallows `/pricing`, `/dashboard` and every other client-routed path. The
+   deployment ships a purpose-built replacement whose front-controller rule is restricted
+   to `^/(api|sanctum)` for exactly this reason. Loud rather than silent, but the two
+   files share a name, which is the whole hazard.
 
-Added alongside: a per-path table for `/api/*`, `/`, `/robots.txt`, `/sitemap.xml` and
-`/.well-known/` under both B5 branches, and four `curl` checks in `deploy-checklist.md`
-→ *Public paths* that fail loudly on the silent case. `public_path()` was checked and is
-not a defect (only `config/filesystems.php:88`'s `links` array reads it, consumed by
-`storage:link`, which §4 already forbids).
+**The rule is now enforced rather than written down.**
+`api/tests/Feature/DocumentRootInventoryTest.php` enumerates `api/public/` against
+`document-root-inventory.php`, which records for every file whether it belongs in the
+shared document root and why, and fails naming any file with no decision. Same shape as
+`Security/TenantScopeBypassInventoryTest`, and for the stated reason: `CLAUDE.md` holds
+that a documented control nobody runs is worse than an admitted gap. Defect 4 above is
+what that test caught on its first run, against the corrected prose — which is the
+argument for it, made by the thing itself. It does not audit the existing decisions; a
+manifest cannot. It makes adding a fourth file deliberate.
+
+**One assertion downgraded from fact to gate.** Step 4a had claimed a real file in the
+document root always wins over the rewrite, citing both the `.htaccess` `!-f` guard *and*
+"Plesk serves static files from disk before any handler". The first is readable in the
+repository; the second was never measured, in a document whose own rule is that inference
+is not evidence. It is now **G0-B.5**, and the canary answers it in the same session as
+the other four (`shadow.txt` exists on disk *and* is rewritten, so the response names
+which layer resolved first). No failing answer — both outcomes leave step 4a correct —
+but "which layer answered" is the first question anyone asks when a document root
+misbehaves.
+
+**Branch A written out instead of flagged.** The G0-A contradiction (Node app in its own
+document root vs. `/api/*` from `~/httpdocs`) now carries both candidate resolutions with
+their costs: nginx directives splitting one origin (~1 day, no frontend change) versus
+the frontend going cross-origin (~1–2 weeks plus an auth-security review, and the service
+worker's API cache silently stops working). When G0-A answers, it is a lookup.
+
+**Freeze exception, recorded not assumed.** `GATE-0-RESULT.md` says
+`docs/deployment/shared-hosting/*` stays untouched until the facts exist. That rule exists
+so branch-dependent content is not written twice, and does not cover a step absent under
+every branch. The exception is recorded at the rule, scoped to step 4a and the §0 list it
+corrects, with the rest of the package still frozen.
+
+**Checked and found not to be a defect:** `public_path()` resolves to `~/ethr/api/public`,
+which nothing serves — but its only reference is `config/filesystems.php:88`'s `links`
+array, consumed solely by `storage:link`, which §4 already forbids.
 
 **No gate moved.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk
-account. Documentation only — no application code changed.
+account. No application code changed; the new test asserts repository shape, not runtime
+behaviour, and is not evidence about Ethio Telecom's server.
 
 ---
 

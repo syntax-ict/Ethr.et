@@ -219,59 +219,26 @@ Owner said "decide for me". These are settled; they are not open questions.
 
 ## IN PROGRESS
 
-### Reconciled 2026-09-17 — one gap found in the deployment package, and closed
+### Reconciled 2026-09-17 — the deployment package had a missing step, now closed
 
-The package below was described as complete. It was not: `DEPLOYMENT.md` §0 drew the
-document root, and **no step in the runbook ever assembled it**. Steps 3–4 put the
-application in `~/ethr/api/` (deliberately not web-accessible); step 5 deploys the
-frontend. Between them, nothing copied `index.php` or `.htaccess` into `~/httpdocs/`,
-which is the one thing every rule G0-B measures depends on existing.
+`DEPLOYMENT.md` §0 drew the document root; **no step in the runbook assembled it**. Every
+rule G0-B measures is inert until `~/httpdocs/` exists, so the gate rested on a step that
+did not. Written as **step 4a**, plus an enforceable control and one new canary check.
 
-Written as **step 4a**, from what §0 already specified rather than from a new design.
-Three defects surfaced while writing it, all in the §0 file list:
+| | |
+| --- | --- |
+| **Status** | Closed. PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
+| **Gates moved** | **None.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk account. `G0-B.5` is new and equally unverified. |
+| **Freeze** | One narrow exception taken and recorded at `deployment/GATE-0-RESULT.md` → *After the run* item 5. The freeze otherwise stands. |
+| **Detail** | `MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
+| **Enforcement** | `api/tests/Feature/DocumentRootInventoryTest.php` pins `api/public/` against a manifest, so a file cannot arrive in the document-root decision set unnoticed. It found one of the four defects on its first run. |
 
-1. **"2 lines repointed" is three.** `api/public/index.php:9` reads
-   `storage/framework/maintenance.php`, and it was not on the list. Unrepointed,
-   `php artisan down` reports success on the CLI and changes nothing about what the web
-   server serves — maintenance mode inert exactly when it is relied on.
-2. **`robots.txt` must not be copied.** §0 listed it as copied from `api/public/`. On
-   the VPS that file serves the API vhost (`infrastructure/nginx.conf` roots three
-   server blocks at `api/public`) and reads `User-agent: * / Disallow:`. This
-   deployment merges the API and the public site into **one** document root, so copying
-   it serves allow-all at `https://www.ethr.et/robots.txt`, silently replacing the
-   frontend's generated `robots.txt` (`src/src/app/robots.ts`) — losing the `Disallow`
-   list for `/admin`, `/dashboard`, `/login`, `/register` and the reset routes, and
-   losing the `Sitemap:` pointer that is how a crawler reaches `/sitemap.xml` at all.
-   The site works perfectly and nothing logs it. Same mechanism, cosmetic severity, for
-   `favicon.ico`.
-3. **Under B5 = no the collision is order-dependent**, because the exported `out/` and
-   `api/public/` land in the same directory and neither step said which wins. Copying
-   only `index.php` removes the ambiguity rather than depending on step order.
-
-`public_path()` was checked at the same time and is **not** a defect: it resolves to
-`~/ethr/api/public`, which nothing serves, and the only reference in the codebase is
-`config/filesystems.php:88`'s `links` array, consumed solely by `storage:link` — which
-§4 already forbids.
-
-**No gate moved.** G0-A and every G0-B row remain `NOT VERIFIED` and still require the
-Plesk account. What changed is that the thing G0-B is a gate *on* now exists as an
-executable step, and the silent path-level failure has a check that catches it
-(`deploy-checklist.md` → *Public paths*).
-
-**Not touched: PR #17 (tenant public pages, `claude/ethr-tenant-landing-pages-a59gly`).**
-Open, unmerged, a separate workstream, and it changes no file this run touched — its
-routing table lives in a new `docs/TENANT_PUBLIC_PAGES.md`, so there is no overlap and
-no conflict to resolve.
-
-Its five paths (`/`, `/media/`, `/robots.txt`, `/sitemap.xml`, `/preview`) are **tenant-
-host** rules, in the `*.ethr.et` block only, and they route to **Laravel**. Two of them
-carry the same names as rows in step 4a's table and are answered by the other half of
-the stack there — which is precisely the kind of same-name-different-vhost pair this
-repository has drifted on before, so step 4a's table now says on its face that it
-describes the platform host. PR #17 already fences its own Plesk `.htaccess` equivalent
-until G0-B answers. When it merges, step 4a needs a **pointer** to
-`docs/TENANT_PUBLIC_PAGES.md` → *Deployment*, not a copy of its rows: one table
-authoritative per vhost.
+**PR #17 (tenant public pages) untouched.** Open, unmerged, separate workstream, and it
+changes no file this run touched — its routing table lives in a new
+`docs/TENANT_PUBLIC_PAGES.md`. Its five paths are **tenant-host** rules routing to
+Laravel; two share a name with rows in step 4a's **platform-host** table, so that table
+now names its vhost on its face. When PR #17 merges, step 4a needs a pointer to it, not a
+copy of its rows — one table authoritative per vhost.
 
 ---
 
