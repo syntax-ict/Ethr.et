@@ -81,10 +81,9 @@ class Subscription extends Model
      */
     public function effectivePriceCents(): int
     {
-        // Read through getAttributes() rather than `$this->price_cents`, and
-        // annotate the relation, because Larastan infers model property types
-        // from the migrations and gets both of these wrong in ways that are
-        // invisible here and fatal in CI.
+        // Read through getAttributes() rather than `$this->price_cents`,
+        // because Larastan infers model property types from the migrations and
+        // gets this one wrong in a way that is invisible here and fatal in CI.
         //
         // It resolves cast properties to their raw backing type — the same
         // limitation phpstan.neon documents for RetirementCase and
@@ -103,9 +102,16 @@ class Subscription extends Model
             return (int) $captured;
         }
 
-        /** @var Plan|null $plan */
+        // Not nullsafe, and not defensive-with-a-fallback: `plan_id` is
+        // `foreignId()->constrained()`, so it is NOT NULL behind a foreign key
+        // and a subscription without a plan is a state the database will not
+        // hold. PHPStan says the same thing (`nullsafe.neverNull`), so here it
+        // is describing the schema rather than failing to follow it — the
+        // opposite of the enum case above, and worth distinguishing: one is a
+        // limitation to work around, this one is correct and was worth obeying.
+        /** @var Plan $plan */
         $plan = $this->getRelationValue('plan');
 
-        return $plan?->price_cents ?? 0;
+        return $plan->price_cents;
     }
 }
