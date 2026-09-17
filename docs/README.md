@@ -97,6 +97,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 |---|---|
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
 | [`audit/BASELINE.md`](audit/BASELINE.md) | Phase 0 forensic baseline |
+| [`audit/MARKETING_PAGE_UPGRADING_PLAN.md`](audit/MARKETING_PAGE_UPGRADING_PLAN.md) | The public marketing site audited against launch. Phased plan MP-A…MP-F; §2.1-2.4 are launch blockers |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
 
 ## End-user guides
