@@ -37,9 +37,22 @@ final class PublicSection
             // An item with nothing in it is a gap in a grid. The builder lets
             // an administrator save a half-filled row while they work, so the
             // page declines to render it rather than assuming it is finished.
-            if ($view->hasContent()) {
-                $items[] = $view;
+            if (! $view->hasContent()) {
+                continue;
             }
+
+            // A gallery entry without a picture is not an entry. The gallery
+            // partial renders images and captions, so a titled entry with no
+            // image contributes nothing — and a section of them renders as a
+            // heading and an introduction over empty space, which is the exact
+            // "looks abandoned" outcome the empty-section rule exists to stop.
+            // Found in the browser: the tests counted items, and the page
+            // counted pictures.
+            if ($section->kind === PublicSectionKind::GALLERY && $view->imageUrl === null) {
+                continue;
+            }
+
+            $items[] = $view;
         }
 
         return new self(

@@ -174,3 +174,70 @@ it('lazily loads images below the hero', function () {
     // the difference between a page that loads and one that does not.
     expect($html)->toContain('loading="lazy"')->toContain('alt="The courtyard"');
 });
+
+it('renders no gallery at all when its entries have no pictures', function () {
+    $tenant = createTenant(['subdomain' => 'habru', 'name' => 'Habru']);
+    TenantPublicProfile::factory()->create([
+        'tenant_id' => $tenant->id,
+        'is_published' => true,
+        'preset' => 'hotel',
+    ]);
+
+    $section = TenantPublicSection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'kind' => PublicSectionKind::GALLERY,
+        'is_visible' => true,
+        'heading' => 'Our gallery',
+        'intro' => 'Photographs of the lodge.',
+    ]);
+
+    // Entries with titles but no images. The gallery partial renders pictures,
+    // so these contribute nothing — and without the guard the page shows a
+    // heading and an introduction over empty space.
+    //
+    // No test caught this. The suite counted items and the page counted
+    // pictures, and the two agreed right up until a browser rendered it.
+    TenantPublicItem::factory()->count(3)->create([
+        'tenant_id' => $tenant->id,
+        'section_id' => $section->id,
+        'title' => 'A photo that was never uploaded',
+        'image_path' => null,
+    ]);
+
+    app(CurrentTenant::class)->forget();
+
+    $this->get('http://habru.ethr.et/')
+        ->assertOk()
+        ->assertDontSee('Our gallery')
+        ->assertDontSee('Photographs of the lodge.');
+});
+
+it('renders the gallery once an entry has a picture', function () {
+    $tenant = createTenant(['subdomain' => 'habru', 'name' => 'Habru']);
+    TenantPublicProfile::factory()->create([
+        'tenant_id' => $tenant->id,
+        'is_published' => true,
+        'preset' => 'hotel',
+    ]);
+
+    $section = TenantPublicSection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'kind' => PublicSectionKind::GALLERY,
+        'is_visible' => true,
+        'heading' => 'Our gallery',
+    ]);
+
+    TenantPublicItem::factory()->create([
+        'tenant_id' => $tenant->id,
+        'section_id' => $section->id,
+        'image_path' => "tenants/{$tenant->public_id}/public/sections/a.png",
+        'image_alt' => 'The courtyard at dusk',
+    ]);
+
+    app(CurrentTenant::class)->forget();
+
+    $this->get('http://habru.ethr.et/')
+        ->assertOk()
+        ->assertSee('Our gallery')
+        ->assertSee('The courtyard at dusk', escape: false);
+});

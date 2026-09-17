@@ -98,6 +98,14 @@ it('renders every section kind without error', function (string $value) {
             'tenant_id' => $tenant->id,
             'section_id' => $section->id,
             'title' => 'An entry',
+            // The gallery renders pictures, not titles, so an entry without
+            // one is deliberately dropped and the section disappears. Give it
+            // an image so this test exercises the partial rather than the
+            // empty-section rule.
+            'image_path' => $kind === PublicSectionKind::GALLERY
+                ? "tenants/{$tenant->public_id}/public/sections/a.png"
+                : null,
+            'image_alt' => $kind === PublicSectionKind::GALLERY ? 'A photograph' : null,
             'meta' => ['value' => '420', 'date' => '2026-03-01', 'opens' => '08:30', 'closes' => '17:00'],
         ]);
     }

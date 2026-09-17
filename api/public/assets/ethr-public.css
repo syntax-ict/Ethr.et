@@ -596,7 +596,10 @@ body[class*="preset--"] .brand__logo {
  * ───────────────────────────────────────────────────────────────────────── */
 
 .section__intro {
-    margin: 0 auto 24px;
+    /* Left-aligned, not centred. `margin: 0 auto` with a max-width centres the
+     * block, which put the intro in the middle of the page under a
+     * left-aligned heading — caught in the browser, not by any assertion. */
+    margin: 0 0 24px;
     max-width: 68ch;
     color: var(--text-muted);
 }
