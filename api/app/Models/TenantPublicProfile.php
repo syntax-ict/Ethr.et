@@ -7,12 +7,25 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use Database\Factories\TenantPublicProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * A tenant's public landing page content.
+ *
+ * The @property block is not decoration: `casts()` is invisible to static
+ * analysis, so without it `published_at` reads as a string and
+ * `->toIso8601String()` on it is an error. Same for `$tenant`, which resolves
+ * to a bare Model through the un-generic BelongsTo and loses `isActive()`.
+ *
+ * @property bool $is_published
+ * @property bool $is_indexable
+ * @property array<string, string>|null $social_links
+ * @property Carbon|null $published_at
+ * @property-read Tenant|null $tenant
  *
  * Carries `BelongsToTenant` for the same reason every other scoped model does,
  * and the consequence is worth stating because this is the one model an
@@ -27,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class TenantPublicProfile extends Model
 {
+    /** @use HasFactory<TenantPublicProfileFactory> */
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;
 
     /** Social platforms a tenant may link to, and the host each link must be on. */

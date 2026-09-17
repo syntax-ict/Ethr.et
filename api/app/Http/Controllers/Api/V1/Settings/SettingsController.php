@@ -369,7 +369,7 @@ class SettingsController extends Controller
             'public_page' => [
                 'url' => 'https://'.$tenant->subdomain.'.'.(config('app.domain') ?: 'ethr.et'),
                 'is_published' => (bool) $profile?->is_published,
-                'is_indexable' => (bool) ($profile?->is_indexable ?? true),
+                'is_indexable' => (bool) ($profile->is_indexable ?? true),
                 'headline' => $profile?->headline,
                 'description' => $profile?->description,
                 'contact_email' => $profile?->contact_email,
@@ -378,7 +378,7 @@ class SettingsController extends Controller
                 'city' => $profile?->city,
                 'region' => $profile?->region,
                 'website_url' => $profile?->website_url,
-                'social_links' => $profile?->social_links ?? [],
+                'social_links' => $profile->social_links ?? [],
                 'meta_description' => $profile?->meta_description,
                 'has_hero_image' => TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::HERO) !== null,
                 // Tells the settings screen whether the stored logo will
