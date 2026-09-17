@@ -4531,6 +4531,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the tenant logo with an uploaded file
+         * @description `PUT /settings/branding` has always accepted `logo_url` as a bare string,
+         *     so `tenants.logo_path` may hold an arbitrary external URL. That was
+         *     tolerable while the logo appeared only inside the authenticated app; on a
+         *     public page it would mean every anonymous visitor issues a request to a
+         *     third-party host, which is a tracking vector nobody opted into.
+         *
+         *     So the public page renders a logo only when it is a file this application
+         *     stored (see TenantPublicAsset), and this endpoint is how a tenant gets
+         *     one. The old string field still works for the in-app logo; it simply has
+         *     no effect on the public surface.
+         */
+        post: operations["settings.uploadBrandingLogo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's public landing page configuration
+         * @description Returns the same shape whether or not a profile row exists yet, so the
+         *     settings screen renders an empty form rather than an error on a tenant
+         *     that has never touched this. Unpublished is the default everywhere.
+         */
+        get: operations["settings.showPublicPage"];
+        /** Public page settings */
+        put: operations["settings.updatePublicPage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/hero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the hero image on the public page
+         * @description Stored under the tenant's existing `tenants/{public_id}/` prefix in a
+         *     `public/` subdirectory, so a glance at a storage path says whether the
+         *     object is meant to be reachable without authentication.
+         */
+        post: operations["settings.uploadPublicHero"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/sso": {
         parameters: {
             query?: never;
@@ -7307,6 +7381,47 @@ export interface components {
             bank_account_number?: string | null;
             bank_name?: string | null;
         };
+        /**
+         * UpdatePublicPageRequest
+         * @description Validation for a tenant's public landing page content.
+         *
+         *     Stricter than the columns' storage types, because everything here is rendered
+         *     to anonymous visitors. Two rules carry the weight:
+         *
+         *      - every URL goes through PublicUrl, which admits only http(s) and refuses
+         *        anything resolving to a private address. A `javascript:` value in
+         *        `website_url` would otherwise become a link the page's own visitors click.
+         *      - `social_links` is a fixed key set with a per-platform host allow-list, so
+         *        a "social link" cannot be an arbitrary outbound URL wearing a familiar
+         *        label.
+         *
+         *     Authorization is not done here. SettingsController calls
+         *     Gate::authorize('settings.manage'), the same gate every other settings
+         *     endpoint uses, so the rule lives in one place rather than two.
+         */
+        UpdatePublicPageRequest: {
+            is_published?: boolean;
+            is_indexable?: boolean;
+            headline?: string | null;
+            description?: string | null;
+            /** Format: email */
+            contact_email?: string | null;
+            contact_phone?: string | null;
+            address_line?: string | null;
+            city?: string | null;
+            region?: string | null;
+            website_url?: string | null;
+            meta_description?: string | null;
+            social_links?: {
+                facebook?: string | null;
+                instagram?: string | null;
+                linkedin?: string | null;
+                x?: string | null;
+                youtube?: string | null;
+                telegram?: string | null;
+                tiktok?: string | null;
+            };
+        };
         /** UpdateSettingsRequest */
         UpdateSettingsRequest: {
             settings: {
@@ -7404,6 +7519,33 @@ export interface components {
              *     rules only keep obviously wrong uploads out of that path.
              */
             photo: string;
+        };
+        /**
+         * UploadPublicImageRequest
+         * @description A logo or hero image for the tenant's public landing page.
+         *
+         *     Its own endpoint, and a POST, for the same reason UploadProfilePhotoRequest
+         *     is: PHP does not populate $_FILES on a PUT, so a file field on the JSON
+         *     settings endpoint could never arrive however the client sent it.
+         *
+         *     GIF is absent from the accepted types deliberately. The other three cover
+         *     every real logo — PNG and WebP for transparency, JPEG for photographs — and
+         *     an animated logo on an organisation's public page is a support question, not
+         *     a feature. Narrower input is also less for FileStorageService's decoder to
+         *     be handed.
+         */
+        UploadPublicImageRequest: {
+            /**
+             * Format: binary
+             * @description VerifyUploadedFiles has already checked the magic bytes against
+             *     the declared type by the time this runs, and FileStorageService
+             *     strips EXIF and re-encodes. These rules keep obviously wrong
+             *     uploads out of that path rather than being the only defence. 2 MB rather than the 5 MB profile photos allow: this image is
+             *     fetched by every anonymous visitor on a connection that is often
+             *     mobile data, so the ceiling is a page-weight decision as much as
+             *     a storage one.
+             */
+            image: string;
         };
         /** UserResource */
         UserResource: {
@@ -19263,6 +19405,166 @@ export interface operations {
                         message: "Branding updated";
                         logo_url: string;
                         theme: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.uploadBrandingLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadPublicImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Logo updated";
+                        logo_path: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.showPublicPage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_page: {
+                            url: string;
+                            is_published: boolean;
+                            is_indexable: boolean;
+                            headline: string | null;
+                            description: string | null;
+                            contact_email: string | null;
+                            contact_phone: string | null;
+                            address_line: string | null;
+                            city: string | null;
+                            region: string | null;
+                            website_url: string | null;
+                            social_links: unknown[];
+                            meta_description: string | null;
+                            has_hero_image: boolean;
+                            /**
+                             * @description Tells the settings screen whether the stored logo will
+                             *     actually appear publicly, so it can prompt for a re-upload
+                             *     instead of leaving an administrator wondering why it does not.
+                             *     Independent of the profile row: the logo is a tenant column a
+                             *     tenant may have set long before opening this screen.
+                             */
+                            has_public_logo: boolean;
+                            published_at: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "settings.updatePublicPage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdatePublicPageRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Public page updated";
+                        public_page: {
+                            url: string;
+                            is_published: boolean;
+                            is_indexable: boolean;
+                            headline: string | null;
+                            description: string | null;
+                            contact_email: string | null;
+                            contact_phone: string | null;
+                            address_line: string | null;
+                            city: string | null;
+                            region: string | null;
+                            website_url: string | null;
+                            social_links: unknown[];
+                            meta_description: string | null;
+                            has_hero_image: boolean;
+                            /**
+                             * @description Tells the settings screen whether the stored logo will
+                             *     actually appear publicly, so it can prompt for a re-upload
+                             *     instead of leaving an administrator wondering why it does not.
+                             *     Independent of the profile row: the logo is a tenant column a
+                             *     tenant may have set long before opening this screen.
+                             */
+                            has_public_logo: boolean;
+                            published_at: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.uploadPublicHero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadPublicImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Hero image updated";
                     };
                 };
             };
