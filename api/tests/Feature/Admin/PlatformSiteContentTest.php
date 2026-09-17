@@ -74,3 +74,49 @@ it('does not let a tenant admin edit the public site', function () {
 
     expect(PlatformSetting::current()->tagline)->not->toBe('hijacked');
 });
+
+it('refuses a customer quote with no name and no recorded consent', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+
+    // The invented testimonial this replaces was three strings in a component.
+    // Making them columns would have changed nothing on its own — the same
+    // three strings, typed into a form. `required_with:testimonial_quote` is
+    // what makes the difference: a quote needs someone to have said it and a
+    // date they agreed to be quoted, or it is not a testimonial.
+    $this->putJson('/api/v1/admin/platform-settings', [
+        'testimonial_quote' => 'ETHR replaced three separate systems for us.',
+    ])->assertStatus(422)->assertJsonValidationErrors([
+        'testimonial_author',
+        'testimonial_consented_on',
+    ]);
+});
+
+it('refuses consent dated in the future', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+
+    // Consent that has not happened yet is not consent.
+    $this->putJson('/api/v1/admin/platform-settings', [
+        'testimonial_quote' => 'ETHR replaced three separate systems for us.',
+        'testimonial_author' => 'A real customer',
+        'testimonial_consented_on' => now()->addDay()->toDateString(),
+    ])->assertStatus(422)->assertJsonValidationErrors(['testimonial_consented_on']);
+});
+
+it('stores a complete testimonial and audits the change', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $tenant);
+
+    $this->putJson('/api/v1/admin/platform-settings', [
+        'testimonial_quote' => 'ETHR replaced three separate systems for us.',
+        'testimonial_author' => 'A real customer',
+        'testimonial_role' => 'HR Director',
+        'testimonial_organisation' => 'A real organisation',
+        'testimonial_consented_on' => '2026-09-01',
+    ])->assertOk();
+
+    expect(PlatformSetting::current()->hasPublishedTestimonial())->toBeTrue();
+
+    $this->assertDatabaseHas('audit_log', ['action' => 'platform.settings.updated']);
+});

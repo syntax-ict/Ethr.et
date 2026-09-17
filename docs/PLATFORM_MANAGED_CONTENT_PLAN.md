@@ -278,7 +278,7 @@ Three further findings the audit added: the public language switcher offers four
 
 1. **Which price is right** — the seeded 999 ETB or the page's 2,500? Whichever it is becomes an admin-editable value, but someone must set it before launch. Same for the limits, where the database numbers are the enforced ones.
 2. **Is the 6-month trial a standing offer or a launch promotion?** It is real in code (`AuthService.php:49`) and more generous than advertised — during trial *all* features and limits are unlocked, not Starter's.
-3. **Is there one real customer who will go on the record?** One true testimonial replaces the invented one. If not, the section stays empty.
+3. **Is there one real customer who will go on the record?** The machinery is built and empty: `/admin/platform-settings` takes the quote, who said it, their role and organisation, and the date they agreed to be quoted. Without a name and that date the API will not publish it, so the only thing missing is a real customer. If there is none, the section stays absent — which is the correct output, not a gap.
 4. **Where should contact submissions go**, and with what retention? The retention period also belongs in the privacy policy.
 5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact. The verifiable ones (AES-256, tax per 979/2016, pension 7%/11%) will be checked against the implementation and kept where the code supports them.
 
@@ -349,9 +349,31 @@ Director, Addis Manufacturing PLC" in `.next/server/app/en.html` and `am.html`
 when the built output was finally read on 2026-09-17.
 
 It is deleted now, along with its three translation keys in both locales, and
-`marketing-pages.test.tsx` asserts the absence. There is still no column: one
-real customer who will go on the record is an owner action (§7 item 3), and
-until there is one the page says nothing here.
+`marketing-pages.test.tsx` asserts the absence.
+
+**And then it became data, like the metrics did.** Seven columns on
+`platform_settings` — the quote and the role bilingual, the person's name and
+their organisation not, because neither of those is translated and a second
+spelling of either is a way to get one wrong.
+
+The column that does the work is `testimonial_consented_on`. The other six
+would hold an invented quote as willingly as a true one — making the same three
+strings into form fields changes nothing on its own. A consent date cannot be
+filled in by someone who never spoke to a customer without knowingly writing
+down a day that did not happen. `required_with:testimonial_quote` on it and on
+the author makes entering a quote alone a validation error, and
+`SiteContentResource` refuses to publish the quote unless all three are present,
+so a half-entered draft never reaches the page. The date itself is **not**
+published: it is provenance, the endpoint is unauthenticated, and anything that
+does not need to be public is not.
+
+No star rating, and no column for one. Five filled stars is a score; nothing in
+this product asks a customer for one, and putting them back would be inventing a
+number on top of a quote that is finally true.
+
+So the page still says nothing there — but now because nobody has entered a
+customer, rather than because the section does not exist. Supplying one is an
+owner action (§7 item 3); the mechanism no longer is.
 
 The lesson is the branch's own, turned on itself. This document spent §6
 cataloguing claims the site made and could not keep, and then made one: it

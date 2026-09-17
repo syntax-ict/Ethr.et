@@ -25,6 +25,18 @@ export interface SiteContent {
   metric_employees: number | null;
   metric_uptime_note: string | null;
   metric_uptime_note_am: string | null;
+  /**
+   * All six arrive together or not at all. `SiteContentResource` refuses to
+   * publish a quote without an author and a recorded consent date, so a
+   * half-entered draft never reaches the page — `testimonial_quote` being
+   * non-null is the whole condition for rendering the section.
+   */
+  testimonial_quote: string | null;
+  testimonial_quote_am: string | null;
+  testimonial_author: string | null;
+  testimonial_role: string | null;
+  testimonial_role_am: string | null;
+  testimonial_organisation: string | null;
 }
 
 /**
@@ -53,6 +65,12 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
   metric_employees: null,
   metric_uptime_note: null,
   metric_uptime_note_am: null,
+  testimonial_quote: null,
+  testimonial_quote_am: null,
+  testimonial_author: null,
+  testimonial_role: null,
+  testimonial_role_am: null,
+  testimonial_organisation: null,
 };
 
 export function useSiteContent(): SiteContent {

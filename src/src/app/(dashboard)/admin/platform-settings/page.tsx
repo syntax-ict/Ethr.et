@@ -224,6 +224,13 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
       s.metric_employees === null ? "" : String(s.metric_employees),
     metric_uptime_note: s.metric_uptime_note ?? "",
     metric_uptime_note_am: s.metric_uptime_note_am ?? "",
+    testimonial_quote: s.testimonial_quote ?? "",
+    testimonial_quote_am: s.testimonial_quote_am ?? "",
+    testimonial_author: s.testimonial_author ?? "",
+    testimonial_role: s.testimonial_role ?? "",
+    testimonial_role_am: s.testimonial_role_am ?? "",
+    testimonial_organisation: s.testimonial_organisation ?? "",
+    testimonial_consented_on: s.testimonial_consented_on ?? "",
   });
 
   const [form, setForm] = useState(() => seed(settings));
@@ -274,6 +281,13 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
         metric_employees: metric(form.metric_employees),
         metric_uptime_note: form.metric_uptime_note || null,
         metric_uptime_note_am: form.metric_uptime_note_am || null,
+        testimonial_quote: form.testimonial_quote || null,
+        testimonial_quote_am: form.testimonial_quote_am || null,
+        testimonial_author: form.testimonial_author || null,
+        testimonial_role: form.testimonial_role || null,
+        testimonial_role_am: form.testimonial_role_am || null,
+        testimonial_organisation: form.testimonial_organisation || null,
+        testimonial_consented_on: form.testimonial_consented_on || null,
       },
       {
         onSuccess: () =>
@@ -397,6 +411,61 @@ function SiteContentForm({ settings }: { settings: PlatformSettings }) {
           </div>
         </div>
 
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "site_content.testimonial_note",
+              "A quote from a real customer who has agreed to be quoted. The author and the date they agreed are both required — without them the quote is not published, and the landing page shows nothing in its place.",
+            )}
+          </p>
+          <div className="mt-3 space-y-4">
+            <Field
+              label={t("site_content.testimonial_quote", "Quote")}
+              value={form.testimonial_quote}
+              onChange={set("testimonial_quote")}
+            />
+            <Field
+              label={t("site_content.testimonial_quote_am", "Quote (Amharic)")}
+              value={form.testimonial_quote_am}
+              onChange={set("testimonial_quote_am")}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t("site_content.testimonial_author", "Author")}
+                value={form.testimonial_author}
+                onChange={set("testimonial_author")}
+              />
+              <Field
+                label={t(
+                  "site_content.testimonial_organisation",
+                  "Organisation",
+                )}
+                value={form.testimonial_organisation}
+                onChange={set("testimonial_organisation")}
+              />
+              <Field
+                label={t("site_content.testimonial_role", "Role")}
+                value={form.testimonial_role}
+                onChange={set("testimonial_role")}
+              />
+              <Field
+                label={t("site_content.testimonial_role_am", "Role (Amharic)")}
+                value={form.testimonial_role_am}
+                onChange={set("testimonial_role_am")}
+              />
+            </div>
+            <Field
+              type="date"
+              label={t(
+                "site_content.testimonial_consented_on",
+                "Date they agreed to be quoted",
+              )}
+              value={form.testimonial_consented_on}
+              onChange={set("testimonial_consented_on")}
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-between border-t pt-4">
           <p className="text-xs text-muted-foreground">
             {settings.has_published_metrics
@@ -422,12 +491,14 @@ function Field({
   onChange,
   placeholder,
   mono,
+  type,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   mono?: boolean;
+  type?: string;
 }) {
   // The label was previously unassociated here too. axe did not flag it because
   // every call site passes a placeholder, which the accessible-name computation
@@ -442,6 +513,7 @@ function Field({
       </Label>
       <Input
         id={id}
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

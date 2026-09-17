@@ -6337,6 +6337,18 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            testimonial_quote: string | null;
+            testimonial_quote_am: string | null;
+            testimonial_author: string | null;
+            testimonial_role: string | null;
+            testimonial_role_am: string | null;
+            testimonial_organisation: string | null;
+            /**
+             * @description Published here and not by SiteContentResource: the operator has to
+             *     see and edit the consent date, a visitor has no use for it, and
+             *     this endpoint is behind admin.manage while that one is open.
+             */
+            testimonial_consented_on: string | null;
             has_published_metrics: boolean;
             /** Format: date-time */
             updated_at: string | null;
@@ -6661,6 +6673,12 @@ export interface components {
             metric_employees: number | null;
             metric_uptime_note: string | null;
             metric_uptime_note_am: string | null;
+            testimonial_quote: string | null;
+            testimonial_quote_am: string | null;
+            testimonial_author: string | null;
+            testimonial_role: string | null;
+            testimonial_role_am: string | null;
+            testimonial_organisation: string | null;
         };
         /** StageRowsRequest */
         StageRowsRequest: {
@@ -7422,6 +7440,14 @@ export interface components {
             metric_employees?: number | null;
             metric_uptime_note?: string | null;
             metric_uptime_note_am?: string | null;
+            testimonial_quote?: string | null;
+            testimonial_quote_am?: string | null;
+            testimonial_author?: string | null;
+            testimonial_role?: string | null;
+            testimonial_role_am?: string | null;
+            testimonial_organisation?: string | null;
+            /** Format: date-time */
+            testimonial_consented_on?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {

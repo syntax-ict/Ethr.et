@@ -379,6 +379,19 @@ export interface PlatformSettings {
   metric_uptime_note_am: string | null;
   has_published_metrics: boolean;
 
+  // A customer quote, and the provenance that makes it one. The public endpoint
+  // refuses to publish the quote unless the author and the consent date are
+  // both present, so all three travel together or the landing page shows
+  // nothing. `testimonial_consented_on` is admin-only — the public resource
+  // never emits it.
+  testimonial_quote: string | null;
+  testimonial_quote_am: string | null;
+  testimonial_author: string | null;
+  testimonial_role: string | null;
+  testimonial_role_am: string | null;
+  testimonial_organisation: string | null;
+  testimonial_consented_on: string | null;
+
   updated_at: string | null;
 }
 

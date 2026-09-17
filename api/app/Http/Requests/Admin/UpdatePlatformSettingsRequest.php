@@ -35,6 +35,16 @@ class UpdatePlatformSettingsRequest extends FormRequest
      *   metric_uptime_note  Free text, not a percentage. The honest answer is
      *                       that no SLA exists, which the terms page already
      *                       says; a number column invites 99.9 back.
+     *   testimonial_*       `required_with:testimonial_quote` on the author and
+     *                       the consent date is the rule that matters. The page
+     *                       used to carry an invented quote from a person who
+     *                       does not exist; a quote nobody is named for is an
+     *                       anonymous claim, and one with no recorded consent
+     *                       cannot be shown to have been given. Entering a
+     *                       quote alone is now a validation error rather than a
+     *                       half-filled draft that renders. `before_or_equal:
+     *                       today` because consent given in the future is not
+     *                       consent.
      *
      * @return array<string, list<string>>
      */
@@ -71,6 +81,14 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'metric_employees' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000000000'],
             'metric_uptime_note' => ['sometimes', 'nullable', 'string', 'max:200'],
             'metric_uptime_note_am' => ['sometimes', 'nullable', 'string', 'max:200'],
+
+            'testimonial_quote' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'testimonial_quote_am' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'testimonial_author' => ['sometimes', 'nullable', 'required_with:testimonial_quote', 'string', 'max:120'],
+            'testimonial_role' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'testimonial_role_am' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'testimonial_organisation' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'testimonial_consented_on' => ['sometimes', 'nullable', 'required_with:testimonial_quote', 'date', 'before_or_equal:today'],
         ];
     }
 

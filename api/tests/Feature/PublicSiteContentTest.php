@@ -69,3 +69,88 @@ it('serves an edit immediately rather than after the cache expires', function ()
     expect($this->getJson('/api/v1/site-content')->json('data.tagline'))
         ->toBe('Changed by the operator');
 });
+
+/**
+ * The testimonial, and the rule that a quote needs a person behind it.
+ *
+ * The landing page carried an invented one — five filled stars and "Abebe
+ * Kebede, HR Director, Addis Manufacturing PLC", a person who does not exist,
+ * attributed a claim about a product they have not used. It survived this
+ * branch's audit because two documents said it had been deleted while it was
+ * still rendering in the built HTML.
+ *
+ * These tests are the reason it cannot come back through the admin screen
+ * instead of through JSX.
+ */
+it('publishes no testimonial until an operator enters one', function () {
+    $content = $this->getJson('/api/v1/site-content')->assertOk()->json('data');
+
+    expect($content['testimonial_quote'])->toBeNull()
+        ->and($content['testimonial_author'])->toBeNull()
+        ->and($content['testimonial_organisation'])->toBeNull();
+
+    expect(PlatformSetting::current()->hasPublishedTestimonial())->toBeFalse();
+});
+
+it('refuses to publish a quote with nobody attached to it', function () {
+    // The quote is stored — an operator part-way through entering one has not
+    // lost their work — but it is not published, because an unattributed
+    // quote on a public page is an anonymous claim.
+    PlatformSetting::current()->update([
+        'testimonial_quote' => 'It replaced three separate systems for us.',
+    ]);
+
+    $content = $this->getJson('/api/v1/site-content')->assertOk()->json('data');
+
+    expect($content['testimonial_quote'])->toBeNull();
+    expect(PlatformSetting::current()->testimonial_quote)->not->toBeNull();
+});
+
+it('refuses to publish a quote nobody recorded consent for', function () {
+    // The column that makes the difference between a real testimonial and an
+    // invented one. Anyone can type a name; writing down a date the customer
+    // agreed is the part that cannot be done absent-mindedly.
+    PlatformSetting::current()->update([
+        'testimonial_quote' => 'It replaced three separate systems for us.',
+        'testimonial_author' => 'A real customer',
+    ]);
+
+    $content = $this->getJson('/api/v1/site-content')->assertOk()->json('data');
+
+    expect($content['testimonial_quote'])->toBeNull()
+        ->and($content['testimonial_author'])->toBeNull();
+});
+
+it('publishes the quote once it has an author and recorded consent', function () {
+    PlatformSetting::current()->update([
+        'testimonial_quote' => 'It replaced three separate systems for us.',
+        'testimonial_quote_am' => 'ሦስት የተለያዩ ሥርዓቶችን ተክቶልናል።',
+        'testimonial_author' => 'A real customer',
+        'testimonial_role' => 'HR Director',
+        'testimonial_organisation' => 'A real organisation',
+        'testimonial_consented_on' => '2026-09-01',
+    ]);
+
+    $content = $this->getJson('/api/v1/site-content')->assertOk()->json('data');
+
+    expect($content['testimonial_quote'])->toBe('It replaced three separate systems for us.')
+        ->and($content['testimonial_quote_am'])->toBe('ሦስት የተለያዩ ሥርዓቶችን ተክቶልናል።')
+        ->and($content['testimonial_author'])->toBe('A real customer')
+        ->and($content['testimonial_organisation'])->toBe('A real organisation');
+});
+
+it('keeps the consent date off the unauthenticated endpoint', function () {
+    PlatformSetting::current()->update([
+        'testimonial_quote' => 'It replaced three separate systems for us.',
+        'testimonial_author' => 'A real customer',
+        'testimonial_consented_on' => '2026-09-01',
+    ]);
+
+    $body = $this->getJson('/api/v1/site-content')->assertOk()->getContent();
+
+    // Provenance, not content. A visitor has no use for it, and the whitelist
+    // rule for this endpoint is that anything which does not need to be public
+    // is not.
+    expect($body)->not->toContain('testimonial_consented_on')
+        ->and($body)->not->toContain('2026-09-01');
+});

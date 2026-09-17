@@ -47,6 +47,37 @@ class SiteContentResource extends JsonResource
             'metric_employees' => $this->metric_employees,
             'metric_uptime_note' => $this->metric_uptime_note,
             'metric_uptime_note_am' => $this->metric_uptime_note_am,
+            ...$this->testimonial(),
+        ];
+    }
+
+    /**
+     * The customer quote, or five nulls.
+     *
+     * All or nothing, decided by the model rather than by the caller: a quote
+     * with no attribution is an anonymous claim, and a quote nobody recorded
+     * consent for is one that cannot be shown to have been given. The landing
+     * page renders this section only when the quote is present, so refusing to
+     * publish a half-filled one here is what keeps a partially-entered draft
+     * off the public site.
+     *
+     * `testimonial_consented_on` is deliberately absent from the payload. It is
+     * provenance, not content — a visitor has no use for it, and this endpoint
+     * is unauthenticated, so anything that does not need to be public is not.
+     *
+     * @return array<string, string|null>
+     */
+    private function testimonial(): array
+    {
+        $publishable = $this->hasPublishedTestimonial();
+
+        return [
+            'testimonial_quote' => $publishable ? $this->testimonial_quote : null,
+            'testimonial_quote_am' => $publishable ? $this->testimonial_quote_am : null,
+            'testimonial_author' => $publishable ? $this->testimonial_author : null,
+            'testimonial_role' => $publishable ? $this->testimonial_role : null,
+            'testimonial_role_am' => $publishable ? $this->testimonial_role_am : null,
+            'testimonial_organisation' => $publishable ? $this->testimonial_organisation : null,
         ];
     }
 }

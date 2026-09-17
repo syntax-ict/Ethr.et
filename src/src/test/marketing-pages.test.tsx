@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { EMPTY_SITE_CONTENT, type SiteContent } from "@/features/marketing/api";
 import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
 import { PricingContent } from "@/app/(marketing)/[locale]/pricing/pricing-content";
 import { FaqContent } from "@/app/(marketing)/[locale]/faq/faq-content";
@@ -13,10 +14,21 @@ import { FaqContent } from "@/app/(marketing)/[locale]/faq/faq-content";
 // request: the point is that the page renders correctly with no network at all,
 // which is what a crawler gets and what an operator who has published nothing
 // gets.
-function withQuery(ui: React.ReactElement) {
+function withQuery(ui: React.ReactElement, siteContent?: Partial<SiteContent>) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+
+  // Seeded into the cache rather than stubbed over the network: `useSiteContent`
+  // reads this key, and the point of these tests is what the component renders
+  // for a given payload, not how the payload arrives.
+  if (siteContent) {
+    queryClient.setQueryData("site-content".split(" "), {
+      ...EMPTY_SITE_CONTENT,
+      ...siteContent,
+    });
+  }
+
   return render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
   );
@@ -74,6 +86,51 @@ describe("Landing page", () => {
     expect(
       screen.queryByText(/replaced three separate systems/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders a testimonial once a real one is published", () => {
+    // The section is data now. An operator who has a customer on the record
+    // enters the quote, who said it, and the date they agreed; the API refuses
+    // to publish it without all three, so this payload is the only shape the
+    // page ever sees.
+    withQuery(<LandingContent />, {
+      testimonial_quote: "It replaced three separate systems for us.",
+      testimonial_author: "A named customer",
+      testimonial_role: "HR Director",
+      testimonial_organisation: "A named organisation",
+    });
+
+    expect(
+      screen.getByText(/It replaced three separate systems for us\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText("A named customer")).toBeInTheDocument();
+    expect(
+      screen.getByText("HR Director, A named organisation"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows no star rating, because nothing collects one", () => {
+    // The invented version had five filled stars. A rating is a score, and no
+    // part of this product asks a customer for one — putting them back would be
+    // inventing a number on top of a quote that is finally true.
+    const { container } = withQuery(<LandingContent />, {
+      testimonial_quote: "It replaced three separate systems for us.",
+      testimonial_author: "A named customer",
+    });
+
+    expect(container.querySelector(".fill-brand-accent")).toBeNull();
+  });
+
+  it("renders no chrome of its own", () => {
+    // The marketing layout supplies the header, <main> and footer for every
+    // public page. This component carried its own set from when it lived at
+    // app/page.tsx, outside the route group — and phase 7 moving it inside gave
+    // the landing page two of each until the built HTML was read.
+    const { container } = withQuery(<LandingContent />);
+
+    expect(container.querySelector("header")).toBeNull();
+    expect(container.querySelector("footer")).toBeNull();
+    expect(container.querySelector("main")).toBeNull();
   });
 
   it("describes the isolation mechanism instead of promising an absolute", () => {

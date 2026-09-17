@@ -43,6 +43,16 @@ class PlatformSettingResource extends JsonResource
             'metric_employees' => $this->metric_employees,
             'metric_uptime_note' => $this->metric_uptime_note,
             'metric_uptime_note_am' => $this->metric_uptime_note_am,
+            'testimonial_quote' => $this->testimonial_quote,
+            'testimonial_quote_am' => $this->testimonial_quote_am,
+            'testimonial_author' => $this->testimonial_author,
+            'testimonial_role' => $this->testimonial_role,
+            'testimonial_role_am' => $this->testimonial_role_am,
+            'testimonial_organisation' => $this->testimonial_organisation,
+            // Published here and not by SiteContentResource: the operator has to
+            // see and edit the consent date, a visitor has no use for it, and
+            // this endpoint is behind admin.manage while that one is open.
+            'testimonial_consented_on' => $this->testimonial_consented_on,
             'has_published_metrics' => $this->hasPublishedMetrics(),
 
             'updated_at' => $this->updated_at,

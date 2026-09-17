@@ -41,6 +41,13 @@ class PlatformSetting extends Model
         'metric_employees',
         'metric_uptime_note',
         'metric_uptime_note_am',
+        'testimonial_quote',
+        'testimonial_quote_am',
+        'testimonial_author',
+        'testimonial_role',
+        'testimonial_role_am',
+        'testimonial_organisation',
+        'testimonial_consented_on',
     ];
 
     protected $hidden = [
@@ -111,5 +118,27 @@ class PlatformSetting extends Model
         return $this->metric_organisations !== null
             || $this->metric_employees !== null
             || filled($this->metric_uptime_note);
+    }
+
+    /**
+     * Whether there is a customer quote that can honestly be published.
+     *
+     * All three parts or none. A quote with no name is an anonymous claim, a
+     * quote with no consent date is one nobody can show a customer agreed to,
+     * and either of those is how the invented testimonial this replaces would
+     * come back — half-filled by someone in a hurry and rendered anyway.
+     *
+     * `testimonial_consented_on` is deliberately not cast to a date. Nothing
+     * here does date arithmetic on it — it is read as a string by the admin
+     * form's <input type="date">, which wants exactly the YYYY-MM-DD the column
+     * already returns — and a cast is what makes Larastan resolve a property to
+     * its raw backing type and report comparisons against it as always-false.
+     * Not adding one avoids that trap rather than working around it.
+     */
+    public function hasPublishedTestimonial(): bool
+    {
+        return filled($this->testimonial_quote)
+            && filled($this->testimonial_author)
+            && filled($this->testimonial_consented_on);
     }
 }
