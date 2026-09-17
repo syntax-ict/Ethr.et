@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -12,6 +12,15 @@ import {
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 import { alternatesFor, PUBLIC_ROUTES } from "@/lib/site-url";
+import { publicSubset } from "@/lib/i18n/public-keys";
+import { registerLocale } from "@/lib/i18n/translations";
+import enTranslations from "@/lib/i18n/locales/en.json";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { FaqContent } from "@/app/(marketing)/[locale]/faq/faq-content";
+import { FeaturesContent } from "@/app/(marketing)/[locale]/features/features-content";
+import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
+import { PricingContent } from "@/app/(marketing)/[locale]/pricing/pricing-content";
 import sitemap from "@/app/sitemap";
 import { marketingMetadata } from "@/app/(marketing)/[locale]/page-metadata";
 
@@ -253,5 +262,80 @@ describe("the unprefixed entry point", () => {
     expect(html).toContain('href="/en/pricing"');
     expect(html).toContain('lang="am"');
     expect(html).toContain("አማርኛ");
+  });
+});
+
+/**
+ * The dictionary the browser is actually handed on `/en/*` has to be enough.
+ *
+ * Seventeen call sites on the public pages use a template-literal key and so
+ * pass no fallback. The server renders them from `en.json` — the lazy import
+ * resolves during the build — but the browser has nothing at the moment it
+ * hydrates, so the layout ships `publicSubset(en)` and registers it before the
+ * first client render. If that projection were missing a family, React would
+ * throw away the server's HTML and paint `marketing.faq_page.what_is_q` until
+ * the full chunk arrived.
+ *
+ * `scripts/i18n-check.js` enforces the same property statically, by prefix.
+ * This asserts it the other way round: render each page with *only* the subset
+ * loaded and look for a raw key in the output.
+ */
+describe("the dictionary shipped to a prerendered English page", () => {
+  const full = enTranslations as unknown as Record<string, string>;
+
+  // The test setup registers the whole of en.json. Narrow it to what a real
+  // browser gets, then hand it back so no other file is affected.
+  registerLocale("en", publicSubset(full));
+  afterAll(() => registerLocale("en", full));
+
+  function renderPublic(ui: React.ReactElement) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <RouteLocaleProvider locale="en">{ui}</RouteLocaleProvider>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  // A dotted lowercase token is what an unresolved key looks like once it is
+  // rendered as text. Domains and file names are the only legitimate ones.
+  //
+  // Every segment must start with a letter or underscore. `textContent` runs
+  // adjacent nodes together with no separator, so a sentence ending in
+  // "…integrations." followed by a price read as `integrations.2` — a false
+  // positive, and the reason this is not simply [a-z0-9_]+.
+  const RAW_KEY = /\b[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+\b/g;
+  const ALLOWED = /\.(com|et|org|io|json|php|xml|csv|pdf)$/;
+
+  function rawKeysIn(container: HTMLElement): string[] {
+    const text = container.textContent ?? "";
+    return [...new Set(text.match(RAW_KEY) ?? [])].filter(
+      (token) => !ALLOWED.test(token),
+    );
+  }
+
+  it.each([
+    ["landing", <LandingContent key="l" />],
+    ["features", <FeaturesContent key="f" />],
+    ["faq", <FaqContent key="q" />],
+    ["pricing", <PricingContent key="p" />],
+  ])("covers every string on the %s page", (_name, ui) => {
+    const { container } = renderPublic(ui);
+    expect(rawKeysIn(container)).toEqual([]);
+  });
+
+  it("is a fraction of the full dictionary", () => {
+    // 27 KB against 186 KB. If this ratio ever approaches 1 the projection has
+    // stopped being a projection and the public pages are carrying the whole
+    // dashboard's vocabulary.
+    const subset = publicSubset(full);
+    expect(Object.keys(subset).length).toBeLessThan(
+      Object.keys(full).length / 4,
+    );
+    expect(Object.keys(subset).length).toBeGreaterThan(200);
   });
 });

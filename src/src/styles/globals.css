@@ -15,10 +15,16 @@
 
 @theme {
   /* --- Typography --------------------------------------------------------- */
+  /* Inter first for Latin, then the self-hosted Ethiopic face (see
+     app/root-shell.tsx) — Inter has no Ethiopic glyphs, so the browser falls
+     back per glyph and Amharic gets a real face instead of whatever the system
+     happens to have. The bare "Noto Sans Ethiopic" stays behind it for a
+     visitor who does have it installed and a build that could not fetch it. */
   --font-sans:
-    var(--font-inter), "Noto Sans Ethiopic", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    var(--font-inter), var(--font-noto-ethiopic), "Noto Sans Ethiopic",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
   --font-mono:
     "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
     Menlo, Consolas, "Liberation Mono", monospace;

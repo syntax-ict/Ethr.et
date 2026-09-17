@@ -59,14 +59,27 @@ build fails.
 - `generateMetadata` gets its title and description from the dictionary via
   `translateStatic`, and its `hreflang` set from `alternatesFor`.
 
-### Why `/en/*` can be prerendered without shipping `en.json`
+### How `/en/*` gets its English
 
-Only `am.json` is imported eagerly. On the server `t(key, "en")` finds nothing and
-returns the key, so `useT`'s caller-supplied English fallback string is what
-renders — and because the first client render does exactly the same, there is no
-hydration mismatch. `scripts/i18n-check.js` computes the import closure of the
-public routes and fails if any fallback in it disagrees with `en.json`, which is
-what stops the page rewriting itself once the dictionary arrives.
+Only `am.json` is imported eagerly; `en.json` is a dynamic import. **The server
+has it** by the time a page renders — Next's rendering yields between components,
+so the import resolves during the build — which is why the emitted
+`.next/server/app/en/faq.html` carries real sentences even though its FAQ entries
+pass no fallback at all.
+
+**The browser does not**, at the moment it hydrates. Left alone, its first render
+would produce raw keys for those seventeen fallback-less call sites, React would
+discard the server's HTML, and the page would show `marketing.faq_page.what_is_q`
+until the chunk landed. So `(marketing)/[locale]/layout.tsx` sends a **projection**
+of the dictionary — the key families in `lib/i18n/public-keys.ts`, 7.5 KB gzipped
+against 45 KB for the whole file — and `DictionaryRegistrar` registers it *during
+render*, before anything below it renders. Server and client then produce the same
+output and hydration has nothing to reconcile.
+
+`scripts/i18n-check.js` enforces both halves: every fallback-less key on a public
+page must be inside those prefixes, and every fallback that *is* written must equal
+`en.json`'s value. Both are scoped to the computed import closure of the public
+routes, not to a directory allow-list.
 
 ### Negotiation
 

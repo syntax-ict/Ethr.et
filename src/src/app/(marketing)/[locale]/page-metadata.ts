@@ -21,10 +21,12 @@ import { alternatesFor } from "@/lib/site-url";
  * an English `<title>` and an English description. A crawler read the page as
  * English; a person sharing it got an English preview card of an Amharic page.
  *
- * Both strings come from the dictionaries. On the server only `am.json` is
- * loaded, so `am` gets its translation and `en` falls through to the fallback
- * given here — which is the English text, and is checked against `en.json` by
- * `scripts/i18n-check.js` so the two cannot drift.
+ * Both strings come from the dictionaries, with the English text here as the
+ * fallback. `am.json` is the only one imported eagerly, so whether `en` resolves
+ * from `en.json` or from that fallback depends on whether the lazy import has
+ * landed by the time metadata is generated — which is exactly why
+ * `scripts/i18n-check.js` holds the two equal for every string on a public page.
+ * The answer is then the same either way, and nothing depends on the timing.
  *
  * `alternatesFor` emits the `hreflang` pair plus `x-default`; `openGraph`
  * repeats the title and description rather than carrying a second, shorter copy

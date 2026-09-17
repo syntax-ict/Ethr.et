@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { AVAILABLE_LOCALES } from "@/lib/i18n/config";
+import { DictionaryRegistrar } from "@/lib/i18n/dictionary-registrar";
+import { publicDictionary } from "@/lib/i18n/public-dictionary";
 import { translateStatic } from "@/lib/i18n/translations";
 import { baseMetadata, RootShell } from "../../root-shell";
 
@@ -71,6 +73,14 @@ export async function generateMetadata({
  * localStorage says `am`. Without that, the page's language and its URL could
  * disagree the moment it hydrated.
  *
+ * `DictionaryRegistrar` closes the other half of that: only `am.json` is loaded
+ * eagerly, so a browser hydrating `/en/*` has no English strings yet and would
+ * repaint the page with raw translation keys before the lazy chunk arrived. It
+ * receives the ~7.5 KB (gzipped) public projection of the locale's dictionary
+ * and registers it before anything below renders — see `public-keys.ts` for why
+ * a projection rather than the whole 45 KB file, and for the gate that keeps it
+ * complete.
+ *
  * A server component, so it can await `params`. The header and footer are still
  * client components; they are simply rendered from here instead of from a
  * `"use client"` layout that existed only to hold them.
@@ -86,11 +96,16 @@ export default async function MarketingLocaleLayout({
 
   return (
     <RootShell lang={locale} routeLocale={locale}>
-      <div className="flex min-h-screen flex-col bg-background">
-        <MarketingHeader />
-        <main className="flex-1">{children}</main>
-        <MarketingFooter />
-      </div>
+      <DictionaryRegistrar
+        locale={locale}
+        dictionary={publicDictionary(locale)}
+      >
+        <div className="flex min-h-screen flex-col bg-background">
+          <MarketingHeader />
+          <main className="flex-1">{children}</main>
+          <MarketingFooter />
+        </div>
+      </DictionaryRegistrar>
     </RootShell>
   );
 }

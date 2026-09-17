@@ -2,7 +2,7 @@
 /**
  * i18n gate. Run from the frontend root (`node ../scripts/i18n-check.js` in src/).
  *
- * Catches three failures that are all silent at runtime — nothing throws, the UI
+ * Catches five failures that are all silent at runtime — nothing throws, the UI
  * just quietly renders the wrong thing:
  *
  *  1. MISSING KEY — t("a.b", "Fallback") where "a.b" is absent from a locale file.
@@ -18,25 +18,62 @@
  *     :placeholder present in one locale is missing from the other (which would
  *     drop the value in that language only).
  *
- *  4. PUBLIC FALLBACK DRIFT — on a page reachable from the public site, a
+ *  4. PUBLIC KEY OUTSIDE THE SHIPPED SUBSET — a t() call on a public page whose
+ *     key is not covered by PUBLIC_KEY_PREFIXES.
+ *
+ *     /am/* and /en/* are prerendered, and only `am.json` is loaded eagerly, so
+ *     the layout hands the browser a ~6.7 KB projection of the locale's
+ *     dictionary to register before the first client render (see
+ *     lib/i18n/public-keys.ts). A key outside those prefixes is missing from
+ *     that projection, so the server renders the real sentence and the browser's
+ *     first render produces the raw key — React then discards the server's HTML
+ *     and paints `marketing.faq_page.what_is_q` until the lazy chunk lands.
+ *
+ *     Only calls with **no** string fallback are checked. A t("x.y", "Text")
+ *     outside the projection is safe: the browser's first render produces
+ *     "Text", the server produced en.json's value, and check 5 keeps those
+ *     equal. It is the seventeen template-literal keys on the public pages —
+ *     t(`marketing.features.${key}`), which cannot carry an inline fallback —
+ *     that have nothing to fall back to. They are checked by their static head,
+ *     which is what the projection has to cover.
+ *
+ *  5. PUBLIC FALLBACK DRIFT — on a page reachable from the public site, a
  *     t("a.b", "Fallback") whose fallback differs from en.json's value.
  *
- *     Only `am.json` is imported eagerly, so the server renders /en/* from these
- *     fallback strings and the browser swaps in en.json a moment after
- *     hydration. That is what lets an English page be prerendered without
- *     shipping a 186 KB dictionary — and it is only invisible while the two
- *     agree. Let them drift and the public page rewrites itself under the
- *     reader, and a crawler indexes text no visitor ends up seeing.
+ *     The fallback is what renders if the key ever escapes the projection above,
+ *     so it is the last line of defence for text a crawler reads. Two English
+ *     sources for one string is already one too many; two that disagree means
+ *     one of them is wrong and nobody can tell which.
  *
- *     Scoped to the import closure of the public routes, computed below rather
- *     than guessed from directory names: the dashboard has no such constraint,
- *     because it is never prerendered in English.
+ *  Checks 4 and 5 are scoped to the import closure of the public routes,
+ *  computed below rather than guessed from directory names: the dashboard has no
+ *  such constraint, because it is never prerendered in a non-default locale.
  */
 const fs = require("fs");
 const path = require("path");
 
 const SRC = "src";
 const LOCALES = path.join(SRC, "lib/i18n/locales");
+
+/**
+ * Read out of the TypeScript source rather than duplicated here, so the list the
+ * layout ships and the list this gate enforces cannot drift apart — which would
+ * make the gate green while the page repainted with raw keys.
+ */
+function publicKeyPrefixes() {
+  const src = fs.readFileSync(
+    path.join(SRC, "lib/i18n/public-keys.ts"),
+    "utf8",
+  );
+  const block = src.match(/PUBLIC_KEY_PREFIXES\s*=\s*\[([\s\S]*?)\]/);
+  if (!block) {
+    console.error("Could not read PUBLIC_KEY_PREFIXES from public-keys.ts");
+    process.exit(1);
+  }
+  return [...block[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+}
+
+const PUBLIC_PREFIXES = publicKeyPrefixes();
 
 function loadLocale(name) {
   return JSON.parse(
@@ -71,8 +108,11 @@ function sourceFiles(dir, acc = []) {
 function resolveImport(fromFile, spec) {
   let base;
   if (spec.startsWith("@/")) base = path.join(SRC, spec.slice(2));
-  else if (spec.startsWith("."))
-    base = path.resolve(path.dirname(fromFile), spec);
+  // path.join, not path.resolve: `files` holds paths relative to the frontend
+  // root, and an absolute path would never match one of them — so every module
+  // reached through a relative import silently fell out of the closure, which
+  // is most of the page bodies these two checks exist for.
+  else if (spec.startsWith(".")) base = path.join(path.dirname(fromFile), spec);
   else return null; // a package, not ours
 
   for (const candidate of [
@@ -129,6 +169,32 @@ const TPL_RE =
 const missing = [];
 const interpolated = [];
 const fallbackDrift = [];
+const outsideSubset = [];
+
+// The literal head of a t() key: the whole thing for "a.b", and everything
+// before the first interpolation for `a.b.${x}`.
+const KEY_HEAD_RE = /\bt\(\s*(["'`])([^"'`$]*)/g;
+
+/**
+ * True when this t() call passes a plain string as its second argument.
+ *
+ * Scans from the key literal's closing delimiter rather than pattern-matching
+ * the whole call, so it is not confused by an interpolated key.
+ */
+function hasStringFallback(src, matchIndex, quote) {
+  const keyStart = src.indexOf(quote, matchIndex);
+  let i = keyStart + 1;
+  while (i < src.length) {
+    if (src[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (src[i] === quote) break;
+    i += 1;
+  }
+  const after = src.slice(i + 1, i + 40);
+  return /^\s*,\s*["']/.test(after);
+}
 
 // t("a.b", "Fallback") — the fallback must be a plain string literal for this
 // to mean anything; template literals are rule 2's problem, not this one.
@@ -158,6 +224,16 @@ for (const file of files) {
   }
 
   if (!publicFiles.has(file)) continue;
+
+  KEY_HEAD_RE.lastIndex = 0;
+  while ((m = KEY_HEAD_RE.exec(src))) {
+    const head = m[2];
+    if (!head.includes(".")) continue; // not a translation key
+    if (PUBLIC_PREFIXES.some((prefix) => head.startsWith(prefix))) continue;
+    if (hasStringFallback(src, m.index, m[1])) continue;
+    const line = src.slice(0, m.index).split("\n").length;
+    outsideSubset.push(`${rel}:${line}  ${head}`);
+  }
 
   FALLBACK_RE.lastIndex = 0;
   while ((m = FALLBACK_RE.exec(src))) {
@@ -191,6 +267,13 @@ if (interpolated.length)
     `${interpolated.length} interpolated fallback(s) — use t(key, ":x", { x })`,
     interpolated,
   ]);
+if (outsideSubset.length)
+  problems.push([
+    `${outsideSubset.length} public-page key(s) outside PUBLIC_KEY_PREFIXES — ` +
+      `they are not in the dictionary the layout ships, so the browser's first ` +
+      `render would show the raw key. Add the family to lib/i18n/public-keys.ts`,
+    outsideSubset,
+  ]);
 if (fallbackDrift.length)
   problems.push([
     `${fallbackDrift.length} public-page fallback(s) that disagree with en.json — ` +
@@ -212,7 +295,8 @@ if (mismatched.length)
 if (!problems.length) {
   console.log(
     `i18n OK — ${files.length} files (${publicFiles.size} reachable from a public page), ` +
-      `${enKeys.length} keys, en/am in sync, no interpolated fallbacks, no public fallback drift.`,
+      `${enKeys.length} keys, en/am in sync, no interpolated fallbacks, ` +
+      `every public key inside the shipped subset, no public fallback drift.`,
   );
   process.exit(0);
 }

@@ -74,13 +74,19 @@ export function t(key: string, locale: string = "en"): string {
  * string when the dictionary has no entry (on the server that is every locale
  * except `am`, the only one imported eagerly).
  *
- * That fallback is load-bearing rather than incidental. It is what lets `/en/*`
- * render real English in the *static* HTML without shipping `en.json` to the
- * server or into the client bundle — and because the first client render uses
- * exactly the same fallback, server and client agree, so there is no hydration
- * mismatch. `scripts/i18n-check.js` enforces that `en.json`'s value equals the
- * fallback for every string reachable from a public page, which is what stops
- * the text changing under the reader once the dictionary arrives.
+ * On the *server* the lazy import does resolve — Next's rendering yields between
+ * components, so by the time a public page renders, `/en/*` is coming out of
+ * `en.json` rather than out of these fallbacks. Measured, not assumed: the built
+ * `.next/server/app/en/faq.html` carries the real sentences, and its FAQ entries
+ * pass no fallback at all.
+ *
+ * The browser is the side that has nothing, which is why the `[locale]` layout
+ * ships a small projection of the dictionary and registers it before the first
+ * client render (see `public-keys.ts`). The fallback is what renders if a key
+ * ever escapes that projection, so `scripts/i18n-check.js` holds it equal to
+ * `en.json` for every string on a public page — two English sources for one
+ * sentence is already one too many, and two that disagree means one is wrong
+ * with no way to tell which.
  */
 export function translateStatic(
   key: string,
