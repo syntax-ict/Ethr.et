@@ -360,6 +360,56 @@ required it.
 
 ---
 
+## "The VPS is stored on Git" — what that does and does not cover (2026-09-17)
+
+Reported by the owner, and corroborated: the GitHub repository's own description reads
+*"Cloned from VPS."* Checked what is actually in Git, because the distinction decides
+whether B-5 collapses or B-6 gets worse.
+
+**Git holds the code and the directory skeleton. It holds no data and no keys.**
+
+| | In Git? | Evidence |
+| --- | --- | --- |
+| Application code, config, migrations | **Yes** | 1,599 tracked files |
+| Laravel runtime directory tree | **Yes** | 13 tracked `.gitignore` placeholders under `api/storage` and `api/bootstrap` |
+| Database dump, SQLite file | **No** | No `.sql`/`.sqlite`/`.dump` tracked anywhere; `api/database/database.sqlite` gitignored |
+| Uploaded files — employee documents, photos | **No** | `storage/app/private` holds only its placeholder |
+| **`.env`, and therefore `APP_KEY`** | **No** | `api/.env` gitignored, correctly |
+
+### The consequence, and it is a data one rather than a rollback one
+
+This **strengthens** the code half of rollback: redeploying from Git does not need the VPS
+to be serving, so B-6's "the rollback target has no open ports" matters less than it
+first appeared — *for code*.
+
+It does not touch the data half, and there the picture is worse than B-6 described:
+
+- `deployment/BACKUP-RESTORE.md:119` — `--off-host` is **deliberately absent** from the
+  scheduled backup line, and the command *"warns on every run that the backup exists only
+  on the host it protects."*
+- `:185` — *"Configure the off-host disk and confirm `--off-host` lands an archive"* is an
+  **unchecked box**.
+- `Employee.php:93-94` — `tin` and `national_id` use the `encrypted` cast. **A database
+  backup without its `APP_KEY` cannot decrypt them.**
+
+So if the VPS ever held real tenant data, then its database backup lives **only on the
+VPS**, and the `APP_KEY` needed to read the encrypted columns lives **only in the VPS's
+`.env`** — neither in Git, neither off-host. Decommissioning or losing that machine loses
+both, and the encrypted PII becomes unrecoverable even if a dump later turns up.
+
+### This sharpens queue item 0b rather than answering it
+
+"Stored on Git" answers *"is the code safe?"* — yes. It does not answer *"does the VPS
+hold a database?"*, which is what 0b asks and what decides whether B-5 collapses into B-4.
+
+**If the answer to 0b is yes, then before the VPS is touched again:** take a dump and
+preserve its `APP_KEY` off the machine. That is cheap now and impossible afterwards.
+**If no**, this section is moot, B-5 collapses, and the migration is a fresh deployment —
+which is the hypothesis the repository's own evidence favours (`ethr.et` never served live
+traffic; the VPS is recorded as dormant).
+
+---
+
 ## B-6 — the DNS cutover already happened, and the rollback target may not serve
 
 **Reviewed 2026-09-17. This is the most serious finding of that review, and it is not a
@@ -589,7 +639,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
 | --- | --- | --- | --- | --- | --- |
 | **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
-| **0b** | **Does the VPS hold real tenant data?** — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
+| **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | **1** | **Scheduled Tasks capability** | Websites & Domains → *Scheduled Tasks* (or Tools & Settings) | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary | No | **G0-D**, and it decides whether the migration is performable at all without SSH — see B-1/B-4 |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
