@@ -6,11 +6,14 @@ use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
+use App\Http\Middleware\PublicSecurityHeaders;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
+use App\Http\Middleware\RenderPublicErrorPage;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetPublicLocale;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -20,6 +23,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -32,6 +36,32 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         apiPrefix: 'api/v1',
+        then: function (): void {
+            // The public tenant surface, registered here rather than folded
+            // into the `web` or `api` group so its middleware stack is written
+            // out in full at one visible place.
+            //
+            // What it does NOT include is the point: no `auth:sanctum`, no
+            // `AuthenticateFromCookie`, no `statefulApi()`, no
+            // `EnsureUserBelongsToTenant`. An anonymous request to a tenant's
+            // landing page must not be able to become an authenticated one, and
+            // the cheapest way to guarantee that is for the authentication
+            // middleware to be absent rather than merely unsatisfied.
+            //
+            // Order: headers first so they are set even on a thrown 404;
+            // RenderPublicErrorPage next so it wraps ResolveTenant, whose
+            // tenant-not-found response is JSON and must not reach a browser;
+            // ResolveTenant before SetPublicLocale, because the tenant's
+            // `default_locale` is the second locale signal and there is no
+            // tenant to read it from until ResolveTenant has run.
+            Route::middleware([
+                PublicSecurityHeaders::class,
+                RenderPublicErrorPage::class,
+                ResolveTenant::class,
+                SetPublicLocale::class,
+                'throttle:public-page',
+            ])->group(base_path('routes/public.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [

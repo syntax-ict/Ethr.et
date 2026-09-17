@@ -1,0 +1,448 @@
+/*
+ * ETHR — public tenant landing page.
+ *
+ * Hand-written and static on purpose. The backend has a Vite config, but it
+ * exists for Laravel's starter assets and produces a build manifest the
+ * deployment would then have to carry to shared hosting. One page does not
+ * justify that; a file served straight from the document root has no build
+ * step, no manifest, and no Node.
+ *
+ * The tokens below restate the ETHR design system (docs/DESIGN_SYSTEM.md).
+ * They are duplicated from src/src/styles/globals.css, which is a real cost —
+ * mitigated by keeping this file small and by a test that asserts the four
+ * brand colours still match. Do not grow this into a second design system; if
+ * the public surface ever needs components, that is the signal to revisit the
+ * rendering decision, not to keep copying.
+ *
+ * No inline styles: PublicSecurityHeaders sends `style-src 'self'` with no
+ * 'unsafe-inline'. The single exception is the tenant brand override, which
+ * arrives as a style attribute and is covered by `style-src-attr`.
+ */
+
+:root {
+    /* Brand — docs/CLAUDE.md "Visual Identity" */
+    --ethr-primary: #0f4c75;
+    --ethr-primary-light: #3282b8;
+    --ethr-primary-dark: #0a2e4a;
+    --ethr-accent: #e8a838;
+
+    /* Neutrals */
+    --surface: #ffffff;
+    --surface-muted: #f8fafc;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-inverse: #ffffff;
+
+    /*
+     * Tenant overrides. Declared here with the ETHR defaults so every consumer
+     * below can reference --tenant-* unconditionally; the style attribute on
+     * <body> replaces them when a tenant has chosen colours, and the page is
+     * fully branded either way.
+     */
+    --tenant-primary: var(--ethr-primary);
+    --tenant-secondary: var(--ethr-primary-light);
+    --tenant-accent: var(--ethr-accent);
+
+    /* Radius — 4 inputs, 6 cards, 8 modals, 12 panels */
+    --radius-card: 6px;
+    --radius-panel: 12px;
+    --radius-pill: 9999px;
+
+    /* Elevation levels 1 and 2 */
+    --shadow-1: 0 1px 3px rgb(0 0 0 / 0.08);
+    --shadow-2: 0 4px 12px rgb(0 0 0 / 0.1);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--text);
+    /*
+     * Noto Sans Ethiopic sits in the base stack rather than behind a language
+     * selector: a page can mix Amharic organisation names with English body
+     * text in the same line, and the fallback has to cover both.
+     *
+     * No @font-face and no webfont request. Inter and Noto Sans Ethiopic are
+     * used when the visitor already has them and `system-ui` carries the page
+     * otherwise, which is a deliberate trade: a Google Fonts link would be a
+     * third-party request on every visit, a CSP entry, and — on the Ethiopian
+     * mobile connections most of these pages will be read over — the single
+     * slowest thing on the page. Self-hosting subset woff2 files is the better
+     * end state and is a follow-up, not a silent omission; the CSP already
+     * allows `font-src 'self'` for it.
+     */
+    font-family: Inter, "Noto Sans Ethiopic", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/*
+ * Ethiopic needs more leading than Latin — the design system calls for 1.6–1.8
+ * against 1.5 — and at 1.5 the ascenders and descenders of ዘ, ጨ and ሏ collide.
+ * Applied by :lang() so a page that mixes scripts gets it per element rather
+ * than all-or-nothing.
+ */
+:lang(am) {
+    line-height: 1.7;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+a {
+    color: var(--tenant-primary);
+}
+
+/* Focus is never removed, only restyled — keyboard users need to see it. */
+a:focus-visible,
+.btn:focus-visible {
+    outline: 3px solid var(--tenant-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--surface);
+    color: var(--text);
+    padding: 12px 16px;
+    z-index: 10;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.shell {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    /* 16px gutter at phone width — no horizontal scroll at 320px. */
+    padding: 0 16px;
+}
+
+.shell--narrow {
+    max-width: 720px;
+}
+
+.section {
+    padding: 48px 0;
+}
+
+@media (min-width: 768px) {
+    .section {
+        padding: 64px 0;
+    }
+}
+
+.section__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 16px;
+}
+
+.prose p {
+    margin: 0 0 16px;
+    color: var(--text-muted);
+}
+
+.prose p:last-child {
+    margin-bottom: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.site-header {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.brand__logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: var(--radius-card);
+    flex: none;
+}
+
+.brand__name {
+    font-weight: 600;
+    font-size: 1.0625rem;
+    /* Long Amharic organisation names wrap instead of overflowing the header. */
+    overflow-wrap: anywhere;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.lang-switch {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.9375rem;
+}
+
+.lang-switch:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    /* 44px minimum touch target. */
+    min-height: 44px;
+    line-height: 24px;
+}
+
+.btn--primary {
+    background: var(--tenant-primary);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-1);
+}
+
+.btn--primary:hover {
+    box-shadow: var(--shadow-2);
+}
+
+.btn--lg {
+    padding: 14px 28px;
+    font-size: 1rem;
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+
+.hero {
+    position: relative;
+    background: var(--surface-muted);
+    padding: 56px 0;
+    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .hero {
+        padding: 96px 0;
+    }
+}
+
+.hero__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/*
+ * The scrim is what makes tenant-chosen colours safe over a tenant-chosen
+ * photograph. Without it the contrast of the headline depends on an image
+ * nobody reviewed, which is exactly the accessibility failure a tenant would
+ * never notice and every visitor would.
+ */
+.hero--with-image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgb(10 46 74 / 0.62), rgb(10 46 74 / 0.78));
+}
+
+.hero__content {
+    position: relative;
+    z-index: 1;
+}
+
+.hero--with-image .hero__content {
+    color: var(--text-inverse);
+}
+
+.hero--with-image .hero__headline {
+    color: rgb(255 255 255 / 0.92);
+}
+
+.hero--with-image .btn--primary {
+    background: var(--text-inverse);
+    color: var(--ethr-primary-dark);
+}
+
+.hero__title {
+    margin: 0;
+    font-size: clamp(1.75rem, 5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+}
+
+.hero__headline {
+    margin: 16px 0 0;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    color: var(--text-muted);
+    max-width: 44ch;
+}
+
+.hero__actions {
+    margin: 32px 0 0;
+}
+
+/* ── Tibeb divider ──────────────────────────────────────────────────────── */
+
+/*
+ * The woven-border motif, as a repeating gradient rather than an image: no
+ * extra request to ship, and it scales to any width. Mirrors the treatment on
+ * the tenant login screen in the React app.
+ */
+.tibeb {
+    height: 16px;
+    background: repeating-linear-gradient(
+        90deg,
+        var(--tenant-primary) 0 6px,
+        transparent 6px 12px,
+        var(--tenant-accent) 12px 18px,
+        transparent 18px 24px
+    );
+    opacity: 0.55;
+}
+
+/* ── Contact ────────────────────────────────────────────────────────────── */
+
+.contact {
+    margin: 0;
+    display: grid;
+    gap: 4px 24px;
+}
+
+@media (min-width: 640px) {
+    .contact {
+        grid-template-columns: max-content 1fr;
+    }
+}
+
+.contact dt {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.contact dd {
+    margin: 0 0 12px;
+    overflow-wrap: anywhere;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.site-footer {
+    border-top: 1px solid var(--border);
+    background: var(--surface-muted);
+    padding: 32px 0;
+    margin-top: 48px;
+}
+
+.site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.site-footer__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.site-footer__powered a {
+    color: inherit;
+}
+
+/* ── Unavailable / error state ──────────────────────────────────────────── */
+
+.stateful {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    text-align: center;
+}
+
+.stateful__inner {
+    padding-top: 48px;
+    padding-bottom: 48px;
+}
+
+.stateful__brand {
+    margin: 0 0 24px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: var(--ethr-primary);
+}
+
+.stateful__title {
+    margin: 0 0 12px;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.stateful__body {
+    margin: 0 auto 32px;
+    max-width: 48ch;
+    color: var(--text-muted);
+}
+
+.stateful__actions {
+    margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
