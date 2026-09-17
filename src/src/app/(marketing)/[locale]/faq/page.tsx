@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { FaqContent } from "./faq-content";
 import { marketingMetadata } from "../page-metadata";
+import { JsonLd } from "@/components/marketing/json-ld";
+import { faqJsonLd } from "@/components/marketing/structured-data";
 
 export async function generateMetadata({
   params,
@@ -16,6 +18,20 @@ export async function generateMetadata({
   });
 }
 
-export default function FaqPage() {
-  return <FaqContent />;
+export default async function FaqPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  return (
+    <>
+      {/* Every question here is rendered on the page below, from the same list
+          — see `faq-items.ts`. Structured data that describes something the
+          visitor cannot see is a manual-action risk, not a ranking trick. */}
+      <JsonLd data={faqJsonLd(locale)} />
+      <FaqContent />
+    </>
+  );
 }

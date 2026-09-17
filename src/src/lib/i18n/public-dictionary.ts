@@ -28,6 +28,28 @@ const DICTIONARIES: Record<string, Record<string, string>> = {
   ti,
 };
 
+/**
+ * A dictionary lookup that does not depend on timing.
+ *
+ * `translateStatic` goes through the lazy loader, so on the server the answer
+ * for `en` depends on whether the dynamic import has resolved yet — which it has
+ * by the time a page body renders, and may not have when `generateMetadata` runs
+ * a moment earlier. That is fine while the fallback and `en.json` agree (a gate
+ * holds them equal), but it is not fine for text with no fallback at all, such
+ * as the FAQ questions copied into JSON-LD: there the two outcomes are the real
+ * sentence and the raw key.
+ *
+ * These six files are imported statically, so this is synchronous and gives the
+ * same answer on every call.
+ */
+export function serverTranslate(
+  locale: string,
+  key: string,
+  fallback?: string,
+): string {
+  return DICTIONARIES[locale]?.[key] ?? fallback ?? key;
+}
+
 export function publicDictionary(
   locale: string,
 ): Record<string, string> | null {

@@ -4,7 +4,7 @@ import {
   OPEN_GRAPH_LOCALE,
   localeHref,
 } from "@/lib/i18n/config";
-import { translateStatic } from "@/lib/i18n/translations";
+import { serverTranslate } from "@/lib/i18n/public-dictionary";
 import {
   OG_IMAGE_ALT,
   OG_IMAGE_PATH,
@@ -21,12 +21,12 @@ import { alternatesFor } from "@/lib/site-url";
  * an English `<title>` and an English description. A crawler read the page as
  * English; a person sharing it got an English preview card of an Amharic page.
  *
- * Both strings come from the dictionaries, with the English text here as the
- * fallback. `am.json` is the only one imported eagerly, so whether `en` resolves
- * from `en.json` or from that fallback depends on whether the lazy import has
- * landed by the time metadata is generated — which is exactly why
- * `scripts/i18n-check.js` holds the two equal for every string on a public page.
- * The answer is then the same either way, and nothing depends on the timing.
+ * Both strings come from the dictionaries through `serverTranslate`, which reads
+ * a statically imported copy rather than the lazy loader — so the answer does not
+ * depend on whether `en.json`'s dynamic import has resolved by the time metadata
+ * is generated, which is a race nobody should have to reason about while writing
+ * a page. The English text stays here as the fallback, held equal to `en.json` by
+ * `scripts/i18n-check.js`.
  *
  * `alternatesFor` emits the `hreflang` pair plus `x-default`; `openGraph`
  * repeats the title and description rather than carrying a second, shorter copy
@@ -39,14 +39,14 @@ export function marketingMetadata(
   page: string,
   fallback: { title: string; description: string },
 ): Metadata {
-  const title = translateStatic(
-    `marketing.meta.${page}.title`,
+  const title = serverTranslate(
     locale,
+    `marketing.meta.${page}.title`,
     fallback.title,
   );
-  const description = translateStatic(
-    `marketing.meta.${page}.description`,
+  const description = serverTranslate(
     locale,
+    `marketing.meta.${page}.description`,
     fallback.description,
   );
 

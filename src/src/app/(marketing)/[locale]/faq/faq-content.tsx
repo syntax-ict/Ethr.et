@@ -5,25 +5,7 @@ import { ChevronDown, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
-
-const categories = [
-  {
-    key: "general",
-    items: ["what_is", "who_for", "languages", "calendar"],
-  },
-  {
-    key: "billing",
-    items: ["trial", "after_trial", "change_plan"],
-  },
-  {
-    key: "features",
-    items: ["attendance_methods", "offline", "payroll"],
-  },
-  {
-    key: "security",
-    items: ["security", "hosting"],
-  },
-] as const;
+import { FAQ_CATEGORIES } from "./faq-items";
 
 export function FaqContent() {
   const { t } = useT();
@@ -58,7 +40,7 @@ export function FaqContent() {
       <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="space-y-14">
-            {categories.map((cat) => (
+            {FAQ_CATEGORIES.map((cat) => (
               <div key={cat.key}>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">
                   {t(`marketing.faq_page.cat_${cat.key}`)}

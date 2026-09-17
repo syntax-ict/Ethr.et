@@ -13,6 +13,13 @@ import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 import { alternatesFor, PUBLIC_ROUTES } from "@/lib/site-url";
 import { publicSubset } from "@/lib/i18n/public-keys";
+import { JsonLd } from "@/components/marketing/json-ld";
+import {
+  faqJsonLd,
+  organizationJsonLd,
+  websiteJsonLd,
+} from "@/components/marketing/structured-data";
+import { FAQ_ITEMS } from "@/app/(marketing)/[locale]/faq/faq-items";
 import { registerLocale } from "@/lib/i18n/translations";
 import enTranslations from "@/lib/i18n/locales/en.json";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -337,5 +344,77 @@ describe("the dictionary shipped to a prerendered English page", () => {
       Object.keys(full).length / 4,
     );
     expect(Object.keys(subset).length).toBeGreaterThan(200);
+  });
+});
+
+describe("structured data", () => {
+  it("asks exactly the questions the page renders, in the page's language", () => {
+    const en = faqJsonLd("en");
+    const am = faqJsonLd("am");
+
+    expect(en.mainEntity).toHaveLength(FAQ_ITEMS.length);
+    expect(en.inLanguage).toBe("en");
+    expect(am.inLanguage).toBe("am");
+
+    // A timing-dependent lookup would put the key itself here, which is worse
+    // than omitting the block: structured data that does not describe the page
+    // is a manual-action risk.
+    for (const question of en.mainEntity) {
+      expect(question.name).not.toMatch(/^marketing\./);
+      expect(question.acceptedAnswer.text).not.toMatch(/^marketing\./);
+    }
+
+    expect(am.mainEntity[0]!.name).toMatch(/[\u1200-\u137F]/);
+    expect(am.mainEntity[0]!.name).not.toBe(en.mainEntity[0]!.name);
+  });
+
+  it("describes only what a visitor can actually read", () => {
+    // The property Google requires, asserted rather than assumed: every
+    // question in the JSON-LD is on the page. Both come from FAQ_ITEMS, and
+    // this is what stops that staying true only by accident.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <RouteLocaleProvider locale="en">
+          <FaqContent />
+        </RouteLocaleProvider>
+      </QueryClientProvider>,
+    );
+
+    const text = container.textContent ?? "";
+    for (const question of faqJsonLd("en").mainEntity) {
+      expect(text).toContain(question.name);
+    }
+  });
+
+  it("claims nothing the build cannot know", () => {
+    // logo, address, telephone and sameAs live in platform_settings — the
+    // operator's to fill in, and unreachable from a build with no database.
+    // A placeholder logo here would be the invented metrics again, in a
+    // machine-readable format.
+    const organization = organizationJsonLd("en") as Record<string, unknown>;
+
+    expect(organization.logo).toBeUndefined();
+    expect(organization.address).toBeUndefined();
+    expect(organization.telephone).toBeUndefined();
+    expect(organization.sameAs).toBeUndefined();
+    expect(organization.aggregateRating).toBeUndefined();
+
+    // And the site node points at the locale it describes, not at the apex.
+    expect(websiteJsonLd("am").url).toBe("https://ethr.et/am");
+  });
+
+  it("cannot be closed early by the data it carries", () => {
+    // A literal </script> inside the payload would end the element and let the
+    // rest be parsed as markup. Nothing here is user-supplied yet; site content
+    // will be.
+    const html = renderToStaticMarkup(
+      <JsonLd data={{ name: "</script><img onerror=x>" }} />,
+    );
+
+    expect(html).not.toContain("</script><img");
+    expect(html).toContain("\\u003c/script");
   });
 });

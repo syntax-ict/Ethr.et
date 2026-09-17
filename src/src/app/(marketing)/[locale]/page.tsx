@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { LandingContent } from "./landing-content";
 import { marketingMetadata } from "./page-metadata";
+import { JsonLd } from "@/components/marketing/json-ld";
+import {
+  organizationJsonLd,
+  websiteJsonLd,
+} from "@/components/marketing/structured-data";
 
 export async function generateMetadata({
   params,
@@ -16,6 +21,18 @@ export async function generateMetadata({
   });
 }
 
-export default function LandingPage() {
-  return <LandingContent />;
+export default async function LandingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  return (
+    <>
+      <JsonLd data={websiteJsonLd(locale)} />
+      <JsonLd data={organizationJsonLd(locale)} />
+      <LandingContent />
+    </>
+  );
 }

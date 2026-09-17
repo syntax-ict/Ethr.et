@@ -3,8 +3,10 @@ import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { AVAILABLE_LOCALES } from "@/lib/i18n/config";
 import { DictionaryRegistrar } from "@/lib/i18n/dictionary-registrar";
-import { publicDictionary } from "@/lib/i18n/public-dictionary";
-import { translateStatic } from "@/lib/i18n/translations";
+import {
+  publicDictionary,
+  serverTranslate,
+} from "@/lib/i18n/public-dictionary";
 import { baseMetadata, RootShell } from "../../root-shell";
 
 /**
@@ -41,16 +43,16 @@ export async function generateMetadata({
   return {
     ...baseMetadata,
     title: {
-      default: translateStatic(
-        "marketing.meta.site.title",
+      default: serverTranslate(
         locale,
+        "marketing.meta.site.title",
         "ETHR — Ethiopian Workforce Operating System",
       ),
       template: "%s | ETHR",
     },
-    description: translateStatic(
-      "marketing.meta.site.description",
+    description: serverTranslate(
       locale,
+      "marketing.meta.site.description",
       "Enterprise-grade, multi-tenant HR management system built for Ethiopian organizations.",
     ),
   };
