@@ -25,6 +25,7 @@ use App\Services\Public\SectionSeeder;
 use App\Support\TenantPublicAsset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class SettingsController extends Controller
@@ -294,6 +295,37 @@ class SettingsController extends Controller
             ['message' => 'Public page updated'],
             $this->publicPagePayload($tenant, $profile->refresh()),
         ));
+    }
+
+    /**
+     * Mint a short-lived URL that shows the page as it would look.
+     *
+     * Fifteen minutes, and the signature is the whole authorisation — see
+     * App\Http\Controllers\Public\TenantPagePreviewController for why a
+     * signed URL rather than session authentication on the tenant host.
+     *
+     * The URL is built against this tenant's own hostname. It still does not
+     * carry a tenant selector: ResolveTenant reads the host, so a signature
+     * minted here is worthless anywhere else even though it is valid.
+     */
+    public function publicPagePreviewUrl(): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        $host = $tenant->subdomain.'.'.(config('app.domain') ?: 'ethr.et');
+
+        $url = URL::temporarySignedRoute(
+            'public.tenant.preview',
+            now()->addMinutes(15),
+            absolute: false,
+        );
+
+        return response()->json([
+            'url' => 'https://'.$host.$url,
+            'expires_in' => 900,
+        ]);
     }
 
     /**

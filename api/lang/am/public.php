@@ -79,4 +79,5 @@ return [
     'closed' => 'ዝግ',
     'read_more' => 'ተጨማሪ ያንብቡ',
     'posted_on' => ':date ተለጠፈ',
+    'preview_notice' => 'ቅድመ እይታ — ገጽዎ እንዲህ ይታያል። ለሕዝብ አይታይም።',
 ];

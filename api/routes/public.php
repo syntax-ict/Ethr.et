@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Public\TenantLandingController;
+use App\Http\Controllers\Public\TenantPagePreviewController;
 use App\Http\Controllers\Public\TenantPublicAssetController;
 use App\Http\Controllers\Public\TenantRobotsController;
 use App\Http\Controllers\Public\TenantSitemapController;
@@ -68,3 +69,25 @@ Route::get('/media/section/{item}', [TenantPublicAssetController::class, 'sectio
  */
 Route::get('/robots.txt', TenantRobotsController::class)->name('public.tenant.robots');
 Route::get('/sitemap.xml', TenantSitemapController::class)->name('public.tenant.sitemap');
+
+/*
+ * The tenant's page as it would look, before it is published.
+ *
+ * `signed` is the whole authorisation. That is deliberate rather than lazy:
+ * the dashboard is a separate origin using Sanctum cookies, and adding `auth`
+ * here would drag session state into the one route group whose design property
+ * is that it has none. The signature authorises one URL for fifteen minutes
+ * and carries nothing else.
+ *
+ * It still does not choose the tenant — ResolveTenant does that from the
+ * hostname — so a signature minted for one tenant is worthless on another's.
+ */
+Route::get('/preview', TenantPagePreviewController::class)
+    // `signed:relative`, not `signed`. The URL is minted for the tenant's own
+    // hostname, which is not `config('app.url')`, so an absolute signature
+    // would be computed over the wrong host and never validate. The host is
+    // deliberately not part of the signature: ResolveTenant reads it, so a
+    // signature carried to another tenant's host renders that tenant's page
+    // and never this one's.
+    ->middleware('signed:relative')
+    ->name('public.tenant.preview');

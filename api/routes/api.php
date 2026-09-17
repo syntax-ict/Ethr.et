@@ -698,6 +698,8 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     // The section builder. Everything here is `settings.manage`-gated in the
     // controller, and every lookup goes through the tenant-scoped models, so a
     // ULID belonging to another tenant is a 404 rather than a 403.
+    Route::post('/settings/public-page/preview-url', [SettingsController::class, 'publicPagePreviewUrl']);
+
     Route::get('/settings/public-page/sections', [PublicSectionController::class, 'index']);
     Route::post('/settings/public-page/sections', [PublicSectionController::class, 'store']);
     Route::put('/settings/public-page/sections/order', [PublicSectionController::class, 'reorder']);

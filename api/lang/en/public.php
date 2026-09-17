@@ -81,4 +81,5 @@ return [
     'closed' => 'Closed',
     'read_more' => 'Read more',
     'posted_on' => 'Posted :date',
+    'preview_notice' => 'Preview — this is how your page will look. It is not visible to the public.',
 ];

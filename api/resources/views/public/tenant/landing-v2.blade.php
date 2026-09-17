@@ -167,6 +167,16 @@
             template — a visible block whose items were all deleted would
             otherwise render as a heading over nothing, which reads as broken.
         --}}
+        @isset($isPreview)
+            {{--
+                A preview must never be mistakable for the live page. An
+                administrator who cannot tell the difference will either
+                publish something they meant to draft, or believe something is
+                public when it is not — and both are worse than a visible bar.
+            --}}
+            <p class="preview-bar" role="status">{{ __('public.preview_notice') }}</p>
+        @endisset
+
         @foreach ($page->sections as $index => $section)
             @if ($section->kind === $heroKind)
                 @include('public.sections.hero')

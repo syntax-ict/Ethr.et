@@ -811,3 +811,15 @@ body[class*="preset--"] .brand__logo {
 .cta {
     text-align: center;
 }
+
+/* The preview bar. Deliberately loud: an administrator who cannot tell a
+ * preview from the live page will either publish a draft or believe a draft is
+ * published, and both are worse than an unmissable strip of colour. */
+.preview-bar {
+    margin: 0;
+    padding: 12px 16px;
+    background: var(--ethr-accent);
+    color: var(--text);
+    font-weight: 600;
+    text-align: center;
+}
