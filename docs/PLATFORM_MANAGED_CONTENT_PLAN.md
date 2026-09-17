@@ -234,15 +234,19 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
 | 1 | Correct the shipped documentation errors (below) | 0.5 |
 | ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
-| 3 | Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen | 3–4 |
-| 4 | Platform site content: extend `platform_settings`, public read endpoint, first cache | 2–3 |
-| 5 | Wire the marketing pages to the data — **the fabricated metrics and testimonial are deleted here by construction**, becoming data that starts empty | 2–3 |
-| 6 | Contact form actually captures leads | 1–2 |
+| ~~**3**~~ | ~~Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen~~ — **done, §8** | 3–4 |
+| ~~**4**~~ | ~~Platform site content: extend `platform_settings`, public read endpoint, first cache~~ — **done, §8** | 2–3 |
+| **5** | Wire the marketing pages to the data — **pricing, metrics and contact done, §8**; testimonials still have no column and no page section | 2–3 |
+| ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | 7 | SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font | 3–4 |
 | 8 | Performance, accessibility, self-hosted analytics, reuse the shared language switcher | 3–4 |
 | 9 | Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
+
+**Remaining: 5 (testimonials), 7, 8, 9.** Phase 0's Lighthouse and First Load JS
+measurements, and the B5 hosting answer, are still owner actions — a Plesk panel
+lookup cannot be done from here.
 
 ---
 
@@ -271,3 +275,98 @@ Three further findings the audit added: the public language switcher offers four
 3. **Is there one real customer who will go on the record?** One true testimonial replaces the invented one. If not, the section stays empty.
 4. **Where should contact submissions go**, and with what retention? The retention period also belongs in the privacy policy.
 5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact. The verifiable ones (AES-256, tax per 979/2016, pension 7%/11%) will be checked against the implementation and kept where the code supports them.
+
+---
+
+## 8. What phases 3, 4 and 5 actually shipped
+
+Recorded here rather than left to the commit log, because the decisions worth
+re-reading are the ones that differ from what this document originally said.
+
+### Phase 3 — the plan catalog
+
+Eight columns on `plans`, CRUD under the existing platform-admin group, an
+`/admin/plans` screen, and the six nav registrations plus the test that pins
+them. Three distinctions the columns exist to keep:
+
+| | |
+|---|---|
+| `is_public` ≠ `is_active` | Active means "may be subscribed to", public means "advertised". A negotiated plan is the first and not the second; conflating them forces an operator to choose between advertising a bespoke price and cancelling the customer on it. |
+| `marketing_features` ≠ `features` | The latter gates real routes through `RequiresPlanFeature`. Editing sales copy through it would grant or revoke a capability by writing a bullet point. |
+| `currency` lives here | Phase 2 left it off `subscriptions` for having no source but a hardcoded literal. It now has an owner, which is what makes it a fact rather than an assumption. |
+
+`DELETE` retires rather than destroys: `subscriptions.plan_id` is a foreign key
+with no cascade, and the billing dashboard reads `$subscription->plan->name`.
+
+`PlanSeeder` changed from `updateOrCreate` to `firstOrCreate`. Every column it
+writes is now admin-editable, so re-seeding would revert an operator's curated
+pricing to a developer's placeholder — and `db:seed` is what someone runs after
+a restore, when they are least likely to notice.
+
+### Phase 4 — the site's own facts
+
+Sixteen columns on `platform_settings` — name, tagline, logo URL, contact
+details, social links, metrics — and `GET /api/v1/site-content` to read them.
+No new table: that model is already global, already on
+`TenantIsolationTest::GLOBAL_MODELS`, already gated by `admin.manage`, already
+audited. Adding columns inherits all of it.
+
+The endpoint is unauthenticated and reads the row that also holds the bank
+account, so `SiteContentResource` publishes a **whitelist** — a whitelist fails
+closed when someone adds a column and a blacklist does not. A test asserts the
+account number cannot appear in the response body.
+
+First cache on the model, so it sets the pattern: fixed key, integer-second
+TTL, invalidated from the model's own `saved` hook rather than from each
+writer. Never `Cache::tags()` — Redis was removed for the shared-hosting target.
+
+### Phase 5 — what the pages now read, and what they stopped saying
+
+The pricing page reads descriptions, selling points, the popular badge and the
+currency from the row. The landing page's four invented figures — "500+
+organizations", "50,000+ employees", "1M+ payrolls processed", "99.9% uptime" —
+are gone. Two became nullable columns that start empty; **two were deleted
+outright**, because payroll volume and uptime are not things this product can
+report, and giving them a field would only invite another guess. Their
+translation keys were removed from both locales, since `am.json` is statically
+imported and would otherwise keep shipping the claim in every page's payload.
+
+Contact details come from the row, and a channel with no value is not rendered.
+
+**Still not done in this phase:** testimonials. There is no column and no page
+section — the invented testimonial was deleted earlier rather than replaced, so
+nothing currently renders one.
+
+### Three portability and contract lessons worth keeping
+
+**`->after()` in a migration is not portable, and it reaches the API contract.**
+MySQL honours it, SQLite ignores it, so the same migration produced different
+column order on the two engines — and Scramble builds the OpenAPI component
+from column order, so the contract gate disagreed between a local run and CI.
+Column position carries no meaning in either engine; omit the clause.
+
+**Scramble publishes comments as public API documentation.** A comment beside a
+routed method, a validation rule, or a returned expression becomes that field's
+`@description` in `generated.ts`. This caught us three times on this branch.
+Implementation notes belong above the method or beside the query, never
+adjacent to the thing being returned.
+
+**The drift gate cannot catch a contract that was never true.** It compares
+generated output against the committed file, so it sees changes, not lies. Two
+untruths shipped under a green gate and were found by reading the generated
+file: the three plan limit columns published as non-nullable after the migration
+made them nullable, and `GET /plans` publishing `is_active`, `created_at` and
+`updated_at` that its column list never selected. Both are now pinned by tests
+that assert the response's exact key set.
+
+### Local verification, and its limits
+
+`composer install --prefer-source` works in the development container — the dist
+path is 403 by egress policy, the git path is not — so migrations, the seeder,
+the API itself and the contract gate all run locally now. That is how the
+snapshot regeneration and the site-content endpoint were verified against a real
+server rather than asserted.
+
+**Pest, Pint and PHPStan still cannot run here.** `phpstan/phpstan` is published
+dist-only and both of its hosts are blocked, so the dev dependency set cannot be
+installed. Those three remain CI's to judge.
