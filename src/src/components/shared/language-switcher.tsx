@@ -1,8 +1,11 @@
 "use client";
 
 import { Check, ChevronDown, Globe } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/useT";
 import { setLocale, supportedLocales } from "@/lib/i18n/translations";
+import { localeHref } from "@/lib/i18n/config";
+import { useRouteLocale } from "@/lib/i18n/route-locale";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +25,41 @@ import {
  */
 export function LanguageSwitcher() {
   const { t, locale } = useT();
+  const routeLocale = useRouteLocale();
+  const pathname = usePathname();
   const current =
     supportedLocales.find((l) => l.code === locale) ?? supportedLocales[0];
+
+  /**
+   * Persist the choice, and — on the public site — go to the same page in the
+   * new language.
+   *
+   * Off the locale-prefixed routes (the dashboard, auth, kiosk) `setLocale`
+   * alone is the whole job: those pages re-render from the store. Inside
+   * `/am/*` and `/en/*` the URL is what decides the language, so leaving it
+   * pointing at the old locale would put the address bar and the page in
+   * disagreement — and a reload or a shared link would silently undo the
+   * choice. The stored value is still written, so `/` and the dashboard honour
+   * it afterwards.
+   *
+   * A document navigation rather than `router.push`, for two reasons. The page
+   * for the new locale is already prerendered in that language, so letting the
+   * server hand it over is both correct and cheaper than a client transition
+   * that would re-render from a dictionary the browser has not fetched yet. And
+   * `useRouter` throws outside a mounted App Router, which would make this
+   * component unrenderable in every unit test that does not stub
+   * `next/navigation` — a cost paid by the whole suite for a transition nobody
+   * would notice.
+   */
+  const choose = (code: string) => {
+    setLocale(code);
+
+    if (!routeLocale || !pathname) return;
+
+    const rest =
+      pathname.replace(new RegExp(`^/${routeLocale}(?=/|$)`), "") || "/";
+    window.location.assign(localeHref(code, rest));
+  };
 
   return (
     <DropdownMenu>
@@ -31,7 +67,12 @@ export function LanguageSwitcher() {
         <button
           type="button"
           className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-          aria-label={t("language.change", "Change language")}
+          /* The accessible name has to CONTAIN the visible text (WCAG 2.5.3,
+             "Label in Name"): the button shows the current language's own name
+             and announced only "Change language", so someone using voice
+             control could not say what they could see. Lighthouse flagged it as
+             label-content-name-mismatch on every public page. */
+          aria-label={`${t("language.change", "Change language")}: ${current.nativeName}`}
         >
           <Globe
             className="h-3.5 w-3.5 text-muted-foreground"
@@ -84,7 +125,7 @@ export function LanguageSwitcher() {
             <DropdownMenuItem
               key={loc.code}
               className="cursor-pointer justify-between"
-              onClick={() => setLocale(loc.code)}
+              onClick={() => choose(loc.code)}
             >
               <span>{loc.nativeName}</span>
               {locale === loc.code && (

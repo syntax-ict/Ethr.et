@@ -7,21 +7,39 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useServiceWorker } from "@/lib/hooks/useServiceWorker";
 import { getLocale } from "@/lib/i18n/translations";
+import { useRouteLocale } from "@/lib/i18n/route-locale";
 
 function ServiceWorkerRegistrar() {
   useServiceWorker();
   return null;
 }
 
+/**
+ * Keeps `<html lang>` honest on the routes that cannot know the locale up front.
+ *
+ * Inside `/am/*` and `/en/*` the server already emitted the right value, and
+ * the stored preference must not override it: a reader whose localStorage says
+ * `en` following a link to `/am/pricing` gets Amharic text, so the attribute
+ * has to say `am`. Hence the early return — on those routes the URL wins, and
+ * the language switcher navigates rather than mutating the current page.
+ */
 function HtmlLangSync() {
+  const routeLocale = useRouteLocale();
+
   useEffect(() => {
+    if (routeLocale) {
+      document.documentElement.lang = routeLocale;
+      return;
+    }
+
     const sync = () => {
       document.documentElement.lang = getLocale();
     };
     sync();
     window.addEventListener("locale-changed", sync);
     return () => window.removeEventListener("locale-changed", sync);
-  }, []);
+  }, [routeLocale]);
+
   return null;
 }
 

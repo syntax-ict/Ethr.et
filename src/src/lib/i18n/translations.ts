@@ -1,4 +1,22 @@
 import amTranslations from "./locales/am.json";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isAvailableLocale } from "./config";
+
+/**
+ * The locale list, the default and the cookie name now live in `./config`,
+ * which imports nothing — `middleware.ts` needs them and must not pull the
+ * 242 KB Amharic dictionary below into the Edge bundle. Re-exported here so
+ * every existing `from "@/lib/i18n/translations"` import keeps working.
+ */
+export {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  AVAILABLE_LOCALES,
+  isAvailableLocale,
+  negotiateLocale,
+  parseAcceptLanguage,
+  supportedLocales,
+} from "./config";
+export type { LocaleStatus } from "./config";
 
 const loaded: Record<string, Record<string, string>> = {
   am: amTranslations,
@@ -46,7 +64,46 @@ export function t(key: string, locale: string = "en"): string {
   return loaded[locale]?.[key] ?? key;
 }
 
-export const DEFAULT_LOCALE = "am";
+/**
+ * `useT`'s translate function, without the hook.
+ *
+ * Server Components cannot call hooks, but `generateMetadata` has to produce a
+ * `<title>` in the page's own language — that is the whole point of the
+ * locale-prefixed routes. This is the same logic `useT` uses, exported so the
+ * two cannot drift: look the key up, and fall back to the caller's English
+ * string when the dictionary has no entry (on the server that is every locale
+ * except `am`, the only one imported eagerly).
+ *
+ * On the *server* the lazy import does resolve — Next's rendering yields between
+ * components, so by the time a public page renders, `/en/*` is coming out of
+ * `en.json` rather than out of these fallbacks. Measured, not assumed: the built
+ * `.next/server/app/en/faq.html` carries the real sentences, and its FAQ entries
+ * pass no fallback at all.
+ *
+ * The browser is the side that has nothing, which is why the `[locale]` layout
+ * ships a small projection of the dictionary and registers it before the first
+ * client render (see `public-keys.ts`). The fallback is what renders if a key
+ * ever escapes that projection, so `scripts/i18n-check.js` holds it equal to
+ * `en.json` for every string on a public page — two English sources for one
+ * sentence is already one too many, and two that disagree means one is wrong
+ * with no way to tell which.
+ */
+export function translateStatic(
+  key: string,
+  locale: string,
+  fallback?: string,
+  replacements?: Record<string, string | number>,
+): string {
+  const result = t(key, locale);
+  const base = result !== key ? result : (fallback ?? key);
+
+  if (!replacements) return base;
+
+  return Object.entries(replacements).reduce(
+    (out, [name, value]) => out.split(`:${name}`).join(String(value)),
+    base,
+  );
+}
 
 /**
  * Reads the active locale, rejecting anything without a real dictionary.
@@ -55,18 +112,18 @@ export const DEFAULT_LOCALE = "am";
  * could hand back `om` — a stub locale — and render the whole app as raw key
  * names while the switcher confidently displayed "Afaan Oromoo". Only locales
  * marked `available` in `supportedLocales` are honoured; anything else falls
- * back to the default. (`supportedLocales` is declared below but only read at
- * call time, which is always after module init.)
+ * back to the default.
+ *
+ * This is the *stored* preference only. Inside `/am/*` and `/en/*` the URL is
+ * authoritative and `useT` reads it from React context instead — see
+ * `route-locale.tsx`.
  */
 export function getLocale(): string {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
 
   const stored = localStorage.getItem("locale");
-  const isAvailable = supportedLocales.some(
-    (l) => l.code === stored && l.status === "available",
-  );
 
-  return isAvailable && stored ? stored : DEFAULT_LOCALE;
+  return isAvailableLocale(stored) && stored ? stored : DEFAULT_LOCALE;
 }
 
 export function setLocale(locale: string): void {
@@ -74,62 +131,64 @@ export function setLocale(locale: string): void {
 
   // Mirrors the guard in `getLocale` — refuse to persist a locale we cannot
   // actually render, so the switcher and the rendered UI can never disagree.
-  const isAvailable = supportedLocales.some(
-    (l) => l.code === locale && l.status === "available",
-  );
-  if (!isAvailable) return;
+  if (!isAvailableLocale(locale)) return;
 
   ensureLocaleLoaded(locale);
   localStorage.setItem("locale", locale);
+  writeLocaleCookie(locale);
+  syncDocumentLang(locale);
   window.dispatchEvent(new CustomEvent("locale-changed", { detail: locale }));
 }
 
 /**
- * `status` gates what the language switcher offers.
+ * Mirrors the stored locale into a cookie so the *server* can see it.
  *
- * `en` and `am` have full dictionaries (3,000+ keys each). The other four are
- * stub files awaiting professional translation — selecting one previously gave
- * the user a UI that silently fell back to Amharic or to raw key names, which
- * reads as a broken product rather than an unfinished translation. They stay
- * listed so the roadmap is visible, but render disabled with an explanation.
+ * localStorage stays the source of truth — it is what `getLocale()` reads and
+ * what the app has always used. But it is unreachable from middleware, which is
+ * why `/` could not send a returning reader to the language they had already
+ * chosen: the request carried no signal at all, leaving only a guess from
+ * `Accept-Language` or a client-side redirect after the wrong page had painted.
  *
- * Promoting a locale is a one-word edit here once its JSON is filled in.
+ * Deliberately not `HttpOnly` (the client writes it) and deliberately not
+ * `Secure` (development is plain http, and a locale is not a secret). It holds
+ * a language code and nothing else.
+ *
+ * Read back by `middleware.ts`. If it is absent — a first visit, a cleared
+ * cookie jar, or a static export where middleware never runs — negotiation
+ * falls back to `Accept-Language` on the server and `navigator.languages` in
+ * the browser. Nothing depends on it being present.
  */
-export type LocaleStatus = "available" | "coming_soon";
+function writeLocaleCookie(locale: string): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; samesite=lax`;
+}
 
-export const supportedLocales = [
-  { code: "en", name: "English", nativeName: "English", status: "available" },
-  { code: "am", name: "Amharic", nativeName: "አማርኛ", status: "available" },
-  {
-    code: "om",
-    name: "Oromo",
-    nativeName: "Afaan Oromoo",
-    status: "coming_soon",
-  },
-  {
-    code: "ti",
-    name: "Tigrinya",
-    nativeName: "ትግርኛ",
-    status: "coming_soon",
-  },
-  {
-    code: "so",
-    name: "Somali",
-    nativeName: "Soomaali",
-    status: "coming_soon",
-  },
-  {
-    code: "sid",
-    name: "Sidama",
-    nativeName: "Sidaamu Afoo",
-    status: "coming_soon",
-  },
-] as const satisfies ReadonlyArray<{
-  code: string;
-  name: string;
-  nativeName: string;
-  status: LocaleStatus;
-}>;
+/**
+ * Keeps `<html lang>` equal to the locale actually being rendered.
+ *
+ * The root layout hardcoded `lang="en"` while `DEFAULT_LOCALE` is `am`, so the
+ * server emitted Amharic content inside an element declaring English — the
+ * load-bearing finding of the original audit, confirmed against a build:
+ * `.next/server/app/index.html` carried `<html lang="en">` around
+ * `<h1>ለኢትዮጵያ ድርጅቶች ሙሉ የሰው ሃብት መድረክ</h1>`.
+ *
+ * That is not cosmetic. `lang` is what a screen reader uses to choose
+ * pronunciation rules, so Amharic was being read aloud as English; it is what
+ * search engines use to decide what language a page is in; and it drives
+ * hyphenation, font fallback and spellchecking.
+ *
+ * On `/am/*` and `/en/*` the server now emits the locale the URL asked for and
+ * this function is a no-op. Everywhere else — the dashboard, auth, kiosk — the
+ * layout emits `DEFAULT_LOCALE`, which is correct for the static HTML, and this
+ * corrects it for a reader whose stored preference differs, which cannot be
+ * known before hydration.
+ */
+export function syncDocumentLang(locale: string): void {
+  if (typeof document === "undefined") return;
+  if (document.documentElement.lang !== locale) {
+    document.documentElement.lang = locale;
+  }
+}
 
 export function registerLocale(
   code: string,

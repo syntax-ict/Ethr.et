@@ -67,6 +67,10 @@ class AuthService
                 Subscription::create([
                     'tenant_id' => $tenant->id,
                     'plan_id' => $starterPlan->id,
+                    // Captured at sign-up, so a later catalog edit quotes new
+                    // customers without re-pricing this one. See
+                    // Subscription::effectivePriceCents().
+                    'price_cents' => $starterPlan->price_cents,
                     'status' => 'trial',
                     'current_period_start' => now(),
                     'current_period_end' => $tenant->trial_ends_at,

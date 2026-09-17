@@ -30,6 +30,7 @@ import {
   Rocket,
   ScrollText,
   Landmark,
+  Layers,
   GitMerge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -201,6 +202,13 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
               label: t("nav.platform_settings", "Platform Settings"),
               href: "/admin/platform-settings",
               icon: Landmark,
+              show: true,
+            },
+            {
+              kind: "leaf",
+              label: t("nav.plans", "Plans"),
+              href: "/admin/plans",
+              icon: Layers,
               show: true,
             },
           ],
@@ -449,6 +457,13 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 label: t("nav.platform_settings", "Platform Settings"),
                 href: "/admin/platform-settings",
                 icon: Landmark,
+                show: can.viewAdminConsole,
+              },
+              {
+                kind: "leaf",
+                label: t("nav.plans", "Plans"),
+                href: "/admin/plans",
+                icon: Layers,
                 show: can.viewAdminConsole,
               },
             ],

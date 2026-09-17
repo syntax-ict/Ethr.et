@@ -37,7 +37,15 @@ class BillingController extends Controller
         Gate::authorize('billing.manage');
 
         $tenant = app(CurrentTenant::class)->get();
-        $plan = Plan::where('public_id', $request->input('plan_public_id'))->firstOrFail();
+        // is_active, not just existence. A plan the admin has withdrawn from
+        // sale is still a row, and without this a stale pricing page — or a
+        // replayed request — signs somebody up to a tier that is no longer
+        // offered, at a price nobody is maintaining. 404 rather than 422
+        // because that is what firstOrFail already returns for an unknown
+        // plan_public_id, and one shape for "no such plan on offer" beats two.
+        $plan = Plan::where('public_id', $request->input('plan_public_id'))
+            ->where('is_active', true)
+            ->firstOrFail();
 
         $result = $this->service->changePlan($tenant, $plan);
 

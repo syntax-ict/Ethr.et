@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { t, getLocale, preloadLocale, DEFAULT_LOCALE } from "./translations";
+import {
+  getLocale,
+  preloadLocale,
+  syncDocumentLang,
+  translateStatic,
+  DEFAULT_LOCALE,
+} from "./translations";
+import { useRouteLocale } from "./route-locale";
 
 /**
  * The locale is external state — it lives in localStorage and changes via a
@@ -17,11 +24,22 @@ function subscribeToLocale(onStoreChange: () => void): () => void {
 }
 
 export function useT() {
-  const locale = useSyncExternalStore(
+  /**
+   * On `/am/*` and `/en/*` the URL is the answer, and it is known on the
+   * server. Off those routes it is `null` and the stored preference wins, which
+   * is the only signal the dashboard has.
+   *
+   * Both hooks run unconditionally — `useSyncExternalStore` is not skipped when
+   * a route locale exists — because a conditional hook would change the hook
+   * order between the marketing tree and the app tree.
+   */
+  const routeLocale = useRouteLocale();
+  const storedLocale = useSyncExternalStore(
     subscribeToLocale,
     getLocale,
     () => DEFAULT_LOCALE,
   );
+  const locale = routeLocale ?? storedLocale;
 
   // Translation dictionaries load asynchronously. This forces one re-render once
   // the active locale's strings are in memory, so the first paint's fallbacks are
@@ -32,6 +50,18 @@ export function useT() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Keep <html lang> equal to the locale actually rendered. Inside the
+    // locale-prefixed tree the server already emitted the right value and this
+    // is a no-op; everywhere else the layout emits DEFAULT_LOCALE and a reader
+    // whose stored preference differs is only knowable after hydration, because
+    // that preference lives in localStorage.
+    //
+    // Here rather than in a one-off provider effect because this hook is the
+    // single place that knows the resolved locale, and syncDocumentLang is a
+    // no-op when the attribute already matches — so the repetition costs an
+    // equality check, not a DOM write.
+    syncDocumentLang(locale);
 
     preloadLocale(locale).then(() => {
       if (!cancelled) setDictionaryVersion((v) => v + 1);
@@ -59,15 +89,7 @@ export function useT() {
       fallback?: string,
       replacements?: Record<string, string | number>,
     ): string => {
-      const result = t(key, locale);
-      const base = result !== key ? result : (fallback ?? key);
-
-      if (!replacements) return base;
-
-      return Object.entries(replacements).reduce(
-        (out, [name, value]) => out.split(`:${name}`).join(String(value)),
-        base,
-      );
+      return translateStatic(key, locale, fallback, replacements);
     },
     [locale],
   );

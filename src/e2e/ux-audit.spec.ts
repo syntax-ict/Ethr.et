@@ -76,11 +76,15 @@ const PHASES: Record<string, Route[]> = {
     { path: '/profile', name: 'profile', role: 'employee' },
   ],
   '1': [
-    { path: '/', name: 'landing', role: 'admin' },
-    { path: '/pricing', name: 'pricing', role: 'admin' },
-    { path: '/features', name: 'features', role: 'admin' },
-    { path: '/faq', name: 'faq', role: 'admin' },
-    { path: '/contact', name: 'contact', role: 'admin' },
+    // Locale-prefixed, because the unprefixed URLs are now redirectors that
+    // negotiate a language and render nothing of their own — screenshotting one
+    // captures a blank page. This suite pins `en` before first paint (see
+    // `pinPreferences` below), so `/en/*` is the page it was always auditing.
+    { path: '/en', name: 'landing', role: 'admin' },
+    { path: '/en/pricing', name: 'pricing', role: 'admin' },
+    { path: '/en/features', name: 'features', role: 'admin' },
+    { path: '/en/faq', name: 'faq', role: 'admin' },
+    { path: '/en/contact', name: 'contact', role: 'admin' },
     { path: '/register', name: 'register', role: 'admin' },
     { path: '/setup', name: 'setup', role: 'admin' },
     { path: '/setup/guided', name: 'setup-guided', role: 'admin' },

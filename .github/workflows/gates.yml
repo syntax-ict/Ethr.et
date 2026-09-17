@@ -11,9 +11,22 @@ name: Quality gates
 # bind mount. On a Linux runner with native PHP, gates.sh takes the have_php
 # branch and none of that applies.
 
+# `push` is the default branch only, deliberately.
+#
+# With `branches: ["**"]` every push to a branch that had an open PR ran the
+# whole suite TWICE — once for the push event and once for the pull_request
+# event. The concurrency group below did not dedupe them, because `github.ref`
+# differs between the two (`refs/heads/<branch>` vs `refs/pull/<n>/merge`), so
+# the groups never collided and `cancel-in-progress` never fired. Ten jobs per
+# push instead of five, with the MySQL suite at ~5 minutes each — and two
+# failure notifications for every real failure.
+#
+# `pull_request` covers every branch that matters; `push` covers main after a
+# merge. A branch with no PR gets no run, which is the intended trade —
+# `workflow_dispatch` is there for the exception.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

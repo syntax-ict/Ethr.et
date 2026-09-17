@@ -429,6 +429,24 @@ The likeliest remaining mechanism, offered as a hypothesis and labelled as one: 
 
 The four findings themselves are true on both platforms and were fixed on their merits (`app/Support/PasswordTokens.php`) — `Illuminate\Contracts\Auth\PasswordBroker` genuinely declares only `sendResetLink()` and `reset()`. But **the divergence means a green local PHPStan does not imply a green CI PHPStan**, which is worth knowing before trusting either.
 
+> **Re-opened and narrowed, 2026-09-17 — the leading hypothesis above is wrong, tested directly rather than reasoned about.**
+>
+> First, reproduced from scratch rather than trusted from memory: `git show` restored the exact two files to their state immediately before `bff4fb3` (the commit that introduced `PasswordTokens.php`), result cache cleared (`phpstan clear-result-cache`), and the real gate function run verbatim (`bash scripts/gates.sh backend`, not a hand-tuned `analyse` invocation). Result: **`[OK] No errors`**, on this machine, today, on the exact code that produced 4 errors in CI. The divergence is confirmed live, not archaeological.
+>
+> Then the hypothesis above — "Larastan resolves the facade to its concrete class when the app boots successfully" — was tested directly using PHPStan's own `\PHPStan\dumpType()` diagnostic, which prints what PHPStan actually infers for an expression, not what it should infer. Added a throwaway `app/ZZZDebugPhpstan.php`:
+>
+> ```php
+> $broker = Password::broker();
+> \PHPStan\dumpType($broker);   // -> Illuminate\Contracts\Auth\PasswordBroker
+> $broker->createToken(new \App\Models\User);   // -> no error
+> ```
+>
+> **The inferred type is the narrow interface, correctly — and the call is still not flagged.** So the hypothesis is refuted: it is not that app-boot success swaps in the concrete return type. Something else is letting a method call through on a value PHPStan itself reports as typed to an interface that, reflected directly at the PHP level (`(new ReflectionClass(PasswordBroker::class))->getMethods()`), genuinely has only `sendResetLink` and `reset` — confirmed on this exact vendored file, pinned by `composer.lock`, identical to whatever CI installs.
+>
+> **A more specific mechanism now exists to test, in place of the disproven one.** `vendor/larastan/larastan/src/Methods/ManagersMethodsExtension.php` grants extra methods to a value by resolving it through the live container and calling `->driver()` on it — but only when `$classReflection->is(Manager::class)`, i.e. when PHPStan considers the *value's* class to be `Illuminate\Support\Manager` (which `PasswordBrokerManager` extends) rather than the plain contract interface. Whether PHPStan consults this extension for a receiver statically typed as the *interface* — and whether that consultation itself depends on the container actually being reachable — is the next concrete thing to trace, not "boot succeeded or not" in the abstract.
+>
+> **What this rules out, precisely:** a config or invocation mismatch on this machine. Same command, same freshly-cleared cache, same gate function, same lockfile — the isolation is real. What remains open is genuinely internal to PHPStan/Larastan's interaction with either the OS or the exact PHP patch build, which this machine cannot distinguish from itself. Attempted a cross-OS check via a static, no-root PHP 8.2.32 Linux binary in WSL (no `sudo`, no Docker available for an apt-based or containerized PHP 8.2 on this host) — the download proved unreliable over two attempts today and was not completed. Left as the next concrete step, not abandoned: a working Linux PHP 8.2 build, `composer install --ignore-platform-reqs` against this same lockfile, and the identical `dumpType()` probe would either reproduce CI's error (confirming OS/build-specific PHPStan behaviour) or also pass (pointing at something GitHub-Actions-specific in how `shivammathur/setup-php` assembles the runtime, rather than Linux itself).
+
 **File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.
@@ -559,6 +577,46 @@ Picking (1) would quietly break any tenant that has set a different zone, and th
 
 > **A second environment-dependence found while writing those tests.** en-GB renders September as `Sep` under older ICU and `Sept` under newer. Asserting either literal would pass on one runtime and fail on the other, so the month is matched as `/Sept?/` while the day, year and time are asserted exactly. CI and local development now both run Node 24 (§12d), so the two agree today — the loose matcher is kept because agreeing *today* is not the same as being version-independent, and this is exactly the class of drift that hid §12d for fifty runs.
 
+### 12h. The query cache had no session boundary **[found and FIXED 2026-09-17]**
+
+An audit of the TanStack Query layer, prompted by the `api.ts` modules sitting at 0% coverage. The coverage number was the reason to look; it is not what was found.
+
+**The structural fact everything else follows from.** `app/providers.tsx` creates **one** `QueryClient` in `useState` and never replaces it, so every response cached during a session stays in memory for as long as the page lives. Default `staleTime` is 60s; `/auth/me` is 5 minutes.
+
+**No query key carries a tenant or user discriminator** — they are `["users", params]`, `["employees", …]`, `["auth", "me"]`. That is not itself wrong, because a key only has to be unique within one cache. It does mean isolation rests entirely on two things: the server scoping every response to the session, and **the cache being destroyed whenever the identity behind it changes**. The first was never in doubt. The second had a hole.
+
+| Identity change | Behaviour | Verdict |
+|---|---|---|
+| Impersonation start | `window.location.href` — full reload, with a comment saying exactly why | correct |
+| Impersonation exit | `window.location.href` | correct |
+| Session expiry (401, refresh failed) | interceptor hard-navigates | correct |
+| Impersonation claim | lands cross-host (`admin.ethr.et` → `{tenant}.ethr.et`), so always a new document | correct, structurally |
+| **Log out** | cleared and navigated **only on success** | **defect** |
+| **Log in** (password, MFA, OTP) | `router.push("/dashboard")` — SPA, cache survives | **defect** |
+
+Those two compose. `AuthGuard` sends a failed session to `/login` with `router.replace`, which keeps the JS context alive; the login form then left for `/dashboard` with `router.push`. Between two SPA transitions the cache is never dropped, so the next person to sign in on that tab inherits whatever the previous one had loaded — and since the keys carry no tenant, across tenants.
+
+**Four defects, each reproduced by a failing test before it was fixed:**
+
+| | What was wrong |
+|---|---|
+| `useLogout` | Cleared the cache and navigated in `onSuccess`. Neither call site passes an `onError`, so a failed request — offline, API down, token already expired — did **nothing at all**: no navigation, no clear, no message. The person clicked Log Out and was left on a populated dashboard believing they had. For a product that advertises itself as offline-first, that is not an edge case. Now `onSettled`: the server call is how we additionally ask for the token to be revoked, but it cannot decide whether the local session ends. |
+| Login / MFA / OTP forms | Now clear the cache before navigating. Authenticating starts a new session, so it starts a new cache. |
+| `useUpdateUser` | Invalidated `["users"]` only. The payload carries `role` and `custom_role_id`, and every `can.*` flag and `<RoleGate>` reads the `permissions` array from `/auth/me`, so editing **your own** account left the whole interface authorizing against the role you had just left, for up to five minutes. |
+| `useUpdateCustomRole` | Same, via the role rather than the user. |
+
+**On severity, precisely.** The last two are not privilege escalation — the server enforces regardless, and these are cache-lifetime bugs in the client. What they produce is an interface that disagrees with the API it is talking to, in both directions: a removed permission keeps being offered and then fails, and a granted one stays hidden, so the admin who just granted it concludes it did not work.
+
+**The fixes are narrow on purpose.** `useUpdateUser` compares the edited `publicId` against the cached current user and refetches `/auth/me` **only** when they match — an admin working down a list of staff should not refetch their own identity on every row. `useUpdateCustomRole` refetches only when the payload contains `permissions`, since renaming a role cannot change anyone's abilities. Both distinctions are pinned by tests that assert the *absence* of a refetch, so a later change cannot pass by invalidating everything.
+
+**Audited and found correct**, recorded so the work is not repeated: `reports/api.ts` (save/delete invalidate saved *and* scheduled; generate and export are stateless), `shifts/api.ts`, `announcements/api.ts` (prefix invalidation covers list, detail and schedule), `dashboard/team-api.ts` (no mutations; `period` and `month` are correctly part of the keys), and the two `employees/page.tsx` "mutations", which are CSV exports with nothing to invalidate.
+
+**What remains true and worth watching.** The keys are still tenant-agnostic, so this class is closed by *behaviour*, not by structure: any future path that changes identity without clearing or reloading reopens it. The four tests added here (`logout-cache`, `login-cache-boundary`, `users-roles-cache`) assert the boundary rather than the scenario, so they fail on the mechanism rather than on one route.
+
+Gates on the change: frontend **80 files / 513 tests**, i18n, Prettier, ESLint, tsc, `next build`, docs — all green.
+
+---
+
 ### 12f. Frontend coverage — first measurement **[verified 2026-09-16]**
 
 ```
@@ -680,6 +738,34 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 > The defect is real but smaller: O(rows-in-this-tenant) `REPLACE` evaluations per phone login. Negligible at a few hundred employees; it starts to matter in the thousands, on a contended shared vCPU, on the one request where slowness is most visible.
 >
 > Recorded rather than quietly edited, because the original claim was repeated in several commit messages that cannot now be amended — and because overstating a finding is the same failure as understating one.
+
+> **G0-J measured locally, 2026-09-17 — real numbers before any index decision.** The instruction this followed was explicit: measure the actual query behaviour before proposing a login index. `api/scripts/login-path-benchmark.php` seeds one tenant at 500 / 5,000 / 20,000 employees+users against the real migrated schema on local MariaDB 10.4.32 (matching production's engine; not production's hardware — see the caveat below), and times the actual `AuthIdentifierResolver` code path, not a synthetic query.
+>
+> **Finding, corrected from the line above: a matching index already exists.** `users` carries `users_tenant_id_email_unique` on `(tenant_id, email)` and `users_tenant_id_username_unique` on `(tenant_id, username)`; `employees` carries `employees_tenant_id_employee_code_unique` on `(tenant_id, employee_code)`. All three columns are `utf8mb4_unicode_ci` (case-insensitive), set from `config/database.php`'s connection-level `collation`, not per-column. So `LOWER(column) = ?` is not compensating for a case-sensitive column — the column already matches case-insensitively — it is only defeating the index that would otherwise serve the query. "No functional index on email" above is true and also not the relevant fact: **no functional index is needed**, because a plain index already fits.
+>
+> Measured (ms per lookup, average of 49 distinct values per tenant size, one warm-up call discarded):
+>
+> | n (employees) | email current | email if plain `=` | username current | username if plain `=` | employee_code current | employee_code if plain `=` | phone (REPLACE, current) |
+> |---|---|---|---|---|---|---|---|
+> | 500 | 3.0 | 1.6 | 3.2 | 1.6 | 5.0 | 2.1 | 3.8 |
+> | 5,000 | 3.7 | 1.4 | 10.3 | 1.2 | 5.2 | 1.3 | 13.1 |
+> | 20,000 | 11.6 | 1.3 | 39.8 | 1.4 | 12.8 | 1.8 | 52.0 |
+>
+> `EXPLAIN` on the current email query at n=20,000: `type=ref key=users_tenant_id_email_unique rows=10000` — the composite index *is* used to narrow to the tenant, then every one of that tenant's ~10,000 rows is evaluated through `LOWER()` row-by-row, exactly the "O(rows-in-this-tenant)" shape already described above, now with a number attached. The plain-equality version: `type=const key=users_tenant_id_email_unique rows=1` — a single index seek regardless of tenant size. This is the O(n)-vs-O(1) signature predicted, measured on the real schema, not inferred.
+>
+> **Why this is not fixed here.** The obvious edit — drop the `LOWER()` wrapper on the column — is correct on MariaDB because of the collation above, but was checked and found **incorrect on SQLite**, which the primary test suite runs on:
+>
+> ```
+> SQLite, stored value "Abc@X.com":
+>   WHERE email = 'abc@x.com'          -> 0 rows  (SQLite TEXT is case-sensitive by default)
+>   WHERE LOWER(email) = 'abc@x.com'   -> 1 row
+> ```
+>
+> SQLite has no collation-level case-folding for a bare `=`; matching case-insensitively there needs either `LOWER()` in the query or a `NOCASE` column collation applied specifically for that driver. A fix that behaves identically on every driver is therefore a **schema change** — a driver-conditional column collation — not a one-line code edit, which puts it in the same risk class as adding an index. It has not been made without that being a deliberate decision, for the same reason a login index has not been added speculatively.
+>
+> **What would justify acting, read against ETHR's own numbers.** `email` is the default and only identifier every tenant has (`AuthIdentifierResolver::DEFAULT`); `username`/`employee_code`/`phone` are opt-in per tenant (ONBOARDING_V2 D6/D7). At the size the payroll SLA already treats as large (500 employees, `docs/CLAUDE.md`'s 30s/500-employee budget), the current email cost is **3.0ms** — not worth a schema change on its own. At 20,000 — a tenant size nothing in this codebase's documented targets currently assumes — email is 11.6ms and username 39.8ms: real, but still small against typical request/network overhead, and this was measured on ordinary local hardware, not the production shared vCPU Gate 0 has not yet characterized. **The number that would justify acting is a real tenant's employee count approaching four figures with `username` or `employee_code` enabled**, or a G0-J Plesk CPU-loop result (Step 1 of the Gate 0 probe) showing the shared vCPU is materially slower than this machine, which would scale every row above proportionally.
+>
+> **How to repeat this after any change.** Re-run `php scripts/login-path-benchmark.php` against a scratch `*_bench*` database (it refuses any other name) before and after. A real fix should collapse every "current" column to match its "if plain `=`" column at every tenant size; if it does not, the fix did not reach the index.
 
 ### 13f. Employee search behaved differently on the driver production uses **[verified 2026-09-15, MariaDB 10.4.32 — FIXED]**
 
@@ -995,3 +1081,111 @@ Verified against a pre-upgrade baseline captured deliberately first, so a failur
 ## 17. What was NOT done in this phase
 
 No application code changed. No architecture decisions taken. No dependencies added or removed. No documentation corrected — the drift in §12b is *recorded*, not fixed. The pending `deployment/ → docs/deployment/` move was left exactly as found. No remote git operation of any kind. No hosting capability asserted as fact.
+
+---
+
+## 18. Public-site baseline — **measured 2026-09-17**
+
+§13e recorded that no performance baseline existed. It does now. These are the
+first `[verified]` numbers for the public site: a production build served by
+`next start`, measured by `./scripts/gates.sh lighthouse` — three runs per URL,
+medians below.
+
+| route | perf | a11y | best-pr. | SEO | FCP | LCP | TBT |
+|---|---|---|---|---|---|---|---|
+| `/am` | 99 | 100 | 96 | 100 | 298 ms | 881 ms | 5 ms |
+| `/en` | 99 | 100 | 96 | 100 | 340 ms | 890 ms | 0 ms |
+| `/en/contact` | 100 | 100 | 96 | 100 | 293 ms | 790 ms | 0 ms |
+| `/en/features` | 99 | 100 | 96 | 100 | 339 ms | 875 ms | 1 ms |
+| `/en/pricing` | 99 | 100 | 96 | 100 | 337 ms | 881 ms | 2 ms |
+| `/login` | 99 | 100 | 100 | 63 | 301 ms | 881 ms | 0 ms |
+| `/register` | 99 | 100 | 100 | 63 | 294 ms | 874 ms | 0 ms |
+
+**Read the `preset` before reading the scores.** `.lighthouserc.cjs` uses
+`preset: "desktop"` — no CPU throttling worth the name and a fast simulated
+network. These numbers say the pages are well built; they say **nothing** about
+a mid-range Android on an Ethiopian mobile network, which is the audience. Phase
+8 is about the 427 KB below, and a desktop 99 is not evidence against it.
+
+**SEO 63 on `/login` and `/register` is correct and deliberate.** The single
+failing audit is `is-crawlable`: `app/robots.ts` disallows both. The config
+asserted SEO ≥ 0.9 on them as an *error* until 2026-09-17, which was a target the
+site's own robots.txt guaranteed could never be met; the assertion is now scoped
+away from those two URLs and they are still measured for everything else.
+
+### First Load JS
+
+| | gzipped | raw |
+|---|---|---|
+| Landing page, all client chunks | **427 KB** | 1,415 KB |
+| The same with `instrumentation-client.ts` stubbed out | 340 KB | 1,131 KB |
+| → Sentry's share | **87 KB** | 284 KB |
+| Dashboard, for comparison | 470 KB | 1,562 KB |
+
+Measured by summing the gzipped size of every `/_next/static/chunks/*.js` the
+built `.next/server/app/en.html` references. Sentry's figure is a difference of
+two builds, not an estimate. Its docblock argues deliberately for the static
+import — read it before changing anything there.
+
+Per-locale page weight, which the dictionary projection decides:
+`/en/pricing` is 14.0 KB gzipped of HTML against `/am/pricing`'s 7.4 KB, because
+the `[locale]` layout ships a 7.5 KB projection of `en.json` and `am.json` is
+already eager.
+
+### Four defects this measurement found
+
+None were visible from the source, and the first is the reason the rest were
+found at all.
+
+1. **The gate measured the wrong pages.** `.lighthouserc.cjs` still collected
+   `/`, `/pricing`, `/features` and `/contact` — the unprefixed URLs, which are
+   now redirectors rendering an empty div. Lighthouse has no stored locale, so it
+   would have scored blank pages and reported them passing.
+2. **`/favicon.ico` 404'd on every page load.** `baseMetadata` declared it and
+   the file did not exist — `public/` had eight PNG icons and no `.ico`. A real
+   ICO container (PNG payload, 96×96) is now committed. `best-practices` on
+   `/login` and `/register` went 96 → 100 when it landed.
+3. **Heading levels skipped.** `product-flow.tsx` used `h3` directly under the
+   hero's `h1`; the footer used `h4` after an `h2`; the pricing plan cards used
+   `h3` under the page `h1`. `accessibility` was 98 across the public site and is
+   now 100.
+4. **The language switcher's accessible name did not contain its visible text.**
+   The button shows the current language's own name and announced only "Change
+   language" — WCAG 2.5.3, and a voice-control user could not say what they could
+   see.
+
+### Three findings left open, deliberately
+
+- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
+  below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
+  surface is marginally under. Lighthouse flags it intermittently, which is what a
+  4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
+  repainting the whole product — a Phase 8 decision, not a landing-page one. One
+  10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
+  the worst case; nothing else was touched.
+- **`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
+  `public/sw.js:110` reference it. Push-notification badges are therefore broken
+  app-wide. Not touched: it is service-worker behaviour, not the public site.
+- **Two manifests.** `public/manifest.json` is the one linked from every page;
+  `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
+  Both serve 200. One of them is dead, and deciding which is a PWA question.
+
+### The 403s in the report are not a defect
+
+Every run logs `403` for `/api/v1/site-content` and `/api/v1/plans`. No backend
+was running — the pages are built to render with no network at all, which is
+exactly what they did. `best-practices` sits at 96 on the marketing pages for
+that reason alone; `/login` and `/register` make no such call and score 100.
+
+### How to reproduce
+
+```bash
+cd src && npm run build
+node .next/standalone/server.js      # or `npx next start -p 3000`
+CHROME_PATH=/path/to/chrome LHCI_BASE_URL=http://localhost:3000 \
+  ./scripts/gates.sh lighthouse
+```
+
+The gate refuses rather than skips when nothing is serving. A Lighthouse run that
+silently measures nothing is worse than no run, because the report still renders
+and still looks like evidence — which is precisely how defect 1 above survived.

@@ -1,22 +1,94 @@
 # ETHR Frontend
 
-Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind CSS 4 ·
+Next.js 16 (App Router) · React 19 · TypeScript strict · Tailwind CSS 4 ·
 shadcn/ui · TanStack Query v5 · TanStack Table v8 · React Hook Form + Zod.
 
-> Source lives at `src/src` (note the nested path). Tooling notes: no Prettier
-> (use ESLint/`next`); type-check with `node node_modules/typescript/bin/tsc`.
+> Source lives at `src/src` (note the nested path). Tooling notes: Prettier **is**
+> enforced (`./scripts/gates.sh frontend` runs `prettier --check`, and the gate
+> fails on a formatting diff — this file used to say the opposite); type-check
+> with `node node_modules/typescript/bin/tsc`.
 
 ## Structure
 
 ```
 src/src
-  /app                    App Router (route groups: (auth) (dashboard) (marketing) (onboarding), /kiosk, /offline)
+  /app                    App Router — several ROOT layouts, see "Public site routing"
+    /(root)               "/" and the six pre-locale URLs; redirect into a language
+    /(marketing)/[locale] the public site, prerendered once per available locale
+    /(auth) /(dashboard)  /kiosk  /offline
   /components  /ui  /shared  /layouts  /patterns   (QueryBoundary, DataTable, FormPatterns)
   /features/{feature}     components / hooks / api.ts / types.ts
   /api                    client.ts (axios), /types (generated OpenAPI)
   /lib                    i18n, calendar, offline, hooks, utils
   /styles                 semantic tokens + global CSS
 ```
+
+## Public site routing
+
+**There is no `app/layout.tsx`.** Removing it is what makes `<html lang>` correct,
+and it is the one structural fact about this tree worth knowing before editing it.
+
+`lang` can only be set by a root layout, and a file at `app/layout.tsx` sits above
+every dynamic segment — so it can never read the locale the URL asked for. With
+`DEFAULT_LOCALE` being `am`, the prerendered `/pricing` therefore served Amharic
+text under `lang="en"` to everyone, including crawlers and screen readers. Next's
+supported answer is multiple root layouts: delete the single root, and let the
+topmost layout of each top-level tree render its own `<html>`/`<body>`.
+
+| tree | root layout | `lang` |
+|---|---|---|
+| `(marketing)/[locale]` | its own `layout.tsx` | the locale in the URL |
+| `(root)` | its own `layout.tsx` | `DEFAULT_LOCALE` (no prose on these pages) |
+| `(auth)`, `(dashboard)`, `kiosk`, `offline` | each existing layout | `DEFAULT_LOCALE`, corrected after hydration from the stored preference |
+
+They all render `app/root-shell.tsx`, which holds the `<html>`/`<body>` shell, the
+font and `baseMetadata`. **No URL changed** — route groups are erased from the
+path — but a new top-level segment now needs a root layout of its own or the
+build fails.
+
+### What the locale prefix means for a component
+
+- The public pages are `(marketing)/[locale]/**`, generated for the locales that
+  are `available` in `lib/i18n/config.ts` and no others (`dynamicParams = false`).
+- Inside that tree the URL is authoritative: `useT()` reads the route locale from
+  context in preference to localStorage, so `/en/pricing` is English even for a
+  reader whose stored preference is `am`.
+- Link to another public page through `useLocaleHref()`, never a bare `/pricing` —
+  an unprefixed link drops the reader on the negotiating redirector and can
+  silently change their language. `/login` and `/register` stay unprefixed.
+- `generateMetadata` gets its title and description from the dictionary via
+  `translateStatic`, and its `hreflang` set from `alternatesFor`.
+
+### How `/en/*` gets its English
+
+Only `am.json` is imported eagerly; `en.json` is a dynamic import. **The server
+has it** by the time a page renders — Next's rendering yields between components,
+so the import resolves during the build — which is why the emitted
+`.next/server/app/en/faq.html` carries real sentences even though its FAQ entries
+pass no fallback at all.
+
+**The browser does not**, at the moment it hydrates. Left alone, its first render
+would produce raw keys for those seventeen fallback-less call sites, React would
+discard the server's HTML, and the page would show `marketing.faq_page.what_is_q`
+until the chunk landed. So `(marketing)/[locale]/layout.tsx` sends a **projection**
+of the dictionary — the key families in `lib/i18n/public-keys.ts`, 7.5 KB gzipped
+against 45 KB for the whole file — and `DictionaryRegistrar` registers it *during
+render*, before anything below it renders. Server and client then produce the same
+output and hydration has nothing to reconcile.
+
+`scripts/i18n-check.js` enforces both halves: every fallback-less key on a public
+page must be inside those prefixes, and every fallback that *is* written must equal
+`en.json`'s value. Both are scoped to the computed import closure of the public
+routes, not to a directory allow-list.
+
+### Negotiation
+
+`middleware.ts` redirects the seven unprefixed URLs to a language, reading the
+`locale` cookie that `setLocale()` writes and then `Accept-Language`. It is an
+optimisation only: `(root)/locale-redirect.tsx` runs the same negotiation in the
+browser, because middleware does not run under `output: "export"` and cannot read
+localStorage. Locale logic must stay **above** the `NEXT_PUBLIC_ROOT_DOMAIN` early
+return in `middleware.ts`, which is taken on every development machine.
 
 ## Non-negotiables (see CLAUDE.md)
 
