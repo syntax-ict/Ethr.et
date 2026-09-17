@@ -360,6 +360,60 @@ required it.
 
 ---
 
+## GIT DEPLOYMENT ROUTE — verified from the repository, 2026-09-17
+
+`DEPLOYMENT.md` step 3 uploads with `rsync` over SSH and step 4 runs `artisan` over SSH.
+**Neither is available on this account** (SSH Forbidden, measured). Plesk's **Git** and
+**Composer** extensions are present, so that is the route. What follows is what the
+*repository* guarantees about it — checked, not assumed. The Plesk-side behaviour is
+flagged as unknown rather than described.
+
+### The layout maps cleanly — no repackaging needed
+
+Plesk Git's deployment path is relative to the **webspace root**, so a path of `ethr`
+deploys to `~/ethr/`. The repository root holds `api/ docker/ docs/ infrastructure/
+scripts/ src/`, which makes the result `~/ethr/api/` — **exactly what §0 specifies**, a
+sibling of `httpdocs` and outside the document root. Nothing has to be restructured.
+
+### Three things checked, because Git deploys differ from rsync in ways that break Laravel
+
+| Risk | Result | Evidence |
+| --- | --- | --- |
+| **Git does not carry empty directories**, and Laravel needs `storage/framework/{cache,sessions,views}`, `storage/logs` and `bootstrap/cache` to exist or it fails at runtime | **SAFE** | Every one carries a tracked `.gitignore` — 13 of them under `api/storage` and `api/bootstrap`. The tree is recreated by the clone. This is the classic Git-vs-rsync deployment break and it does not apply here |
+| Deploy payload size | **SAFE** | 1,599 tracked files, largest is 700 KB (`generated.ts`). No binaries, no bundled dependencies |
+| Secrets reaching the host through Git | **SAFE** | `vendor/`, `node_modules/`, `.env`, `api/.env`, `api/.env.production`, `storage/*.key` and `public/storage` are all gitignored. Nothing carrying a credential is tracked |
+
+### Ordering that must not be got wrong
+
+`.env` **before** Composer, not after. `composer install` runs `package:discover`,
+`config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, and
+`routes/channels.php` calls `Broadcast::channel()` at load time — so Composer exits 1 with
+a null Pusher key if no `.env` exists yet. This is the same defect that was CI cause 2.
+`DEPLOYMENT.md` step 1 already warns about it; under the Git route the hazard is larger,
+because the Plesk Composer extension is a button that can be pressed at any moment.
+
+So: **Git deploy → create `~/ethr/api/.env` → then Composer.**
+
+### What this route does and does not solve
+
+**Solves:** getting code onto the host (B-1's `rsync` half) and installing dependencies.
+
+**Does not solve B-4.** `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` still
+have no runner. Git puts the files there; Composer fills `vendor/`; nothing executes
+`artisan`. That remains blocked on SSH or a command-type Scheduled Task — manual action
+queue items 2 and 1.
+
+### Unknown on the Plesk side — not asserted here
+
+Which branch the extension tracks and whether it can be changed; whether the deployment
+path is editable after creation; whether "additional deployment actions" exist on this
+plan (they normally run shell commands, which would be a route for `artisan` — but shell
+is Forbidden, so assume not until seen). The extension currently reports `716ab93`, **47
+commits behind `origin/main`**, which is itself a sign it is configured but not tracking
+anything current.
+
+---
+
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
 Everything resolvable from the repository has been done. These eight remain, in dependency
