@@ -721,6 +721,34 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 >
 > Recorded rather than quietly edited, because the original claim was repeated in several commit messages that cannot now be amended — and because overstating a finding is the same failure as understating one.
 
+> **G0-J measured locally, 2026-09-17 — real numbers before any index decision.** The instruction this followed was explicit: measure the actual query behaviour before proposing a login index. `api/scripts/login-path-benchmark.php` seeds one tenant at 500 / 5,000 / 20,000 employees+users against the real migrated schema on local MariaDB 10.4.32 (matching production's engine; not production's hardware — see the caveat below), and times the actual `AuthIdentifierResolver` code path, not a synthetic query.
+>
+> **Finding, corrected from the line above: a matching index already exists.** `users` carries `users_tenant_id_email_unique` on `(tenant_id, email)` and `users_tenant_id_username_unique` on `(tenant_id, username)`; `employees` carries `employees_tenant_id_employee_code_unique` on `(tenant_id, employee_code)`. All three columns are `utf8mb4_unicode_ci` (case-insensitive), set from `config/database.php`'s connection-level `collation`, not per-column. So `LOWER(column) = ?` is not compensating for a case-sensitive column — the column already matches case-insensitively — it is only defeating the index that would otherwise serve the query. "No functional index on email" above is true and also not the relevant fact: **no functional index is needed**, because a plain index already fits.
+>
+> Measured (ms per lookup, average of 49 distinct values per tenant size, one warm-up call discarded):
+>
+> | n (employees) | email current | email if plain `=` | username current | username if plain `=` | employee_code current | employee_code if plain `=` | phone (REPLACE, current) |
+> |---|---|---|---|---|---|---|---|
+> | 500 | 3.0 | 1.6 | 3.2 | 1.6 | 5.0 | 2.1 | 3.8 |
+> | 5,000 | 3.7 | 1.4 | 10.3 | 1.2 | 5.2 | 1.3 | 13.1 |
+> | 20,000 | 11.6 | 1.3 | 39.8 | 1.4 | 12.8 | 1.8 | 52.0 |
+>
+> `EXPLAIN` on the current email query at n=20,000: `type=ref key=users_tenant_id_email_unique rows=10000` — the composite index *is* used to narrow to the tenant, then every one of that tenant's ~10,000 rows is evaluated through `LOWER()` row-by-row, exactly the "O(rows-in-this-tenant)" shape already described above, now with a number attached. The plain-equality version: `type=const key=users_tenant_id_email_unique rows=1` — a single index seek regardless of tenant size. This is the O(n)-vs-O(1) signature predicted, measured on the real schema, not inferred.
+>
+> **Why this is not fixed here.** The obvious edit — drop the `LOWER()` wrapper on the column — is correct on MariaDB because of the collation above, but was checked and found **incorrect on SQLite**, which the primary test suite runs on:
+>
+> ```
+> SQLite, stored value "Abc@X.com":
+>   WHERE email = 'abc@x.com'          -> 0 rows  (SQLite TEXT is case-sensitive by default)
+>   WHERE LOWER(email) = 'abc@x.com'   -> 1 row
+> ```
+>
+> SQLite has no collation-level case-folding for a bare `=`; matching case-insensitively there needs either `LOWER()` in the query or a `NOCASE` column collation applied specifically for that driver. A fix that behaves identically on every driver is therefore a **schema change** — a driver-conditional column collation — not a one-line code edit, which puts it in the same risk class as adding an index. It has not been made without that being a deliberate decision, for the same reason a login index has not been added speculatively.
+>
+> **What would justify acting, read against ETHR's own numbers.** `email` is the default and only identifier every tenant has (`AuthIdentifierResolver::DEFAULT`); `username`/`employee_code`/`phone` are opt-in per tenant (ONBOARDING_V2 D6/D7). At the size the payroll SLA already treats as large (500 employees, `docs/CLAUDE.md`'s 30s/500-employee budget), the current email cost is **3.0ms** — not worth a schema change on its own. At 20,000 — a tenant size nothing in this codebase's documented targets currently assumes — email is 11.6ms and username 39.8ms: real, but still small against typical request/network overhead, and this was measured on ordinary local hardware, not the production shared vCPU Gate 0 has not yet characterized. **The number that would justify acting is a real tenant's employee count approaching four figures with `username` or `employee_code` enabled**, or a G0-J Plesk CPU-loop result (Step 1 of the Gate 0 probe) showing the shared vCPU is materially slower than this machine, which would scale every row above proportionally.
+>
+> **How to repeat this after any change.** Re-run `php scripts/login-path-benchmark.php` against a scratch `*_bench*` database (it refuses any other name) before and after. A real fix should collapse every "current" column to match its "if plain `=`" column at every tenant size; if it does not, the fix did not reach the index.
+
 ### 13f. Employee search behaved differently on the driver production uses **[verified 2026-09-15, MariaDB 10.4.32 — FIXED]**
 
 `api/app/Models/Employee.php:130` has **two implementations of the same feature**:
