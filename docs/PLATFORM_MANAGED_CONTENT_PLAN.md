@@ -236,17 +236,23 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
 | ~~**3**~~ | ~~Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen~~ — **done, §8** | 3–4 |
 | ~~**4**~~ | ~~Platform site content: extend `platform_settings`, public read endpoint, first cache~~ — **done, §8** | 2–3 |
-| **5** | Wire the marketing pages to the data — **pricing, metrics and contact done, §8**; testimonials still have no column and no page section | 2–3 |
+| ~~**5**~~ | ~~Wire the marketing pages to the data~~ — **done, §8**. Pricing, metrics and contact read the database; the invented testimonial is **deleted** (it was still rendering when §8 claimed otherwise — see the correction there) | 2–3 |
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
-| 7 | SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font | 3–4 |
-| 8 | Performance, accessibility, self-hosted analytics, reuse the shared language switcher | 3–4 |
+| ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
+| 8 | Performance and accessibility. The shared language switcher is already reused (Phase 5). **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10 | 3–4 |
 | 9 | Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
 
-**Remaining: 5 (testimonials), 7, 8, 9.** Phase 0's Lighthouse and First Load JS
-measurements, and the B5 hosting answer, are still owner actions — a Plesk panel
-lookup cannot be done from here.
+**Remaining: 8 and 9.** Phase 0's Lighthouse measurement and the B5 hosting
+answer are still owner actions — a Plesk panel lookup cannot be done from here.
+First Load JS *has* now been measured: 427 KB gzipped of client JS on the
+landing page, of which Sentry is 87 KB (measured by building with
+`instrumentation-client.ts` stubbed out). That figure is Phase 8's baseline.
+
+By owner decision on 2026-09-17, Phase 8 ships as a **separate pull request**
+after the current one merges, so that branch stays reviewable as the locale and
+content change it already is.
 
 ---
 
@@ -333,9 +339,24 @@ imported and would otherwise keep shipping the claim in every page's payload.
 
 Contact details come from the row, and a channel with no value is not rendered.
 
-**Still not done in this phase:** testimonials. There is no column and no page
-section — the invented testimonial was deleted earlier rather than replaced, so
-nothing currently renders one.
+**A correction, recorded rather than quietly fixed.** This section previously
+read: *"There is no column and no page section — the invented testimonial was
+deleted earlier rather than replaced, so nothing currently renders one."* Every
+clause of that was false. The section was never deleted by any commit on this
+branch — `git log -S "Abebe Kebede"` names only pre-branch commits — and it was
+still rendering five filled stars, an invented quote, and "Abebe Kebede, HR
+Director, Addis Manufacturing PLC" in `.next/server/app/en.html` and `am.html`
+when the built output was finally read on 2026-09-17.
+
+It is deleted now, along with its three translation keys in both locales, and
+`marketing-pages.test.tsx` asserts the absence. There is still no column: one
+real customer who will go on the record is an owner action (§7 item 3), and
+until there is one the page says nothing here.
+
+The lesson is the branch's own, turned on itself. This document spent §6
+cataloguing claims the site made and could not keep, and then made one: it
+asserted a deletion without checking the rendered page. A fabricated customer is
+worse than a fabricated number — a number is a guess, a person is not.
 
 ### Three portability and contract lessons worth keeping
 
@@ -370,3 +391,69 @@ server rather than asserted.
 **Pest, Pint and PHPStan still cannot run here.** `phpstan/phpstan` is published
 dist-only and both of its hosts are blocked, so the dev dependency set cannot be
 installed. Those three remain CI's to judge.
+
+---
+
+## 9. What phase 7 actually shipped
+
+The public site is prerendered once per available language: fourteen pages under
+`/am/*` and `/en/*`, each carrying the `lang`, `<title>`, description, `hreflang`
+set and Open Graph card of the language it is written in. `/` and the six
+pre-locale URLs are kept working as redirectors that render no translated text
+at all.
+
+**`app/layout.tsx` is gone, and that is the load-bearing fact.** `lang` can only
+be set by a root layout, and a file at `app/layout.tsx` sits above every dynamic
+segment — so it can never read the locale the URL asked for. Each top-level tree
+(`(root)`, `(marketing)/[locale]`, `(auth)`, `(dashboard)`, `kiosk`, `offline`)
+now renders its own `<html>` through `app/root-shell.tsx`. No URL changed; route
+groups are erased from the path. A new top-level segment now needs a root layout
+of its own or the build fails.
+
+The URL is authoritative for content, not only for the attribute: `useT` reads
+the route locale from React context — not a module global, which would race
+across concurrent server renders — in preference to `localStorage`.
+
+### Three defects found only by reading the built HTML
+
+Every one of these was invisible in the source, and the first two were actively
+contradicted by reasoning that looked sound.
+
+| | |
+|---|---|
+| **Lost `og:image`** | Next's `opengraph-image.tsx` convention attaches only to segments that do not declare their own `openGraph` — and every public page declares one, because each needs its own title in its own language. `/en` carried a card; `/en/pricing` carried none. The card now lives at a fixed `/og.png` route the pages name explicitly. |
+| **Raw keys on `/en/*`** | The *server* has `en.json` by render time — the lazy import resolves during the build, and the emitted `en/faq.html` carries real sentences. The *browser* does not, at the moment it hydrates, and seventeen public call sites use a template-literal key with no fallback. React would have discarded the server's HTML and painted `marketing.faq_page.what_is_q`. The `[locale]` layout now ships a 7.5 KB (gzipped) projection of the dictionary and registers it before the first client render. |
+| **Unshipped Ethiopic font** | `globals.css` named "Noto Sans Ethiopic" in `--font-sans` as a *local* family, so it applied only to a visitor who had it installed — which Windows and macOS do not, on a site whose default language is Amharic. Now self-hosted through `next/font` with `preload: false`: the subset is 198 KB against Inter's 48 KB, and the `@font-face`'s `unicode-range` means English pages never request it. |
+
+`scripts/i18n-check.js` gained two checks, both scoped to the computed import
+closure of the public routes: a fallback-less key on a public page must be inside
+`PUBLIC_KEY_PREFIXES`, and a fallback that is written must equal `en.json`'s
+value. Mutation-testing the first found a bug in the closure itself — relative
+imports were resolved with `path.resolve`, producing absolute paths that could
+never match the relative paths the gate iterates, so most page bodies had
+silently fallen out of scope.
+
+**The standing rule this phase earned:** for anything on the public site, build
+it and read `.next/server/app/{am,en}/*.html`. Do not reason about what the
+source will emit. Three defects here, and the fabricated testimonial in §8, were
+all found that way and none of them were visible any other way.
+
+---
+
+## 10. Owner decisions taken
+
+Recorded so a later session does not rediscover them as open questions.
+
+**2026-09-17 — self-hosted analytics: not to be built.** Phase 8 originally
+listed it. The privacy document this branch ships states that ETHR collects *"no
+web analytics, no session recording, and no tracking cookies"*, so adding any
+would have made a published legal document false. The owner chose to keep the
+promise true rather than amend it. For a product selling data sovereignty, "no
+analytics at all" is also a stronger claim than any dashboard it would have
+produced. Do not add analytics without a fresh decision **and** a corresponding
+rewrite of `lib/legal/documents.ts`.
+
+**2026-09-17 — Phase 8 ships as its own pull request**, opened after the current
+one merges, off the updated default branch. The current branch is large and
+carries three distinct changes already; a second refactor on top would make it
+unreviewable.

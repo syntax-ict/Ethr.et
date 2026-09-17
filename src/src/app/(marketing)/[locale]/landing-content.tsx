@@ -18,7 +18,6 @@ import {
   Briefcase,
   Shield,
   CheckCircle2,
-  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFlow } from "@/components/marketing/product-flow";
@@ -387,38 +386,23 @@ export function LandingContent() {
           </div>
         </section>
 
-        {/* Testimonial */}
-        <section className="py-20 sm:py-24">
-          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className="h-5 w-5 fill-brand-accent text-brand-accent"
-                />
-              ))}
-            </div>
-            <blockquote className="mt-6 text-xl font-medium leading-relaxed text-foreground sm:text-2xl">
-              &ldquo;
-              {t(
-                "marketing.testimonial.quote",
-                "ETHR replaced three separate systems for us. Attendance, payroll, and leave — all in one place, all working offline at our factory floor.",
-              )}
-              &rdquo;
-            </blockquote>
-            <div className="mt-6">
-              <p className="font-semibold text-foreground">
-                {t("marketing.testimonial.author", "Abebe Kebede")}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "marketing.testimonial.role",
-                  "HR Director, Addis Manufacturing PLC",
-                )}
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* There is no testimonial section.
+            It held five filled stars, an invented quote, and "Abebe Kebede,
+            HR Director, Addis Manufacturing PLC" — a person who does not
+            exist, attributed a claim about a product they have not used.
+            That is the same defect as the invented metrics one section up,
+            and worse in kind: a fabricated number is a guess, a fabricated
+            customer is a fabricated customer.
+
+            Two documents in this branch already said it had been deleted. It
+            had not — it was still rendering on /am and /en in the built HTML
+            when that was finally checked. Corrected in
+            PLATFORM_MANAGED_CONTENT_PLAN.md §8 rather than quietly fixed.
+
+            Restoring it takes a real customer who will go on the record; the
+            plan lists that as an owner action. Until then the page says
+            nothing here, which is the honest amount. `marketing-pages.test.tsx`
+            asserts the absence, so it cannot come back by accident. */}
 
         {/* CTA */}
         <section className="relative overflow-hidden border-t">

@@ -60,6 +60,37 @@ describe("Landing page", () => {
     expect(trialLinks.length).toBeGreaterThan(0);
   });
 
+  it("quotes no customer it does not have", () => {
+    withQuery(<LandingContent />);
+
+    // Five filled stars, an invented quote, and "Abebe Kebede, HR Director,
+    // Addis Manufacturing PLC" — a person who does not exist, attributed a
+    // claim about a product they have not used. It survived this branch's
+    // whole audit because two documents said it had already been deleted and
+    // nobody read the built page; it was still in .next/server/app/en.html
+    // and am.html when that was finally checked.
+    expect(screen.queryByText(/Abebe Kebede/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Addis Manufacturing/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/replaced three separate systems/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("describes the isolation mechanism instead of promising an absolute", () => {
+    withQuery(<LandingContent />);
+
+    // "No cross-tenant access is possible" is a claim about impossibility,
+    // published by a codebase whose own CLAUDE.md records 123 scope bypasses
+    // that were never individually audited and five isolation defects already
+    // found. The mechanism is genuinely good — it fails closed — and saying so
+    // is both true and more persuasive than an absolute nobody can stand
+    // behind.
+    expect(
+      screen.queryByText(/No cross-tenant access is possible/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/fails closed/i)).toBeInTheDocument();
+  });
+
   it("states no figure it cannot substantiate", () => {
     withQuery(<LandingContent />);
 
