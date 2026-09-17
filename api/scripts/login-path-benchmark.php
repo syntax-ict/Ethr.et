@@ -45,7 +45,7 @@ declare(strict_types=1);
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require __DIR__.'/../bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 use App\Models\Employee;
@@ -53,6 +53,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\AuthIdentifierResolver;
 use App\Services\CurrentTenant;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -231,7 +232,7 @@ foreach ($sizes as $n) {
     // EXPLAIN, captured once per size at the largest sample email.
     $sampleEmail = $seed['emails'][0];
     $explainCurrent = DB::select(
-        "EXPLAIN SELECT * FROM users WHERE tenant_id = ? AND LOWER(email) = ?",
+        'EXPLAIN SELECT * FROM users WHERE tenant_id = ? AND LOWER(email) = ?',
         [$tenantId, mb_strtolower($sampleEmail)]
     );
     $explainFixed = DB::select(
