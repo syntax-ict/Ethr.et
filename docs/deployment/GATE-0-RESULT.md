@@ -50,6 +50,11 @@ Master plan §8: *evidence before implementation.* `docs/HOSTING_VERIFICATION_CH
 
 `scripts/hosting-verification/ethr-hosting-check.php` prints `disable_functions`, database grants and the filesystem layout verbatim. It must not be web-reachable.
 
+> **On this account, route A is unavailable.** SSH is **Forbidden** (blocker B-1), so the
+> original instruction below cannot be followed. Three routes, in preference order:
+
+#### Route A — SSH *(blocked here)*
+
 1. Upload to the account's **home** directory `~/`, **not** `httpdocs/`.
 2. Run over SSH:
    ```bash
@@ -57,11 +62,50 @@ Master plan §8: *evidence before implementation.* `docs/HOSTING_VERIFICATION_CH
      --db-host=localhost --db-name=<db> --db-user=<user> --db-pass=<pass> \
      > ~/gate0-probe.txt
    ```
-   No shell? Plesk → **Scheduled Tasks** → run once as a PHP CLI task and read the output.
-   Over the web as a last resort only — a browser request puts the database password in the access log.
 3. Download `gate0-probe.txt`, then **delete both files from the server.**
 
-Answers: G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
+Answers everything: G0-E, G0-F, G0-H, G0-I, G0-J and the storage rows. **This is the route
+to restore** — *Hosting Settings → SSH access → `/bin/bash`* is one setting, and it clears
+B-1 and B-4 together.
+
+#### Route B — Scheduled Tasks *(depends on G0-D)*
+
+Plesk → **Scheduled Tasks** → run once as a PHP CLI task, reading the mailed or logged
+output. The probe's own header names this as the no-shell fallback. It answers everything
+Route A does — **but only if G0-D offers a command-type or PHP-script task.** If Scheduled
+Tasks is URL-fetch only, this route does not exist either. Read G0-D before relying on it.
+
+#### Route C — web-served, credential-free *(works today, answers most of it)*
+
+The last resort, and on this account it may be the only one. It is safe to take **provided
+no database credentials are passed**, because the probe skips the database section
+entirely when they are absent — it records `database checks · UNKNOWN · skipped` rather
+than erroring (verified in the script at the `$dbHost === null` branch).
+
+That matters because the reason this file called web-serving a last resort was *"a browser
+request puts the database password in the access log."* Pass no credentials and that
+hazard does not arise.
+
+1. Upload to `httpdocs/` under a **random filename** — `httpdocs/<random>.php`, not
+   `ethr-hosting-check.php`.
+2. Open `https://www.ethr.et/<random>.php` **with no query string at all.**
+3. Save the output.
+4. **Delete the file in the same sitting.** Non-negotiable: it still prints
+   `disable_functions` and the filesystem layout, which is why it normally lives in `~/`.
+   Random filename plus immediate deletion is what keeps the exposure window to minutes.
+
+| Route C answers | Route C defers |
+|---|---|
+| **G0-E** — PHP version, all 18 mandatory extensions, `memory_limit`, `max_execution_time` | **G0-F** — `CREATE TRIGGER` (`DB4`) |
+| **G0-H** — outbound 443, SMTP 587, 465 | **G0-I** — server version, `DB_CONNECTION`, version floor, charset (`DB1`, `DB1b`, `DB1c`, `DB10`) |
+| **G0-J, CPU half** — `Performance/P1`, `P2`, `P3` | **G0-J, database half** — `P4`, `P5`, `P6` |
+| Storage rows — `ST1`, `ST4`, `ST5` (`symlink()`), `ST6` | |
+
+So Route C closes G0-E, G0-H and the storage rows outright, and half of G0-J. **G0-F and
+G0-I stay open** — and G0-F is the one that aborts `migrate` by design, so it must be
+answered before any deployment, by Route A or B with credentials.
+
+Answers (all routes): G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
 ### Step 2 — the web-server canary (safe to be web-reachable)
 

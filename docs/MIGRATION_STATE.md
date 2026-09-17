@@ -391,7 +391,15 @@ default, which is a better starting point for G0-B than what preceded it.
 | **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton (2026-09-17 23:48) with its document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost; inverts the layout. Identify it in the panel before removing — deleting a vhost is not deleting a folder |
 | **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no non-shell equivalent anywhere in the package |
 
-**B-1 and B-4 are one support request** — *Hosting Settings → SSH access → `/bin/bash`* —
+**B-1 is partly routed around.** `deployment/GATE-0-RESULT.md` Step 1 now carries three
+probe routes. Route C — web-served under a random filename with **no database credentials**
+— works on this account today and closes **G0-E, G0-H, the storage rows and the CPU half of
+G0-J**. It is safe because the probe skips the database section entirely when credentials
+are absent, so the access-log hazard that made web-serving a last resort does not arise.
+**G0-F and G0-I stay blocked**, and G0-F is the one that aborts `migrate` by design, so it
+must be answered before any deployment.
+
+**B-1 and B-4 remain one support request** — *Hosting Settings → SSH access → `/bin/bash`* —
 and together they reframe G0-D. Without a shell, Scheduled Tasks is not merely how the
 scheduler runs: **it is the only route to migrate the database.** If G0-D returns "Fetch
 a URL only", this migration has no documented way to be performed. G0-D is now the
