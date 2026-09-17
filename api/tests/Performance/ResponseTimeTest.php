@@ -53,6 +53,33 @@ function timedRequest(callable $request, ?callable $beforeEach = null): array
     return [$best, $bestMs];
 }
 
+/**
+ * Assert the budget **and print what was actually measured**.
+ *
+ * `expect($ms)->toBeLessThan(500)` on its own answers "did it pass", which is
+ * all a regression guard strictly needs — but it throws the number away, so a
+ * route that quietly drifts from 20ms to 490ms stays green the whole way down
+ * and nobody sees it coming. BASELINE §13e recorded "no performance baseline
+ * exists" partly for that reason: the gate could pass without ever stating a
+ * figure anyone could compare against later.
+ *
+ * Written to STDERR so it survives Pest's output capture and shows up in the
+ * gate log next to the test it belongs to.
+ */
+function assertWithinBudget(float $ms, int $budgetMs, string $label): void
+{
+    fwrite(STDERR, sprintf(
+        '    %-46s %8.1f ms   (budget %d ms, %.0f%% used)
+',
+        $label,
+        $ms,
+        $budgetMs,
+        $ms / $budgetMs * 100,
+    ));
+
+    expect($ms)->toBeLessThan($budgetMs);
+}
+
 test('employee list handles 1000 rows with filtering and sorting under 500ms', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -64,7 +91,7 @@ test('employee list handles 1000 rows with filtering and sorting under 500ms', f
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(500);
+    assertWithinBudget($ms, 500, 'employee list, 1000 rows, filtered+sorted');
 });
 
 test('employee fulltext search responds under 100ms', function () {
@@ -79,7 +106,7 @@ test('employee fulltext search responds under 100ms', function () {
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(100);
+    assertWithinBudget($ms, 100, 'employee search (LIKE) over 1000 rows');
 });
 
 test('attendance list over 30 days responds under 300ms', function () {
@@ -103,7 +130,7 @@ test('attendance list over 30 days responds under 300ms', function () {
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(300);
+    assertWithinBudget($ms, 300, 'attendance list, 50 employees x 30 days');
 });
 
 test('executive dashboard overview responds under 200ms on a cache miss', function () {
@@ -118,7 +145,7 @@ test('executive dashboard overview responds under 200ms on a cache miss', functi
     );
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(200);
+    assertWithinBudget($ms, 200, 'executive dashboard, cache miss');
 });
 
 test('manager dashboard responds under 200ms', function () {
@@ -135,7 +162,7 @@ test('manager dashboard responds under 200ms', function () {
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(200);
+    assertWithinBudget($ms, 200, 'manager dashboard');
 });
 
 // Query layer is fast (~6 queries, <10ms DB time regardless of entry count —
@@ -165,7 +192,7 @@ test('payroll run detail with entries responds under 300ms', function () {
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(300);
+    assertWithinBudget($ms, 300, 'payroll run detail with entries');
 });
 
 test('leave balance calculation responds under 100ms', function () {
@@ -187,5 +214,5 @@ test('leave balance calculation responds under 100ms', function () {
     ));
 
     $response->assertOk();
-    expect($ms)->toBeLessThan(100);
+    assertWithinBudget($ms, 100, 'leave balance calculation');
 });

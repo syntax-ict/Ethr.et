@@ -809,9 +809,37 @@ This meant the MySQL search branch was not merely untested but **untestable** un
 
 Recorded because the property is general, not specific to search: **any future feature built on `MATCH … AGAINST` will appear broken under the test suite and work in production.** The schema now has no fulltext index at all — `emp_search` was the only one, and it was dropped on 2026-09-16 — so this is a warning for whoever adds the next one, not a description of anything present.
 
-### 13e. No performance baseline exists
+### 13e. No performance baseline existed — **first one recorded 2026-09-17**
 
-`api/tests/Performance/ResponseTimeTest.php` runs against SQLite and is excluded from the default sweep. The budgets at `docs/CLAUDE.md:850-862` were set against dedicated hardware. **No shared-hosting measurement exists — NOT VERIFIED.**
+`api/tests/Performance/ResponseTimeTest.php` runs against SQLite and is excluded from the default sweep. The budgets at `docs/CLAUDE.md:850-862` were set against dedicated hardware. **No shared-hosting measurement exists — NOT VERIFIED**, and that part is unchanged.
+
+> **Why there was no local baseline either, which turned out to be a gate defect rather than an oversight.**
+>
+> `./scripts/gates.sh performance` delegated **unconditionally** to `scripts/pest-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no container. So the scope was unrunnable on any machine without Docker — every CI runner, and any developer with native PHP and Docker stopped.
+>
+> That is the **identical defect** that left PHPStan unable to pass in CI for fifty runs (CI cause 3 in the root `CLAUDE.md`). `pest_gate` and `phpstan_gate` were both made native-first when that was found; this scope was missed, because it sits outside the blocking sweep and so nothing ever ran it. A gate nobody runs does not report its own breakage. It is now native-first with the container as fallback, the same shape as the other two.
+>
+> **The benchmark also threw its own measurements away.** Each case did `expect($ms)->toBeLessThan(500)` and nothing else — enough to answer "did it pass", but it meant a route could drift from 20ms to 490ms and stay green the whole way with nobody seeing it coming. `assertWithinBudget()` now prints the measured figure, the budget, and the percentage consumed, so the gate output *is* the baseline.
+>
+> **Measured, native PHP 8.2.12 on this machine, SQLite `:memory:`, best-of-3 per case** (the existing `timedRequest()` helper's own method — three runs, fastest kept, to filter GC and disk noise rather than to flatter the result):
+>
+> | Case | Measured | Budget | Used |
+> |---|---|---|---|
+> | employee list, 1000 rows, filtered+sorted | 14.8 ms | 500 ms | 3% |
+> | employee search (LIKE) over 1000 rows | 5.3 ms | 100 ms | 5% |
+> | attendance list, 50 employees × 30 days | 32.5 ms | 300 ms | 11% |
+> | executive dashboard, cache miss | 10.7 ms | 200 ms | 5% |
+> | manager dashboard | 2.6 ms | 200 ms | 1% |
+> | payroll run detail with entries | 39.6 ms | 300 ms | 13% |
+> | leave balance calculation | 3.8 ms | 100 ms | 4% |
+>
+> Two consecutive runs agreed within noise (worst case 37.2 → 39.6 ms).
+>
+> **What this is, and is not.** It is a regression baseline on *this* hardware against SQLite, which is what the file itself says it is for. It is **not** a production benchmark: production is MariaDB on a shared vCPU, and neither variable is represented here. What it does give is a scaling factor that was previously unavailable — the tightest case uses **13%** of its budget, so these routes would tolerate roughly a **7–8× slower** environment before any budget fires. Gate 0's P1 (`3M-iteration loop`, `GATE-0-RESULT.md`) measures exactly that ratio on the real host, which converts this table into a prediction rather than leaving it a local curiosity.
+>
+> The search figure also corroborates §13f independently: 5.3 ms over 1000 rows on the `LIKE` implementation that replaced the `MATCH…AGAINST` branch, consistent with the ~13 ms at 5,000 employees measured there.
+>
+> **The frontend half of the same question is §18**, measured the same day by a separate session via `./scripts/gates.sh lighthouse`. The two are complementary and neither substitutes for the other: this section is server response time under load, §18 is what a browser experiences on the public site. Both were absent until 2026-09-17, which is why §13e's original title claimed there was no baseline at all.
 
 ---
 
@@ -1086,10 +1114,11 @@ No application code changed. No architecture decisions taken. No dependencies ad
 
 ## 18. Public-site baseline — **measured 2026-09-17**
 
-§13e recorded that no performance baseline existed. It does now. These are the
-first `[verified]` numbers for the public site: a production build served by
-`next start`, measured by `./scripts/gates.sh lighthouse` — three runs per URL,
-medians below.
+§13e recorded that no performance baseline existed. Two now do, measured the
+same day from opposite ends of the stack and neither a substitute for the other:
+**§13e covers the backend** (API response times, Pest, SQLite), and **this
+section covers the public site** — a production build served by `next start`,
+measured by `./scripts/gates.sh lighthouse`, three runs per URL, medians below.
 
 | route | perf | a11y | best-pr. | SEO | FCP | LCP | TBT |
 |---|---|---|---|---|---|---|---|
