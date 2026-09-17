@@ -116,6 +116,45 @@ because it is verified to be possible today.
 `httpdocs/public/` and `httpdocs/et/` are pre-existing and unexplained — `et/` is empty.
 Both should be confirmed as disposable before the docroot is populated.
 
+### Re-observed 2026-09-17 — appended, not overwritten
+
+The listing above is a dated observation and stays as it is. The account looked different
+six weeks later, and the delta is the point:
+
+```
+~/                     home
+├── .composer/  .ssh/  .trash/
+├── bin/ dev/ etc/ lib/ lib64/ usr/ var/ tmp/   <- chroot skeleton (NEW)
+├── error_docs/  logs/
+├── git/                                        <- NEW
+├── production.ethr.et/                         <- NEW: a SECOND vhost, home level
+└── httpdocs/          <- DOCUMENT ROOT, re-confirmed
+    ├── .well-known/acme-challenge/   <- intact; this is what re-confirms the docroot
+    ├── cgi-bin/  css/  favicon.ico   <- Plesk defaults, stamped 2026-07-25
+    ├── backend/                      <- NEW 2026-09-05, since REMOVED
+    ├── dist/                         <- NEW, since REMOVED
+    └── ethr.et/                      <- NEW 2026-09-17 23:48, a Plesk vhost skeleton
+```
+
+Three things this settles or raises:
+
+- **The document root is still `httpdocs`.** Hosting Settings displays `Document root: /`,
+  which read literally would put the home directory in the web root and make W6 above
+  false. It does not: `.well-known/acme-challenge/` sits inside `httpdocs/`, an ACME
+  challenge can only be served from the document root, and the certificate is live. Plesk's
+  `/` is relative to the webspace root. **W6 stands.**
+- **`httpdocs/backend/` was not ETHR.** A stock Laravel + Breeze scaffold (`tailwind.config.js`,
+  `postcss.config.js`, `CHANGELOG.md`; no `lang/`, no `scripts/`, no `phpstan.neon`),
+  dated 2026-09-05, with no `.env` and no `vendor/` — no credential exposure, and unable
+  to run. Removed.
+- **`httpdocs/public/` and `httpdocs/et/` were removed without the confirmation this
+  section asked for.** `et/` was recorded empty here, so nothing is known to be lost;
+  `public/` was never inspected. Noted so the gap is visible rather than silent.
+
+**SSH is FORBIDDEN**, confirmed in Hosting Settings — the `/bin/false` caveat the shell
+row below warned about. See `deployment/GATE-0-RESULT.md` → *Account evidence*, blockers
+B-1 and B-4.
+
 ### ⚠️ Apex redirects to `www` — compatible, but note it
 
 Plesk 301-redirects `ethr.et` → `https://www.ethr.et/`. This is **safe for ETHR**:

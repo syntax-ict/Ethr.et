@@ -360,6 +360,54 @@ required it.
 
 ---
 
+## ACCOUNT EVIDENCE — 2026-09-17 (first real observations)
+
+Panel readings and a File Manager listing from the live Ethio Telecom account. Full
+record and gate-by-gate effect: `deployment/GATE-0-RESULT.md` → *Account evidence*. **No
+gate moved** — none of this is probe or canary output.
+
+**Resolved:** SSH/shell is **FORBIDDEN** (the `/bin/false` caveat this file's own gate
+report warned about is exactly what happened) · PHP **8.3.33**, satisfying `^8.2` ·
+Composer and Git both present as Plesk extensions · Imunify and a WAF are active, which
+may influence how G0-B.2 and G0-B.3 read.
+
+**Document root CONFIRMED `httpdocs`.** Hosting Settings displays `/`, which read
+literally would put the application in the web root; `.well-known/acme-challenge/` was
+observed inside `httpdocs/`, and ACME challenges can only be served from the document
+root. Plesk's `/` is relative to the webspace root. The `~/ethr` layout is intact.
+
+**The account was not untouched**, contrary to `GATE-0-RESULT.md`'s previous claim.
+`httpdocs/backend/` held a stock Laravel+Breeze scaffold — *not ETHR* — with no `.env`
+and no `vendor/`; it and `dist/`, `public/`, `et/` have been removed by the owner.
+`~/production.ethr.et/` is a **second vhost**. `httpdocs/` is now a pristine Plesk
+default, which is a better starting point for G0-B than what preceded it.
+
+### Blockers, recorded rather than resolved
+
+| # | Blocker | Effect |
+| --- | --- | --- |
+| **B-1** | SSH **Forbidden** | The capability probe has no shell route; its fallback (Scheduled Tasks) depends on **G0-D**, unverified |
+| **B-2** | No "Additional directives" fields on Apache & nginx Settings | G0-A untestable as written — strong evidence of FAIL, unconfirmed |
+| **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton (2026-09-17 23:48) with its document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost; inverts the layout. Identify it in the panel before removing — deleting a vhost is not deleting a folder |
+| **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no non-shell equivalent anywhere in the package |
+
+**B-1 and B-4 are one support request** — *Hosting Settings → SSH access → `/bin/bash`* —
+and together they reframe G0-D. Without a shell, Scheduled Tasks is not merely how the
+scheduler runs: **it is the only route to migrate the database.** If G0-D returns "Fetch
+a URL only", this migration has no documented way to be performed. G0-D is now the
+highest-value remaining panel read.
+
+### One capability found, worth keeping
+
+**Plesk Git's deployment path is relative to the webspace root, not to `httpdocs`.** So
+setting it to `ethr` deploys to `~/ethr/` — exactly the layout `DEPLOYMENT.md` §0
+specifies, outside the document root. That matters now that SSH is forbidden and step 3's
+`rsync` is unavailable: Git + Composer extensions are the remaining deployment route, and
+they can reach the correct target natively. Recorded here rather than in the runbook
+because `docs/deployment/shared-hosting/*` stays frozen and this is not step 4a.
+
+---
+
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
 
 **Nothing here is removed, and nothing here is scheduled for removal.** This is step 1 of

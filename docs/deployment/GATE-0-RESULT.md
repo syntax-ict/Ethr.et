@@ -26,7 +26,7 @@
 
 Master plan §8: *evidence before implementation.* `docs/HOSTING_VERIFICATION_CHECKLIST.md` carries roughly sixty rows, every one `NOT VERIFIED`, and states the rule this file follows — **"NOT VERIFIED is not a soft yes."**
 
-Nothing in this repository has ever touched the Ethio Telecom account. The probe has only been run against the local Docker stack. Until the table below has measured values, every downstream decision — static export or Node, `.htaccess` or nginx directives, which tier to buy — is a guess, and building on it risks a week of work on a fork that does not exist.
+~~Nothing in this repository has ever touched the Ethio Telecom account.~~ **Corrected 2026-09-17** — see *Account evidence* below. The probe has still never been run, and every row in the table below is still unmeasured; but the account is not untouched, and the document root was not empty. Until the table has measured values, every downstream decision — static export or Node, `.htaccess` or nginx directives, which tier to buy — is a guess, and building on it risks a week of work on a fork that does not exist.
 
 **Do not fill any row from documentation, vendor marketing, or inference. Only from output.**
 
@@ -131,13 +131,95 @@ Answers: G0-A, G0-C, G0-D, and the tier comparison.
 
 ---
 
+## Account evidence — 2026-09-17
+
+**The first observations ever taken from the real account.** Panel readings and a File
+Manager listing, reported by the owner. None of it is probe or canary output, so **no
+gate moves**; what it does is resolve rows the repository had left open, and surface four
+blockers.
+
+### Resolved
+
+| Item | Result | Previously |
+|---|---|---|
+| **SSH / shell access** | **FORBIDDEN** — Hosting Settings says so, and Dev Tools offers no Terminal | *"Strong evidence, unconfirmed — Plesk can still set the shell to `/bin/false`; confirm by logging in"* (the row below). The repository asked the right question and the answer is no. |
+| **PHP version** | **8.3.33** — satisfies Laravel 12's `^8.2` | NOT VERIFIED. Extensions and limits remain unmeasured; this closes the version row only. |
+| **Composer** | Present as a Plesk extension | inferred from `~/.composer` |
+| **Git** | Present as a Plesk extension | not recorded |
+| Imunify, Web Application Firewall | Present | not recorded — **may influence G0-B.2 and G0-B.3 readings**, since a WAF can add or strip headers independently of `.htaccess` |
+
+### Document root — CONFIRMED `httpdocs`
+
+Hosting Settings displays `Document root: /`, which read literally would mean the home
+directory is web-served and `~/ethr/api/.env` reachable over HTTP. **It does not.**
+`.well-known/acme-challenge/` was observed **inside** `httpdocs/`, and an ACME challenge
+can only be served from the document root. The certificate is live and renewing, so this
+is current evidence.
+
+Plesk's `/` is therefore **relative to the webspace root**. `B1-B5_GATE_REPORT.md:79`, W6,
+the `parent of docroot writable` row below and `DEPLOYMENT.md` §0 all stand unchanged.
+
+*This evidence is no longer re-observable in the same form — the document root was cleared
+later the same evening. The observation was made and recorded first, which is the only
+reason the conclusion survives.*
+
+### Apache & nginx Settings — three readings
+
+1. **Proxy mode is ON** — *"nginx proxies requests to Apache."* Apache is in the request
+   path, so `.htaccess` **is** processed. G0-B.1–B.4 are live questions rather than dead
+   ones, which is the more hopeful half of the `Server: nginx` warning at the top of this
+   file.
+2. **"Serve static files directly by nginx"** exists, carrying Plesk's own warning:
+   *"Requests for these files will be handled by nginx and never reach Apache. Caution:
+   Apache rewrite rules will not be applied."* That **is** G0-B.5. The panel answers it
+   without the canary — **its current value is still unread**.
+3. **Neither "Additional directives for HTTP/HTTPS" nor "Additional nginx directives"
+   appears**, on a page that otherwise renders every field with its Default/custom toggle.
+   In Plesk both are gated by a service-plan permission. **Strong evidence that G0-A =
+   FAIL. Not confirmed** — the reading came from a flattened page capture, and the bottom
+   of the page has not been read.
+
+### The account was not untouched
+
+- `httpdocs/backend/` held a **stock Laravel + Breeze scaffold, not ETHR** — it carries
+  `tailwind.config.js`, `postcss.config.js` and `CHANGELOG.md`, none of which exist in
+  `api/`, and lacks `lang/`, `scripts/`, `phpstan.neon`, `phpunit.mysql.xml` and
+  `Dockerfile.prod`, all of which `api/` has. Dated 2026-09-05, **no `.env`**, **no
+  `vendor/`** — so no credential exposure, and it could not run. Removed by the owner.
+- `httpdocs/dist/`, `httpdocs/public/` and `httpdocs/et/` also removed. The last two were
+  the ones `B1-B5_GATE_REPORT.md` flagged as *"pre-existing and unexplained… confirm as
+  disposable before the docroot is populated"*; that confirmation never happened. `et/`
+  was recorded empty.
+- `~/production.ethr.et/` is a **second vhost** at home level. `~/git/` exists. The home
+  directory carries a chroot skeleton (`bin`, `etc`, `lib`, `lib64`, `usr`, `var`).
+- `httpdocs/` is now essentially a pristine Plesk default — `.well-known/`, `cgi-bin/`,
+  `css/`, `favicon.ico`, all stamped 2026-07-25, the vhost provisioning date. That is a
+  **better** starting point for G0-B than what preceded it.
+
+### Blockers
+
+| # | Blocker | Effect |
+|---|---|---|
+| **B-1** | SSH **Forbidden** | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depends on **G0-D, unverified**. |
+| **B-2** | No directive fields on Apache & nginx Settings | G0-A cannot be run as written. See the amended consequence below. |
+| **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton created 2026-09-17 23:48, document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost carrying the certificate; inverts the `~/ethr` layout. Identify what was created in the panel before removing it — deleting a vhost is not deleting a folder. |
+| **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` (`DEPLOYMENT.md` step 4) have no non-shell equivalent defined anywhere in this package. |
+
+**B-1 and B-4 are one support request**, and it reframes G0-D. Without a shell, Scheduled
+Tasks is no longer just how the scheduler runs — **it is the only way to migrate the
+database at all.** If G0-D returns "Fetch a URL only", there is no documented route to
+perform this migration, and that is a hard blocker rather than the costed design change
+the rest of this package describes. **G0-D is now the highest-value panel read.**
+
+---
+
 ## Results
 
 Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, `canary G0-B.3`, `panel screenshot`.
 
 | # | Capability | Required | Actual | Status | Evidence |
 |---|---|---|---|---|---|
-| **G0-E** | PHP version | >= 8.2 | | NOT VERIFIED | probe **PHP/P1** |
+| **G0-E** | PHP version | >= 8.2 | **8.3.33** (2026-09-17) | **PANEL-READ** — satisfies `^8.2`; not probe output | panel |
 | G0-E | 18 mandatory extensions | **all 18 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
 | G0-E | `memory_limit` | >= 256M | | NOT VERIFIED | probe |
 | G0-E | `max_execution_time` | >= 120s | | NOT VERIFIED | probe |
@@ -145,8 +227,8 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-B.2** | `mod_headers` honoured | yes | | NOT VERIFIED | canary |
 | **G0-B.3** | `.htaccess` deny rules enforced | **403** | | NOT VERIFIED | canary |
 | **G0-B.4** | `Authorization` reaches PHP | yes | | NOT VERIFIED | canary |
-| **G0-B.5** | a real file shadows the rewrite | *record which* — no failing answer | | NOT VERIFIED | canary |
-| **G0-A** | reverse proxy for `/api/` | permitted | | NOT VERIFIED | panel |
+| **G0-B.5** | a real file shadows the rewrite | *record which* — no failing answer | *panel answers this directly — "Serve static files directly by nginx", value unread* | NOT VERIFIED | canary **or panel** |
+| **G0-A** | reverse proxy for `/api/` | permitted | neither directive textarea present on the settings page (2026-09-17) — **strong evidence of FAIL, unconfirmed** | NOT VERIFIED | panel |
 | **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29, re-confirmed 2026-09-17); panel accepts `*` per **owner report**, not a measurement; vhost not yet created | PARTIAL | B1-B5 + panel |
 | G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
 | **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
@@ -226,7 +308,8 @@ External probing on 2026-08-29 (`docs/B1-B5_GATE_REPORT.md`) closed these withou
 | MySQL not internet-exposed | **CONFIRMED** | Port 3306 refused — connections must use `DB_HOST=localhost` |
 | Let's Encrypt via HTTP-01 | **PROVEN on this account** | A valid per-hostname certificate is already live; `httpdocs/.well-known/` corroborates the challenge path |
 | Wildcard TLS | **BLOCKED, understood** | Needs DNS-01, and the zone is on `ns2.telecom.net.et`, not Plesk. Per-hostname issuance is the fallback — budget for Let's Encrypt's 50-certs-per-week ceiling |
-| Composer, SSH | **Strong evidence, unconfirmed** | `~/.composer` and `~/.ssh` exist; port 22 open. Plesk can still set the shell to `/bin/false` — confirm by logging in |
+| Composer | **CONFIRMED** | Present as a Plesk extension (2026-09-17) |
+| SSH / shell | **FORBIDDEN** | Hosting Settings, 2026-09-17. The `/bin/false` caveat this row warned about is what happened. Blockers B-1 and B-4. |
 
 ### What G0-B does and does not cover — clarified 2026-09-17
 
@@ -350,7 +433,7 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
 | **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §1, then verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
 | **G0-B.3** | Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §2 and do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
-| **G0-A** | Frontend goes cross-origin. ~1 day becomes ~2 weeks plus an auth-security review. |
+| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — a bounded change already scoped in §E and D6 (delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, `generateStaticParams` on four dynamic routes, `output: "export"`, marketing pages lose SSR). It also reduces **G0-G to build-only Node**. Cross-origin remains the cost only if Branch A is chosen anyway. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap. Settle before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. Unbuilt; must be costed. |
 | **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. **Less likely to fail than it looks — see below.** |
