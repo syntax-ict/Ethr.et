@@ -61,6 +61,12 @@ Advertising limits five times higher than the ones the product enforces is the k
 
 ## 2. Two things must be fixed before an admin price field exists
 
+> **Both are now fixed, on this branch.** Implementation notes and what was
+> deliberately left out are in §2c. The diagnosis below is kept as written
+> because it is what the fix was built against — except for 2b, where the
+> problem turned out to be larger than this section claimed, and the correction
+> is recorded inline rather than edited over.
+
 ### 2a. Editing a price would re-price every existing subscriber
 
 `BillingService.php:111-112` resolves the price live, at invoice time:
@@ -82,7 +88,67 @@ Plan change already exists and is well built: `POST /billing/change-plan` → `B
 
 But it requires `status === SubscriptionStatus::ACTIVE` (`BillingService.php:21`), and `AuthService.php:65-75` puts **every new tenant** on a `trial` subscription for six months. Every "Start Free Trial" button on the public site leads to a tenant who cannot then convert to paid through the product.
 
+**Correction, 2026-09-17 — this understated it.** Writing the fix meant grepping
+for every write to `subscriptions.status`, and there is exactly one:
+`AuthService` setting `'trial'`. **Nothing anywhere transitioned a subscription
+to `active`** — no job, no command, no listener, no controller. The only route
+into that status was `changePlan`, which refused anyone not already in it.
+
+That closes a loop with a consequence bigger than a blocked upgrade:
+`GenerateMonthlyInvoicesJob` bills `status = 'active'` only, so **no tenant
+could ever be invoiced for anything**. The billing pipeline — proration,
+invoice generation, the three dunning tiers, suspension at sixty days — was
+unreachable end to end, not merely unexercised.
+
+Why no test caught it: every billing test creates its subscription as `ACTIVE`
+itself, so each one verifies arithmetic on a state the application could not
+produce. `tests/Feature/Billing/TrialConversionTest.php` is the regression test
+for the state transition rather than the arithmetic.
+
 Also here: `proration_cents` is computed, returned, and never persisted as an invoice or credit; `ChangePlanRequest` validates only that `plan_public_id` is a string, so an inactive plan is accepted; and there is no admin-side plan change for a tenant at all.
+
+### 2c. What shipped, and what deliberately did not
+
+| | |
+|---|---|
+| `subscriptions.price_cents`, nullable, backfilled | `2026_09_17_000001_add_price_cents_to_subscriptions` |
+| Captured at sign-up and on every plan change | `AuthService`, `BillingService::changePlan` |
+| Invoices, proration and the billing dashboard read it | `Subscription::effectivePriceCents()` |
+| Trial converts to a paid, billable subscription | `BillingService::changePlan`, trial branch |
+| `plan_public_id` must exist; the plan must be `is_active` | `ChangePlanRequest`, `BillingController` |
+| A free plan issues no invoice, so dunning cannot suspend over 0.00 | `BillingService::generateMonthlyInvoice` |
+
+**A defect the fix itself opened, closed in the same change.** Once a
+subscription can reach `ACTIVE`, `generateMonthlyInvoice` can run — and Starter
+is a free plan. `HandleOverdueInvoicesJob` filters on invoice `status` and
+`due_date` and never looks at the amount, so a 0.00 invoice created as `sent`
+walks the whole ladder: reminder at seven days, subscription `past_due` at
+thirty, **tenant suspended at sixty**, for failing to pay nothing. It was
+unreachable before only because nothing could reach `ACTIVE`. The guard is one
+condition; finding it took reading the dunning job rather than the billing one,
+which is the general lesson — opening a path means re-reading everything
+downstream of it, not only the code being changed.
+
+**Nullable rather than NOT NULL.** A NOT NULL column defaulting to 0 turns a
+forgotten assignment into a zero invoice, and nobody reports a bill that is too
+small. Null means "never captured" and falls back to the plan — today's
+behaviour — rather than to nothing. The backfill leaves no null rows.
+
+**`currency` was dropped from the plan.** `plans` has no currency column; every
+price in the system is ETB by assumption. A `currency` on `subscriptions` could
+therefore only be populated from a hardcoded literal, which is inventing a fact
+to store — the thing this branch exists to stop. It belongs with the catalog
+columns in Phase 3, where an admin can actually set it.
+
+**Proration is still not persisted as an invoice or credit.** It is recorded in
+the audit log via `billing.plan_changed`, as before. Turning it into a document
+means creating money movement — a negative invoice or a credit note for
+downgrades — and there is no credit-note concept in the schema. That is a
+change that deserves its own review, not a rider on a billing-safety fix.
+
+**Unverified locally.** `composer install` cannot authenticate against
+github.com through this environment's proxy, so Pint, PHPStan and Pest did not
+run here. The two new test files and the migration are CI's to judge.
 
 ---
 
@@ -167,7 +233,7 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 |---|---|---|
 | 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
 | 1 | Correct the shipped documentation errors (below) | 0.5 |
-| **2** | **Billing safety: subscription price capture; trial→paid conversion; persist proration; validate `is_active`** | 2–3 |
+| ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
 | 3 | Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen | 3–4 |
 | 4 | Platform site content: extend `platform_settings`, public read endpoint, first cache | 2–3 |
 | 5 | Wire the marketing pages to the data — **the fabricated metrics and testimonial are deleted here by construction**, becoming data that starts empty | 2–3 |
