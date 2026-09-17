@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 export function MarketingHeader() {
@@ -15,6 +16,10 @@ export function MarketingHeader() {
   const mobileMenuId = useId();
   const [scrolled, setScrolled] = useState(false);
   const { t, locale } = useT();
+  // Keeps every nav link inside the language the reader is already in:
+  // the identity function off the locale-prefixed routes, so this same
+  // header still works unchanged wherever it is rendered.
+  const href = useLocaleHref();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -24,10 +29,10 @@ export function MarketingHeader() {
   }, []);
 
   const navLinks = [
-    { href: "/features", label: t("marketing.nav.product", "Product") },
-    { href: "/pricing", label: t("marketing.nav.pricing", "Pricing") },
-    { href: "/faq", label: t("marketing.nav.faq", "FAQ") },
-    { href: "/contact", label: t("marketing.nav.contact", "Contact") },
+    { href: href("/features"), label: t("marketing.nav.product", "Product") },
+    { href: href("/pricing"), label: t("marketing.nav.pricing", "Pricing") },
+    { href: href("/faq"), label: t("marketing.nav.faq", "FAQ") },
+    { href: href("/contact"), label: t("marketing.nav.contact", "Contact") },
   ];
 
   return (
@@ -40,7 +45,7 @@ export function MarketingHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href={href("/")} className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
             <span className="text-sm font-bold text-primary-foreground">E</span>
           </div>

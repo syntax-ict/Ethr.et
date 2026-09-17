@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
 
 const categories = [
   {
@@ -26,6 +27,7 @@ const categories = [
 
 export function FaqContent() {
   const { t } = useT();
+  const href = useLocaleHref();
 
   return (
     <div>
@@ -97,7 +99,7 @@ export function FaqContent() {
           </p>
           <div className="mt-8">
             <Button size="lg" asChild>
-              <Link href="/contact">
+              <Link href={href("/contact")}>
                 {t("marketing.faq_page.cta_button", "Contact us")}
               </Link>
             </Button>

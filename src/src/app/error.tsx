@@ -61,6 +61,16 @@ export default function GlobalError({
           {t("common.retry", "Try again")}
         </Button>
         <Button variant="outline" asChild>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages --
+              deliberate, for the reason in the docblock above: at this level
+              the router may be what failed, so a document load is the reliable
+              way out. The rule only started firing here when the public site
+              gained a top-level `[locale]` segment: it turns any bracketed
+              segment into a catch-all regex, so `/dashboard/` now looks to it
+              like a page this `[locale]` route serves. It is not — static
+              segments win, and `dynamicParams = false` 404s anything that is
+              not `am` or `en`. Confirmed against the build, which still
+              prerenders /dashboard from `(dashboard)/dashboard/page.tsx`. */}
           <a href="/dashboard">
             <Home className="mr-2 h-4 w-4" aria-hidden="true" />
             {t("error.go_dashboard", "Go to dashboard")}

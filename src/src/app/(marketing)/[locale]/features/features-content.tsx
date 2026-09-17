@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
 
 const attendanceFeatures = [
   { icon: Fingerprint, key: "biometric" },
@@ -49,6 +50,7 @@ const complianceItems = [
 
 export function FeaturesContent() {
   const { t } = useT();
+  const href = useLocaleHref();
 
   return (
     <div>
@@ -226,7 +228,7 @@ export function FeaturesContent() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-12 px-8" asChild>
-                <Link href="/contact">
+                <Link href={href("/contact")}>
                   {t("marketing.cta.talk_to_sales", "Talk to Sales")}
                 </Link>
               </Button>

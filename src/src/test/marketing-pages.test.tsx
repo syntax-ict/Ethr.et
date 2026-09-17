@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LandingContent } from "@/app/landing-content";
-import { PricingContent } from "@/app/(marketing)/pricing/pricing-content";
-import { FaqContent } from "@/app/(marketing)/faq/faq-content";
+import { LandingContent } from "@/app/(marketing)/[locale]/landing-content";
+import { PricingContent } from "@/app/(marketing)/[locale]/pricing/pricing-content";
+import { FaqContent } from "@/app/(marketing)/[locale]/faq/faq-content";
 
 // FAQ is still a pure presentational client component: it depends only on the
 // i18n layer (en is registered in the test setup) and next/link.

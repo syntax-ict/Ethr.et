@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
+import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 
 /**
  * The header and footer every public page carries.
@@ -15,15 +16,29 @@ import { MarketingFooter } from "@/components/layouts/marketing-footer";
  * landing page's invented metrics — something stated on a public page that
  * is not true — in control and link form.
  */
-function renderChrome(ui: React.ReactElement) {
+function renderChrome(ui: React.ReactElement, locale?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  const tree = locale ? (
+    <RouteLocaleProvider locale={locale}>{ui}</RouteLocaleProvider>
+  ) : (
+    ui
+  );
+
   return render(
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>{ui}</TooltipProvider>
+      <TooltipProvider>{tree}</TooltipProvider>
     </QueryClientProvider>,
   );
+}
+
+/** Every in-site link the chrome renders, by href. */
+function hrefs() {
+  return screen
+    .getAllByRole("link")
+    .map((a) => a.getAttribute("href") ?? "")
+    .filter((href) => href.startsWith("/"));
 }
 
 describe("Marketing header", () => {
@@ -97,5 +112,66 @@ describe("Marketing footer", () => {
     // defect one layer prettier.
     expect(screen.queryByText("LinkedIn")).not.toBeInTheDocument();
     expect(screen.queryByText("Facebook")).not.toBeInTheDocument();
+  });
+});
+
+describe("Marketing chrome inside a locale-prefixed route", () => {
+  it("keeps every nav link in the language the reader is already in", () => {
+    renderChrome(<MarketingHeader />, "en");
+
+    // An unprefixed /pricing would send an English reader to the negotiating
+    // redirector, which resolves from a cookie they may never have set — so a
+    // single click could silently change the language.
+    expect(hrefs()).toEqual(
+      expect.arrayContaining([
+        "/en",
+        "/en/features",
+        "/en/pricing",
+        "/en/faq",
+        "/en/contact",
+      ]),
+    );
+  });
+
+  it("leaves the auth links unprefixed", () => {
+    renderChrome(<MarketingHeader />, "am");
+
+    // /login and /register are not locale-prefixed routes; prefixing them would
+    // produce a 404 at the exact moment of conversion.
+    const links = hrefs();
+    expect(links).toContain("/login");
+    expect(links).toContain("/register");
+    expect(links).not.toContain("/am/login");
+  });
+
+  it("prefixes the footer's product and legal columns too", () => {
+    renderChrome(<MarketingFooter />, "am");
+
+    expect(hrefs()).toEqual(
+      expect.arrayContaining([
+        "/am",
+        "/am/features",
+        "/am/pricing",
+        "/am/privacy",
+        "/am/terms",
+      ]),
+    );
+  });
+
+  it("labels the footer's first product link Features, not Product", () => {
+    renderChrome(<MarketingFooter />, "en");
+
+    // It shared `marketing.nav.product` with the header, whose en.json value is
+    // "Product" — so the link sat directly under a heading of the same name,
+    // and the fallback string hid it until the dictionary loaded.
+    const products = screen.getAllByRole("link", { name: "Features" });
+    expect(products[0]).toHaveAttribute("href", "/en/features");
+  });
+
+  it("leaves links alone outside the locale-prefixed tree", () => {
+    // The same header renders on hosts and routes that have no language in the
+    // URL; there the redirector is the right destination.
+    renderChrome(<MarketingHeader />);
+    expect(hrefs()).toEqual(expect.arrayContaining(["/", "/pricing"]));
   });
 });

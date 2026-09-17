@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import { DEFAULT_LOCALE, setLocale } from "@/lib/i18n/translations";
+import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -55,6 +56,22 @@ describe("document language", () => {
     expect(document.documentElement.lang).toBe("en");
 
     setLocale("am");
+
+    expect(document.documentElement.lang).toBe("am");
+  });
+
+  it("lets the URL's locale win over the stored preference", () => {
+    localStorage.setItem("locale", "en");
+
+    // /am/pricing is prerendered in Amharic with lang="am". If the stored
+    // preference still won after hydration, the attribute would flip to "en"
+    // on a page whose visible text is Amharic — which is the original defect,
+    // reintroduced by the fix for it.
+    render(
+      <RouteLocaleProvider locale="am">
+        <Probe />
+      </RouteLocaleProvider>,
+    );
 
     expect(document.documentElement.lang).toBe("am");
   });

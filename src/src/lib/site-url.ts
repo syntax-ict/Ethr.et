@@ -1,3 +1,5 @@
+import { AVAILABLE_LOCALES, localeHref } from "@/lib/i18n/config";
+
 /**
  * The canonical origin the public site is served from.
  *
@@ -31,3 +33,32 @@ export const PUBLIC_ROUTES = [
   "/privacy",
   "/terms",
 ] as const;
+
+/**
+ * `canonical` plus the `hreflang` set for one public page, in one locale.
+ *
+ * Every public page now exists twice — `/am/pricing` and `/en/pricing` — and
+ * two URLs carrying the same content is precisely what a search engine treats
+ * as duplication unless they declare each other. `languages` emits the
+ * `<link rel="alternate" hreflang>` pair, and `x-default` points at the
+ * unprefixed URL, which is the redirector that negotiates per visitor. That is
+ * exactly what `x-default` is specified for: the page to send a reader to when
+ * none of the listed languages is a better match than the site's own choice.
+ *
+ * Paths are relative; Next resolves them against `metadataBase`.
+ *
+ * `locale` is `null` for the unprefixed redirectors, whose canonical is
+ * themselves — they are the x-default, so pointing their canonical at one of
+ * the two languages would tell a crawler that `/` *is* the Amharic page.
+ */
+export function alternatesFor(path: string, locale: string | null) {
+  return {
+    canonical: locale ? localeHref(locale, path) : path,
+    languages: {
+      ...Object.fromEntries(
+        AVAILABLE_LOCALES.map((code) => [code, localeHref(code, path)]),
+      ),
+      "x-default": path,
+    },
+  };
+}

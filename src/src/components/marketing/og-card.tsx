@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { OG_IMAGE_SIZE } from "./og-meta";
+
 /**
  * The card every shared ethr.et link renders as.
  *
@@ -21,12 +23,13 @@ import { ImageResponse } from "next/og";
  *  - No metrics, no customer count. The same rule as the landing page: this is
  *    generated at build time and cannot read the database, and inventing a
  *    figure here would put back exactly what this branch removed.
+ *
+ * Served from `app/og.png/route.tsx` at a fixed URL rather than through Next's
+ * `opengraph-image.tsx` file convention — see `og-meta.ts` for the measurement
+ * that forced that, which is that the file convention silently dropped the image
+ * from every page that declares its own `openGraph`, and all of them do.
  */
-export const alt = "ETHR — Ethiopian Workforce Operating System";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
-
-export default async function Image() {
+export async function renderOgCard() {
   return new ImageResponse(
     <div
       style={{
@@ -102,6 +105,6 @@ export default async function Image() {
         Attendance · Payroll · Leave — works offline
       </div>
     </div>,
-    size,
+    OG_IMAGE_SIZE,
   );
 }

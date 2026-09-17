@@ -25,6 +25,7 @@ import { ProductFlow } from "@/components/marketing/product-flow";
 import { MarketingHeader } from "@/components/layouts/marketing-header";
 import { MarketingFooter } from "@/components/layouts/marketing-footer";
 import { useT } from "@/lib/i18n/useT";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { useSiteContent } from "@/features/marketing/api";
 
 const featureIcons = [
@@ -57,6 +58,7 @@ const industryData = [
 
 export function LandingContent() {
   const { t } = useT();
+  const href = useLocaleHref();
 
   // Headline figures come from platform_settings and start empty. Every one of
   // them is a claim, and the page must be able to make none.
@@ -83,7 +85,7 @@ export function LandingContent() {
           value: new Intl.NumberFormat("en-ET").format(site.metric_employees),
           label: t(
             "marketing.social_proof.employees_managed",
-            "Employees managed",
+            "Employees Managed",
           ),
         }
       : null,
@@ -156,7 +158,7 @@ export function LandingContent() {
                   className="h-12 px-8 text-base"
                   asChild
                 >
-                  <Link href="/features">
+                  <Link href={href("/features")}>
                     {t("marketing.hero.learn_more", "Learn More")}
                   </Link>
                 </Button>
@@ -450,7 +452,7 @@ export function LandingContent() {
                 className="h-12 border-primary-foreground/20 bg-transparent px-8 text-base text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                 asChild
               >
-                <Link href="/contact">
+                <Link href={href("/contact")}>
                   {t("marketing.cta.talk_to_sales", "Talk to Sales")}
                 </Link>
               </Button>

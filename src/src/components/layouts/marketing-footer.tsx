@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
 
 export function MarketingFooter() {
   const { t, locale } = useT();
+  const href = useLocaleHref();
   const site = useSiteContent();
 
   // The name falls back to the literal that was hardcoded here, so an operator
@@ -35,18 +37,34 @@ export function MarketingFooter() {
       titleKey: "marketing.footer.product",
       fallback: "Product",
       links: [
-        { label: t("marketing.nav.product", "Features"), href: "/features" },
-        { label: t("marketing.nav.pricing", "Pricing"), href: "/pricing" },
-        { label: t("marketing.nav.faq", "FAQ"), href: "/faq" },
-        { label: t("marketing.nav.contact", "Contact"), href: "/contact" },
+        /* `marketing.nav.features`, not `marketing.nav.product`: that key
+           reads "Product" in en.json, which put a link labelled "Product"
+           directly under a heading of the same name. The fallback here said
+           "Features" and hid it until the dictionary loaded. */
+        {
+          label: t("marketing.nav.features", "Features"),
+          href: href("/features"),
+        },
+        {
+          label: t("marketing.nav.pricing", "Pricing"),
+          href: href("/pricing"),
+        },
+        { label: t("marketing.nav.faq", "FAQ"), href: href("/faq") },
+        {
+          label: t("marketing.nav.contact", "Contact"),
+          href: href("/contact"),
+        },
       ],
     },
     {
       titleKey: "marketing.footer.legal",
       fallback: "Legal",
       links: [
-        { label: t("marketing.footer.privacy", "Privacy"), href: "/privacy" },
-        { label: t("marketing.footer.terms", "Terms"), href: "/terms" },
+        {
+          label: t("marketing.footer.privacy", "Privacy"),
+          href: href("/privacy"),
+        },
+        { label: t("marketing.footer.terms", "Terms"), href: href("/terms") },
       ],
     },
   ];
@@ -64,7 +82,7 @@ export function MarketingFooter() {
                 set them. The E-in-a-box is the fallback, not the default — it
                 was duplicated verbatim here and in the header, so a rebrand
                 meant finding both. */}
-            <Link href="/" className="inline-flex items-center gap-2.5">
+            <Link href={href("/")} className="inline-flex items-center gap-2.5">
               {site.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- the URL
                 // is operator-supplied and arbitrary, so it cannot be in
