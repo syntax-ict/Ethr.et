@@ -232,7 +232,7 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | Phase | Work | Days |
 |---|---|---|
 | 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
-| ~~**1**~~ | ~~Correct the shipped documentation errors~~ — **done by recording, §6**. The nine errors are listed there rather than edited into `LANDING_PAGE_PRODUCTION_PLAN.md`, per this repo's convention; that document carries a banner naming the load-bearing one (F10) and pointing here. Its inline figures — "470 lines", "20 icons", "five of thirteen footer links" — are therefore still the original wrong ones, deliberately | 0.5 |
+| ~~**1**~~ | ~~Correct the shipped documentation errors~~ — **done, §6 and in place**. The nine are listed in §6, and the three figures a reader met inline are now corrected in `LANDING_PAGE_PRODUCTION_PLAN.md` itself (413 lines, 18 icons, five of **ten** footer links — each recounted at this branch's base, each showing what it said before). F10 is struck through and marked false, with the original text kept beneath it | 0.5 |
 | ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
 | ~~**3**~~ | ~~Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen~~ — **done, §8** | 3–4 |
 | ~~**4**~~ | ~~Platform site content: extend `platform_settings`, public read endpoint, first cache~~ — **done, §8** | 2–3 |
@@ -240,11 +240,11 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
 | 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB | 3–4 |
-| 9 | **Two of three left.** The Amharic render assertion is done — `document-lang.test.tsx` and `locale-routes.test.tsx` both render in `am` and assert Amharic text. Still open: the anonymous-visitor e2e path, and a `lighthouse` scope in `gates.sh` (there is a `performance` scope at :431 to copy the shape from; there is no `lighthouse` one) | 1–2 |
+| ~~**9**~~ | ~~Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope~~ — **done, §11** | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
 
-**Remaining: Phase 8's performance work, and two of Phase 9's three items.** Phase 0's Lighthouse measurement and the B5 hosting
+**Remaining: Phase 8's performance work, and nothing else.** Phase 0's Lighthouse measurement and the B5 hosting
 answer are still owner actions — a Plesk panel lookup cannot be done from here.
 First Load JS *has* now been measured: 427 KB gzipped of client JS on the
 landing page, of which Sentry is 87 KB (measured by building with
@@ -479,3 +479,51 @@ rewrite of `lib/legal/documents.ts`.
 one merges, off the updated default branch. The current branch is large and
 carries three distinct changes already; a second refactor on top would make it
 unreviewable.
+
+
+---
+
+## 11. What phase 9 shipped, and one thing it found
+
+**An anonymous-visitor path.** `e2e/marketing.spec.ts` walks all seven public
+pages in both languages with no cookies, no localStorage and no session —
+asserting the route resolves, `<html lang>` matches the URL *after hydration*,
+there is exactly one header/footer/`<main>`, every in-site link resolves rather
+than 404s, `/` negotiates into a language, the switcher changes the URL rather
+than rewriting the page, and none of the five deleted claims has returned.
+
+That state was the gap. `ux-audit.spec.ts` did visit these pages — which is why
+F10 was withdrawn as false — but as a **logged-in admin** with the locale pinned
+to `en`. A public page that broke without an auth token, or rendered the wrong
+language for a first-time visitor, would have passed everything.
+
+**An Amharic render assertion**, already in place: `document-lang.test.tsx` and
+`locale-routes.test.tsx` both render in `am` and assert Amharic text. That is the
+regression test for the defect this whole branch started from.
+
+**A `lighthouse` scope in `gates.sh`**, opt-in and never part of `all`, for the
+same reason as `mysql`: it needs a built app on a running server. It refuses
+rather than skips when nothing is serving — verified by running it with no
+server, which exits 1 and prints how to start one. A Lighthouse run that
+silently measures nothing is worse than no run, because the report still renders
+and still looks like evidence.
+
+**And it found one.** `.lighthouserc.cjs` was still collecting `${BASE}/`,
+`/pricing`, `/features` and `/contact` — the unprefixed URLs, which phase 7
+turned into redirectors that render an empty div. Lighthouse has no stored
+locale, so it would have scored blank pages and reported them as passing. That
+is the identical failure the file's own header already describes for
+`/dashboard`: measuring something real-looking that is not the thing under test,
+and passing comfortably while the real number went unmeasured. The list is now
+locale-prefixed, and includes `/am` as well as `/en` because Amharic is the
+default language and the one that pulls the 198 KB Ethiopic font.
+
+### A note on CI, fixed alongside
+
+`gates.yml` triggered on `push: branches: ["**"]` *and* `pull_request`, so every
+push to a branch with an open PR ran all five jobs twice. The `concurrency` group
+did not dedupe them: `github.ref` is `refs/heads/<branch>` for one event and
+`refs/pull/<n>/merge` for the other, so the groups never collided and
+`cancel-in-progress` never fired. Ten jobs per push, the MySQL suite at ~5
+minutes each, and two failure notifications for every real failure. `push` is now
+the default branch only.

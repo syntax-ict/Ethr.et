@@ -19,7 +19,7 @@ That distinction is the whole point of [`audit/BASELINE.md`](audit/BASELINE.md),
 | | |
 |---|---|
 | `src/src/app/page.tsx` | 17 lines. Server component: exports `metadata`, renders `<LandingContent />` |
-| `src/src/app/landing-content.tsx` | 470 lines, `"use client"`. Eight sections: hero, social proof, features, how-it-works, industries, trust, testimonial, CTA |
+| `src/src/app/landing-content.tsx` | **413** lines (this table said 470 — counted, corrected 2026-09-17), `"use client"`. Eight sections: hero, social proof, features, how-it-works, industries, trust, testimonial, CTA |
 | `src/src/app/(marketing)/` | `features`, `pricing`, `faq`, `contact` — each a thin server `page.tsx` plus a `"use client"` content component (109–257 lines) |
 | `src/src/components/layouts/marketing-header.tsx` | 214 lines. Sticky header, nav, language switcher, mobile menu |
 | `src/src/components/layouts/marketing-footer.tsx` | 120 lines. Three link columns, brand column, Tibeb pattern strip |
@@ -88,9 +88,11 @@ These are not a content-polish item. They are the kind of thing that is cheap to
 
 The site collects name, email, phone and organization through the contact form and offers self-serve registration at `/register`. It also makes an explicit data-protection compliance claim in the trust section. A privacy policy is the document that claim points at, and right now it points at the current page.
 
-#### F5. Five of thirteen footer links are inert
+#### F5. Five of ten footer links are inert
 
 `marketing-footer.tsx:24-26, 33-34` — About, Blog, Careers, Privacy, Terms are all `href="#"`. Clicking any of them does nothing visible, which reads as a broken site rather than an unfinished one.
+
+> **Correction, 2026-09-17.** The heading said *five of thirteen*. There are **ten** anchors in that file — nine link entries plus the logo — and five are inert. Counted at this branch's base, not estimated. The finding itself stands and is fixed: the Company column was deleted and Privacy and Terms now point at real pages.
 
 ---
 
@@ -110,7 +112,7 @@ No JSON-LD anywhere. The obvious candidates are `Organization` on the landing pa
 
 #### F8. The entire landing page ships as client JavaScript
 
-`landing-content.tsx:1` is `"use client"`, and it imports 20 icons from `lucide-react`. Every one of the eight sections is static markup — no state, no effects, no handlers. The only genuinely interactive things on the page are the header's language dropdown and mobile menu.
+`landing-content.tsx:1` is `"use client"`, and it imports **18** icons from `lucide-react` (this said 20 — counted, corrected 2026-09-17). Every one of the eight sections is static markup — no state, no effects, no handlers. The only genuinely interactive things on the page are the header's language dropdown and mobile menu.
 
 The fix is structural rather than clever: make the sections server components, keep `MarketingHeader` as the client island. The same applies to `features-content.tsx` and the non-form parts of the other three pages.
 
@@ -120,9 +122,13 @@ Nothing in `src/src` reports page views. (`grep` hits for "analytics" are the au
 
 Constraint worth stating before a vendor is chosen: the trust section claims *"No data leaves the country."* A third-party analytics script contradicts that claim on the very page that makes it. Self-hosted and cookieless — Plausible CE or Umami — keeps the two consistent and avoids needing a cookie banner.
 
-#### F10. The public site has no end-to-end coverage at all
+#### ~~F10. The public site has no end-to-end coverage at all~~ — **FALSE, withdrawn**
 
-Thirteen Playwright specs. Not one visits `/`, `/pricing`, `/faq` or `/contact` — `accessibility.spec.ts` covers `/login` and twelve authenticated routes, and stops there. The most-visited page in the product is the least tested.
+> **This finding was wrong, and it is the most consequential error in this document.** `e2e/ux-audit.spec.ts:78-87` already visited `/`, `/pricing`, `/features`, `/faq` and `/contact`, nine times each, axe-scanned at WCAG 2.1 AA. It was written and then not checked against the file it was about.
+>
+> The real gap was narrower and is now closed: that coverage ran only as a **logged-in admin**, only with the locale pinned to `en`, and only when `UX_PHASE` allowed. `e2e/marketing.spec.ts` now walks the public site as an anonymous visitor in both languages.
+
+The original text, kept so the correction is legible: *"Thirteen Playwright specs. Not one visits `/`, `/pricing`, `/faq` or `/contact` — `accessibility.spec.ts` covers `/login` and twelve authenticated routes, and stops there. The most-visited page in the product is the least tested."*
 
 #### F11. Amharic renders in a fallback font
 

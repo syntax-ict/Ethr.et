@@ -24,13 +24,24 @@ const BASE = process.env.LHCI_BASE_URL || "http://demo.localhost:3000";
 module.exports = {
   ci: {
     collect: {
+      // Locale-prefixed, because the unprefixed URLs stopped holding content.
+      // `/pricing` and friends are now redirectors that render an empty div and
+      // negotiate a language — Lighthouse has no stored preference, so it would
+      // have scored three blank pages and reported them as passing. That is the
+      // same failure this file's own header describes for /dashboard: measuring
+      // something real-looking that is not the thing under test.
+      //
+      // `/am` as well as `/en`: Amharic is the default language, and it is the
+      // one that pulls the 198 KB Ethiopic font, so scoring only English would
+      // miss the heavier of the two renders.
       url: [
-        `${BASE}/`,
+        `${BASE}/en`,
+        `${BASE}/am`,
+        `${BASE}/en/pricing`,
+        `${BASE}/en/features`,
+        `${BASE}/en/contact`,
         `${BASE}/login`,
         `${BASE}/register`,
-        `${BASE}/pricing`,
-        `${BASE}/features`,
-        `${BASE}/contact`,
       ],
       numberOfRuns: 3,
       settings: {
