@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Resources\PlanResource;
+use App\Models\Plan;
 use Database\Seeders\PlanSeeder;
 
 /**
@@ -75,7 +77,7 @@ it('describes the same catalog PlanSeeder writes', function () {
         'is_popular', 'sort_order',
     ];
 
-    $fromDatabase = \App\Models\Plan::where('is_active', true)
+    $fromDatabase = Plan::where('is_active', true)
         ->where('is_public', true)
         ->orderBy('sort_order')
         ->get()
@@ -114,7 +116,7 @@ it('carries every field the public endpoint publishes', function () {
     // factory needs fakerphp, which is a dev dependency this assertion has no
     // reason to depend on.
     $published = array_keys(
-        (new App\Http\Resources\PlanResource(new App\Models\Plan))->toArray(request())
+        (new PlanResource(new Plan))->toArray(request())
     );
 
     foreach ($snapshot['data'] as $row) {
