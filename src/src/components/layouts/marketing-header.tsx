@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,10 @@ import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 export function MarketingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // aria-controls needs a stable id that is unique per render tree, which is
+  // what useId is for — a hardcoded string would collide if the header were
+  // ever rendered twice on a page.
+  const mobileMenuId = useId();
   const [scrolled, setScrolled] = useState(false);
   const { t, locale } = useT();
 
@@ -87,13 +91,25 @@ export function MarketingHeader() {
           </Button>
         </div>
 
-        {/* Mobile toggle */}
+        {/* Mobile toggle.
+
+            aria-expanded and aria-controls were both missing, so a screen
+            reader announced a button that gave no indication it opened
+            anything and no way to know whether it already had — the icon
+            swapping between Menu and X is a purely visual signal. The label
+            also said "Open menu" while the panel was open. */}
         <Button
           variant="ghost"
           size="icon"
           className="md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={t("nav.open_menu", "Open menu")}
+          aria-expanded={mobileOpen}
+          aria-controls={mobileMenuId}
+          aria-label={
+            mobileOpen
+              ? t("nav.close_menu", "Close menu")
+              : t("nav.open_menu", "Open menu")
+          }
         >
           {mobileOpen ? (
             <X className="h-5 w-5" />
@@ -105,7 +121,7 @@ export function MarketingHeader() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="border-t bg-background md:hidden">
+        <div id={mobileMenuId} className="border-t bg-background md:hidden">
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
             {navLinks.map((link) => (
               <Link

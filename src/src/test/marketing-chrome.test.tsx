@@ -52,6 +52,26 @@ describe("Marketing header", () => {
     );
     expect(enabled).toHaveLength(2);
   });
+
+  it("tells assistive technology whether the mobile menu is open", async () => {
+    renderChrome(<MarketingHeader />);
+
+    // Both aria-expanded and aria-controls were missing, so the button
+    // announced nothing about the panel it owns and gave no way to know it was
+    // already open — the Menu/X icon swap is a purely visual signal. The label
+    // also read "Open menu" while the menu was open.
+    const toggle = screen.getByRole("button", { name: /open menu/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls");
+
+    await userEvent.click(toggle);
+
+    const opened = screen.getByRole("button", { name: /close menu/i });
+    expect(opened).toHaveAttribute("aria-expanded", "true");
+    expect(
+      document.getElementById(opened.getAttribute("aria-controls") ?? ""),
+    ).not.toBeNull();
+  });
 });
 
 describe("Marketing footer", () => {
