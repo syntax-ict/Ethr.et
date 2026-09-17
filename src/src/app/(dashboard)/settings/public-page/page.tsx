@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Loader2, Save, Upload, ExternalLink } from "lucide-react";
+import {
+  Eye,
+  Globe,
+  LayoutTemplate,
+  Loader2,
+  Save,
+  Upload,
+  ExternalLink,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,6 +24,8 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { SettingRow } from "@/components/patterns/SettingRow";
 import { RoleGate } from "@/components/shared/role-gate";
 import { useT } from "@/lib/i18n/useT";
+
+import { SectionsManager } from "./sections-manager";
 
 /**
  * The tenant's public landing page settings.
@@ -55,11 +65,26 @@ interface PublicPage {
   has_hero_image: boolean;
   has_public_logo: boolean;
   published_at: string | null;
+  /** null means the classic layout — a real choice, not a missing value. */
+  preset: string | null;
+  /** What this organisation would get if it never chose. */
+  preset_default: string;
+  /** Presets this tenant may select. `government` is absent unless the
+   *  platform has verified them, so the UI never offers a choice the API
+   *  will refuse. */
+  available_presets: string[];
+  is_suspended: boolean;
 }
 
 type Draft = Omit<
   PublicPage,
-  "url" | "has_hero_image" | "has_public_logo" | "published_at"
+  | "url"
+  | "has_hero_image"
+  | "has_public_logo"
+  | "published_at"
+  | "preset_default"
+  | "available_presets"
+  | "is_suspended"
 >;
 
 function toDraft(page: PublicPage): Draft {
@@ -76,7 +101,43 @@ function toDraft(page: PublicPage): Draft {
     website_url: page.website_url ?? "",
     social_links: page.social_links ?? {},
     meta_description: page.meta_description ?? "",
+    preset: page.preset,
   };
+}
+
+/**
+ * The label for a preset.
+ *
+ * A literal switch rather than an interpolated key, and deliberately so: the
+ * i18n coverage gate only sees string-literal keys, so `t(`…${preset}`)` would
+ * compile, render, and go unchecked in both locales for ever. The same reason
+ * organization-card.tsx spells its organisation types out one by one.
+ */
+function presetLabel(
+  t: (key: string, fallback?: string) => string,
+  preset: string,
+): string {
+  switch (preset) {
+    case "government":
+      return t("settings.public_page.preset_government", "Government office");
+    case "university":
+      return t(
+        "settings.public_page.preset_university",
+        "University or school",
+      );
+    case "hospital":
+      return t("settings.public_page.preset_hospital", "Hospital or clinic");
+    case "ngo":
+      return t("settings.public_page.preset_ngo", "NGO");
+    case "bank":
+      return t("settings.public_page.preset_bank", "Bank or finance");
+    case "manufacturing":
+      return t("settings.public_page.preset_manufacturing", "Manufacturing");
+    case "hotel":
+      return t("settings.public_page.preset_hotel", "Hotel or hospitality");
+    default:
+      return t("settings.public_page.preset_general", "General business");
+  }
 }
 
 export default function PublicPageSettings() {
@@ -106,7 +167,7 @@ export default function PublicPageSettings() {
           */}
           {(page) => (
             <PublicPageForm
-              key={`${page.is_published}:${page.has_public_logo}:${page.has_hero_image}`}
+              key={`${page.is_published}:${page.has_public_logo}:${page.has_hero_image}:${page.preset}`}
               page={page}
               t={t}
             />
@@ -131,6 +192,30 @@ function PublicPageForm({
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => toDraft(page));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
+
+  /**
+   * Ask the API for a short-lived preview URL and open it.
+   *
+   * Minted server-side rather than built here: the signature is what
+   * authorises the page, and a URL the browser could assemble would not be a
+   * signature at all.
+   */
+  const preview = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<{ url: string }>(
+        "/settings/public-page/preview-url",
+      );
+      return data.url;
+    },
+    onSuccess: (url) => {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    onError: () => {
+      toast.error(
+        t("settings.public_page.preview_failed", "Could not open the preview."),
+      );
+    },
+  });
 
   const save = useMutation({
     mutationFn: async (changes: Partial<Draft>) => {
@@ -184,6 +269,111 @@ function PublicPageForm({
 
   return (
     <>
+      {/*
+        The layout card.
+
+        Separate from the content cards because choosing a layout is a
+        different kind of decision from writing copy: it changes what sections
+        the page has, and switching adds the new layout's blocks. Those arrive
+        hidden, so nothing appears publicly until someone reveals it.
+      */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutTemplate className="h-4 w-4" />
+            {t("settings.public_page.layout", "Layout")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FormField
+            id="public-page-preset"
+            label={t("settings.public_page.preset", "Page layout")}
+            hint={t(
+              "settings.public_page.preset_hint",
+              "Choose the layout that suits your organization. Switching adds the sections that layout needs, hidden until you fill them in.",
+            )}
+            error={field("preset")}
+          >
+            <select
+              id="public-page-preset"
+              className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+              value={draft.preset ?? ""}
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  preset: e.target.value === "" ? null : e.target.value,
+                }))
+              }
+            >
+              <option value="">
+                {t("settings.public_page.preset_classic", "Simple (current)")}
+              </option>
+              {page.available_presets.map((preset) => (
+                <option key={preset} value={preset}>
+                  {presetLabel(t, preset)}
+                  {preset === page.preset_default
+                    ? ` — ${t("settings.public_page.preset_recommended", "recommended")}`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          {/*
+            Said out loud rather than left as an absent option. An
+            administrator whose organisation is a public body should know the
+            layout exists and what it takes to use it, not wonder why a
+            colleague's page looks different from theirs.
+          */}
+          {!page.available_presets.includes("government") && (
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "settings.public_page.preset_government_locked",
+                "The government layout is available to verified government organizations. Contact ETHR support to request verification.",
+              )}
+            </p>
+          )}
+
+          {page.is_suspended && (
+            <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {t(
+                "settings.public_page.suspended",
+                "This page has been suspended by ETHR and is not reachable. Contact support.",
+              )}
+            </p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={preview.isPending}
+              onClick={() => preview.mutate()}
+            >
+              {preview.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              {t("settings.public_page.preview_draft", "Preview")}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {t(
+                "settings.public_page.preview_hint",
+                "Opens a private preview link that expires in 15 minutes.",
+              )}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/*
+        Only once a layout is chosen. The classic page has no sections, so a
+        manager there would offer to arrange something that does not exist.
+      */}
+      {page.preset !== null && <SectionsManager t={t} />}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

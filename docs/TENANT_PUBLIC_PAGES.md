@@ -8,6 +8,13 @@ Opt-in. Shipping this published nothing: every tenant starts with no profile
 row, `is_published` defaults to `false`, and a tenant that has not opted in
 answers exactly as it did before.
 
+The page is **organisation-aware**: a ministry does not get the same layout,
+or the same structured data, as a hotel. It is also **composable** — an
+administrator arranges the sections their organisation actually needs. Both are
+described below, along with the one rule that governs all of it: every word and
+number on the page was typed by an administrator, and nothing is derived from
+an HR table.
+
 ---
 
 ## What it is built on
@@ -264,6 +271,174 @@ Zero `withoutGlobalScope` call sites were added under `app/`, so
 
 ---
 
+## Organisation presets
+
+Eight layouts, one per organisation kind, and **no new taxonomy**: each is one
+of the eight `OrganizationTemplate` slugs onboarding already maintains, and
+`IndustryCatalog` already aliases its twenty-seven industries onto exactly that
+set. `App\Enums\PublicPagePreset` names them; `PresetWiringTest` fails if a
+ninth is added without a stylesheet block, a schema.org type and labels.
+
+`App\Services\Public\PresetResolver` chooses one, in descending order of
+authority:
+
+1. `tenant_public_profiles.preset` — the administrator's explicit choice
+2. `tenants.settings['industry']` → the industry's `base` template
+3. `tenants.type`, normalised
+4. `general`
+
+Step 3 is a normalisation rather than a cast because the column genuinely means
+three things: it is `string|max:50` with **no `in:` rule**, and the registration
+form offers `general` and no `private`, the settings card offers `private` and
+no `general`, and onboarding writes an `IndustryCatalog` base. All of them have
+to land on a real page.
+
+**`tenants.settings` still never reaches the view-model.** The resolver reads
+the industry key out of it and returns an enum case; the blob stays behind.
+`PublicSectionBoundaryTest` asserts the word `industry` never appears in the
+rendered HTML.
+
+### The government preset, and what the lock actually proves
+
+Seven presets are a taste decision. `government` is not: on `*.ethr.et`,
+state-official styling tells a visitor something about who they are dealing
+with, using ETHR's own domain to say it.
+
+Gating it on the tenant's declared industry would be worthless, because both
+signals behind that are written by the tenant about itself — a private company
+need only claim to be a ministry. So the derived check is the floor, and the
+control is **`tenants.government_verified_at`**: granted by a platform admin
+through the `admin.manage` surface, absent from `Tenant::$fillable`, and
+unreachable from any `/settings/*` route. A tenant may ask; the platform
+answers.
+
+`GovernmentPresetLockTest` asserts that a tenant with `industry = ministry` and
+no verification is **still refused** — the exact case a derived-only check
+waves through.
+
+---
+
+## The section builder
+
+`tenant_public_sections` holds the ordered blocks, `tenant_public_items` the
+repeatable entries inside them. Eleven kinds, listed in
+`App\Enums\PublicSectionKind`, each with a Blade partial, headings in both
+locales and a place in at least one preset's defaults —
+`SectionKindWiringTest` checks all three for every case.
+
+**The rule that governs the whole feature:** every word and number on the page
+was typed by an administrator. Nothing is derived from an HR table — not
+`announcements`, not `employees`, not a headcount from `Employee::count()`.
+`notices` is the sharpest case and `stats` the most tempting; both have tests.
+
+Templates never receive models. Sections and items reach Blade as
+`PublicSection` and `PublicSectionItem`, the same allow-list discipline
+`PublicTenantPage` applies, so a partial cannot render a storage path or walk
+back to `tenant->settings`.
+
+**Caps: 20 sections per tenant, 24 entries per section, one image per entry.**
+Unbounded is a page-weight and storage denial of service the platform pays for,
+on shared hosting, for a page anyone can request — and it arrives through
+ordinary use rather than an attack.
+
+**Content is plain text.** No rich-text field exists anywhere, and no public
+view contains `@php` or an unescaped echo outside the JSON-LD block;
+`PublicSectionXssTest` asserts that across every file under
+`resources/views/public/`. Paragraphs are split on blank lines, never `nl2br`
+on raw output.
+
+**Amharic falls back to the base language** rather than rendering a blank. A
+tenant that has written English and not yet Amharic gets an Amharic page with
+English content, not one with holes — and Amharic is the default locale, so
+that is the common case.
+
+### Section images
+
+`GET /media/section/{publicId}` takes an entry's ULID, never a path. The ULID
+resolves through the tenant-scoped model, so another tenant's identifier is not
+found rather than found and refused, and hiding a section hides what is inside
+it. Uploads reuse `FileStorageService`, which verifies magic bytes and strips
+EXIF — a photograph taken on a phone does not publish its location.
+
+Alternative text is **required** at upload, because an image without it is a
+WCAG 1.1.1 failure on a page built to be read by the public.
+
+### Opting in, and what gets seeded
+
+`preset IS NULL` renders the classic template, byte for byte. Every row that
+existed when the migration ran is in that state, so **deploying changed no live
+page**; `ClassicLayoutUnchangedTest` pins that against a snapshot, with the
+clock frozen because the footer renders `now()->year`.
+
+Choosing a layout seeds that preset's default sections. Blocks whose content
+already exists (hero, about, contact, cta — they read the profile) are seeded
+**visible**; blocks that need new writing are seeded **hidden** with their
+heading pre-filled. Independently, a block with no content renders no markup at
+all. "Loaded by default" must not mean an empty frame with headings over
+nothing.
+
+Switching preset adds what the new layout needs and never duplicates or
+discards what is already written.
+
+---
+
+## Preview
+
+`GET /preview` on the tenant host, behind `signed:relative` — a URL minted by
+`POST /api/v1/settings/public-page/preview-url`, valid fifteen minutes.
+
+A signature rather than session authentication because the dashboard is a
+Next.js application on a different origin using Sanctum cookies, and hanging
+`auth` off a Blade route here would drag session state into the one route group
+whose design property is that it has none.
+
+`signed:relative`, not `signed`: the URL is for the tenant's own hostname,
+which is not `config('app.url')`, so an absolute signature would be computed
+over the wrong host. The host is deliberately not part of the signature —
+`ResolveTenant` reads it, so a signature carried to another tenant's host
+renders *that* tenant's page.
+
+A rejected signature answers **404, not 403**, because `RenderPublicErrorPage`
+collapses every 4xx on this host: a 403 would confirm `/preview` exists.
+
+Preview always sends `noindex`, never appears in the sitemap, shows hidden
+sections, and says in a coloured bar that it is a preview — an administrator
+who cannot tell it from the live page will either publish a draft or believe a
+draft is published.
+
+---
+
+## SEO
+
+- **Structured data per organisation kind**: `GovernmentOrganization`,
+  `CollegeOrUniversity`, `Hospital`, `NGO`, `BankOrCreditUnion`, `Hotel`, or
+  `Organization` for the two with no more specific type. A classic page keeps
+  `Organization` whatever its industry, because changing it would alter a live
+  page nobody asked to change.
+- **`hreflang`** for both locales plus `x-default`. The page has always been
+  bilingual; nothing told a crawler the other version existed.
+- **`/robots.txt`** driven by `is_indexable` and the environment, referencing
+  the sitemap.
+- **`/sitemap.xml`** listing this tenant's page and its language variants.
+
+All four anonymous surfaces — page, robots, sitemap, preview — share
+`PublishedTenantLocator`, so they 404 in exactly the same cases. That is a
+security property, not tidiness: a robots.txt that answers where the page does
+not tells a visitor the organisation exists and chose not to publish.
+
+---
+
+## Platform takedown
+
+`tenant_public_profiles.suspended_at`, settable only through the `admin.manage`
+surface and absent from `$fillable`. A suspended page answers exactly as an
+unpublished one — same status, same body — so suspension is not a way to
+discover which tenants have been moderated. `is_published` is left untouched,
+so restoring is one column write rather than a guess about what the tenant
+wanted.
+
+---
+
 ## Not built
 
 Deliberately out of scope for this phase, and none of it foreclosed:
@@ -275,7 +450,32 @@ Deliberately out of scope for this phase, and none of it foreclosed:
   flag and every existing row is internal. Adding a public path to it is the
   highest-risk way to leak private HR content; a separate, deliberately-public
   content type is the right shape if this is wanted.
-- **Configurable sections, multiple templates, a page builder.** One template,
-  one profile row. Extensible without rework.
-- **Sitemaps and a tenant directory.** A platform-wide index of tenants is an
-  unauthorised-discovery surface, not an SEO feature.
+- **A tenant directory.** Each tenant now has its own `sitemap.xml`, listing
+  only its own page and language variants. A platform-wide index of which
+  organisations use ETHR remains refused: that is unauthorised discovery
+  wearing an SEO hat, not a feature.
+- **Downloadable documents.** Government bodies genuinely want to publish
+  directives and forms, and that is exactly why it is not bolted onto the
+  builder: it means anonymous file downloads, a new MIME class and a
+  malware-distribution surface. Its own change, with its own decisions
+  (PDF-only, magic bytes, `Content-Disposition: attachment`, `nosniff`, a size
+  cap, scanning).
+- **A contact form.** It would be the first anonymous *write* endpoint on the
+  public surface — spam, storage, unsolicited personal data and an
+  email-sending path, all reachable without authentication. The contact
+  section publishes a phone number, an email address and a postal address,
+  which is what a visitor actually needs.
+- **Embedded maps.** An iframe or map SDK is a third-party request made by
+  every anonymous visitor, and this page's CSP is `default-src 'none'` with no
+  `frame-src` and no `script-src` at all. A map would cost the page its best
+  security property to save typing an address.
+- **Analytics.** Same reason: the page ships zero JavaScript and
+  `PublicSecurityHeadersTest` asserts the CSP contains no `script-src`.
+  Visitor tracking is a deliberate decision, not a styling detail.
+- **A draft/publish workflow for body content.** Edits to a published page are
+  live immediately. Preview covers the actual need — seeing a change before it
+  is real — without doubling the state in every table and every test.
+- **Plan or subscription gating.** A `FeatureFlag` model and `PlanFeature` enum
+  exist, so gating the builder behind a paid plan is feasible. Nobody has
+  decided that, and guessing at commercial policy inside a code change is the
+  wrong place to do it.

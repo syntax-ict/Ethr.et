@@ -37,6 +37,18 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
 
 const emptyPage = {
   url: "https://habru.ethr.et",
+  preset: null,
+  preset_default: "general",
+  available_presets: [
+    "university",
+    "hospital",
+    "ngo",
+    "bank",
+    "manufacturing",
+    "hotel",
+    "general",
+  ],
+  is_suspended: false,
   is_published: false,
   is_indexable: true,
   headline: null,
@@ -58,6 +70,13 @@ function mockPublicPage(overrides: Record<string, unknown> = {}) {
   server.use(
     http.get("*/settings/public-page", () =>
       HttpResponse.json({ public_page: { ...emptyPage, ...overrides } }),
+    ),
+    // The section manager mounts as soon as a preset is set, so its request
+    // needs a handler even in tests that are not about sections — otherwise
+    // MSW logs an unhandled request and the component renders its error state
+    // while the assertion under test passes for the wrong reason.
+    http.get("*/settings/public-page/sections", () =>
+      HttpResponse.json({ sections: [] }),
     ),
   );
 }
@@ -252,5 +271,92 @@ describe("<PublicPageSettings>", () => {
     expect(await screen.findByLabelText("Headline")).toHaveValue(
       "ከ1974 ጀምሮ ሽመና",
     );
+  });
+});
+
+// ── Layout presets ─────────────────────────────────────────────────────────
+
+describe("<PublicPageSettings> layout", () => {
+  it("offers only the presets the API says are available", async () => {
+    mockPublicPage({
+      preset: null,
+      preset_default: "hotel",
+      available_presets: ["hotel", "general"],
+    });
+
+    renderScreen();
+
+    const select = (await screen.findByLabelText(
+      "Page layout",
+    )) as HTMLSelectElement;
+    const options = Array.from(select.options).map((o) => o.value);
+
+    // `government` is absent from available_presets unless the platform has
+    // verified the tenant. Offering it anyway would present a choice the API
+    // answers with a 422 — a dead end dressed up as an option.
+    expect(options).not.toContain("government");
+    expect(options).toContain("hotel");
+  });
+
+  it("explains how to get the government layout rather than hiding it silently", async () => {
+    mockPublicPage({ available_presets: ["general"] });
+
+    renderScreen();
+
+    // An administrator at a public body should learn the layout exists and
+    // what it takes to use it, not wonder why another office's page differs.
+    expect(
+      await screen.findByText(/verified government organizations/i),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show that notice once the tenant is verified", async () => {
+    mockPublicPage({ available_presets: ["government", "general"] });
+
+    renderScreen();
+
+    await screen.findByLabelText("Page layout");
+    expect(
+      screen.queryByText(/verified government organizations/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks the layout that suits this organisation", async () => {
+    mockPublicPage({ preset_default: "hospital" });
+
+    renderScreen();
+
+    const select = (await screen.findByLabelText(
+      "Page layout",
+    )) as HTMLSelectElement;
+
+    // Eight layouts is too many to pick from blind, so the one derived from
+    // the organisation's own industry is labelled.
+    const recommended = Array.from(select.options).find((o) =>
+      o.textContent?.includes("recommended"),
+    );
+    expect(recommended?.value).toBe("hospital");
+  });
+
+  it("keeps the classic layout reachable so an opt-in can be undone", async () => {
+    mockPublicPage({ preset: "hotel" });
+
+    renderScreen();
+
+    const select = (await screen.findByLabelText(
+      "Page layout",
+    )) as HTMLSelectElement;
+
+    expect(Array.from(select.options).map((o) => o.value)).toContain("");
+  });
+
+  it("tells an administrator when the platform has suspended the page", async () => {
+    mockPublicPage({ is_suspended: true });
+
+    renderScreen();
+
+    // Otherwise a published page that 404s looks like a bug in ETHR rather
+    // than a deliberate action someone can appeal.
+    expect(await screen.findByText(/suspended by ETHR/i)).toBeInTheDocument();
   });
 });
