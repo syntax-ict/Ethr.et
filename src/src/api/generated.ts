@@ -19470,7 +19470,9 @@ export interface operations {
                             city: string | null;
                             region: string | null;
                             website_url: string | null;
-                            social_links: unknown[];
+                            social_links: {
+                                [key: string]: string;
+                            };
                             meta_description: string | null;
                             has_hero_image: boolean;
                             /**
@@ -19523,7 +19525,9 @@ export interface operations {
                             city: string | null;
                             region: string | null;
                             website_url: string | null;
-                            social_links: unknown[];
+                            social_links: {
+                                [key: string]: string;
+                            };
                             meta_description: string | null;
                             has_hero_image: boolean;
                             /**
