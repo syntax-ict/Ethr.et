@@ -92,6 +92,20 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
+    /**
+     * The tenant's public landing page content, if it has ever been edited.
+     *
+     * Null is the normal state, not an error: a profile row is created lazily
+     * the first time an administrator saves the public page. No profile means
+     * no public page, which is the correct default for an HR product.
+     *
+     * @return HasOne<TenantPublicProfile, $this>
+     */
+    public function publicProfile(): HasOne
+    {
+        return $this->hasOne(TenantPublicProfile::class);
+    }
+
     /** @return HasOne<Subscription, $this> */
     public function subscription(): HasOne
     {
