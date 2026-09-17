@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { t, getLocale, preloadLocale, DEFAULT_LOCALE } from "./translations";
+import {
+  t,
+  getLocale,
+  preloadLocale,
+  syncDocumentLang,
+  DEFAULT_LOCALE,
+} from "./translations";
 
 /**
  * The locale is external state — it lives in localStorage and changes via a
@@ -32,6 +38,17 @@ export function useT() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Keep <html lang> equal to the locale actually rendered. The layout emits
+    // DEFAULT_LOCALE, which is right for the static HTML; a reader whose stored
+    // preference differs is only knowable after hydration, because the locale
+    // lives in localStorage and middleware never sees it.
+    //
+    // Here rather than in a one-off provider effect because this hook is the
+    // single place that knows the resolved locale, and syncDocumentLang is a
+    // no-op when the attribute already matches — so the repetition costs an
+    // equality check, not a DOM write.
+    syncDocumentLang(locale);
 
     preloadLocale(locale).then(() => {
       if (!cancelled) setDictionaryVersion((v) => v + 1);

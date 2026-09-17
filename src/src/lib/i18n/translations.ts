@@ -81,7 +81,35 @@ export function setLocale(locale: string): void {
 
   ensureLocaleLoaded(locale);
   localStorage.setItem("locale", locale);
+  syncDocumentLang(locale);
   window.dispatchEvent(new CustomEvent("locale-changed", { detail: locale }));
+}
+
+/**
+ * Keeps `<html lang>` equal to the locale actually being rendered.
+ *
+ * The root layout hardcoded `lang="en"` while `DEFAULT_LOCALE` is `am`, so the
+ * server emitted Amharic content inside an element declaring English — the
+ * load-bearing finding of the original audit, confirmed against a build:
+ * `.next/server/app/index.html` carries `<html lang="en">` around
+ * `<h1>ለኢትዮጵያ ድርጅቶች ሙሉ የሰው ሃብት መድረክ</h1>`.
+ *
+ * That is not cosmetic. `lang` is what a screen reader uses to choose
+ * pronunciation rules, so Amharic was being read aloud as English; it is what
+ * search engines use to decide what language a page is in; and it drives
+ * hyphenation, font fallback and spellchecking.
+ *
+ * The layout now renders DEFAULT_LOCALE, which is correct for the static HTML
+ * every visitor and crawler receives first. This function corrects it for a
+ * reader whose stored preference differs, which cannot be known before
+ * hydration — there is no cookie, by design: locale lives in localStorage
+ * only, and middleware never sees it.
+ */
+export function syncDocumentLang(locale: string): void {
+  if (typeof document === "undefined") return;
+  if (document.documentElement.lang !== locale) {
+    document.documentElement.lang = locale;
+  }
 }
 
 /**
