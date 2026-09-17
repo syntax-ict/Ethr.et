@@ -31,15 +31,30 @@ export interface BillingDashboard {
   payment_details: PaymentDetails | null;
 }
 
+/**
+ * The public plan catalog row, exactly as `GET /api/v1/plans` sends it.
+ *
+ * Mirrors `PlanResource`, which exists so the generated contract stops
+ * promising `is_active`, `created_at` and `updated_at` that the endpoint never
+ * carried. Anything absent from that resource is absent here on purpose — the
+ * admin-only fields live on `AdminPlan` in `features/admin/api.ts`.
+ */
 export interface Plan {
   public_id: string;
   name: string;
   slug: string;
+  description: string | null;
+  description_am: string | null;
   price_cents: number;
+  currency: string;
+  billing_interval: string;
   max_employees: number | null;
   max_branches: number | null;
   max_devices: number | null;
   features: string[] | null;
+  marketing_features: string[] | null;
+  marketing_features_am: string[] | null;
+  is_popular: boolean;
   sort_order: number;
 }
 

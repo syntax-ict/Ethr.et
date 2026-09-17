@@ -27,19 +27,43 @@ import {
  * already wrapped by `usePlans()`. Nothing needed building; the page simply
  * never connected to it.
  *
- * WHAT STILL HAS NO DATABASE HOME, and is therefore derived here rather than
- * invented:
+ * THE THREE GAPS THIS COMMENT USED TO LIST ARE NOW COLUMNS. A previous revision
+ * recorded that plan descriptions, the "most popular" badge and the marketing
+ * bullets had no database home and so were left in i18n, dropped, or not shown.
+ * `add_catalog_columns_to_plans` gave each of them one, and an admin screen to
+ * edit them, so the page reads them here.
  *
- *  - Plan *display names and descriptions* stay in i18n, keyed by slug, because
- *    `plans` has no `name_am`/`description` column — a DB-supplied name would
- *    render English inside an Amharic page. An unknown slug falls back to the
- *    catalog's own `name`, so a plan added by an admin still renders.
- *  - "Most popular" has no `is_popular` column, so it is not shown at all
- *    rather than hardcoded back onto a slug. Adding the column restores it.
- *  - Marketing-only bullets the old page carried ("priority support", "SLA",
- *    "on-premise", "training") have no column either. They are dropped rather
- *    than kept as copy the catalog cannot back.
+ * What that changes, and the rule it follows:
+ *
+ *  - Descriptions and bullets come from the row, in the reader's language,
+ *    because the columns are paired (`description`/`description_am`) on the
+ *    convention `platform_settings` already set. When the Amharic column is
+ *    empty the English is shown rather than a blank — an operator who has not
+ *    translated yet should not silently lose the sentence.
+ *  - Plan *names* still come from i18n keyed by slug, falling back to the
+ *    catalog's name. `plans` has no `name_am`, and a DB-supplied name would
+ *    render English inside an Amharic page; that gap is real and still open.
+ *  - Capability bullets (`features`) are shown only when an admin has written
+ *    no marketing bullets. `features` is the enforcement vocabulary — showing
+ *    both would print the same capability twice in two different registers.
+ *  - The currency is the row's, not the string "ETB". It is the one figure on
+ *    this page that used to be a literal in two places at once.
  */
+
+/**
+ * Picks the reader's language, falling back to English rather than to nothing.
+ *
+ * An operator who has filled the English column and not the Amharic one has not
+ * asked for the field to disappear on the Amharic site — and Amharic is the
+ * locale the server actually renders by default, so an empty-string fallback
+ * would blank the field for most visitors.
+ */
+function localised<T>(locale: string, am: T | null, en: T | null): T | null {
+  if (locale === "am" && am !== null) {
+    if (!Array.isArray(am) || am.length > 0) return am;
+  }
+  return en;
+}
 
 /** Maps a `PlanFeature` enum value to its sales-facing line. */
 function featureLabel(t: ReturnType<typeof useT>["t"], value: string): string {
@@ -61,7 +85,7 @@ const faqKeys = [
 ] as const;
 
 export function PricingContent() {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   // `initialData` is the committed build-time snapshot, so the prerendered HTML
   // and the first client paint both carry real prices — there is no loading
@@ -91,7 +115,11 @@ export function PricingContent() {
       amount: new Intl.NumberFormat("en-ET", {
         maximumFractionDigits: 0,
       }).format(plan.price_cents / 100),
-      period: t("marketing.pricing_page.professional_period", "ETB/month"),
+      // The row's currency, not a hardcoded "ETB". It was previously a literal
+      // here and another in the admin form; now there is one source.
+      period: t("marketing.pricing_page.period", ":currency/month", {
+        currency: plan.currency,
+      }),
     };
   }
 
@@ -134,6 +162,27 @@ export function PricingContent() {
     });
   }
 
+  /**
+   * What each plan sells, in the reader's language.
+   *
+   * Admin-written bullets win; the capability list is the fallback for a plan
+   * nobody has written copy for yet, so a newly created plan is never a card
+   * with a price and nothing under it.
+   */
+  function sellingPoints(plan: Plan): string[] {
+    const written = localised(
+      locale,
+      plan.marketing_features_am,
+      plan.marketing_features,
+    );
+
+    if (written && written.length > 0) {
+      return written;
+    }
+
+    return (plan.features ?? []).map((feature) => featureLabel(t, feature));
+  }
+
   return (
     <div>
       {/* Hero */}
@@ -168,8 +217,19 @@ export function PricingContent() {
               return (
                 <div
                   key={plan.public_id}
-                  className="relative flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md"
+                  className={
+                    plan.is_popular
+                      ? "relative flex flex-col rounded-2xl border-2 border-primary bg-card shadow-md"
+                      : "relative flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md"
+                  }
                 >
+                  {/* Restored from the catalog rather than hardcoded back onto
+                      a slug, which is how it was wrong before. */}
+                  {plan.is_popular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-on-soft">
+                      {t("marketing.pricing_page.most_popular", "Most popular")}
+                    </span>
+                  )}
                   <div className="flex flex-1 flex-col p-6 sm:p-8">
                     {/* Plan header */}
                     <div>
@@ -180,7 +240,11 @@ export function PricingContent() {
                         {t(`marketing.pricing_page.${plan.slug}`, plan.name)}
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {t(`marketing.pricing_page.${plan.slug}_desc`, "")}
+                        {localised(
+                          locale,
+                          plan.description_am,
+                          plan.description,
+                        ) ?? ""}
                       </p>
                       <div className="mt-6 flex items-baseline gap-1">
                         <span className="text-4xl font-bold tracking-tight text-foreground">
@@ -205,11 +269,11 @@ export function PricingContent() {
                           </span>
                         </li>
                       ))}
-                      {(plan.features ?? []).map((feature) => (
-                        <li key={feature} className="flex items-start gap-3">
+                      {sellingPoints(plan).map((line) => (
+                        <li key={line} className="flex items-start gap-3">
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-status-success" />
                           <span className="text-sm text-muted-foreground">
-                            {featureLabel(t, feature)}
+                            {line}
                           </span>
                         </li>
                       ))}

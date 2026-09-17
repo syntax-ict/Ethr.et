@@ -54,7 +54,12 @@ class StorePlanRequest extends FormRequest
      *   marketing_features  Sales copy. Free text by design — the field exists
      *                       so bullets stop being smuggled into `features`.
      *
-     * @return array<string, list<string|Rule>>
+     * `mixed` rather than `list<string>`: Rule::in() and Rule::enum() return
+     * Rules\In and Rules\Enum objects, not strings, so the narrower annotation
+     * was simply false. Every other request in this codebase that builds rules
+     * with the Rule facade declares `array<string, mixed>` for the same reason.
+     *
+     * @return array<string, mixed>
      */
     public function rules(): array
     {

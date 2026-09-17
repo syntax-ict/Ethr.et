@@ -63,15 +63,25 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // No ->after(). MySQL honours it and SQLite ignores it, so the two
+        // databases ended up with different column ORDER for the same schema —
+        // and Scramble builds the OpenAPI component from the column order, so
+        // the generated contract differed between a local SQLite run and CI's
+        // MariaDB. Same fields, different lines: a diff with no defect in it,
+        // on a gate whose whole job is to be trusted.
+        //
+        // Column position carries no meaning in either engine. Dropping the
+        // clause makes both append in declaration order, so the schema is
+        // portable and the contract is reproducible wherever it is generated.
         Schema::table('plans', function (Blueprint $table) {
-            $table->string('currency', 3)->default('ETB')->after('price_cents');
-            $table->string('billing_interval', 20)->default('monthly')->after('currency');
-            $table->string('description', 500)->nullable()->after('slug');
-            $table->string('description_am', 500)->nullable()->after('description');
-            $table->boolean('is_public')->default(true)->after('is_active');
-            $table->boolean('is_popular')->default(false)->after('is_public');
-            $table->json('marketing_features')->nullable()->after('features');
-            $table->json('marketing_features_am')->nullable()->after('marketing_features');
+            $table->string('currency', 3)->default('ETB');
+            $table->string('billing_interval', 20)->default('monthly');
+            $table->string('description', 500)->nullable();
+            $table->string('description_am', 500)->nullable();
+            $table->boolean('is_public')->default(true);
+            $table->boolean('is_popular')->default(false);
+            $table->json('marketing_features')->nullable();
+            $table->json('marketing_features_am')->nullable();
         });
     }
 

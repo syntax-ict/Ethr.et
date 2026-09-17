@@ -120,14 +120,38 @@ describe("Pricing page", () => {
     expect(screen.queryByText(/999,999/)).not.toBeInTheDocument();
   });
 
-  it("translates capability keys rather than printing them raw", () => {
+  it("shows the selling points an admin wrote, from the catalog", () => {
     renderPricing();
 
-    // `plans.features` holds PlanFeature enum values — "api_access", not a
-    // sentence. The dashboard renders them raw; a public page must not.
-    expect(screen.getByText("API access")).toBeInTheDocument();
+    // marketing_features, edited at /admin/plans. Before the column existed
+    // these bullets were literals in this component — including four ("priority
+    // support", "SLA", "on-premise", "training") the product does not offer.
+    expect(
+      screen.getByText("Payroll with Ethiopian income tax and pension"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("No employee, branch or device limit"),
+    ).toBeInTheDocument();
+  });
+
+  it("never prints a raw capability key on a public page", () => {
+    renderPricing();
+
+    // `features` holds PlanFeature enum values — "api_access", not a sentence.
+    // They are the fallback for a plan with no admin-written copy, and even
+    // then they go through featureLabel. The dashboard renders them raw; a
+    // public page must not.
     expect(screen.queryByText("api_access")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Payroll processing").length).toBeGreaterThan(0);
+    expect(screen.queryByText("employee_management")).not.toBeInTheDocument();
+  });
+
+  it("marks the popular plan from the catalog, not from a hardcoded slug", () => {
+    renderPricing();
+
+    // is_popular is a column now. The badge was previously pinned to
+    // Professional in this component, so an admin promoting a different tier
+    // would have had the highlight stay where a developer put it.
+    expect(screen.getByText("Most popular")).toBeInTheDocument();
   });
 
   it("renders the FAQ accordion", () => {

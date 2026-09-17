@@ -1,23 +1,38 @@
 {
-  "generated_at": "2026-09-16T00:00:00Z",
-  "source": "database/seeders/PlanSeeder.php",
+  "generated_at": "2026-09-17T05:22:27.064Z",
+  "source": "http://localhost:8123/api/v1/plans",
   "data": [
     {
-      "public_id": "snapshot-starter",
+      "public_id": "01M2PW66EDMQHM260AJ8D72EMW",
       "name": "Starter",
       "slug": "starter",
+      "description": "For a single office getting attendance and leave onto a system.",
+      "description_am": "መገኘትንና ፈቃድን ወደ ሥርዓት ለማስገባት ለሚፈልግ አንድ ቢሮ።",
       "price_cents": 0,
+      "currency": "ETB",
+      "billing_interval": "monthly",
       "max_employees": 10,
       "max_branches": 1,
       "max_devices": 2,
       "features": ["attendance", "leave", "employee_management"],
+      "marketing_features": [
+        "Attendance and leave",
+        "Employee records",
+        "Works offline"
+      ],
+      "marketing_features_am": ["መገኘት እና ፈቃድ", "የሠራተኛ መዝገብ", "ከመስመር ውጭ ይሠራል"],
+      "is_popular": false,
       "sort_order": 1
     },
     {
-      "public_id": "snapshot-professional",
+      "public_id": "01M2PW66EFXNJJTAP5JBW6H4XW",
       "name": "Professional",
       "slug": "professional",
+      "description": "For an organisation running payroll across several branches.",
+      "description_am": "በበርካታ ቅርንጫፎች ደመወዝ ለሚያስኬድ ድርጅት።",
       "price_cents": 99900,
+      "currency": "ETB",
+      "billing_interval": "monthly",
       "max_employees": 100,
       "max_branches": 5,
       "max_devices": 20,
@@ -29,13 +44,28 @@
         "reports",
         "notifications"
       ],
+      "marketing_features": [
+        "Everything in Starter",
+        "Payroll with Ethiopian income tax and pension",
+        "Reports and notifications"
+      ],
+      "marketing_features_am": [
+        "ሁሉም በStarter ውስጥ ያለው",
+        "ከኢትዮጵያ የገቢ ግብርና ጡረታ ጋር ደመወዝ",
+        "ሪፖርቶች እና ማሳወቂያዎች"
+      ],
+      "is_popular": true,
       "sort_order": 2
     },
     {
-      "public_id": "snapshot-enterprise",
+      "public_id": "01M2PW66EH3NA2JZDW63AJGRYK",
       "name": "Enterprise",
       "slug": "enterprise",
+      "description": "For an organisation that needs no ceiling and its own integrations.",
+      "description_am": "ጣሪያ የሌለውና የራሱ ውህደቶች ለሚያስፈልገው ድርጅት።",
       "price_cents": 299900,
+      "currency": "ETB",
+      "billing_interval": "monthly",
       "max_employees": null,
       "max_branches": null,
       "max_devices": null,
@@ -51,6 +81,17 @@
         "custom_reports",
         "audit_log"
       ],
+      "marketing_features": [
+        "Everything in Professional",
+        "No employee, branch or device limit",
+        "API access, webhooks and the audit log"
+      ],
+      "marketing_features_am": [
+        "ሁሉም በProfessional ውስጥ ያለው",
+        "የሠራተኛ፣ ቅርንጫፍ ወይም መሣሪያ ገደብ የለም",
+        "የAPI መዳረሻ፣ webhooks እና የኦዲት መዝገብ"
+      ],
+      "is_popular": false,
       "sort_order": 3
     }
   ]

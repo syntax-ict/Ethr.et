@@ -32,19 +32,39 @@ const OUT = path.join(ROOT, "src/src/lib/marketing/plans-snapshot.json");
 
 const apiArg = process.argv.indexOf("--api");
 const API = (
-  apiArg !== -1 ? process.argv[apiArg + 1] : process.env.API_URL || "http://localhost:8000"
+  apiArg !== -1
+    ? process.argv[apiArg + 1]
+    : process.env.API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
-/** The columns `PlanController` projects. Anything else is not public. */
+/**
+ * The fields `PlanResource` publishes. Anything else is not public.
+ *
+ * This list must stay in step with that resource. It is a projection rather
+ * than a passthrough so a column added to `plans` cannot reach a committed file
+ * by accident — but the cost is that a column added *deliberately* is silently
+ * dropped here until someone remembers. That already happened once: the
+ * catalog gained description, currency, marketing_features and is_popular, and
+ * the first regenerated snapshot carried none of them, so the prerendered HTML
+ * would have shown bare plan cards while the client fetch filled them in a
+ * moment later. The assertion below turns that into a failure instead.
+ */
 const FIELDS = [
   "public_id",
   "name",
   "slug",
+  "description",
+  "description_am",
   "price_cents",
+  "currency",
+  "billing_interval",
   "max_employees",
   "max_branches",
   "max_devices",
   "features",
+  "marketing_features",
+  "marketing_features_am",
+  "is_popular",
   "sort_order",
 ];
 
@@ -69,7 +89,9 @@ try {
 }
 
 if (!payload || !Array.isArray(payload.data)) {
-  fail(`${url} did not return { data: [...] } — got ${JSON.stringify(payload).slice(0, 120)}`);
+  fail(
+    `${url} did not return { data: [...] } — got ${JSON.stringify(payload).slice(0, 120)}`,
+  );
 }
 if (payload.data.length === 0) {
   // An empty catalog would blank the pricing page. Far more likely an unseeded
@@ -78,24 +100,51 @@ if (payload.data.length === 0) {
 }
 
 const plans = payload.data
-  .map((plan) => Object.fromEntries(FIELDS.map((f) => [f, plan[f] ?? null])))
+  .map((plan) => {
+    // The API is the authority on what is public. If it starts sending a field
+    // this list does not know about, the snapshot would quietly omit it and the
+    // prerendered page would disagree with the hydrated one — so say so.
+    const unknown = Object.keys(plan).filter((k) => !FIELDS.includes(k));
+    if (unknown.length > 0) {
+      fail(
+        `the API returned fields this script does not copy: ${unknown.join(", ")}.\n` +
+          `  Add them to FIELDS (and to the Plan type in features/billing/api.ts),\n` +
+          `  or they will be missing from the prerendered pricing page.`,
+      );
+    }
+    return Object.fromEntries(FIELDS.map((f) => [f, plan[f] ?? null]));
+  })
   .sort((a, b) => a.sort_order - b.sort_order);
 
-const previous = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : null;
+const previous = fs.existsSync(OUT)
+  ? JSON.parse(fs.readFileSync(OUT, "utf8"))
+  : null;
 
 if (previous && JSON.stringify(previous.data) === JSON.stringify(plans)) {
-  console.log(`fetch-plans-snapshot: catalog unchanged (${plans.length} plans) — not rewriting.`);
+  console.log(
+    `fetch-plans-snapshot: catalog unchanged (${plans.length} plans) — not rewriting.`,
+  );
   process.exit(0);
 }
 
 fs.writeFileSync(
   OUT,
-  JSON.stringify({ generated_at: new Date().toISOString(), source: url, data: plans }, null, 2) +
-    "\n",
+  JSON.stringify(
+    { generated_at: new Date().toISOString(), source: url, data: plans },
+    null,
+    2,
+  ) + "\n",
 );
 
-console.log(`fetch-plans-snapshot: wrote ${plans.length} plans to ${path.relative(ROOT, OUT)}`);
+console.log(
+  `fetch-plans-snapshot: wrote ${plans.length} plans to ${path.relative(ROOT, OUT)}`,
+);
 for (const p of plans) {
-  const price = p.price_cents === 0 ? "free" : `${(p.price_cents / 100).toLocaleString()} ETB`;
-  console.log(`  ${p.slug.padEnd(14)} ${price.padStart(12)}  ${p.max_employees} employees`);
+  const price =
+    p.price_cents === 0
+      ? "free"
+      : `${(p.price_cents / 100).toLocaleString()} ETB`;
+  console.log(
+    `  ${p.slug.padEnd(14)} ${price.padStart(12)}  ${p.max_employees} employees`,
+  );
 }
