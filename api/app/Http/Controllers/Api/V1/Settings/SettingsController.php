@@ -8,13 +8,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
 use App\Http\Requests\Settings\UpdateBrandingRequest;
 use App\Http\Requests\Settings\UpdateOrganizationRequest;
+use App\Http\Requests\Settings\UpdatePublicPageRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Requests\Settings\UpdateSsoRequest;
+use App\Http\Requests\Settings\UploadPublicImageRequest;
 use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
+use App\Models\TenantPublicProfile;
 use App\Services\CurrentTenant;
+use App\Services\FileStorageService;
+use App\Support\TenantPublicAsset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -204,6 +209,187 @@ class SettingsController extends Controller
             'expires_at' => $apiKey->fresh()->expires_at->toIso8601String(),
             'message' => 'Store this token securely — it will not be shown again.',
         ], 201);
+    }
+
+    /**
+     * The tenant's public landing page configuration.
+     *
+     * Returns the same shape whether or not a profile row exists yet, so the
+     * settings screen renders an empty form rather than an error on a tenant
+     * that has never touched this. Unpublished is the default everywhere.
+     */
+    public function showPublicPage(): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $profile = $tenant->publicProfile;
+
+        return response()->json($this->publicPagePayload($tenant, $profile));
+    }
+
+    public function updatePublicPage(UpdatePublicPageRequest $request): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        // firstOrCreate, not create: the row is made lazily on first edit, and
+        // the unique index on tenant_id means two concurrent saves cannot
+        // produce two profiles.
+        $profile = TenantPublicProfile::firstOrCreate(['tenant_id' => $tenant->id]);
+
+        $attributes = $request->validated();
+
+        // `published_at` records when the page first went live and is not
+        // touched again by later edits — it is the publication date a visitor
+        // or a crawler would mean, not a "last saved" timestamp.
+        if ($request->changesPublication() && $request->wantsPublished() && $profile->published_at === null) {
+            $attributes['published_at'] = now();
+        }
+
+        if (array_key_exists('social_links', $attributes)) {
+            $attributes['social_links'] = array_filter(
+                $attributes['social_links'] ?? [],
+                static fn ($url) => is_string($url) && $url !== ''
+            ) ?: null;
+        }
+
+        $wasPublished = (bool) $profile->is_published;
+
+        $profile->fill($attributes)->save();
+
+        // Publication gets its own audit entry. An organisation's page becoming
+        // visible on the public internet is a different event from someone
+        // fixing a typo in it, and a compliance reviewer asking "when did this
+        // become public, and who decided that" should not have to infer it from
+        // a diff of a generic update record.
+        if ($request->changesPublication() && $wasPublished !== (bool) $profile->is_published) {
+            AuditLog::record(
+                $profile->is_published ? 'settings.public_page_published' : 'settings.public_page_unpublished',
+                $tenant,
+                ['subdomain' => $tenant->subdomain],
+            );
+        } else {
+            AuditLog::record('settings.public_page_updated', $tenant);
+        }
+
+        return response()->json(array_merge(
+            ['message' => 'Public page updated'],
+            $this->publicPagePayload($tenant, $profile->refresh()),
+        ));
+    }
+
+    /**
+     * Replace the hero image on the public page.
+     *
+     * Stored under the tenant's existing `tenants/{public_id}/` prefix in a
+     * `public/` subdirectory, so a glance at a storage path says whether the
+     * object is meant to be reachable without authentication.
+     */
+    public function uploadPublicHero(UploadPublicImageRequest $request, FileStorageService $storage): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+        $profile = TenantPublicProfile::firstOrCreate(['tenant_id' => $tenant->id]);
+
+        $previous = $profile->hero_image_path;
+        $uploaded = $storage->upload($request->file('image'), 'public/hero');
+
+        $profile->update(['hero_image_path' => $uploaded['path']]);
+
+        $this->forgetPrevious($storage, $previous, $uploaded['path']);
+
+        AuditLog::record('settings.public_page_hero_updated', $tenant, ['path' => $uploaded['path']]);
+
+        return response()->json(['message' => 'Hero image updated'], 201);
+    }
+
+    /**
+     * Replace the tenant logo with an uploaded file.
+     *
+     * `PUT /settings/branding` has always accepted `logo_url` as a bare string,
+     * so `tenants.logo_path` may hold an arbitrary external URL. That was
+     * tolerable while the logo appeared only inside the authenticated app; on a
+     * public page it would mean every anonymous visitor issues a request to a
+     * third-party host, which is a tracking vector nobody opted into.
+     *
+     * So the public page renders a logo only when it is a file this application
+     * stored (see TenantPublicAsset), and this endpoint is how a tenant gets
+     * one. The old string field still works for the in-app logo; it simply has
+     * no effect on the public surface.
+     */
+    public function uploadBrandingLogo(UploadPublicImageRequest $request, FileStorageService $storage): JsonResponse
+    {
+        Gate::authorize('settings.manage');
+
+        $tenant = app(CurrentTenant::class)->get();
+
+        $previous = $tenant->logo_path;
+        $uploaded = $storage->upload($request->file('image'), 'public/logo');
+
+        $tenant->update(['logo_path' => $uploaded['path']]);
+
+        $this->forgetPrevious($storage, $previous, $uploaded['path']);
+
+        AuditLog::record('settings.branding_logo_updated', $tenant, ['path' => $uploaded['path']]);
+
+        return response()->json(['message' => 'Logo updated', 'logo_path' => $uploaded['path']], 201);
+    }
+
+    /**
+     * Best effort cleanup of a replaced image.
+     *
+     * Only deletes a value that is actually one of our storage paths — a legacy
+     * external URL in `logo_path` is not ours to delete, and passing one to the
+     * filesystem would at best fail and at worst address something unintended.
+     * An orphaned object is storage waste; a failed delete is not a failed
+     * upload, so nothing here is allowed to break the request.
+     */
+    private function forgetPrevious(FileStorageService $storage, mixed $previous, string $current): void
+    {
+        if (! is_string($previous) || $previous === '' || $previous === $current) {
+            return;
+        }
+
+        if (! str_starts_with($previous, 'tenants/')) {
+            return;
+        }
+
+        $storage->delete($previous);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function publicPagePayload(Tenant $tenant, ?TenantPublicProfile $profile): array
+    {
+        return [
+            'public_page' => [
+                'url' => 'https://'.$tenant->subdomain.'.'.(config('app.domain') ?: 'ethr.et'),
+                'is_published' => (bool) $profile?->is_published,
+                'is_indexable' => (bool) ($profile?->is_indexable ?? true),
+                'headline' => $profile?->headline,
+                'description' => $profile?->description,
+                'contact_email' => $profile?->contact_email,
+                'contact_phone' => $profile?->contact_phone,
+                'address_line' => $profile?->address_line,
+                'city' => $profile?->city,
+                'region' => $profile?->region,
+                'website_url' => $profile?->website_url,
+                'social_links' => $profile?->social_links ?? [],
+                'meta_description' => $profile?->meta_description,
+                'has_hero_image' => TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::HERO) !== null,
+                // Tells the settings screen whether the stored logo will
+                // actually appear publicly, so it can prompt for a re-upload
+                // instead of leaving an administrator wondering why it does not.
+                // Independent of the profile row: the logo is a tenant column a
+                // tenant may have set long before opening this screen.
+                'has_public_logo' => TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::LOGO) !== null,
+                'published_at' => $profile?->published_at?->toIso8601String(),
+            ],
+        ];
     }
 
     private function ssoConfig(Tenant $tenant): array

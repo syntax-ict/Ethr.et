@@ -675,6 +675,17 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    // Multipart, so POST: PHP does not populate $_FILES on a PUT, which is why
+    // the logo cannot simply be another field on the branding endpoint.
+    Route::post('/settings/branding/logo', [SettingsController::class, 'uploadBrandingLogo'])
+        ->middleware('throttle:uploads');
+
+    // The public landing page served at {tenant}.ethr.et — see routes/public.php
+    // for the anonymous half. These are the authenticated controls for it.
+    Route::get('/settings/public-page', [SettingsController::class, 'showPublicPage']);
+    Route::put('/settings/public-page', [SettingsController::class, 'updatePublicPage']);
+    Route::post('/settings/public-page/hero', [SettingsController::class, 'uploadPublicHero'])
+        ->middleware('throttle:uploads');
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);
