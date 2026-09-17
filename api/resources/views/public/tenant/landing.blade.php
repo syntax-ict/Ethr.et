@@ -36,33 +36,21 @@
     <meta name="twitter:card" content="{{ $page->hasHero ? 'summary_large_image' : 'summary' }}">
 
     {{--
-        JSON-LD built from the same allow-listed view-model as the visible
-        page, never from a model. The JSON_HEX_* flags are the load-bearing
-        part: without JSON_HEX_TAG a `</script>` typed into any tenant field
-        would close this element early and turn the rest of the document into
-        executable markup. `@json` is unescaped output, and this is the only
-        unescaped output on the public surface — it emits machine-generated
-        JSON, never tenant text verbatim.
+        JSON-LD, built in PublicTenantPage::jsonLd() from the same
+        allow-listed data as the visible page.
+
+        Two plain variables rather than the array literal that used to be here:
+        Blade matches a directive's brackets to find its arguments, and a
+        multi-line array followed by a second argument defeated that matcher —
+        the view failed to compile at all. See the note on jsonLd().
+
+        `@json` is unescaped output, and this is the only unescaped output on
+        the public surface. It emits machine-generated JSON, never tenant text
+        verbatim, and PublicTenantPage::JSON_LD_FLAGS carries the JSON_HEX_TAG
+        that stops a `</script>` in a tenant field from ending this element.
     --}}
     <script type="application/ld+json">
-        @json(array_filter([
-            '@context' => 'https://schema.org',
-            '@type' => 'Organization',
-            'name' => $page->name,
-            'url' => $canonicalUrl,
-            'description' => $page->metaDescription,
-            'logo' => $page->hasLogo ? url('/media/logo') : null,
-            'email' => $page->contactEmail,
-            'telephone' => $page->contactPhone,
-            'address' => $page->formattedAddress() ? [
-                '@type' => 'PostalAddress',
-                'streetAddress' => $page->addressLine,
-                'addressLocality' => $page->city,
-                'addressRegion' => $page->region,
-                'addressCountry' => 'ET',
-            ] : null,
-            'sameAs' => array_values($page->socialLinks) ?: null,
-        ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+        @json($jsonLd, $jsonLdFlags)
     </script>
 @endsection
 

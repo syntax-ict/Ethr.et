@@ -99,6 +99,59 @@ final class PublicTenantPage
         return implode('; ', $declarations);
     }
 
+    /**
+     * The Organization JSON-LD for this page.
+     *
+     * Built here rather than inline in the template, and not only for tidiness:
+     * Blade compiles a directive's arguments by matching brackets, and a
+     * multi-line array literal followed by a second argument defeats that
+     * matcher outright — `@json(array_filter([...]), $flags)` failed to compile
+     * with "Unclosed '[' ... does not match ')'", taking every test that renders
+     * this page with it. The template now passes two plain variables, which
+     * cannot be mis-balanced.
+     *
+     * Reads only from this object, so the JSON-LD cannot expose a field the
+     * visible page would not.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonLd(string $canonicalUrl): array
+    {
+        return array_filter([
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => $this->name,
+            'url' => $canonicalUrl,
+            'description' => $this->metaDescription,
+            'logo' => $this->hasLogo ? $canonicalUrl.'media/logo' : null,
+            'email' => $this->contactEmail,
+            'telephone' => $this->contactPhone,
+            'address' => $this->formattedAddress() === null ? null : array_filter([
+                '@type' => 'PostalAddress',
+                'streetAddress' => $this->addressLine,
+                'addressLocality' => $this->city,
+                'addressRegion' => $this->region,
+                'addressCountry' => 'ET',
+            ]),
+            'sameAs' => array_values($this->socialLinks) ?: null,
+        ]);
+    }
+
+    /**
+     * Encoding flags for the JSON-LD block.
+     *
+     * JSON_HEX_TAG is the load-bearing one and the reason this is a named
+     * constant rather than an inline literal: without it a `</script>` typed
+     * into any tenant field closes the element early and turns the rest of the
+     * document into markup the browser will act on.
+     */
+    public const JSON_LD_FLAGS = JSON_UNESCAPED_SLASHES
+        | JSON_UNESCAPED_UNICODE
+        | JSON_HEX_TAG
+        | JSON_HEX_AMP
+        | JSON_HEX_APOS
+        | JSON_HEX_QUOT;
+
     /** The full address as one line, or null when no part of it was given. */
     public function formattedAddress(): ?string
     {
@@ -135,7 +188,6 @@ final class PublicTenantPage
     }
 
     /**
-     * @param  mixed  $links
      * @return array<string, string>
      */
     private static function safeSocialLinks(mixed $links): array
@@ -181,7 +233,6 @@ final class PublicTenantPage
     }
 
     /**
-     * @param  mixed  $theme
      * @return array<string, string>
      */
     private static function safeTheme(mixed $theme): array

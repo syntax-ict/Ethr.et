@@ -3853,6 +3853,18 @@ parameters:
 			path: app/Models/SsoSetting.php
 
 		-
+			message: '#^Method App\\Models\\TenantPublicProfile\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicProfile\)\|null but returns App\\Models\\TenantPublicProfile\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicProfile.php
+
+		-
+			message: '#^Method App\\Models\\TenantPublicProfile\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TenantPublicProfile.php
+
+		-
 			message: '#^Method App\\Models\\SsoSetting\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1

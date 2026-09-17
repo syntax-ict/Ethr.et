@@ -44,13 +44,19 @@ class TenantLandingController extends Controller
 
         $page = $this->resolvePage();
 
+        $canonicalUrl = $request->getSchemeAndHttpHost().'/';
+
         $response = response()->view('public.tenant.landing', [
             'page' => $page,
-            'canonicalUrl' => $request->getSchemeAndHttpHost().'/',
+            'canonicalUrl' => $canonicalUrl,
             // Supplied by the controller rather than computed in the template,
-            // so no public Blade file needs an `@php` block.
+            // so no public Blade file needs an `@php` block — and, for the
+            // JSON-LD, so the template holds no array literal for Blade's
+            // bracket matcher to choke on. See PublicTenantPage::jsonLd().
             'indexable' => $page->isIndexable && app()->environment('production'),
             'themeStyle' => $page->themeStyleAttribute(),
+            'jsonLd' => $page->jsonLd($canonicalUrl),
+            'jsonLdFlags' => PublicTenantPage::JSON_LD_FLAGS,
         ]);
 
         // `private, no-store` rather than a public max-age, deliberately.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Public\TenantLandingController;
 use App\Http\Controllers\Public\TenantPublicAssetController;
+use App\Support\TenantPublicAsset;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,5 +37,5 @@ Route::get('/', TenantLandingController::class)->name('public.tenant.landing');
 // Keeping the dynamic route on a different prefix means the two can never
 // shadow each other, whichever server is in front.
 Route::get('/media/{kind}', TenantPublicAssetController::class)
-    ->whereIn('kind', \App\Support\TenantPublicAsset::KINDS)
+    ->whereIn('kind', TenantPublicAsset::KINDS)
     ->name('public.tenant.asset');

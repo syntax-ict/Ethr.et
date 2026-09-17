@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\TenantPublicProfile;
 use App\Models\User;
 use App\Services\CurrentTenant;
+use App\Support\PublicTenantPage;
 
 /**
  * The public/private boundary — the test that matters most in this feature.
@@ -44,8 +45,8 @@ function tenantWithPrivateData(): array
 
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
-        'first_name' => 'Zerihun',
-        'last_name' => 'Getachew',
+        'name' => 'Zerihun Getachew',
+        'name_am' => 'ዘርihun ጌታቸው',
         'national_id' => 'ETH-9911-2233',
     ]);
 
@@ -73,6 +74,10 @@ it('exposes no employee identity on the public page', function () {
     $response
         ->assertDontSee('Zerihun')
         ->assertDontSee('Getachew')
+        // The Amharic name too: a leak that only shows up in one script is
+        // still a leak, and is exactly the kind an English-reading reviewer
+        // scrolls past.
+        ->assertDontSee('ጌታቸው')
         ->assertDontSee('ETH-9911-2233')
         ->assertDontSee($employee->public_id)
         ->assertDontSee('hr.manager@habru-internal.example');
@@ -92,21 +97,41 @@ it('exposes no operational settings on the public page', function () {
         ->assertDontSee('500000');
 });
 
-it('exposes no numeric primary key on the public page', function () {
+it('carries no primary key on the view-model the page renders from', function () {
     [$tenant] = tenantWithPrivateData();
 
     $profile = TenantPublicProfile::withoutGlobalScopes()
         ->where('tenant_id', $tenant->id)
         ->firstOrFail();
 
+    $page = PublicTenantPage::from($tenant, $profile);
+
+    // Convention 4: the internal BIGINT is never API- or page-facing.
+    //
+    // Asserted structurally rather than by scanning the HTML for the id's
+    // digits. The scan was the first instinct and it is worthless: test ids
+    // start at 1, and a page contains "1" in `<h1>`, `initial-scale=1` and a
+    // dozen other innocent places, so the assertion either fails on correct
+    // output or passes because the number is too common to be evidence.
+    //
+    // What actually guarantees the property is that no field of this object is
+    // an id at all — and unlike a regex, this fails the moment someone adds one.
+    $fields = array_map(
+        static fn (ReflectionProperty $p): string => $p->getName(),
+        (new ReflectionClass(PublicTenantPage::class))->getProperties(ReflectionProperty::IS_PUBLIC)
+    );
+
+    expect($fields)
+        ->not->toContain('id')
+        ->not->toContain('tenantId')
+        ->not->toContain('tenant_id');
+
+    // And the two shapes a leaked key would actually take if one were added.
     $html = $this->get('http://habru.ethr.et/')->assertOk()->getContent();
 
-    // Convention 4: the internal BIGINT is never API- or page-facing. Matched
-    // with word boundaries because a bare "1" appears in markup for a hundred
-    // innocent reasons.
     expect($html)
-        ->not->toMatch('/\b'.preg_quote((string) $tenant->id, '/').'\b(?![.\d])/')
-        ->not->toContain('"id":'.$profile->id);
+        ->not->toContain('"id":'.$profile->id)
+        ->not->toContain('"tenant_id":'.$tenant->id);
 });
 
 it('serves the same page whether or not the visitor is signed in', function () {

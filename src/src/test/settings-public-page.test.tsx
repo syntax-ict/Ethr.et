@@ -100,7 +100,9 @@ describe("<PublicPageSettings>", () => {
 
     renderScreen();
 
-    expect(await screen.findByRole("button", { name: /try again/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /try again/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders an empty form for a tenant that has never configured a page", async () => {
@@ -221,7 +223,9 @@ describe("<PublicPageSettings>", () => {
     // Without this, an administrator whose logo is a stored URL rather than an
     // uploaded file watches it fail to appear with no explanation anywhere.
     expect(
-      await screen.findByText(/upload a logo file to show it on your public page/i),
+      await screen.findByText(
+        /upload a logo file to show it on your public page/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -245,6 +249,8 @@ describe("<PublicPageSettings>", () => {
 
     // Amharic is the default locale and renders longer than English for the
     // same meaning; a truncating container shows up here first.
-    expect(await screen.findByLabelText("Headline")).toHaveValue("ከ1974 ጀምሮ ሽመና");
+    expect(await screen.findByLabelText("Headline")).toHaveValue(
+      "ከ1974 ጀምሮ ሽመና",
+    );
   });
 });

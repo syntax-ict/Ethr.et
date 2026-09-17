@@ -6,6 +6,7 @@ namespace App\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 /**
  * A URL safe to publish as a link on a tenant's public landing page.
@@ -41,10 +42,23 @@ class PublicUrl implements ValidationRule
         $failed = false;
 
         // Scheme, resolvability and the private-address checks, unchanged.
-        (new ExternalUrl)->validate($attribute, $value, function (string $message) use ($fail, &$failed): void {
-            $failed = true;
-            $fail($message);
-        });
+        //
+        // The adapter mirrors the framework's own `$fail` signature exactly —
+        // second parameter, and the PotentiallyTranslatedString it returns —
+        // rather than the `Closure(string): void` that reads as sufficient.
+        // ExternalUrl's parameter is typed against the real contract, so a
+        // narrower closure is a type error, and a caller that used the return
+        // value (`$fail(...)->translate([...])`, the documented way to pass
+        // replacements) would get null from it.
+        (new ExternalUrl)->validate(
+            $attribute,
+            $value,
+            function (string $message, ?string $failedAttribute = null) use ($fail, &$failed): PotentiallyTranslatedString {
+                $failed = true;
+
+                return $fail($message);
+            }
+        );
 
         if ($failed || $this->allowedHosts === []) {
             return;
