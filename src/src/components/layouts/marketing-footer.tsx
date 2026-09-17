@@ -25,6 +25,11 @@ export function MarketingFooter() {
     Boolean(entry.href),
   );
 
+  // There is no Company column. It held About, Blog and Careers, all three
+  // pointing at "#" — a footer heading that tells a visitor those pages exist
+  // when none of them do, which is the same defect as the invented metrics one
+  // section up, in link form. Restoring it is one array entry once a page
+  // exists to link to; a dead link is not a placeholder, it is a claim.
   const footerSections = [
     {
       titleKey: "marketing.footer.product",
@@ -34,15 +39,6 @@ export function MarketingFooter() {
         { label: t("marketing.nav.pricing", "Pricing"), href: "/pricing" },
         { label: t("marketing.nav.faq", "FAQ"), href: "/faq" },
         { label: t("marketing.nav.contact", "Contact"), href: "/contact" },
-      ],
-    },
-    {
-      titleKey: "marketing.footer.company",
-      fallback: "Company",
-      links: [
-        { label: t("marketing.footer.about", "About"), href: "#" },
-        { label: t("marketing.footer.blog", "Blog"), href: "#" },
-        { label: t("marketing.footer.careers", "Careers"), href: "#" },
       ],
     },
     {
