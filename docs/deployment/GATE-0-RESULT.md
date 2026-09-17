@@ -94,6 +94,36 @@ hazard does not arise.
    `disable_functions` and the filesystem layout, which is why it normally lives in `~/`.
    Random filename plus immediate deletion is what keeps the exposure window to minutes.
 
+**Route C was validated by running it, 2026-09-17.** Served over PHP's built-in server
+under a non-CLI SAPI: HTTP 200, clean `text/plain`, 6.5 KB, complete output, no query
+string, database section correctly reported as skipped. It works. Two things that run
+surfaced, both worth knowing before spending a panel session on it:
+
+**It takes ~13 s on unremarkable hardware, and can plausibly exceed 30 s on the target.**
+The arithmetic is from the script's own constants, not a guess: the network section waits
+up to **6 s for HTTPS + 6 s x 2 for SMTP 587/465** (`fsockopen(..., 6)`), and a firewall
+that DROPs rather than REFUSEs makes each one wait the full timeout — 18 s before the
+performance section even starts, which measured 13 s here. Shared hosting commonly caps
+`max_execution_time` at 30 s; the machine this was measured on is at 30 s, and the probe
+flags that as FAIL against the 120 s ETHR wants.
+
+**The two conditions that would time the probe out are the two conditions it exists to
+detect** — blocked outbound ports (G0-H) and a slow CPU (G0-J). Worth stating plainly,
+because a truncated run looks like a broken probe and is not one.
+
+**It degrades in the right direction.** Section order is PHP -> Runtime -> Process ->
+Filesystem -> Network -> Database -> **Performance last**. So a timeout costs the
+performance rows and keeps everything before them:
+
+| If the output ends... | You still have | You lost | Read it as |
+|---|---|---|---|
+| after the summary line | everything | nothing | normal |
+| after the Network section, no Performance rows | G0-E, limits, filesystem, **G0-H** | G0-J | **not a failure** — `max_execution_time` was hit. The Limits section already printed that value; combined with the Network readings it is itself an implicit G0-J signal |
+| mid-Network | G0-E, limits, filesystem | G0-H, G0-J | outbound is being silently dropped — re-run once to confirm |
+
+Do not re-upload and retry more than once on a truncation. A second identical truncation
+is a result, not a flake.
+
 | Route C answers | Route C defers |
 |---|---|
 | **G0-E** — PHP version, all 18 mandatory extensions, `memory_limit`, `max_execution_time` | **G0-F** — `CREATE TRIGGER` (`DB4`) |
