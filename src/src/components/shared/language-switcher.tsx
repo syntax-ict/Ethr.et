@@ -67,7 +67,12 @@ export function LanguageSwitcher() {
         <button
           type="button"
           className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-          aria-label={t("language.change", "Change language")}
+          /* The accessible name has to CONTAIN the visible text (WCAG 2.5.3,
+             "Label in Name"): the button shows the current language's own name
+             and announced only "Change language", so someone using voice
+             control could not say what they could see. Lighthouse flagged it as
+             label-content-name-mismatch on every public page. */
+          aria-label={`${t("language.change", "Change language")}: ${current.nativeName}`}
         >
           <Globe
             className="h-3.5 w-3.5 text-muted-foreground"

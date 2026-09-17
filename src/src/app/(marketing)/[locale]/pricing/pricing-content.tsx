@@ -233,12 +233,12 @@ export function PricingContent() {
                   <div className="flex flex-1 flex-col p-6 sm:p-8">
                     {/* Plan header */}
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">
+                      <h2 className="text-lg font-semibold text-foreground">
                         {/* i18n by slug, catalog name as the fallback, so a plan
                             an admin adds still renders — in English, until
                             `plans` grows a `name_am`. */}
                         {t(`marketing.pricing_page.${plan.slug}`, plan.name)}
-                      </h3>
+                      </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {localised(
                           locale,

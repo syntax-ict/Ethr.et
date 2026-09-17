@@ -189,7 +189,7 @@ export function LandingContent() {
                 asChild
               >
                 <Link href={href("/features")}>
-                  {t("marketing.hero.learn_more", "Learn More")}
+                  {t("marketing.hero.learn_more", "Explore Features")}
                 </Link>
               </Button>
             </div>

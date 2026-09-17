@@ -135,9 +135,9 @@ export function MarketingFooter() {
           {/* Link columns */}
           {footerSections.map((section) => (
             <div key={section.titleKey}>
-              <h4 className="text-sm font-semibold text-foreground">
+              <h3 className="text-sm font-semibold text-foreground">
                 {t(section.titleKey, section.fallback)}
-              </h4>
+              </h3>
               <ul className="mt-4 space-y-3">
                 {section.links.map((link) => (
                   <li key={link.href + link.label}>

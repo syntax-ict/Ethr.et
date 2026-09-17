@@ -231,7 +231,7 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 
 | Phase | Work | Days |
 |---|---|---|
-| 0 | Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`. **Answer B5** — a ten-minute Plesk lookup nobody has done, and the cheapest unblock here | 0.5 |
+| ~~**0**~~ | ~~Measure (build, emitted HTML, Lighthouse, First Load JS) into `audit/BASELINE.md`~~ — **done, BASELINE §18**: Lighthouse over all seven public URLs and the First Load JS split, both reproducible with one command. **B5 is still open** and still an owner action — a Plesk panel lookup cannot be done from here | 0.5 |
 | ~~**1**~~ | ~~Correct the shipped documentation errors~~ — **done, §6 and in place**. The nine are listed in §6, and the three figures a reader met inline are now corrected in `LANDING_PAGE_PRODUCTION_PLAN.md` itself (413 lines, 18 icons, five of **ten** footer links — each recounted at this branch's base, each showing what it said before). F10 is struck through and marked false, with the original text kept beneath it | 0.5 |
 | ~~**2**~~ | ~~**Billing safety: subscription price capture; trial→paid conversion; validate `is_active`**~~ — **done, §2c**; persisting proration split out as its own change | 2–3 |
 | ~~**3**~~ | ~~Plan catalog admin-managed: new columns, admin CRUD, `admin/plans` screen, contract regen~~ — **done, §8** | 3–4 |
@@ -244,11 +244,13 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 
 Phases 3 and 4 are independent of each other; both depend on 2.
 
-**Remaining: Phase 8's performance work, and nothing else.** Phase 0's Lighthouse measurement and the B5 hosting
+**Remaining: Phase 8's performance work, and the B5 hosting answer.** Phase 0's Lighthouse measurement and the B5 hosting
 answer are still owner actions — a Plesk panel lookup cannot be done from here.
-First Load JS *has* now been measured: 427 KB gzipped of client JS on the
-landing page, of which Sentry is 87 KB (measured by building with
-`instrumentation-client.ts` stubbed out). That figure is Phase 8's baseline.
+Phase 0 is closed: `audit/BASELINE.md` §18 now carries Lighthouse medians for
+all seven public URLs and the First Load JS split — 427 KB gzipped on the
+landing page, 87 KB of it Sentry, measured as the difference between two builds.
+That is Phase 8's baseline, and §18 also records the four defects the
+measurement found and the three it deliberately left open.
 
 By owner decision on 2026-09-17, Phase 8 ships as a **separate pull request**
 after the current one merges, so that branch stays reviewable as the locale and

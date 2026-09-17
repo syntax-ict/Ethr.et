@@ -67,6 +67,10 @@ coverage/
 src/test-results/
 src/playwright-report/
 src/lighthouse-reports/
+# LHCI's own scratch state, written beside the reports whenever the
+# `lighthouse` gate runs. Reports were already ignored; this was not, so
+# the first real run of that gate left it staged.
+src/.lighthouseci/
 src/e2e/.auth/
 docker-compose.override.yml
 

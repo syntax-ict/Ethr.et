@@ -66,9 +66,9 @@ export function ProductFlow() {
             </span>
           </div>
 
-          <h3 className="mt-4 text-sm font-semibold text-foreground">
+          <h2 className="mt-4 text-sm font-semibold text-foreground">
             {t("marketing.flow.step_checkin", "Check in, anywhere")}
-          </h3>
+          </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t(
               "marketing.flow.step_checkin_desc",
@@ -108,9 +108,9 @@ export function ProductFlow() {
             </span>
           </div>
 
-          <h3 className="mt-4 text-sm font-semibold text-foreground">
+          <h2 className="mt-4 text-sm font-semibold text-foreground">
             {t("marketing.flow.step_sync", "Keeps working offline")}
-          </h3>
+          </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t(
               "marketing.flow.step_sync_desc",
@@ -159,9 +159,9 @@ export function ProductFlow() {
             </div>
           </div>
 
-          <h3 className="mt-4 text-sm font-semibold text-foreground">
+          <h2 className="mt-4 text-sm font-semibold text-foreground">
             {t("marketing.flow.step_payroll", "Payroll under Ethiopian law")}
-          </h3>
+          </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t(
               "marketing.flow.step_payroll_desc",
@@ -187,7 +187,11 @@ function PayrollRow({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      {/* `text-foreground`, not `text-muted-foreground`: at 10px the muted
+          token measured 4.3:1 against white and small text needs 4.5:1.
+          Moving the token itself would repaint every muted label in the
+          product, so only this one changes. */}
+      <span className="w-20 shrink-0 truncate text-[10px] font-medium uppercase tracking-wide text-foreground">
         {label}
       </span>
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
