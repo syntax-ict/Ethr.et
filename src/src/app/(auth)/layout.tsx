@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { HostProvider } from "@/lib/auth/host-provider";
+import { baseMetadata, RootShell } from "../root-shell";
+import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
 import { AuthLayoutClient } from "./auth-layout-client";
+
+export const metadata: Metadata = baseMetadata;
 
 /**
  * Server component so the auth tree knows the request's hostname on the very
@@ -16,6 +21,11 @@ import { AuthLayoutClient } from "./auth-layout-client";
  * deliberate and correctly scoped: it applies to the auth route group only —
  * which is host-dependent by definition — and not to the marketing or app
  * shells.
+ *
+ * It is also a root layout now that `app/layout.tsx` is gone, so it renders the
+ * shared `<html>`/`<body>` shell itself. `DEFAULT_LOCALE`: the auth routes carry
+ * no language segment, and the reader's stored preference is applied after
+ * hydration as it always was.
  */
 export default async function AuthLayout({
   children,
@@ -25,8 +35,10 @@ export default async function AuthLayout({
   const host = (await headers()).get("host");
 
   return (
-    <HostProvider host={host}>
-      <AuthLayoutClient>{children}</AuthLayoutClient>
-    </HostProvider>
+    <RootShell lang={DEFAULT_LOCALE}>
+      <HostProvider host={host}>
+        <AuthLayoutClient>{children}</AuthLayoutClient>
+      </HostProvider>
+    </RootShell>
   );
 }

@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 37 top-level documents plus `phases/`, `audit/` and `deployment/`. There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 39 top-level documents plus `phases/`, `audit/` and `deployment/`. There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -40,6 +40,8 @@ Three standing caveats:
 | [`DATABASE.md`](DATABASE.md) | Schema |
 | [`PERMISSIONS.md`](PERMISSIONS.md) | Roles, permissions, the RBAC model |
 | [`FRONTEND.md`](FRONTEND.md) · [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) | Frontend structure, visual language, semantic tokens |
+| [`LANDING_PAGE_PRODUCTION_PLAN.md`](LANDING_PAGE_PRODUCTION_PLAN.md) | The public site (`/`, features, pricing, FAQ, contact) — what is not production ready and the phased plan to fix it. Read from source, nothing measured |
+| [`PLATFORM_MANAGED_CONTENT_PLAN.md`](PLATFORM_MANAGED_CONTENT_PLAN.md) | **Supersedes the content half of the above.** What the platform admin owns — plan prices and limits, contact details, logo, tagline — and how it moves out of hardcoded JSX into the database |
 | [`LOCALIZATION.md`](LOCALIZATION.md) | i18n, Amharic, the Ethiopian calendar |
 
 ## Features

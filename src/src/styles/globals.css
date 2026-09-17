@@ -15,10 +15,16 @@
 
 @theme {
   /* --- Typography --------------------------------------------------------- */
+  /* Inter first for Latin, then the self-hosted Ethiopic face (see
+     app/root-shell.tsx) — Inter has no Ethiopic glyphs, so the browser falls
+     back per glyph and Amharic gets a real face instead of whatever the system
+     happens to have. The bare "Noto Sans Ethiopic" stays behind it for a
+     visitor who does have it installed and a build that could not fetch it. */
   --font-sans:
-    var(--font-inter), "Noto Sans Ethiopic", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    var(--font-inter), var(--font-noto-ethiopic), "Noto Sans Ethiopic",
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
   --font-mono:
     "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
     Menlo, Consolas, "Liberation Mono", monospace;
@@ -870,4 +876,243 @@
 }
 .sidebar-scroll-container[data-can-scroll-down="true"]::after {
   opacity: 1;
+}
+
+/* ============================================================================
+   Marketing hero — the product-flow illustration (components/marketing/product-flow.tsx)
+
+   One sequence, played once, that assembles into a finished diagram: check in →
+   queue and sync → payroll. It does NOT loop. A looping hero competes with the
+   call to action beside it, and — more practically — the global
+   `prefers-reduced-motion` block above forces `animation-iteration-count: 1`
+   and a 0.01ms duration, which snaps every animation to its LAST keyframe.
+
+   So every keyframe here ends in the completed state. A reduced-motion visitor
+   gets the whole diagram instantly; everyone else watches it build. The two
+   exceptions are deliberate: `ethr-flow-ripple` and `ethr-flow-dot` are motion
+   accents that end invisible, which is the correct resting state for both.
+
+   Timings are staggered off one notional timeline so the three steps read as
+   cause and effect rather than three things appearing at once. Total ~5.2s.
+   ========================================================================= */
+
+@keyframes ethr-flow-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ethr-flow-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Ends fully faded: a resting ripple would be a static ring around the icon. */
+@keyframes ethr-flow-ripple {
+  from {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes ethr-flow-record-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ethr-flow-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ethr-flow-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* scaleX from the inline-start edge, so the bar grows the way the reader reads.
+   Amharic is LTR, but transform-origin is written logically anyway. */
+@keyframes ethr-flow-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ethr-flow-travel-x {
+  from {
+    opacity: 0;
+    transform: translate(0, -50%) scale(0.6);
+  }
+  25%,
+  75% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(2.5rem, -50%) scale(0.6);
+  }
+}
+
+@keyframes ethr-flow-travel-y {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.6);
+  }
+  25%,
+  75% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 1.5rem) scale(0.6);
+  }
+}
+
+.ethr-flow-step {
+  animation: ethr-flow-rise 0.5s var(--ease-out-quart) both;
+}
+.ethr-flow-step-1 {
+  animation-delay: 0.1s;
+}
+.ethr-flow-step-2 {
+  animation-delay: 1.5s;
+}
+.ethr-flow-step-3 {
+  animation-delay: 3.3s;
+}
+
+.ethr-flow-ripple {
+  animation: ethr-flow-ripple 1.4s var(--ease-out-quart) 0.6s 2 both;
+}
+
+.ethr-flow-chip {
+  animation: ethr-flow-pop 0.45s var(--ease-out-quart) 0.95s both;
+}
+
+.ethr-flow-record {
+  animation: ethr-flow-record-in 0.4s var(--ease-out-quart) both;
+}
+.ethr-flow-record-1 {
+  animation-delay: 1.9s;
+}
+.ethr-flow-record-2 {
+  animation-delay: 2.05s;
+}
+.ethr-flow-record-3 {
+  animation-delay: 2.2s;
+}
+
+.ethr-flow-pill-offline {
+  animation: ethr-flow-fade-out 0.35s var(--ease-standard) 2.75s both;
+}
+.ethr-flow-pill-synced {
+  animation: ethr-flow-fade-in 0.4s var(--ease-out-quart) 2.95s both;
+}
+
+.ethr-flow-bar {
+  transform-origin: left center;
+  animation: ethr-flow-grow 0.6s var(--ease-out-quart) both;
+}
+.ethr-flow-bar-1 {
+  animation-delay: 3.7s;
+}
+.ethr-flow-bar-2 {
+  animation-delay: 3.9s;
+}
+.ethr-flow-bar-3 {
+  animation-delay: 4.1s;
+}
+
+/* Stacked (mobile) the connector runs downward; from `sm` it runs rightward.
+   One element, two axes — rather than two markup paths to keep in sync. */
+.ethr-flow-line {
+  transform-origin: top center;
+  animation: ethr-flow-grow 0.4s var(--ease-standard) both;
+  transform: scaleY(0);
+}
+.ethr-flow-dot {
+  animation: ethr-flow-travel-y 0.9s var(--ease-standard) both;
+}
+.ethr-flow-line-1,
+.ethr-flow-dot-1 {
+  animation-delay: 0.9s;
+}
+.ethr-flow-line-2,
+.ethr-flow-dot-2 {
+  animation-delay: 2.7s;
+}
+
+@keyframes ethr-flow-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.ethr-flow-line {
+  animation-name: ethr-flow-grow-y;
+}
+
+@media (min-width: 640px) {
+  .ethr-flow-line {
+    transform-origin: left center;
+    transform: scaleX(0);
+    animation-name: ethr-flow-grow;
+  }
+  .ethr-flow-dot {
+    animation-name: ethr-flow-travel-x;
+  }
+}
+
+/* The global reduced-motion block above collapses `animation-duration` and
+   `animation-iteration-count` — but NOT `animation-delay`, and this sequence is
+   built almost entirely out of delays. With `fill-mode: both`, an element holds
+   its `from` state for the whole delay, so step 2 stayed invisible for 1.5s and
+   step 3 for 3.3s: a reduced-motion visitor got one card, then watched the rest
+   pop in over three seconds. Exactly the staggered motion they asked not to see.
+   Caught by screenshotting with `reducedMotion: "reduce"`, not by reading. */
+@media (prefers-reduced-motion: reduce) {
+  .ethr-flow *,
+  .ethr-flow *::before,
+  .ethr-flow *::after {
+    animation-delay: 0ms !important;
+  }
 }

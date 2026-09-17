@@ -62,6 +62,13 @@ describe("sidebar navigation for the platform super admin", () => {
     expect(
       screen.getByRole("link", { name: /platform settings/i }),
     ).toBeInTheDocument();
+    // The plan catalog. A screen that is not in the nav is a screen nobody
+    // finds: the plan this implements lists six registration points precisely
+    // because adding a route is the easy half.
+    expect(screen.getByRole("link", { name: /^plans$/i })).toHaveAttribute(
+      "href",
+      "/admin/plans",
+    );
 
     // A super admin has no tenant, so these lead nowhere useful — and on the
     // platform hostname the middleware bounces each one back to /admin.
@@ -102,6 +109,18 @@ describe("route metadata for detail pages", () => {
   it("still resolves a real named sub-route", () => {
     expect(getRouteMeta("/admin/platform-settings")?.label).toBe(
       "Platform Settings",
+    );
+  });
+
+  it("names the plan catalog rather than falling back to the segment", () => {
+    // Without a route-meta entry the segment fallback takes over and the
+    // heading reads "Plans" while the description is inherited from /admin —
+    // which is how three console screens once described themselves
+    // identically.
+    const meta = getRouteMeta("/admin/plans");
+    expect(meta?.label).toBe("Plans");
+    expect(meta?.description).toBe(
+      "Prices, limits and copy the public pricing page reads",
     );
   });
 });

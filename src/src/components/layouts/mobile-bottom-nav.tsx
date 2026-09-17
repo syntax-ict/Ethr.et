@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Clock,
   Landmark,
+  Layers,
   LayoutDashboard,
   Menu,
   Receipt,
@@ -63,6 +64,11 @@ export function MobileBottomNav() {
           label: t("nav.platform_settings", "Settings"),
           href: "/admin/platform-settings",
           icon: Landmark,
+        },
+        {
+          label: t("nav.plans", "Plans"),
+          href: "/admin/plans",
+          icon: Layers,
         },
       ]
     : [

@@ -9,6 +9,8 @@
 #   ./scripts/gates.sh docs        markdown link integrity only
 #   ./scripts/gates.sh security    composer audit + npm audit (production deps)
 #   ./scripts/gates.sh performance the tests/Performance benchmarks only
+#   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
+#   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #
 # The API-contract gate needs both halves, so it only runs in a full sweep.
 #
@@ -370,6 +372,34 @@ pest_mysql_gate() {
     )
 }
 
+lighthouse_gate() {
+    (
+        cd "$WEB_DIR" || return 1
+
+        local base
+        base="${LHCI_BASE_URL:-http://demo.localhost:3000}"
+
+        # Same posture as the MySQL gate: refuse rather than skip. A Lighthouse
+        # run that silently measures nothing is worse than no run, because the
+        # report still renders and still looks like evidence.
+        if ! node -e '
+            const { get } = require("http");
+            const req = get(process.argv[1], (res) => process.exit(res.statusCode < 500 ? 0 : 1));
+            req.on("error", () => process.exit(1));
+            req.setTimeout(3000, () => process.exit(1));
+        ' "$base"; then
+            printf '\033[31mNothing serving at %s.\033[0m\n' "$base"
+            printf 'Lighthouse measures a running build, so this gate refuses to pass\n'
+            printf 'without one:\n\n'
+            printf '  cd src && npm run build && npm run start\n\n'
+            printf 'Override the origin with LHCI_BASE_URL.\n'
+            return 1
+        fi
+
+        node node_modules/@lhci/cli/src/cli.js autorun --config=.lighthouserc.cjs
+    )
+}
+
 # `quick` is the pre-push scope: every gate that does not run a test suite.
 # Seconds rather than ten minutes, which is the difference between a hook people
 # keep and a hook people learn to pass --no-verify to. The suites run in CI, and
@@ -430,6 +460,14 @@ fi
 # once by hand closed the measurement without closing the hole.
 if [[ "$SCOPE" == "performance" ]]; then
     run_gate "Pest (performance budgets)" bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
+fi
+
+# Opt-in, never part of `all`, for the same reason as `mysql`: it needs a built
+# app on a running server, and `all` has to stay runnable on a fresh clone. The
+# public pages are the ones this measures — they are the only ones Lighthouse can
+# reach without a session, which the config's own header explains at length.
+if [[ "$SCOPE" == "lighthouse" ]]; then
+    run_gate "Lighthouse CI (public pages)" lighthouse_gate
 fi
 
 printf '\n\033[1m━━━ summary ━━━\033[0m\n'

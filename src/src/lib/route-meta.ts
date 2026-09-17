@@ -309,6 +309,12 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Platform Settings",
     description: "Bank account and payment instructions shown to every tenant",
   },
+  "/admin/plans": {
+    section: "Admin",
+    parent: { label: "Admin Console", href: "/admin" },
+    label: "Plans",
+    description: "Prices, limits and copy the public pricing page reads",
+  },
 
   // ── Profile & Notifications (personal, outside the section tree) ──
   "/profile": {

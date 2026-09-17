@@ -4,6 +4,42 @@
  */
 
 export interface paths {
+    "/admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List plans */
+        get: operations["adminPlan.index"];
+        put?: never;
+        /** Create plan */
+        post: operations["adminPlan.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/plans/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update plan */
+        put: operations["adminPlan.update"];
+        post?: never;
+        /** Withdraw a plan from sale */
+        delete: operations["adminPlan.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/alert-thresholds": {
         parameters: {
             query?: never;
@@ -994,7 +1030,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List plans */
+        /** The public plan catalog, as the pricing page renders it */
         get: operations["plan.index"];
         put?: never;
         post?: never;
@@ -4820,6 +4856,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/site-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The contact details, brand and figures the public site renders */
+        get: operations["siteContent.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/tenant-context": {
         parameters: {
             query?: never;
@@ -6215,9 +6268,9 @@ export interface components {
             name: string;
             slug: string;
             price_cents: number;
-            max_employees: number;
-            max_branches: number;
-            max_devices: number;
+            max_employees: number | null;
+            max_branches: number | null;
+            max_devices: number | null;
             features: string[] | null;
             is_active: boolean;
             sort_order: number;
@@ -6225,6 +6278,39 @@ export interface components {
             created_at: string | null;
             /** Format: date-time */
             updated_at: string | null;
+            currency: string;
+            billing_interval: string;
+            description: string | null;
+            description_am: string | null;
+            is_public: boolean;
+            is_popular: boolean;
+            marketing_features: string[] | null;
+            marketing_features_am: string[] | null;
+        };
+        /**
+         * PlanFeature
+         * @description The feature keys stored in `Plan.features`. These strings already existed as free-form array entries in `PlanSeeder` and were read by nothing except the pricing page — so a Starter tenant could use payroll, webhooks and the audit log despite paying for none of them. Naming them here is what makes the gate checkable: a typo in a route middleware argument is now a fatal `ValueError` at boot rather than a silently permissive check.  The values are load-bearing and must match `PlanSeeder` exactly. They are also persisted in the `plans.features` JSON column of every existing deployment, so renaming one is a data migration, not a rename.
+         * @enum {string}
+         */
+        PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log";
+        /** PlanResource */
+        PlanResource: {
+            public_id: string;
+            name: string;
+            slug: string;
+            description: string | null;
+            description_am: string | null;
+            price_cents: number;
+            currency: string;
+            billing_interval: string;
+            max_employees: number | null;
+            max_branches: number | null;
+            max_devices: number | null;
+            features: string[] | null;
+            marketing_features: string[] | null;
+            marketing_features_am: string[] | null;
+            is_popular: boolean;
+            sort_order: number;
         };
         /** PlatformSettingResource */
         PlatformSettingResource: {
@@ -6235,6 +6321,35 @@ export interface components {
             payment_instructions: string | null;
             payment_instructions_am: string | null;
             is_configured: boolean;
+            platform_name: string | null;
+            platform_name_am: string | null;
+            tagline: string | null;
+            tagline_am: string | null;
+            logo_url: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            office_address: string | null;
+            office_address_am: string | null;
+            social_linkedin: string | null;
+            social_x: string | null;
+            social_facebook: string | null;
+            metric_organisations: number | null;
+            metric_employees: number | null;
+            metric_uptime_note: string | null;
+            metric_uptime_note_am: string | null;
+            testimonial_quote: string | null;
+            testimonial_quote_am: string | null;
+            testimonial_author: string | null;
+            testimonial_role: string | null;
+            testimonial_role_am: string | null;
+            testimonial_organisation: string | null;
+            /**
+             * @description Published here and not by SiteContentResource: the operator has to
+             *     see and edit the consent date, a visitor has no use for it, and
+             *     this endpoint is behind admin.manage while that one is open.
+             */
+            testimonial_consented_on: string | null;
+            has_published_metrics: boolean;
             /** Format: date-time */
             updated_at: string | null;
         };
@@ -6539,6 +6654,31 @@ export interface components {
             day_offset: number;
             shift: components["schemas"]["ShiftResource"] | null;
             is_rest_day: boolean;
+        };
+        /** SiteContentResource */
+        SiteContentResource: {
+            platform_name: string | null;
+            platform_name_am: string | null;
+            tagline: string | null;
+            tagline_am: string | null;
+            logo_url: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            office_address: string | null;
+            office_address_am: string | null;
+            social_linkedin: string | null;
+            social_x: string | null;
+            social_facebook: string | null;
+            metric_organisations: number | null;
+            metric_employees: number | null;
+            metric_uptime_note: string | null;
+            metric_uptime_note_am: string | null;
+            testimonial_quote: string | null;
+            testimonial_quote_am: string | null;
+            testimonial_author: string | null;
+            testimonial_role: string | null;
+            testimonial_role_am: string | null;
+            testimonial_organisation: string | null;
         };
         /** StageRowsRequest */
         StageRowsRequest: {
@@ -6864,6 +7004,38 @@ export interface components {
             branch_public_id?: string | null;
             new_salary_cents?: number | null;
             salary_step?: number | null;
+        };
+        /**
+         * StorePlanRequest
+         * @description Create or update a catalog plan.
+         *
+         *     Validation *is* the registry here, as it is for platform settings: there is
+         *     no key/value store to guard, so what these rules accept is the whole of what
+         *     an admin can put on the public pricing page.
+         *
+         *     Used for both store and update — `sometimes` on every field makes the update
+         *     a partial one without a second class whose rules could drift from these.
+         *     `$this->isMethod('post')` decides which fields are mandatory on create.
+         */
+        StorePlanRequest: {
+            name: string;
+            slug: string;
+            description?: string | null;
+            description_am?: string | null;
+            price_cents: number;
+            currency?: string;
+            /** @enum {string} */
+            billing_interval?: "monthly";
+            max_employees?: number | null;
+            max_branches?: number | null;
+            max_devices?: number | null;
+            features?: components["schemas"]["PlanFeature"][];
+            marketing_features?: string[] | null;
+            marketing_features_am?: string[] | null;
+            is_active?: boolean;
+            is_public?: boolean;
+            is_popular?: boolean;
+            sort_order?: number;
         };
         /** StorePositionRequest */
         StorePositionRequest: {
@@ -7247,6 +7419,35 @@ export interface components {
             bank_account_name?: string | null;
             payment_instructions?: string | null;
             payment_instructions_am?: string | null;
+            platform_name?: string | null;
+            platform_name_am?: string | null;
+            tagline?: string | null;
+            tagline_am?: string | null;
+            /** Format: uri */
+            logo_url?: string | null;
+            /** Format: email */
+            contact_email?: string | null;
+            contact_phone?: string | null;
+            office_address?: string | null;
+            office_address_am?: string | null;
+            /** Format: uri */
+            social_linkedin?: string | null;
+            /** Format: uri */
+            social_x?: string | null;
+            /** Format: uri */
+            social_facebook?: string | null;
+            metric_organisations?: number | null;
+            metric_employees?: number | null;
+            metric_uptime_note?: string | null;
+            metric_uptime_note_am?: string | null;
+            testimonial_quote?: string | null;
+            testimonial_quote_am?: string | null;
+            testimonial_author?: string | null;
+            testimonial_role?: string | null;
+            testimonial_role_am?: string | null;
+            testimonial_organisation?: string | null;
+            /** Format: date-time */
+            testimonial_consented_on?: string | null;
         };
         /** UpdatePositionRequest */
         UpdatePositionRequest: {
@@ -7515,6 +7716,112 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "adminPlan.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminPlan.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePlanRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminPlan.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePlanRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminPlan.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Plan"] | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "alertThreshold.index": {
         parameters: {
             query?: never;
@@ -9929,7 +10236,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["Plan"][];
+                        data: components["schemas"]["PlanResource"][];
                     };
                 };
             };
@@ -20143,6 +20450,27 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "siteContent.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteContentResource"];
+                    };
+                };
+            };
         };
     };
     "auth.tenantContext": {

@@ -357,6 +357,41 @@ export interface PlatformSettings {
   payment_instructions: string | null;
   payment_instructions_am: string | null;
   is_configured: boolean;
+
+  // The facts the public marketing site states about ETHR. Same row and same
+  // permission as the bank details above — see the migration for why these are
+  // columns here rather than a new table.
+  platform_name: string | null;
+  platform_name_am: string | null;
+  tagline: string | null;
+  tagline_am: string | null;
+  logo_url: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  office_address: string | null;
+  office_address_am: string | null;
+  social_linkedin: string | null;
+  social_x: string | null;
+  social_facebook: string | null;
+  metric_organisations: number | null;
+  metric_employees: number | null;
+  metric_uptime_note: string | null;
+  metric_uptime_note_am: string | null;
+  has_published_metrics: boolean;
+
+  // A customer quote, and the provenance that makes it one. The public endpoint
+  // refuses to publish the quote unless the author and the consent date are
+  // both present, so all three travel together or the landing page shows
+  // nothing. `testimonial_consented_on` is admin-only — the public resource
+  // never emits it.
+  testimonial_quote: string | null;
+  testimonial_quote_am: string | null;
+  testimonial_author: string | null;
+  testimonial_role: string | null;
+  testimonial_role_am: string | null;
+  testimonial_organisation: string | null;
+  testimonial_consented_on: string | null;
+
   updated_at: string | null;
 }
 
@@ -384,6 +419,91 @@ export function useUpdatePlatformSettings() {
       qc.invalidateQueries({ queryKey: ["admin", "platform-settings"] });
       // Tenants read these values on their billing page.
       qc.invalidateQueries({ queryKey: ["billing", "dashboard"] });
+      // And the public marketing site reads the contact details and metrics
+      // from the same row.
+      qc.invalidateQueries({ queryKey: ["site-content"] });
     },
+  });
+}
+
+/**
+ * A catalog plan as the admin console sees it — every column, including the
+ * ones the public endpoint withholds.
+ *
+ * Distinct from `Plan` in `features/billing/api.ts`, which is the *public*
+ * shape: that one has no `is_active`/`is_public` because the pricing page never
+ * receives them. Reusing it here would have meant widening the public type with
+ * fields the public endpoint does not send — the class of untruth that put
+ * `is_active` into the generated contract for months.
+ */
+export interface AdminPlan {
+  public_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  description_am: string | null;
+  price_cents: number;
+  currency: string;
+  billing_interval: string;
+  max_employees: number | null;
+  max_branches: number | null;
+  max_devices: number | null;
+  features: string[] | null;
+  marketing_features: string[] | null;
+  marketing_features_am: string[] | null;
+  is_active: boolean;
+  is_public: boolean;
+  is_popular: boolean;
+  sort_order: number;
+}
+
+export function useAdminPlans() {
+  const isSuperAdmin = useIsSuperAdmin();
+
+  return useQuery<AdminPlan[]>({
+    queryKey: ["admin", "plans"],
+    queryFn: async () => {
+      const { data } = await apiClient.get("/admin/plans");
+      return data.data;
+    },
+    enabled: isSuperAdmin,
+  });
+}
+
+/**
+ * Invalidates the *public* catalog too, not only this screen.
+ *
+ * `/pricing` reads `usePlans()` under the `["plans"]` key. Without this an
+ * operator would save a price, watch the admin table update, open the public
+ * page in the next tab and see the old figure — and reasonably conclude the
+ * save had not worked.
+ */
+function invalidatePlanCaches(qc: ReturnType<typeof useQueryClient>): void {
+  qc.invalidateQueries({ queryKey: ["admin", "plans"] });
+  qc.invalidateQueries({ queryKey: ["plans"] });
+}
+
+export function useUpdateAdminPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      ...payload
+    }: Partial<AdminPlan> & { publicId: string }) => {
+      const { data } = await apiClient.put(`/admin/plans/${publicId}`, payload);
+      return data.data as AdminPlan;
+    },
+    onSuccess: () => invalidatePlanCaches(qc),
+  });
+}
+
+export function useRetireAdminPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.delete(`/admin/plans/${publicId}`);
+      return data.data as AdminPlan;
+    },
+    onSuccess: () => invalidatePlanCaches(qc),
   });
 }

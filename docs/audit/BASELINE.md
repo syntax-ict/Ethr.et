@@ -1081,3 +1081,111 @@ Verified against a pre-upgrade baseline captured deliberately first, so a failur
 ## 17. What was NOT done in this phase
 
 No application code changed. No architecture decisions taken. No dependencies added or removed. No documentation corrected — the drift in §12b is *recorded*, not fixed. The pending `deployment/ → docs/deployment/` move was left exactly as found. No remote git operation of any kind. No hosting capability asserted as fact.
+
+---
+
+## 18. Public-site baseline — **measured 2026-09-17**
+
+§13e recorded that no performance baseline existed. It does now. These are the
+first `[verified]` numbers for the public site: a production build served by
+`next start`, measured by `./scripts/gates.sh lighthouse` — three runs per URL,
+medians below.
+
+| route | perf | a11y | best-pr. | SEO | FCP | LCP | TBT |
+|---|---|---|---|---|---|---|---|
+| `/am` | 99 | 100 | 96 | 100 | 298 ms | 881 ms | 5 ms |
+| `/en` | 99 | 100 | 96 | 100 | 340 ms | 890 ms | 0 ms |
+| `/en/contact` | 100 | 100 | 96 | 100 | 293 ms | 790 ms | 0 ms |
+| `/en/features` | 99 | 100 | 96 | 100 | 339 ms | 875 ms | 1 ms |
+| `/en/pricing` | 99 | 100 | 96 | 100 | 337 ms | 881 ms | 2 ms |
+| `/login` | 99 | 100 | 100 | 63 | 301 ms | 881 ms | 0 ms |
+| `/register` | 99 | 100 | 100 | 63 | 294 ms | 874 ms | 0 ms |
+
+**Read the `preset` before reading the scores.** `.lighthouserc.cjs` uses
+`preset: "desktop"` — no CPU throttling worth the name and a fast simulated
+network. These numbers say the pages are well built; they say **nothing** about
+a mid-range Android on an Ethiopian mobile network, which is the audience. Phase
+8 is about the 427 KB below, and a desktop 99 is not evidence against it.
+
+**SEO 63 on `/login` and `/register` is correct and deliberate.** The single
+failing audit is `is-crawlable`: `app/robots.ts` disallows both. The config
+asserted SEO ≥ 0.9 on them as an *error* until 2026-09-17, which was a target the
+site's own robots.txt guaranteed could never be met; the assertion is now scoped
+away from those two URLs and they are still measured for everything else.
+
+### First Load JS
+
+| | gzipped | raw |
+|---|---|---|
+| Landing page, all client chunks | **427 KB** | 1,415 KB |
+| The same with `instrumentation-client.ts` stubbed out | 340 KB | 1,131 KB |
+| → Sentry's share | **87 KB** | 284 KB |
+| Dashboard, for comparison | 470 KB | 1,562 KB |
+
+Measured by summing the gzipped size of every `/_next/static/chunks/*.js` the
+built `.next/server/app/en.html` references. Sentry's figure is a difference of
+two builds, not an estimate. Its docblock argues deliberately for the static
+import — read it before changing anything there.
+
+Per-locale page weight, which the dictionary projection decides:
+`/en/pricing` is 14.0 KB gzipped of HTML against `/am/pricing`'s 7.4 KB, because
+the `[locale]` layout ships a 7.5 KB projection of `en.json` and `am.json` is
+already eager.
+
+### Four defects this measurement found
+
+None were visible from the source, and the first is the reason the rest were
+found at all.
+
+1. **The gate measured the wrong pages.** `.lighthouserc.cjs` still collected
+   `/`, `/pricing`, `/features` and `/contact` — the unprefixed URLs, which are
+   now redirectors rendering an empty div. Lighthouse has no stored locale, so it
+   would have scored blank pages and reported them passing.
+2. **`/favicon.ico` 404'd on every page load.** `baseMetadata` declared it and
+   the file did not exist — `public/` had eight PNG icons and no `.ico`. A real
+   ICO container (PNG payload, 96×96) is now committed. `best-practices` on
+   `/login` and `/register` went 96 → 100 when it landed.
+3. **Heading levels skipped.** `product-flow.tsx` used `h3` directly under the
+   hero's `h1`; the footer used `h4` after an `h2`; the pricing plan cards used
+   `h3` under the page `h1`. `accessibility` was 98 across the public site and is
+   now 100.
+4. **The language switcher's accessible name did not contain its visible text.**
+   The button shows the current language's own name and announced only "Change
+   language" — WCAG 2.5.3, and a voice-control user could not say what they could
+   see.
+
+### Three findings left open, deliberately
+
+- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
+  below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
+  surface is marginally under. Lighthouse flags it intermittently, which is what a
+  4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
+  repainting the whole product — a Phase 8 decision, not a landing-page one. One
+  10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
+  the worst case; nothing else was touched.
+- **`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
+  `public/sw.js:110` reference it. Push-notification badges are therefore broken
+  app-wide. Not touched: it is service-worker behaviour, not the public site.
+- **Two manifests.** `public/manifest.json` is the one linked from every page;
+  `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
+  Both serve 200. One of them is dead, and deciding which is a PWA question.
+
+### The 403s in the report are not a defect
+
+Every run logs `403` for `/api/v1/site-content` and `/api/v1/plans`. No backend
+was running — the pages are built to render with no network at all, which is
+exactly what they did. `best-practices` sits at 96 on the marketing pages for
+that reason alone; `/login` and `/register` make no such call and score 100.
+
+### How to reproduce
+
+```bash
+cd src && npm run build
+node .next/standalone/server.js      # or `npx next start -p 3000`
+CHROME_PATH=/path/to/chrome LHCI_BASE_URL=http://localhost:3000 \
+  ./scripts/gates.sh lighthouse
+```
+
+The gate refuses rather than skips when nothing is serving. A Lighthouse run that
+silently measures nothing is worse than no run, because the report still renders
+and still looks like evidence — which is precisely how defect 1 above survived.

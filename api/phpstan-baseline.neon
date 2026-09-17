@@ -3469,6 +3469,12 @@ parameters:
 			path: app/Models/KioskSession.php
 
 		-
+			message: '#^Method App\\Models\\Lead\:\:findByPublicId\(\) should return static\(App\\Models\\Lead\)\|null but returns App\\Models\\Lead\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Lead.php
+
+		-
 			message: '#^Class App\\Models\\LeaveBalance uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1

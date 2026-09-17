@@ -33,6 +33,7 @@ import {
   FileText,
   Loader2,
   Landmark,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -324,6 +325,13 @@ export function CommandPalette() {
             href: "/admin/platform-settings",
             icon: Landmark,
             keywords: "bank account payment details",
+            show: can.viewAdminConsole,
+          },
+          {
+            label: t("nav.plans", "Plans"),
+            href: "/admin/plans",
+            icon: Layers,
+            keywords: "pricing price catalog subscription tiers",
             show: can.viewAdminConsole,
           },
         ],

@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { hostContext } from "@/lib/auth/host-context";
+import {
+  LOCALE_COOKIE,
+  localeHref,
+  negotiateLocale,
+  parseAcceptLanguage,
+} from "@/lib/i18n/config";
+import { PUBLIC_ROUTES } from "@/lib/site-url";
 
 /**
  * Hostname decides which application a request is allowed to reach.
@@ -28,12 +35,50 @@ import { hostContext } from "@/lib/auth/host-context";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
 
+/**
+ * The unprefixed public URLs, each of which now forwards into a language.
+ *
+ * `Set<string>` rather than the readonly tuple's own union, so `pathname` can be
+ * tested against it without a cast.
+ */
+const LOCALE_ENTRY_PATHS = new Set<string>(PUBLIC_ROUTES);
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  /* Locale negotiation comes first, deliberately.
+   *
+   * Everything below returns early when NEXT_PUBLIC_ROOT_DOMAIN is unset —
+   * which is every development machine — so locale logic placed after it would
+   * be dead exactly where it gets written and tested, and would first run in
+   * production.
+   *
+   * This is an optimisation, not the mechanism. `(root)/locale-redirect.tsx`
+   * performs the same negotiation in the browser and is what actually
+   * guarantees the behaviour: middleware does not run under `output: "export"`,
+   * which is still a live possibility for this deployment, and it cannot read
+   * localStorage at all. Saving the visitor a client-side hop is all this does.
+   *
+   * It deliberately does not *write* the cookie. Only an explicit choice in the
+   * language switcher does that — recording a guess from `Accept-Language` as
+   * though it were a preference is how a reader ends up stuck in a language
+   * they never picked.
+   */
+  if (LOCALE_ENTRY_PATHS.has(pathname)) {
+    const locale = negotiateLocale([
+      request.cookies.get(LOCALE_COOKIE)?.value,
+      ...parseAcceptLanguage(request.headers.get("accept-language")),
+    ]);
+
+    const url = request.nextUrl.clone();
+    url.pathname = localeHref(locale, pathname);
+    return NextResponse.redirect(url);
+  }
+
   if (!ROOT_DOMAIN) return NextResponse.next();
 
   const host = request.headers.get("host") ?? "";
   const context = hostContext(host, ROOT_DOMAIN);
-  const { pathname } = request.nextUrl;
 
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 

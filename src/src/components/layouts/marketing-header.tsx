@@ -1,18 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useId } from "react";
 import Link from "next/link";
-import { Menu, X, Globe, ChevronDown } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
-import { setLocale, supportedLocales } from "@/lib/i18n/translations";
+import { useLocaleHref } from "@/lib/i18n/route-locale";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 export function MarketingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
+  // aria-controls needs a stable id that is unique per render tree, which is
+  // what useId is for — a hardcoded string would collide if the header were
+  // ever rendered twice on a page.
+  const mobileMenuId = useId();
   const [scrolled, setScrolled] = useState(false);
-  const langRef = useRef<HTMLDivElement>(null);
   const { t, locale } = useT();
+  // Keeps every nav link inside the language the reader is already in:
+  // the identity function off the locale-prefixed routes, so this same
+  // header still works unchanged wherever it is rendered.
+  const href = useLocaleHref();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -21,27 +28,12 @@ export function MarketingHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) {
-        setLangOpen(false);
-      }
-    }
-    if (langOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [langOpen]);
-
   const navLinks = [
-    { href: "/features", label: t("marketing.nav.product", "Product") },
-    { href: "/pricing", label: t("marketing.nav.pricing", "Pricing") },
-    { href: "/faq", label: t("marketing.nav.faq", "FAQ") },
-    { href: "/contact", label: t("marketing.nav.contact", "Contact") },
+    { href: href("/features"), label: t("marketing.nav.product", "Product") },
+    { href: href("/pricing"), label: t("marketing.nav.pricing", "Pricing") },
+    { href: href("/faq"), label: t("marketing.nav.faq", "FAQ") },
+    { href: href("/contact"), label: t("marketing.nav.contact", "Contact") },
   ];
-
-  const currentLocale = supportedLocales.find((l) => l.code === locale);
 
   return (
     <header
@@ -53,7 +45,7 @@ export function MarketingHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href={href("/")} className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
             <span className="text-sm font-bold text-primary-foreground">E</span>
           </div>
@@ -77,38 +69,15 @@ export function MarketingHeader() {
 
         {/* Desktop actions */}
         <div className="hidden items-center gap-2 md:flex">
-          <div ref={langRef} className="relative">
-            <button
-              onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Globe className="h-4 w-4" />
-              <span>{currentLocale?.nativeName}</span>
-              <ChevronDown
-                className={`h-3 w-3 transition-transform duration-150 ${langOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {langOpen && (
-              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-border bg-popover p-1 shadow-lg">
-                {supportedLocales.map((loc) => (
-                  <button
-                    key={loc.code}
-                    onClick={() => {
-                      setLocale(loc.code);
-                      setLangOpen(false);
-                    }}
-                    className={`flex w-full items-center rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent ${
-                      locale === loc.code
-                        ? "font-medium text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {loc.nativeName}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* The shared switcher, not a second implementation.
+
+              This header mapped every entry in supportedLocales into a live
+              setLocale button — including the four marked `coming_soon`, whose
+              dictionaries are empty, so choosing one replaced the page with raw
+              translation keys. LanguageSwitcher already disables and labels
+              those, explains why in a tooltip, and reads the same list, so a
+              locale added in translations.ts needs no second edit here. */}
+          <LanguageSwitcher />
 
           <div className="mx-1 h-5 w-px bg-border" />
 
@@ -127,13 +96,25 @@ export function MarketingHeader() {
           </Button>
         </div>
 
-        {/* Mobile toggle */}
+        {/* Mobile toggle.
+
+            aria-expanded and aria-controls were both missing, so a screen
+            reader announced a button that gave no indication it opened
+            anything and no way to know whether it already had — the icon
+            swapping between Menu and X is a purely visual signal. The label
+            also said "Open menu" while the panel was open. */}
         <Button
           variant="ghost"
           size="icon"
           className="md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={t("nav.open_menu", "Open menu")}
+          aria-expanded={mobileOpen}
+          aria-controls={mobileMenuId}
+          aria-label={
+            mobileOpen
+              ? t("nav.close_menu", "Close menu")
+              : t("nav.open_menu", "Open menu")
+          }
         >
           {mobileOpen ? (
             <X className="h-5 w-5" />
@@ -145,7 +126,7 @@ export function MarketingHeader() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="border-t bg-background md:hidden">
+        <div id={mobileMenuId} className="border-t bg-background md:hidden">
           <nav className="mx-auto max-w-7xl space-y-1 px-4 py-4">
             {navLinks.map((link) => (
               <Link
@@ -164,22 +145,7 @@ export function MarketingHeader() {
               <span className="text-xs font-medium text-muted-foreground">
                 {t("language.label", "Language")}:
               </span>
-              {supportedLocales.map((loc) => (
-                <button
-                  key={loc.code}
-                  onClick={() => {
-                    setLocale(loc.code);
-                    setMobileOpen(false);
-                  }}
-                  className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
-                    locale === loc.code
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {loc.nativeName}
-                </button>
-              ))}
+              <LanguageSwitcher />
             </div>
 
             <div className="my-3 h-px bg-border" />
