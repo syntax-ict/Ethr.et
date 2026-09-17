@@ -58,6 +58,7 @@ return [
         'services' => ['heading' => 'አገልግሎቶቻችን'],
         'stats' => ['heading' => 'በአጭሩ'],
         'notices' => ['heading' => 'የሕዝብ ማስታወቂያዎች'],
+        'news' => ['heading' => 'ዜናዎች እና መረጃዎች'],
         'leadership' => ['heading' => 'አመራር'],
         'gallery' => ['heading' => 'ማዕከለ ስዕላት'],
         'faq' => ['heading' => 'ተደጋጋሚ ጥያቄዎች'],

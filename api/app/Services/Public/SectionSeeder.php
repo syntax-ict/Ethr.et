@@ -37,11 +37,16 @@ final readonly class SectionSeeder
     /**
      * The default section set per preset, in order.
      *
-     * The differences are the point. A government page leads with notices,
-     * services and opening hours, because that is what someone visits a public
-     * body's site to find; a hotel leads with a gallery; a university puts
-     * about and notices near the top. Marketing copy goes last on a government
-     * page and first on a commercial one.
+     * The differences are the point. A government page leads with the notices
+     * someone came looking for and puts news beneath them; a university leads
+     * with news, because a university's front page is largely its news page; a
+     * hotel leads with a gallery and has neither. Marketing copy goes last on a
+     * government page and first on a commercial one.
+     *
+     * Bank, manufacturing, hotel and general get no news block by default —
+     * not because they never publish any, but because a default that arrives
+     * empty on most pages is worse than one an administrator adds when they
+     * have something to say. Every preset can add it.
      *
      * @return list<PublicSectionKind>
      */
@@ -51,6 +56,7 @@ final readonly class SectionSeeder
             PublicPagePreset::GOVERNMENT => [
                 PublicSectionKind::HERO,
                 PublicSectionKind::NOTICES,
+                PublicSectionKind::NEWS,
                 PublicSectionKind::SERVICES,
                 PublicSectionKind::ABOUT,
                 PublicSectionKind::HOURS,
@@ -60,6 +66,7 @@ final readonly class SectionSeeder
             PublicPagePreset::UNIVERSITY => [
                 PublicSectionKind::HERO,
                 PublicSectionKind::ABOUT,
+                PublicSectionKind::NEWS,
                 PublicSectionKind::SERVICES,
                 PublicSectionKind::NOTICES,
                 PublicSectionKind::STATS,
@@ -72,12 +79,14 @@ final readonly class SectionSeeder
                 PublicSectionKind::SERVICES,
                 PublicSectionKind::HOURS,
                 PublicSectionKind::ABOUT,
+                PublicSectionKind::NEWS,
                 PublicSectionKind::NOTICES,
                 PublicSectionKind::CONTACT,
             ],
             PublicPagePreset::NGO => [
                 PublicSectionKind::HERO,
                 PublicSectionKind::ABOUT,
+                PublicSectionKind::NEWS,
                 PublicSectionKind::SERVICES,
                 PublicSectionKind::STATS,
                 PublicSectionKind::GALLERY,

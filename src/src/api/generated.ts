@@ -6576,6 +6576,7 @@ export interface components {
          *     | `services` <br/> What the organisation does or offers, as repeatable cards. |
          *     | `stats` <br/> Figures the organisation chooses to publish. Typed, never queried. |
          *     | `notices` <br/> Public notices and announcements — typed here, never read from the `announcements` table, which is entirely internal HR content. |
+         *     | `news` <br/> News and updates the organisation publishes about itself. Distinct from NOTICES, and the distinction is editorial rather than technical — worth stating because "we already have notices" is the first thing a reviewer will think.  A notice is a statement of record: dated, text-first, read by someone who came looking for it. A relocation, a tender, a consultation period. It belongs in a list, newest first, and a photograph would cheapen it.  News is the opposite errand: read by someone who arrived for another reason and stayed. A graduation, a new wing, a partnership. It is image-led, carries an excerpt, and links out to the full story.  The same table, the same caps and the same escaping. Only the partial and the reading differ — which is exactly the kind of thing a section kind is for, and exactly why it is not a `layout` variant of NOTICES: a tenant publishing both should not have to choose. |
          *     | `leadership` <br/> Named office-holders an organisation publishes deliberately. |
          *     | `gallery` <br/> Photographs of premises or work. |
          *     | `faq` <br/> Questions the public actually asks. |
@@ -6584,7 +6585,7 @@ export interface components {
          *     | `cta` <br/> The closing call to action. |
          * @enum {string}
          */
-        PublicSectionKind: "hero" | "about" | "services" | "stats" | "notices" | "leadership" | "gallery" | "faq" | "hours" | "contact" | "cta";
+        PublicSectionKind: "hero" | "about" | "services" | "stats" | "notices" | "news" | "leadership" | "gallery" | "faq" | "hours" | "contact" | "cta";
         /** QrAttendanceRequest */
         QrAttendanceRequest: {
             idempotency_key: string;

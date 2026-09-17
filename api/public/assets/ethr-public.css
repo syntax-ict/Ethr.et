@@ -826,3 +826,66 @@ body[class*="preset--"] .brand__logo {
     font-weight: 600;
     text-align: center;
 }
+
+/* News — image-led cards, as distinct from the notices list.
+ *
+ * `auto-fit`/`minmax` rather than a fixed column count, for the same reason as
+ * the services grid: an administrator decides how many entries there are, and a
+ * three-column rule strands the fourth. A news block with one entry should look
+ * deliberate, not broken. */
+.news {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.news.section--list {
+    grid-template-columns: 1fr;
+}
+
+.news__item {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: var(--preset-rule);
+    border-radius: var(--preset-radius);
+    background: var(--surface);
+}
+
+.news__image {
+    width: 100%;
+    /* A fixed ratio so a row of cards lines up whatever an administrator
+     * uploaded — tenant photographs arrive at every aspect ratio there is. */
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.news__body {
+    padding: 16px 20px 20px;
+}
+
+.news__date {
+    margin: 0 0 4px;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+.news__title {
+    margin: 0 0 8px;
+    font-size: 1.0625rem;
+    line-height: 1.35;
+}
+
+.news__excerpt {
+    margin: 0 0 8px;
+    color: var(--text-muted);
+}
+
+.news__link {
+    font-weight: 600;
+}
+
+/* On a government page news sits below the notices it must not outshine. */
+.preset--government .news__item {
+    background: var(--preset-band);
+}

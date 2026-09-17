@@ -44,6 +44,28 @@ enum PublicSectionKind: string
      * `announcements` table, which is entirely internal HR content. */
     case NOTICES = 'notices';
 
+    /**
+     * News and updates the organisation publishes about itself.
+     *
+     * Distinct from NOTICES, and the distinction is editorial rather than
+     * technical — worth stating because "we already have notices" is the first
+     * thing a reviewer will think.
+     *
+     * A notice is a statement of record: dated, text-first, read by someone who
+     * came looking for it. A relocation, a tender, a consultation period. It
+     * belongs in a list, newest first, and a photograph would cheapen it.
+     *
+     * News is the opposite errand: read by someone who arrived for another
+     * reason and stayed. A graduation, a new wing, a partnership. It is
+     * image-led, carries an excerpt, and links out to the full story.
+     *
+     * The same table, the same caps and the same escaping. Only the partial and
+     * the reading differ — which is exactly the kind of thing a section kind is
+     * for, and exactly why it is not a `layout` variant of NOTICES: a tenant
+     * publishing both should not have to choose.
+     */
+    case NEWS = 'news';
+
     /** Named office-holders an organisation publishes deliberately. */
     case LEADERSHIP = 'leadership';
 
@@ -72,7 +94,7 @@ enum PublicSectionKind: string
     public function hasItems(): bool
     {
         return match ($this) {
-            self::SERVICES, self::STATS, self::NOTICES,
+            self::SERVICES, self::STATS, self::NOTICES, self::NEWS,
             self::LEADERSHIP, self::GALLERY, self::FAQ, self::HOURS => true,
             self::HERO, self::ABOUT, self::CONTACT, self::CTA => false,
         };
@@ -105,7 +127,7 @@ enum PublicSectionKind: string
     public function allowsItemImages(): bool
     {
         return match ($this) {
-            self::GALLERY, self::LEADERSHIP, self::SERVICES => true,
+            self::GALLERY, self::LEADERSHIP, self::SERVICES, self::NEWS => true,
             default => false,
         };
     }

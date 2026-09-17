@@ -60,6 +60,7 @@ return [
         'services' => ['heading' => 'Our services'],
         'stats' => ['heading' => 'At a glance'],
         'notices' => ['heading' => 'Public notices'],
+        'news' => ['heading' => 'News and updates'],
         'leadership' => ['heading' => 'Leadership'],
         'gallery' => ['heading' => 'Gallery'],
         'faq' => ['heading' => 'Frequently asked questions'],

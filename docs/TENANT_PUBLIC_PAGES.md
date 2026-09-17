@@ -214,9 +214,26 @@ Per-tenant publish checklist:
 3. Verify `https://{subdomain}.ethr.et/` renders and `/login` still works.
 4. Only then turn on the publish switch.
 
-Routing is one rule per fronting server, in the `*.ethr.et` block only:
+Routing is **five rules** per fronting server, in the `*.ethr.et` block only —
 `infrastructure/nginx.conf` (production) and `docker/nginx/default.conf` (local
-and E2E). The Plesk `.htaccess` equivalent is **not written yet** — that
+and E2E). This is the complete list the Plesk cutover has to reproduce:
+
+| Path | Match | Serves |
+|---|---|---|
+| `/` | exact | the landing page |
+| `/media/` | prefix | logo, hero and section images |
+| `/robots.txt` | exact | crawler directives |
+| `/sitemap.xml` | exact | this tenant's own sitemap |
+| `/preview` | **exact** | the signed preview |
+
+`/preview` is an exact match because `URL::temporarySignedRoute` puts the
+signature in the query string — the path is precisely `/preview`, and a
+`^~ /preview/` prefix never matches it. That mistake was made once in this
+feature's own plan.
+
+On a tenant host only these reach Laravel; every other path proxies to Next.js.
+Nothing in the test suite can see a missing rule, because it is a web-server
+rule and not a route. The Plesk `.htaccess` equivalent is **not written yet** — that
 directory stays fenced until gate G0-B answers whether `.htaccess` is honoured
 at all. See [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md).
 
@@ -321,10 +338,33 @@ waves through.
 ## The section builder
 
 `tenant_public_sections` holds the ordered blocks, `tenant_public_items` the
-repeatable entries inside them. Eleven kinds, listed in
+repeatable entries inside them. Twelve kinds, listed in
 `App\Enums\PublicSectionKind`, each with a Blade partial, headings in both
 locales and a place in at least one preset's defaults —
 `SectionKindWiringTest` checks all three for every case.
+
+### `news` and `notices` are both here on purpose
+
+The distinction is editorial, not technical, and it is worth stating because
+"we already have notices" is the first reasonable objection.
+
+A **notice** is a statement of record — a relocation, a tender, a consultation
+period. Dated, text-first, read by someone who came looking for it. It belongs
+in a list and a photograph would cheapen it.
+
+**News** is the opposite errand: a graduation, a new wing, a partnership, read
+by a visitor who arrived for another reason and stayed. Image-led cards with an
+excerpt and a link out to the full story.
+
+Same table, same caps, same escaping; only the partial and the reading differ.
+They are separate kinds rather than a `layout` variant of one because an
+organisation that publishes both should not have to choose which to call it —
+and a government page in particular wants statutory notices *above* news, which
+the seeded default does.
+
+Both are admin-typed. Neither reads the `announcements` table, and there is now
+a test for each by name: two public kinds whose names echo an internal HR
+feature is two chances for a later "obvious improvement" to join them to it.
 
 **The rule that governs the whole feature:** every word and number on the page
 was typed by an administrator. Nothing is derived from an HR table — not

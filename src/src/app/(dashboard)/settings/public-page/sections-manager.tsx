@@ -75,6 +75,7 @@ const SECTION_KINDS = [
   "services",
   "stats",
   "notices",
+  "news",
   "leadership",
   "gallery",
   "faq",
@@ -108,6 +109,8 @@ function kindLabel(t: Translate, kind: string): string {
       return t("settings.public_page.kind_stats", "At a glance");
     case "notices":
       return t("settings.public_page.kind_notices", "Public notices");
+    case "news":
+      return t("settings.public_page.kind_news", "News and updates");
     case "leadership":
       return t("settings.public_page.kind_leadership", "Leadership");
     case "gallery":
