@@ -446,3 +446,141 @@ a:focus-visible,
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Organisation presets
+ *
+ * One block per App\Enums\PublicPagePreset case, applied as a class on <body>
+ * by the controller. PresetWiringTest asserts every case has a block here,
+ * because a missing skin renders an unstyled page and nothing else notices.
+ *
+ * What a preset may change: density, corner radius, heading weight and scale,
+ * ornamentation, and how formal the surface treatment is. What it must never
+ * change: the --tenant-* custom properties. Those carry the organisation's own
+ * brand colours from the style attribute on <body>, and a preset that
+ * overrode them would silently discard a choice the tenant made deliberately.
+ *
+ * The variables below are the preset's own knobs, consumed by the rules that
+ * follow. They sit on <body> rather than :root so a preset class can rebind
+ * them without competing with the tenant theme.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+body[class*="preset--"] {
+    --preset-radius: var(--radius-card);
+    --preset-section-gap: 64px;
+    --preset-heading-weight: 700;
+    --preset-heading-tracking: -0.02em;
+    --preset-rule: 1px solid var(--border);
+    --preset-band: var(--surface-muted);
+}
+
+body[class*="preset--"] .section {
+    padding-block: var(--preset-section-gap);
+}
+
+body[class*="preset--"] .section__title,
+body[class*="preset--"] .hero__title {
+    font-weight: var(--preset-heading-weight);
+    letter-spacing: var(--preset-heading-tracking);
+}
+
+body[class*="preset--"] .btn,
+body[class*="preset--"] .brand__logo {
+    border-radius: var(--preset-radius);
+}
+
+/*
+ * Government — formal, square, high-contrast.
+ *
+ * Square corners and a heavier rule are not decoration: an official notice
+ * board is the visual language Ethiopian public bodies already publish in, and
+ * a rounded, airy marketing page reads as a private company pretending to be
+ * one. The accent bar under the header is the closest thing this stylesheet
+ * has to a seal.
+ */
+.preset--government {
+    --preset-radius: 2px;
+    --preset-section-gap: 48px;
+    --preset-heading-weight: 700;
+    --preset-heading-tracking: -0.01em;
+    --preset-rule: 2px solid var(--tenant-primary);
+}
+
+.preset--government .site-header {
+    border-bottom: var(--preset-rule);
+}
+
+.preset--government .hero {
+    background: var(--surface);
+    border-bottom: 3px solid var(--tenant-accent);
+}
+
+/* University — generous measure, softer, reading-led. */
+.preset--university {
+    --preset-radius: 8px;
+    --preset-section-gap: 72px;
+    --preset-heading-tracking: -0.025em;
+}
+
+.preset--university .prose p {
+    max-width: 68ch;
+}
+
+/* Hospital — calm, plain, nothing shouting. */
+.preset--hospital {
+    --preset-radius: 10px;
+    --preset-section-gap: 64px;
+    --preset-heading-weight: 600;
+}
+
+.preset--hospital .hero {
+    background: var(--preset-band);
+}
+
+/* NGO — warm, accent-forward. */
+.preset--ngo {
+    --preset-radius: 12px;
+    --preset-section-gap: 72px;
+}
+
+.preset--ngo .hero {
+    background: var(--preset-band);
+    border-bottom: 3px solid var(--tenant-accent);
+}
+
+/* Bank — restrained, square-ish, trust-signalling. */
+.preset--bank {
+    --preset-radius: 4px;
+    --preset-section-gap: 56px;
+    --preset-heading-weight: 600;
+}
+
+.preset--bank .site-header {
+    border-bottom: 2px solid var(--border);
+}
+
+/* Manufacturing — dense, industrial, tight rhythm. */
+.preset--manufacturing {
+    --preset-radius: 4px;
+    --preset-section-gap: 48px;
+    --preset-heading-tracking: -0.015em;
+}
+
+/* Hotel — imagery-led, the most generous spacing of the eight. */
+.preset--hotel {
+    --preset-radius: 14px;
+    --preset-section-gap: 80px;
+    --preset-heading-weight: 600;
+    --preset-heading-tracking: -0.03em;
+}
+
+.preset--hotel .hero {
+    --preset-section-gap: 96px;
+}
+
+/* General — the ETHR baseline, unchanged. Declared rather than omitted so
+ * every case has a block and the wiring test has something to find. */
+.preset--general {
+    --preset-radius: var(--radius-card);
+    --preset-section-gap: 64px;
+}

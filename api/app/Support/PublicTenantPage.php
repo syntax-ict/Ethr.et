@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\PublicPagePreset;
 use App\Models\Tenant;
 use App\Models\TenantPublicProfile;
 use Illuminate\Support\Str;
@@ -48,10 +49,23 @@ final class PublicTenantPage
         public readonly bool $hasLogo,
         public readonly bool $hasHero,
         public readonly bool $isIndexable,
+        public readonly PublicPagePreset $preset,
     ) {}
 
-    public static function from(Tenant $tenant, TenantPublicProfile $profile): self
-    {
+    /**
+     * Build the view-model for a page.
+     *
+     * The preset is resolved by the caller and passed in rather than derived
+     * here. `PresetResolver` reads `tenants.settings` to find the onboarding
+     * industry, and `settings` is precisely what this class exists to keep
+     * away from a template — so the blob is read outside, and only the
+     * resulting enum case crosses the boundary.
+     */
+    public static function from(
+        Tenant $tenant,
+        TenantPublicProfile $profile,
+        PublicPagePreset $preset = PublicPagePreset::GENERAL,
+    ): self {
         return new self(
             name: $tenant->name,
             subdomain: $tenant->subdomain,
@@ -70,6 +84,7 @@ final class PublicTenantPage
             hasLogo: TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::LOGO) !== null,
             hasHero: TenantPublicAsset::pathFor($tenant, $profile, TenantPublicAsset::HERO) !== null,
             isIndexable: $profile->is_indexable,
+            preset: $preset,
         );
     }
 

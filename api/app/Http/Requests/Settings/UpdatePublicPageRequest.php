@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Models\Tenant;
 use App\Models\TenantPublicProfile;
 use App\Rules\PublicUrl;
+use App\Rules\SelectablePreset;
+use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -38,6 +41,10 @@ class UpdatePublicPageRequest extends FormRequest
         $rules = [
             'is_published' => ['sometimes', 'boolean'],
             'is_indexable' => ['sometimes', 'boolean'],
+            // Null is meaningful and must stay reachable: it returns the page
+            // to the classic layout, which is how an administrator undoes an
+            // opt-in without losing anything they have written.
+            'preset' => ['sometimes', 'nullable', 'string', new SelectablePreset($this->tenant())],
             'headline' => ['sometimes', 'nullable', 'string', 'max:160'],
             // Plain text. There is no rich-text editor and the template renders
             // paragraphs rather than markup — a cap generous for prose and well
@@ -107,5 +114,25 @@ class UpdatePublicPageRequest extends FormRequest
     public function wantsPublished(): bool
     {
         return $this->boolean('is_published');
+    }
+
+    /**
+     * The tenant this request belongs to.
+     *
+     * Read from the resolved context, never from the payload. SelectablePreset
+     * decides whether the government layout may be chosen, and a rule that took
+     * its subject from the request body would let the caller nominate the
+     * tenant it is checked against — which is the whole question.
+     */
+    private function tenant(): Tenant
+    {
+        $tenant = app(CurrentTenant::class)->get();
+
+        // The route is inside the authenticated, tenant-resolved group, so a
+        // missing tenant here is a routing mistake rather than a user error.
+        // Failing loudly beats validating against a tenant that is not there.
+        abort_if($tenant === null, 404);
+
+        return $tenant;
     }
 }

@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\PublicSecurityHeaders;
+use App\Models\Tenant;
 use App\Models\TenantPublicProfile;
 use App\Services\CurrentTenant;
+use App\Services\Public\PresetResolver;
 use App\Support\PublicTenantPage;
 use App\Support\TenancyDomain;
 use Illuminate\Http\Request;
@@ -30,7 +32,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class TenantLandingController extends Controller
 {
-    public function __construct(private readonly CurrentTenant $currentTenant) {}
+    public function __construct(
+        private readonly CurrentTenant $currentTenant,
+        private readonly PresetResolver $presets,
+    ) {}
 
     public function __invoke(Request $request): Response
     {
@@ -48,11 +53,19 @@ class TenantLandingController extends Controller
             return PublicSecurityHeaders::exempt(response()->view('welcome'));
         }
 
-        $page = $this->resolvePage();
+        [$tenant, $profile] = $this->resolveProfile();
+
+        $page = PublicTenantPage::from($tenant, $profile, $this->presets->resolve($tenant, $profile));
 
         $canonicalUrl = $request->getSchemeAndHttpHost().'/';
 
-        $response = response()->view('public.tenant.landing', [
+        // A null `preset` column means this tenant has not opted into the new
+        // layout, and it is the default for every row that existed before the
+        // feature shipped. So deploying changes no live page: an administrator
+        // moves their own page, when they choose to, and can move it back.
+        $classic = $profile->preset === null;
+
+        $response = response()->view($classic ? 'public.tenant.landing' : 'public.tenant.landing-v2', [
             'page' => $page,
             'canonicalUrl' => $canonicalUrl,
             // Supplied by the controller rather than computed in the template,
@@ -63,6 +76,11 @@ class TenantLandingController extends Controller
             'themeStyle' => $page->themeStyleAttribute(),
             'jsonLd' => $page->jsonLd($canonicalUrl),
             'jsonLdFlags' => PublicTenantPage::JSON_LD_FLAGS,
+            // Omitted entirely on the classic layout. Passing it there would
+            // put a preset skin on a page that opted out of presets — which
+            // changes the appearance of a live page without changing its
+            // template, the exact thing the opt-in exists to prevent.
+            ...($classic ? [] : ['bodyClass' => $page->preset->bodyClass()]),
         ]);
 
         // `private, no-store` rather than a public max-age, deliberately.
@@ -104,9 +122,17 @@ class TenantLandingController extends Controller
     }
 
     /**
-     * The page for this host, or a 404 that says nothing about why.
+     * The tenant and published profile for this host, or a 404 that says
+     * nothing about why.
+     *
+     * Returns both rather than a built view-model because the caller needs the
+     * profile itself to decide which template to render — `preset === null` is
+     * the opt-in marker, and the view-model deliberately narrows a null preset
+     * to a concrete case so a template never has to handle "no layout".
+     *
+     * @return array{0: Tenant, 1: TenantPublicProfile}
      */
-    private function resolvePage(): PublicTenantPage
+    private function resolveProfile(): array
     {
         $tenant = $this->currentTenant->get();
 
@@ -122,12 +148,17 @@ class TenantLandingController extends Controller
         $profile = TenantPublicProfile::query()
             ->where('tenant_id', $tenant->id)
             ->where('is_published', true)
+            // A page the platform has taken down answers exactly as an
+            // unpublished one does — same status, same body. Suspension must
+            // not become a way to tell which tenants exist and have been
+            // moderated, which a distinguishable response would leak.
+            ->whereNull('suspended_at')
             ->first();
 
         if ($profile === null) {
             throw new NotFoundHttpException;
         }
 
-        return PublicTenantPage::from($tenant, $profile);
+        return [$tenant, $profile];
     }
 }

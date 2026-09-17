@@ -59,6 +59,7 @@ class TenantPublicProfile extends Model
         'tenant_id',
         'is_published',
         'is_indexable',
+        'preset',
         'headline',
         'description',
         'hero_image_path',
@@ -71,6 +72,10 @@ class TenantPublicProfile extends Model
         'social_links',
         'meta_description',
         'published_at',
+        // `suspended_at` is deliberately absent. It is the platform's takedown
+        // switch, written only by the admin.manage surface, and a tenant
+        // request must never be able to clear its own suspension by including
+        // the field in a settings payload.
     ];
 
     protected $hidden = [
@@ -85,6 +90,7 @@ class TenantPublicProfile extends Model
             'is_indexable' => 'boolean',
             'social_links' => 'array',
             'published_at' => 'datetime',
+            'suspended_at' => 'datetime',
         ];
     }
 
@@ -103,6 +109,22 @@ class TenantPublicProfile extends Model
      */
     public function isPubliclyVisible(): bool
     {
-        return $this->is_published && (bool) $this->tenant?->isActive();
+        return $this->is_published
+            && $this->suspended_at === null
+            && (bool) $this->tenant?->isActive();
+    }
+
+    /**
+     * Whether the platform has taken this page down.
+     *
+     * Separate from `is_published` on purpose: a takedown must not destroy the
+     * tenant's own publication state, so restoring is one column write rather
+     * than a guess about what they had wanted. The public route treats a
+     * suspended page exactly like an unpublished one — same 404, same body —
+     * so suspension does not become a new way to probe which tenants exist.
+     */
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
     }
 }

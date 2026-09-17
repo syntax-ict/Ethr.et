@@ -42,7 +42,12 @@
     `'unsafe-inline'` on all styles. The values are re-validated as six-digit
     hex in PublicTenantPage::safeTheme() before they get here.
 --}}
-<body @isset($themeStyle) style="{{ $themeStyle }}" @endisset>
+{{--
+    `bodyClass` is the preset skin (`preset--government`, `preset--hotel`, …).
+    It is absent on the classic layout and on the welcome fallback, so the
+    attribute is omitted entirely rather than rendered empty.
+--}}
+<body @isset($bodyClass) class="{{ $bodyClass }}" @endisset @isset($themeStyle) style="{{ $themeStyle }}" @endisset>
     <a class="skip-link" href="#main">{{ __('public.skip_to_content') }}</a>
 
     @yield('body')

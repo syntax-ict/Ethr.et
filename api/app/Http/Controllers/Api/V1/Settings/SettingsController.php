@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Settings;
 
+use App\Enums\PublicPagePreset;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
 use App\Http\Requests\Settings\UpdateBrandingRequest;
@@ -19,6 +20,7 @@ use App\Models\Tenant;
 use App\Models\TenantPublicProfile;
 use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
+use App\Services\Public\PresetResolver;
 use App\Support\TenantPublicAsset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -370,6 +372,30 @@ class SettingsController extends Controller
                 'url' => 'https://'.$tenant->subdomain.'.'.(config('app.domain') ?: 'ethr.et'),
                 'is_published' => (bool) $profile?->is_published,
                 'is_indexable' => (bool) ($profile->is_indexable ?? true),
+                // null means the classic layout, which is a real choice rather
+                // than a missing value — the settings screen shows it as an
+                // option so an opt-in can be undone.
+                'preset' => $profile?->preset,
+                // What this tenant would get if they never chose. The screen
+                // labels it as the recommendation, so an administrator is not
+                // asked to guess which of eight layouts suits their sector.
+                'preset_default' => app(PresetResolver::class)->derive($tenant)->value,
+                // Which presets this tenant may actually select. The government
+                // layout is absent unless the platform has verified them, so
+                // the UI can disable it with a reason instead of offering a
+                // choice the API will reject.
+                'available_presets' => array_values(array_map(
+                    static fn (PublicPagePreset $preset): string => $preset->value,
+                    array_filter(
+                        PublicPagePreset::cases(),
+                        static fn (PublicPagePreset $preset): bool => ! $preset->requiresVerification()
+                            || $tenant->government_verified_at !== null,
+                    ),
+                )),
+                // Suspension is the platform's, not the tenant's. Surfaced so
+                // the screen can explain why a published page is not reachable
+                // rather than leaving an administrator to think it is broken.
+                'is_suspended' => $profile?->isSuspended() ?? false,
                 'headline' => $profile?->headline,
                 'description' => $profile?->description,
                 'contact_email' => $profile?->contact_email,
