@@ -128,7 +128,10 @@ PHASE A:      IMPLEMENTED BUT NOT YET APPROVED FOR PRODUCTION
 TARGET:  etrhet @ line6.ethiotelecom.et / 213.55.96.154 (Linux Bronze, Plesk)
 
 B1a wildcard DNS          VERIFIED PASS   (6 unconfigured names all resolve)
-B1b wildcard vhost        VERIFIED PASS   (owner: `*` accepted; not yet created)
+B1b wildcard vhost        PARTIAL         (owner reports `*` accepted — testimony,
+                                           not recorded output; vhost NOT created.
+                                           deployment/GATE-0-RESULT.md governs; see
+                                           its G0-C section)
 B2  wildcard TLS          PARTIAL         (LE already working per-hostname on this
                                            account; wildcard needs DNS-01, zone is
                                            not in Plesk. HTTP-01 fallback PROVEN)
@@ -357,6 +360,63 @@ required it.
 
 ---
 
+## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
+
+**Nothing here is removed, and nothing here is scheduled for removal.** This is step 1 of
+the owner's cleanup rule: *inventory and classify first; remove only confirmed VPS-only
+artifacts, and only after shared-hosting migration evidence exists.* No migration gate is
+verified, so **no artifact is eligible for removal yet**. The VPS remains the rollback
+target (`docs/deployment/shared-hosting/rollback.md` depends on it being live).
+
+Derived by reading which files CI and `gates.sh` actually invoke, not by pattern-matching
+on the word "docker".
+
+### Required by ETHR — must survive the migration
+
+| Artifact | Why |
+| --- | --- |
+| `scripts/gates.sh` | **The trap.** It greps as Docker-related, and it is the quality gate CI itself invokes — `.github/workflows/gates.yml` and `security.yml` both call it rather than restating the gates, specifically so the two cannot drift. Removing it removes CI. |
+| `scripts/api-types-check.sh` | Called by CI directly *and* by `gates.sh`'s `api_types_gate`. |
+| `scripts/docs-link-check.js` | `gates.sh`'s `docs_gate`. |
+
+### Shared-hosting compatible — Docker is a fallback path, not a requirement
+
+| Artifact | Why |
+| --- | --- |
+| `scripts/pest-isolated.sh` | Native-first since the CI fix; the container is the fallback branch. Runs fine with no Docker present. |
+| `scripts/phpstan-isolated.sh` | Same shape, same fix (CI cause 3). |
+
+### Definitely VPS-only
+
+| Artifact | Note |
+| --- | --- |
+| `infrastructure/nginx.conf` | **The second trap.** VPS-only as *configuration*, but it is the live evidence base for the current document-root and public-routing architecture: it roots three server blocks at `api/public`, which is *why* `api/public/robots.txt` exists and why copying it into the merged shared-hosting document root is wrong. Cited by `DEPLOYMENT.md` step 4a and by `api/tests/Feature/document-root-inventory.php`. Do not remove it without first relocating that evidence, or those two artifacts lose their justification. |
+| `infrastructure/nginx-common.conf` | Security headers and rate limits; translated into the deployment `.htaccess` and `nginx-directives.conf`. |
+| `infrastructure/supervisor.conf` | Process management — no equivalent on shared hosting (cron replaces it, gate G0-D). |
+| `infrastructure/certbot-webroot/` | Superseded by Plesk's own Let's Encrypt integration. |
+| `docker-compose.prod.yml` | The 13-service production stack. |
+| `scripts/deploy.sh`, `backup.sh`, `restore.sh`, `rollback.sh`, `setup-replication.sh`, `init-storage.sh`, `prod-build-test.sh`, `api-reload.sh` | All assume Docker + SSH into containers. Risk R10 already records that this tooling needs rebuilding under Option B. |
+| `docs/VPS_DEPLOYMENT.md` | Reference architecture for the source/rollback environment. |
+
+### Uncertain — needs an owner decision, not a judgement call
+
+| Artifact | The question |
+| --- | --- |
+| `docker-compose.yml`, `.override.yml`, `.lowmem.yml`, `.hostnames.yml`, `.test.yml` and `docker/*` | These are **local development and E2E**, not production. Shared hosting does not replace a local dev loop, and `CONTRIBUTING.md` / `LOCAL_SETUP.md` document them as how you run the project. Keeping them costs nothing; removing them costs every contributor. Flagged as VPS-adjacent rather than VPS-only. |
+| `scripts/seed.sh`, `scripts/run-e2e.sh` | Same category — developer tooling that happens to drive containers. |
+| `RUN_ALL.ps1`, `START_BACKEND.ps1`, `START_FRONTEND.ps1` | Already known-wrong: they predate the Docker setup, `RUN_ALL.ps1` prints "SQLite" while the stack is MariaDB, and none starts the queue worker or Reverb. Candidates for removal on *correctness* grounds independent of the migration — which is a different argument from "VPS-only", and should be decided as one. |
+
+### What must be true before any of this is removed
+
+The owner's twelve-point objective, none of which is met: ETHR running on the real Plesk
+host, Laravel/PHP/DB compatibility, document roots and public entry points, `.htaccess`
+behaviour, environment/config, authentication, tenant isolation intact, cron/scheduler,
+storage/file handling, no regression in critical workflows, `dev.ethr.et` / `ethr.et`
+routing, and HTTPS/SSL — each verified **through the actual account**. Then: re-run the
+tests, update the migration documentation, and make the removal its own checkpoint.
+
+---
+
 ## BLOCKED
 
 Everything downstream of the gates. The blocking dependency is **access to an Ethio
@@ -502,9 +562,12 @@ decision rather than a blocker.
 
 Account: `etrhet` @ `213.55.96.154` (Plesk). All quick, ~10 minutes total.
 
-**Already answered — do not re-ask:** **B1b** (wildcard subdomain) — owner confirmed
-Plesk accepts the literal name `*` for *Add Subdomain*, deliberately not yet created.
-This was the one gate with no workaround; it has passed.
+**Already answered — do not re-ask the owner:** **B1b** — the owner confirmed Plesk
+accepts the literal name `*` for *Add Subdomain*. Do not put that question again.
+**But the gate is not closed:** the vhost has never been created and no panel output was
+recorded, so `deployment/GATE-0-RESULT.md` holds G0-C at **PARTIAL** under its own
+"only from output" rule. The action is to *create* it in this session and record the
+result — not to re-ask whether it can be.
 
 **From the panel:**
 

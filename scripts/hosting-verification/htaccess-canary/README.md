@@ -19,11 +19,47 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 
 ```
 1. Upload all four to   httpdocs/ethr-canary/
-2. Open                 https://<host>/ethr-canary/canary.php
-3. Run the four curl commands it prints
+2. Open                 https://www.ethr.et/ethr-canary/canary.php
+3. Run the four curl commands it prints, each with --resolve (below)
 4. Record results in    docs/deployment/GATE-0-RESULT.md  (G0-B rows)
 5. DELETE THE DIRECTORY
 ```
+
+## Pin every request to the Plesk host
+
+**Do not trust DNS or assume which vhost answers.** `docs/B1-B5_GATE_REPORT.md` records
+the account host as `213.55.96.154`; that IP is the repository's evidence for where this
+account lives. Add `--resolve` to every command:
+
+```bash
+curl --resolve www.ethr.et:443:213.55.96.154 -sI https://www.ethr.et/ethr-canary/canary.php
+```
+
+`canary.php` builds its printed commands from the hostname in the request it receives, so
+it cannot add the flag for you — add it by hand to each one.
+
+This is not paranoia on this host specifically: `B1-B5_GATE_REPORT.md` records
+`zzq7x.ethr.et` reaching the *server default* page rather than the `ethr.et` vhost, which
+is direct evidence that this box serves more than one vhost and that which one answers is
+the open question. A request that lands on the wrong vhost returns a plausible answer, and
+a plausible wrong answer is worse than an error.
+
+## If canary.php returns 404 — stop
+
+A 404 after a successful upload means the request is **not served from the directory you
+uploaded into**. That is a document-root/vhost fact, not a `.htaccess` fact.
+
+**None of the five checks is meaningful until it is fixed**, and each would misreport:
+a 404 on `secret.txt.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads as
+"`mod_rewrite` off", and both conclusions would be wrong. Do not record a G0-B failure.
+
+1. Record it against the `document root editable` row in `GATE-0-RESULT.md`, not a G0-B row.
+2. **Websites & Domains → Hosting Settings** — read *Document root* verbatim; it may not
+   be `httpdocs`.
+3. Establish which vhost answered: compare `www.ethr.et` against a name known to hit the
+   server default (`zzq7x.ethr.et`). Same page → the `ethr.et` vhost is not serving you.
+4. Re-upload all four files into the confirmed document root.
+5. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything.
 
 Step 5 matters even though nothing here is secret: a stray `.htaccess` in a live document root is a configuration surprise waiting to happen.
 

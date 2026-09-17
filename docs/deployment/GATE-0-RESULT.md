@@ -34,6 +34,18 @@ Nothing in this repository has ever touched the Ethio Telecom account. The probe
 
 ## How to run it — three steps, about thirty minutes
 
+> ### Do G0-A before Step 1
+>
+> G0-A lives in Step 3 because it is a panel question, but the panel section says to
+> *answer it first* — and that is the order that matters, not the numbering. G0-A decides
+> between roughly one day and one to two weeks of frontend work (see its own section
+> below). Everything in Steps 1 and 2 is worth measuring either way; G0-A is the one
+> answer that changes what the rest of the migration *is*. Two minutes, one directive,
+> one `curl`.
+>
+> Operator order: **G0-A → Step 1 (probe) → Step 2 (canary) → rest of Step 3 (panel).**
+> The step numbers below are kept as they were so existing references still resolve.
+
 ### Step 1 — the capability probe (sensitive; keep it out of the web root)
 
 `scripts/hosting-verification/ethr-hosting-check.php` prints `disable_functions`, database grants and the filesystem layout verbatim. It must not be web-reachable.
@@ -56,11 +68,60 @@ Answers: G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 The probe above sits in `~/` and is never served by Apache, so it structurally cannot answer *"is `.htaccess` honoured?"*. `scripts/hosting-verification/htaccess-canary/` is the opposite trade: it is web-reachable and discloses nothing — five booleans, no environment detail.
 
 1. Upload all four files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`) to `httpdocs/ethr-canary/`.
-2. Open `https://<host>/ethr-canary/canary.php` and follow the printed checks.
-3. Run the four `curl` commands it gives you.
+2. Open `https://www.ethr.et/ethr-canary/canary.php` and follow the printed checks.
+3. Run the four `curl` commands it gives you — **pinned to the Plesk host**, see below.
 4. Save the output, **delete the directory.**
 
 Answers: G0-B.
+
+#### Pin every G0-B request to the Plesk host
+
+**Do not rely on DNS or on the vhost being the one you expect.** `docs/B1-B5_GATE_REPORT.md`
+records the account host as **`213.55.96.154`** (`etrhet` @ `line6.ethiotelecom.et`); that
+IP, not a hostname, is the repository's evidence for where this account lives. A request
+that resolves elsewhere, or lands on a different vhost on the same box, measures the wrong
+machine and returns a *plausible* answer — which is worse than an error.
+
+So add `--resolve` to every G0-B command:
+
+```bash
+curl --resolve www.ethr.et:443:213.55.96.154 -sI https://www.ethr.et/ethr-canary/canary.php
+```
+
+Every check in the *Results* table and every command `canary.php` prints takes the same
+flag. The canary fills in the hostname from the request it receives, so its printed
+commands need `--resolve` added by hand.
+
+Two reasons this is not paranoia. `docs/MIGRATION_STATE.md`'s DNS observations are dated
+2026-08-29 and record the apex pointing somewhere else entirely, so the file cannot be
+trusted as current on this point. And the same document records `zzq7x.ethr.et` reaching
+the *server default* page rather than the `ethr.et` vhost — proof that this host already
+serves more than one vhost, and that which one answers is exactly the thing in question.
+
+#### If `canary.php` returns 404 — stop, and do not call it a G0-B failure
+
+A 404 after a successful upload means the request is **not being served from the directory
+you uploaded into.** That is a statement about the document root and the vhost, not about
+whether `.htaccess` is honoured. **None of G0-B.1 – G0-B.5 is meaningful until it is
+resolved**, because all five are measured through a file that is not being reached: a 404
+on `secret.txt.probe` would read as "not a pass", a 404 on `REWRITE_OK` would read as
+"`mod_rewrite` off", and both conclusions would be wrong.
+
+Record it as its own result, against the `document root editable` row (currently
+`NOT VERIFIED`) rather than against any G0-B row, then:
+
+1. **Websites & Domains → Hosting Settings** — read the *Document root* field verbatim. It
+   may not be `httpdocs`.
+2. Establish which vhost answered. Compare a request for `www.ethr.et` against one for a
+   name known to hit the server default (`zzq7x.ethr.et`, per `B1-B5_GATE_REPORT.md`). If
+   they return the same page, the `ethr.et` vhost is not the one serving you.
+3. Re-upload all four canary files into the **confirmed** document root.
+4. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — then run
+   them, with `--resolve`.
+
+If the document root cannot be pointed at a directory you can write to, that is a finding
+in its own right: it blocks `DEPLOYMENT.md` step 4a, which assembles `~/httpdocs/`, and it
+blocks G0-B with it.
 
 ### Step 3 — the Plesk panel checklist
 
@@ -76,8 +137,8 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 
 | # | Capability | Required | Actual | Status | Evidence |
 |---|---|---|---|---|---|
-| **G0-E** | PHP version | >= 8.2 | | NOT VERIFIED | probe |
-| G0-E | 18 mandatory extensions | all present | | NOT VERIFIED | probe |
+| **G0-E** | PHP version | >= 8.2 | | NOT VERIFIED | probe **PHP/P1** |
+| G0-E | 18 mandatory extensions | **all 18 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
 | G0-E | `memory_limit` | >= 256M | | NOT VERIFIED | probe |
 | G0-E | `max_execution_time` | >= 120s | | NOT VERIFIED | probe |
 | **G0-B.1** | `mod_rewrite` honoured | yes | | NOT VERIFIED | canary |
@@ -86,7 +147,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-B.4** | `Authorization` reaches PHP | yes | | NOT VERIFIED | canary |
 | **G0-B.5** | a real file shadows the rewrite | *record which* — no failing answer | | NOT VERIFIED | canary |
 | **G0-A** | reverse proxy for `/api/` | permitted | | NOT VERIFIED | panel |
-| **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29); vhost not yet created | PARTIAL | B1-B5 + panel |
+| **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29, re-confirmed 2026-09-17); panel accepts `*` per **owner report**, not a measurement; vhost not yet created | PARTIAL | B1-B5 + panel |
 | G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
 | **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
@@ -98,14 +159,60 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | G0-I | `DB_CONNECTION` to use | `mysql` or `mariadb` | | NOT VERIFIED | probe DB1b |
 | G0-I | version floor | >= 5.7.9 / 10.2.7 | | NOT VERIFIED | probe DB1c |
 | G0-I | server charset | `utf8mb4` | | NOT VERIFIED | probe DB10 |
-| **G0-J** | CPU 3M-loop | < 400 ms | | NOT VERIFIED | probe P1 |
-| G0-J | 1000 inserts / txn | < 3000 ms | | NOT VERIFIED | probe P4 |
-| G0-J | 200 indexed SELECTs | < 1500 ms | | NOT VERIFIED | probe P5 |
+| **G0-J** | CPU 3M-loop | < 400 ms | | NOT VERIFIED | probe **Performance/P1** |
+| G0-J | 1000 inserts / txn | < 3000 ms | | NOT VERIFIED | probe Performance/P4 |
+| G0-J | 200 indexed SELECTs | < 1500 ms | | NOT VERIFIED | probe Performance/P5 |
 | — | disk quota | measured | | NOT VERIFIED | panel |
 | — | database size limit | measured | | NOT VERIFIED | panel |
 | — | document root editable | yes | | NOT VERIFIED | panel |
 | — | `symlink()` works | yes | | NOT VERIFIED | probe ST5 |
 | — | parent of docroot writable | yes | **PASS** — home sits above `httpdocs` | VERIFIED | B1-B5 |
+
+### G0-E — the extension list, in full
+
+The probe emits one `PHP/ext` row per extension and marks it `VERIFIED` or `UNSUPPORTED`.
+Reproduced here in full rather than as a count, because when one is missing the operator
+needs its **name** to raise the right request with Ethio Telecom support — and "18
+extensions" is not a name. Source of truth is `scripts/hosting-verification/ethr-hosting-check.php`;
+this list is that file's, not a new requirement.
+
+**Mandatory — absence of any one means Laravel 12 will not run:**
+
+```
+pdo        pdo_mysql   mbstring   openssl
+tokenizer  xml         dom        ctype
+json       fileinfo    filter     hash
+session    curl        bcmath     iconv
+zip        gd
+```
+
+**Wanted but not fatal** — record which are present; none of them blocks deployment:
+
+```
+intl   sodium   simplexml   xmlwriter   redis   opcache   exif
+```
+
+**`gd` is deliberately in the mandatory list, and it is the one to read carefully.** Its
+absence is *not* fatal to booting Laravel — it is fatal to a feature, silently.
+`FileStorageService` returns the original bytes and skips thumbnail generation, so uploads
+keep working, nothing errors, and nothing logs it; the product just quietly stops
+compressing images and generating thumbnails. The probe's own comment says this is what
+makes it more dangerous than a hard failure, not less. `redis` sitting in the *optional*
+list is the mirror image: the shared-hosting target does not use it
+(`MIGRATION_STATE.md` D2), so its absence is expected and means nothing.
+
+### A note on probe IDs — read the section, not just the number
+
+The probe numbers IDs **within** sections, and two collide across them:
+
+| ID | Section `PHP` | Section `Performance` |
+|---|---|---|
+| `P1` | PHP >= 8.2 | CPU: 3M-iteration loop |
+| `P2` | SAPI / handler | CPU: 20k string+hash ops |
+
+The *Results* table above now cites `probe PHP/P1` and `probe Performance/P1` explicitly.
+When transcribing results, carry the section name — otherwise a CPU figure lands in the
+PHP row, or a PHP version in the performance row, and both read as plausible.
 
 ### Already settled — do not re-measure
 
@@ -182,6 +289,23 @@ location = /ethr-proxy-probe { return 200 "proxy-directives-accepted"; }
 - Panel rejects it, or the field is absent/read-only → **FAIL** → the frontend must go cross-origin: CORS with credentials, `SameSite=None; Secure`, Sanctum stateful-domain config, a widened CSP, and the service worker's API cache silently stops working (`src/public/sw.js:59` intercepts same-origin only). Roughly one day becomes one to two weeks, and it needs an auth-security review.
 
 ### G0-C — wildcard subdomain
+
+> **Two documents disagreed about this gate, and this is the resolution.**
+> `MIGRATION_STATE.md:131` records `B1b wildcard vhost VERIFIED PASS (owner: '*' accepted;
+> not yet created)` and its NEXT ACTION says *"already answered — do not re-ask."* This
+> file records the same gate `PARTIAL`. Both describe the same fact and grade it
+> differently: an **owner report** that the panel accepted the literal name `*`, with **no
+> vhost actually created** and no output recorded.
+>
+> **This file governs**, per its own rule at the top: *"Do not fill any row from
+> documentation, vendor marketing, or inference. Only from output."* An owner report is
+> testimony, not output, and the distinction is the whole point of Gate 0.
+>
+> What that means in practice is narrow, so it is worth stating: **do not re-ask the owner
+> whether `*` is accepted** — that would be re-litigating an answer already given. Do
+> **create** the wildcard subdomain during this session and record what the panel does,
+> which is the step neither document claims has happened. The DNS half is independently
+> re-confirmed (2026-09-17: `zzq7x.ethr.et` resolves to `213.55.96.154`).
 
 **Websites & Domains → Add Subdomain**, name it `*`.
 
