@@ -20,12 +20,15 @@ itself one of the still-open facts).
   api/
     app/ config/ routes/ database/ vendor/ storage/ bootstrap/ .env
 ~/httpdocs/                 document root
-  index.php                 copy of api/public/index.php, 2 lines repointed
+  index.php                 copy of api/public/index.php, 3 lines repointed
   .htaccess                 docs/deployment/shared-hosting/.htaccess
-  favicon.ico  robots.txt    copied from api/public/
   .well-known/               leave alone — ACME
   (frontend build output, IF B5 says no Node.js — see step 5)
 ```
+
+**Nothing else from `api/public/` is copied here.** An earlier version of this layout
+listed `favicon.ico` and `robots.txt` as copied from `api/public/`; both are wrong, and
+`robots.txt` is wrong in the silent direction. Step 4a says why and what replaces them.
 
 Chosen because it is **already verified possible on this account**: the Plesk File
 Manager listing showed the home directory sits one level above `httpdocs`
@@ -129,6 +132,117 @@ and FPM is itself worth flagging to Ethio Telecom support if found, not worked a
 (`FileStorageService`), so there is nothing under `public/storage` to serve. Do not add
 this step; it would create a broken symlink pointing at a `storage/app/public` that
 nothing writes to.
+
+## 4a. Assemble the document root
+
+Steps 1–4 put the application in `~/ethr/api/`, which is **not web-accessible** — that
+is the whole point of the layout in §0. Nothing has yet been placed in `~/httpdocs/`,
+so at this point the site still serves Plesk's placeholder page. This step builds the
+document root, and it is the step G0-B is a gate on: every rule in `.htaccess` is inert
+until the file is actually here.
+
+### The three files
+
+```bash
+ssh etrhet@213.55.96.154
+
+# 1. The front controller.
+cp ~/ethr/api/public/index.php ~/httpdocs/index.php
+
+# 2. The rules under test by G0-B.
+#    (upload docs/deployment/shared-hosting/.htaccess from the repo first)
+#    -> ~/httpdocs/.htaccess
+
+# 3. Nothing else. Do not copy the rest of api/public/ — see "What is
+#    deliberately not copied" below.
+```
+
+### Repoint `index.php` — **three** lines, not two
+
+`api/public/index.php` resolves everything relative to its own directory, one level
+below the application root. Moved to `~/httpdocs/`, `__DIR__.'/..'` is `~`, so all three
+`require` paths must name `ethr/api` explicitly:
+
+| Line | From | To |
+| --- | --- | --- |
+| 9 | `__DIR__.'/../storage/framework/maintenance.php'` | `__DIR__.'/../ethr/api/storage/framework/maintenance.php'` |
+| 14 | `__DIR__.'/../vendor/autoload.php'` | `__DIR__.'/../ethr/api/vendor/autoload.php'` |
+| 18 | `__DIR__.'/../bootstrap/app.php'` | `__DIR__.'/../ethr/api/bootstrap/app.php'` |
+
+Line 9 is the one previous versions of this runbook missed by saying "2 lines". It is
+not decorative: it is how `php artisan down` takes the site offline. Left unrepointed it
+resolves to `~/storage/framework/maintenance.php`, which never exists, so maintenance
+mode would report success on the CLI and change nothing about what the web server
+serves — a silent failure during exactly the window you would rely on it.
+
+Verify all three at once before going further:
+
+```bash
+php -l ~/httpdocs/index.php
+curl -si https://www.ethr.et/api/v1/ping | head -1     # expect 200, not 500
+```
+
+A 500 here is almost always one of the three paths; `~/ethr/api/storage/logs/laravel.log`
+will name it.
+
+### `public_path()` no longer points at the document root
+
+With the app at `~/ethr/api` and the front controller at `~/httpdocs`, Laravel's
+`public_path()` resolves to `~/ethr/api/public` — a directory nothing serves. This is
+harmless **in this codebase** and was checked rather than assumed: the only reference is
+`config/filesystems.php:88`'s `links` array, which is consumed solely by
+`storage:link`, and §4's "No `storage:link` step" already forbids running it. Do not
+"fix" this with `Application::usePublicPath()`; nothing reads it, and pointing it at the
+document root would make `storage:link` look runnable again.
+
+### What is deliberately not copied
+
+`api/public/` also contains `robots.txt` and `favicon.ico`. On the VPS those serve the
+**API vhost** (`infrastructure/nginx.conf` roots three server blocks at
+`api/public`) — a different origin from the marketing site. This deployment merges the
+API and the public site into one document root, so copying them changes what they mean.
+
+| File | If copied here | Do instead |
+| --- | --- | --- |
+| `robots.txt` | `api/public/robots.txt` is `User-agent: * / Disallow:` — **allow everything, no sitemap**. Served at `https://www.ethr.et/robots.txt` it silently replaces the frontend's own `robots.txt` (`src/src/app/robots.ts`), dropping the `Disallow` list for `/admin`, `/dashboard`, `/login`, `/register` and the reset-password routes, and dropping the `Sitemap:` pointer that is how a crawler finds `/sitemap.xml` at all. Nothing logs this; the site works perfectly. | Leave it in `~/ethr/api/public/`. `/robots.txt` is the frontend's, in both B5 branches. |
+| `favicon.ico` | Laravel's default icon shadows the frontend's, which ships its own under `src/public/`. Cosmetic, not silent — but the same shadowing mechanism. | Leave it. |
+
+This is the general rule, and it is worth stating once rather than per file: **in this
+layout a real file in `~/httpdocs/` always wins over the rewrite** (`.htaccess`'s API
+rule is guarded by `!-f`/`!-d`, and Plesk serves static files from disk before any
+handler). Anything copied into the document root is therefore a permanent override of
+whatever the application would otherwise have produced at that path. Copy only what §0
+lists.
+
+### The public paths, and what serves each
+
+Written out per B5 branch because the answer differs, and because two of these paths are
+generated by the frontend at build time rather than existing as source files — which is
+what makes the `robots.txt` collision above easy to miss.
+
+| Path | B5 = yes (Node.js) | B5 = no (static export) |
+| --- | --- | --- |
+| `/api/*`, `/sanctum/*` | `.htaccess` → `index.php` → Laravel | same |
+| `/` and the marketing routes | Node app (SSR) | `out/index.html` etc., via BRANCH B's two rewrite rules |
+| `/robots.txt` | Node app, from `src/src/app/robots.ts` | `out/robots.txt`, generated by the same file at build |
+| `/sitemap.xml` | Node app, from `src/src/app/sitemap.ts` | `out/sitemap.xml`, same |
+| `/.well-known/acme-challenge/*` | Apache, from disk — `.htaccess` exempts it before every other rule | same |
+
+Two caveats, neither of which this repository can close:
+
+- **B5 = yes is gated on G0-A, not just G0-B.** §5's Node branch puts the Node app in
+  its own document root, separate from `~/httpdocs`. For one domain to serve both
+  `/api/*` from `~/httpdocs/index.php` and `/` from the Node app, something has to split
+  the traffic — that split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
+  `NOT VERIFIED`. Do not deploy the Node branch on the assumption that it resolves
+  favourably.
+- **B5 = no is where the collision actually bites.** Both `api/public/` and the exported
+  `out/` land in the same directory, so whichever is copied last wins and neither step
+  says so. Following this runbook as written — copy nothing from `api/public/` but
+  `index.php` — removes the ambiguity rather than relying on step order.
+
+Confirm the result rather than the intent: `deploy-checklist.md` → *Public paths* turns
+each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 

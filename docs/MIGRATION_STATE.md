@@ -219,7 +219,53 @@ Owner said "decide for me". These are settled; they are not open questions.
 
 ## IN PROGRESS
 
-Nothing. **The full deployment package is now built and merged** —
+### Reconciled 2026-09-17 — one gap found in the deployment package, and closed
+
+The package below was described as complete. It was not: `DEPLOYMENT.md` §0 drew the
+document root, and **no step in the runbook ever assembled it**. Steps 3–4 put the
+application in `~/ethr/api/` (deliberately not web-accessible); step 5 deploys the
+frontend. Between them, nothing copied `index.php` or `.htaccess` into `~/httpdocs/`,
+which is the one thing every rule G0-B measures depends on existing.
+
+Written as **step 4a**, from what §0 already specified rather than from a new design.
+Three defects surfaced while writing it, all in the §0 file list:
+
+1. **"2 lines repointed" is three.** `api/public/index.php:9` reads
+   `storage/framework/maintenance.php`, and it was not on the list. Unrepointed,
+   `php artisan down` reports success on the CLI and changes nothing about what the web
+   server serves — maintenance mode inert exactly when it is relied on.
+2. **`robots.txt` must not be copied.** §0 listed it as copied from `api/public/`. On
+   the VPS that file serves the API vhost (`infrastructure/nginx.conf` roots three
+   server blocks at `api/public`) and reads `User-agent: * / Disallow:`. This
+   deployment merges the API and the public site into **one** document root, so copying
+   it serves allow-all at `https://www.ethr.et/robots.txt`, silently replacing the
+   frontend's generated `robots.txt` (`src/src/app/robots.ts`) — losing the `Disallow`
+   list for `/admin`, `/dashboard`, `/login`, `/register` and the reset routes, and
+   losing the `Sitemap:` pointer that is how a crawler reaches `/sitemap.xml` at all.
+   The site works perfectly and nothing logs it. Same mechanism, cosmetic severity, for
+   `favicon.ico`.
+3. **Under B5 = no the collision is order-dependent**, because the exported `out/` and
+   `api/public/` land in the same directory and neither step said which wins. Copying
+   only `index.php` removes the ambiguity rather than depending on step order.
+
+`public_path()` was checked at the same time and is **not** a defect: it resolves to
+`~/ethr/api/public`, which nothing serves, and the only reference in the codebase is
+`config/filesystems.php:88`'s `links` array, consumed solely by `storage:link` — which
+§4 already forbids.
+
+**No gate moved.** G0-A and every G0-B row remain `NOT VERIFIED` and still require the
+Plesk account. What changed is that the thing G0-B is a gate *on* now exists as an
+executable step, and the silent path-level failure has a check that catches it
+(`deploy-checklist.md` → *Public paths*).
+
+**Not touched: PR #17 (tenant public pages, `claude/ethr-tenant-landing-pages-a59gly`).**
+It is open, unmerged, and a separate workstream; `/media/` and `/preview` do not exist
+on `main` and are therefore not in step 4a's path table. When it merges, that table
+needs those two rows added — it is the one place they belong.
+
+---
+
+**The rest of the deployment package is built and merged** —
 `docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
 `docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the

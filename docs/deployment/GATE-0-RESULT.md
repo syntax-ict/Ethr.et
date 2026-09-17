@@ -120,6 +120,31 @@ External probing on 2026-08-29 (`docs/B1-B5_GATE_REPORT.md`) closed these withou
 | Wildcard TLS | **BLOCKED, understood** | Needs DNS-01, and the zone is on `ns2.telecom.net.et`, not Plesk. Per-hostname issuance is the fallback — budget for Let's Encrypt's 50-certs-per-week ceiling |
 | Composer, SSH | **Strong evidence, unconfirmed** | `~/.composer` and `~/.ssh` exist; port 22 open. Plesk can still set the shell to `/bin/false` — confirm by logging in |
 
+### What G0-B does and does not cover — clarified 2026-09-17
+
+G0-B's four checks measure **mechanisms**: does Apache read `.htaccess` at all, and are
+`mod_rewrite`, `mod_headers`, the deny rules and `Authorization` forwarding honoured.
+That is the right scope for a pre-deployment canary, which runs from
+`httpdocs/ethr-canary/` against an otherwise empty document root.
+
+It does **not** cover which file ends up answering a given public path once the real
+document root is assembled, and that is a separate failure mode with its own silent
+case. `DEPLOYMENT.md` step 4a now writes the assembly out and gives the per-path table
+for `/api/*`, `/`, `/robots.txt`, `/sitemap.xml` and `/.well-known/` under both B5
+branches; `deploy-checklist.md` → *Public paths* verifies it after deployment.
+
+The specific case found on 2026-09-17: this runbook's §0 listed `robots.txt` as copied
+from `api/public/` into the shared document root. On the VPS that file serves the API
+vhost and reads `User-agent: * / Disallow:`. Copied here it would be served at
+`https://www.ethr.et/robots.txt`, silently replacing the frontend's generated
+`robots.txt` — losing the `Disallow` list and the `Sitemap:` pointer, with the site
+fully functional and nothing logged. Corrected in the runbook; the check that catches a
+regression is in the deploy checklist, not here, because it can only be run against a
+real deployment.
+
+**This changes no G0-B row.** Every one of them remains `NOT VERIFIED` and requires the
+Plesk account.
+
 **Every FAIL needs four lines recorded underneath it: impact · workaround · decision · owner action.** A FAIL with no decision is an open gate, not a closed one.
 
 ---

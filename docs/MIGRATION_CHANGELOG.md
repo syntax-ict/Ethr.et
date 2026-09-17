@@ -1,8 +1,43 @@
 # Migration Changelog
 
 Chronological record of the Ethio Telecom shared-hosting migration effort,
-2026-08-29 through 2026-08-31. Four `--no-ff` merges to `main`, each independently
-revertable (`git revert -m 1 <sha>`).
+2026-08-29 onward. Four `--no-ff` merges to `main` covering 2026-08-29 – 2026-08-31,
+each independently revertable (`git revert -m 1 <sha>`), plus the entries below.
+
+---
+
+## 2026-09-17 — The document root had no step that built it
+
+**Reconciliation, not new scope.** `docs/deployment/shared-hosting/DEPLOYMENT.md` §0
+drew `~/httpdocs/` and named its contents, but no step in the runbook ever assembled
+it: steps 3–4 put the application in `~/ethr/api/`, step 5 deploys the frontend, and
+nothing in between copied `index.php` or `.htaccess` into the document root. Every rule
+G0-B measures is inert until that file is in place, so the gate rested on a step that
+did not exist.
+
+Written as **step 4a**, from §0's own specification. Three defects in that file list
+surfaced in the writing:
+
+- **"2 lines repointed" is three.** `api/public/index.php:9` reads
+  `storage/framework/maintenance.php` and was missing from the list. Unrepointed,
+  `php artisan down` succeeds on the CLI and changes nothing about what is served.
+- **`robots.txt` was listed as copied from `api/public/`, and must not be.** On the VPS
+  that file serves the API vhost and reads `User-agent: * / Disallow:`. This deployment
+  merges the API and the public site into one document root, so copying it serves
+  allow-all at `/robots.txt`, silently replacing the frontend's generated file — losing
+  the `Disallow` list and the `Sitemap:` pointer, with the site fully functional and
+  nothing logged. `favicon.ico` is the same mechanism at cosmetic severity.
+- **Under B5 = no it is order-dependent**: the exported `out/` and `api/public/` land in
+  the same directory and neither step said which wins.
+
+Added alongside: a per-path table for `/api/*`, `/`, `/robots.txt`, `/sitemap.xml` and
+`/.well-known/` under both B5 branches, and four `curl` checks in `deploy-checklist.md`
+→ *Public paths* that fail loudly on the silent case. `public_path()` was checked and is
+not a defect (only `config/filesystems.php:88`'s `links` array reads it, consumed by
+`storage:link`, which §4 already forbids).
+
+**No gate moved.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk
+account. Documentation only — no application code changed.
 
 ---
 
