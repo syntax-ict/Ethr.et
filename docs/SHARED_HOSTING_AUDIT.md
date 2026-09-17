@@ -239,6 +239,34 @@ to a shell page.
 Next.js. A static export is *technically viable* — a genuinely fortunate finding — but
 it is not free, and must not be done blind. It is Option B2 in the migration plan.
 
+### Re-verified 2026-09-17, because this conclusion became load-bearing
+
+`deployment/GATE-0-RESULT.md`'s amended G0-A consequence now rests on this section: if the
+account has no custom-directive field, static export is what keeps the frontend
+same-origin. That made it worth re-checking against a `src/` that had moved 41 commits
+since — PR #16 added locale-routed marketing pages, which is exactly the kind of change
+that could have introduced a server-side dependency.
+
+**It did not. The conclusion holds, and the counts above are stale in a benign direction.**
+
+| §E claim | Then | Now | Effect |
+| --- | --- | --- | --- |
+| zero `route.ts` | 0 | **1** — `app/og.png/route.tsx` | **None.** It carries `export const dynamic = "force-static"` and a comment saying it "keeps working under `output: export`, where a dynamic route handler would not." Built export-compatible on purpose |
+| zero `generateStaticParams` | 0 | **1** — `(marketing)/[locale]/layout.tsx:21` | **None** — this is what static export needs, not an obstacle |
+| dynamic segments | 4 | **5** — `[locale]` is new | **None.** It ships `generateStaticParams` *and* `dynamicParams = false`, whose own comment cites `output: "export"` |
+| zero `"use server"` | 0 | 0 | unchanged |
+
+**All three named blockers still stand** and still need the work described above:
+`middleware.ts` exists, `(auth)/layout.tsx` reads `headers()` (twice), `rewrites()` is
+still in `next.config.ts`, and the four `[id]` dashboard routes still need
+`generateStaticParams` returning `[]`.
+
+> **A warning for whoever re-runs this check.** Grepping for
+> `export const (dynamic|revalidate|runtime)` matches **`dynamicParams`**, which is a
+> different directive and is *favourable* to static export. That false positive was hit on
+> this very re-verification and briefly looked like the conclusion had broken. Match on
+> word boundaries.
+
 ---
 
 ## F. What is lost in every shared-hosting scenario
