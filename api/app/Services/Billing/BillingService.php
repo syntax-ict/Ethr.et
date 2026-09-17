@@ -267,6 +267,15 @@ final class BillingService
                 'paid_at' => $i->paid_at,
             ]);
 
+        // `plan_price_cents` reads the subscription, not the plan: after a
+        // catalog edit those differ, and the billing page is the one screen
+        // where showing someone else's price is a support ticket at best.
+        //
+        // This note lives here for the same reason as the one below it. Written
+        // beside the array key it became the field's public description in
+        // `generated.ts` and failed the contract gate — the exact trap the next
+        // paragraph documents, walked into one commit later.
+        //
         // The three bank fields below are cast to string rather than passed through.
         // hasPaymentDetails() has already established they are filled, and the cast
         // is what tells Scramble they are non-nullable; left bare, the generated
@@ -278,10 +287,6 @@ final class BillingService
 
         return [
             'plan' => $subscription?->plan?->name,
-            // What this tenant is billed, which after a catalog edit is no
-            // longer what the plan costs a new customer. The billing page is
-            // the one screen where showing someone else's price is a support
-            // ticket at best.
             'plan_price_cents' => $subscription?->effectivePriceCents(),
             'subscription_status' => $subscription?->status?->value,
             'current_period_end' => $subscription?->current_period_end,
