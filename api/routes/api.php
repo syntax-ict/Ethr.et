@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\Accounting\AccountingController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\V1\Admin\AdminPlanController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Analytics\AnalyticsController;
@@ -660,6 +661,17 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
             // Platform-wide settings (bank account tenants pay into, etc.)
             Route::get('/platform-settings', [PlatformSettingsController::class, 'show']);
             Route::put('/platform-settings', [PlatformSettingsController::class, 'update']);
+
+            // The plan catalog the public pricing page renders. Safe to expose
+            // as an editable surface only because subscriptions.price_cents now
+            // freezes what each subscriber agreed to — before that, editing a
+            // price here would have re-billed everyone on that plan at the next
+            // monthly run. DELETE retires rather than destroys; see the
+            // controller.
+            Route::get('/plans', [AdminPlanController::class, 'index']);
+            Route::post('/plans', [AdminPlanController::class, 'store']);
+            Route::put('/plans/{publicId}', [AdminPlanController::class, 'update']);
+            Route::delete('/plans/{publicId}', [AdminPlanController::class, 'destroy']);
         });
 
     // Billing

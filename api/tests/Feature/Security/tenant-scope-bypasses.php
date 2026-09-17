@@ -48,6 +48,11 @@ return [
     'Console/Commands/CreateAdminCommand.php' => 2,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
+    // Platform-admin plan catalog. Both sites count subscriptions on one plan,
+    // cross-tenant by intent, from a surface that runs with no tenant resolved
+    // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
+    // every plan. Each states plan_id as its own predicate.
+    'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
     'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
