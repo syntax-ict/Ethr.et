@@ -67,7 +67,27 @@ export function useUpdateUser() {
   >({
     mutationFn: async ({ publicId, payload }) =>
       (await apiClient.patch(`/users/${publicId}`, payload)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: (_data, { publicId }) => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+
+      // This payload can carry `role` and `custom_role_id`, and every `can.*`
+      // flag and `<RoleGate>` in the interface is derived from the `permissions`
+      // array on `/auth/me` — which has a five-minute staleTime. Editing your
+      // own account therefore left the whole UI authorizing against the
+      // permissions of the role you just left.
+      //
+      // Only when it *is* your own account. An admin working down a list of
+      // staff should not refetch their own identity on every row, and an
+      // invalidation broader than the change it follows is its own defect.
+      const me = qc.getQueryData<{ user?: { public_id?: string } }>([
+        "auth",
+        "me",
+      ]);
+
+      if (me?.user?.public_id === publicId) {
+        qc.invalidateQueries({ queryKey: ["auth", "me"] });
+      }
+    },
   });
 }
 

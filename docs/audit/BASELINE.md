@@ -559,6 +559,46 @@ Picking (1) would quietly break any tenant that has set a different zone, and th
 
 > **A second environment-dependence found while writing those tests.** en-GB renders September as `Sep` under older ICU and `Sept` under newer. Asserting either literal would pass on one runtime and fail on the other, so the month is matched as `/Sept?/` while the day, year and time are asserted exactly. CI and local development now both run Node 24 (§12d), so the two agree today — the loose matcher is kept because agreeing *today* is not the same as being version-independent, and this is exactly the class of drift that hid §12d for fifty runs.
 
+### 12h. The query cache had no session boundary **[found and FIXED 2026-09-17]**
+
+An audit of the TanStack Query layer, prompted by the `api.ts` modules sitting at 0% coverage. The coverage number was the reason to look; it is not what was found.
+
+**The structural fact everything else follows from.** `app/providers.tsx` creates **one** `QueryClient` in `useState` and never replaces it, so every response cached during a session stays in memory for as long as the page lives. Default `staleTime` is 60s; `/auth/me` is 5 minutes.
+
+**No query key carries a tenant or user discriminator** — they are `["users", params]`, `["employees", …]`, `["auth", "me"]`. That is not itself wrong, because a key only has to be unique within one cache. It does mean isolation rests entirely on two things: the server scoping every response to the session, and **the cache being destroyed whenever the identity behind it changes**. The first was never in doubt. The second had a hole.
+
+| Identity change | Behaviour | Verdict |
+|---|---|---|
+| Impersonation start | `window.location.href` — full reload, with a comment saying exactly why | correct |
+| Impersonation exit | `window.location.href` | correct |
+| Session expiry (401, refresh failed) | interceptor hard-navigates | correct |
+| Impersonation claim | lands cross-host (`admin.ethr.et` → `{tenant}.ethr.et`), so always a new document | correct, structurally |
+| **Log out** | cleared and navigated **only on success** | **defect** |
+| **Log in** (password, MFA, OTP) | `router.push("/dashboard")` — SPA, cache survives | **defect** |
+
+Those two compose. `AuthGuard` sends a failed session to `/login` with `router.replace`, which keeps the JS context alive; the login form then left for `/dashboard` with `router.push`. Between two SPA transitions the cache is never dropped, so the next person to sign in on that tab inherits whatever the previous one had loaded — and since the keys carry no tenant, across tenants.
+
+**Four defects, each reproduced by a failing test before it was fixed:**
+
+| | What was wrong |
+|---|---|
+| `useLogout` | Cleared the cache and navigated in `onSuccess`. Neither call site passes an `onError`, so a failed request — offline, API down, token already expired — did **nothing at all**: no navigation, no clear, no message. The person clicked Log Out and was left on a populated dashboard believing they had. For a product that advertises itself as offline-first, that is not an edge case. Now `onSettled`: the server call is how we additionally ask for the token to be revoked, but it cannot decide whether the local session ends. |
+| Login / MFA / OTP forms | Now clear the cache before navigating. Authenticating starts a new session, so it starts a new cache. |
+| `useUpdateUser` | Invalidated `["users"]` only. The payload carries `role` and `custom_role_id`, and every `can.*` flag and `<RoleGate>` reads the `permissions` array from `/auth/me`, so editing **your own** account left the whole interface authorizing against the role you had just left, for up to five minutes. |
+| `useUpdateCustomRole` | Same, via the role rather than the user. |
+
+**On severity, precisely.** The last two are not privilege escalation — the server enforces regardless, and these are cache-lifetime bugs in the client. What they produce is an interface that disagrees with the API it is talking to, in both directions: a removed permission keeps being offered and then fails, and a granted one stays hidden, so the admin who just granted it concludes it did not work.
+
+**The fixes are narrow on purpose.** `useUpdateUser` compares the edited `publicId` against the cached current user and refetches `/auth/me` **only** when they match — an admin working down a list of staff should not refetch their own identity on every row. `useUpdateCustomRole` refetches only when the payload contains `permissions`, since renaming a role cannot change anyone's abilities. Both distinctions are pinned by tests that assert the *absence* of a refetch, so a later change cannot pass by invalidating everything.
+
+**Audited and found correct**, recorded so the work is not repeated: `reports/api.ts` (save/delete invalidate saved *and* scheduled; generate and export are stateless), `shifts/api.ts`, `announcements/api.ts` (prefix invalidation covers list, detail and schedule), `dashboard/team-api.ts` (no mutations; `period` and `month` are correctly part of the keys), and the two `employees/page.tsx` "mutations", which are CSV exports with nothing to invalidate.
+
+**What remains true and worth watching.** The keys are still tenant-agnostic, so this class is closed by *behaviour*, not by structure: any future path that changes identity without clearing or reloading reopens it. The four tests added here (`logout-cache`, `login-cache-boundary`, `users-roles-cache`) assert the boundary rather than the scenario, so they fail on the mechanism rather than on one route.
+
+Gates on the change: frontend **80 files / 513 tests**, i18n, Prettier, ESLint, tsc, `next build`, docs — all green.
+
+---
+
 ### 12f. Frontend coverage — first measurement **[verified 2026-09-16]**
 
 ```

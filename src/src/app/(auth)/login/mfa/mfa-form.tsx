@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ const CODE_LENGTH = 6;
 
 export function MfaForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useT();
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,15 @@ export function MfaForm() {
 
       sessionStorage.removeItem("mfa_pending");
       toast.success(t("auth.mfa_authenticated", "Authenticated"));
+      // One QueryClient serves the whole app (`app/providers.tsx` creates it in
+      // `useState` and never replaces it), and reaching this form does not
+      // necessarily mean the page was reloaded — `AuthGuard` sends a failed session
+      // here with `router.replace`, which keeps the JS context alive. Navigating on
+      // to /dashboard with `router.push` would then hand the next person whatever
+      // the previous one had cached, including across tenants.
+      //
+      // Authenticating starts a new session, so it starts a new cache.
+      queryClient.clear();
       router.push("/dashboard");
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };

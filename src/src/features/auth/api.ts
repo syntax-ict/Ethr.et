@@ -64,7 +64,20 @@ export function useLogout() {
     mutationFn: async () => {
       await apiClient.post("/auth/logout");
     },
-    onSuccess: () => {
+    // `onSettled`, not `onSuccess`. Signing out is a decision about this
+    // device; the request is how we additionally ask the server to revoke the
+    // token, and it is worth attempting, but it cannot be what decides whether
+    // the local session ends.
+    //
+    // The app holds one QueryClient for its whole lifetime (`app/providers.tsx`
+    // creates it in `useState` and never replaces it), so everything fetched
+    // during the session stays in memory until this runs. Under `onSuccess`, a
+    // failed request — offline, API down, token already expired — did nothing
+    // at all: no clear, no navigation, and neither call site passes an
+    // `onError`. The person clicked Log Out and was left on a populated
+    // dashboard believing they had. For an offline-first product that is not an
+    // edge case.
+    onSettled: () => {
       queryClient.clear();
       window.location.href = "/login";
     },

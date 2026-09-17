@@ -93,8 +93,20 @@ export function useUpdateCustomRole(publicId: string) {
       const { data } = await apiClient.put(`/roles/${publicId}`, payload);
       return data as CustomRole;
     },
-    onSuccess: () => {
+    onSuccess: (_data, payload) => {
       queryClient.invalidateQueries({ queryKey: ["custom-roles"] });
+
+      // A change to the role's abilities may be a change to *mine*, if I hold
+      // it. `/auth/me` returns the resolved permission set but not which custom
+      // role produced it, so the client cannot tell — and editing a role is a
+      // rare administrative action, so the refetch is taken rather than
+      // guessed at.
+      //
+      // Renaming or deactivating a role cannot change anybody's abilities, so
+      // those edits are left alone.
+      if (payload.permissions !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      }
     },
   });
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import MfaChallengePage from "@/app/(auth)/login/mfa/page";
@@ -24,10 +25,26 @@ beforeEach(() => {
   localStorage.setItem("tenant", "acme");
 });
 
+/**
+ * The MFA form clears the query cache on a successful challenge — signing in
+ * starts a new session, so it starts a new cache — which means it now needs a
+ * QueryClient the way every other authenticated surface does.
+ */
+function renderPage() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MfaChallengePage />
+    </QueryClientProvider>,
+  );
+}
+
 describe("MFA challenge page", () => {
   it("bounces to /login when there is no pending MFA challenge", () => {
     sessionStorage.removeItem("mfa_pending");
-    render(<MfaChallengePage />);
+    renderPage();
     expect(replace).toHaveBeenCalledWith("/login");
   });
 
@@ -38,7 +55,7 @@ describe("MFA challenge page", () => {
       ),
     );
 
-    const { container } = render(<MfaChallengePage />);
+    const { container } = renderPage();
     const boxes = container.querySelectorAll('input[inputmode="numeric"]');
 
     fireEvent.paste(boxes[0], {
@@ -55,7 +72,7 @@ describe("MFA challenge page", () => {
       ),
     );
 
-    const { container } = render(<MfaChallengePage />);
+    const { container } = renderPage();
     const boxes = () =>
       container.querySelectorAll('input[inputmode="numeric"]');
 

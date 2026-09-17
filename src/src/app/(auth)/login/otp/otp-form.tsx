@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowLeft, MessageSquareText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface OtpVerifyResult {
 
 export function OtpForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useT();
   const {
     context: hostAppContext,
@@ -152,6 +154,15 @@ export function OtpForm() {
         return;
       }
 
+      // One QueryClient serves the whole app (`app/providers.tsx` creates it in
+      // `useState` and never replaces it), and reaching this form does not
+      // necessarily mean the page was reloaded — `AuthGuard` sends a failed session
+      // here with `router.replace`, which keeps the JS context alive. Navigating on
+      // to /dashboard with `router.push` would then hand the next person whatever
+      // the previous one had cached, including across tenants.
+      //
+      // Authenticating starts a new session, so it starts a new cache.
+      queryClient.clear();
       router.push("/dashboard");
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };
