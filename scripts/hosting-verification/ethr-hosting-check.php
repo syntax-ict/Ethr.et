@@ -63,16 +63,29 @@ record($results, 'PHP', 'P1', 'PHP >= 8.2', $phpOk ? 'VERIFIED' : 'UNSUPPORTED',
 record($results, 'PHP', 'P2', 'SAPI / handler', 'VERIFIED', PHP_SAPI);
 
 // Mandatory extensions — absence of any of these means Laravel 12 will not run.
+// Cross-checked against api/composer.lock on 2026-09-17: every ext-* that a
+// PRODUCTION package declares must be here, because `composer install --no-dev`
+// validates platform requirements and aborts on a missing one. A host that fails
+// that cannot be deployed to at all, whatever the rest of Gate 0 says.
 $mandatory = [
     'pdo', 'pdo_mysql', 'mbstring', 'openssl', 'tokenizer', 'xml', 'dom',
     'ctype', 'json', 'fileinfo', 'filter', 'hash', 'session', 'curl',
     'bcmath', 'iconv', 'zip', 'gd',
+    // Added 2026-09-17 from the lockfile, not from judgement:
+    'simplexml', // aws/aws-sdk-php (pulled in by league/flysystem-aws-s3-v3)
+    'libxml',    // tijsverkoyen/css-to-inline-styles, via dompdf
 ];
+
+// `ext-pcre` is also declared by aws/aws-sdk-php and vlucas/phpdotenv and is
+// deliberately NOT listed: PCRE is compiled into PHP core and cannot be absent,
+// so checking it would only add a row that can never fail.
 
 // Wanted but not fatal. `gd` is deliberately in the list above, not here: its
 // absence is silent rather than fatal (FileStorageService returns original bytes
-// and skips thumbnails), which makes it more dangerous, not less.
-$optional = ['intl', 'sodium', 'simplexml', 'xmlwriter', 'redis', 'opcache', 'exif'];
+// and skips thumbnails), which makes it more dangerous, not less. `simplexml`
+// moved OUT of this list on 2026-09-17 — it was optional here while being a hard
+// production requirement, which is the wrong direction to be wrong in.
+$optional = ['intl', 'sodium', 'xmlwriter', 'redis', 'opcache', 'exif'];
 
 foreach ($mandatory as $ext) {
     record($results, 'PHP', 'ext', "ext-$ext (MANDATORY)",

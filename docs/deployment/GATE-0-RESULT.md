@@ -342,7 +342,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | # | Capability | Required | Actual | Status | Evidence |
 |---|---|---|---|---|---|
 | **G0-E** | PHP version | >= 8.2 | **8.3.33** (2026-09-17) | **PANEL-READ** — satisfies `^8.2`; not probe output | panel |
-| G0-E | 18 mandatory extensions | **all 18 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
+| G0-E | **20** mandatory extensions | **all 20 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
 | G0-E | `memory_limit` | >= 256M | | NOT VERIFIED | probe |
 | G0-E | `max_execution_time` | >= 120s | | NOT VERIFIED | probe |
 | **G0-B.1** | `mod_rewrite` honoured | yes | | NOT VERIFIED | canary |
@@ -356,7 +356,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
-| **G0-G** | Node.js (build only) | >= 20.9 | | NOT VERIFIED | probe / panel |
+| **G0-G** | Node.js (build only) | >= 20.9 is Next's floor — **this repo pins 24**, see below | | NOT VERIFIED | probe / panel |
 | **G0-H** | outbound SMTP 587/465 | open | | NOT VERIFIED | probe |
 | G0-H | mailbox send cap | known | | NOT VERIFIED | panel |
 | **G0-I** | `SELECT VERSION()` | verbatim | | NOT VERIFIED | probe DB1 |
@@ -380,20 +380,39 @@ needs its **name** to raise the right request with Ethio Telecom support — and
 extensions" is not a name. Source of truth is `scripts/hosting-verification/ethr-hosting-check.php`;
 this list is that file's, not a new requirement.
 
-**Mandatory — absence of any one means Laravel 12 will not run:**
+**Mandatory — absence of any one means Laravel 12 will not run, or will not install:**
 
 ```
 pdo        pdo_mysql   mbstring   openssl
 tokenizer  xml         dom        ctype
 json       fileinfo    filter     hash
 session    curl        bcmath     iconv
-zip        gd
+zip        gd          simplexml   libxml
 ```
 
-**Wanted but not fatal** — record which are present; none of them blocks deployment:
+**`simplexml` and `libxml` were added on 2026-09-17, and the reason matters.** The list
+was cross-checked against `api/composer.lock` — every `ext-*` that a *production* package
+declares. Two were missing, and **`simplexml` was in the optional list**, which is the
+wrong direction to be wrong in: it is a hard requirement of `aws/aws-sdk-php`, pulled in by
+`league/flysystem-aws-s3-v3`, which sits in `require` rather than `require-dev`.
+
+`composer install --no-dev` **validates platform requirements and aborts on a missing
+one**. So a host without `simplexml` cannot have dependencies installed at all — and the
+probe would have reported it as an optional nicety. That failure would have surfaced at
+deployment, after Gate 0 had passed.
+
+Note that the S3 adapter is not *used* on this target (`FILESYSTEM_DISK=local`), but it is
+still installed, and composer checks the platform requirements of what it installs, not of
+what you call.
+
+**`ext-pcre` is deliberately not listed.** `aws/aws-sdk-php` and `vlucas/phpdotenv` declare
+it, but PCRE is compiled into PHP core and cannot be absent, so a row for it could never
+fail.
+
+**Wanted but not fatal** — record which are present; none blocks deployment:
 
 ```
-intl   sodium   simplexml   xmlwriter   redis   opcache   exif
+intl   sodium   xmlwriter   redis   opcache   exif
 ```
 
 **`gd` is deliberately in the mandatory list, and it is the one to read carefully.** Its
@@ -533,6 +552,19 @@ Everything asynchronous depends on this: the scheduler, the queue worker, invoic
 **Websites & Domains → Node.js.** Present at all? Which versions? Can an app be started, or is it build-only?
 
 Needed only to *build* the frontend, unless the answer to G0-A forces a Node server.
+
+> **Record the exact versions offered, and do not read "≥ 20.9" as the bar.** That figure
+> is Next.js 16's own floor. This repository pins **Node 24** in `.nvmrc`, and CI reads it
+> via `node-version-file` — because `CLAUDE.md` records that **Node 20 reached end of life
+> on 2026-04-30** and that two frontend test files fail on Node 20 *and* 22. That was cause
+> 5 of the five structural defects that kept CI red for fifty runs; it is measured, not
+> theoretical.
+>
+> So: **Node 20.x offered is not a pass.** It would mean building production assets on an
+> end-of-life runtime that this repository has measured as broken for its own suite. If 24
+> is unavailable, record what *is* offered and treat the gap as a finding rather than
+> rounding it up to "≥ 20.9, fine."
+
 
 ### Tier comparison — and the question that decides whether any of this is worth doing
 

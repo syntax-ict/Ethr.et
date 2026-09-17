@@ -360,6 +360,35 @@ required it.
 
 ---
 
+## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
+
+Everything resolvable from the repository has been done. These eight remain, in dependency
+order. Each says where to click, what to bring back, whether to change anything, and which
+gate it unlocks. **Do not do 8 before 5.**
+
+| # | Action | Plesk location | Bring back | Change anything? | Unlocks |
+| --- | --- | --- | --- | --- | --- |
+| **1** | **Scheduled Tasks capability** | Websites & Domains → *Scheduled Tasks* (or Tools & Settings) | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary | No | **G0-D**, and it decides whether the migration is performable at all without SSH — see B-1/B-4 |
+| **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
+| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
+| **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
+| **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
+| **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php` | The full output. Open it with **no query string**; **delete the file in the same sitting** | Upload then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
+| **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**, and without it you run four checks, not five |
+| **8** | **Wildcard subdomain** | Websites & Domains → *Add Subdomain*, name it `*` | What the panel does when you save | Yes — create it | **G0-C**. **Only after 5**: adding a subdomain while an unexplained `ethr.et` object exists would compound B-3 |
+
+**Highest value is action 1.** Without a shell, Scheduled Tasks is the only route to run
+`artisan migrate`. Command-type or PHP-script tasks → the migration is performable.
+URL-fetch only → there is no documented way to perform it on this account, and SSH stops
+being a convenience and becomes a prerequisite.
+
+**Still blocked after all eight:** **G0-F** (`CREATE TRIGGER`) and **G0-I** (server version,
+charset) both need database credentials passed to the probe, which needs Route A or B —
+so they wait on action 1 or 2. Route C cannot answer them by design, and that is the point
+of Route C rather than a shortfall.
+
+---
+
 ## ACCOUNT EVIDENCE — 2026-09-17 (first real observations)
 
 Panel readings and a File Manager listing from the live Ethio Telecom account. Full
