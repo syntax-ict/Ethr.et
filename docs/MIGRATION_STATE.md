@@ -380,6 +380,29 @@ with no cost to delay. U-1 degrades: the longer the corrections sit on branches,
 likely someone runs Gate 0 from `main` and gets the four-check canary, the missing
 `simplexml` row, and the instruction to copy `robots.txt` into the document root.
 
+### Production env template — completeness checked 2026-09-17
+
+`api/config/*.php` reads **232** env vars; `.env.production.example` declares **62**. That
+gap sounds alarming and mostly is not: 128 of the undeclared ones carry defaults in
+`config/`, and of the 46 with no default, all but one belong to drivers this target does
+not use — AWS/S3, SQS, DynamoDB, Memcached, Pusher, Postmark, Resend, Slack, Papertrail.
+A `null` for those is correct.
+
+Two were checked properly rather than assumed:
+
+- **`SENTRY_DSN` — false alarm.** `config/sentry.php:13` reads
+  `env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN'))`, and the template declares the primary.
+  No mismatch. Recorded because the naming looks like a bug and is not.
+- **`CONTACT_INBOX` — a real template gap, now closed.** `config/mail.php:125` reads it
+  with no default; it was absent from the template. The *code* is fine and deliberately so
+  — `ContactController` persists the lead either way and logs
+  `"Lead saved; no contact inbox configured"` at info level, with a comment saying this is
+  not an error. But a production deployment built from the template would silently collect
+  leads nobody is notified about, with a log line as the only signal. Added as a commented
+  entry with that reasoning, so leaving it blank is a decision rather than an omission.
+
+No other deployment-relevant variable is missing.
+
 ### Checked and clean — recorded so it is not re-checked
 
 `api/.env.production.example` carries **no real secret**. Every `*_KEY`, `*_PASSWORD`,
