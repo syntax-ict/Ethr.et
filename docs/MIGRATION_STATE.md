@@ -1360,6 +1360,68 @@ Deployment actions execute shell commands as the subscription user. So the platf
 login, not on execution. That is a concrete answer to the likely brush-off, and it applies
 to the cron ask as much as the SSH one.
 
+### The Git deployment target — read 2026-09-18, and it is pointed at the document root
+
+Owner-read, inspection only, nothing changed:
+
+| Field | Value |
+|---|---|
+| Deployment path | **`/httpdocs/`** |
+| Branch | `main` |
+| Mode | manual |
+| Path field | **editable, and saving works** |
+
+**This target is unsafe as configured, and it is the most dangerous single setting found in
+this engagement.** Deploying `main` into `/httpdocs/` would publish the whole repository at
+the web root — `api/`, `docs/`, `scripts/`, `infrastructure/`, `docker-compose.prod.yml`,
+the `.env.*.example` files, and **`scripts/hosting-verification/ethr-hosting-check.php`**,
+whose own header states it must not be web-reachable because it prints `disable_functions`,
+database grants and the filesystem layout. It also contradicts `DEPLOYMENT.md:19`
+(`~/ethr/` — *"Laravel app — NOT web-accessible"*), and it puts a first-ever, ~50-commit
+cold write on top of `.well-known/acme-challenge/`, which is how the live certificate
+renews.
+
+**Deployment actions cannot guard against any of it**: Plesk runs them *after* the
+repository files are deployed (documented behaviour, not measured here), so by the time an
+action runs the target has already been written.
+
+#### Why repointing to `/ethr/` makes it safe — the four things that had to hold
+
+1. **The repo root maps onto the required layout.** It contains `api/`, `src/`, `scripts/`,
+   `docs/`, so a deployment to `~/ethr/` produces `~/ethr/api/` — exactly what
+   `DEPLOYMENT.md` §0 specifies.
+2. **Nothing would serve it.** **Step 4a has never been performed on the host** — there is
+   no repointed `index.php` in `~/httpdocs/`. Files landing in `~/ethr/` are therefore
+   *dormant*: present on disk, served by nothing. U-5's objection is to deploying an
+   unverified *live* configuration; this deploys an unverified *inert* one, which is a
+   different risk and an acceptable one.
+3. **The probe stops being web-reachable** — it lands at
+   `~/ethr/scripts/hosting-verification/ethr-hosting-check.php`, outside the document root,
+   which is the property that made Route D preferable to Route C in the first place.
+4. **The probe needs no `vendor/`.** `api/vendor/` is gitignored and therefore absent from
+   any deployment. The probe is standalone PHP and runs regardless — which is precisely why
+   it can answer G0-E, G0-F, G0-H, G0-I and G0-J before `composer install` has ever run.
+
+`httpdocs/` and `.well-known/` are untouched by a deployment to `/ethr/`.
+
+#### Sequence agreed — three phases, each with a checkpoint
+
+Deliberately not one step. This would be the first deployment this account has ever
+performed, so the path change is proved before any command is attached to it.
+
+- **Phase 1 — repoint and prove.** Change the path to `/ethr/`, save, deploy with **no**
+  deployment action configured. Confirm `~/ethr/` is populated and `httpdocs/` is
+  byte-for-byte unchanged. This also closes **U-5**: the host moves from `716ab93` to
+  current `main`, in the correct location.
+- **Phase 2 — run the probe once.** Only then attach a single deployment action and deploy
+  again. The action must capture the exit code rather than let it decide the deployment's
+  fate, because the probe exits non-zero by design (`1` mandatory gap, `2` other failures,
+  since `8e71045`).
+- **Phase 3 — remove the action.** A standing deployment action that runs a
+  grants-and-layout probe is not something to leave configured.
+
+**Nothing in phases 1–3 has been performed.** Recorded as the agreed route, not as history.
+
 ### What did not change
 
 No other gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
