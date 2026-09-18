@@ -402,7 +402,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | # | Capability | Required | Actual | Status | Evidence |
 |---|---|---|---|---|---|
 | **G0-E** | PHP version | >= 8.2 | **8.3.33** (2026-09-17) | **PANEL-READ** — satisfies `^8.2`; not probe output | panel |
-| G0-E | **20** mandatory extensions | **all 20 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
+| G0-E | **18** mandatory extensions | **all 18 present** — list below; was 20 until `bcmath` and `zip` were corrected 2026-09-18 | | NOT VERIFIED | probe `PHP/ext` rows |
 | G0-E | `memory_limit` | >= 256M | | NOT VERIFIED | probe |
 | G0-E | `max_execution_time` | >= 120s | | NOT VERIFIED | probe |
 | **G0-B.1** | `mod_rewrite` honoured | yes | | NOT VERIFIED | canary |
@@ -443,12 +443,33 @@ this list is that file's, not a new requirement.
 **Mandatory — absence of any one means Laravel 12 will not run, or will not install:**
 
 ```
-pdo        pdo_mysql   mbstring   openssl
+pdo *      pdo_mysql * mbstring   openssl
 tokenizer  xml         dom        ctype
 json       fileinfo    filter     hash
-session    curl        bcmath     iconv
-zip        gd          simplexml   libxml
+session    curl        iconv      gd *
+simplexml  libxml
 ```
+
+`*` marks the three **no production package declares**, so `composer install` could not
+detect them missing. They are now declared directly in `api/composer.json`
+(`ext-gd`, `ext-pdo`, `ext-pdo_mysql`), which makes the install abort instead of
+succeeding into an application that fails later. The other 15 were always enforced
+transitively.
+
+**Two entries left this list on 2026-09-18, both by measurement. The count is 18, not 20.**
+
+**`bcmath` was never required.** It appears in `api/composer.lock` four times and every one
+is under `suggest` — *"to improve IPV4 host parsing"*, *"Enables faster math with
+arbitrary-precision integers"*, *"For comparing BcMath\Number objects"* — never under
+`require`. The application calls no `bc*` function anywhere, because money is stored in
+integer minor units (`salary_cents`, `price_cents`), which is why it never needed arbitrary
+precision. Asking Ethio Telecom to enable it was asking for something nothing uses.
+
+**`zip` moved to the optional list, because the requirement is `phar` OR `zip`.**
+`BackupService` tries `PharData` first, falls back to `ZipArchive`, and if neither exists
+throws a `RuntimeException` naming the remedy. A loud failure in one feature is not a
+deployment blocker, so neither is mandatory alone — but the *pair* is, and only `zip` was
+ever listed. `phar` was absent from both lists entirely while being the first choice.
 
 **`simplexml` and `libxml` were added on 2026-09-17, and the reason matters.** The list
 was cross-checked against `api/composer.lock` — every `ext-*` that a *production* package

@@ -110,22 +110,54 @@ record($results, 'PHP', 'P2', 'SAPI / handler', 'VERIFIED', PHP_SAPI);
 $mandatory = [
     'pdo', 'pdo_mysql', 'mbstring', 'openssl', 'tokenizer', 'xml', 'dom',
     'ctype', 'json', 'fileinfo', 'filter', 'hash', 'session', 'curl',
-    'bcmath', 'iconv', 'zip', 'gd',
+    'iconv', 'gd',
     // Added 2026-09-17 from the lockfile, not from judgement:
     'simplexml', // aws/aws-sdk-php (pulled in by league/flysystem-aws-s3-v3)
     'libxml',    // tijsverkoyen/css-to-inline-styles, via dompdf
 ];
 
+// TWO ENTRIES LEFT THIS LIST ON 2026-09-18, both by measurement rather than
+// judgement. The count is 18, not 20.
+//
+// `bcmath` was never required. It appears in composer.lock four times and every
+// one is under `suggest` ("to improve IPV4 host parsing", "Enables faster math
+// with arbitrary-precision integers", "For comparing BcMath\Number objects") —
+// never under `require`. The application calls no bc* function at all: money is
+// stored in integer minor units (`salary_cents`, `price_cents`), which is why it
+// never needed arbitrary precision. Asking the host to enable it was asking for
+// something nothing uses.
+//
+// `zip` moved to the optional list because the code needs `phar` OR `zip`, not
+// `zip`. BackupService tries PharData first, falls back to ZipArchive, and if
+// NEITHER exists throws a RuntimeException naming the remedy. A loud failure in
+// one feature is not a deployment blocker, so neither extension is mandatory on
+// its own — but the pair is, and only `zip` was ever listed.
+
 // `ext-pcre` is also declared by aws/aws-sdk-php and vlucas/phpdotenv and is
 // deliberately NOT listed: PCRE is compiled into PHP core and cannot be absent,
 // so checking it would only add a row that can never fail.
 
-// Wanted but not fatal. `gd` is deliberately in the list above, not here: its
-// absence is silent rather than fatal (FileStorageService returns original bytes
-// and skips thumbnails), which makes it more dangerous, not less. `simplexml`
-// moved OUT of this list on 2026-09-17 — it was optional here while being a hard
-// production requirement, which is the wrong direction to be wrong in.
-$optional = ['intl', 'sodium', 'xmlwriter', 'redis', 'opcache', 'exif'];
+// Wanted but not fatal, with two exceptions noted inline below.
+//
+// `gd` stays in the mandatory list, and the reason is sharper than it was.
+// `FileStorageService::stripExif()` opens with `if (! extension_loaded('gd'))
+// { return $content; }` — so without gd, EXIF stripping on the primary upload
+// path SILENTLY RETURNS THE ORIGINAL BYTES. `VerifyFileContent::stripExif()`
+// guards the same way with function_exists(). For a product storing employee
+// photographs and identity documents that means GPS coordinates, device serials
+// and capture timestamps are retained and served back, with no error and no log
+// line. That is a security property failing quietly, not a missing thumbnail,
+// and it is one unchecked box in a Plesk PHP settings page.
+//
+// `simplexml` moved OUT of this list on 2026-09-17 — it was optional here while
+// being a hard production requirement, which is the wrong direction to be wrong
+// in.
+$optional = [
+    'intl', 'sodium', 'xmlwriter', 'redis', 'opcache', 'exif',
+    // One of these two IS required, for backup archiving — see the note above.
+    // Read them together: both absent means `ethr:backup` cannot archive.
+    'phar', 'zip',
+];
 
 /**
  * extension_loaded(), with the one name PHP does not register as you write it.

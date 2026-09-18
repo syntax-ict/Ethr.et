@@ -1713,6 +1713,103 @@ on the proxy's bypass list.
 **This is why CI is the evidence for every backend row above, not a local run.** CI has
 unrestricted egress and runs the same `gates.sh`.
 
+## PLESK COMPATIBILITY PASS — 2026-09-18
+
+Execution overlay: make the repository Plesk-shared-hosting compatible *by default*, with
+account configuration left to the owner. Repository-side only; no gate moved.
+
+### The composer manifest declared no PHP extensions at all
+
+`api/composer.json` required `php: ^8.2` and **not one `ext-*`**, with no `config.platform`,
+while Gate 0 lists 18 as mandatory. Cross-referencing `composer.lock` shows why that mostly
+did not matter — and exactly where it did:
+
+| | |
+|---|---|
+| Declared by a production package | 15 — `composer install` has always aborted without them |
+| **Declared by nothing** | **`pdo`, `pdo_mysql`, `gd`** |
+
+Those three are the whole risk. `pdo`/`pdo_mysql` absent means no database at all; `gd`
+absent is **silent**. `FileStorageService::stripExif()` opens with
+`if (! extension_loaded('gd')) { return $content; }`, so on the primary upload path EXIF
+stripping returns the original bytes — employee photographs and identity documents keep GPS
+coordinates, device serials and capture timestamps, served back that way, with no error and
+no log line. On shared hosting that is one unchecked box in a PHP settings page.
+
+**All three are now declared in `api/composer.json`.** `composer install` on the host aborts
+rather than installing an application that fails later. `composer.lock` was updated to match
+— without network access, by computing composer's `content-hash` locally and **validating the
+algorithm against the known-good pre-change hash first** (`1796435c…`, reproduced exactly)
+before applying the new one. `composer validate` is clean on manifest and lock. CI's
+`setup-php` already installs all three, so nothing new is required there.
+
+### Two entries in the mandatory list were wrong
+
+| Entry | Finding |
+|---|---|
+| **`bcmath`** | **Not required.** Appears in `composer.lock` four times, every one under `suggest`, never `require`. Zero `bc*` calls in the application — money is integer minor units (`salary_cents`, `price_cents`). We were about to ask Ethio Telecom to enable something nothing uses |
+| **`zip`** | **Mis-stated.** `BackupService` needs `phar` **or** `zip`: it tries `PharData`, falls back to `ZipArchive`, and throws a `RuntimeException` naming the remedy if neither exists. Neither is mandatory alone; the pair is. `phar` — the *first* choice — was on neither list |
+
+Mandatory is now **18**, which incidentally reconciles `GATE-0-RESULT.md:189` ("18") with
+its own results table ("20") — an internal contradiction that had been sitting in the
+document.
+
+### The production env template would not have booted here
+
+`api/.env.production.example` is a `docker-compose.prod.yml` artifact — its own header says
+so — and `DEPLOYMENT.md` step 4 says `cp .env.production.example .env`. On this account that
+copy yields:
+
+```
+CACHE_STORE=redis          QUEUE_CONNECTION=redis     SESSION_DRIVER=redis
+BROADCAST_CONNECTION=reverb  FILESYSTEM_DISK=minio
+REDIS_HOST=redis           MINIO_ENDPOINT=http://minio:9000
+```
+
+`redis` and `minio` are **Docker service names**. There is no Redis, no MinIO and no Reverb
+daemon on this account, and those hostnames resolve to nothing outside a compose network.
+
+**`api/.env.shared-hosting.example` added.** Identical key set — verified by diffing the
+sorted key lists, no variable dropped — with each conversion marked `# [shared-hosting]`
+and its reason, and the VPS-specific prose replaced rather than left to contradict.
+
+`BROADCAST_CONNECTION=null` rather than `reverb` is deliberate: with `reverb` set and nothing
+listening a broadcast **throws**, so a successful write returns 500. `null` degrades the
+feature instead of breaking the write.
+
+**The VPS template is unchanged on purpose.** It is still correct for the rollback target,
+and rollback is not retired.
+
+### `docs/deployment/PLESK-SETUP.md` added
+
+The overlay's responsibility split, per section: what is true of the code, and what the
+owner clicks. It does not restate the frozen `ENVIRONMENT.md` / `DEPLOYMENT.md`.
+
+### VPS artifact audit — conclusion: NOTHING REMOVED, and why
+
+The inventory of 2026-09-17 stands and was not re-derived. Re-reading it against the
+overlay's removal mandate, the answer is the same and the reason is worth stating plainly
+rather than reading as evasion:
+
+- **The VPS is the rollback target.** `shared-hosting/rollback.md` depends on it being live.
+- **B-6 is unresolved** — nobody has established whether the VPS still serves, or whether it
+  holds the only copy of tenant data. `tin` and `national_id` are `encrypted` casts and
+  off-host backup was never configured, so its `APP_KEY` may be the only thing that can read
+  them.
+- **Gate 0 is 1 verified, 1 failed, 28 outstanding.** The replacement target has no verified
+  capability at all.
+
+Deleting the rollback target's deployment tooling in that state would be destructive, and the
+overlay's own precondition — *"after the existing migration plan has been fully implemented
+and verified as far as possible"* — is not met.
+
+**The trigger condition is recorded so this is a checkpoint rather than an opinion.** VPS
+artifacts become eligible when: B-6 answered (VPS serving state and data content known), the
+application verified running on the Plesk host, and Gate 0's blocking rows closed. The one
+candidate that is ready *on other grounds* is `RUN_ALL.ps1` / `START_BACKEND.ps1` /
+`START_FRONTEND.ps1` — wrong rather than VPS-only — and the 2026-09-17 inventory already
+called that an owner decision. It still is.
+
 ### What did not change
 
 No gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still

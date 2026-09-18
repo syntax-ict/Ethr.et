@@ -79,6 +79,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | Document | What it is |
 |---|---|
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | **Start here.** Hosting verification — all rows `NOT VERIFIED` |
+| [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
 | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) | **Ready to send.** One ticket, three asks — cron, SSH, `TRIGGER`. Unblocks B-1, B-4 and G0-F |
 | [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, checklists. Procedures frozen until Gate 0 reports; facts corrected 2026-09-18 |
 | [`HOSTING_VERIFICATION_CHECKLIST.md`](HOSTING_VERIFICATION_CHECKLIST.md) | ~60 capability rows, every one `NOT VERIFIED` |
