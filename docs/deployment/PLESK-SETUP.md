@@ -80,9 +80,9 @@ with every conversion marked `# [shared-hosting]` and its reason.
 
 | Key | VPS template | Shared hosting |
 |---|---|---|
-| `CACHE_STORE` | `redis` | `file` |
+| `CACHE_STORE` | `redis` | `database` — live-verified on MariaDB 2026-08-31 |
 | `QUEUE_CONNECTION` | `redis` | `database` |
-| `SESSION_DRIVER` | `redis` | `file` |
+| `SESSION_DRIVER` | `redis` | `database` |
 | `BROADCAST_CONNECTION` | `reverb` | `null` |
 | `FILESYSTEM_DISK` | `minio` | `local` |
 | `DB_HOST` | `mariadb` | `localhost` |
