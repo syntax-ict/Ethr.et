@@ -193,10 +193,26 @@ wildcard subdomains, cron, Node.js runtime, PHP version, DB trigger privilege.
 
 ---
 
-## D. Exact hardcoded infrastructure references
+## D. Exact hardcoded infrastructure references — **ALL FIXED, and there were five**
+
+> **Corrected 2026-09-18. This section is called "the headline result of the audit", and
+> it reads as outstanding work in the present tense. It is not — every site below was
+> fixed in Phase A (`80cac67`, merged `12f53de`), and the count was wrong.**
+>
+> - **The count is five, not four.** `MIGRATION_STATE.md` **D5** already records this:
+>   *"Was reported as 4; `checkReadReplica()`'s hardcoded `mariadb` found during
+>   implementation."* The table below never gained the fifth row.
+> - **All five are fixed.** Re-verified today by grep: no `= 'minio'`, no
+>   `cache()->store('redis')`, no `Storage::disk('minio')` survives in those three files,
+>   and `HealthController.php:103` now carries a comment reading *"The connection in use,
+>   not `mariadb` by name. Same defect class as the …"*.
+>
+> The table is kept as the original finding rather than deleted — it was accurate when
+> written, and a defect that was real and then fixed should read as history. The
+> **Impact** column describes what *would* happen, not what does.
 
 The application is almost entirely env-driven. Grepping `app/` for hardcoded
-infrastructure yields **exactly four sites in three files**:
+infrastructure yielded **four sites in three files** *(five — see the correction above)*:
 
 | File | Line | Code | Impact |
 | --- | --- | --- | --- |
@@ -296,4 +312,7 @@ Not answerable from the codebase. Listed with a verification procedure in
 4. What **PHP version and extension set**? `>= 8.2` with `gd` is mandatory.
 5. Can the DB user **`CREATE TRIGGER`**? Determines whether migrations run at all.
 6. What are **`max_execution_time`**, **`memory_limit`**, **`upload_max_filesize`**?
-7. Is **SSH** available? Determines whether Composer can run on the server.
+7. ~~Is **SSH** available?~~ — **ANSWERED 2026-09-17: no, `Forbidden`.** The framing was
+   also slightly off: Composer *can* run on the server, via the Plesk Composer extension.
+   What SSH actually determines is whether anything can run **`php artisan`** — blockers
+   **B-4** and **B-5** in `MIGRATION_STATE.md`. That now rests on Plesk *Scheduled Tasks*.
