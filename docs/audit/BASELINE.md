@@ -1292,11 +1292,37 @@ literals are its built-in string validators. Four forms pull it in:
 `(auth)/login/login-form.tsx`, `register-form.tsx`, `login/forgot/forgot-form.tsx`
 and `login/reset/reset-form.tsx`. Twenty-seven files import it overall.
 
-**The lead, not yet taken:** the project is on Zod **4.4.3**, and `zod/mini` ships
-in that same install. It is a functional API rather than a chained one, so
-converting four auth forms is a real change with real regression surface, and it
-wants an e2e pass on the login flow before anyone believes it. Recorded as the
-highest-value measured Phase 8 target rather than attempted here.
+**The lead, and a correction to it made the same day.** The first version of this
+section said `zod/mini` was the fix and implied it would return the 64 KB. It
+would not, and the measurement that says so is this:
+
+| `node_modules/zod` | raw JS |
+|---|---|
+| `v4/classic` (what `import { z } from "zod"` gives) | 81 KB |
+| `v4/mini` | 34 KB |
+| **`v4/core` — required by both** | **215 KB** |
+
+`zod/mini` swaps an 81 KB layer for a 34 KB one. It cannot touch the 215 KB core,
+which is most of the chunk. The realistic saving is ~47 KB raw, call it **~11 KB
+gzipped of the 63.9 KB** — worth having, but not the win the number first
+suggested. Recorded rather than quietly fixed, because the difference between
+"64 KB of Zod" and "64 KB of Zod, 11 KB of which is reachable this way" is the
+difference between a planned change and a disappointed one.
+
+Three facts for whoever takes it:
+
+- **The resolver is not a blocker.** `@hookform/resolvers@5.4` imports from
+  `zod/v4/core`, the same core `zod/mini` builds on, so `zodResolver` accepts mini
+  schemas. The package also ships `standard-schema`, `valibot` and other resolvers.
+- **There is one swap point, not four.** Every form goes through
+  `src/lib/forms/rules.ts` (226 lines) — the auth forms themselves use only
+  `z.string()`, `z.object()` and `z.literal()` directly. That makes the edit small
+  and the blast radius large: `rules.ts` is shared with every dashboard form, so
+  this is not an auth-only change.
+- **Returning the whole 64 KB means leaving Zod**, because the core is the bulk of
+  it. A smaller validator (`valibot` has a resolver shipped but is not installed)
+  or hand-rolled checks would do it. That is a dependency decision for the owner,
+  not a build-config one, and it is why nothing was changed here.
 
 ### `npm run analyze` has been doing nothing
 

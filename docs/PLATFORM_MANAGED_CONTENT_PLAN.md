@@ -267,10 +267,13 @@ cut yet; what changed is that the number now has an owner per kilobyte:
 - **The landing page was the wrong page to worry about.** `/login` is 462 KB and
   `/register` 459 KB against `/[locale]`'s 389 KB, and they are public entry points
   on the same networks.
-- **The one large removable dependency is Zod, 64 KB gzipped on `/login`.**
-  `zod/mini` ships in the installed 4.4.3. Converting the four auth forms is the
-  highest-value measured target and wants an e2e pass on the login flow; it is
-  recorded, not attempted.
+- **The one large dependency is Zod, 64 KB gzipped on `/login`** — but only
+  ~11 KB of that is reachable by switching to `zod/mini`, because `zod/v4/core`
+  (215 KB raw) is shared by both and is most of the chunk. Returning the rest
+  means leaving Zod, which is an owner's dependency decision. Every form routes
+  through one file, `src/lib/forms/rules.ts`, so the edit is small and the blast
+  radius is every form in the product. See §18a, which also corrects the first
+  version of this claim.
 - **`npm run analyze` produces nothing** — Next 16 builds with Turbopack and the
   analyzer is a webpack plugin. Use `next build --experimental-analyze` or
   `.next/diagnostics/route-bundle-stats.json`. Phase 8 would otherwise have begun
