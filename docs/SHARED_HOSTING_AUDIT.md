@@ -89,12 +89,12 @@ schema-sufficient.
 
 | Component | Required by ETHR? | Current implementation | Shared-hosting support | Migration strategy |
 | --- | --- | --- | --- | --- |
-| **PHP 8.2+** | Yes, hard | php-fpm 8.2 (`docker/php`) | **UNKNOWN** — must be confirmed on the account | Blocking gate. If < 8.2, shared hosting is impossible without a VPS. |
+| **PHP 8.2+** | Yes, hard | php-fpm 8.2 (`docker/php`) | ~~UNKNOWN~~ **VERIFIED 8.3.33** — Plesk *PHP Settings*, 2026-09-17 | ~~Blocking gate.~~ **Cleared.** Satisfies `^8.2`. Panel reading, not probe output, so G0-E's *extension* and *limit* rows are still open — only the version row is answered. |
 | **Laravel 12** | Yes | `api/` | Runs on any PHP 8.2 host with a writable `storage/` | Deploy `api/public` as document root. No code change. |
 | **MariaDB/MySQL** | Yes | `mariadb` container, `DB_CONNECTION=mariadb` | Offered (Linux + MySQL plans) | Point `DB_*` at the Plesk database. Confirm server flavour matches `DB_CONNECTION`. |
 | **DB read replica** | No — optimisation | `mariadb-replica`, `DB_READ_HOST` | Not offered | Drop. Unset `DB_READ_HOST`; `config/database.php` collapses to one connection. Zero code change. |
 | **Redis (queue)** | **No — driver-level only** | `QUEUE_CONNECTION=redis` | **UNKNOWN**, assume absent | `QUEUE_CONNECTION=database`. Laravel's own default; the `jobs` / `job_batches` / `failed_jobs` tables already exist. **Zero code change** — there is no `Redis::` call anywhere in `app/`. |
-| **Redis (cache)** | No — driver-level only | `CACHE_STORE=redis` | UNKNOWN | `CACHE_STORE=database`. Caveat: two files hardcode `cache()->store('redis')` — see §D. |
+| **Redis (cache)** | No — driver-level only | `CACHE_STORE=redis` | UNKNOWN, assume absent | `CACHE_STORE=database`. ~~Caveat: two files hardcode `cache()->store('redis')`~~ — **fixed in Phase A (`80cac67`); re-verified by grep 2026-09-18, no `store('redis')` survives in `api/app/`.** See §D. |
 | **Redis (session)** | No — driver-level only | `SESSION_DRIVER=redis` | UNKNOWN | `SESSION_DRIVER=database`. Sessions table exists. |
 | **Redis (rate limiting)** | No | `RateLimiter` over the cache store | — | Follows `CACHE_STORE`. 10 named limiters in `AppServiceProvider`, all driver-agnostic. |
 | **Laravel Horizon** | **No — it is a Redis-queue runner** | 6 supervisors, `config/horizon.php` | Needs Redis + long-running processes | Replace with cron-driven `queue:work --stop-when-empty`. The *dashboard* is lost; the *jobs* are not. |

@@ -73,7 +73,7 @@ cost is automation at tenant provisioning and Let's Encrypt's 50-certs-per-week 
 ```
 ~/                     home, user ethret : psaserv
 ├── .composer/         <- Composer HAS been run on this account
-├── .ssh/              <- SSH access provisioned
+├── .ssh/              <- NOT what this means; see the 2026-09-17 note below
 ├── .trash/
 ├── error_docs/
 ├── httpdocs/          <- DOCUMENT ROOT
@@ -87,8 +87,30 @@ Three gates resolve from this:
 | Item | Result | Evidence |
 | --- | --- | --- |
 | **W6** — private files storable outside the document root | ✅ **VERIFIED PASS** | The home directory is a level *above* `httpdocs`. `.env`, `storage/` and the whole Laravel app can live there, unreachable over HTTP by construction. |
-| **P4** — Composer available | ✅ **Strong evidence** | `~/.composer` exists — Composer has been executed under this account. Confirm with `composer --version`. |
-| **SSH** — shell access | ✅ **Strong evidence** | `~/.ssh` exists and port 22 is open. Plesk creates this when shell access is provisioned. Confirm by logging in. |
+| **P4** — Composer available | ⚠️ **Strong evidence, and the stated confirmation is now impossible** | `~/.composer` exists — Composer has been executed under this account. ~~Confirm with `composer --version`.~~ That needs a shell, and SSH is Forbidden (below). Composer *is* present as a Plesk **extension**; whether it is reachable as a CLI binary is unverifiable without a shell. Tracked as `HOSTING_VERIFICATION_CHECKLIST.md` P4 = PARTIAL. |
+| **SSH** — shell access | ❌ **DISPROVED 2026-09-17 — this row was wrong** | ~~`~/.ssh` exists and port 22 is open. Plesk creates this when shell access is provisioned. Confirm by logging in.~~ **Hosting Settings reports SSH access = `Forbidden`, and Dev Tools offers no Terminal.** See the correction below. |
+
+#### The `~/.ssh` inference was wrong — corrected 2026-09-17/18
+
+The tree listing above annotated `.ssh/` as *"SSH access provisioned"*, and the row above
+graded that ✅. Both were **inference from a directory's existence**, which this document's
+own standard rejects — and the measurement went the other way.
+
+**Plesk creates `~/.ssh` regardless of whether shell access is enabled**, and an open port
+22 belongs to the *server*, not to this account: the host serves many subscriptions and
+answers on 22 for whichever of them do have shell access. Neither fact says anything about
+`ethret`.
+
+This matters beyond one row, because it is the root of two live blockers:
+
+- **B-1** — the capability probe has no shell route. Its documented fallback is Plesk →
+  Scheduled Tasks, which depends on **G0-D**, unverified.
+- **B-4** — nothing runs `artisan`, so `key:generate`, `migrate`, `db:seed` and
+  `ethr:create-admin` have no mechanism. This also takes five checks off
+  `deploy-checklist.md` and the `SELECT` in `ROLLBACK_RUNBOOK.md` Scenario B.
+
+The row said *"Confirm by logging in."* Nobody did, for nineteen days, and the green tick
+read as settled in the meantime. That is the failure mode, not the wrong guess.
 
 `httpdocs/.well-known/` independently corroborates that the existing Let's Encrypt
 certificate was issued over **HTTP-01** — which is the per-tenant TLS fallback path.
