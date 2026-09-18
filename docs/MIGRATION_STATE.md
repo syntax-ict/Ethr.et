@@ -29,7 +29,7 @@ can be settled from this repository — all four require the Plesk account.
 | 4 | Cron (**B3**) | Plesk → *Scheduled Tasks*: present? "Run a command" or URL-fetch only? Minimum interval? |
 
 Fact 4 is the only one that is panel-only. Facts 1–3 come from a single SSH session.
-The account IP (`213.55.96.154`) and username (`etrhet`) are already known — see
+The account IP (`213.55.96.154`) and username (`ethret`) are already known — see
 `docs/B1-B5_GATE_REPORT.md`.
 
 **Decision rule on resumption:** B4 fail → blocked, no fallback. H1 fail → request the
@@ -125,7 +125,7 @@ OWNER DECISION (2026-08-29):  NO VPS. Options A, C and D withdrawn.
 PHASE A:      IMPLEMENTED BUT NOT YET APPROVED FOR PRODUCTION
               (working tree only — not committed)
 
-TARGET:  etrhet @ line6.ethiotelecom.et / 213.55.96.154 (Linux Bronze, Plesk)
+TARGET:  ethret @ lin6.ethiotelecom.et / 213.55.96.154 (Linux Bronze, Plesk)
 
 B1a wildcard DNS          VERIFIED PASS   (6 unconfigured names all resolve)
 B1b wildcard vhost        PARTIAL         (owner reports `*` accepted — testimony,
@@ -1072,6 +1072,73 @@ So B-4 does not only block deployment and database import. It blocks the gate th
 supposed to certify the deployment *before* DNS is pointed at it. Manual action 1 already
 decided deployment, import, backup/restore and observability; it decides this too.
 
+## Hosting Information panel — read 2026-09-18
+
+Owner-supplied, from the account's **Hosting Information / Resource Usage** page. Four new
+facts, one correction of ours, and one identifier error this repository had been repeating.
+
+| Field | Value | Status here before |
+|---|---|---|
+| Domain | `ethr.et` | known |
+| Username | **`ethret`** | **recorded BOTH ways — see below** |
+| Server name | **`lin6.ethiotelecom.et`** | recorded as `line6.…` — wrong |
+| IP | `213.55.96.154` | known, now confirmed by a second source |
+| Nameservers | **`ns1.telecom.net.et`** and **`ns2.telecom.net.et`** | only `ns2` recorded — "single nameserver" |
+| SSL | Valid · **2026-09-16 → 2026-12-15** · issuer **`YR1`** | a cert was seen 2026-08-29, issuer `YR2` |
+
+### The identifier error, and why it is not cosmetic
+
+The account username is **`ethret`**. This repository wrote it **`etrhet`** — the `hr`
+transposed — in six files, while *also* writing it correctly in two places, so
+`B1-B5_GATE_REPORT.md` contradicted itself between its summary table and the directory
+listing thirty lines below.
+
+Two places where the wrong spelling costs something real:
+
+- **`AUDIT_LOG_INTEGRITY_DECISION.md`** instructs: *"ask Ethio Telecom to grant `TRIGGER`
+  to the `etrhet` database user."* That is the remedy for **G0-F**, a gate whose failure
+  aborts `migrate` by design. A support request naming a user that does not exist buys a
+  round trip and no grant.
+- **`DEPLOYMENT.md`** steps 3 and 4 put it in five `ssh` and `rsync` command lines.
+
+Corrected in every file except the frozen one. **`DEPLOYMENT.md` still says `etrhet` in
+five places** — it is inside `docs/deployment/shared-hosting/` and a username typo is
+branch-independent but does **not** block Gate 0, so it fails the freeze exception test.
+Those five lines are already inside the rewrite **U-2** describes (they are the `rsync`
+and `ssh` steps that no longer work at all on this account), so the correction rides that
+rewrite. Recorded here so it is not lost in the meantime.
+
+`line6.ethiotelecom.et` → `lin6.ethiotelecom.et` is the same class of error and was fixed
+alongside it.
+
+### What the panel resolves, and what it does not
+
+**It strengthens the wildcard-TLS blocker rather than weakening it.** The zone sits on
+Ethio Telecom's own nameservers — **two** of them, `ns1` and `ns2`, where this file
+previously said "single nameserver". Plesk does not host the zone, so DNS-01 validation is
+not available from the panel, and a **wildcard certificate cannot be auto-issued**. That
+was already the reading; it now rests on a second independent source rather than one
+`dig`.
+
+**It is evidence that automatic renewal works** — the one genuinely good news here. The
+certificate observed on 2026-08-29 was issued by `YR2`; the panel now shows a certificate
+valid from **2026-09-16**, issuer `YR1`. A different intermediate and a later start date
+means the certificate **rotated on its own** in the interim. A 90-day validity window
+(16 Sep → 15 Dec) is the ACME lifetime. That bears on checklist rows **S1** and **S4**.
+
+**Stated as evidence, not as a verified gate.** The panel prints the issuer as `YR1`
+without an organisation field, so "Let's Encrypt" is inferred from `YR2` having carried
+`O=Let's Encrypt` on 2026-08-29 — strong, but it is inference, and this document's rule is
+that inference is not evidence. **S1/S4 stay NOT VERIFIED** pending the *SSL/TLS
+Certificates* panel page, which is queue item 8's neighbour.
+
+**It answers nothing else.** No gate moves. This page reports identity and TLS; it says
+nothing about Scheduled Tasks, SSH, custom directives, static-file handling, PHP
+extensions or the database — which is the entire blocking set.
+
+`lin6` is worth keeping for one practical reason: it is the string to quote in a support
+request, alongside the now-correct `ethret`.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
@@ -1274,7 +1341,7 @@ decision rather than a blocker.
 
 ### 2. Resume the hosting migration
 
-Account: `etrhet` @ `213.55.96.154` (Plesk). All quick, ~10 minutes total.
+Account: `ethret` @ `213.55.96.154` (Plesk). All quick, ~10 minutes total.
 
 **Already answered — do not re-ask the owner:** **B1b** — the owner confirmed Plesk
 accepts the literal name `*` for *Add Subdomain*. Do not put that question again.

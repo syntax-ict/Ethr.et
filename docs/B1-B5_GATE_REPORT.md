@@ -11,8 +11,8 @@ weigh. That is recorded per gate below.
 ## Target account (supplied by owner, 2026-08-29)
 
 ```
-Username    etrhet
-Server      line6.ethiotelecom.et   (internal name — does not resolve publicly)
+Username    ethret
+Server      lin6.ethiotelecom.et   (internal name — does not resolve publicly)
 IP          213.55.96.154           (AS24757 Ethio Telecom, Addis Ababa)
 Plan        Linux Bronze (shared, Plesk)
 ```

@@ -16,7 +16,7 @@
 >
 > **If it fails, the answer is already written.** [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) translates the silently-failing half into Plesk's *Additional nginx directives* panel, and explains why it stops short of translating the routing rules. Unverified against any live host — it is a prepared answer, not a measurement.
 
-**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `etrhet` · `213.55.96.154`
+**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `ethret` · `213.55.96.154`
 **Prepared:** 2026-09-15
 **Run by:** owner (requires the Plesk account — this cannot be automated from the repository)
 
@@ -241,7 +241,7 @@ mechanism seen from different ends.
 #### Pin every G0-B request to the Plesk host
 
 **Do not rely on DNS or on the vhost being the one you expect.** `docs/B1-B5_GATE_REPORT.md`
-records the account host as **`213.55.96.154`** (`etrhet` @ `line6.ethiotelecom.et`); that
+records the account host as **`213.55.96.154`** (`ethret` @ `lin6.ethiotelecom.et`); that
 IP, not a hostname, is the repository's evidence for where this account lives. A request
 that resolves elsewhere, or lands on a different vhost on the same box, measures the wrong
 machine and returns a *plausible* answer — which is worse than an error.

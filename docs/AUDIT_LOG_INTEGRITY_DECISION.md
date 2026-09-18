@@ -26,7 +26,7 @@ from throwing on a trigger that was never created.
 With VPS options withdrawn by the owner, this means: **if gate H1 fails, ETHR does not
 deploy on this account until the privilege is granted.** That is the intended behaviour,
 not an oversight. The escape hatch is not to weaken the migration — it is to ask Ethio
-Telecom to grant `TRIGGER` to the `etrhet` database user, which is an ordinary support
+Telecom to grant `TRIGGER` to the `ethret` database user, which is an ordinary support
 request and cheaper than any code change.
 
 If they refuse, the decision returns to the owner as an explicit accepted-risk choice,
