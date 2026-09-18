@@ -44,7 +44,8 @@ shared-hosting migration in more detail than belongs here.
 - **Removed a committed `APP_KEY`.** `START_BACKEND.ps1` hardcoded a literal
   key, which signs every signed URL and decrypts every `encrypted` cast. It was
   a local-development convenience, but nothing said so and any developer without
-  `APP_KEY` set adopted it silently. The script now generates one.
+  `APP_KEY` set adopted it silently. The script was changed to generate one,
+  and has since been removed outright — see Removed, below.
 - Documented the env policy at the repository root: `api/.env.production` is
   ignored (Laravel's own `api/.gitignore` already covered it; the root rule now
   states it too), and `src/.env.production` is labelled as the deliberate
@@ -96,6 +97,19 @@ shared-hosting migration in more detail than belongs here.
 - `docs/audit/BASELINE.md` — Phase 0 forensic baseline. Every claim typed
   `[verified]` / `[documented-done]` / `NOT VERIFIED` / `NOT MEASURED`.
 - `SECURITY.md`, `CONTRIBUTING.md`, `LICENSE`, `.editorconfig`, this file.
+
+### Removed
+
+- **The three PowerShell launchers.** `RUN_ALL.ps1`, `START_BACKEND.ps1` and
+  `START_FRONTEND.ps1` predated the Docker setup and started two of the four
+  processes the stack needs — no queue worker, no Reverb — which is the
+  configuration where a *successful* write still returns 500. `RUN_ALL.ps1` also
+  announced "SQLite" while the documented database is MariaDB. Nothing executed
+  them: every remaining reference was a document warning readers away, and
+  `CONTRIBUTING.md` already said to prefer Docker Compose. They were also where
+  the committed `APP_KEY` above came from. A launcher that silently omits Reverb
+  is worse than no launcher, because it sends you debugging the wrong layer.
+  `docker compose up -d` is now the only local path, and the only one documented.
 
 ### Fixed
 

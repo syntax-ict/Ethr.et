@@ -821,7 +821,7 @@ Recorded because the property is general, not specific to search: **any future f
 
 - Six `docker-compose*.yml` files at root; `docker/` build inputs; `infrastructure/` (nginx, supervisor, certbot)
 - **`scripts/backup.sh:53`** — `docker compose exec -T mariadb mysqldump`; **`:63`** — `docker run --rm --volumes-from ethr-minio`. `restore.sh`, `rollback.sh`, `deploy.sh` and `prod-build-test.sh` are the same shape. **There is no non-Docker backup or restore path in this repository.**
-- `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` — Windows dev launchers predating the Docker work. `RUN_ALL.ps1` prints "SQLite" where README prescribes MariaDB, and starts neither the queue worker nor Reverb, both of which README calls mandatory.
+- ~~`RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` — Windows dev launchers predating the Docker work, which announced "SQLite" where README prescribes MariaDB and started neither the queue worker nor Reverb~~ — **deleted 2026-09-18**. Nothing referenced them but the documents warning readers away from them, and they were the origin of the committed `APP_KEY` recorded in the changelog. Docker Compose is the only local path.
 
 Application-level hosting coupling is low: no shell-outs, no Redis calls, no absolute paths in `app/`.
 
