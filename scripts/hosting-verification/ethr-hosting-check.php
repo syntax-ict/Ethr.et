@@ -17,6 +17,14 @@
  *   2. Run it over SSH: `php ethr-hosting-check.php`. If there is no shell,
  *      run it from Plesk -> Scheduled Tasks as a one-off PHP CLI task and read
  *      the mailed or logged output.
+ *
+ *      EXIT STATUS (CLI only; a web run is always HTTP 200):
+ *        0  nothing unsupported
+ *        1  a MANDATORY item is missing - Laravel 12 will not run here as-is
+ *        2  no mandatory gap, but at least one other FAIL row above
+ *      Read the rows either way. Plesk judges a scheduled task by exit status,
+ *      so before 2026-09-18 - when this always exited 0 - a fatal result was
+ *      reported by the panel as a task that completed successfully.
  *   3. Save the output locally.
  *   4. *** DELETE IT FROM THE SERVER IMMEDIATELY. ***
  *
@@ -87,13 +95,34 @@ $mandatory = [
 // production requirement, which is the wrong direction to be wrong in.
 $optional = ['intl', 'sodium', 'xmlwriter', 'redis', 'opcache', 'exif'];
 
+/**
+ * extension_loaded(), with the one name PHP does not register as you write it.
+ *
+ * OPcache registers as `Zend OPcache`, so extension_loaded('opcache') is FALSE
+ * on every host, including hosts where OPcache is loaded AND enabled. Measured
+ * 2026-09-18 on PHP 8.4: extension_loaded('opcache') = false while
+ * extension_loaded('Zend OPcache'), function_exists('opcache_get_status') and
+ * ini_get('opcache.enable') were all true. Before this the probe printed
+ * `[ ???? ] ext-opcache` unconditionally — a false negative 100% of the time,
+ * and one that invites a pointless request to Ethio Telecom support for an
+ * extension the host already has.
+ */
+function extLoaded(string $ext): bool
+{
+    if (extension_loaded($ext)) {
+        return true;
+    }
+
+    return $ext === 'opcache' && extension_loaded('Zend OPcache');
+}
+
 foreach ($mandatory as $ext) {
     record($results, 'PHP', 'ext', "ext-$ext (MANDATORY)",
-        extension_loaded($ext) ? 'VERIFIED' : 'UNSUPPORTED');
+        extLoaded($ext) ? 'VERIFIED' : 'UNSUPPORTED');
 }
 foreach ($optional as $ext) {
     record($results, 'PHP', 'ext', "ext-$ext (optional)",
-        extension_loaded($ext) ? 'VERIFIED' : 'UNKNOWN');
+        extLoaded($ext) ? 'VERIFIED' : 'UNKNOWN');
 }
 
 // ── Section 2: PHP limits ────────────────────────────────────────────────────
@@ -149,10 +178,25 @@ foreach ($limits as [$id, $key, $min, $why]) {
 // the frontend ships as a Next.js server or as static files.
 
 record($results, 'Runtime', 'W0', 'PHP SAPI', 'VERIFIED', PHP_SAPI);
-record($results, 'Runtime', 'W0', 'server software', 'VERIFIED',
-    (string) ($_SERVER['SERVER_SOFTWARE'] ?? '(unknown - run over the web to see this)'));
-record($results, 'Runtime', 'W0', 'document root', 'VERIFIED',
-    (string) ($_SERVER['DOCUMENT_ROOT'] ?? '(unknown - CLI run)'));
+
+// `?? ` is not enough for these two. PHP CLI SETS $_SERVER['DOCUMENT_ROOT'] to
+// an EMPTY STRING rather than leaving it unset, so the null-coalesce never
+// fired and the row printed `[  OK  ] document root` followed by nothing —
+// VERIFIED, with no evidence, on W3, which is one of the live open questions
+// (MIGRATION_STATE B-3). An operator scanning a column of OKs could reasonably
+// record W3 as answered against a blank value. Measured 2026-09-18 on a CLI run.
+//
+// Neither value is knowable from CLI at all, so the honest status is UNKNOWN.
+// Both are web-SAPI facts: run this file once over HTTP to get them.
+$reportEnv = static function (string $key, string $item, string $whenMissing) use (&$results): void {
+    $value = (string) ($_SERVER[$key] ?? '');
+    record($results, 'Runtime', 'W0', $item,
+        $value === '' ? 'UNKNOWN' : 'VERIFIED',
+        $value === '' ? $whenMissing : $value);
+};
+
+$reportEnv('SERVER_SOFTWARE', 'server software', 'unset — run this over the web to see it');
+$reportEnv('DOCUMENT_ROOT', 'document root', 'unset under CLI — run this over the web to see it');
 
 // Node is a panel setting on Plesk, but if a shell exists we can just look.
 $nodeVersion = null;
@@ -436,6 +480,7 @@ echo "$line\nETHR SHARED-HOSTING CAPABILITY PROBE\n";
 echo 'Generated: '.date('c')."\nHost: ".($_SERVER['HTTP_HOST'] ?? php_uname('n'))."\n$line\n\n";
 
 $fail = 0;
+$otherFail = 0;
 foreach ($results as $section => $rows) {
     echo "── $section ".str_repeat('─', max(1, 60 - strlen($section)))."\n";
     foreach ($rows as $r) {
@@ -444,8 +489,8 @@ foreach ($results as $section => $rows) {
             'UNSUPPORTED' => ' FAIL ',
             default => ' ???? ',
         };
-        if ($r['status'] === 'UNSUPPORTED' && str_contains($r['item'], 'MANDATORY')) {
-            $fail++;
+        if ($r['status'] === 'UNSUPPORTED') {
+            str_contains($r['item'], 'MANDATORY') ? $fail++ : $otherFail++;
         }
         printf("[%s] %-58s %s\n", $mark, $r['item'], $r['detail']);
     }
@@ -462,3 +507,25 @@ echo "Those are Plesk panel questions - see docs/deployment/GATE-0-RESULT.md."."
 echo "\nNor whether .htaccess is honoured: a file in ~/ is never served by Apache."."\n";
 echo "Use scripts/hosting-verification/htaccess-canary/ for that."."\n";
 echo "\n*** DELETE THIS FILE FROM THE SERVER NOW. ***\n$line\n";
+
+// Until 2026-09-18 this script ALWAYS exited 0 — including on the run above
+// that prints "Laravel 12 will not run as-is". That is not cosmetic here.
+// SSH on this account is Forbidden (MIGRATION_STATE B-1), so the probe's own
+// documented fallback, stated at the top of this file, is Plesk -> Scheduled
+// Tasks as a one-off PHP CLI task. Plesk reports a task's outcome by its exit
+// status, so a probe that found a fatal gap and exited 0 showed the panel a
+// green, successfully-completed task. `CLAUDE.md` opens on exactly this
+// failure mode: a green run that is a lie.
+//
+//   0  nothing unsupported
+//   1  at least one MANDATORY item unsupported — cannot deploy here at all
+//   2  no mandatory gap, but at least one other FAIL row (a degraded feature,
+//      a limit below what payroll or uploads need, or blocked outbound SMTP)
+//
+// Exit status only exists under CLI; over the web PHP still returns HTTP 200
+// and the body above is the whole report, which is why this is CLI-gated.
+if ($isCli) {
+    echo "\nExit status: ".($fail > 0 ? 1 : ($otherFail > 0 ? 2 : 0))
+        ." (0 = clean, 1 = mandatory gap, 2 = non-mandatory FAIL rows above)\n";
+    exit($fail > 0 ? 1 : ($otherFail > 0 ? 2 : 0));
+}

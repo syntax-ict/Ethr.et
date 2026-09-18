@@ -75,6 +75,21 @@ output. The probe's own header names this as the no-shell fallback. It answers e
 Route A does — **but only if G0-D offers a command-type or PHP-script task.** If Scheduled
 Tasks is URL-fetch only, this route does not exist either. Read G0-D before relying on it.
 
+**Read the output, not the panel's task status.** Until 2026-09-18 the probe exited `0`
+unconditionally — including on a run whose own summary read *"Laravel 12 will not run
+as-is."* Plesk judges a scheduled task by its exit status, so a probe that had found a
+fatal gap would have been reported as a **successfully completed task**. Fixed, and the
+contract is now:
+
+| Exit | Meaning |
+|---|---|
+| `0` | nothing unsupported |
+| `1` | at least one **MANDATORY** item unsupported — this account cannot run Laravel 12 as-is |
+| `2` | no mandatory gap, but at least one other `FAIL` row: a degraded feature, a limit below what payroll or uploads need, or blocked outbound SMTP |
+
+Exit status exists only under CLI. Over Route C the response is always HTTP 200 and the
+body is the whole report, so there the printed rows are the only signal.
+
 #### Route C — web-served, credential-free *(works today, answers most of it)*
 
 The last resort, and on this account it may be the only one. It is safe to take **provided
