@@ -314,7 +314,15 @@ Three further findings the audit added: the public language switcher offers four
 2. **Is the 6-month trial a standing offer or a launch promotion?** It is real in code (`AuthService.php:49`) and more generous than advertised — during trial *all* features and limits are unlocked, not Starter's.
 3. **Is there one real customer who will go on the record?** The machinery is built and empty: `/admin/platform-settings` takes the quote, who said it, their role and organisation, and the date they agreed to be quoted. Without a name and that date the API will not publish it, so the only thing missing is a real customer. If there is none, the section stays absent — which is the correct output, not a gap.
 4. **Where should contact submissions go**, and with what retention? The retention period also belongs in the privacy policy.
-5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact. The verifiable ones (AES-256, tax per 979/2016, pension 7%/11%) will be checked against the implementation and kept where the code supports them.
+5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact and **still the owner's to make or drop**. The three verifiable ones **were checked against the implementation on 2026-09-18**, and one was wrong:
+
+   | claim | code | verdict |
+   |---|---|---|
+   | AES-256 encryption of bank details and TIN | `config/app.php:116` `'cipher' => 'AES-256-CBC'`; `Employee.tin`, `Employee.national_id`, `EmployeeBankDetail.account_number` all cast `encrypted` | **true, kept** |
+   | Pension 7% employee + 11% employer | `PensionCalculator.php:10-11` — `employeeRate = 7.0`, `employerRate = 11.0` | **true, kept** |
+   | "Income tax per Proclamation **979/2016**" | `TaxCalculator.php:24` implements **1395/2025**, in force 7 July 2025; 979/2016 is `SUPERSEDED_BRACKETS`, retained only to reprocess periods before that date | **false — corrected to 1395/2025** |
+
+   The tax citation was the interesting one: the *code* is current and the *marketing* was two years stale, advertising a repealed ladder. For a payroll product sold on Ethiopian statutory compliance that is the claim least able to afford being wrong, and it appeared in four strings — `compliance_tax` and `payroll_desc`, in both `en` and `am`. The current proclamation had appeared nowhere user-facing at all.
 
 ---
 
