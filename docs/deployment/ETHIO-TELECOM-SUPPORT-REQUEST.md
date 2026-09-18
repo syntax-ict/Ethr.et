@@ -10,6 +10,15 @@ be pasted with minimal editing.
 to the same fatal problem — either one substantially unblocks the migration. Ask 3 is
 independent and aborts the database migration by design if refused.
 
+**Ask 4 — added 2026-09-18 — may be worth more than the other three combined.**
+`deployment/GATE-0-RESULT.md` records that *"PHP versions / Node / cron granularity /
+proxy directives"* often **differ by tier**, and that **G0-A, G0-D and G0-G may all have
+different answers on a higher plan**. Those are exactly the three gates blocking this
+migration: no custom directives, no Scheduled Tasks, and a Node runtime nobody has read.
+The account's tier has never been confirmed. One question about plans can therefore
+resolve three gates at once, and it asks the provider to *sell* something rather than to
+grant a favour — which is usually the easier conversation.
+
 **Before sending, check nothing here is stale** — particularly the subscription tier, which
 this repository has never confirmed.
 
@@ -17,7 +26,7 @@ this repository has never confirmed.
 
 ## What must NOT go in the ticket
 
-- No passwords, no `APP_KEY`, no database credentials. None of the three asks needs one.
+- No passwords, no `APP_KEY`, no database credentials. None of the four asks needs one.
 - No repository URL or source code. The asks are about the hosting account's capabilities.
 
 ---
@@ -38,8 +47,8 @@ round trip and no grant.
 
 ## Suggested subject
 
-> Hosting account `ethret` (`ethr.et`) — requesting Scheduled Tasks, SSH access, and a
-> database `TRIGGER` grant
+> Hosting account `ethret` (`ethr.et`) — Scheduled Tasks, SSH access, a database
+> `TRIGGER` grant, and what the higher plans include
 
 ---
 
@@ -100,6 +109,19 @@ round trip and no grant.
 > installing a weaker audit trail silently. If the privilege cannot be granted on shared
 > hosting, please let me know, as I need to plan around it explicitly.
 >
+> **4. What the higher service plans provide**
+>
+> Rather than ask for each capability separately, could you tell me what the plans above
+> my current one include — specifically:
+>
+> - Scheduled Tasks / cron, and the minimum interval
+> - SSH access
+> - a Node.js runtime
+> - the ability to add custom Apache or nginx directives
+>
+> If a higher plan provides these as standard, upgrading may be simpler for both of us
+> than granting them individually, and I am willing to move to the plan that fits.
+>
 > Thank you very much for your help.
 
 ---
@@ -112,6 +134,8 @@ round trip and no grant.
 | **1 only** | Installation is possible via deployment actions; the scheduler and queue still have no runner | Scheduler and queue move behind an authenticated HTTP endpoint — unbuilt, and must be costed before it is promised |
 | **2 only** | Installation and operations work; no recurring tasks | As above |
 | **3 only** | `migrate` aborts at `2026_07_22_000001` | See `docs/AUDIT_LOG_INTEGRITY_DECISION.md` — this is a deliberate stop, and the decision to proceed without triggers is the owner's to record |
+| **4 — "no plan offers cron / Node"** | The three blocking gates are **permanent**, not provisioning | This is the answer that settles it. `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule stands unqualified: **Option A**. Record it and stop spending on Option B |
+| **4 — a higher plan provides them** | G0-A, G0-D and G0-G may all flip together | Price it against the VPS in `TCO_COMPARISON.md` before upgrading. Note that **Branch B is still an architectural frontend change** unless the plan also provides a Node runtime — see `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18* |
 
 ## What this ticket does *not* ask for, and why
 
