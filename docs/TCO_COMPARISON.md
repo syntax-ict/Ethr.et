@@ -6,6 +6,48 @@ portal before any decision is made on them.**
 
 ---
 
+## Finding 0, added 2026-09-18 — Option B may not be *possible*, not merely dearer
+
+This document compares options on **cost**. Account evidence gathered 2026-09-17/18 has
+since moved Option B's problem from the cost column to the feasibility column, which no
+row below expresses.
+
+**SSH access on the shared plan is `Forbidden`** (Hosting Settings, measured). That is not
+a convenience difference from Option A's root VPS, it is a capability one:
+
+| Consequence | Blocker |
+| --- | --- |
+| No route runs `php artisan` — so no `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` | **B-4** |
+| No route imports a SQL dump (`mysql < dump.sql` needs a shell on the target) | **B-5** |
+| `rsync` deployment is unavailable; Git + Composer extensions are the remaining route | — |
+
+**So Option B's true cost is currently unbounded, because it is unknown whether it can be
+completed at all.** That hinges on one unread panel page: if *Scheduled Tasks* offers a
+command-type task, `artisan` has a runner and B-4/B-5 resolve. If it offers URL-fetch only,
+**there is no documented way to deploy ETHR to this account**, and Option B is not a
+cheaper architecture — it is not an available one.
+
+Three smaller corrections to the rows below, same evidence:
+
+- **Option B, "Operational complexity: high to get running"** — understated. The deploy
+  tooling does not merely need rebuilding; two of its steps have no known mechanism.
+- **Option B, "Functionality ~95%"** — G0-A shows no custom-directive field on the
+  Apache & nginx page, which forecloses the Node branch and forces static export. That is
+  bounded, already-scoped work (`SHARED_HOSTING_AUDIT.md` §E), but it is engineering cost
+  this table does not carry, and it moves marketing SSR from "under B2 also" to "yes".
+- **Option A, "Remain on VPS"** — assumes the VPS is running. It is recorded as dormant
+  with all ports closed, `ethr.et` already resolves to the Plesk host, and the owner
+  reports the VPS is "stored on Git" — which covers code but **not** the database or the
+  `APP_KEY` that decrypts `tin`/`national_id`. Option A may need standing back up before
+  it is an option, and that is not costed either.
+
+**None of this changes the pricing questions below, which remain the decisive ones.** It
+adds a prior question: *can* Option B be completed. Answer that first — it is one panel
+page — because a cost comparison between an expensive option and an impossible one is not
+a comparison.
+
+---
+
 ## ⚠️ Two findings that may invalidate the premise of this migration
 
 ### Finding 1 — the shared plan may cost *more* than the VPS
