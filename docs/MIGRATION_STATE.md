@@ -481,6 +481,51 @@ different documents, and writing one before knowing which would mean writing it 
 
 ---
 
+## B-5 REVISED 2026-09-18 — the remedy already exists, and the plan names the wrong tool
+
+`deployment/BACKUP-RESTORE.md` was reviewed and it changes B-5 materially, in the
+favourable direction. **`ethr:restore` was built for exactly this constraint.**
+
+That file, line 34, on `ethr:backup` and `ethr:restore`: *"Both run as plain PHP CLI,
+which is **the entire design constraint**: they must work from **Plesk → Scheduled Tasks**
+with no shell and no `mysqldump`."*
+
+Verified in the codebase, not taken from the prose: `BackupCommand.php`,
+`RestoreCommand.php`, `BackupRehearsalCommand.php` (`ethr:backup`, `ethr:restore`,
+`ethr:backup:rehearse`), plus `tests/Feature/BackupRestoreRehearsalTest.php`, which the
+doc describes as performing a real populate → back up → **drop every table** → restore →
+assert schema, rows, triggers and documents came back.
+
+**So B-5 is not "no import route exists".** It is "`DATABASE_MIGRATION_PLAN.md` names
+`mysql -h localhost … < dump.sql`, which needs a shell, when a shell-free path is already
+built and tested." B-5 therefore **collapses into B-4**: both need one thing, a way to run
+a PHP CLI command, which is manual action 1.
+
+### And Plesk's own backup is not the recovery path
+
+`BACKUP-RESTORE.md:73`, which matters for B-6 as much as B-5: **"a Plesk-generated
+database backup of ETHR may be unrestorable on ETHR's own host."**
+
+The mechanism is the audit-log triggers. `SHOW CREATE TRIGGER` returns
+``CREATE DEFINER=`root`@`localhost` …`` verbatim — confirmed in that document, not
+assumed — and that is what `mysqldump` and the Plesk panel export write into a dump file.
+Restoring it as a non-`SUPER` user **stops dead at the trigger statement**, because naming
+a definer other than yourself needs `SUPER`. `DatabaseDumper` emits no `DEFINER` clause
+precisely to avoid this, which is why `ethr:backup` exists as a path that does not have
+the property.
+
+**Do not treat the panel's backup as the recovery path** until someone has restored one on
+the host and watched both triggers come back.
+
+### What this does to the priority
+
+It concentrates everything on the same question. Manual action 1 — *can this account run a
+PHP CLI command on a schedule?* — now decides **deployment** (B-4), **database import**
+(B-5), **backup and restore** (this section), and **observability**
+(`health-check.md`'s SQL checks). One panel page, four blockers.
+
+---
+
 ## B-5 — the database has no import route either, and one question may delete it
 
 `docs/DATABASE_MIGRATION_PLAN.md` was reviewed on 2026-09-17 and had not been checked
