@@ -217,13 +217,25 @@ $limits = [
     ['L4', 'post_max_size', 10 * 1024 * 1024, 'employee document upload'],
 ];
 
-// max_execution_time is 0 (unlimited) under CLI, always. The number that decides
-// whether payroll survives is the WEB SAPI value, and a CLI run cannot see it -
-// so say so rather than reporting a pass that measured nothing.
+// ALL FOUR of these are CLI values under a CLI run, and none of them is the
+// number that decides whether the application survives - that is the WEB SAPI
+// value, which a CLI run cannot see. Broadened 2026-09-18: this warning named
+// only max_execution_time, but measured on PHP 8.4 the CLI defaults are
+//
+//   memory_limit        -1     unlimited, so L1 reports a PASS that measured nothing
+//   max_execution_time  0      unlimited, same
+//   upload_max_filesize 2M     so L3 reports a FAIL that measured nothing
+//   post_max_size       8M     so L4 reports a FAIL that measured nothing
+//
+// Both directions mislead. A false PASS on memory_limit hides a host that
+// cannot run payroll; a false FAIL on the upload pair sends the operator to
+// support for a limit that may already be correct on the web SAPI.
 if ($isCli) {
-    record($results, 'Limits', 'L2!', 'max_execution_time below is the CLI value, NOT the web limit', 'UNKNOWN',
-        'CLI always reports 0/unlimited. Read the real one in Plesk -> PHP Settings, or serve this file '
-        .'once over HTTP. Payroll is what depends on it.');
+    record($results, 'Limits', 'L!', 'EVERY limit below is the CLI value, NOT the web limit', 'UNKNOWN',
+        'CLI reports memory_limit/-1 and max_execution_time/0 as unlimited (false PASS) and the '
+        .'upload pair at php.ini defaults (false FAIL). Read the real four in Plesk -> PHP Settings, '
+        .'or serve this file once over HTTP under a real web SAPI. Payroll depends on the first two, '
+        .'employee document upload on the last two.');
 }
 
 foreach ($limits as [$id, $key, $min, $why]) {
