@@ -915,6 +915,82 @@ Also confirmed while in the file, because its absence would be worse than any of
 above: `.well-known/acme-challenge/` is passed through untouched at lines 54–55, so
 certificate renewal survives the deployment.
 
+### The rest of the frozen package, reviewed read-only 2026-09-18
+
+`ENVIRONMENT.md` and `health-check.md` were reviewed earlier. That left four files in the
+package never opened in this sweep: `README.md`, `deploy-checklist.md`, `rollback.md` and
+`nginx-directives.conf`. All four read, none edited — the directory stays frozen.
+
+**`nginx-directives.conf` reviews clean, and is the best file in the package.** It opens
+with `STATUS: NOT VERIFIED against any live host` and says every line is a translation of
+the `.htaccess`, not a measurement. Its three `location ~` regexes *were* measured — run
+against 17 sample URIs under PCRE on 2026-09-15, with the dangerous near-misses recorded
+(`/.well-known/acme-challenge/token` NOT denied, `/storagebin/x` NOT denied as a prefix).
+Braces balance, 23 active directives, and every `add_header` is server-level — with the
+inheritance trap that makes that matter documented at its own line 77 and mirrored in
+`GATE-0-RESULT.md`'s G0-B.2 row. Nothing to fix.
+
+The other three each carry one defect. All are frozen, so all are recorded rather than
+corrected.
+
+#### 1. `rollback.md` contradicts itself inside a single sentence
+
+Its entire instruction is:
+
+> `Repoint ethr.et / www.ethr.et back to the VPS's IP.`
+>
+> That's it … since `ethr.et` had no live traffic before this migration (verified — see
+> `docs/B1-B5_GATE_REPORT.md`; **the VPS is dormant, not serving**).
+
+It tells the operator to roll back *to* the VPS, and in the parenthetical justifying that
+instruction states the VPS **is not serving**. Repointing DNS at a host that answers
+nothing is not a rollback; it is a second outage on top of the first.
+
+This is B-6, which `PRODUCTION_CHECKLIST.md` row 24 was already downgraded for — but the
+downgrade was recorded in the checklist, and the runbook the checklist points at still
+reads as though the procedure works. **The most dangerous of the four findings**, because
+it is the file someone opens while the site is visibly broken, and it is short enough to
+be followed without reading twice. Manual action **0a** — *is anything still serving at
+`91.99.81.71`?* — is what settles it, and this is the second reason that item is top of
+the queue.
+
+#### 2. `README.md` omits `nginx-directives.conf` from the package index
+
+Its table lists six files; the directory holds seven. The missing one is the `.htaccess`
+fallback — the file to paste if the canary comes back saying `.htaccess` is ignored, which
+is the branch `GATE-0-RESULT.md` calls *"the gate most likely to come back negative."* An
+operator working from the package README would not know it exists, at exactly the moment
+they need it.
+
+#### 3. `README.md` still uses the retired B3/B4/B5/H1 taxonomy
+
+*"once `docs/MIGRATION_STATE.md`'s four remaining facts (B3, B4, B5, H1) are answered."*
+Those IDs were superseded by the `B-1…B-6` register and the `G0-A…G0-J` gates.
+`PRODUCTION_CHECKLIST.md` row 3 carried the identical staleness and was corrected on
+2026-09-18; this is the same defect in a file the freeze protects.
+
+#### 4. `deploy-checklist.md` — the pre-cutover gate cannot currently be executed
+
+The file itself is good, and its Public-paths section already carries step 4a's
+`robots.txt` trap. The problem is B-4, not the checklist. Of its 23 checks, **five need
+`artisan` or raw SQL**, and neither has a verified route on this account:
+
+| Check | Verifies |
+|---|---|
+| `php artisan migrate:status` | schema, and specifically that the audit-log trigger migration did not abort the run (G0-F / H1) |
+| `SELECT @@character_set_server` = `utf8mb4` | Amharic does not silently truncate or corrupt |
+| `php artisan down` → expect `503` | that `index.php` line 9 was repointed — step 4a's own verification |
+| `php artisan schedule:list` | the scheduler is wired |
+| `SELECT * FROM jobs` / `failed_jobs` | the queue is being picked up, and nothing fails silently on first contact with real MySQL |
+
+Five of twenty-three undersells it: those five are precisely the checks covering the parts
+that **fail silently** — schema, Amharic integrity, maintenance mode, scheduler, queue.
+The other eighteen are `curl` and can be run from anywhere.
+
+So B-4 does not only block deployment and database import. It blocks the gate that is
+supposed to certify the deployment *before* DNS is pointed at it. Manual action 1 already
+decided deployment, import, backup/restore and observability; it decides this too.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
