@@ -496,10 +496,35 @@ pre-cutover checklist unrun.
    a Plesk host serving a placeholder, the domain is publicly live against an unverified
    deployment.
 
-Held, not fixed: `ROLLBACK_RUNBOOK.md` is not frozen and Scenario A's premise is provably
+~~Held, not fixed: `ROLLBACK_RUNBOOK.md` is not frozen and Scenario A's premise is provably
 wrong, so it *could* be corrected now. It is not, because the correct replacement text
 depends on answer 1 — "roll back to a working VPS" and "there is no rollback target" are
-different documents, and writing one before knowing which would mean writing it twice.
+different documents, and writing one before knowing which would mean writing it twice.~~
+
+**FIXED 2026-09-18, and the hold was reasoning from the wrong premise.** What depends on
+0a is *which rollback procedure is viable*. What does **not** depend on it is that
+Scenario A's stated premise is false **today** — `ethr.et` resolves to `213.55.96.154`,
+measured twice, whatever the VPS is doing. So there was a correction available that does
+not need writing twice, and the hold was costing more than it saved:
+
+- The document instructs the reader to *"read down to the one that matches reality"*, and
+  Scenario A **announced itself as reality**. Following the instruction as written stops
+  at A and concludes there is nothing to roll back.
+- The frozen `shared-hosting/rollback.md` delegates to this file as "the real plan". That
+  one cannot be edited under the freeze — so this file is the only place the chain can be
+  corrected at all, which makes it the highest-leverage safety fix available.
+
+Corrected without pre-supposing 0a's answer: a banner stating the measured DNS fact and
+that the current state is Scenario B or C; Scenario A struck through but retained as
+history and as the still-correct pre-cutover procedure; Scenario B's repoint instruction
+gated on 0a, saying plainly that repointing at a host which serves nothing converts one
+outage into two and that TTL then caches the bad answer; and Scenario B's
+`SELECT MAX(updated_at)` check flagged as needing a SQL route that B-4 has not
+established.
+
+The *decision* between "roll back to a working VPS" and "there is no rollback target"
+still belongs to 0a and to the owner. What the runbook no longer does is assert one of
+them.
 
 ---
 
