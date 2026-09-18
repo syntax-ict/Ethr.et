@@ -1008,6 +1008,31 @@ requirement exists — regulatory, contractual, data residency — it has never 
 and it would change this answer.** That is the one question worth putting to the owner
 rather than deciding for them.
 
+### The tier question, added to the ticket 2026-09-18
+
+Before Option A is taken as settled, one thing has never been asked. `GATE-0-RESULT.md`
+records that *"PHP versions / Node / cron granularity / proxy directives"* often **differ
+by tier**, and that **G0-A, G0-D and G0-G may all have different answers on a higher
+plan** — which is precisely the set blocking this migration:
+
+| Gate | State | Cost if it stays |
+|---|---|---|
+| **G0-D** cron | **FAIL** | The application cannot be installed at all |
+| **G0-A** custom directives | strong-evidence FAIL | Forces Branch B — the architectural frontend change |
+| **G0-G** Node runtime | **never read** | If it passes, Branch A works and the frontend needs **nothing** |
+
+**All three are service-plan permissions, not server capabilities. The account's tier has
+never been confirmed.** So the decision tree everyone has been reasoning over has a branch
+nobody checked: a higher plan could flip all three at once.
+
+Added as **ask 4** to the support request. It asks the provider to *sell* something rather
+than grant a favour, which is usually the easier conversation, and it can resolve three
+gates in one reply.
+
+**G0-G is also free to read from the panel right now**, and it carries the most information
+per unit of effort of anything outstanding: it is the difference between "the frontend
+needs an architectural rework" and "the frontend needs nothing".
+
 ### What follows, in order
 
 1. **Send the support request.** One ticket, three asks. It is the only route to G0-D now
