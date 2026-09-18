@@ -858,6 +858,63 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE CANARY HAD A FALSE NEGATIVE — found by reproducing Plesk's topology
+
+With nginx and Apache both installed locally, the actual Plesk arrangement was
+reproduced — **nginx proxying to Apache** — rather than Apache alone. That is the
+configuration G0-B.5 is actually about, and it exposed a defect in the instrument.
+
+### Three topologies, measured
+
+| | `shadow.txt` | `shadow.js` |
+|---|---|---|
+| **A** — static serving OFF (pure proxy) | REWRITE won | REWRITE won |
+| **B** — static block **includes** `.txt` | FILE won | FILE won |
+| **C** — static block **excludes** `.txt` | **REWRITE won** | **FILE won** |
+
+**Case C is the defect.** Static serving is ON and `.js`/`.css` *are* being shadowed — but
+the canary, testing only `shadow.txt`, reports *"the rewrite won"*. **G0-B.5 would have been
+graded as though `.htaccess` applies to static assets, when it does not.**
+
+### Why it matters more than a mis-graded row
+
+Plesk's generated static block **always** covers js/css/images; whether it covers `.txt`
+varies by version and template. And the deployment ships **`.js`, `.css`, `.woff2` — never
+`.txt`**. So the one extension the canary tested was the one least likely to be
+representative.
+
+The damage is not the row itself. When static shadowing is in force, `.htaccess` never runs
+for those files, so **the seven security headers and `Cache-Control: immutable` silently do
+not reach them.** That is **G0-B.2's real failure mode hiding behind G0-B.5's answer** — and
+both gates would have read green.
+
+### Fixed
+
+`shadow.js` added as a second bait with the rewrite rule to match; `canary.php` now prints
+both URLs, explains why `.js` is the one that counts, states that the two **can legitimately
+disagree**, and spells out the G0-B.2 consequence. README and the deploy list updated —
+five files, not four.
+
+**Re-measured across all three topologies after the fix: A both-rewrite, B both-file, C
+disagrees exactly as designed.** The canary now catches case C.
+
+*(Second method note in one session: the first run of this comparison used a shell `case`
+pattern anchored at the start of the string, and `shadow.js` begins `// `, so it reported
+"REWRITE won" for a file that had plainly been served from disk. The harness was wrong, not
+the canary. Both times the tell was the same — a result that contradicted a simpler,
+already-established measurement.)*
+
+### The standing of this
+
+The canary was **sound as an instrument** and **wrong as an experiment**: every mechanism
+fired, and the sample it drew was unrepresentative. That is a harder class of defect than a
+broken rule, because everything looks like it is working.
+
+No gate moved. G0-B.5 remains `NOT VERIFIED` — what changed is that answering it will now
+produce the right answer.
+
+---
+
 ## `nginx-directives.conf` WAS EXECUTED — 2026-09-18. It holds.
 
 The third deployment artifact, and its own header said so: *"STATUS: NOT VERIFIED against
