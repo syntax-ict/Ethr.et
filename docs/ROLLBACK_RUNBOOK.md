@@ -14,16 +14,27 @@ matches reality, not from the top unconditionally.
 > happened, out of order and with `deploy-checklist.md` unrun. So **the current state is
 > Scenario B or C, not A.**
 >
-> **And the Scenario B instruction may not be executable.** It says to repoint at the VPS.
-> This repository's own last measurement (2026-08-29) records that host as dormant with
-> ports 80 and 443 closed, and it has not been re-checked since — this environment cannot
-> reach either host to confirm. **If it is still dormant, repointing converts one outage
-> into two.**
+> **And Scenario B is not executable.** It says to repoint at the VPS. **0a has now been
+> run — 2026-09-18 — and the VPS serves nothing:** port 80 fails to connect, port 443
+> resets. Two controls in the same pass (`1.1.1.1` → 301, the Plesk host by IP → 200)
+> prove the vantage point reaches arbitrary hosts, so this is the VPS's state, not a
+> sandbox limitation. It agrees with the 2026-08-29 measurement, 20 days on and by a
+> different route.
 >
-> Nothing below is safe to act on until **manual action 0a** is answered:
-> `curl -sI http://91.99.81.71/` — does anything still serve there? That single check
-> decides whether this runbook describes a rollback or a second failure. It needs no
-> Plesk panel and no shell. See `docs/MIGRATION_STATE.md` → B-6.
+> **So repointing today converts one outage into two**, and the TTL caches the bad answer.
+> Scenario B has no target. The real options are to bring the VPS back up *first*, or to
+> fix forward on Plesk — an owner decision, taken before an incident, not during one.
+>
+> **What `ethr.et` serves right now**, measured in the same pass: the apex and `www`
+> return **`404`** (Plesk's error page), and a never-configured wildcard name
+> (`zzq7x.ethr.et`) returns **`200`** with Plesk's default page. The domain is live
+> against nothing, and because the wildcard answers 200, **any check that asserts "the
+> tenant subdomain returns 200" passes against nothing** — assert on content.
+>
+> One caveat, so the negative is not over-trusted: a source-IP firewall would look
+> identical from one vantage point. Confirm from your own network before acting on it in
+> an incident. But two vantage points 20 days apart both find it closed, so treat the
+> rollback target as **absent until shown otherwise**. See `docs/MIGRATION_STATE.md` → B-6.
 
 ## ~~Scenario A — before DNS cutover (the current state, as of this writing)~~
 
@@ -52,21 +63,30 @@ watched rather than assumed fine.
 Repoint the A/AAAA records for ethr.et, www.ethr.et, and *.ethr.et back to the VPS IP.
 ```
 
-> **Do not run this line until 0a is answered.** It assumes something that is currently
-> unverified: that the VPS answers. Recorded dormant with 80/443 closed on 2026-08-29 and
-> not re-checked since. Repointing at a host that serves nothing does not restore the
-> previous state — it replaces a questionable deployment with no deployment, and the TTL
-> below then works against you, because the bad answer is what gets cached.
+> **Do not run this line. 0a was answered on 2026-09-18 and the answer is no.** The VPS
+> does not serve: port 80 fails to connect, port 443 resets, with controls in the same
+> pass proving the vantage point reaches other hosts. Repointing at it does not restore
+> the previous state — it replaces a questionable deployment with no deployment, and the
+> TTL below then works against you, because the bad answer is what gets cached.
 >
-> If 0a says the VPS is **not** serving, this scenario has no target and the real options
-> are to bring the VPS back up first, or to fix forward on Plesk. That is an owner
-> decision, and it should be taken before cutover, not during an incident.
+> **This scenario has no target until the VPS is brought back up.** The real options are
+> to do that first, or to fix forward on Plesk. That is an owner decision, and it should
+> be taken now rather than during an incident — which is the point of recording it here
+> instead of leaving the instruction to be discovered mid-outage.
+>
+> Re-verify from your own network before relying on this in an incident; a source-IP
+> firewall looks the same from one vantage point. See `docs/MIGRATION_STATE.md` → B-6.
 
 DNS TTL determines how long this takes to fully propagate — check what TTL was set
 before cutover and expect stragglers up to that long. The VPS is untouched by anything
-in the shared-hosting deployment (it's a separate host with its own database), so the
-moment DNS has propagated back, the application is exactly as it was before this
-migration started. Nothing to undo on the VPS side.
+in the shared-hosting deployment (it's a separate host with its own database), so
+**if it were serving**, the moment DNS propagated back the application would be exactly
+as it was before this migration started, with nothing to undo on the VPS side.
+
+**That conditional is doing all the work, and as of 2026-09-18 it does not hold.**
+"Untouched" was written to mean "intact and ready", and the host answering nothing on
+either port is the difference between those two readings. Nothing in the shared-hosting
+work broke it; it simply is not up.
 
 **If the shared-hosting database received zero writes** (no new tenant signup, no
 login, nothing) during the window it was live, this scenario applies even if some time

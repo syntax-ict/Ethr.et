@@ -28,6 +28,16 @@ pass does not re-derive them:
 | **KB-1** | **Gate 0 has never been run against the account.** `deployment/GATE-0-RESULT.md`: *"Status: NOT RUN"*, *"Run by: owner (requires the Plesk account — this cannot be automated from the repository)"* | The four facts need the Plesk panel or an SSH session to `213.55.96.154`. No code path reaches them | Hosting verification; every downstream deployment decision |
 | **KB-2** | **The VPS/Docker production assets cannot be removed while KB-1 stands.** Root `CLAUDE.md` keeps them *"only until that cutover is verified"* | Deleting the working deployment path before the replacement is measured leaves the product with neither | VPS decommissioning |
 
+**One thing that was assumed unreachable and was not — added later the same day.**
+Manual action **0a** ("does anything still serve on the VPS?") had been deferred by every
+prior pass on the grounds that no environment could reach the host. This one can, so it
+was run: **the VPS serves nothing**, and `ethr.et` itself returns a Plesk `404` while the
+wildcard returns `200`. Full measurement and controls under **B-6** below; both
+`ROLLBACK_RUNBOOK.md` and this file are corrected accordingly. The lesson generalises past
+this item: *"this environment cannot reach it"* was inherited from an earlier session's
+constraint and never re-tested, and it was gating the most serious safety finding in this
+document.
+
 **What was done instead of stopping**: `deployment/VPS_DECOMMISSION.md` now carries the
 full inventory — what gets deleted, what only looks like it should (`docker-compose.yml`
 is the *only* supported local dev path and is not a VPS asset), which successor replaces
@@ -548,6 +558,57 @@ established.
 The *decision* between "roll back to a working VPS" and "there is no rollback target"
 still belongs to 0a and to the owner. What the runbook no longer does is assert one of
 them.
+
+### 0a ANSWERED 2026-09-18 — there is no rollback target
+
+Every prior pass recorded that it could not reach these hosts. **This environment can**,
+so action 1 was run rather than deferred again:
+
+| Probe | Result |
+|---|---|
+| `http://91.99.81.71/` (VPS, port 80) | **connect failure** — proxy returns Envoy's `upstream connect error … remote connection failure`, not a response from the host |
+| `https://91.99.81.71/` (VPS, port 443) | **`Connection reset by peer`** |
+| `http://1.1.1.1/` — control, IP-literal | `301` |
+| `http://213.55.96.154/` — control, the Plesk host by IP | `200` |
+
+The two controls matter: they prove this environment reaches arbitrary IP-literal hosts,
+including the Plesk host, so the VPS result is a property of the VPS and not of the
+sandbox. It is also a *connect* failure rather than a `403`/`407`, so it is not a policy
+denial either.
+
+**So the VPS still serves nothing, 20 days after the 2026-08-29 measurement, confirmed
+from a second vantage point by a different route.** Scenario B has no target. Repointing
+DNS at `91.99.81.71` today converts one outage into two, and the TTL then caches it.
+
+**The one caveat, stated so the negative is not over-trusted:** a source-IP firewall would
+produce this same result for *this* vantage point while the host served others. That is
+why the owner should still confirm from their own network before acting on the negative in
+an incident. What has changed is the burden of proof — two independent vantage points,
+20 days apart, both find it closed, so **the rollback target should be treated as absent
+until someone demonstrates otherwise**, not the reverse.
+
+### And action 2's risk model is worse than the "placeholder" it hypothesised
+
+Measured in the same pass:
+
+| Host | Serves |
+|---|---|
+| `http://ethr.et/` → `https://www.ethr.et/` | **`404 Not Found`** — Plesk's own error page (`/error_docs/styles.css`) |
+| `https://ethr.et/`, `https://www.ethr.et/` | same `404` |
+| `http://zzq7x.ethr.et/` — a never-configured wildcard name | **`200`**, Plesk's *"Web Server's Default Page"* |
+
+The domain is publicly live against an unverified deployment, and the apex does not serve
+a placeholder — it serves a **server error**. Anyone who visits `ethr.et` today gets
+"Server Error / 404 Not Found".
+
+**The wildcard result is the one specific to this product, and it is not recorded anywhere
+else.** ETHR is multi-tenant on subdomains. Every tenant subdomain currently resolves and
+answers **`200 OK`** with Plesk's default page — so any smoke test, uptime monitor or
+cutover check that asserts *"the tenant subdomain returns 200"* passes today against
+nothing at all. A check for that has to assert on content, not on status.
+
+**Still unanswered, and not derivable from here:** who repointed DNS, and when. That needs
+the registrar or DNS provider's audit log, not a probe.
 
 ---
 
