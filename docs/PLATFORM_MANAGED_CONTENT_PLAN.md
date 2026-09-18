@@ -276,11 +276,14 @@ cut yet; what changed is that the number now has an owner per kilobyte:
   `.next/diagnostics/route-bundle-stats.json`. Phase 8 would otherwise have begun
   by trusting a tool that measures nothing.
 
-Two of §18's three "left open" findings also closed: the `badge-72.png` 404 is
-**fixed**, and the `--text-secondary` contrast finding was **wrong and is
-withdrawn** — the colour it named is not in the codebase and the real token passes
-AA everywhere, which removes a "repaint the whole product" item from Phase 8's
-scope.
+All three of §18's "left open" findings are now closed: the `badge-72.png` 404 is
+**fixed**; the `--text-secondary` contrast finding was **wrong and is withdrawn**
+— the colour it named is not in the codebase and the real token passes AA
+everywhere, which removes a "repaint the whole product" item from Phase 8's
+scope; and the **two-manifest** question is decided by deleting the unused
+`app/manifest.ts`, which turned out to disagree with the live manifest on brand
+colour and default language, so leaving it was a trap rather than mere
+duplication.
 
 ---
 

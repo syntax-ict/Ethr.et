@@ -1202,7 +1202,7 @@ found at all.
    language" — WCAG 2.5.3, and a voice-control user could not say what they could
    see.
 
-### Three findings left open — two now closed, one corrected **[2026-09-18]**
+### Three findings left open — all three now closed **[2026-09-18]**
 
 - ~~**`--text-secondary` (#6c7b91) is 4.3:1 on white.**~~ — **this finding was
   wrong, and is withdrawn.** `#6c7b91` appears nowhere in the repository; the only
@@ -1231,10 +1231,27 @@ found at all.
   luminance ≥ 200 and alpha > 128, rendered white-on-transparent and resized to
   72×72 (lanczos3). 13.5% of the canvas is ink, which is what a badge should be:
   Android masks it by alpha, so a near-solid square would show as a blob.
-- **Two manifests.** `public/manifest.json` is the one linked from every page;
-  `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
-  Both serve 200. One of them is dead, and deciding which is a PWA question.
-  **Still open** — unchanged.
+- ~~**Two manifests.**~~ — **resolved 2026-09-18 by deleting `app/manifest.ts`.**
+  `root-shell.tsx:73` sets `manifest: "/manifest.json"`, so the built HTML carries
+  `<link rel="manifest" href="/manifest.json">` and the static file in `public/` is
+  the one every browser fetches. `app/manifest.ts` generated `/manifest.webmanifest`,
+  which nothing referenced.
+
+  The deciding fact is that the dead one was also **wrong**, so this was not a
+  coin-flip between two equivalent files:
+
+  | key | `public/manifest.json` (live) | `app/manifest.ts` (deleted) |
+  |---|---|---|
+  | `theme_color` | `#0F4C75` — the brand `--interactive-primary` | `#2563eb`, a generic blue |
+  | `lang` | `am`, the product default | `en` |
+  | `background_color` | `#ffffff` | `#0f172a` |
+
+  Keeping the typed `MetadataRoute.Manifest` generation would have meant porting
+  those values and repointing the link, which changes the manifest URL an already
+  installed PWA fetches — real risk for no user-visible gain. Deleting the unused
+  file removes the ambiguity with no behaviour change at all, and removes a trap:
+  anyone who "fixed" the duplication by repointing the link at the typed version
+  would have silently shipped the wrong brand colour and the wrong default language.
 
 ### 18a. Phase 8 attribution — where the 428 KB actually is **[2026-09-18]**
 
