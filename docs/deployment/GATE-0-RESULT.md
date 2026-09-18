@@ -114,8 +114,8 @@ contract is now:
 | `1` | at least one **MANDATORY** item unsupported — this account cannot run Laravel 12 as-is |
 | `2` | no mandatory gap, but at least one other `FAIL` row: a degraded feature, a limit below what payroll or uploads need, or blocked outbound SMTP |
 
-Exit status exists only under CLI. Over Route C the response is always HTTP 200 and the
-body is the whole report, so there the printed rows are the only signal.
+Exit status exists only under CLI. Over Route C the response is HTTP 200 and the body is
+the whole report, so there the printed rows are the only signal.
 
 #### Route C — web-served, credential-free *(works today, answers most of it)*
 
@@ -130,11 +130,29 @@ hazard does not arise.
 
 1. Upload to `httpdocs/` under a **random filename** — `httpdocs/<random>.php`, not
    `ethr-hosting-check.php`.
-2. Open `https://www.ethr.et/<random>.php` **with no query string at all.**
-3. Save the output.
-4. **Delete the file in the same sitting.** Non-negotiable: it still prints
+2. In the uploaded copy, set `ETHR_PROBE_WEB_TOKEN` near the top of the file to a second
+   random value. **As shipped the constant is empty and every web request returns 403**,
+   so this step is not optional — see the amendment below for why it was added.
+3. Open `https://www.ethr.et/<random>.php?token=<that value>` and **pass no other query
+   parameters** — in particular no database credentials.
+4. Save the output.
+5. **Delete the file in the same sitting.** Non-negotiable: it still prints
    `disable_functions` and the filesystem layout, which is why it normally lives in `~/`.
    Random filename plus immediate deletion is what keeps the exposure window to minutes.
+
+**Amendment, 2026-09-18 — the token step is new, and it is there because the untokened
+version was exploited by accident.** A Plesk Git deployment pointed at the document root
+copied the entire repository into `httpdocs/`, so the probe became web-executable at its
+own predictable path. The random filename — the whole of Route C's access control — was
+bypassed not by guessing but by a deployment putting the real name there. The token is the
+layer that survives that: a copy of this file reaching a document root unintentionally now
+discloses nothing. `scripts/.htaccess` denies the directory as a second layer, and is
+second because it is only honoured if `AllowOverride` permits it, which is G0-B.3 and is
+still `NOT VERIFIED`.
+
+Verified by running all three paths, 2026-09-18: shipped file over a web SAPI → 403, 14
+bytes; wrong token → 403, 14 bytes; correct token → 200, 6,548 bytes, complete report. CLI
+unchanged and still honours the exit contract above.
 
 **Route C was validated by running it, 2026-09-17.** Served over PHP's built-in server
 under a non-CLI SAPI: HTTP 200, clean `text/plain`, 6.5 KB, complete output, no query
@@ -384,7 +402,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | # | Capability | Required | Actual | Status | Evidence |
 |---|---|---|---|---|---|
 | **G0-E** | PHP version | >= 8.2 | **8.3.33** (2026-09-17) | **PANEL-READ** — satisfies `^8.2`; not probe output | panel |
-| G0-E | **20** mandatory extensions | **all 20 present** — list below | | NOT VERIFIED | probe `PHP/ext` rows |
+| G0-E | **18** mandatory extensions | **all 18 present** — list below; was 20 until `bcmath` and `zip` were corrected 2026-09-18 | | NOT VERIFIED | probe `PHP/ext` rows |
 | G0-E | `memory_limit` | >= 256M | | NOT VERIFIED | probe |
 | G0-E | `max_execution_time` | >= 120s | | NOT VERIFIED | probe |
 | **G0-B.1** | `mod_rewrite` honoured | yes | | NOT VERIFIED | canary |
@@ -395,7 +413,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-A** | reverse proxy for `/api/` | permitted | neither directive textarea present on the settings page (2026-09-17) — **strong evidence of FAIL, unconfirmed** | NOT VERIFIED | panel |
 | **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29, re-confirmed 2026-09-17); panel accepts `*` per **owner report**, not a measurement; vhost not yet created | PARTIAL | B1-B5 + panel |
 | G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
-| **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
+| **G0-D** | cron type | "Run a command" | **No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the subscription dashboard** (owner-read 2026-09-18). The listing is otherwise complete — Files, Databases, FTP, Backup &amp; Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories — and *Dev Tools* was separately read on 2026-09-17 (PHP, Git, Composer; no Terminal). | **FAIL — strong evidence, one confirmation short** | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
 | **G0-G** | Node.js (build only) | >= 20.9 is Next's floor — **this repo pins 24**, see below | | NOT VERIFIED | probe / panel |
@@ -425,12 +443,33 @@ this list is that file's, not a new requirement.
 **Mandatory — absence of any one means Laravel 12 will not run, or will not install:**
 
 ```
-pdo        pdo_mysql   mbstring   openssl
+pdo *      pdo_mysql * mbstring   openssl
 tokenizer  xml         dom        ctype
 json       fileinfo    filter     hash
-session    curl        bcmath     iconv
-zip        gd          simplexml   libxml
+session    curl        iconv      gd *
+simplexml  libxml
 ```
+
+`*` marks the three **no production package declares**, so `composer install` could not
+detect them missing. They are now declared directly in `api/composer.json`
+(`ext-gd`, `ext-pdo`, `ext-pdo_mysql`), which makes the install abort instead of
+succeeding into an application that fails later. The other 15 were always enforced
+transitively.
+
+**Two entries left this list on 2026-09-18, both by measurement. The count is 18, not 20.**
+
+**`bcmath` was never required.** It appears in `api/composer.lock` four times and every one
+is under `suggest` — *"to improve IPV4 host parsing"*, *"Enables faster math with
+arbitrary-precision integers"*, *"For comparing BcMath\Number objects"* — never under
+`require`. The application calls no `bc*` function anywhere, because money is stored in
+integer minor units (`salary_cents`, `price_cents`), which is why it never needed arbitrary
+precision. Asking Ethio Telecom to enable it was asking for something nothing uses.
+
+**`zip` moved to the optional list, because the requirement is `phar` OR `zip`.**
+`BackupService` tries `PharData` first, falls back to `ZipArchive`, and if neither exists
+throws a `RuntimeException` naming the remedy. A loud failure in one feature is not a
+deployment blocker, so neither is mandatory alone — but the *pair* is, and only `zip` was
+ever listed. `phar` was absent from both lists entirely while being the first choice.
 
 **`simplexml` and `libxml` were added on 2026-09-17, and the reason matters.** The list
 was cross-checked against `api/composer.lock` — every `ext-*` that a *production* package

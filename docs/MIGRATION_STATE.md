@@ -868,12 +868,12 @@ gate it unlocks. **Do not do 8 before 5.**
 | --- | --- | --- | --- | --- | --- |
 | **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
-| **1** | **Scheduled Tasks capability** — **and, on the same visit, whether a database UI (phpMyAdmin) exists** | Websites & Domains → *Scheduled Tasks*; then look for a *Databases* section | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
+| ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
-| **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php` | The full output. Open it with **no query string**; **delete the file in the same sitting** | Upload then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
+| **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php`, **then set `ETHR_PROBE_WEB_TOKEN` in that copy to a second random value** — as shipped every web request returns 403 | The full output. Open it as `?token=<that value>` and pass **no other query parameter**; **delete the file in the same sitting** | Upload, edit the token, then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
 | **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take **all five** files from `main` — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `README.md`. ~~Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**~~ *(corrected 2026-09-18: it is, since `7fb91cc`; the branch is merged and this row would have sent you to a stale copy).* Miss `shadow.txt` and you run four checks, not five |
 | **8** | **Wildcard subdomain** | Websites & Domains → *Add Subdomain*, name it `*` | What the panel does when you save | Yes — create it | **G0-C**. **Only after 5**: adding a subdomain while an unexplained `ethr.et` object exists would compound B-3 |
 
@@ -1139,6 +1139,774 @@ extensions or the database — which is the entire blocking set.
 `lin6` is worth keeping for one practical reason: it is the string to quote in a support
 request, alongside the now-correct `ethret`.
 
+## Gate 0 continuation run — 2026-09-18, `main` at `e6ad81c`
+
+Attempted to advance Gate 0 from the repository. **No gate moved, and none could have.**
+
+Every G0 row's evidence source was read from `GATE-0-RESULT.md`'s own Results table:
+`panel`, `canary` or `probe`. All three are host-side. **There is no G0 gate whose
+evidence can be produced from a checkout**, so a repository session cannot raise the count
+above 1/30 no matter how much it verifies. Recorded once here so nobody re-derives it.
+
+What a repository session *can* do is verify the claims the next gate's outcome depends
+on, before the panel window opens. Two of them were wrong.
+
+### Two stale counts, both on the path immediately after G0-D
+
+| Claim | Documents said | Actual | Source of truth |
+|---|---|---|---|
+| Scheduled entries | **11** | **14** | `api/routes/console.php` — 14 top-level `Schedule::` calls, none nested |
+| Queued job classes | **15** | **16** | `api/app/Jobs/` — 16 files |
+
+These matter *because* of where they sit. `deploy-checklist.md` makes the first one an
+**acceptance criterion** — *"`php artisan schedule:list` shows all 11 entries"* — run
+immediately after cron is configured, which is the step G0-D unblocks. An operator reading
+14 against a checklist that says 11 either stops to investigate a non-problem, or ticks the
+box at 11 and never notices the other three. Both waste the window G0-D exists to protect.
+
+The three entries the figure missed are visible in the file and look like ordinary drift
+rather than an error: `ethr:backup` (line 103), the `QueueHealth::beat()` heartbeat
+(line 117), and one of the `Schedule::call` closures. The documents were written before
+them and never re-counted.
+
+Corrected in the eight editable occurrences across `SHARED_HOSTING_AUDIT.md`,
+`PRODUCTION_CHECKLIST.md`, `B1-B5_GATE_REPORT.md`,
+`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` and
+this file.
+
+**Three occurrences remain wrong, all inside the frozen directory** — and one of them is
+the acceptance criterion itself:
+
+| File | Line | What it says |
+|---|---|---|
+| `shared-hosting/deploy-checklist.md` | 78 | *"`schedule:list` shows all 11 entries"* — the acceptance criterion |
+| `shared-hosting/ENVIRONMENT.md` | 174 | *"that file's 11 entries"* |
+| `shared-hosting/DEPLOYMENT.md` | 362 | *"the 11 entries in …"* |
+
+A count being stale is branch-independent but does **not** block Gate 0, so it fails the
+freeze exception test, exactly as the `ethret` username correction did. It rides the same
+rewrite. **Until then, read 14 wherever those three say 11.**
+
+### Where this run stopped, and why
+
+**G0-D — Scheduled Tasks.** It is the next gate in the MANUAL ACTION QUEUE that is
+reachable at all (0a and 0b concern the VPS, which this environment also cannot reach —
+the gateway denies `CONNECT` by policy, and a proxy 403 is not a host result). G0-D's
+evidence source is `panel`. There is no repository substitute, and inventing one would be
+the precise failure this document exists to prevent.
+
+Stopped there. Not marked verified, not marked failed, not marked anything.
+
+### The rest of `deploy-checklist.md`'s repo-side criteria — checked, and clean
+
+Of the checklist's 23 acceptance criteria, **six assert something about a repository
+artifact** and are therefore checkable without the host. The scheduler count above was one
+of them and was wrong. The other five, and the two route checks, were verified against the
+code and **all hold**:
+
+| Criterion | Evidence |
+|---|---|
+| `robots.txt` carries `Disallow: /admin` **and** a `Sitemap:` line | `src/src/app/robots.ts` — `/admin` in `disallow`, `sitemap: ${SITE_URL}/sitemap.xml` |
+| `/sitemap.xml` is XML, not an HTML 404 | `src/src/app/sitemap.ts` present, typed `MetadataRoute.Sitemap` |
+| `GET /api/v1/ping` → 200 | `api/routes/api.php:119` |
+| `GET /api/v1/health` reports real service state | `api/routes/api.php:121` → `HealthController` (the `:653` one is the *admin* route, a different thing) |
+| `ProductionSeeder` ran, **not** `DatabaseSeeder` | both present; `DatabaseSeeder` does create the demo tenant the checklist warns about |
+| `GET /api/docs` refused outside local | `config/scramble.php` uses `RestrictedDocsAccess`; `AppServiceProvider:259` documents it |
+| `APP_ENV=production`, `APP_DEBUG=false` | `api/.env.production.example` |
+
+So the checklist's repository half is sound; its one defect was the count. The remaining
+sixteen criteria need the host and stay unverified.
+
+*Method note, because it nearly produced a false positive:* the first search for the
+`ping` route used the pattern `'ping'` and found nothing, because the route is registered
+as `'/ping'` with a leading slash. Reported as missing, that would have sent someone
+hunting for a route that exists. A grep that finds nothing is not evidence of absence
+until the pattern has been checked against the thing it is meant to match.
+
+## G0-D ANSWERED 2026-09-18 — FAIL. There is no Scheduled Tasks section.
+
+**Evidence (owner-read, subscription dashboard).** The account's tool listing shows: Files,
+Databases, FTP, Backup & Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs,
+Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories. It shows **no
+Scheduled Tasks, no Task Scheduler, no Cron Jobs**. *Dev Tools* was read separately on
+2026-09-17 and holds PHP, Git and Composer — no Terminal, no cron.
+
+Graded **FAIL — strong evidence, one confirmation short**, deliberately matching how G0-A
+was graded on the identical pattern: a complete-looking panel page with the one field we
+need conspicuously absent. In Plesk, *Scheduled Tasks* is gated by a service-plan
+permission. Its absence means **this plan does not grant it**, not that the server lacks
+cron — which is why the remedy is a support request, not a code change.
+
+### What this costs, stated plainly
+
+G0-D was carrying four blockers. All four now fail together, and one of them is fatal
+rather than degrading:
+
+| | Without cron **and** without SSH |
+|---|---|
+| **Scheduler** | The **14** entries in `routes/console.php` never run: leave accrual, carry-forward, invoicing, overdue handling, attendance-anomaly and missing-punch scans, scheduled reports, dashboard digests, approval reminders, cleanup, `ethr:backup`, the queue heartbeat |
+| **Queue** | The **16** job classes never process. `QUEUE_CONNECTION=database` with nothing draining it means **no queued email is ever sent** |
+| **Backup / restore** | `ethr:backup` and `ethr:restore` are plain PHP CLI by design — and there is no CLI |
+| **Observability** | `health-check.md`'s two primary checks are SQL, with no verified route to run SQL |
+| **Deployment itself** | **`key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner.** This is not a degraded feature. Without it the application cannot be *initialised at all* |
+
+The last row is the one that changes the decision. Every other consequence is "the product
+runs badly". That one is "the product cannot be installed".
+
+### The plan's own position on this
+
+`SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
+scheduled entries and all 16 queued jobs stop."* `ETHIO_TELECOM_…_COMPATIBILITY.md` B3
+lists the same, ending *"**and no queued email is ever sent**."* `GATE-0-RESULT.md`'s
+consequence column says the scheduler and queue *"move behind an authenticated HTTP
+endpoint. **Unbuilt; must be costed.**"*
+
+So this outcome was anticipated and costed as a risk. It has now occurred. **Option B is
+not performable on this account as currently provisioned** — that is a statement about the
+provisioning, not about the plan or the code.
+
+### Three routes out, in the order they should be attempted
+
+**1 — Check Plesk Git → *additional deployment actions*. Free, the panel is already open,
+and this file flagged it on 2026-09-17 as the one unknown that could supply an `artisan`
+runner.** Plesk's Git extension can run shell commands after each deployment. If that field
+exists on this plan it solves the **fatal** row above — `migrate`, `key:generate`,
+`db:seed` and `ethr:create-admin` all run once, at deploy time.
+
+It does **not** solve the scheduler or the queue, because deployment actions fire on
+deployment, not on a schedule. Treat it as the difference between *cannot install* and
+*installs but the asynchronous half is dead*.
+
+**2 — One support request to Ethio Telecom, three asks.** Account `ethret`, server
+`lin6.ethiotelecom.et`:
+
+- enable **Scheduled Tasks / cron** for this subscription — this is the one that matters;
+- enable **SSH access** for `ethret` (clears B-1 and B-4 outright, and gives crontab);
+- grant **`TRIGGER`** to the database user (**G0-F**; the audit-log migration aborts the
+  entire run by design without it — `AUDIT_LOG_INTEGRITY_DECISION.md`).
+
+Either of the first two alone substantially unblocks the migration. None is a code change.
+
+**3 — If both are refused, the architecture decision reopens.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+already costed the alternatives: **Option A** (stay on the VPS) and **Option C** (shared
+hosting plus a small VPS for cron and queue only). Option C is the cheaper of those and
+exists in the plan precisely for this outcome. That is an owner decision and nothing here
+pre-empts it.
+
+### G0-D continued — *Additional deployment actions* EXISTS (owner-read, 2026-09-18)
+
+Route 1 of the three above was taken and the field is present. **Nothing has been entered,
+saved or executed.** This section is analysis against the plan, not a configuration.
+
+*Recorded honestly: the screenshot referenced by the owner did not reach this session. The
+finding rests on their direct statement that the field exists, which is observation. Its
+options, limits and user context have **not** been seen here.*
+
+#### It satisfies the install requirement. It does not satisfy the asynchronous one.
+
+That distinction is the whole of it, and the plan already draws the line — one-shot work
+versus recurring work:
+
+| Requirement | Shape | Deployment actions |
+|---|---|---|
+| **Install / init (B-4)** — `key:generate`, `migrate --force`, `db:seed --class=ProductionSeeder --force`, `ethr:create-admin` (`DEPLOYMENT.md` step 4) | one-shot, at deploy time | ✅ **yes** — exactly this shape |
+| **Schema / import (B-5)** | one-shot | ✅ **yes**, via `migrate`, or `ethr:restore` |
+| **Scheduler** — 14 entries | recurring, every minute | ❌ **no** |
+| **Queue** — 16 job classes | continuous or repeated | ❌ **no** |
+| **`ethr:backup`** | recurring | ❌ **no** — it would run at deploy time, which is not a backup schedule |
+| **Observability** (`health-check.md`'s SQL) | ad-hoc / recurring | ⚠️ once per deployment only |
+
+A deploy-time hook cannot be made into a timer without something external triggering
+deployments, so the scheduler and queue remain unsolved. **The fatal row is fixed; the
+degrading rows are not.** That moves this account from *"ETHR cannot be installed"* to
+*"ETHR can be installed and its asynchronous half is dead"* — a real advance, and still
+not a deployable product.
+
+#### The larger find: this is a fourth probe route, and it beats Route C
+
+`GATE-0-RESULT.md` documents three: **A** (SSH — blocked), **B** (Scheduled Tasks — now
+**FAILED**), **C** (web-served — "the last resort"). Deployment actions are a **Route D**
+the plan never considered, and on this account they are *better than C*: the probe runs
+from `~/`, **never web-reachable**, which is the security property the plan insists on and
+the only reason C was called a last resort.
+
+Route A's own description says it *"answers everything: G0-E, G0-F, G0-H, G0-I, G0-J and
+the storage rows."* Route D reaches the same place — **five gates**, without SSH and
+without exposing the probe.
+
+#### Two hazards to settle before anything is configured
+
+1. **The probe exits non-zero by design.** Since `8e71045` it returns `1` on a mandatory
+   gap and `2` on other failures — that fix exists precisely so a fatal result cannot read
+   as success. If Plesk treats a non-zero deployment action as a failed deployment, a probe
+   run may abort later actions or mark the deployment failed. **This is unverified**; the
+   panel's behaviour on non-zero exit has not been seen. Output must be redirected to a
+   file readable in File Manager, and the exit code neutralised if Plesk is strict.
+
+2. **Triggering a deployment collides with U-5.** Deployment actions fire *on a
+   deployment*. The host's checkout is at `716ab93`, ~50 commits behind `main`, and U-5
+   says reconciling it before Gate 0 completes *"would deploy an unverified
+   configuration."* So running the probe this way is not free — it advances the host.
+
+   **And a prerequisite nobody has established: where does the Git extension currently
+   deploy to?** This file already lists it as unknown. If that path is `httpdocs`, a
+   deployment overwrites the live document root. **Read the deployment path before
+   triggering anything.**
+
+#### One argument worth carrying into the support request
+
+Deployment actions execute shell commands as the subscription user. So the platform
+**already runs shell for this account** — `SSH: Forbidden` is a restriction on interactive
+login, not on execution. That is a concrete answer to the likely brush-off, and it applies
+to the cron ask as much as the SSH one.
+
+### The Git deployment target — read 2026-09-18, and it is pointed at the document root
+
+Owner-read, inspection only, nothing changed:
+
+| Field | Value |
+|---|---|
+| Deployment path | **`/httpdocs/`** |
+| Branch | `main` |
+| Mode | manual |
+| Path field | **editable, and saving works** |
+
+**This target is unsafe as configured, and it is the most dangerous single setting found in
+this engagement.** Deploying `main` into `/httpdocs/` would publish the whole repository at
+the web root — `api/`, `docs/`, `scripts/`, `infrastructure/`, `docker-compose.prod.yml`,
+the `.env.*.example` files, and **`scripts/hosting-verification/ethr-hosting-check.php`**,
+whose own header states it must not be web-reachable because it prints `disable_functions`,
+database grants and the filesystem layout. It also contradicts `DEPLOYMENT.md:19`
+(`~/ethr/` — *"Laravel app — NOT web-accessible"*), and it puts a first-ever, ~50-commit
+cold write on top of `.well-known/acme-challenge/`, which is how the live certificate
+renews.
+
+**Deployment actions cannot guard against any of it**: Plesk runs them *after* the
+repository files are deployed (documented behaviour, not measured here), so by the time an
+action runs the target has already been written.
+
+#### Why repointing to `/ethr/` makes it safe — the four things that had to hold
+
+1. **The repo root maps onto the required layout.** It contains `api/`, `src/`, `scripts/`,
+   `docs/`, so a deployment to `~/ethr/` produces `~/ethr/api/` — exactly what
+   `DEPLOYMENT.md` §0 specifies.
+2. **Nothing would serve it.** **Step 4a has never been performed on the host** — there is
+   no repointed `index.php` in `~/httpdocs/`. Files landing in `~/ethr/` are therefore
+   *dormant*: present on disk, served by nothing. U-5's objection is to deploying an
+   unverified *live* configuration; this deploys an unverified *inert* one, which is a
+   different risk and an acceptable one.
+3. **The probe stops being web-reachable** — it lands at
+   `~/ethr/scripts/hosting-verification/ethr-hosting-check.php`, outside the document root,
+   which is the property that made Route D preferable to Route C in the first place.
+4. **The probe needs no `vendor/`.** `api/vendor/` is gitignored and therefore absent from
+   any deployment. The probe is standalone PHP and runs regardless — which is precisely why
+   it can answer G0-E, G0-F, G0-H, G0-I and G0-J before `composer install` has ever run.
+
+`httpdocs/` and `.well-known/` are untouched by a deployment to `/ethr/`.
+
+#### Sequence agreed — three phases, each with a checkpoint
+
+Deliberately not one step. This would be the first deployment this account has ever
+performed, so the path change is proved before any command is attached to it.
+
+- **Phase 1 — repoint and prove.** Change the path to `/ethr/`, save, deploy with **no**
+  deployment action configured. Confirm `~/ethr/` is populated and `httpdocs/` is
+  byte-for-byte unchanged. This also closes **U-5**: the host moves from `716ab93` to
+  current `main`, in the correct location.
+- **Phase 2 — run the probe once.** Only then attach a single deployment action and deploy
+  again. The action must capture the exit code rather than let it decide the deployment's
+  fate, because the probe exits non-zero by design (`1` mandatory gap, `2` other failures,
+  since `8e71045`).
+- **Phase 3 — remove the action.** A standing deployment action that runs a
+  grants-and-layout probe is not something to leave configured.
+
+~~**Nothing in phases 1–3 has been performed.**~~
+
+### SUPERSEDED — the deployment had ALREADY run into `/httpdocs/`
+
+**2026-09-18 14:42 host time**, before the sequence above was written. Owner's File Manager
+listing shows the entire repository in the document root: `api/`, `docs/`, `scripts/`,
+`src/`, `docker/`, `infrastructure/`, `.github/`, `.githooks/`, all `docker-compose.*.yml`,
+`CLAUDE.md`, `README.md`, `.env.production.example`, the three PowerShell launchers. The
+analysis above described a risk that had already materialised.
+
+**Assessed rather than assumed. No credentials were exposed:**
+
+| Checked | Result |
+|---|---|
+| A real `.env` deployed? | **No** — none is tracked, so none could deploy |
+| `START_BACKEND.ps1` APP_KEY literal? | **No** — removed; the file now only *describes* the past mistake |
+| Deployment wiped the docroot? | **No** — it merged. `.well-known/`, `cgi-bin/`, `css/`, `favicon.ico` keep their 25 Jul timestamps, so **certificate renewal is intact** |
+
+**What was exposed is reconnaissance, and one item is materially worse than the rest:**
+`httpdocs/scripts/hosting-verification/ethr-hosting-check.php` became **web-executable**.
+Requested with no query string it prints `disable_functions`, the filesystem layout, PHP
+limits, free space and outbound-network results — its own header says it must never be
+web-reachable. (It does *not* leak database grants: that section is skipped unless
+credentials are passed as arguments, and anyone able to pass them already has them.)
+`canary.php` also deployed but is built to be web-reachable and discloses nothing.
+`docs/` exposes the account username, host IPs and the full blocker register.
+
+**Containment, in order:** delete `httpdocs/scripts/` first — it carries both PHP files.
+Then remove every entry dated **18 Sep 14:42** and keep every entry dated **25 Jul** (that
+timestamp split is exactly the deployed-versus-original boundary). Then repoint the
+deployment path to `/ethr/` so a redeploy cannot recreate it.
+
+**What this does to the record:** the host is no longer ~50 commits behind — it is at
+`main`, in the wrong place. **U-5 is not resolved, it is inverted.** And this is the second
+irreversible action taken on `httpdocs/` without a prior disposability check, after **U-6**.
+
+### Containment — owner File Manager listing, 2026-09-18 ~16:00 host time
+
+The document root has been cleaned and the repository relocated. Recorded from the listing,
+which is output; the external HTTP confirmation is **still outstanding**, so containment is
+**not** marked VERIFIED.
+
+**What the listing shows resolved:**
+
+| | Evidence |
+|---|---|
+| `httpdocs/` cleaned | Now holds only `.well-known`, `cgi-bin`, `css`, `ethr.et`. No `api/`, `docs/`, `scripts/`, `src/`, `docker/`, `infrastructure/`, no loose `CLAUDE.md` / `docker-compose.*.yml` / `.env.production.example` |
+| **Certificate renewal intact** | `.well-known` survived the sweep — the one thing that must not have been deleted |
+| Repository relocated | `~/ethr/` (16:29) now holds `.githooks`, `.github`, `api`, `docker`, `docs`, `infrastructure`, `scripts`, `src` — the layout `DEPLOYMENT.md` §0 requires |
+| Deletion route | `.trash` updated 16:01, consistent with File Manager removal rather than a wipe |
+
+A deployment to `/ethr/` therefore **did** happen, and the earlier statement that nothing had
+been deployed is superseded by the listing. Recorded as evidence, not as a correction of
+anyone.
+
+#### NEW CONCERN — `~/ethr/` carries a document-root signature
+
+`~/ethr/` also contains **`cgi-bin`, `css`, `img`, `test`**, and **none of those four is in
+the repository** (checked against `origin/main`). They are the Plesk vhost skeleton — the
+same four that sit inside `httpdocs/ethr.et/`, the unidentified object recorded as **B-3**.
+
+The permissions agree:
+
+```
+httpdocs   rwx r-x ---   ethret  psaserv     <- known document root
+ethr       rwx r-x ---   ethret  psaserv     <- identical
+.composer  rwx r-x r-x   ethret  psacln      <- ordinary user directory
+git        rwx r-x r-x   ethret  psacln      <- ordinary user directory
+```
+
+`psaserv` plus `r-x ---` is Plesk's document-root pattern; ordinary content is `psacln` and
+world-readable. **So `~/ethr/` looks provisioned as a vhost root, not as a plain
+directory.**
+
+**If any domain or subdomain is rooted at `~/ethr/`, the exposure has moved rather than
+ended** — `~/ethr/scripts/hosting-verification/ethr-hosting-check.php` would be reachable
+again, at a different hostname. Graded **strong evidence, one confirmation short**, the same
+standard applied to G0-A and G0-D.
+
+**The confirmation is one panel page:** *Websites & Domains* — does any domain or subdomain
+list its document root as `/ethr` or `ethr`? If none does, `~/ethr/` is inert and
+containment is complete pending the HTTP check. If one does, that vhost must be repointed or
+removed before anything else.
+
+### Containment — external HTTP check, 2026-09-18
+
+The owner ran the verification ladder from their own machine. Four status codes:
+
+| Request | Status | What it establishes |
+|---|---|---|
+| `CLAUDE.md` | **404** | The bulk `httpdocs/` cleanup took effect |
+| `favicon.ico` | **200** | **Calibration passed** — the vhost serves files from `httpdocs/` and the test method is sound. A 404 here would have meant the whole ladder was measuring the wrong thing |
+| `CLAUDE.md` (repeat) | **404** | Confirms the first reading |
+| `scripts/hosting-verification/ethr-hosting-check.php` | **200** | **The probe path still answers.** Not 404, not 403 |
+
+Also resolved: the **GitHub deploy key is now read-only**, closing the item recorded above.
+A host compromise no longer reaches the repository.
+
+#### The three readings contradict each other, and that is the finding
+
+`favicon.ico` 200 says the served root is `httpdocs/`. `CLAUDE.md` 404 says the deployed
+files under that root are gone. Both cannot be true at the same time as a 200 on a path
+*underneath* that same root — `httpdocs/scripts/…` — unless one of these holds:
+
+| # | Explanation | How to tell |
+|---|---|---|
+| **a** | `httpdocs/scripts/` was **not actually deleted**. The File Manager listing that showed it gone was paginated, filtered, or served from a stale view | Response body is the probe's report |
+| **b** | The 200 is **not the probe**. Imunify360 and similar WAFs answer with a block page under HTTP 200; so does a parent-directory index | Response body is a block page or an index |
+| **c** | The two URLs **hit different vhosts** — `ethr.et` vs `www.ethr.et` vs `production.ethr.et`, which is a real second webspace on this account | Same probe path, both hostnames, compare |
+| **d** | The file was **re-created** after the cleanup by a redeployment | Compare mtime in File Manager against the cleanup time |
+
+A status code alone cannot separate these. **The response body can, in one request**, and
+that is the next action rather than another round of listings.
+
+The earlier **504** is now readable too: it was never evidence of absence. The probe makes
+three outbound calls with 6-second timeouts plus CPU and disk benchmarks, so a gateway
+timeout is exactly what a *successful* execution looks like from outside when the host is
+slow. 504 then and 200 now are the same observation twice.
+
+#### Grading
+
+**Containment: NOT VERIFIED.** Partially achieved — `CLAUDE.md` is gone and the deploy key
+is read-only — but the one file that actually mattered is the one still answering.
+
+**Exposure: treated as LIVE** until the body says otherwise. This is deliberately
+fail-closed and matches how the rest of this register grades: explanation (b) would make it
+harmless, but (a), (c) and (d) all leave `disable_functions`, the filesystem layout, PHP
+limits, free space and outbound-network results readable by anyone with the URL, and three
+of four is not where the benefit of the doubt goes.
+
+#### The fix that does not depend on which explanation is right
+
+All four explanations share a precondition: **a copy of the probe in a document root
+executes.** That is a defect in the probe, not only in the deployment, and it is now fixed
+in the repository rather than only in the host's filesystem:
+
+- `ethr-hosting-check.php` **refuses web execution by default**. A web request returns
+  `403` and a 14-byte body regardless of filename. Deliberate web use — Route C — requires
+  setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy and passing it as `?token=`.
+- `scripts/.htaccess` denies the whole directory, as a second layer. Second, because it
+  only applies if `AllowOverride` permits it — which is **G0-B.3, still NOT VERIFIED**.
+
+Verified by running all three paths: shipped file over a web SAPI → 403/14 bytes; wrong
+token → 403/14 bytes; correct token → 200/6,548 bytes, complete report; CLI unchanged and
+still honouring the exit contract. `docs/deployment/GATE-0-RESULT.md` Route C carries the
+amendment.
+
+This does **not** contain the file already on the host — that copy predates the fix and
+still has no token gate. It contains every copy from here on, including whatever a future
+mis-pointed deployment does.
+
+#### Still open after this listing
+
+- **The probe response body**, which decides between (a)–(d) above. One request.
+- **B-3 is unchanged** — `httpdocs/ethr.et/` is still present and still unidentified, and
+  under explanation (c) it is a candidate for what answered.
+- **Is any domain or subdomain rooted at `~/ethr/`?** Unanswered from the previous listing
+  and still the difference between *relocated* and *moved the exposure elsewhere*.
+
+### The agent session has no network route to the host — measured, not assumed
+
+Recorded once, because it has been implicitly re-tested several times and it bounds
+everything else in this file.
+
+The environment these sessions run in reaches the internet through an egress proxy with an
+allowlist. A request to the production vhost is refused at the tunnel, before any HTTP
+request is formed:
+
+```
+$ curl -sS -o /dev/null -w '%{http_code}' https://www.ethr.et/
+curl: (56) CONNECT tunnel failed, response 403
+```
+
+and the proxy's own status endpoint logs the refusal with its reason:
+
+```json
+{ "kind": "connect_rejected",
+  "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+  "host": "www.ethr.et:443" }
+```
+
+`repo.packagist.org`, `api.github.com` and `git clone` over HTTPS all return 200 from the
+same shell, so this is a **per-host policy denial, not a broken network** — the distinction
+matters, because a general outage would be worth retrying and this is not.
+
+**The consequence, stated plainly: no agent session can perform the public-exposure checks,
+run the canary, or read the Plesk panel.** Every `curl` result in this document came from
+the owner's machine and every panel reading from the owner's screen, and that will remain
+true. It is not a limitation to be worked around — attempting to would mean routing through
+a third party, which is worse than the gap it closes.
+
+This is why the Gate 0 table is mostly `NOT VERIFIED` and will stay that way until the
+owner supplies evidence: **29 of its 30 rows have an evidence source of panel, canary or
+probe, all host-side.** A repository session cannot raise the count. That is a property of
+where the evidence lives, not of how much work is left.
+
+### The freeze, partially lifted — facts corrected, procedures untouched
+
+`docs/deployment/shared-hosting/*` has been frozen since the pause. Three defects had been
+recorded against it and deferred on freeze discipline rather than on correctness, each one
+"riding the same rewrite" that never came. They are now fixed, because every one of them is
+**true independently of any gate outcome**:
+
+| File | Was | Now |
+|---|---|---|
+| `DEPLOYMENT.md` ×5 | `etrhet@213.55.96.154` | `ethret@…` — the account username, transposed |
+| `DEPLOYMENT.md` header | `213.55.96.154` only | adds `lin6.ethiotelecom.et` |
+| `deploy-checklist.md:78` | *"shows all 11 entries"* | **14** — and this one is an **acceptance criterion** |
+| `ENVIRONMENT.md:174` | *"that file's 11 entries"* | 14 |
+| `DEPLOYMENT.md:362` | *"the 11 entries in …"* | 14 |
+
+`DEPLOYMENT.md` also gains a **status banner** recording the two measured facts that
+contradict its transport: SSH is Forbidden, so every `ssh` and `rsync` line in it will not
+connect; and there is no Scheduled Tasks section, so its one cron line has no runner.
+
+**The procedures are deliberately NOT rewritten.** Choosing between Branch A and Branch B
+rests on G0-A and G0-G, both `NOT VERIFIED`, and the replacement transport rests on G0-D,
+which is `FAIL` pending a support request. Rewriting the steps now would bake a guess into
+the runbook — which is the failure this freeze existed to prevent. Correcting a username
+carries no such risk. The freeze stands over the procedures; it no longer stands over
+demonstrable facts.
+
+### The support request now exists as text — `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`
+
+Three documents named "one support request, three asks" as the remedy for B-1, B-4 and
+G0-F. None of them contained the request. It is now drafted and ready to send:
+[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md).
+
+It carries the `ethret` spelling warning, the pre-empt for the likely brush-off on SSH
+(*deployment actions already execute shell as the subscription user, so the platform runs
+shell for this account; what is asked for is interactive access to the same capability*),
+a decline matrix for each of the four outcomes, and an explicit note on what is **not**
+asked for — wildcard TLS, which is a DNS question, and G0-A directives, which have a
+documented workaround and would weaken the asks that do not.
+
+**Not sent.** Sending it is the owner's action, and it is the highest-value one available.
+
+### Repository-side verification run — 2026-09-18, what was actually executed
+
+Distinct from the Gate 0 table, which is host-side and unmoved. These are the claims a
+checkout *can* settle, and they were settled by running things rather than reading them.
+
+| Check | Result | How |
+|---|---|---|
+| **Tenant-scope bypass inventory** | **161 sites / 55 files — matches the pin exactly** | The test's own scan logic (`app/`, `/withoutGlobalScopes?\s*\(/`) replicated in plain PHP, no vendor needed |
+| **The 5 bypasses added since the 2026-09-16 audit** | **all carry a predicate** — audited individually | ±8-line read, per `BASELINE.md` §11c's method |
+| **Backend suite (Pint, PHPStan, Pest)** | **PASS** | CI run #230, job *Backend* |
+| **Backend suite on MariaDB** | **PASS** | CI run #230, job *Backend suite on MySQL* — a real MariaDB service, not SQLite |
+| **Frontend (i18n, Prettier, ESLint, tsc, Vitest)** | **PASS** | CI run #230 on Node 24 |
+| **API contract (OpenAPI drift)** | **PASS** | CI run #230 |
+| **`npm audit --omit=dev`** | **0 vulnerabilities** | run here, 2026-09-18 |
+| **Tracked secrets** | **none** | no `.env` (only `*.example`), no key material, no `base64:` `APP_KEY` literal anywhere |
+| **`src/.env.production` is tracked** | **correct, not a finding** | every key is `NEXT_PUBLIC_*` or `NEXT_TELEMETRY_DISABLED` — compiled into the client bundle by definition, and the file says so |
+
+**A local Vitest run here failed 2 of 583 tests** — `employees-import.test.tsx`, the
+multipart upload. That is **not a regression**: this container runs Node 22.22.2, the repo
+pins **24** in `.nvmrc`, and root `CLAUDE.md` §5 already documents MSW's Node interceptor
+never settling a `multipart/form-data` request on Node 20 or 22. CI on Node 24 passes the
+same file. Recorded because a future session on a non-pinned Node will see it again.
+
+**The bypass count had drifted in the documentation.** Root `CLAUDE.md` and
+`BASELINE.md` §15 row 11 both said **156 across 53 files**, the figure from when the pin was
+built. The pin is now **161 across 55**, moved by three commits — `716ab93` and `748dcb9`
+(the queued-context tenant fixes) and `71db6da` (the platform-admin plan catalog). Both
+documents corrected, with the original figure kept as the dated measurement it was.
+
+**Five bypasses had therefore never been individually audited**, because they entered after
+the only pass that read them line by line. All five were read on 2026-09-18 and all five
+hold — two platform-admin surfaces behind `admin.manage` plus `EnsurePlatformContext` and
+`RequirePlatformMfa`, one deriving `tenant_id` from a tenant-owned device, two in
+`DispatchWebhookJob`. One inconsistency is recorded in `CLAUDE.md` rather than changed:
+`handle()` states `tenant_id` explicitly where `failed()` relies on `webhook_id` alone.
+Both hold; the disagreement between two halves of one class is the shape a later defect
+takes.
+
+### The backend suite could not be run in this container — cause identified
+
+Recorded so it is not retried. `composer install` fails here regardless of flags:
+
+```
+[403] https://api.github.com/repos/phpstan/phpstan/zipball/…
+Could not authenticate against github.com
+```
+
+The egress proxy blocks GitHub **archive** endpoints — `codeload.github.com` returns 403
+directly — and composer reads that 403 as an authentication failure. `git clone` over
+HTTPS works, and `repo.packagist.org` returns 200, so `--prefer-source` gets further but
+still dies on packages that are dist-only. `npm ci` works, because `registry.npmjs.org` is
+on the proxy's bypass list.
+
+**This is why CI is the evidence for every backend row above, not a local run.** CI has
+unrestricted egress and runs the same `gates.sh`.
+
+## PLESK COMPATIBILITY PASS — 2026-09-18
+
+Execution overlay: make the repository Plesk-shared-hosting compatible *by default*, with
+account configuration left to the owner. Repository-side only; no gate moved.
+
+### The composer manifest declared no PHP extensions at all
+
+`api/composer.json` required `php: ^8.2` and **not one `ext-*`**, with no `config.platform`,
+while Gate 0 lists 18 as mandatory. Cross-referencing `composer.lock` shows why that mostly
+did not matter — and exactly where it did:
+
+| | |
+|---|---|
+| Declared by a production package | 15 — `composer install` has always aborted without them |
+| **Declared by nothing** | **`pdo`, `pdo_mysql`, `gd`** |
+
+Those three are the whole risk. `pdo`/`pdo_mysql` absent means no database at all; `gd`
+absent is **silent**. `FileStorageService::stripExif()` opens with
+`if (! extension_loaded('gd')) { return $content; }`, so on the primary upload path EXIF
+stripping returns the original bytes — employee photographs and identity documents keep GPS
+coordinates, device serials and capture timestamps, served back that way, with no error and
+no log line. On shared hosting that is one unchecked box in a PHP settings page.
+
+**All three are now declared in `api/composer.json`.** `composer install` on the host aborts
+rather than installing an application that fails later. `composer.lock` was updated to match
+— without network access, by computing composer's `content-hash` locally and **validating the
+algorithm against the known-good pre-change hash first** (`1796435c…`, reproduced exactly)
+before applying the new one. `composer validate` is clean on manifest and lock. CI's
+`setup-php` already installs all three, so nothing new is required there.
+
+### Two entries in the mandatory list were wrong
+
+| Entry | Finding |
+|---|---|
+| **`bcmath`** | **Not required.** Appears in `composer.lock` four times, every one under `suggest`, never `require`. Zero `bc*` calls in the application — money is integer minor units (`salary_cents`, `price_cents`). We were about to ask Ethio Telecom to enable something nothing uses |
+| **`zip`** | **Mis-stated.** `BackupService` needs `phar` **or** `zip`: it tries `PharData`, falls back to `ZipArchive`, and throws a `RuntimeException` naming the remedy if neither exists. Neither is mandatory alone; the pair is. `phar` — the *first* choice — was on neither list |
+
+Mandatory is now **18**, which incidentally reconciles `GATE-0-RESULT.md:189` ("18") with
+its own results table ("20") — an internal contradiction that had been sitting in the
+document.
+
+### The production env template would not have booted here
+
+`api/.env.production.example` is a `docker-compose.prod.yml` artifact — its own header says
+so — and `DEPLOYMENT.md` step 4 says `cp .env.production.example .env`. On this account that
+copy yields:
+
+```
+CACHE_STORE=redis          QUEUE_CONNECTION=redis     SESSION_DRIVER=redis
+BROADCAST_CONNECTION=reverb  FILESYSTEM_DISK=minio
+REDIS_HOST=redis           MINIO_ENDPOINT=http://minio:9000
+```
+
+`redis` and `minio` are **Docker service names**. There is no Redis, no MinIO and no Reverb
+daemon on this account, and those hostnames resolve to nothing outside a compose network.
+
+**`api/.env.shared-hosting.example` added.** Identical key set — verified by diffing the
+sorted key lists, no variable dropped — with each conversion marked `# [shared-hosting]`
+and its reason, and the VPS-specific prose replaced rather than left to contradict.
+
+`BROADCAST_CONNECTION=null` rather than `reverb` is deliberate: with `reverb` set and nothing
+listening a broadcast **throws**, so a successful write returns 500. `null` degrades the
+feature instead of breaking the write.
+
+**The VPS template is unchanged on purpose.** It is still correct for the rollback target,
+and rollback is not retired.
+
+### `docs/deployment/PLESK-SETUP.md` added
+
+The overlay's responsibility split, per section: what is true of the code, and what the
+owner clicks. It does not restate the frozen `ENVIRONMENT.md` / `DEPLOYMENT.md`.
+
+### A defect this session introduced, caught by cross-checking rather than by CI
+
+The first version of `api/.env.shared-hosting.example` set `CACHE_STORE=file` and
+`SESSION_DRIVER=file`. Both were wrong, and neither the drift-guard test nor CI would have
+caught them — they are not `redis`, so every assertion passed.
+
+**`ENVIRONMENT.md` D-8 had already decided this, and `CACHE_STORE=database` was
+LIVE-VERIFIED against real MariaDB on 2026-08-31.** The reason is specific:
+`config/database.php`'s `cache_locks` table is what Laravel's database cache driver needs
+for `Cache::lock()` — the primitive `->withoutOverlapping()` uses internally, at **8 call
+sites in `routes/console.php`**. `file` moves those locks onto an implementation nobody
+verified, for no gain. The same verification run exercised `RateLimiter` behind all ten
+named limiters: 32 requests against a 30/min limit, 30 allowed, 2 blocked.
+
+Corrected to `database` for both. The lesson is the generalisable part: **forbidding the
+wrong value is not the same as pinning the right one.**
+
+**Then the same mistake surfaced a second time, in a worse place.** A systematic diff of
+the template against *every* `+` line in `ENVIRONMENT.md` — not just the driver block —
+found two more, both from **D-5**:
+
+| Key | Prescribed | Template shipped |
+|---|---|---|
+| `APP_URL` | `https://www.ethr.et` | `https://ethr.et` |
+| `CORS_ALLOWED_ORIGINS` | `https://www.ethr.et` | `https://ethr.et` |
+
+D-5 rests on measured evidence: **Plesk already 301-redirects the bare apex to
+`www.ethr.et`** (verified, `B1-B5_GATE_REPORT.md`), and `www` is already in
+`Tenant::RESERVED_SUBDOMAINS`. Both values were inherited unexamined from the VPS template.
+
+**The CORS one is the dangerous shape.** A mismatch between `APP_URL` and
+`CORS_ALLOWED_ORIGINS` is not a server error — it is the *browser* refusing every API call
+while the server logs nothing and the health endpoint stays green. `APP_DOMAIN` correctly
+stays `ethr.et` (tenancy root, not canonical host) and `SANCTUM_STATEFUL_DOMAINS`'s
+`*.ethr.et` already covers `www`.
+
+**So the guard was rewritten to stop restating values at all.** It now parses
+`ENVIRONMENT.md`'s own diff blocks and compares every `+` line against the template, which
+keeps the source of truth in one file — hardcoding the list is exactly how the first two
+drifted. It asserts the parse found something first, for the same reason
+`TenantScopeBypassInventoryTest` does: a pattern that silently matches nothing would make
+the test pass while checking nothing.
+
+Eight prescribed values, all matching, with `BROADCAST_CONNECTION` as the single documented
+exception below. Mutation-checked: reverting `APP_URL` to the apex fails.
+
+### One deliberate divergence from D-8, recorded rather than hidden
+
+D-8 says `BROADCAST_CONNECTION=log`; the template says `null`. Kept, for four reasons:
+
+- `SystemHealthService::broadcastStatus()` treats anything outside `['reverb','pusher']` as
+  `disabled`, so both report identically
+- `config/broadcasting.php:25` coalesces to `'null'` as its own fallback — it is the
+  config's stated intent
+- CI already sets `BROADCAST_CONNECTION: "null"`, so it is a tested value; `log` is not
+- `log` writes a line per broadcast against a **fixed shared-hosting disk quota**, and when
+  that quota fills every write path fails, including the database's
+
+`BroadcastConnectionConfigTest` exists because `null` was once a trap — `env()` parses the
+literal `"null"` into PHP null and `BroadcastManager` threw *"Broadcast connection [] is not
+defined"*. That is fixed and pinned, which is why `null` is now the safer of the two.
+
+### Application code audit — clean, and that is the finding
+
+The overlay's §6 list was carried into `api/app`, `api/config` and `api/bootstrap`. Nothing
+needed changing, which is worth recording so the sweep is not repeated:
+
+| Checked | Result |
+|---|---|
+| Hardcoded VPS absolute paths (`/var`, `/opt`, `/srv`, `/home`, `/etc`) | **None.** The single hit is `MAIL_SENDMAIL_PATH`'s `/usr/sbin/sendmail` default — standard, env-overridable, and unused while `MAIL_MAILER=smtp` |
+| Docker service names as **config defaults** | **None.** `config/database.php:115` and `config/broadcasting.php:35` both default to `localhost`. The Docker names existed only in the env template and the compose files |
+| **Horizon** | **Already removed**, and deliberately: `SystemHealthService` records that it hard-required `ext-pcntl` and `ext-posix`, *"which shared hosting does not provide"*. `HORIZON_PREFIX` in the env template is vestigial |
+| Health checks | Already config-driven — `broadcastStatus()` reads `config('broadcasting.default')`, `storageStatus()` resolves `config('filesystems.default')` rather than a hardcoded disk name |
+| `QueueHealth` | Already written *for* this target: its docblock describes shared hosting with no Supervisor and one Plesk Scheduled Task, and what stops when that entry is silently disabled |
+
+So the de-VPS work on the application itself was done in earlier passes. What was left
+undone was the **manifest and the environment template** — the two files that decide whether
+the application can be installed and booted at all, and both are now fixed.
+
+One cross-check on this session's own change: `broadcastStatus()` treats anything outside
+`['reverb','pusher']` as `disabled`, so the `BROADCAST_CONNECTION=null` chosen for the
+shared-hosting template reports correctly. `null` is also what CI already sets, so it is a
+tested value rather than a guess.
+
+### The runbook still pointed at the wrong environment file
+
+`DEPLOYMENT.md:133` says `cp .env.production.example .env`. Adding a correct template does
+not help anyone who follows the runbook, so the status banner now names
+`api/.env.shared-hosting.example` explicitly. That is a factual correction — *which file* —
+not a procedural rewrite, and stays inside the freeze rule applied earlier.
+
+### VPS artifact audit — conclusion: NOTHING REMOVED, and why
+
+The inventory of 2026-09-17 stands and was not re-derived. Re-reading it against the
+overlay's removal mandate, the answer is the same and the reason is worth stating plainly
+rather than reading as evasion:
+
+- **The VPS is the rollback target.** `shared-hosting/rollback.md` depends on it being live.
+- **B-6 is unresolved** — nobody has established whether the VPS still serves, or whether it
+  holds the only copy of tenant data. `tin` and `national_id` are `encrypted` casts and
+  off-host backup was never configured, so its `APP_KEY` may be the only thing that can read
+  them.
+- **Gate 0 is 1 verified, 1 failed, 28 outstanding.** The replacement target has no verified
+  capability at all.
+
+Deleting the rollback target's deployment tooling in that state would be destructive, and the
+overlay's own precondition — *"after the existing migration plan has been fully implemented
+and verified as far as possible"* — is not met.
+
+**The trigger condition is recorded so this is a checkpoint rather than an opinion.** VPS
+artifacts become eligible when: B-6 answered (VPS serving state and data content known), the
+application verified running on the Plesk host, and Gate 0's blocking rows closed. The one
+candidate that is ready *on other grounds* is `RUN_ALL.ps1` / `START_BACKEND.ps1` /
+`START_FRONTEND.ps1` — wrong rather than VPS-only — and the 2026-09-17 inventory already
+called that an owner decision. It still is.
+
+### What did not change
+
+No gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
+unverified, and G0-E is still a version-only panel reading. **Gate 0 stands at 1 verified,
+1 failed, 28 outstanding.** Nothing is deployed to a serving path.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
@@ -1238,7 +2006,7 @@ Telecom Plesk account**, not further analysis.
 | --- | --- | --- | --- |
 | R1 | No wildcard subdomain → self-service signup creates unreachable tenants | **Critical** | **RESOLVED, PASS.** DNS wildcard confirmed externally; Plesk confirmed by owner to accept `*` as a subdomain name. |
 | R2 | No wildcard TLS → `SESSION_SECURE_COOKIE=true` withholds the auth cookie | **Critical** | **Downgraded to Medium.** Wildcard itself still unverified, but a working per-hostname Let's Encrypt cert already exists on this account, proving the HTTP-01 per-tenant fallback works — so the *fatal* form of this risk (no valid TLS at all) no longer applies; what remains is whether the fallback needs per-signup automation. |
-| R3 | No cron → 11 scheduled entries and all queued work stop | **Critical** | Unverified — still the top open item |
+| R3 | No cron → 14 scheduled entries and all queued work stop | **Critical** | Unverified — still the top open item |
 | R4 | `CREATE TRIGGER` denied → audit log not immutable | **Critical** | Still unverified live, but the code-side risk is resolved: D8 reverted the mitigation back to fail-fast-with-diagnosis, so a denial now blocks deployment loudly rather than degrading the guarantee silently. |
 | R5 | `max_execution_time` too low for payroll and imports | High | Unverified |
 | R11 | **Shared hosting may cost more than the VPS** | **High** | Public data contradicts itself; unresolved |

@@ -79,7 +79,7 @@ Everything on the Ethio Telecom Linux + MySQL plan. Requires **B1–B4** to all 
                       ▲
                       │  cron (every minute)
               ┌───────┴───────────────────────┐
-              │ php artisan schedule:run      │  ← 11 scheduled entries
+              │ php artisan schedule:run      │  ← 14 scheduled entries
               │ php artisan queue:work        │  ← 15 job classes
               │     --stop-when-empty         │
               │     --max-time=55             │

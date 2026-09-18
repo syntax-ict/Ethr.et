@@ -1,0 +1,28 @@
+# ETHR — deny-all for the repository's scripts/ directory.
+#
+# Nothing under scripts/ is a web endpoint. It holds the quality gates, the
+# deployment helpers and the shared-hosting capability probe, and the probe
+# prints disable_functions, PHP limits, the filesystem layout and outbound
+# network results.
+#
+# This file exists because that stopped being hypothetical. On 2026-09-18 a
+# Plesk Git deployment targeted at the document root copied the whole
+# repository into it, and ethr-hosting-check.php became web-executable under
+# its own name. The probe now refuses web execution without a token, so this
+# is the second layer rather than the only one — but the first layer is PHP,
+# and PHP only runs if the server decides to run it.
+#
+# The canary is NOT affected: it is used by copying
+# scripts/hosting-verification/htaccess-canary/ to its own directory in the
+# document root, never by serving it from here.
+#
+# If Apache runs AllowOverride None this file is silently ignored, which is
+# precisely what G0-B.3 exists to measure. Do not treat its presence as proof.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

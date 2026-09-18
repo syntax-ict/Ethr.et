@@ -29,11 +29,11 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
 
-### 4. Tenant isolation is fail-closed, and bypassed in 156 places
+### 4. Tenant isolation is fail-closed, and bypassed in 161 places
 
 `BelongsToTenant` adds a global scope that applies `whereRaw('0 = 1')` when no tenant is resolved — absence of context yields *no* rows, not *all* rows. That design is why this product is safe by default.
 
-There are **156** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 53 files, counted 2026-09-16. Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
+There are **161** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 55 files, re-counted 2026-09-18 against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. (It was 156 across 53 when first pinned on 2026-09-16; the five that entered since are accounted for below.) Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
 
 `TenantScopeBypassInventoryTest` now pins that inventory per file and fails when a count moves, so **a new bypass cannot enter unnoticed**. Be clear about what that buys: it makes adding one a deliberate act, which is exactly what was missing when the shipped defect went in. It does **not** audit the ones that already exist — a count cannot.
 
@@ -42,6 +42,25 @@ There are **156** `withoutGlobalScope` / `withoutGlobalScopes` call sites across
 That defect turned out to be a symptom. `CurrentTenant` was bound as a `singleton`, so it survived for the life of a worker process — and **eight queued jobs and a queued listener call `set()` while nothing in `app/` ever calls `forget()`**. The next job inherited the previous job's tenant instead of failing closed. It is now `scoped`, which the framework flushes between jobs (`QueueServiceProvider` hands the Worker a `$resetScope` callback; `Worker::daemon()` calls it before reserving each job). If you write a job that needs tenant context, **set it yourself** — do not assume it is absent, and do not assume it is right.
 
 The 123 with a predicate were **not** individually audited. Having one is necessary, not sufficient.
+
+**The five sites added since that audit were read individually on 2026-09-18**, because the
+pin having moved from 156/53 to 161/55 means five bypasses entered *after* the only pass
+that ever looked at them line by line. The inventory test forced each to be a deliberate
+act, which is what it is for — but a deliberate act is not a reviewed one. All five carry a
+predicate:
+
+| Site | Why it is safe |
+|---|---|
+| `AdminPlanController::update` | Platform-admin: `Gate::authorize('admin.manage')`, route carries `EnsurePlatformContext` + `RequirePlatformMfa`. States `plan_id`; the cross-tenant count is the intent |
+| `AdminPlanController::destroy` | Same |
+| `NotifyDeviceOffline` | States `tenant_id`, derived from `$device->tenant_id` — the device is tenant-owned |
+| `DispatchWebhookJob::handle` (delivery) | States `tenant_id` from `$webhook->tenant_id`, plus `webhook_id` |
+| `DispatchWebhookJob::failed` | Derives via `webhook_id`, which is tenant-owned, plus the delivery primary key |
+
+**One inconsistency worth knowing rather than fixing blind:** `handle()` states `tenant_id`
+explicitly while `failed()` relies on `webhook_id` alone. Both hold — `webhook_id` is
+itself tenant-owned — but the two halves of one class disagree about how much to state, and
+that asymmetry is the shape a later defect takes.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 

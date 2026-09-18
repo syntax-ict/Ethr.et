@@ -1,6 +1,36 @@
 # ETHR — Shared Hosting Deployment Runbook
 
-Target: Ethio Telecom Linux Bronze (Plesk), account `etrhet` @ `213.55.96.154`.
+Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethiotelecom.et`
+(`213.55.96.154`).
+
+> **STATUS BANNER — added 2026-09-18. Read before running anything below.**
+>
+> This runbook was written against an assumed shell account. Two facts measured on the
+> real account since then contradict its transport, and the steps have **deliberately not
+> been rewritten**, because the replacement depends on gates that are still unverified:
+>
+> - **SSH is Forbidden on this subscription** (Hosting Settings, 2026-09-17; no Terminal in
+>   Dev Tools). Every `ssh` and `rsync` command below **will not connect**. The intended
+>   replacement is the Plesk Git extension with a deployment path of `/ethr/` — see
+>   `docs/MIGRATION_STATE.md` → *GIT DEPLOYMENT ROUTE*.
+> - **There is no Scheduled Tasks section** (dashboard, 2026-09-18 — **G0-D FAIL**), so the
+>   single cron line this runbook and `ENVIRONMENT.md` depend on has no runner, and
+>   `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no documented
+>   non-shell route. Both are one support request; see the blocker register.
+>
+> - **Step 4 copies the wrong environment file.** `cp .env.production.example .env` (line
+>   133) copies a `docker-compose.prod.yml` artifact that selects redis for cache, queue and
+>   session, minio for storage and reverb for broadcasting, with `REDIS_HOST=redis` and
+>   `MINIO_ENDPOINT=http://minio:9000` — Docker service names that resolve to nothing here.
+>   **Copy [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example)
+>   instead**; it carries the identical key set with each conversion marked and explained.
+>
+> What *has* been corrected here is factual only — the account username (`ethret`, not
+> `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
+> acceptance criterion in `deploy-checklist.md`), and the line above naming which
+> environment template to copy. The procedures are untouched on purpose: choosing between
+> Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED, and rewriting
+> them now would bake in a guess.
 
 **Before starting, confirm the four facts in `docs/MIGRATION_STATE.md` → NEXT ACTION.**
 Two of them (B3 cron, B5 Node.js) change which steps in this runbook apply — they are
@@ -91,9 +121,9 @@ support *before* step 4, not after a failed deploy.
 # Everything except node_modules/vendor/tests — those are rebuilt or excluded below.
 rsync -avz --exclude='.git' --exclude='node_modules' --exclude='vendor' \
   --exclude='.env*' --exclude='tests' \
-  ./api/ etrhet@213.55.96.154:~/ethr/api/
+  ./api/ ethret@213.55.96.154:~/ethr/api/
 
-rsync -avz api/vendor/ etrhet@213.55.96.154:~/ethr/api/vendor/
+rsync -avz api/vendor/ ethret@213.55.96.154:~/ethr/api/vendor/
 ```
 
 If SSH shell access turns out to be disabled for this account despite port 22 being
@@ -105,7 +135,7 @@ it can do (it is how the hosting-check probe script would be run too).
 ## 4. Configure and migrate
 
 ```bash
-ssh etrhet@213.55.96.154
+ssh ethret@213.55.96.154
 cd ~/ethr/api
 
 cp .env.production.example .env
@@ -144,7 +174,7 @@ until the file is actually here.
 ### The three files
 
 ```bash
-ssh etrhet@213.55.96.154
+ssh ethret@213.55.96.154
 
 # 1. The front controller.
 cp ~/ethr/api/public/index.php ~/httpdocs/index.php
@@ -359,7 +389,7 @@ Plesk → *Scheduled Tasks* → add:
 * * * * * cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-One line. `schedule:run` is what dispatches everything else — the 11 entries in
+One line. `schedule:run` is what dispatches everything else — the 14 entries in
 `routes/console.php`, unchanged, plus `queue:work --stop-when-empty` wherever the
 schedule needs it (see `ENVIRONMENT.md` "Queue and scheduler"). If the panel's minimum
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —
