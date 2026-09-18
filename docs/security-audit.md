@@ -98,7 +98,7 @@ assertions.** The figure below is kept as it stood when this audit was written.
 
 | Control | Evidence |
 |---------|----------|
-| Backend dependency audit | `composer audit` — **could not complete**: packagist advisory API returned HTTP 502 in this (network-restricted) environment. **Still not run: there is no CI** (`docs/audit/BASELINE.md` §15). Scheduled for Phase 2/3. |
+| Backend dependency audit | `composer audit` — **could not complete** when this audit was written (2026-07-30): the packagist advisory API returned HTTP 502 in that network-restricted environment. **Now run by CI**: `.github/workflows/security.yml` runs `./scripts/gates.sh security` weekly and on any lockfile change, and it was green as of 2026-09-16. |
 | Frontend dependency audit | `npm audit --omit=dev` — **3 high-severity findings** (see below). Patched where possible; residual has no clean in-range fix. |
 
 ### npm audit findings (2026-07-30)

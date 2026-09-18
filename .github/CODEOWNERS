@@ -6,8 +6,10 @@
 # where "it still passed the tests" has already turned out not to mean "it is
 # still correct".
 
-# Tenant isolation. The global scope is fail-closed, but ~147 call sites bypass
-# it and nothing enforces the tenant predicate they must re-apply.
+# Tenant isolation. The global scope is fail-closed, but 161 call sites bypass
+# it (2026-09-18). TenantScopeBypassInventoryTest pins that count per file, so a
+# new bypass cannot enter unnoticed — but nothing enforces the tenant predicate
+# each one must re-apply.
 /api/app/Traits/BelongsToTenant.php  @syntax-ict
 /api/app/Services/CurrentTenant.php  @syntax-ict
 /api/app/Http/Middleware/            @syntax-ict

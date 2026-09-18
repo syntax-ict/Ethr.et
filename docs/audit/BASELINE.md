@@ -310,7 +310,7 @@ static::addGlobalScope('tenant', function (Builder $builder): void {
 
 ### Scope bypasses — measured
 
-**[verified]** `withoutGlobalScope` / `withoutGlobalScopes` appears at **147 code sites** (comments excluded) across 29 directories. Of these, **35 have no `tenant_id`/`tenantId` token within a -4/+8-line window.**
+**[verified]** `withoutGlobalScope` / `withoutGlobalScopes` appears at **161 code sites** across **55 files**, re-counted 2026-09-18 and pinned per file by `tests/Feature/Security/tenant-scope-bypasses.php`. At the original baseline this read 147 sites across 29 directories, of which **35 had no `tenant_id`/`tenantId` token within a -4/+8-line window**; the audit of those 35 is recorded in §11c below.
 
 Most of the 35 are legitimate:
 
@@ -840,7 +840,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 5 | ~~**Audit-log `DEFINER` breaks after restore** → all writes 500~~ — **fixed**; `DatabaseDumper` reconstructs triggers from `SHOW TRIGGERS` with no `DEFINER` clause, so the restoring user becomes the definer. Measured 2026-09-16 on MariaDB: a DEFINER-carrying dump is refused outright without `SUPER` (§13b), and a non-root user restores and enforces both triggers | `ethr:backup:rehearse` on MariaDB; `BackupRestoreRehearsalTest` **[verified]** | Resolved — but only for `ethr:backup`. A Plesk panel export still carries a DEFINER and may be unrestorable; see §13b |
 | 6 | ~~Horizon aborts `composer install`~~ — **removed** (`cdf85d1`); lockfile carries **zero** hard `pcntl`/`posix` requires | lockfile parsed **[verified]** | Resolved |
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
-| 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
+| 7b | ~~No CI of any kind~~ — **configured in Phase 2; first fully green run #66 on 2026-09-16**, and green on every `main` commit since (run #173 on `f25baef`) | `.github/workflows/` **[verified]** | Resolved |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
 | 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend still blocked on PCOV or Xdebug (§12e) |
@@ -849,7 +849,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 18 | ~~Nothing transitions an invoice from `draft` to `sent`~~ — **owner decided 2026-09-15**, invoices are created `sent`; chain verified end to end | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
-| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins all **156** `withoutGlobalScope(s)` call sites across **53** files, per file, and fails when the count moves. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 156 that exist. That audit is still unowned |
+| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins all `withoutGlobalScope(s)` call sites per file and fails when the count moves — **161** across **55** files as of 2026-09-18, 156 across 53 when this row was written. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 161 that exist. §11c is a first pass over the subset that lacked a nearby predicate |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
 | 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |

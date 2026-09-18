@@ -55,8 +55,9 @@ shared-hosting migration in more detail than belongs here.
 - **Quality-gate automation.** `.githooks/pre-push` runs `gates.sh quick` and
   blocks a push that fails it, or that adds a `.env` file or `APP_KEY` literal.
   `.github/workflows/` calls the same `gates.sh` rather than restating the gate
-  list, so the two cannot drift. **The workflows have never executed** — nothing
-  has been pushed — so they are untested configuration, not a control.
+  list, so the two cannot drift. First fully green run #66 on 2026-09-16, after
+  five structural defects that had to be fixed before a single gate executed;
+  green on every `main` commit since. They are now an observed control.
 - **New gate scopes:** `quick` (no test suites, for the hook), `docs` (markdown
   link integrity), `security` (composer + npm audit). `composer validate` added
   to `backend`. `security` sits outside the full sweep like `performance`: it

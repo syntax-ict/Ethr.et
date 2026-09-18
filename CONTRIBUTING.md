@@ -190,10 +190,10 @@ The single thing most worth being careful about. `BelongsToTenant` adds a
 fail-closed global scope: with no tenant context it applies `whereRaw('0 = 1')`,
 so the absence of scope yields *no* rows rather than *all* rows.
 
-There are ~147 `withoutGlobalScope` / `withoutGlobalScopes` call sites. Some are
-legitimate — platform-admin surfaces, pre-authentication lookups, global
-reference data like national holidays, and queued jobs, which run with no HTTP
-tenant context and must re-scope by hand.
+There are 161 `withoutGlobalScope` / `withoutGlobalScopes` call sites across 55
+files (2026-09-18). Some are legitimate — platform-admin surfaces,
+pre-authentication lookups, global reference data like national holidays, and
+queued jobs, which run with no HTTP tenant context and must re-scope by hand.
 
 **Every one of them must re-apply a tenant predicate, directly or by deriving
 from a key that is itself tenant-owned.** Nothing enforces this automatically.
