@@ -858,6 +858,57 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE CANARY WAS EXECUTED TOO — 2026-09-18, and it is sound
+
+The canary is the instrument that will **answer** G0-B.1–B.5. If it mis-reports, those
+rows get graded wrong and nobody finds out. It had never been run either. Served from the
+same local Apache; package copied, repository untouched.
+
+**All five mechanisms fire correctly:**
+
+| # | Mechanism | Result |
+|---|---|---|
+| 1 | `mod_rewrite` — `/REWRITE_OK` → `canary.php` | **reached it** (200, canary content, not a 404) |
+| 2 | `mod_headers` | **`X-Ethr-Canary: headers-ok`**, plus the two security headers |
+| 3 | Deny rule — `secret.txt.probe` | **403** |
+| 4 | `Authorization` forwarding | **works** — `Bearer CANARYTOK` |
+| 5 | Static shadowing — `/shadow.txt` | **canary.php answered, not the file on disk** |
+
+### Row 5 is the one worth having, because it establishes the control
+
+G0-B.5 asks whether Plesk's nginx serves static files **before Apache sees the request**.
+The canary answers it by putting `shadow.txt` on disk *and* rewriting that exact path, so
+whichever layer wins is visible in the response — its own README: *"Whichever one answers
+tells you which layer resolved."*
+
+**Nobody had measured what Apache alone does.** Now it is measured: with Apache serving and
+no nginx in front, **the rewrite wins**. So the reading is unambiguous when the real result
+arrives:
+
+| The canary returns | Meaning |
+|---|---|
+| `canary.php`'s output | Apache resolved it — rewrites reach the request |
+| `shadow.txt`'s own text | **nginx shadowed it** — static is served before Apache, and `DEPLOYMENT.md` step 4a's premise holds |
+
+Without that control, a result of "canary.php answered" could have been read either as
+*Apache won* or as *the bait never worked*. It can no longer be confused.
+
+### What this does and does not establish
+
+**Does:** the canary package is correct and will report faithfully. Deploying it is worth
+doing; its answers can be trusted.
+
+**Does not:** move G0-B.1–B.5 a millimetre. Those are properties of **that host**, and the
+only thing measured here is that the instrument works. A working thermometer is not a
+temperature.
+
+Same PHP limit as the `.htaccess` run: `canary.php` was served as source, so its *printed
+report* is unverified — only the four Apache-layer mechanisms it depends on were exercised.
+The fifth, its own PHP output formatting, was verified separately on 2026-09-18 when the
+`$scriptDir` defect was fixed by running it.
+
+---
+
 ## THE DEPLOYMENT `.htaccess` WAS EXECUTED — 2026-09-18
 
 `docs/deployment/shared-hosting/.htaccess` is the routing brain of the whole deployment:
