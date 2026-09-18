@@ -858,6 +858,177 @@ observable, not merely whether it is possible.
 
 ---
 
+## STATIC EXPORT MEASURED, NOT ESTIMATED — 2026-09-18
+
+The repository builds for a target this account cannot host, and the documented cost of
+fixing that is wrong. Both measured by running builds here; no host involved.
+
+### `next.config.ts` still says `output: "standalone"`
+
+That is the **Node server** build — Branch A. Shared hosting runs no Node server, so as it
+stands **the frontend builds for a target the account cannot serve.** Branch B (static
+export) is the shared-hosting path, and it had never been attempted.
+
+**Baseline build: PASS.** `npm run build` on Node 22, exit 0, 90 routes prerendered,
+11 dynamic (`routes-manifest.json`), 1 server-rendered (`/register`).
+
+### Attempting `output: "export"` — three findings, in the order the build produced them
+
+| # | Blocker | In the documented estimate? |
+|---|---|---|
+| 1 | `/manifest.webmanifest` needs `export const dynamic = "force-static"` | **No — missing entirely** |
+| 2 | The four `[id]` routes are missing `generateStaticParams()` | Yes |
+| 3 | **All four are `"use client"`, and Next rejects `generateStaticParams` on a client component** | **No — and it invalidates the estimate** |
+
+Finding 3 verbatim from the build:
+
+```
+Error: Next.js can't recognize the exported `generateStaticParams` field in route.
+App pages cannot use both "use client" and export function "generateStaticParams()".
+  × 4
+```
+
+### Why that matters
+
+`SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
+*"`generateStaticParams` on four dynamic routes"* — four one-line additions. **That is not
+implementable as written.** `app/(dashboard)/{admin/tenants,devices,employees,payroll}/[id]/page.tsx`
+all open with `"use client"`, so the compiler rejects the addition outright.
+
+The real shape is a **split per route**: a server component that exports
+`generateStaticParams`, with the existing client component moved into a child. Four file
+splits with prop-threading, not four one-line edits.
+
+And the harder half is unchanged by any of that: **those IDs are tenant data.** Nothing can
+enumerate every employee, device, payroll run and tenant at build time, so
+`generateStaticParams` can only return `[]` — which builds, and then 404s every real
+`/employees/123`. Making those routes work under export means client-side routing that
+reads the id from the URL at runtime, which is a different and larger change again.
+
+### Static-export feasibility is not application runtime feasibility
+
+The audit conflated these, and the distinction decides whether Branch B is viable at all:
+
+| | |
+|---|---|
+| **Static-export feasibility** | Can `next build` emit files? **Currently no**, and fixable — a metadata directive, four server/client splits, `generateStaticParams` returning `[]` |
+| **Application runtime feasibility** | Will the exported app *work*? **No, and the fixes above do not change that.** `[]` pre-renders nothing, so every real `/employees/123` returns 404 |
+
+**A passing export build would not mean a working application.** Same shape as the
+green-test-run trap in the root `CLAUDE.md`: the signal that looks like success arrives
+before the thing works.
+
+### Branch B is NOT APPROVED for implementation
+
+Until a deployment architecture is selected. It is gated on G0-A and G0-G, both
+`NOT VERIFIED`, and `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has
+returned No-Go on B3.
+
+**The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
+evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
+switch, four component splits, and a routing rearchitecture for entity pages. Corrected at
+source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
+`GATE-0-RESULT.md` (×3), `TCO_COMPARISON.md`, `SHARED_HOSTING_MIGRATION_PLAN.md`,
+`B1-B5_GATE_REPORT.md`, `shared-hosting/DEPLOYMENT.md` step 4, and this file's queue row 3.
+
+### What was NOT done, deliberately
+
+The experiment was reverted in full — `git checkout -- src/`, working tree clean,
+`next.config.ts` back to `standalone`. **No Branch B work was implemented.** It is gated on
+G0-A and G0-G, both `NOT VERIFIED`, and on the Option A/B decision that has just returned
+No-Go. Implementing it now would be the speculative spend this file has just recommended
+against.
+
+What is delivered is the measurement: if Branch B is ever revisited, the cost line needs
+rewriting first, and the new blocker (`manifest.ts`) needs adding.
+
+### Repository-side compatibility — where it actually stands
+
+| Layer | State |
+|---|---|
+| **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Compatible.** Verified by CI and by reading the code |
+| **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
+| **Frontend** — Branch B (static export) | **Does not build.** Three blockers, one of which invalidates the costing |
+
+The backend half of "shared-hosting compatible by default" is done. **The frontend half is
+not, and now has a measured gap rather than an assumed one.**
+
+---
+
+## THE PRE-REGISTERED DECISION RULE HAS FIRED — 2026-09-18
+
+Recorded because the owner asked for a decision, and one was already committed to in
+writing before any evidence existed. This is not a new judgement; it is reading the rule
+that `SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
+
+### The rule
+
+| Gate | The plan's pre-registered consequence |
+|---|---|
+| **B3** cron | **"No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. **→ Option A"** |
+
+`B3` is `G0-D` (the disambiguation table at line 162 of this file). **G0-D is FAIL** — there
+is no Scheduled Tasks section on this subscription, read from the dashboard on 2026-09-18.
+
+**So the rule's own answer is Option A: stay on the VPS.** The value of pre-registering a
+decision is that it cannot be renegotiated once the answer is inconvenient, and this one is
+inconvenient.
+
+### Two things stop that from being final
+
+1. **G0-D is FAIL *as provisioned*, not *impossible*.** Scheduled Tasks is a service-plan
+   permission, so a support grant or a tier change flips it. That request is written and
+   unsent: [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md).
+   **It is the only thing that can reverse the rule.**
+2. **The decision belongs to the owner, not to this file.** What is recorded here is that
+   the criterion they set has been met, and what follows from it.
+
+### A second gate is pointing the same way
+
+**B2** (wildcard TLS) carries the same *"No-Go → Option A"* consequence, and G0-C's TLS row
+is `PARTIAL`: per-hostname certificates are **proven**, wildcard is **blocked** because the
+zone sits on `ns1`/`ns2.telecom.net.et` and Plesk cannot perform DNS-01. That is not fatal
+the way B3 is — tenants can be certificated one at a time — but it converts self-service
+tenant signup into manual operator work per tenant, permanently.
+
+Two of the four fatal gates now point No-Go. None points Go.
+
+### Option C is not the escape hatch
+
+The plan already rejected it, and the reasoning holds better now than when it was written:
+
+> *"Once a VPS is in the picture, Option A is strictly better. The VPS in this hybrid is
+> doing the hard part — Redis, workers, WebSockets, storage — while the shared host
+> contributes only PHP execution that the same VPS could do for free. The hybrid costs more
+> than the VPS alone, is harder to operate, and is slower."*
+
+Its stated exception is narrow: *"unless the requirement is specifically 'the domain and
+web tier must be hosted at Ethio Telecom' for a reason other than cost."* **If such a
+requirement exists — regulatory, contractual, data residency — it has never been recorded,
+and it would change this answer.** That is the one question worth putting to the owner
+rather than deciding for them.
+
+### What follows, in order
+
+1. **Send the support request.** One ticket, three asks. It is the only route to G0-D now
+   that Route D went with the Git repository, and it costs nothing to try.
+2. **Set a deadline on it.** No useful answer within a reasonable window means refused;
+   refused means the rule stands and the target is Option A.
+3. **Spend nothing further on Option B.** The repository is already Plesk-compatible and
+   that work does not rot — it is correct whenever this is revisited. But the static-export
+   refactor (B5 / Branch B) and anything else conditional on Option B should wait for an
+   answer to B3.
+4. **Answer B-6 now, and treat it as the top risk rather than a footnote.** Under Option A
+   the VPS is not a rollback target — **it is production** — and nobody has confirmed it is
+   still serving or what data it holds. `tin` and `national_id` are `encrypted` casts and
+   off-host backup was never configured, so its `APP_KEY` may be the only thing that can
+   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission.
+
+**No gate moved.** Gate 0 remains 1 verified, 1 failed, 28 outstanding. Recording that a
+decision rule has fired is not evidence about the host.
+
+---
+
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
 Everything resolvable from the repository has been done. These eight remain, in dependency
@@ -870,7 +1041,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
-| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
+| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which costs an **architectural frontend deployment change** (measured `7aed9d2`), not the "scoped" one this row used to claim |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
 | **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php`, **then set `ETHR_PROBE_WEB_TOKEN` in that copy to a second random value** — as shipped every web request returns 403 | The full output. Open it as `?token=<that value>` and pass **no other query parameter**; **delete the file in the same sitting** | Upload, edit the token, then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |

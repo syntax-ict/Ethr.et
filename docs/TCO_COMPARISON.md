@@ -33,7 +33,7 @@ Three smaller corrections to the rows below, same evidence:
   tooling does not merely need rebuilding; two of its steps have no known mechanism.
 - **Option B, "Functionality ~95%"** — G0-A shows no custom-directive field on the
   Apache & nginx page, which forecloses the Node branch and forces static export. That is
-  bounded, already-scoped work (`SHARED_HOSTING_AUDIT.md` §E), but it is engineering cost
+  an **architectural frontend deployment change** — re-costed 2026-09-18 (`7aed9d2`) after the export was attempted and failed to build; see `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18*, which withdraws the earlier "bounded, already-scoped" framing — and it is engineering cost
   this table does not carry, and it moves marketing SSR from "under B2 also" to "yes".
 - **Option A, "Remain on VPS"** — assumes the VPS is running. It is recorded as dormant
   with all ports closed, `ethr.et` already resolves to the Plesk host, and the owner
