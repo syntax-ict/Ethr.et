@@ -1642,6 +1642,21 @@ the runbook — which is the failure this freeze existed to prevent. Correcting 
 carries no such risk. The freeze stands over the procedures; it no longer stands over
 demonstrable facts.
 
+### The support request now exists as text — `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`
+
+Three documents named "one support request, three asks" as the remedy for B-1, B-4 and
+G0-F. None of them contained the request. It is now drafted and ready to send:
+[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md).
+
+It carries the `ethret` spelling warning, the pre-empt for the likely brush-off on SSH
+(*deployment actions already execute shell as the subscription user, so the platform runs
+shell for this account; what is asked for is interactive access to the same capability*),
+a decline matrix for each of the four outcomes, and an explicit note on what is **not**
+asked for — wildcard TLS, which is a DNS question, and G0-A directives, which have a
+documented workaround and would weaken the asks that do not.
+
+**Not sent.** Sending it is the owner's action, and it is the highest-value one available.
+
 ### Repository-side verification run — 2026-09-18, what was actually executed
 
 Distinct from the Gate 0 table, which is host-side and unmoved. These are the claims a
