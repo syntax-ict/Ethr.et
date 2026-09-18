@@ -858,6 +858,54 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE PROBE'S CLI CAVEAT COVERED ONE ROW OF FOUR — 2026-09-18
+
+Same lens as the canary finding, turned on the other instrument. The probe's `Limits`
+section grades four rows that feed **G0-E**, and it already carried a warning that a CLI
+run cannot see the web SAPI's value. **The warning named only `max_execution_time`.**
+
+Measured here on PHP 8.4, CLI:
+
+| Row | CLI value | Probe verdict | Reality |
+|---|---|---|---|
+| **L1** `memory_limit` | `-1` | **OK** | **False PASS** — unlimited under CLI, says nothing about the web limit |
+| **L2** `max_execution_time` | `0` | OK, **warned** | Guarded, correctly |
+| **L3** `upload_max_filesize` | `2M` | **FAIL** | **False FAIL** — php.ini default, not the web value |
+| **L4** `post_max_size` | `8M` | **FAIL** | **False FAIL** — same |
+
+**Three of four rows were unreliable and only one said so**, and they mislead in *both*
+directions. A false PASS on `memory_limit` hides a host that cannot run payroll. A false
+FAIL on the upload pair sends the operator to support for a limit that may already be
+correct.
+
+### Fixed
+
+The warning now covers all four, names the CLI defaults that cause each direction of error,
+and says which feature depends on which pair — payroll on the first two, employee document
+upload on the last two.
+
+### Honest scope
+
+**The practical impact today is small, and it is worth saying so rather than inflating it.**
+This only bites a **CLI** run, which is Route A, which needs SSH — and SSH is Forbidden.
+Route C, the only live route, runs under a real web SAPI where the four values *are* the
+production values and no caveat is needed. The probe's gating was correct for both real
+routes.
+
+It is worth fixing anyway for one reason: **ask 2 of the support request is SSH.** If it is
+granted, Route A becomes live the same day, and this is precisely the run that would then
+mis-grade three of G0-E's rows.
+
+### A note on the `php -S` validation
+
+`GATE-0-RESULT.md` records Route C as *"validated by running it, 2026-09-17"* under PHP's
+built-in server. That SAPI reports as **`cli-server`**, not `cli`, so the CLI warning was
+suppressed while the ini values were still CLI-ish — `memory_limit` `-1`, upload pair at
+`2M`/`8M`. **That validation proved the transport, not the limits.** It was never claimed to
+prove the limits; recorded so nobody later reads it as having done so.
+
+---
+
 ## THE CANARY HAD A FALSE NEGATIVE — found by reproducing Plesk's topology
 
 With nginx and Apache both installed locally, the actual Plesk arrangement was
