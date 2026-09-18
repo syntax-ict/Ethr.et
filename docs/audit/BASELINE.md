@@ -1285,9 +1285,18 @@ bytes and chunk paths, free with every build. Gzipping what it lists:
 point reached on the same networks — so the audience §18 was worried about meets
 the *worst* public page, not the one that was measured.
 
-**64 KB of that is Zod.** Diffing `/login`'s chunks against `/[locale]`'s leaves
-7 login-only chunks totalling 119 KB, of which one is 63.9 KB gzipped (268 KB
-raw) and is Zod — 1,126 internal references, and the IPv4 and MAC-address regex
+**The whole 119 KB is accounted for, and only Zod is a candidate.** Diffing
+`/login`'s chunks against `/[locale]`'s leaves 7 login-only chunks totalling
+119 KB gzipped. The other six were read too, so nobody re-opens this: 32 KB raw
+of `react-hook-form`, 26 KB of TanStack Query internals plus the lucide icon
+paths the form renders (`Building2`, `key-round`, `loader-circle`,
+`MessageSquareText`, `AlertTriangle`) and `hostContext`/`tenantFromHost`, 25 KB
+more of icons, and the rest is the auth form code itself. **Nothing foreign is
+leaking into `/login`** — no chart library, no date library, no dashboard shell.
+It is a login form that costs what a login form costs, on top of a high
+framework floor.
+
+That leaves exactly one candidate, and it is 63.9 KB gzipped (268 KB raw) of Zod — 1,126 internal references, and the IPv4 and MAC-address regex
 literals are its built-in string validators. Four forms pull it in:
 `(auth)/login/login-form.tsx`, `register-form.tsx`, `login/forgot/forgot-form.tsx`
 and `login/reset/reset-form.tsx`. Twenty-seven files import it overall.
