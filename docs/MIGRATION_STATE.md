@@ -1504,16 +1504,80 @@ list its document root as `/ethr` or `ethr`? If none does, `~/ethr/` is inert an
 containment is complete pending the HTTP check. If one does, that vhost must be repointed or
 removed before anything else.
 
+### Containment — external HTTP check, 2026-09-18
+
+The owner ran the verification ladder from their own machine. Four status codes:
+
+| Request | Status | What it establishes |
+|---|---|---|
+| `CLAUDE.md` | **404** | The bulk `httpdocs/` cleanup took effect |
+| `favicon.ico` | **200** | **Calibration passed** — the vhost serves files from `httpdocs/` and the test method is sound. A 404 here would have meant the whole ladder was measuring the wrong thing |
+| `CLAUDE.md` (repeat) | **404** | Confirms the first reading |
+| `scripts/hosting-verification/ethr-hosting-check.php` | **200** | **The probe path still answers.** Not 404, not 403 |
+
+Also resolved: the **GitHub deploy key is now read-only**, closing the item recorded above.
+A host compromise no longer reaches the repository.
+
+#### The three readings contradict each other, and that is the finding
+
+`favicon.ico` 200 says the served root is `httpdocs/`. `CLAUDE.md` 404 says the deployed
+files under that root are gone. Both cannot be true at the same time as a 200 on a path
+*underneath* that same root — `httpdocs/scripts/…` — unless one of these holds:
+
+| # | Explanation | How to tell |
+|---|---|---|
+| **a** | `httpdocs/scripts/` was **not actually deleted**. The File Manager listing that showed it gone was paginated, filtered, or served from a stale view | Response body is the probe's report |
+| **b** | The 200 is **not the probe**. Imunify360 and similar WAFs answer with a block page under HTTP 200; so does a parent-directory index | Response body is a block page or an index |
+| **c** | The two URLs **hit different vhosts** — `ethr.et` vs `www.ethr.et` vs `production.ethr.et`, which is a real second webspace on this account | Same probe path, both hostnames, compare |
+| **d** | The file was **re-created** after the cleanup by a redeployment | Compare mtime in File Manager against the cleanup time |
+
+A status code alone cannot separate these. **The response body can, in one request**, and
+that is the next action rather than another round of listings.
+
+The earlier **504** is now readable too: it was never evidence of absence. The probe makes
+three outbound calls with 6-second timeouts plus CPU and disk benchmarks, so a gateway
+timeout is exactly what a *successful* execution looks like from outside when the host is
+slow. 504 then and 200 now are the same observation twice.
+
+#### Grading
+
+**Containment: NOT VERIFIED.** Partially achieved — `CLAUDE.md` is gone and the deploy key
+is read-only — but the one file that actually mattered is the one still answering.
+
+**Exposure: treated as LIVE** until the body says otherwise. This is deliberately
+fail-closed and matches how the rest of this register grades: explanation (b) would make it
+harmless, but (a), (c) and (d) all leave `disable_functions`, the filesystem layout, PHP
+limits, free space and outbound-network results readable by anyone with the URL, and three
+of four is not where the benefit of the doubt goes.
+
+#### The fix that does not depend on which explanation is right
+
+All four explanations share a precondition: **a copy of the probe in a document root
+executes.** That is a defect in the probe, not only in the deployment, and it is now fixed
+in the repository rather than only in the host's filesystem:
+
+- `ethr-hosting-check.php` **refuses web execution by default**. A web request returns
+  `403` and a 14-byte body regardless of filename. Deliberate web use — Route C — requires
+  setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy and passing it as `?token=`.
+- `scripts/.htaccess` denies the whole directory, as a second layer. Second, because it
+  only applies if `AllowOverride` permits it — which is **G0-B.3, still NOT VERIFIED**.
+
+Verified by running all three paths: shipped file over a web SAPI → 403/14 bytes; wrong
+token → 403/14 bytes; correct token → 200/6,548 bytes, complete report; CLI unchanged and
+still honouring the exit contract. `docs/deployment/GATE-0-RESULT.md` Route C carries the
+amendment.
+
+This does **not** contain the file already on the host — that copy predates the fix and
+still has no token gate. It contains every copy from here on, including whatever a future
+mis-pointed deployment does.
+
 #### Still open after this listing
 
-- The three external `curl` checks (`/`, `/favicon.ico`, `/CLAUDE.md`) — **not yet run**.
-  `CLAUDE.md` returning 404 is what turns this from *looks cleaned* into *is cleaned*.
-- The earlier probe request returned **504 Gateway Time-out**, which was never resolved.
-  Note it is *consistent with the probe executing*: it makes three outbound calls with
-  6-second timeouts plus CPU and disk benchmarks. It was never evidence of absence.
-- **B-3 is unchanged** — `httpdocs/ethr.et/` is still present and still unidentified.
-- The GitHub deploy key is **read/write**. The plan's Git route only ever pulls, so
-  read-only suffices; write means a host compromise reaches the repository.
+- **The probe response body**, which decides between (a)–(d) above. One request.
+- **B-3 is unchanged** — `httpdocs/ethr.et/` is still present and still unidentified, and
+  under explanation (c) it is a candidate for what answered.
+- **Is any domain or subdomain rooted at `~/ethr/`?** Unanswered from the previous listing
+  and still the difference between *relocated* and *moved the exposure elsewhere*.
 
 ### What did not change
 

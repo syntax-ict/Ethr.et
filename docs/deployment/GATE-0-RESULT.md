@@ -114,8 +114,8 @@ contract is now:
 | `1` | at least one **MANDATORY** item unsupported — this account cannot run Laravel 12 as-is |
 | `2` | no mandatory gap, but at least one other `FAIL` row: a degraded feature, a limit below what payroll or uploads need, or blocked outbound SMTP |
 
-Exit status exists only under CLI. Over Route C the response is always HTTP 200 and the
-body is the whole report, so there the printed rows are the only signal.
+Exit status exists only under CLI. Over Route C the response is HTTP 200 and the body is
+the whole report, so there the printed rows are the only signal.
 
 #### Route C — web-served, credential-free *(works today, answers most of it)*
 
@@ -130,11 +130,29 @@ hazard does not arise.
 
 1. Upload to `httpdocs/` under a **random filename** — `httpdocs/<random>.php`, not
    `ethr-hosting-check.php`.
-2. Open `https://www.ethr.et/<random>.php` **with no query string at all.**
-3. Save the output.
-4. **Delete the file in the same sitting.** Non-negotiable: it still prints
+2. In the uploaded copy, set `ETHR_PROBE_WEB_TOKEN` near the top of the file to a second
+   random value. **As shipped the constant is empty and every web request returns 403**,
+   so this step is not optional — see the amendment below for why it was added.
+3. Open `https://www.ethr.et/<random>.php?token=<that value>` and **pass no other query
+   parameters** — in particular no database credentials.
+4. Save the output.
+5. **Delete the file in the same sitting.** Non-negotiable: it still prints
    `disable_functions` and the filesystem layout, which is why it normally lives in `~/`.
    Random filename plus immediate deletion is what keeps the exposure window to minutes.
+
+**Amendment, 2026-09-18 — the token step is new, and it is there because the untokened
+version was exploited by accident.** A Plesk Git deployment pointed at the document root
+copied the entire repository into `httpdocs/`, so the probe became web-executable at its
+own predictable path. The random filename — the whole of Route C's access control — was
+bypassed not by guessing but by a deployment putting the real name there. The token is the
+layer that survives that: a copy of this file reaching a document root unintentionally now
+discloses nothing. `scripts/.htaccess` denies the directory as a second layer, and is
+second because it is only honoured if `AllowOverride` permits it, which is G0-B.3 and is
+still `NOT VERIFIED`.
+
+Verified by running all three paths, 2026-09-18: shipped file over a web SAPI → 403, 14
+bytes; wrong token → 403, 14 bytes; correct token → 200, 6,548 bytes, complete report. CLI
+unchanged and still honours the exit contract above.
 
 **Route C was validated by running it, 2026-09-17.** Served over PHP's built-in server
 under a non-CLI SAPI: HTTP 200, clean `text/plain`, 6.5 KB, complete output, no query

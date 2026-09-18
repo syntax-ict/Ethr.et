@@ -18,7 +18,7 @@
  *      run it from Plesk -> Scheduled Tasks as a one-off PHP CLI task and read
  *      the mailed or logged output.
  *
- *      EXIT STATUS (CLI only; a web run is always HTTP 200):
+ *      EXIT STATUS (CLI only; see WEB EXECUTION below for the web case):
  *        0  nothing unsupported
  *        1  a MANDATORY item is missing - Laravel 12 will not run here as-is
  *        2  no mandatory gap, but at least one other FAIL row above
@@ -28,8 +28,14 @@
  *   3. Save the output locally.
  *   4. *** DELETE IT FROM THE SERVER IMMEDIATELY. ***
  *
+ * WEB EXECUTION
  *   Serving it from httpdocs is a last resort. If you must, give it a random
  *   filename, read it once, and delete it in the same sitting.
+ *
+ *   As shipped a web request returns **403 and nothing else**, whatever the
+ *   filename. To take that route deliberately, set ETHR_PROBE_WEB_TOKEN below
+ *   to a random value in the copy you upload and request `?token=<that value>`.
+ *   See the note on the constant for why.
  *
  *   `.htaccess` and mod_rewrite cannot be answered from here at all - a file in
  *   ~/ is never served by Apache. Use the companion canary,
@@ -51,8 +57,34 @@
 
 declare(strict_types=1);
 
+/**
+ * Web execution is opt-in, and off in the shipped file.
+ *
+ * On 2026-09-18 a Plesk Git deployment copied the whole repository into the
+ * document root, and this file became web-executable under its own name — the
+ * exact failure the USAGE block above warns about, reached without anyone
+ * guessing anything. A copy that lands in a document root by accident must
+ * disclose nothing.
+ *
+ * Route C (docs/deployment/GATE-0-RESULT.md) is unaffected and still the
+ * documented last resort: in the copy you upload, set the constant below to a
+ * random value and request it as `?token=<that value>`. The random filename
+ * Route C already calls for remains the first layer; this is the second, and
+ * it is the one that survives being deployed under a predictable name.
+ */
+const ETHR_PROBE_WEB_TOKEN = '';
+
 $isCli = PHP_SAPI === 'cli';
 if (! $isCli) {
+    $suppliedToken = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+
+    if (ETHR_PROBE_WEB_TOKEN === '' || ! hash_equals(ETHR_PROBE_WEB_TOKEN, $suppliedToken)) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "403 Forbidden\n";
+        exit;
+    }
+
     header('Content-Type: text/plain; charset=utf-8');
 }
 
