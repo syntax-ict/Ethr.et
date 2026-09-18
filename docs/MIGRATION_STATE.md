@@ -862,6 +862,59 @@ specifies, outside the document root. That matters now that SSH is forbidden and
 they can reach the correct target natively. Recorded here rather than in the runbook
 because `docs/deployment/shared-hosting/*` stays frozen and this is not step 4a.
 
+### Citation audit 2026-09-18 — every checkable claim, checked
+
+The migration documents cite specific files and line numbers. A runbook that points at the
+wrong line wastes the account session, and this sweep has already found four cases of a
+document describing an artifact incorrectly. So every mechanically checkable citation was
+verified against the file it names. **Eight of nine hold exactly**, which is worth
+recording so nobody re-does it:
+
+| Claim | Source | Result |
+|---|---|---|
+| `index.php` lines **9 / 14 / 18** are maintenance, autoloader, bootstrap | `DEPLOYMENT.md` step 4a | ✅ exact |
+| `src/public/favicon.ico` present | `document-root-inventory.php` | ✅ |
+| Frontend robots generator at `src/src/app/robots.ts` | `document-root-inventory.php` | ✅ |
+| `api/public/robots.txt` reads `User-agent: * / Disallow:` | `document-root-inventory.php` | ✅ verbatim |
+| `api/public/.htaccess` ends in `!-d`, `!-f`, `RewriteRule ^ index.php [L]` | `document-root-inventory.php` | ✅ at lines 22–24 |
+| `shared-hosting/.htaccess:144` applies far-future caching to that exact extension set | `GATE-0-RESULT.md:176` | ✅ line 144 is that `FilesMatch`, extension set quoted verbatim |
+| `infrastructure/nginx.conf` roots **three** server blocks at `api/public` | PR #20 / inventory | ✅ exactly 3 |
+| `shared-hosting/.htaccess` restricts the front controller to `^/(api\|sanctum)`, guarded by `!-d`/`!-f`, and denies `.env`/`.git`/composer files | three documents | ✅ lines 64–67 and 32 |
+
+#### The one that does not hold — `DEPLOYMENT.md:319`, Branch A
+
+It reads: *"Delete the entire **"Everything else → frontend, BRANCH B"** block … (leave
+BRANCH A as a comment for documentation, **per that file's own instructions**)."*
+
+That attribution is wrong. The file's own Branch A instruction, at
+`shared-hosting/.htaccess:72`, says the opposite:
+
+> `BRANCH A — Node.js runtime available (B5 = yes). DO NOT USE this .htaccess branch;`
+> `delete this whole "Everything else" block instead` and let Plesk's Node.js/Passenger
+> integration own routing … Passenger inserts its own front-controller rule ahead of this
+> file … a second catch-all rule here would conflict with it.
+
+Delete the **whole section**, says the file. Delete **only BRANCH B**, says the runbook —
+citing the file.
+
+**Severity: low, and measured rather than assumed.** Lines 69–102 of that `.htaccess` were
+checked for any active directive and contain **none** — the whole "Everything else"
+section is commented out, and the file's only live catch-all is the `^/(api|sanctum)` rule
+at 64–67. So neither instruction can leave a conflicting rule behind for Passenger, which
+is the harm the file's warning exists to prevent. What it costs is an operator's time and
+confidence: following the runbook, reading "per that file's own instructions", opening the
+file and finding the opposite — at the one moment when the account session is running.
+
+**Not corrected here.** `DEPLOYMENT.md` is inside the frozen directory and line 319 is the
+Branch A frontend section, not step 4a, so fixing it would widen a freeze exception the
+owner asked to keep narrow. Recorded for the same pass that lifts the freeze. The fix is
+one clause: either drop "per that file's own instructions", or change the instruction to
+delete the whole section and say why (Passenger's own catch-all).
+
+Also confirmed while in the file, because its absence would be worse than any of the
+above: `.well-known/acme-challenge/` is passed through untouched at lines 54–55, so
+certificate renewal survives the deployment.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
