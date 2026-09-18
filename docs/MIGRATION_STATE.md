@@ -27,16 +27,25 @@ pass does not re-derive them:
 |---|---|---|---|
 | **KB-1** | **Gate 0 has never been run against the account.** `deployment/GATE-0-RESULT.md`: *"Status: NOT RUN"*, *"Run by: owner (requires the Plesk account — this cannot be automated from the repository)"* | The four facts need the Plesk panel or an SSH session to `213.55.96.154`. No code path reaches them | Hosting verification; every downstream deployment decision |
 | **KB-2** | **The VPS/Docker production assets cannot be removed while KB-1 stands.** Root `CLAUDE.md` keeps them *"only until that cutover is verified"* | Deleting the working deployment path before the replacement is measured leaves the product with neither | VPS decommissioning |
+| **KB-3** | **Manual action 0a — *"is anything still serving on the VPS?"* — cannot be probed from an agent or CI sandbox.** Added 2026-09-18 after an attempt returned a false negative | This environment's egress gateway routes by Host header and SNI and **discards the destination IP**, so an IP-addressed probe never reaches the host it names. Proven by dialling the VPS IP with `Host: example.com` and receiving example.com from Cloudflare | **B-6**, the top-ranked safety finding. Needs a human on an ordinary network — one `curl`, no Plesk, no shell |
 
-**One thing that was assumed unreachable and was not — added later the same day.**
-Manual action **0a** ("does anything still serve on the VPS?") had been deferred by every
-prior pass on the grounds that no environment could reach the host. This one can, so it
-was run: **the VPS serves nothing**, and `ethr.et` itself returns a Plesk `404` while the
-wildcard returns `200`. Full measurement and controls under **B-6** below; both
-`ROLLBACK_RUNBOOK.md` and this file are corrected accordingly. The lesson generalises past
-this item: *"this environment cannot reach it"* was inherited from an earlier session's
-constraint and never re-tested, and it was gating the most serious safety finding in this
-document.
+**KB-3, added 2026-09-18 — manual action 0a cannot be run from any agent environment, and
+an attempt produced a confident false negative.** 0a had been deferred by every prior pass
+on the grounds that no environment could reach the host. That was re-tested, appeared to
+succeed, and the result — *"the VPS serves nothing"* — was written into this file and into
+`ROLLBACK_RUNBOOK.md` before it was checked properly. **It was false.** This environment's
+egress gateway routes by Host header and SNI and discards the destination IP, so the probe
+never addressed the VPS; the "controls" chosen to validate it shared the same flaw and
+confirmed nothing. Both documents are corrected, and **B-6 below** carries the proof, the
+tell that should have been caught first (two "different" hosts returning byte-identical
+`etag`s), and why the controls failed. The reusable part: *a control only controls for what
+it varies*. What survives is the set of findings measured by **name** rather than by IP —
+the apex serving a `404` and the wildcard serving `200` — because a name is what a browser
+resolves too.
+
+The lesson still generalises, just not the way it was first written: *"this environment
+cannot reach it"* deserved re-testing, and re-testing it was right. What was wrong was
+believing the retest on controls that could not have detected the failure.
 
 **What was done instead of stopping**: `deployment/VPS_DECOMMISSION.md` now carries the
 full inventory — what gets deleted, what only looks like it should (`docker-compose.yml`
@@ -559,49 +568,68 @@ The *decision* between "roll back to a working VPS" and "there is no rollback ta
 still belongs to 0a and to the owner. What the runbook no longer does is assert one of
 them.
 
-### 0a ANSWERED 2026-09-18 — there is no rollback target
+### 0a ATTEMPTED 2026-09-18 — still unanswered, and now known to be unanswerable from any agent environment
 
-Every prior pass recorded that it could not reach these hosts. **This environment can**,
-so action 1 was run rather than deferred again:
+**An earlier version of this section claimed 0a was answered and that the VPS serves
+nothing. That was wrong, and it was wrong in the dangerous direction — it would have
+justified abandoning the rollback target. It is corrected here rather than deleted,
+because the way it went wrong is the reusable part.**
 
-| Probe | Result |
+The probes and what they appeared to show:
+
+| Probe | Appeared to show |
 |---|---|
-| `http://91.99.81.71/` (VPS, port 80) | **connect failure** — proxy returns Envoy's `upstream connect error … remote connection failure`, not a response from the host |
-| `https://91.99.81.71/` (VPS, port 443) | **`Connection reset by peer`** |
-| `http://1.1.1.1/` — control, IP-literal | `301` |
-| `http://213.55.96.154/` — control, the Plesk host by IP | `200` |
+| `curl http://91.99.81.71/` | `503`, Envoy's `upstream connect error … remote connection failure` |
+| `curl https://91.99.81.71/` | `Connection reset by peer` |
+| `curl http://1.1.1.1/`, `http://213.55.96.154/` — "controls" | `301`, `200` — taken as proof the vantage point reached arbitrary IPs |
 
-The two controls matter: they prove this environment reaches arbitrary IP-literal hosts,
-including the Plesk host, so the VPS result is a property of the VPS and not of the
-sandbox. It is also a *connect* failure rather than a `403`/`407`, so it is not a policy
-denial either.
+That looked like a clean negative with working controls. **It was not a measurement of the
+VPS at all.** This environment's egress gateway routes by **Host header and SNI, and
+ignores the destination IP**. Two checks establish it beyond argument:
 
-**So the VPS still serves nothing, 20 days after the 2026-08-29 measurement, confirmed
-from a second vantage point by a different route.** Scenario B has no target. Repointing
-DNS at `91.99.81.71` today converts one outage into two, and the TTL then caches it.
+1. **The TLS certificate presented for *both* IPs** is `subject=CN = *.ethr.et`,
+   `issuer=O = Anthropic, CN = Egress Gateway SDS Issuing CA (production)`, issued minutes
+   before the request. Not the real site's certificate — the gateway's.
+2. **Dialling `91.99.81.71:80` with `Host: example.com` returns example.com**, `server:
+   cloudflare`, `cf-ray` and all. The IP is discarded.
 
-**The one caveat, stated so the negative is not over-trusted:** a source-IP firewall would
-produce this same result for *this* vantage point while the host served others. That is
-why the owner should still confirm from their own network before acting on the negative in
-an incident. What has changed is the burden of proof — two independent vantage points,
-20 days apart, both find it closed, so **the rollback target should be treated as absent
-until someone demonstrates otherwise**, not the reverse.
+Which also explains the tell that should have been caught first: `91.99.81.71` and
+`213.55.96.154` returned **byte-identical** 404s — same `content-length: 808`, same
+`etag: "328-657701a10331b"`, same `last-modified`. Two independent hosts do not agree to
+that precision. They were the same backend, reached by name, twice.
 
-### And action 2's risk model is worse than the "placeholder" it hypothesised
+**So the "controls" were the error.** They were chosen to prove the *path* worked, and they
+did — by the same name-based routing that made the target unreachable. A control only
+controls for what it varies, and these varied nothing that mattered. The genuine control
+would have been the Host-header test above, which was run only after a contradiction
+forced it.
 
-Measured in the same pass:
+**0a therefore stands unanswered, exactly as before**, and the earlier passes' *"this
+environment cannot reach either host"* was substantively right. What is added is *why*, so
+the next pass does not spend the attempt again: **no agent environment behind this gateway
+can probe an IP as an IP.** 0a needs a human on an ordinary network, and the `curl -sI
+http://91.99.81.71/` in the queue below has to be run by one.
+
+**Nothing about the VPS is established here — not that it serves, not that it does not.**
+The repository's 2026-08-29 measurement remains the only evidence, uncorroborated.
+
+### What *is* established: the name-based findings, which do not depend on the IP
+
+These were measured by **name**, which is what a browser resolves too, so the gateway's
+routing does not invalidate them:
 
 | Host | Serves |
 |---|---|
-| `http://ethr.et/` → `https://www.ethr.et/` | **`404 Not Found`** — Plesk's own error page (`/error_docs/styles.css`) |
+| `http://ethr.et/` → `https://www.ethr.et/` | **`404 Not Found`** — Plesk's error page (`/error_docs/styles.css`) |
 | `https://ethr.et/`, `https://www.ethr.et/` | same `404` |
 | `http://zzq7x.ethr.et/` — a never-configured wildcard name | **`200`**, Plesk's *"Web Server's Default Page"* |
+| `getent hosts ethr.et` | `213.55.96.154`, agreeing with the 2026-09-17 reading |
 
 The domain is publicly live against an unverified deployment, and the apex does not serve
-a placeholder — it serves a **server error**. Anyone who visits `ethr.et` today gets
+a placeholder — it serves a **server error**. Anyone visiting `ethr.et` today gets
 "Server Error / 404 Not Found".
 
-**The wildcard result is the one specific to this product, and it is not recorded anywhere
+**The wildcard result is the one specific to this product, and it is recorded nowhere
 else.** ETHR is multi-tenant on subdomains. Every tenant subdomain currently resolves and
 answers **`200 OK`** with Plesk's default page — so any smoke test, uptime monitor or
 cutover check that asserts *"the tenant subdomain returns 200"* passes today against
