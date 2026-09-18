@@ -16,6 +16,29 @@ safe.
 `main`** — see "PARALLEL WORK MERGED TO MAIN" below. None of it depended on the hosting
 gates; all of it is correct regardless of where ETHR ends up deployed.
 
+### KNOWN BLOCKERS — recorded 2026-09-18, none resolvable from this repository
+
+An autonomous pass on 2026-09-18 was asked to carry the migration to completion,
+verify shared hosting, and remove the VPS assets. It could do none of those three,
+and the reasons are the same two facts each time. Recording them here so the next
+pass does not re-derive them:
+
+| # | blocker | why it cannot be cleared from here | what it blocks |
+|---|---|---|---|
+| **KB-1** | **Gate 0 has never been run against the account.** `deployment/GATE-0-RESULT.md`: *"Status: NOT RUN"*, *"Run by: owner (requires the Plesk account — this cannot be automated from the repository)"* | The four facts need the Plesk panel or an SSH session to `213.55.96.154`. No code path reaches them | Hosting verification; every downstream deployment decision |
+| **KB-2** | **The VPS/Docker production assets cannot be removed while KB-1 stands.** Root `CLAUDE.md` keeps them *"only until that cutover is verified"* | Deleting the working deployment path before the replacement is measured leaves the product with neither | VPS decommissioning |
+
+**What was done instead of stopping**: `deployment/VPS_DECOMMISSION.md` now carries the
+full inventory — what gets deleted, what only looks like it should (`docker-compose.yml`
+is the *only* supported local dev path and is not a VPS asset), which successor replaces
+each item, and the order. When KB-1 clears, the removal is a procedure to follow rather
+than an investigation to repeat.
+
+It also corrected one claim that would have made the removal look unsafe: §14 of
+`audit/BASELINE.md` said there was no non-Docker backup or restore path. There is —
+`ethr:backup` and `ethr:restore` are pure-PHP Artisan commands written for Plesk
+Scheduled Tasks. The `.sh` files are wrappers, not the capability.
+
 ### To resume the hosting migration, you need exactly four facts
 
 Everything else is decided (see DECISIONS TAKEN ON DELEGATION below). Nothing further

@@ -82,6 +82,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
 | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) | **Ready to send.** One ticket, three asks — cron, SSH, `TRIGGER`. Unblocks B-1, B-4 and G0-F |
 | [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, checklists. Procedures frozen until Gate 0 reports; facts corrected 2026-09-18 |
+| [`deployment/VPS_DECOMMISSION.md`](deployment/VPS_DECOMMISSION.md) | **What gets deleted when Gate 0 passes, and what only looks like it should.** Inventory, successors, removal order. Blocked, not forgotten |
 | [`HOSTING_VERIFICATION_CHECKLIST.md`](HOSTING_VERIFICATION_CHECKLIST.md) | ~60 capability rows, every one `NOT VERIFIED` |
 | [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) | Plan tiers and platform constraints |
 | [`SHARED_HOSTING_AUDIT.md`](SHARED_HOSTING_AUDIT.md) · [`SHARED_HOSTING_MIGRATION_PLAN.md`](SHARED_HOSTING_MIGRATION_PLAN.md) | What must change, and in what order |
