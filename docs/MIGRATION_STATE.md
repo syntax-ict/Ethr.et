@@ -1456,11 +1456,70 @@ deployment path to `/ethr/` so a redeploy cannot recreate it.
 `main`, in the wrong place. **U-5 is not resolved, it is inverted.** And this is the second
 irreversible action taken on `httpdocs/` without a prior disposability check, after **U-6**.
 
+### Containment — owner File Manager listing, 2026-09-18 ~16:00 host time
+
+The document root has been cleaned and the repository relocated. Recorded from the listing,
+which is output; the external HTTP confirmation is **still outstanding**, so containment is
+**not** marked VERIFIED.
+
+**What the listing shows resolved:**
+
+| | Evidence |
+|---|---|
+| `httpdocs/` cleaned | Now holds only `.well-known`, `cgi-bin`, `css`, `ethr.et`. No `api/`, `docs/`, `scripts/`, `src/`, `docker/`, `infrastructure/`, no loose `CLAUDE.md` / `docker-compose.*.yml` / `.env.production.example` |
+| **Certificate renewal intact** | `.well-known` survived the sweep — the one thing that must not have been deleted |
+| Repository relocated | `~/ethr/` (16:29) now holds `.githooks`, `.github`, `api`, `docker`, `docs`, `infrastructure`, `scripts`, `src` — the layout `DEPLOYMENT.md` §0 requires |
+| Deletion route | `.trash` updated 16:01, consistent with File Manager removal rather than a wipe |
+
+A deployment to `/ethr/` therefore **did** happen, and the earlier statement that nothing had
+been deployed is superseded by the listing. Recorded as evidence, not as a correction of
+anyone.
+
+#### NEW CONCERN — `~/ethr/` carries a document-root signature
+
+`~/ethr/` also contains **`cgi-bin`, `css`, `img`, `test`**, and **none of those four is in
+the repository** (checked against `origin/main`). They are the Plesk vhost skeleton — the
+same four that sit inside `httpdocs/ethr.et/`, the unidentified object recorded as **B-3**.
+
+The permissions agree:
+
+```
+httpdocs   rwx r-x ---   ethret  psaserv     <- known document root
+ethr       rwx r-x ---   ethret  psaserv     <- identical
+.composer  rwx r-x r-x   ethret  psacln      <- ordinary user directory
+git        rwx r-x r-x   ethret  psacln      <- ordinary user directory
+```
+
+`psaserv` plus `r-x ---` is Plesk's document-root pattern; ordinary content is `psacln` and
+world-readable. **So `~/ethr/` looks provisioned as a vhost root, not as a plain
+directory.**
+
+**If any domain or subdomain is rooted at `~/ethr/`, the exposure has moved rather than
+ended** — `~/ethr/scripts/hosting-verification/ethr-hosting-check.php` would be reachable
+again, at a different hostname. Graded **strong evidence, one confirmation short**, the same
+standard applied to G0-A and G0-D.
+
+**The confirmation is one panel page:** *Websites & Domains* — does any domain or subdomain
+list its document root as `/ethr` or `ethr`? If none does, `~/ethr/` is inert and
+containment is complete pending the HTTP check. If one does, that vhost must be repointed or
+removed before anything else.
+
+#### Still open after this listing
+
+- The three external `curl` checks (`/`, `/favicon.ico`, `/CLAUDE.md`) — **not yet run**.
+  `CLAUDE.md` returning 404 is what turns this from *looks cleaned* into *is cleaned*.
+- The earlier probe request returned **504 Gateway Time-out**, which was never resolved.
+  Note it is *consistent with the probe executing*: it makes three outbound calls with
+  6-second timeouts plus CPU and disk benchmarks. It was never evidence of absence.
+- **B-3 is unchanged** — `httpdocs/ethr.et/` is still present and still unidentified.
+- The GitHub deploy key is **read/write**. The plan's Git route only ever pulls, so
+  read-only suffices; write means a host compromise reaches the repository.
+
 ### What did not change
 
 No other gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
 unverified, and G0-E is still a version-only panel reading. **Gate 0 stands at 1 verified,
-1 failed, 28 outstanding.** Nothing is deployed.
+1 failed, 28 outstanding.** Nothing is deployed to a serving path.
 
 ---
 
