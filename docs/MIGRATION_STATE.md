@@ -858,6 +858,77 @@ observable, not merely whether it is possible.
 
 ---
 
+## STATIC EXPORT MEASURED, NOT ESTIMATED — 2026-09-18
+
+The repository builds for a target this account cannot host, and the documented cost of
+fixing that is wrong. Both measured by running builds here; no host involved.
+
+### `next.config.ts` still says `output: "standalone"`
+
+That is the **Node server** build — Branch A. Shared hosting runs no Node server, so as it
+stands **the frontend builds for a target the account cannot serve.** Branch B (static
+export) is the shared-hosting path, and it had never been attempted.
+
+**Baseline build: PASS.** `npm run build` on Node 22, exit 0, 90 routes prerendered,
+11 dynamic (`routes-manifest.json`), 1 server-rendered (`/register`).
+
+### Attempting `output: "export"` — three findings, in the order the build produced them
+
+| # | Blocker | In the documented estimate? |
+|---|---|---|
+| 1 | `/manifest.webmanifest` needs `export const dynamic = "force-static"` | **No — missing entirely** |
+| 2 | The four `[id]` routes are missing `generateStaticParams()` | Yes |
+| 3 | **All four are `"use client"`, and Next rejects `generateStaticParams` on a client component** | **No — and it invalidates the estimate** |
+
+Finding 3 verbatim from the build:
+
+```
+Error: Next.js can't recognize the exported `generateStaticParams` field in route.
+App pages cannot use both "use client" and export function "generateStaticParams()".
+  × 4
+```
+
+### Why that matters
+
+`SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
+*"`generateStaticParams` on four dynamic routes"* — four one-line additions. **That is not
+implementable as written.** `app/(dashboard)/{admin/tenants,devices,employees,payroll}/[id]/page.tsx`
+all open with `"use client"`, so the compiler rejects the addition outright.
+
+The real shape is a **split per route**: a server component that exports
+`generateStaticParams`, with the existing client component moved into a child. Four file
+splits with prop-threading, not four one-line edits.
+
+And the harder half is unchanged by any of that: **those IDs are tenant data.** Nothing can
+enumerate every employee, device, payroll run and tenant at build time, so
+`generateStaticParams` can only return `[]` — which builds, and then 404s every real
+`/employees/123`. Making those routes work under export means client-side routing that
+reads the id from the URL at runtime, which is a different and larger change again.
+
+### What was NOT done, deliberately
+
+The experiment was reverted in full — `git checkout -- src/`, working tree clean,
+`next.config.ts` back to `standalone`. **No Branch B work was implemented.** It is gated on
+G0-A and G0-G, both `NOT VERIFIED`, and on the Option A/B decision that has just returned
+No-Go. Implementing it now would be the speculative spend this file has just recommended
+against.
+
+What is delivered is the measurement: if Branch B is ever revisited, the cost line needs
+rewriting first, and the new blocker (`manifest.ts`) needs adding.
+
+### Repository-side compatibility — where it actually stands
+
+| Layer | State |
+|---|---|
+| **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Compatible.** Verified by CI and by reading the code |
+| **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
+| **Frontend** — Branch B (static export) | **Does not build.** Three blockers, one of which invalidates the costing |
+
+The backend half of "shared-hosting compatible by default" is done. **The frontend half is
+not, and now has a measured gap rather than an assumed one.**
+
+---
+
 ## THE PRE-REGISTERED DECISION RULE HAS FIRED — 2026-09-18
 
 Recorded because the owner asked for a decision, and one was already committed to in
