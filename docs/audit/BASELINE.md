@@ -121,9 +121,28 @@ Production: `laravel/framework`, `laravel/sanctum` ^4.3, `laravel/horizon` ^5.47
 
 Dev: `pestphp/pest`, `phpunit/phpunit` ^11.5.50, `larastan/larastan`, `laravel/pint`, `laravel/pail`, `laravel/sail`, `mockery`, `fakerphp/faker`.
 
-### 3a. BLOCKER — Horizon hard-requires two extensions shared hosting rarely has
+### 3a. ~~BLOCKER~~ — Horizon hard-requires two extensions shared hosting rarely has — **RESOLVED**
 
-**[verified]** `api/composer.lock:1999-2001`:
+> **Resolved, and this section was left reading as live. Corrected 2026-09-18.**
+>
+> Horizon was **removed** in `cdf85d1`. Re-verified today: `laravel/horizon` appears in
+> neither `composer.json` (`require` *or* `require-dev`) nor `composer.lock` (`packages`
+> *or* `packages-dev`), and a parse of every production package's platform requirements
+> finds **zero** hard `ext-pcntl` / `ext-posix` requires.
+>
+> §15 row 6 of *this document* already records it as Resolved with the lockfile parsed.
+> §3a and §13c did not carry the same note, so the same file said both things — and
+> `docs/CLAUDE.md` was repeating the live version, which is the copy every session reads
+> first.
+>
+> **Also checked, so it is not left hanging:** `SystemHealthService.php` and
+> `QueueHealth.php` still mention Horizon, but only in comments explaining its removal.
+> No code calls a Horizon class, so there is no runtime consequence.
+>
+> The evidence below is preserved as the original finding. The line reference no longer
+> resolves, because the package is gone.
+
+**[verified at the time]** `api/composer.lock:1999-2001`:
 
 ```json
 "name": "laravel/horizon",
@@ -727,7 +746,7 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 
 **Still NOT VERIFIED:** any of this on Ethio Telecom's server. 10.4.32 is the local XAMPP build; the documented target is MariaDB 10.11, and the host's version is unread (G0-E).
 
-### 13c. Horizon blocks `composer install` — see §3a.
+### 13c. ~~Horizon blocks `composer install`~~ — **RESOLVED**, see §3a and §15 row 6. Horizon was removed in `cdf85d1`; the lockfile carries zero hard `pcntl`/`posix` requires.
 
 ### 13d. Unindexable login lookups **[verified]**
 
