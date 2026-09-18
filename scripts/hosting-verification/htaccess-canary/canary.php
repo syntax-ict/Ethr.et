@@ -25,11 +25,28 @@ header('Content-Type: text/plain; charset=utf-8');
 
 $rewriteHit = isset($_GET['rewrite']);
 $shadowHit = isset($_GET['shadow']);
-$scriptDir = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
-if ($scriptDir === '' || $scriptDir[0] !== '/') {
-    // CLI has no SCRIPT_NAME worth using; show the intended deploy path instead
-    // of a mangled one, so the printed curl commands stay copy-pasteable.
+// Every check below is printed as a copy-pasteable URL, so getting this prefix
+// wrong turns all five into 404s against a path that does not exist — and the
+// canary reads a 404 on /REWRITE_OK as "mod_rewrite is NOT active", which would
+// be a false FAIL on G0-B.1.
+//
+// The subtlety is that an empty dirname does NOT mean CLI. Serving this from
+// the document root itself gives SCRIPT_NAME=/canary.php, dirname='/', and
+// rtrim leaves '' — which the previous test ('' -> fall back) mistook for CLI
+// and answered with the hardcoded '/ethr-canary'. Measured 2026-09-18 against
+// php -S: it printed http://host/ethr-canary/REWRITE_OK while actually serving
+// at /canary.php. Under the documented deploy (httpdocs/ethr-canary/) the old
+// code was right, so this only ever bit an operator who uploaded the four files
+// one directory up.
+//
+// So: ask the SAPI, not the string. '' is a legitimate answer meaning root.
+$rawScriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+if (PHP_SAPI === 'cli' || $rawScriptName === '' || $rawScriptName[0] !== '/') {
+    // Genuine CLI — there is no URL to derive. Show the intended deploy path so
+    // the printed commands are still copy-pasteable after filling in the host.
     $scriptDir = '/ethr-canary';
+} else {
+    $scriptDir = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname($rawScriptName)), '/');
 }
 $selfUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
     .'://'.($_SERVER['HTTP_HOST'] ?? '<host>')
