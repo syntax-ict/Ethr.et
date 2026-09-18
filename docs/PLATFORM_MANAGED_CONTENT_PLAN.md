@@ -239,7 +239,7 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | ~~**5**~~ | ~~Wire the marketing pages to the data~~ — **done, §8**. Pricing, metrics and contact read the database; the invented testimonial is **deleted** (it was still rendering when §8 claimed otherwise — see the correction there) | 2–3 |
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
-| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB | 3–4 |
+| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB, now **attributed** in `audit/BASELINE.md` §18a: 146 KB framework floor, 87 KB Sentry that cannot go without giving up tracing, and **64 KB of Zod on `/login`** — which §18a also shows is the *heaviest public route* at 462 KB, not the landing page | 3–4 |
 | ~~**9**~~ | ~~Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope~~ — **done, §11** | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
@@ -255,6 +255,32 @@ measurement found and the three it deliberately left open.
 By owner decision on 2026-09-17, Phase 8 ships as a **separate pull request**
 after the current one merges, so that branch stays reviewable as the locale and
 content change it already is.
+
+**Phase 8 groundwork, done 2026-09-18** (`audit/BASELINE.md` §18a). No bundle was
+cut yet; what changed is that the number now has an owner per kilobyte:
+
+- The 427 KB **reproduces** (428 KB on a fresh build), so the baseline holds.
+- **146 KB is the React/Next floor** and **87 KB is Sentry**, which `next.config.ts`
+  already documents as untouchable without dropping tracing — a product decision
+  that was not taken unilaterally. Together that is 233 KB of the 428 that Phase 8
+  cannot spend.
+- **The landing page was the wrong page to worry about.** `/login` is 462 KB and
+  `/register` 459 KB against `/[locale]`'s 389 KB, and they are public entry points
+  on the same networks.
+- **The one large removable dependency is Zod, 64 KB gzipped on `/login`.**
+  `zod/mini` ships in the installed 4.4.3. Converting the four auth forms is the
+  highest-value measured target and wants an e2e pass on the login flow; it is
+  recorded, not attempted.
+- **`npm run analyze` produces nothing** — Next 16 builds with Turbopack and the
+  analyzer is a webpack plugin. Use `next build --experimental-analyze` or
+  `.next/diagnostics/route-bundle-stats.json`. Phase 8 would otherwise have begun
+  by trusting a tool that measures nothing.
+
+Two of §18's three "left open" findings also closed: the `badge-72.png` 404 is
+**fixed**, and the `--text-secondary` contrast finding was **wrong and is
+withdrawn** — the colour it named is not in the codebase and the real token passes
+AA everywhere, which removes a "repaint the whole product" item from Phase 8's
+scope.
 
 ---
 

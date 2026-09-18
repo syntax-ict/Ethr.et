@@ -1202,21 +1202,100 @@ found at all.
    language" — WCAG 2.5.3, and a voice-control user could not say what they could
    see.
 
-### Three findings left open, deliberately
+### Three findings left open — two now closed, one corrected **[2026-09-18]**
 
-- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
-  below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
-  surface is marginally under. Lighthouse flags it intermittently, which is what a
-  4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
-  repainting the whole product — a Phase 8 decision, not a landing-page one. One
-  10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
-  the worst case; nothing else was touched.
-- **`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
-  `public/sw.js:110` reference it. Push-notification badges are therefore broken
-  app-wide. Not touched: it is service-worker behaviour, not the public site.
+- ~~**`--text-secondary` (#6c7b91) is 4.3:1 on white.**~~ — **this finding was
+  wrong, and is withdrawn.** `#6c7b91` appears nowhere in the repository; the only
+  occurrence is the sentence it was written in. The token's actual value is
+  `#64748b` (`styles/globals.css:178`) and it **passes AA on every surface it is
+  used on**, computed 2026-09-18 by the WCAG 2.x relative-luminance formula:
+
+  | foreground | surface | ratio | |
+  |---|---|---|---|
+  | `#64748b` | `#ffffff` (`--surface-primary`, `--surface-elevated`) | **4.759** | pass |
+  | `#64748b` | `#f8fafc` (`--surface-secondary`) | **4.548** | pass |
+  | `#94a3b8` (dark) | `#0f172a` / `#1e293b` / `#020617` | 6.96 / 5.71 / 7.87 | pass |
+
+  So the "repaint the whole product" decision this handed Phase 8 **does not
+  exist**. Two caveats kept rather than dropped: 4.548 is a thin margin, so a
+  future darkening of `--surface-secondary` would break it and is worth a guard;
+  and the remaining `text-muted-foreground` pairings with reduced opacity are all
+  `disabled:` states and form placeholders, which is why Lighthouse's flag was
+  intermittent rather than constant.
+- ~~**`/icons/badge-72.png` does not exist**~~ — **fixed 2026-09-18.** It is
+  referenced by `public/manifest.json` (`purpose: "monochrome"`, 72×72) and
+  `public/sw.js:110`, so every push notification requested a 404 badge. The file
+  now exists, derived from `icon-192.png` rather than drawn by hand: the icon is
+  bimodal in luminance over its opaque pixels — 80.1% brand background, 19.9% a
+  white glyph — so the badge is that glyph's silhouette, thresholded at
+  luminance ≥ 200 and alpha > 128, rendered white-on-transparent and resized to
+  72×72 (lanczos3). 13.5% of the canvas is ink, which is what a badge should be:
+  Android masks it by alpha, so a near-solid square would show as a blob.
 - **Two manifests.** `public/manifest.json` is the one linked from every page;
   `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
   Both serve 200. One of them is dead, and deciding which is a PWA question.
+  **Still open** — unchanged.
+
+### 18a. Phase 8 attribution — where the 428 KB actually is **[2026-09-18]**
+
+§18 measured the landing page at 427 KB gzipped and named Sentry's 87 KB. This
+is the rest of that number, attributed, so Phase 8 starts from evidence rather
+than from guessing which dependency is fat.
+
+**The baseline reproduces.** Re-running §18's own method on a fresh production
+build gives **428 KB gzipped / 1,415 KB raw** against the recorded 427 / 1,415 —
+the 1 KB is gzip level, not drift. The figure is trustworthy.
+
+| what | gzipped | can it be cut? |
+|---|---|---|
+| React + react-dom + Next runtime (one 146 KB chunk) | **146 KB** | No. This is the framework floor. |
+| Sentry | **87 KB** | **Not without giving up tracing** — see `next.config.ts`. `excludeDebugStatements` is already set, Replay is already verified absent, and the `instrumentation-client.ts` docblock argues the static import deliberately. Left alone. |
+| everything else on the landing page | ~195 KB | The only remaining surface. |
+
+**The finding §18 could not see, because it only measured the landing page.**
+Next 16 writes `.next/diagnostics/route-bundle-stats.json` — per-route first-load
+bytes and chunk paths, free with every build. Gzipping what it lists:
+
+| route | First Load JS (gz) |
+|---|---|
+| `/employees/[id]` (heaviest overall) | 527 KB |
+| **`/login`** | **462 KB** |
+| `/register` | 459 KB |
+| `/[locale]` (the page §18 measured) | 389 KB |
+| `/[locale]/pricing` | 387 KB |
+
+**`/login` is 73 KB heavier than the marketing pages**, and it is a public entry
+point reached on the same networks — so the audience §18 was worried about meets
+the *worst* public page, not the one that was measured.
+
+**64 KB of that is Zod.** Diffing `/login`'s chunks against `/[locale]`'s leaves
+7 login-only chunks totalling 119 KB, of which one is 63.9 KB gzipped (268 KB
+raw) and is Zod — 1,126 internal references, and the IPv4 and MAC-address regex
+literals are its built-in string validators. Four forms pull it in:
+`(auth)/login/login-form.tsx`, `register-form.tsx`, `login/forgot/forgot-form.tsx`
+and `login/reset/reset-form.tsx`. Twenty-seven files import it overall.
+
+**The lead, not yet taken:** the project is on Zod **4.4.3**, and `zod/mini` ships
+in that same install. It is a functional API rather than a chained one, so
+converting four auth forms is a real change with real regression surface, and it
+wants an e2e pass on the login flow before anyone believes it. Recorded as the
+highest-value measured Phase 8 target rather than attempted here.
+
+### `npm run analyze` has been doing nothing
+
+`package.json` defines `analyze: ANALYZE=true next build` and `next.config.ts`
+wraps the config in `@next/bundle-analyzer`. **It produces no report and exits 0.**
+Next **16.3.5 builds with Turbopack by default** — `next build --help` lists
+`--webpack` as the opt-out — and the analyzer is a webpack plugin, so it is never
+loaded. Nothing warns.
+
+Two replacements, both already available: `next build --experimental-analyze`
+(the help text says "Only compatible with Turbopack"), and the
+`route-bundle-stats.json` above, which needs no special build at all and is what
+the table was built from.
+
+This is the §12/§13 pattern again — a tool that reports success while measuring
+nothing — and it is why §18 had no per-route attribution to work from.
 
 ### The 403s in the report are not a defect
 
