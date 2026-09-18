@@ -858,6 +858,80 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE PRE-REGISTERED DECISION RULE HAS FIRED — 2026-09-18
+
+Recorded because the owner asked for a decision, and one was already committed to in
+writing before any evidence existed. This is not a new judgement; it is reading the rule
+that `SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
+
+### The rule
+
+| Gate | The plan's pre-registered consequence |
+|---|---|
+| **B3** cron | **"No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. **→ Option A"** |
+
+`B3` is `G0-D` (the disambiguation table at line 162 of this file). **G0-D is FAIL** — there
+is no Scheduled Tasks section on this subscription, read from the dashboard on 2026-09-18.
+
+**So the rule's own answer is Option A: stay on the VPS.** The value of pre-registering a
+decision is that it cannot be renegotiated once the answer is inconvenient, and this one is
+inconvenient.
+
+### Two things stop that from being final
+
+1. **G0-D is FAIL *as provisioned*, not *impossible*.** Scheduled Tasks is a service-plan
+   permission, so a support grant or a tier change flips it. That request is written and
+   unsent: [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md).
+   **It is the only thing that can reverse the rule.**
+2. **The decision belongs to the owner, not to this file.** What is recorded here is that
+   the criterion they set has been met, and what follows from it.
+
+### A second gate is pointing the same way
+
+**B2** (wildcard TLS) carries the same *"No-Go → Option A"* consequence, and G0-C's TLS row
+is `PARTIAL`: per-hostname certificates are **proven**, wildcard is **blocked** because the
+zone sits on `ns1`/`ns2.telecom.net.et` and Plesk cannot perform DNS-01. That is not fatal
+the way B3 is — tenants can be certificated one at a time — but it converts self-service
+tenant signup into manual operator work per tenant, permanently.
+
+Two of the four fatal gates now point No-Go. None points Go.
+
+### Option C is not the escape hatch
+
+The plan already rejected it, and the reasoning holds better now than when it was written:
+
+> *"Once a VPS is in the picture, Option A is strictly better. The VPS in this hybrid is
+> doing the hard part — Redis, workers, WebSockets, storage — while the shared host
+> contributes only PHP execution that the same VPS could do for free. The hybrid costs more
+> than the VPS alone, is harder to operate, and is slower."*
+
+Its stated exception is narrow: *"unless the requirement is specifically 'the domain and
+web tier must be hosted at Ethio Telecom' for a reason other than cost."* **If such a
+requirement exists — regulatory, contractual, data residency — it has never been recorded,
+and it would change this answer.** That is the one question worth putting to the owner
+rather than deciding for them.
+
+### What follows, in order
+
+1. **Send the support request.** One ticket, three asks. It is the only route to G0-D now
+   that Route D went with the Git repository, and it costs nothing to try.
+2. **Set a deadline on it.** No useful answer within a reasonable window means refused;
+   refused means the rule stands and the target is Option A.
+3. **Spend nothing further on Option B.** The repository is already Plesk-compatible and
+   that work does not rot — it is correct whenever this is revisited. But the static-export
+   refactor (B5 / Branch B) and anything else conditional on Option B should wait for an
+   answer to B3.
+4. **Answer B-6 now, and treat it as the top risk rather than a footnote.** Under Option A
+   the VPS is not a rollback target — **it is production** — and nobody has confirmed it is
+   still serving or what data it holds. `tin` and `national_id` are `encrypted` casts and
+   off-host backup was never configured, so its `APP_KEY` may be the only thing that can
+   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission.
+
+**No gate moved.** Gate 0 remains 1 verified, 1 failed, 28 outstanding. Recording that a
+decision rule has fired is not evidence about the host.
+
+---
+
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
 Everything resolvable from the repository has been done. These eight remain, in dependency
