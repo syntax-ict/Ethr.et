@@ -1139,6 +1139,64 @@ extensions or the database — which is the entire blocking set.
 `lin6` is worth keeping for one practical reason: it is the string to quote in a support
 request, alongside the now-correct `ethret`.
 
+## Gate 0 continuation run — 2026-09-18, `main` at `e6ad81c`
+
+Attempted to advance Gate 0 from the repository. **No gate moved, and none could have.**
+
+Every G0 row's evidence source was read from `GATE-0-RESULT.md`'s own Results table:
+`panel`, `canary` or `probe`. All three are host-side. **There is no G0 gate whose
+evidence can be produced from a checkout**, so a repository session cannot raise the count
+above 1/30 no matter how much it verifies. Recorded once here so nobody re-derives it.
+
+What a repository session *can* do is verify the claims the next gate's outcome depends
+on, before the panel window opens. Two of them were wrong.
+
+### Two stale counts, both on the path immediately after G0-D
+
+| Claim | Documents said | Actual | Source of truth |
+|---|---|---|---|
+| Scheduled entries | **11** | **14** | `api/routes/console.php` — 14 top-level `Schedule::` calls, none nested |
+| Queued job classes | **15** | **16** | `api/app/Jobs/` — 16 files |
+
+These matter *because* of where they sit. `deploy-checklist.md` makes the first one an
+**acceptance criterion** — *"`php artisan schedule:list` shows all 11 entries"* — run
+immediately after cron is configured, which is the step G0-D unblocks. An operator reading
+14 against a checklist that says 11 either stops to investigate a non-problem, or ticks the
+box at 11 and never notices the other three. Both waste the window G0-D exists to protect.
+
+The three entries the figure missed are visible in the file and look like ordinary drift
+rather than an error: `ethr:backup` (line 103), the `QueueHealth::beat()` heartbeat
+(line 117), and one of the `Schedule::call` closures. The documents were written before
+them and never re-counted.
+
+Corrected in the eight editable occurrences across `SHARED_HOSTING_AUDIT.md`,
+`PRODUCTION_CHECKLIST.md`, `B1-B5_GATE_REPORT.md`,
+`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` and
+this file.
+
+**Three occurrences remain wrong, all inside the frozen directory** — and one of them is
+the acceptance criterion itself:
+
+| File | Line | What it says |
+|---|---|---|
+| `shared-hosting/deploy-checklist.md` | 78 | *"`schedule:list` shows all 11 entries"* — the acceptance criterion |
+| `shared-hosting/ENVIRONMENT.md` | 174 | *"that file's 11 entries"* |
+| `shared-hosting/DEPLOYMENT.md` | 362 | *"the 11 entries in …"* |
+
+A count being stale is branch-independent but does **not** block Gate 0, so it fails the
+freeze exception test, exactly as the `ethret` username correction did. It rides the same
+rewrite. **Until then, read 14 wherever those three say 11.**
+
+### Where this run stopped, and why
+
+**G0-D — Scheduled Tasks.** It is the next gate in the MANUAL ACTION QUEUE that is
+reachable at all (0a and 0b concern the VPS, which this environment also cannot reach —
+the gateway denies `CONNECT` by policy, and a proxy 403 is not a host result). G0-D's
+evidence source is `panel`. There is no repository substitute, and inventing one would be
+the precise failure this document exists to prevent.
+
+Stopped there. Not marked verified, not marked failed, not marked anything.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
@@ -1238,7 +1296,7 @@ Telecom Plesk account**, not further analysis.
 | --- | --- | --- | --- |
 | R1 | No wildcard subdomain → self-service signup creates unreachable tenants | **Critical** | **RESOLVED, PASS.** DNS wildcard confirmed externally; Plesk confirmed by owner to accept `*` as a subdomain name. |
 | R2 | No wildcard TLS → `SESSION_SECURE_COOKIE=true` withholds the auth cookie | **Critical** | **Downgraded to Medium.** Wildcard itself still unverified, but a working per-hostname Let's Encrypt cert already exists on this account, proving the HTTP-01 per-tenant fallback works — so the *fatal* form of this risk (no valid TLS at all) no longer applies; what remains is whether the fallback needs per-signup automation. |
-| R3 | No cron → 11 scheduled entries and all queued work stop | **Critical** | Unverified — still the top open item |
+| R3 | No cron → 14 scheduled entries and all queued work stop | **Critical** | Unverified — still the top open item |
 | R4 | `CREATE TRIGGER` denied → audit log not immutable | **Critical** | Still unverified live, but the code-side risk is resolved: D8 reverted the mitigation back to fail-fast-with-diagnosis, so a denial now blocks deployment loudly rather than degrading the guarantee silently. |
 | R5 | `max_execution_time` too low for payroll and imports | High | Unverified |
 | R11 | **Shared hosting may cost more than the VPS** | **High** | Public data contradicts itself; unresolved |

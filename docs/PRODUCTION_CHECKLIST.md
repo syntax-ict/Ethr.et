@@ -23,7 +23,7 @@ technical pass) and after DNS cutover, against the real `www.ethr.et` domain.
 | 13 | File storage works | ◐ | Made configuration-driven (was hardcoded to `minio`); not yet exercised against the actual `local`/S3 disk on the target host |
 | 14 | Email works | ⬜ | Needs real SMTP credentials — nobody has supplied them; code path unchanged from the working VPS configuration |
 | 15 | Background jobs work | ◐ | `QUEUE_CONNECTION=database` needs zero code change (verified: no `Redis::` calls anywhere); needs cron actually configured (B3) to run at all |
-| 16 | Scheduled jobs work | ◐ | Same as #15 — the 11 entries in `routes/console.php` are unchanged; delivery mechanism depends on B3 |
+| 16 | Scheduled jobs work | ◐ | Same as #15 — the 14 entries in `routes/console.php` are unchanged (re-counted 2026-09-18; this row said 11); delivery mechanism depends on B3 |
 | 17 | Realtime functionality works OR has an approved external equivalent | ✅ **equivalent approved** | `BROADCAST_CONNECTION=log`; every notification's broadcast leg already guards on this; the one frontend consumer already falls back to its existing 30s poll on failure — this was a design review, not a code change |
 | 18 | Amharic works | ✅ | Untouched; `i18n` gate green |
 | 19 | Ethiopian calendar works | ✅ | Untouched |

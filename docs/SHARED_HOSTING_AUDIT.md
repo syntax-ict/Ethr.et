@@ -38,7 +38,7 @@ Verified from `docker-compose.prod.yml`, `infrastructure/nginx.conf`,
   worker-realtime        ┐
   worker-notifications   ├─ Horizon supervisors (6), consuming redis queues
   worker-heavy           ┘
-  scheduler               ── `php artisan schedule:work` (11 scheduled entries)
+  scheduler               ── `php artisan schedule:work` (14 scheduled entries)
 ```
 
 **Service inventory (`docker-compose.prod.yml`):** `nginx`, `api`, `worker-realtime`,
@@ -99,7 +99,7 @@ schema-sufficient.
 | **Redis (rate limiting)** | No | `RateLimiter` over the cache store | — | Follows `CACHE_STORE`. 10 named limiters in `AppServiceProvider`, all driver-agnostic. |
 | **Laravel Horizon** | **No — it is a Redis-queue runner** | 6 supervisors, `config/horizon.php` | Needs Redis + long-running processes | Replace with cron-driven `queue:work --stop-when-empty`. The *dashboard* is lost; the *jobs* are not. |
 | **Queue workers** | **Yes — 15 job classes** | 3 worker containers | Long-running daemons **UNKNOWN** | Cron every minute: `queue:work --stop-when-empty --max-time=55`. |
-| **Scheduler** | **Yes — 11 entries** | `schedule:work` container | Needs one cron entry | Standard `* * * * * php artisan schedule:run`. **UNKNOWN** whether the plan offers cron. |
+| **Scheduler** | **Yes — 14 entries** | `schedule:work` container | Needs one cron entry | Standard `* * * * * php artisan schedule:run`. **UNKNOWN** whether the plan offers cron. |
 | **Reverb / WebSockets** | **No — enhancement only** | `reverb` container, `/app` upgrade | Shared hosting cannot hold a WS listener | `BROADCAST_CONNECTION=log`. Already guarded in application code — see §C. |
 | **MinIO / S3** | Files yes; the *implementation* is swappable | `minio` disk, presigned URLs | Object storage not offered; local disk is | Repoint the `minio` disk env at any S3-compatible endpoint, **or** switch to the `local` disk (Laravel 11+ `serve => true` gives signed local `temporaryUrl`). One line either way — see §D. |
 | **Nginx** | No | 3 server blocks | Plesk fronts with nginx + Apache; `.htaccess` honoured | Translate the rules to `.htaccess` plus Plesk vhost settings. |
@@ -177,7 +177,7 @@ capability, the dependency is named.
 | Reports / scheduled reports | 🟡 YELLOW | `RunScheduledReportsJob` runs hourly — scheduler-dependent. |
 | Dashboard digests | 🟡 YELLOW | `RunDashboardDigestsJob`, hourly — scheduler-dependent. |
 | **Background jobs (15 classes)** | 🟡 YELLOW | Fully preserved on `QUEUE_CONNECTION=database` **provided cron exists**. Zero code change. |
-| **Scheduled jobs (11 entries)** | 🟡 YELLOW | Needs exactly one cron entry. **RED if cron is unavailable** — leave accrual, invoicing, anomaly scans and cleanup all stop. |
+| **Scheduled jobs (14 entries)** | 🟡 YELLOW | Needs exactly one cron entry. **RED if cron is unavailable** — leave accrual, invoicing, anomaly scans and cleanup all stop. |
 | Object storage (MinIO) | 🟡 YELLOW | Replaceable by external S3 or the local disk. |
 | Search | 🟢 GREEN | MySQL FULLTEXT. No Elasticsearch, no Scout. |
 | Ethiopian calendar | 🟢 GREEN | Pure computation — `lib/calendar/ethiopian.ts` + `CalendarService`. |
@@ -307,7 +307,7 @@ Not answerable from the codebase. Listed with a verification procedure in
 
 1. Does the plan support **wildcard subdomains** (`*.ethr.et`) with a **wildcard TLS
    certificate**? Without this, SaaS tenant hosts do not work.
-2. Is there **cron**? Without it, 11 scheduled entries and all 15 queued jobs stop.
+2. Is there **cron**? Without it, 14 scheduled entries and all 16 queued jobs stop.
 3. Is there a **Node.js runtime** (Plesk Node.js extension)? Determines Option B1 vs B2.
 4. What **PHP version and extension set**? `>= 8.2` with `gd` is mandatory.
 5. Can the DB user **`CREATE TRIGGER`**? Determines whether migrations run at all.

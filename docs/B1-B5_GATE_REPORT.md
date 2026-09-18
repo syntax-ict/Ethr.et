@@ -351,7 +351,7 @@ by Let's Encrypt (50 certs/domain/week), and adds a failure mode to tenant provi
 
 ### Why it is load-bearing
 
-11 scheduled entries in `routes/console.php` and 15 queued job classes. Without cron:
+14 scheduled entries in `routes/console.php` and 16 queued job classes. Without cron:
 no leave accrual, no carry-forward, no monthly invoicing, no overdue-invoice handling,
 no attendance-anomaly scan, no missing-punch scan, no scheduled reports, no dashboard
 digests, no approval reminders, no data cleanup — **and no queued email is ever sent**,
