@@ -58,6 +58,23 @@ distinguishes "the rules are in place" from "the rules are ignored and nothing s
       redeploy the frontend. This is the silent one: the site is fully functional either
       way, and nothing logs the difference.
 - [ ] `curl -si https://www.ethr.et/sitemap.xml | head -1` → 200, and the body is XML
+- [ ] **The pricing snapshot was regenerated if any plan price, limit or feature
+      changed since the last deploy** — `node scripts/fetch-plans-snapshot.mjs
+      --api https://www.ethr.et`, then commit `src/src/lib/marketing/plans-snapshot.json`
+      and rebuild the frontend. Verify with
+      `curl -s https://www.ethr.et/en/pricing | grep -o '[0-9,]\+ ETB' | head -3`
+      against the catalog in `/admin/plans`.
+
+      This is the one public-path check that fails **silently and only for
+      machines**. Per D5 the page revalidates on the client, so a human opening
+      `/pricing` always sees the live price; the prerendered HTML a crawler,
+      a link preview or a social card unfurl receives is the committed snapshot.
+      An admin can therefore change a price, see it correct in their own browser,
+      and have Google and every shared link keep quoting the old one indefinitely.
+
+      The script's own header anticipated this: *"once plan editing has an admin
+      UI, [run this] as part of the deploy step."* Phase 3 shipped `/admin/plans`,
+      so that condition is met and this is that step.
       with `<urlset`, not an HTML 404 page
 - [ ] `curl -si https://www.ethr.et/api/v1/ping | head -1` → 200 — proves the three
       repointed `require` paths in `~/httpdocs/index.php` all resolve (step 4a)
