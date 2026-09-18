@@ -700,6 +700,38 @@ This is recorded because `phpdbg` being on PATH makes the dodge look available, 
 
 Frontend coverage is unaffected — Vitest uses v8 coverage and needs no extension.
 
+**The extension is not the obstacle it reads as — tested 2026-09-18.** This section
+ends on "requires PCOV or Xdebug installed into the PHP runtime", which sounds
+environmental. Two things were checked:
+
+1. **PCOV works against this codebase.** Built from source (`git clone
+   https://github.com/krakjoe/pcov && phpize && ./configure --enable-pcov && make`),
+   loaded with `php -d extension=…/pcov.so`, `pcov.enabled=1`, and the Pest suite
+   starts and runs under it. Nothing in this project resists instrumentation.
+   Note the flag: `--coverage` alone is rejected as *"ambiguous"* — Pest wants
+   `--coverage-text --only-summary-for-coverage-text`.
+2. **CI is one word away.** All three `shivammathur/setup-php@v2` steps in
+   `gates.yml` (lines ~76, ~148, ~265) set `coverage: none`. That action installs
+   PCOV when given `coverage: pcov` — no build step, no Dockerfile, no apt.
+
+So the blocker is a decision, not a missing capability.
+
+**It was deliberately not flipped here**, for the reason this repository already
+applies to `security` and `performance`: coverage roughly doubles the backend job,
+and at present *nothing consumes the number* — no threshold, no upload, no trend.
+Adding that cost to the blocking sweep buys a figure nobody reads, which is how a
+gate stops being read. If backend coverage is wanted it belongs where those two
+already are: outside `gates.sh`'s full sweep, as its own scope, run when somebody
+wants the answer.
+
+**A first backend figure still does not exist**, and this pass did not produce one.
+The run was started under PCOV and abandoned unfinished: this container executes
+only while a tool call is in flight, so the suite accrued about ten seconds of CPU
+per call against the several hundred it needs. That is an artefact of where this
+was attempted, not of the tooling — on CI or a developer's machine the run is
+ordinary. Recorded so the next attempt starts from "flip the flag" rather than
+from `phpdbg`.
+
 ---
 
 ## 13. Known blockers
@@ -890,7 +922,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2; first fully green run #66 on 2026-09-16**, and green on every `main` commit since (run #173 on `f25baef`) | `.github/workflows/` **[verified]** | Resolved |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend still blocked on PCOV or Xdebug (§12e) |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend has **no figure yet**, but is no longer *blocked*: PCOV was verified working against this codebase on 2026-09-18 and CI's `setup-php` takes `coverage: pcov` as a one-word change (§12e). What remains is the decision of where to run it, not a missing capability |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
