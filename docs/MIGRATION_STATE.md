@@ -219,7 +219,30 @@ Owner said "decide for me". These are settled; they are not open questions.
 
 ## IN PROGRESS
 
-Nothing. **The full deployment package is now built and merged** —
+### Reconciled 2026-09-17 — the deployment package had a missing step, now closed
+
+`DEPLOYMENT.md` §0 drew the document root; **no step in the runbook assembled it**. Every
+rule G0-B measures is inert until `~/httpdocs/` exists, so the gate rested on a step that
+did not. Written as **step 4a**, plus an enforceable control and one new canary check.
+
+| | |
+| --- | --- |
+| **Status** | Closed. PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
+| **Gates moved** | **None.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk account. `G0-B.5` is new and equally unverified. |
+| **Freeze** | One narrow exception taken and recorded at `deployment/GATE-0-RESULT.md` → *After the run* item 5. The freeze otherwise stands. |
+| **Detail** | `MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
+| **Enforcement** | `api/tests/Feature/DocumentRootInventoryTest.php` pins `api/public/` against a manifest, so a file cannot arrive in the document-root decision set unnoticed. It found one of the four defects on its first run. |
+
+**PR #17 (tenant public pages) untouched.** Open, unmerged, separate workstream, and it
+changes no file this run touched — its routing table lives in a new
+`docs/TENANT_PUBLIC_PAGES.md`. Its five paths are **tenant-host** rules routing to
+Laravel; two share a name with rows in step 4a's **platform-host** table, so that table
+now names its vhost on its face. When PR #17 merges, step 4a needs a pointer to it, not a
+copy of its rows — one table authoritative per vhost.
+
+---
+
+**The rest of the deployment package is built and merged** —
 `docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
 `docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the

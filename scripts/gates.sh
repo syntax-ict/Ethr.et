@@ -458,8 +458,34 @@ fi
 # blocking sweep for that reason, but they are reachable by name now: audit finding
 # F-6 was "ResponseTimeTest is not wired into any suite", and running it exactly
 # once by hand closed the measurement without closing the hole.
+#
+# Native-first, for the same reason `pest_gate` and `phpstan_gate` are. This
+# delegated to pest-isolated.sh unconditionally, which requires a running
+# `et-api-1`, so `gates.sh performance` was unrunnable on any machine without
+# Docker — including every CI runner, and including a developer machine with
+# native PHP and Docker stopped. That is the identical defect that left PHPStan
+# unable to pass in CI for fifty runs (see phpstan_gate above), missed here
+# because this scope sits outside the blocking sweep and so nobody ran it.
+#
+# It is why BASELINE §13e read "no performance baseline exists": the gate that
+# was supposed to produce one could not start.
+performance_gate() {
+    if have_php; then
+        (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest tests/Performance)
+        return $?
+    fi
+
+    if container_up; then
+        bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
+        return $?
+    fi
+
+    no_php_msg
+    return 1
+}
+
 if [[ "$SCOPE" == "performance" ]]; then
-    run_gate "Pest (performance budgets)" bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
+    run_gate "Pest (performance budgets)" performance_gate
 fi
 
 # Opt-in, never part of `all`, for the same reason as `mysql`: it needs a built

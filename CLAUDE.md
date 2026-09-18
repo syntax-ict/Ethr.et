@@ -61,6 +61,14 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ```
 
+`performance` is outside the full sweep too, and was **unrunnable without Docker
+until 2026-09-17** — it delegated unconditionally to `pest-isolated.sh`, the same
+defect that kept PHPStan from ever passing in CI (cause 3 below). It is now
+native-first like the others, and it prints what it measured rather than only
+whether it passed, so the output is a baseline you can compare against. First one
+recorded in `docs/audit/BASELINE.md` §13e: the tightest route uses 13% of its
+budget on this hardware.
+
 `security` is deliberately outside the full sweep, like `performance`. It goes
 red when a third party publishes an advisory, not when you break something, and
 a gate that is permanently red stops being read. **It is green as of 2026-09-16**
