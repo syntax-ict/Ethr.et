@@ -249,7 +249,7 @@ did not. Written as **step 4a**, plus an enforceable control and one new canary 
 
 | | |
 | --- | --- |
-| **Status** | Closed. PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
+| **Status** | **Merged 2026-09-18 as `e7e0199`.** PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
 | **Gates moved** | **None.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk account. `G0-B.5` is new and equally unverified. |
 | **Freeze** | One narrow exception taken and recorded at `deployment/GATE-0-RESULT.md` → *After the run* item 5. The freeze otherwise stands. |
 | **Detail** | `MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
@@ -706,17 +706,31 @@ known unresolved and consciously left*. Listed so none of them becomes a surpris
 
 | # | Unfixed | Why it is held | What changes it |
 | --- | --- | --- | --- |
-| **U-1** | **None of this session's corrections are on `main`.** PR #19 and #20 are green and unmerged, so `main` still carries: §0's file list telling you to copy `robots.txt` into the document root, no step 4a at all, an 18-extension probe list **missing `simplexml`**, Node "≥ 20.9", a canary without `shadow.txt`, and no manual action queue. An operator working from `main` today gets the defective procedure. | Merging is the owner's decision, not mine | Merge #19, then #20 |
+| ~~**U-1**~~ | ~~**None of this session's corrections are on `main`.**~~ **RESOLVED 2026-09-18.** Both PRs merged in the order this row prescribed: **#19 → `e7e0199`**, **#20 → `7fb91cc`**. `main` now carries step 4a, the 20-extension probe list including `simplexml`, the five-check canary, the manual action queue, and the blocker register. The defective procedure is no longer what an operator gets from `main`. | — | Done |
 | **U-2** | **`DEPLOYMENT.md` steps 3 and 4 describe a procedure nobody can perform here** — `rsync` over SSH, `artisan` over SSH — on an account where SSH is Forbidden | Freeze discipline. The exception test is *branch-independent **and** blocks Gate 0*; this is branch-independent but does not block Gate 0. Rewriting before the SSH question resolves means writing it twice | SSH granted → steps stand as written. SSH refused → rewrite around Git + Composer + a task runner |
 | **U-3** | **B-4 — nothing can run `artisan`.** `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner. The Git route delivers code and Composer delivers `vendor/`; neither executes anything | External capability, not a repository defect | Manual queue #1 (command-type Scheduled Task) or #2 (SSH) |
 | **U-4** | **B-3 — `httpdocs/ethr.et/` is an unidentified Plesk object** with its document root inside `httpdocs/` | Identification needs the panel. Deleting a vhost is not deleting a folder, so it is not being touched on a guess | Manual queue #5 |
 | **U-5** | **The host carries a Git deployment at `716ab93`, 47 commits behind `origin/main`** | Not reconciled, and reconciling it before Gate 0 would deploy an unverified configuration | Gate 0 completing, then a deliberate first deployment |
 | **U-6** | **`httpdocs/public/` and `httpdocs/et/` were removed without the disposability confirmation `B1-B5_GATE_REPORT.md` required** | Irreversible. `et/` was recorded empty; `public/` was never inspected | Nothing — recorded as a permanent gap rather than quietly dropped |
 
-**U-1 is the one with a deadline.** Every other entry waits on evidence or on a decision
+~~**U-1 is the one with a deadline.** Every other entry waits on evidence or on a decision
 with no cost to delay. U-1 degrades: the longer the corrections sit on branches, the more
 likely someone runs Gate 0 from `main` and gets the four-check canary, the missing
-`simplexml` row, and the instruction to copy `robots.txt` into the document root.
+`simplexml` row, and the instruction to copy `robots.txt` into the document root.~~
+
+**That deadline was met on 2026-09-18.** `main` is `7fb91cc`. Nothing in this register
+still degrades with time: **U-2** through **U-6** all wait on evidence, on an external
+capability, or on a decision that costs nothing to defer — and **U-6** is a permanent
+record rather than a task. The remaining register is genuinely blocked, not merely
+un-started.
+
+Two consequences worth stating, because "merged" is easy to over-read:
+
+- **No gate moved.** G0-A through G0-J are still `NOT VERIFIED`. What merged is a
+  *corrected procedure*, not a verified one. The Plesk account is still what Gate 0 needs.
+- **The host's Git deployment is now further behind, not closer.** `U-5` records it at
+  `716ab93`; `main` has moved twice since that was written. Reconciling it still waits on
+  Gate 0 — deploying now would push an unverified configuration onto the target.
 
 ### Production env template — completeness checked 2026-09-17
 
@@ -860,7 +874,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
 | **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php` | The full output. Open it with **no query string**; **delete the file in the same sitting** | Upload then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
-| **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**, and without it you run four checks, not five |
+| **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take **all five** files from `main` — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `README.md`. ~~Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**~~ *(corrected 2026-09-18: it is, since `7fb91cc`; the branch is merged and this row would have sent you to a stale copy).* Miss `shadow.txt` and you run four checks, not five |
 | **8** | **Wildcard subdomain** | Websites & Domains → *Add Subdomain*, name it `*` | What the panel does when you save | Yes — create it | **G0-C**. **Only after 5**: adding a subdomain while an unexplained `ethr.et` object exists would compound B-3 |
 
 **Highest value is action 1.** Without a shell, Scheduled Tasks is the only route to run
