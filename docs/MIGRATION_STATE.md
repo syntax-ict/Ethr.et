@@ -868,7 +868,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | --- | --- | --- | --- | --- | --- |
 | **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
-| **1** | **Scheduled Tasks capability** — **and, on the same visit, whether a database UI (phpMyAdmin) exists** | Websites & Domains → *Scheduled Tasks*; then look for a *Databases* section | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
+| ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
@@ -1222,6 +1222,82 @@ sixteen criteria need the host and stay unverified.
 as `'/ping'` with a leading slash. Reported as missing, that would have sent someone
 hunting for a route that exists. A grep that finds nothing is not evidence of absence
 until the pattern has been checked against the thing it is meant to match.
+
+## G0-D ANSWERED 2026-09-18 — FAIL. There is no Scheduled Tasks section.
+
+**Evidence (owner-read, subscription dashboard).** The account's tool listing shows: Files,
+Databases, FTP, Backup & Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs,
+Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories. It shows **no
+Scheduled Tasks, no Task Scheduler, no Cron Jobs**. *Dev Tools* was read separately on
+2026-09-17 and holds PHP, Git and Composer — no Terminal, no cron.
+
+Graded **FAIL — strong evidence, one confirmation short**, deliberately matching how G0-A
+was graded on the identical pattern: a complete-looking panel page with the one field we
+need conspicuously absent. In Plesk, *Scheduled Tasks* is gated by a service-plan
+permission. Its absence means **this plan does not grant it**, not that the server lacks
+cron — which is why the remedy is a support request, not a code change.
+
+### What this costs, stated plainly
+
+G0-D was carrying four blockers. All four now fail together, and one of them is fatal
+rather than degrading:
+
+| | Without cron **and** without SSH |
+|---|---|
+| **Scheduler** | The **14** entries in `routes/console.php` never run: leave accrual, carry-forward, invoicing, overdue handling, attendance-anomaly and missing-punch scans, scheduled reports, dashboard digests, approval reminders, cleanup, `ethr:backup`, the queue heartbeat |
+| **Queue** | The **16** job classes never process. `QUEUE_CONNECTION=database` with nothing draining it means **no queued email is ever sent** |
+| **Backup / restore** | `ethr:backup` and `ethr:restore` are plain PHP CLI by design — and there is no CLI |
+| **Observability** | `health-check.md`'s two primary checks are SQL, with no verified route to run SQL |
+| **Deployment itself** | **`key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner.** This is not a degraded feature. Without it the application cannot be *initialised at all* |
+
+The last row is the one that changes the decision. Every other consequence is "the product
+runs badly". That one is "the product cannot be installed".
+
+### The plan's own position on this
+
+`SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
+scheduled entries and all 16 queued jobs stop."* `ETHIO_TELECOM_…_COMPATIBILITY.md` B3
+lists the same, ending *"**and no queued email is ever sent**."* `GATE-0-RESULT.md`'s
+consequence column says the scheduler and queue *"move behind an authenticated HTTP
+endpoint. **Unbuilt; must be costed.**"*
+
+So this outcome was anticipated and costed as a risk. It has now occurred. **Option B is
+not performable on this account as currently provisioned** — that is a statement about the
+provisioning, not about the plan or the code.
+
+### Three routes out, in the order they should be attempted
+
+**1 — Check Plesk Git → *additional deployment actions*. Free, the panel is already open,
+and this file flagged it on 2026-09-17 as the one unknown that could supply an `artisan`
+runner.** Plesk's Git extension can run shell commands after each deployment. If that field
+exists on this plan it solves the **fatal** row above — `migrate`, `key:generate`,
+`db:seed` and `ethr:create-admin` all run once, at deploy time.
+
+It does **not** solve the scheduler or the queue, because deployment actions fire on
+deployment, not on a schedule. Treat it as the difference between *cannot install* and
+*installs but the asynchronous half is dead*.
+
+**2 — One support request to Ethio Telecom, three asks.** Account `ethret`, server
+`lin6.ethiotelecom.et`:
+
+- enable **Scheduled Tasks / cron** for this subscription — this is the one that matters;
+- enable **SSH access** for `ethret` (clears B-1 and B-4 outright, and gives crontab);
+- grant **`TRIGGER`** to the database user (**G0-F**; the audit-log migration aborts the
+  entire run by design without it — `AUDIT_LOG_INTEGRITY_DECISION.md`).
+
+Either of the first two alone substantially unblocks the migration. None is a code change.
+
+**3 — If both are refused, the architecture decision reopens.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+already costed the alternatives: **Option A** (stay on the VPS) and **Option C** (shared
+hosting plus a small VPS for cron and queue only). Option C is the cheaper of those and
+exists in the plan precisely for this outcome. That is an owner decision and nothing here
+pre-empts it.
+
+### What did not change
+
+No other gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
+unverified, and G0-E is still a version-only panel reading. **Gate 0 stands at 1 verified,
+1 failed, 28 outstanding.** Nothing is deployed.
 
 ---
 

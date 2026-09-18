@@ -395,7 +395,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-A** | reverse proxy for `/api/` | permitted | neither directive textarea present on the settings page (2026-09-17) — **strong evidence of FAIL, unconfirmed** | NOT VERIFIED | panel |
 | **G0-C** | wildcard subdomain `*` as one vhost | works | DNS half **PASS** (2026-08-29, re-confirmed 2026-09-17); panel accepts `*` per **owner report**, not a measurement; vhost not yet created | PARTIAL | B1-B5 + panel |
 | G0-C | wildcard TLS | issued | per-hostname **PROVEN**; wildcard blocked, needs DNS-01 | PARTIAL | B1-B5 |
-| **G0-D** | cron type | "Run a command" | | NOT VERIFIED | panel |
+| **G0-D** | cron type | "Run a command" | **No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the subscription dashboard** (owner-read 2026-09-18). The listing is otherwise complete — Files, Databases, FTP, Backup &amp; Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories — and *Dev Tools* was separately read on 2026-09-17 (PHP, Git, Composer; no Terminal). | **FAIL — strong evidence, one confirmation short** | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
 | **G0-G** | Node.js (build only) | >= 20.9 is Next's floor — **this repo pins 24**, see below | | NOT VERIFIED | probe / panel |
