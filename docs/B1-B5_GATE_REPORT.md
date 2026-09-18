@@ -11,8 +11,8 @@ weigh. That is recorded per gate below.
 ## Target account (supplied by owner, 2026-08-29)
 
 ```
-Username    etrhet
-Server      line6.ethiotelecom.et   (internal name — does not resolve publicly)
+Username    ethret
+Server      lin6.ethiotelecom.et   (internal name — does not resolve publicly)
 IP          213.55.96.154           (AS24757 Ethio Telecom, Addis Ababa)
 Plan        Linux Bronze (shared, Plesk)
 ```
@@ -20,10 +20,10 @@ Plan        Linux Bronze (shared, Plesk)
 | Gate | Subject | Status | On failure |
 | --- | --- | --- | --- |
 | **B1a** | Wildcard **DNS** | ✅ **VERIFIED — PASS** | — |
-| **B1b** | Wildcard **vhost** in Plesk | ✅ **VERIFIED — PASS** (owner: `*` accepted; not yet created) | — |
+| **B1b** | Wildcard **vhost** in Plesk | ⚠️ **PARTIAL — downgraded 2026-09-18** (~~✅ VERIFIED — PASS~~) Rests on an **owner report** that `*` was accepted, not on recorded output, and the vhost **has never been created**. `GATE-0-RESULT.md` grades the same fact **PARTIAL** under its own rule that *testimony is not output* — same defect class as the SSH row below. Resolved by creating the subdomain and recording what the panel does (queue item 8). | — |
 | **B2** | Wildcard TLS | ⚠️ **PARTIALLY VERIFIED** — LE works, wildcard needs DNS-01 | HTTP-01 per-tenant — **proven on this account** |
 | **B3** | Cron | 🔲 NOT VERIFIED | Scheduler/queue over authenticated HTTP endpoint |
-| **B4** | PHP ≥ 8.2 + extensions + GD | 🔲 NOT VERIFIED | Blocking — no fallback |
+| **B4** | PHP ≥ 8.2 + extensions + GD | ⚠️ **PARTIAL** — version **VERIFIED 8.3.33** (panel, 2026-09-17); the **20 mandatory extensions and the limits are still unmeasured** and need the probe. Now gate **G0-E**. | Blocking — no fallback |
 | **B5** | Node.js runtime | 🔲 NOT VERIFIED | Static export (Option B2) |
 | **H1** | `CREATE TRIGGER` privilege | 🔲 NOT VERIFIED | See `AUDIT_LOG_INTEGRITY_DECISION.md` |
 
@@ -73,7 +73,7 @@ cost is automation at tenant provisioning and Let's Encrypt's 50-certs-per-week 
 ```
 ~/                     home, user ethret : psaserv
 ├── .composer/         <- Composer HAS been run on this account
-├── .ssh/              <- SSH access provisioned
+├── .ssh/              <- NOT what this means; see the 2026-09-17 note below
 ├── .trash/
 ├── error_docs/
 ├── httpdocs/          <- DOCUMENT ROOT
@@ -87,8 +87,30 @@ Three gates resolve from this:
 | Item | Result | Evidence |
 | --- | --- | --- |
 | **W6** — private files storable outside the document root | ✅ **VERIFIED PASS** | The home directory is a level *above* `httpdocs`. `.env`, `storage/` and the whole Laravel app can live there, unreachable over HTTP by construction. |
-| **P4** — Composer available | ✅ **Strong evidence** | `~/.composer` exists — Composer has been executed under this account. Confirm with `composer --version`. |
-| **SSH** — shell access | ✅ **Strong evidence** | `~/.ssh` exists and port 22 is open. Plesk creates this when shell access is provisioned. Confirm by logging in. |
+| **P4** — Composer available | ⚠️ **Strong evidence, and the stated confirmation is now impossible** | `~/.composer` exists — Composer has been executed under this account. ~~Confirm with `composer --version`.~~ That needs a shell, and SSH is Forbidden (below). Composer *is* present as a Plesk **extension**; whether it is reachable as a CLI binary is unverifiable without a shell. Tracked as `HOSTING_VERIFICATION_CHECKLIST.md` P4 = PARTIAL. |
+| **SSH** — shell access | ❌ **DISPROVED 2026-09-17 — this row was wrong** | ~~`~/.ssh` exists and port 22 is open. Plesk creates this when shell access is provisioned. Confirm by logging in.~~ **Hosting Settings reports SSH access = `Forbidden`, and Dev Tools offers no Terminal.** See the correction below. |
+
+#### The `~/.ssh` inference was wrong — corrected 2026-09-17/18
+
+The tree listing above annotated `.ssh/` as *"SSH access provisioned"*, and the row above
+graded that ✅. Both were **inference from a directory's existence**, which this document's
+own standard rejects — and the measurement went the other way.
+
+**Plesk creates `~/.ssh` regardless of whether shell access is enabled**, and an open port
+22 belongs to the *server*, not to this account: the host serves many subscriptions and
+answers on 22 for whichever of them do have shell access. Neither fact says anything about
+`ethret`.
+
+This matters beyond one row, because it is the root of two live blockers:
+
+- **B-1** — the capability probe has no shell route. Its documented fallback is Plesk →
+  Scheduled Tasks, which depends on **G0-D**, unverified.
+- **B-4** — nothing runs `artisan`, so `key:generate`, `migrate`, `db:seed` and
+  `ethr:create-admin` have no mechanism. This also takes five checks off
+  `deploy-checklist.md` and the `SELECT` in `ROLLBACK_RUNBOOK.md` Scenario B.
+
+The row said *"Confirm by logging in."* Nobody did, for nineteen days, and the green tick
+read as settled in the meantime. That is the failure mode, not the wrong guess.
 
 `httpdocs/.well-known/` independently corroborates that the existing Let's Encrypt
 certificate was issued over **HTTP-01** — which is the per-tenant TLS fallback path.
@@ -115,6 +137,45 @@ because it is verified to be possible today.
 
 `httpdocs/public/` and `httpdocs/et/` are pre-existing and unexplained — `et/` is empty.
 Both should be confirmed as disposable before the docroot is populated.
+
+### Re-observed 2026-09-17 — appended, not overwritten
+
+The listing above is a dated observation and stays as it is. The account looked different
+six weeks later, and the delta is the point:
+
+```
+~/                     home
+├── .composer/  .ssh/  .trash/
+├── bin/ dev/ etc/ lib/ lib64/ usr/ var/ tmp/   <- chroot skeleton (NEW)
+├── error_docs/  logs/
+├── git/                                        <- NEW
+├── production.ethr.et/                         <- NEW: a SECOND vhost, home level
+└── httpdocs/          <- DOCUMENT ROOT, re-confirmed
+    ├── .well-known/acme-challenge/   <- intact; this is what re-confirms the docroot
+    ├── cgi-bin/  css/  favicon.ico   <- Plesk defaults, stamped 2026-07-25
+    ├── backend/                      <- NEW 2026-09-05, since REMOVED
+    ├── dist/                         <- NEW, since REMOVED
+    └── ethr.et/                      <- NEW 2026-09-17 23:48, a Plesk vhost skeleton
+```
+
+Three things this settles or raises:
+
+- **The document root is still `httpdocs`.** Hosting Settings displays `Document root: /`,
+  which read literally would put the home directory in the web root and make W6 above
+  false. It does not: `.well-known/acme-challenge/` sits inside `httpdocs/`, an ACME
+  challenge can only be served from the document root, and the certificate is live. Plesk's
+  `/` is relative to the webspace root. **W6 stands.**
+- **`httpdocs/backend/` was not ETHR.** A stock Laravel + Breeze scaffold (`tailwind.config.js`,
+  `postcss.config.js`, `CHANGELOG.md`; no `lang/`, no `scripts/`, no `phpstan.neon`),
+  dated 2026-09-05, with no `.env` and no `vendor/` — no credential exposure, and unable
+  to run. Removed.
+- **`httpdocs/public/` and `httpdocs/et/` were removed without the confirmation this
+  section asked for.** `et/` was recorded empty here, so nothing is known to be lost;
+  `public/` was never inspected. Noted so the gap is visible rather than silent.
+
+**SSH is FORBIDDEN**, confirmed in Hosting Settings — the `/bin/false` caveat the shell
+row below warned about. See `deployment/GATE-0-RESULT.md` → *Account evidence*, blockers
+B-1 and B-4.
 
 ### ⚠️ Apex redirects to `www` — compatible, but note it
 
@@ -290,7 +351,7 @@ by Let's Encrypt (50 certs/domain/week), and adds a failure mode to tenant provi
 
 ### Why it is load-bearing
 
-11 scheduled entries in `routes/console.php` and 15 queued job classes. Without cron:
+14 scheduled entries in `routes/console.php` and 16 queued job classes. Without cron:
 no leave accrual, no carry-forward, no monthly invoicing, no overdue-invoice handling,
 no attendance-anomaly scan, no missing-punch scan, no scheduled reports, no dashboard
 digests, no approval reminders, no data cleanup — **and no queued email is ever sent**,

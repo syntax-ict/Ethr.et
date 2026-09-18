@@ -121,9 +121,28 @@ Production: `laravel/framework`, `laravel/sanctum` ^4.3, `laravel/horizon` ^5.47
 
 Dev: `pestphp/pest`, `phpunit/phpunit` ^11.5.50, `larastan/larastan`, `laravel/pint`, `laravel/pail`, `laravel/sail`, `mockery`, `fakerphp/faker`.
 
-### 3a. BLOCKER — Horizon hard-requires two extensions shared hosting rarely has
+### 3a. ~~BLOCKER~~ — Horizon hard-requires two extensions shared hosting rarely has — **RESOLVED**
 
-**[verified]** `api/composer.lock:1999-2001`:
+> **Resolved, and this section was left reading as live. Corrected 2026-09-18.**
+>
+> Horizon was **removed** in `cdf85d1`. Re-verified today: `laravel/horizon` appears in
+> neither `composer.json` (`require` *or* `require-dev`) nor `composer.lock` (`packages`
+> *or* `packages-dev`), and a parse of every production package's platform requirements
+> finds **zero** hard `ext-pcntl` / `ext-posix` requires.
+>
+> §15 row 6 of *this document* already records it as Resolved with the lockfile parsed.
+> §3a and §13c did not carry the same note, so the same file said both things — and
+> `docs/CLAUDE.md` was repeating the live version, which is the copy every session reads
+> first.
+>
+> **Also checked, so it is not left hanging:** `SystemHealthService.php` and
+> `QueueHealth.php` still mention Horizon, but only in comments explaining its removal.
+> No code calls a Horizon class, so there is no runtime consequence.
+>
+> The evidence below is preserved as the original finding. The line reference no longer
+> resolves, because the package is gone.
+
+**[verified at the time]** `api/composer.lock:1999-2001`:
 
 ```json
 "name": "laravel/horizon",
@@ -727,7 +746,7 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 
 **Still NOT VERIFIED:** any of this on Ethio Telecom's server. 10.4.32 is the local XAMPP build; the documented target is MariaDB 10.11, and the host's version is unread (G0-E).
 
-### 13c. Horizon blocks `composer install` — see §3a.
+### 13c. ~~Horizon blocks `composer install`~~ — **RESOLVED**, see §3a and §15 row 6. Horizon was removed in `cdf85d1`; the lockfile carries zero hard `pcntl`/`posix` requires.
 
 ### 13d. Unindexable login lookups **[verified]**
 
@@ -877,7 +896,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 18 | ~~Nothing transitions an invoice from `draft` to `sent`~~ — **owner decided 2026-09-15**, invoices are created `sent`; chain verified end to end | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
-| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins all `withoutGlobalScope(s)` call sites per file and fails when the count moves — **161** across **55** files as of 2026-09-18, 156 across 53 when this row was written. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 161 that exist. §11c is a first pass over the subset that lacked a nearby predicate |
+| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **161 across 55** as re-measured 2026-09-18. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 161 that exist. §11c is a first pass over the subset that lacked a nearby predicate |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
 | 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |

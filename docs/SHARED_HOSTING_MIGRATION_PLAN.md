@@ -1,7 +1,23 @@
 # ETHR — Shared-Hosting Migration Plan (Phase 3)
 
 **Date:** 2026-08-29
-**Status:** DECISION PENDING. No implementation has started.
+**Status (2026-08-29, as written):** DECISION PENDING. No implementation has started.
+
+> **Superseded 2026-09-18 — both halves of that line are now false, and it is the first
+> thing a reader sees.**
+>
+> - **The decision was taken.** Option B (everything on Ethio Telecom shared hosting) was
+>   chosen on 2026-08-29 under owner delegation. See `MIGRATION_STATE.md` → *Decisions
+>   taken on delegation*, D1–D10, including the withdrawal of Options A, C and D.
+> - **Implementation started and substantial parts are merged.** Phase A shipped in
+>   `12f53de` (five hardcoded infrastructure references made configuration-driven); the
+>   deployment package exists; `DEPLOYMENT.md` step 4a assembles the document root; a
+>   `DocumentRootInventoryTest` enforces which files may enter it.
+>
+> What has **not** started is *execution on the host* — upload, migrate, cutover — which
+> is blocked on Gate 0 and on blockers **B-1 to B-6** (`MIGRATION_STATE.md`). The
+> conditional Go in §4 below still stands; its five gates are still unresolved, and two
+> new ones have joined them. Read §4 with `deployment/GATE-0-RESULT.md` beside it.
 **Inputs:** `docs/SHARED_HOSTING_AUDIT.md`,
 `docs/ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`
 
@@ -63,7 +79,7 @@ Everything on the Ethio Telecom Linux + MySQL plan. Requires **B1–B4** to all 
                       ▲
                       │  cron (every minute)
               ┌───────┴───────────────────────┐
-              │ php artisan schedule:run      │  ← 11 scheduled entries
+              │ php artisan schedule:run      │  ← 14 scheduled entries
               │ php artisan queue:work        │  ← 15 job classes
               │     --stop-when-empty         │
               │     --max-time=55             │

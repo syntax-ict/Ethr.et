@@ -246,7 +246,7 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 > | Row | Status |
 > |---|---|
 > | Cache / Queue — Redis 7+ | **Not used in production.** `SHARED_HOSTING_AUDIT.md` §B removed Redis for the shared-hosting target; the queue runs on the `database` driver. Coupling is configuration-only — `audit/BASELINE.md` §6 found no application code calling Redis. |
-> | Horizon | **Not deployed.** It hard-requires `ext-pcntl` and `ext-posix`, which aborts `composer install --no-dev` on shared hosting (`BASELINE.md` §3a). |
+> | Horizon | **Removed entirely**, not merely undeployed — `cdf85d1`. It is absent from `composer.json` and `composer.lock`, and the lockfile carries zero hard `ext-pcntl`/`ext-posix` requires (re-verified 2026-09-18). The old reason given here — that it *would* abort `composer install --no-dev` — described a dependency that no longer exists; `BASELINE.md` §15 row 6 had recorded the resolution while §3a still read as live. |
 > | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=log` in production. |
 > | File Storage — MinIO | **Not deployed** for the shared-hosting target; the `local` disk serves documents through signed `temporaryUrl()` routes. |
 >

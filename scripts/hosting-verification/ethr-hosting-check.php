@@ -17,11 +17,25 @@
  *   2. Run it over SSH: `php ethr-hosting-check.php`. If there is no shell,
  *      run it from Plesk -> Scheduled Tasks as a one-off PHP CLI task and read
  *      the mailed or logged output.
+ *
+ *      EXIT STATUS (CLI only; see WEB EXECUTION below for the web case):
+ *        0  nothing unsupported
+ *        1  a MANDATORY item is missing - Laravel 12 will not run here as-is
+ *        2  no mandatory gap, but at least one other FAIL row above
+ *      Read the rows either way. Plesk judges a scheduled task by exit status,
+ *      so before 2026-09-18 - when this always exited 0 - a fatal result was
+ *      reported by the panel as a task that completed successfully.
  *   3. Save the output locally.
  *   4. *** DELETE IT FROM THE SERVER IMMEDIATELY. ***
  *
+ * WEB EXECUTION
  *   Serving it from httpdocs is a last resort. If you must, give it a random
  *   filename, read it once, and delete it in the same sitting.
+ *
+ *   As shipped a web request returns **403 and nothing else**, whatever the
+ *   filename. To take that route deliberately, set ETHR_PROBE_WEB_TOKEN below
+ *   to a random value in the copy you upload and request `?token=<that value>`.
+ *   See the note on the constant for why.
  *
  *   `.htaccess` and mod_rewrite cannot be answered from here at all - a file in
  *   ~/ is never served by Apache. Use the companion canary,
@@ -43,8 +57,34 @@
 
 declare(strict_types=1);
 
+/**
+ * Web execution is opt-in, and off in the shipped file.
+ *
+ * On 2026-09-18 a Plesk Git deployment copied the whole repository into the
+ * document root, and this file became web-executable under its own name — the
+ * exact failure the USAGE block above warns about, reached without anyone
+ * guessing anything. A copy that lands in a document root by accident must
+ * disclose nothing.
+ *
+ * Route C (docs/deployment/GATE-0-RESULT.md) is unaffected and still the
+ * documented last resort: in the copy you upload, set the constant below to a
+ * random value and request it as `?token=<that value>`. The random filename
+ * Route C already calls for remains the first layer; this is the second, and
+ * it is the one that survives being deployed under a predictable name.
+ */
+const ETHR_PROBE_WEB_TOKEN = '';
+
 $isCli = PHP_SAPI === 'cli';
 if (! $isCli) {
+    $suppliedToken = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+
+    if (ETHR_PROBE_WEB_TOKEN === '' || ! hash_equals(ETHR_PROBE_WEB_TOKEN, $suppliedToken)) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "403 Forbidden\n";
+        exit;
+    }
+
     header('Content-Type: text/plain; charset=utf-8');
 }
 
@@ -63,24 +103,90 @@ record($results, 'PHP', 'P1', 'PHP >= 8.2', $phpOk ? 'VERIFIED' : 'UNSUPPORTED',
 record($results, 'PHP', 'P2', 'SAPI / handler', 'VERIFIED', PHP_SAPI);
 
 // Mandatory extensions — absence of any of these means Laravel 12 will not run.
+// Cross-checked against api/composer.lock on 2026-09-17: every ext-* that a
+// PRODUCTION package declares must be here, because `composer install --no-dev`
+// validates platform requirements and aborts on a missing one. A host that fails
+// that cannot be deployed to at all, whatever the rest of Gate 0 says.
 $mandatory = [
     'pdo', 'pdo_mysql', 'mbstring', 'openssl', 'tokenizer', 'xml', 'dom',
     'ctype', 'json', 'fileinfo', 'filter', 'hash', 'session', 'curl',
-    'bcmath', 'iconv', 'zip', 'gd',
+    'iconv', 'gd',
+    // Added 2026-09-17 from the lockfile, not from judgement:
+    'simplexml', // aws/aws-sdk-php (pulled in by league/flysystem-aws-s3-v3)
+    'libxml',    // tijsverkoyen/css-to-inline-styles, via dompdf
 ];
 
-// Wanted but not fatal. `gd` is deliberately in the list above, not here: its
-// absence is silent rather than fatal (FileStorageService returns original bytes
-// and skips thumbnails), which makes it more dangerous, not less.
-$optional = ['intl', 'sodium', 'simplexml', 'xmlwriter', 'redis', 'opcache', 'exif'];
+// TWO ENTRIES LEFT THIS LIST ON 2026-09-18, both by measurement rather than
+// judgement. The count is 18, not 20.
+//
+// `bcmath` was never required. It appears in composer.lock four times and every
+// one is under `suggest` ("to improve IPV4 host parsing", "Enables faster math
+// with arbitrary-precision integers", "For comparing BcMath\Number objects") —
+// never under `require`. The application calls no bc* function at all: money is
+// stored in integer minor units (`salary_cents`, `price_cents`), which is why it
+// never needed arbitrary precision. Asking the host to enable it was asking for
+// something nothing uses.
+//
+// `zip` moved to the optional list because the code needs `phar` OR `zip`, not
+// `zip`. BackupService tries PharData first, falls back to ZipArchive, and if
+// NEITHER exists throws a RuntimeException naming the remedy. A loud failure in
+// one feature is not a deployment blocker, so neither extension is mandatory on
+// its own — but the pair is, and only `zip` was ever listed.
+
+// `ext-pcre` is also declared by aws/aws-sdk-php and vlucas/phpdotenv and is
+// deliberately NOT listed: PCRE is compiled into PHP core and cannot be absent,
+// so checking it would only add a row that can never fail.
+
+// Wanted but not fatal, with two exceptions noted inline below.
+//
+// `gd` stays in the mandatory list, and the reason is sharper than it was.
+// `FileStorageService::stripExif()` opens with `if (! extension_loaded('gd'))
+// { return $content; }` — so without gd, EXIF stripping on the primary upload
+// path SILENTLY RETURNS THE ORIGINAL BYTES. `VerifyFileContent::stripExif()`
+// guards the same way with function_exists(). For a product storing employee
+// photographs and identity documents that means GPS coordinates, device serials
+// and capture timestamps are retained and served back, with no error and no log
+// line. That is a security property failing quietly, not a missing thumbnail,
+// and it is one unchecked box in a Plesk PHP settings page.
+//
+// `simplexml` moved OUT of this list on 2026-09-17 — it was optional here while
+// being a hard production requirement, which is the wrong direction to be wrong
+// in.
+$optional = [
+    'intl', 'sodium', 'xmlwriter', 'redis', 'opcache', 'exif',
+    // One of these two IS required, for backup archiving — see the note above.
+    // Read them together: both absent means `ethr:backup` cannot archive.
+    'phar', 'zip',
+];
+
+/**
+ * extension_loaded(), with the one name PHP does not register as you write it.
+ *
+ * OPcache registers as `Zend OPcache`, so extension_loaded('opcache') is FALSE
+ * on every host, including hosts where OPcache is loaded AND enabled. Measured
+ * 2026-09-18 on PHP 8.4: extension_loaded('opcache') = false while
+ * extension_loaded('Zend OPcache'), function_exists('opcache_get_status') and
+ * ini_get('opcache.enable') were all true. Before this the probe printed
+ * `[ ???? ] ext-opcache` unconditionally — a false negative 100% of the time,
+ * and one that invites a pointless request to Ethio Telecom support for an
+ * extension the host already has.
+ */
+function extLoaded(string $ext): bool
+{
+    if (extension_loaded($ext)) {
+        return true;
+    }
+
+    return $ext === 'opcache' && extension_loaded('Zend OPcache');
+}
 
 foreach ($mandatory as $ext) {
     record($results, 'PHP', 'ext', "ext-$ext (MANDATORY)",
-        extension_loaded($ext) ? 'VERIFIED' : 'UNSUPPORTED');
+        extLoaded($ext) ? 'VERIFIED' : 'UNSUPPORTED');
 }
 foreach ($optional as $ext) {
     record($results, 'PHP', 'ext', "ext-$ext (optional)",
-        extension_loaded($ext) ? 'VERIFIED' : 'UNKNOWN');
+        extLoaded($ext) ? 'VERIFIED' : 'UNKNOWN');
 }
 
 // ── Section 2: PHP limits ────────────────────────────────────────────────────
@@ -136,10 +242,25 @@ foreach ($limits as [$id, $key, $min, $why]) {
 // the frontend ships as a Next.js server or as static files.
 
 record($results, 'Runtime', 'W0', 'PHP SAPI', 'VERIFIED', PHP_SAPI);
-record($results, 'Runtime', 'W0', 'server software', 'VERIFIED',
-    (string) ($_SERVER['SERVER_SOFTWARE'] ?? '(unknown - run over the web to see this)'));
-record($results, 'Runtime', 'W0', 'document root', 'VERIFIED',
-    (string) ($_SERVER['DOCUMENT_ROOT'] ?? '(unknown - CLI run)'));
+
+// `?? ` is not enough for these two. PHP CLI SETS $_SERVER['DOCUMENT_ROOT'] to
+// an EMPTY STRING rather than leaving it unset, so the null-coalesce never
+// fired and the row printed `[  OK  ] document root` followed by nothing —
+// VERIFIED, with no evidence, on W3, which is one of the live open questions
+// (MIGRATION_STATE B-3). An operator scanning a column of OKs could reasonably
+// record W3 as answered against a blank value. Measured 2026-09-18 on a CLI run.
+//
+// Neither value is knowable from CLI at all, so the honest status is UNKNOWN.
+// Both are web-SAPI facts: run this file once over HTTP to get them.
+$reportEnv = static function (string $key, string $item, string $whenMissing) use (&$results): void {
+    $value = (string) ($_SERVER[$key] ?? '');
+    record($results, 'Runtime', 'W0', $item,
+        $value === '' ? 'UNKNOWN' : 'VERIFIED',
+        $value === '' ? $whenMissing : $value);
+};
+
+$reportEnv('SERVER_SOFTWARE', 'server software', 'unset — run this over the web to see it');
+$reportEnv('DOCUMENT_ROOT', 'document root', 'unset under CLI — run this over the web to see it');
 
 // Node is a panel setting on Plesk, but if a shell exists we can just look.
 $nodeVersion = null;
@@ -423,6 +544,7 @@ echo "$line\nETHR SHARED-HOSTING CAPABILITY PROBE\n";
 echo 'Generated: '.date('c')."\nHost: ".($_SERVER['HTTP_HOST'] ?? php_uname('n'))."\n$line\n\n";
 
 $fail = 0;
+$otherFail = 0;
 foreach ($results as $section => $rows) {
     echo "── $section ".str_repeat('─', max(1, 60 - strlen($section)))."\n";
     foreach ($rows as $r) {
@@ -431,8 +553,8 @@ foreach ($results as $section => $rows) {
             'UNSUPPORTED' => ' FAIL ',
             default => ' ???? ',
         };
-        if ($r['status'] === 'UNSUPPORTED' && str_contains($r['item'], 'MANDATORY')) {
-            $fail++;
+        if ($r['status'] === 'UNSUPPORTED') {
+            str_contains($r['item'], 'MANDATORY') ? $fail++ : $otherFail++;
         }
         printf("[%s] %-58s %s\n", $mark, $r['item'], $r['detail']);
     }
@@ -449,3 +571,25 @@ echo "Those are Plesk panel questions - see docs/deployment/GATE-0-RESULT.md."."
 echo "\nNor whether .htaccess is honoured: a file in ~/ is never served by Apache."."\n";
 echo "Use scripts/hosting-verification/htaccess-canary/ for that."."\n";
 echo "\n*** DELETE THIS FILE FROM THE SERVER NOW. ***\n$line\n";
+
+// Until 2026-09-18 this script ALWAYS exited 0 — including on the run above
+// that prints "Laravel 12 will not run as-is". That is not cosmetic here.
+// SSH on this account is Forbidden (MIGRATION_STATE B-1), so the probe's own
+// documented fallback, stated at the top of this file, is Plesk -> Scheduled
+// Tasks as a one-off PHP CLI task. Plesk reports a task's outcome by its exit
+// status, so a probe that found a fatal gap and exited 0 showed the panel a
+// green, successfully-completed task. `CLAUDE.md` opens on exactly this
+// failure mode: a green run that is a lie.
+//
+//   0  nothing unsupported
+//   1  at least one MANDATORY item unsupported — cannot deploy here at all
+//   2  no mandatory gap, but at least one other FAIL row (a degraded feature,
+//      a limit below what payroll or uploads need, or blocked outbound SMTP)
+//
+// Exit status only exists under CLI; over the web PHP still returns HTTP 200
+// and the body above is the whole report, which is why this is CLI-gated.
+if ($isCli) {
+    echo "\nExit status: ".($fail > 0 ? 1 : ($otherFail > 0 ? 2 : 0))
+        ." (0 = clean, 1 = mandatory gap, 2 = non-mandatory FAIL rows above)\n";
+    exit($fail > 0 ? 1 : ($otherFail > 0 ? 2 : 0));
+}
