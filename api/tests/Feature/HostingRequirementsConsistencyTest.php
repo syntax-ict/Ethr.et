@@ -79,12 +79,19 @@ it('declares every composer ext-* requirement in the probe mandatory list', func
         .'and gd are declared by no production package either, so nothing caught them.'
     );
 
-    foreach ($declared as $ext) {
-        expect(ethrProbeMandatory())->toContain(
-            $ext,
-            "composer.json requires ext-$ext but the probe does not list it as mandatory."
-        );
-    }
+    // Compared as a set difference rather than with `toContain($ext, $message)`:
+    // Pest's toContain is VARIADIC, so a trailing string is read as a second
+    // needle to find, not as a failure message. That is how the first version of
+    // this test failed CI while its logic was correct — it asserted the array
+    // contained its own error message.
+    $missing = array_values(array_diff($declared, ethrProbeMandatory()));
+
+    expect($missing)->toBe(
+        [],
+        'composer.json requires ext-* that the probe does not list as mandatory: '
+        .implode(', ', $missing).'. The operator would enable extensions from the probe '
+        .'output and still hit an aborted install.'
+    );
 });
 
 it('keeps the probe mandatory list free of extensions nothing requires', function () {
