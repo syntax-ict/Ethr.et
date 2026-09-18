@@ -34,10 +34,10 @@ with the constraints Ethiopian deployments actually impose:
 | Infrastructure | Docker · Nginx · Supervisor |
 
 Measured 2026-09-18: **104 controllers, 70 models, 62 migrations** under
-`/api/v1`, covered by **1790 backend tests (5271 assertions)** across 164 Pest
-files, plus 85 Vitest files and 13 Playwright specs. The test and assertion
-figures are the ones CI itself reported on `f25baef` (run #173); the rest are
-file counts you can reproduce with `find`.
+`/api/v1`, covered by **1791 backend tests (5273 assertions)** across 165 Pest
+files, plus 85 Vitest files and 13 Playwright specs. Every figure here was
+counted on this commit, not carried over; the command below reproduces the
+backend one.
 
 Reproduce the backend figure rather than trusting this line — it is only true
 on the day it was written:
