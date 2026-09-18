@@ -630,6 +630,46 @@ anything current.
 
 ---
 
+## The frozen package, reviewed read-only 2026-09-18 — one consequence that outlives deployment
+
+`ENVIRONMENT.md` and `health-check.md` are inside the frozen directory, so they were read
+and not edited. Both are broadly sound. Two observations, recorded here because this file
+is not fenced:
+
+**`ENVIRONMENT.md:170` — the package's one operational instruction is gated on G0-D.**
+It is `* * * * * cd ~/ethr/api && php artisan schedule:run`, a **command-type** Scheduled
+Task. If G0-D returns "Fetch a URL only", that single line is inert and the scheduler,
+the queue, invoicing, leave accrual and payslip notifications have no delivery mechanism.
+Nothing else in the file assumes a shell, which is the right shape — it just means the
+whole asynchronous half of the product rests on one unread panel page.
+
+**`health-check.md` — post-deployment monitoring has no verified access route, and B-5
+does not end at deployment.** Its two primary ongoing checks are SQL:
+
+- `SELECT COUNT(*) FROM failed_jobs` — there is no Horizon UI here, so this *is* the
+  failed-job surface
+- `SELECT MAX(created_at) FROM jobs` — the doc's own reasoning is that *"cron silently
+  not firing looks identical to nothing to do"*, so this is the only way to tell them apart
+
+With SSH Forbidden, running either needs a database UI. **phpMyAdmin was not in the Dev
+Tools list the owner reported** — it is usually under a separate *Databases* section
+rather than Dev Tools, so its absence from that list is not evidence either way, and it
+has not been checked.
+
+The third row degrades correctly on its own: disk usage offers *Plesk → Statistics* before
+`du -sh … over SSH`, so it survives.
+
+**Why this matters beyond the gates.** B-1 and B-5 have been framed as deployment
+blockers. This is the same gap in the operations phase: if there is no way to run SQL, then
+after a successful deployment there is still no way to see that queued jobs are failing or
+that cron has stopped — the two failure modes this product has already been bitten by
+(`ScanAttendanceAnomaliesJob` failed on every scheduled run and was found by opening the
+health endpoint for an unrelated reason). **Add "is there a database UI?" to the Scheduled
+Tasks panel visit** — same page-load, and it decides whether this deployment is
+observable, not merely whether it is possible.
+
+---
+
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
 Everything resolvable from the repository has been done. These eight remain, in dependency
@@ -640,7 +680,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | --- | --- | --- | --- | --- | --- |
 | **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
-| **1** | **Scheduled Tasks capability** | Websites & Domains → *Scheduled Tasks* (or Tools & Settings) | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary | No | **G0-D**, and it decides whether the migration is performable at all without SSH — see B-1/B-4 |
+| **1** | **Scheduled Tasks capability** — **and, on the same visit, whether a database UI (phpMyAdmin) exists** | Websites & Domains → *Scheduled Tasks*; then look for a *Databases* section | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
 | **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
