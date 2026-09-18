@@ -29,11 +29,11 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
 
-### 4. Tenant isolation is fail-closed, and bypassed in 161 places
+### 4. Tenant isolation is fail-closed, and bypassed in 164 places
 
 `BelongsToTenant` adds a global scope that applies `whereRaw('0 = 1')` when no tenant is resolved — absence of context yields *no* rows, not *all* rows. That design is why this product is safe by default.
 
-There are **161** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 55 files, re-counted 2026-09-18 against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. (It was 156 across 53 when first pinned on 2026-09-16; the five that entered since are accounted for below.) Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
+There are **164** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 55 files, re-counted 2026-09-18 against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. (It was 156 across 53 when first pinned on 2026-09-16; the eight that entered since are accounted for below.) Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
 
 `TenantScopeBypassInventoryTest` now pins that inventory per file and fails when a count moves, so **a new bypass cannot enter unnoticed**. Be clear about what that buys: it makes adding one a deliberate act, which is exactly what was missing when the shipped defect went in. It does **not** audit the ones that already exist — a count cannot.
 
@@ -43,11 +43,12 @@ That defect turned out to be a symptom. `CurrentTenant` was bound as a `singleto
 
 The 123 with a predicate were **not** individually audited. Having one is necessary, not sufficient.
 
-**The five sites added since that audit were read individually on 2026-09-18**, because the
-pin having moved from 156/53 to 161/55 means five bypasses entered *after* the only pass
+**The eight sites added since that audit were read individually**, because the
+pin having moved from 156/53 to 164/55 means eight bypasses entered *after* the only pass
 that ever looked at them line by line. The inventory test forced each to be a deliberate
-act, which is what it is for — but a deliberate act is not a reviewed one. All five carry a
-predicate:
+act, which is what it is for — but a deliberate act is not a reviewed one. All eight carry a
+predicate — the first five read on 2026-09-18, the last three with this branch's
+public-page work:
 
 | Site | Why it is safe |
 |---|---|
@@ -56,6 +57,8 @@ predicate:
 | `NotifyDeviceOffline` | States `tenant_id`, derived from `$device->tenant_id` — the device is tenant-owned |
 | `DispatchWebhookJob::handle` (delivery) | States `tenant_id` from `$webhook->tenant_id`, plus `webhook_id` |
 | `DispatchWebhookJob::failed` | Derives via `webhook_id`, which is tenant-owned, plus the delivery primary key |
+| `AdminTenantController::suspendPublicPage` (x2) | Platform-admin takedown of a tenant's public page. Finds the tenant by its own `public_id`, then the profile by `tenant_id`. `admin.manage`, unreachable from any `/settings/*` route — a takedown a tenant could lift is not a control |
+| `AdminTenantController::verifyGovernment` | Same surface, same shape: the tenant by its own `public_id`. A government verification a tenant could grant itself is not a control |
 
 **One inconsistency worth knowing rather than fixing blind:** `handle()` states `tenant_id`
 explicitly while `failed()` relies on `webhook_id` alone. Both hold — `webhook_id` is
