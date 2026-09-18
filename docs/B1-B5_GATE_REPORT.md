@@ -452,7 +452,7 @@ safe. It does not. Here is the actual per-concern finding from the code:
 | --- | --- | --- |
 | **API routes** (`route.ts`) | **0** | None |
 | **Server actions** (`"use server"`) | **0** | None |
-| **`generateStaticParams`** | **0** | The 4 dynamic routes need it added |
+| **`generateStaticParams`** | **0** | The 4 dynamic routes need it — **but they are `"use client"`, and Next forbids the combination**, so each needs a server-component split first (measured `7aed9d2`) |
 | **Route segment config** (`dynamic`/`revalidate`/`runtime`) | **0** | None |
 | **ISR** | Not used | None |
 | **Server components** | 19 of 126 files lack `"use client"` — but only **one** does real server work | See below |

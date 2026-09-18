@@ -858,6 +858,517 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE PROBE'S CLI CAVEAT COVERED ONE ROW OF FOUR — 2026-09-18
+
+Same lens as the canary finding, turned on the other instrument. The probe's `Limits`
+section grades four rows that feed **G0-E**, and it already carried a warning that a CLI
+run cannot see the web SAPI's value. **The warning named only `max_execution_time`.**
+
+Measured here on PHP 8.4, CLI:
+
+| Row | CLI value | Probe verdict | Reality |
+|---|---|---|---|
+| **L1** `memory_limit` | `-1` | **OK** | **False PASS** — unlimited under CLI, says nothing about the web limit |
+| **L2** `max_execution_time` | `0` | OK, **warned** | Guarded, correctly |
+| **L3** `upload_max_filesize` | `2M` | **FAIL** | **False FAIL** — php.ini default, not the web value |
+| **L4** `post_max_size` | `8M` | **FAIL** | **False FAIL** — same |
+
+**Three of four rows were unreliable and only one said so**, and they mislead in *both*
+directions. A false PASS on `memory_limit` hides a host that cannot run payroll. A false
+FAIL on the upload pair sends the operator to support for a limit that may already be
+correct.
+
+### Fixed
+
+The warning now covers all four, names the CLI defaults that cause each direction of error,
+and says which feature depends on which pair — payroll on the first two, employee document
+upload on the last two.
+
+### Honest scope
+
+**The practical impact today is small, and it is worth saying so rather than inflating it.**
+This only bites a **CLI** run, which is Route A, which needs SSH — and SSH is Forbidden.
+Route C, the only live route, runs under a real web SAPI where the four values *are* the
+production values and no caveat is needed. The probe's gating was correct for both real
+routes.
+
+It is worth fixing anyway for one reason: **ask 2 of the support request is SSH.** If it is
+granted, Route A becomes live the same day, and this is precisely the run that would then
+mis-grade three of G0-E's rows.
+
+### A note on the `php -S` validation
+
+`GATE-0-RESULT.md` records Route C as *"validated by running it, 2026-09-17"* under PHP's
+built-in server. That SAPI reports as **`cli-server`**, not `cli`, so the CLI warning was
+suppressed while the ini values were still CLI-ish — `memory_limit` `-1`, upload pair at
+`2M`/`8M`. **That validation proved the transport, not the limits.** It was never claimed to
+prove the limits; recorded so nobody later reads it as having done so.
+
+---
+
+## THE CANARY HAD A FALSE NEGATIVE — found by reproducing Plesk's topology
+
+With nginx and Apache both installed locally, the actual Plesk arrangement was
+reproduced — **nginx proxying to Apache** — rather than Apache alone. That is the
+configuration G0-B.5 is actually about, and it exposed a defect in the instrument.
+
+### Three topologies, measured
+
+| | `shadow.txt` | `shadow.js` |
+|---|---|---|
+| **A** — static serving OFF (pure proxy) | REWRITE won | REWRITE won |
+| **B** — static block **includes** `.txt` | FILE won | FILE won |
+| **C** — static block **excludes** `.txt` | **REWRITE won** | **FILE won** |
+
+**Case C is the defect.** Static serving is ON and `.js`/`.css` *are* being shadowed — but
+the canary, testing only `shadow.txt`, reports *"the rewrite won"*. **G0-B.5 would have been
+graded as though `.htaccess` applies to static assets, when it does not.**
+
+### Why it matters more than a mis-graded row
+
+Plesk's generated static block **always** covers js/css/images; whether it covers `.txt`
+varies by version and template. And the deployment ships **`.js`, `.css`, `.woff2` — never
+`.txt`**. So the one extension the canary tested was the one least likely to be
+representative.
+
+The damage is not the row itself. When static shadowing is in force, `.htaccess` never runs
+for those files, so **the seven security headers and `Cache-Control: immutable` silently do
+not reach them.** That is **G0-B.2's real failure mode hiding behind G0-B.5's answer** — and
+both gates would have read green.
+
+### Fixed
+
+`shadow.js` added as a second bait with the rewrite rule to match; `canary.php` now prints
+both URLs, explains why `.js` is the one that counts, states that the two **can legitimately
+disagree**, and spells out the G0-B.2 consequence. README and the deploy list updated —
+five files, not four.
+
+**Re-measured across all three topologies after the fix: A both-rewrite, B both-file, C
+disagrees exactly as designed.** The canary now catches case C.
+
+*(Second method note in one session: the first run of this comparison used a shell `case`
+pattern anchored at the start of the string, and `shadow.js` begins `// `, so it reported
+"REWRITE won" for a file that had plainly been served from disk. The harness was wrong, not
+the canary. Both times the tell was the same — a result that contradicted a simpler,
+already-established measurement.)*
+
+### The standing of this
+
+The canary was **sound as an instrument** and **wrong as an experiment**: every mechanism
+fired, and the sample it drew was unrepresentative. That is a harder class of defect than a
+broken rule, because everything looks like it is working.
+
+No gate moved. G0-B.5 remains `NOT VERIFIED` — what changed is that answering it will now
+produce the right answer.
+
+---
+
+## `nginx-directives.conf` WAS EXECUTED — 2026-09-18. It holds.
+
+The third deployment artifact, and its own header said so: *"STATUS: NOT VERIFIED against
+any live host. Every line below is a translation of a directive in this directory's
+`.htaccess`, not a measurement."* One measured thing was claimed — 17 sample URIs matched
+under PCRE on 2026-09-15 — but that tested the **regexes**, not nginx.
+
+nginx 1.24.0 installed locally; the repository file **included verbatim** into a server
+block; the same document root shape served. File unchanged.
+
+### Syntax
+
+```
+nginx -t  →  syntax is ok, test is successful
+```
+
+First time the file has been parsed by nginx at all.
+
+### Every deny and allow claim, now measured under nginx rather than under a regex
+
+| Must be denied | | Must NOT be denied | |
+|---|---|---|---|
+| `/.env` | **403** | `/.well-known/acme-challenge/token` | **200** |
+| `/.git/config` | **403** | `/manifest.json` | **200** |
+| `/composer.json`, `/composer.lock` | **403** | `/assets/app.min.js` | **200** |
+| `/package.json`, `/package-lock.json` | **403** | `/_next/static/chunks/main.js` | **200** |
+| `/artisan`, `/phpunit.xml` | **403** | `/storagebin/x` | **200** |
+| `/storage/…`, `/bootstrap/cache/…` | **403** | `/` | **200** |
+
+**16 of 16 as claimed.** The two that matter most are the negatives: ACME passes, so
+certificate renewal survives, and `/storagebin/x` passes, so the `storage` rule is a
+directory match and not a prefix match.
+
+### The `add_header` inheritance trap — tested, and it holds
+
+`GATE-0-RESULT.md` G0-B.2 warns: *"nginx `add_header` does not inherit into a location that
+has one of its own, so one passing URL proves nothing about the others."* So one URL was
+not trusted:
+
+| Path | Headers |
+|---|---|
+| `/` | **7/7** |
+| `/assets/app.min.js` | **7/7** |
+| `/_next/static/chunks/main.js` | **7/7** |
+| `/manifest.json` | **7/7** |
+| `/.well-known/acme-challenge/token` | **7/7** |
+| `/.env` (a **403**) | **7/7** |
+
+All seven reach every path type, including the denied response — the `always` flag working
+as intended.
+
+**It holds for a reason, and the reason is fragile.** Parsed properly (comments stripped,
+brace depth tracked): **no active `add_header` sits inside any `location` block** — all
+seven are at server level. The file *documents* the trap and ships a commented repeat-block
+for static assets, which is good practice. **The moment anyone uncomments that block, or
+Plesk's generated config adds an `add_header` to a static-file location, the server-level
+seven vanish from those responses silently.** That is the failure this file exists to
+prevent, and it can be reintroduced by an edit that looks like an improvement.
+
+*(Method note: the first check for this used `awk` and latched onto the word "location"
+inside a comment, reporting a dozen false positives. Re-done with comment stripping and
+brace tracking. A pattern that matches prose is not a pattern that matches code.)*
+
+### `client_max_body_size 32m` — enforced
+
+| Upload | Result |
+|---|---|
+| 8 MB | 405 (method not allowed on a static path — **not** 413, so under the limit) |
+| 40 MB | **413** |
+
+The limit is real. It is the directive that otherwise fails silently: uploads simply stop
+working at a size nobody documented.
+
+### What this does not establish
+
+The file is **correct as written**. Whether *this host* will accept it is **G0-A**, still
+`NOT VERIFIED` and strong-evidence FAIL — there was no directive textarea on the settings
+page. A correct file you cannot paste anywhere is still not a control. Its header's own
+instruction stands: do not treat a paste as a control until G0-B.2 and G0-B.3 pass.
+
+---
+
+## THE CANARY WAS EXECUTED TOO — 2026-09-18, and it is sound
+
+The canary is the instrument that will **answer** G0-B.1–B.5. If it mis-reports, those
+rows get graded wrong and nobody finds out. It had never been run either. Served from the
+same local Apache; package copied, repository untouched.
+
+**All five mechanisms fire correctly:**
+
+| # | Mechanism | Result |
+|---|---|---|
+| 1 | `mod_rewrite` — `/REWRITE_OK` → `canary.php` | **reached it** (200, canary content, not a 404) |
+| 2 | `mod_headers` | **`X-Ethr-Canary: headers-ok`**, plus the two security headers |
+| 3 | Deny rule — `secret.txt.probe` | **403** |
+| 4 | `Authorization` forwarding | **works** — `Bearer CANARYTOK` |
+| 5 | Static shadowing — `/shadow.txt` | **canary.php answered, not the file on disk** |
+
+### Row 5 is the one worth having, because it establishes the control
+
+G0-B.5 asks whether Plesk's nginx serves static files **before Apache sees the request**.
+The canary answers it by putting `shadow.txt` on disk *and* rewriting that exact path, so
+whichever layer wins is visible in the response — its own README: *"Whichever one answers
+tells you which layer resolved."*
+
+**Nobody had measured what Apache alone does.** Now it is measured: with Apache serving and
+no nginx in front, **the rewrite wins**. So the reading is unambiguous when the real result
+arrives:
+
+| The canary returns | Meaning |
+|---|---|
+| `canary.php`'s output | Apache resolved it — rewrites reach the request |
+| `shadow.txt`'s own text | **nginx shadowed it** — static is served before Apache, and `DEPLOYMENT.md` step 4a's premise holds |
+
+Without that control, a result of "canary.php answered" could have been read either as
+*Apache won* or as *the bait never worked*. It can no longer be confused.
+
+### What this does and does not establish
+
+**Does:** the canary package is correct and will report faithfully. Deploying it is worth
+doing; its answers can be trusted.
+
+**Does not:** move G0-B.1–B.5 a millimetre. Those are properties of **that host**, and the
+only thing measured here is that the instrument works. A working thermometer is not a
+temperature.
+
+Same PHP limit as the `.htaccess` run: `canary.php` was served as source, so its *printed
+report* is unverified — only the four Apache-layer mechanisms it depends on were exercised.
+The fifth, its own PHP output formatting, was verified separately on 2026-09-18 when the
+`$scriptDir` defect was fixed by running it.
+
+---
+
+## THE DEPLOYMENT `.htaccess` WAS EXECUTED — 2026-09-18
+
+`docs/deployment/shared-hosting/.htaccess` is the routing brain of the whole deployment:
+deny rules, header policy, API routing, ACME passthrough. **It had never been run.** The
+canary (G0-B.1–B.4) tests whether the host honours `.htaccess` *at all*; nothing tested
+whether *this file* is correct.
+
+Apache 2.4.58 was installed locally, a document root assembled per the runbook, and the
+real file served. **Repository file untouched throughout — the served copy was a copy.**
+
+### What passed, measured
+
+| Check | Result |
+|---|---|
+| Deny rules — `.env`, `.env.production`, `composer.json/lock`, `package.json`, `package-lock.json`, `artisan`, `phpunit.xml` | **403 on all seven** |
+| `storage/`, `bootstrap/cache/` | **403 both** |
+| ACME passthrough `/.well-known/acme-challenge/…` | **200** — certificate renewal survives the rules |
+| Static asset | **200** |
+| API routing `/api/v1/ping`, `/sanctum/csrf-cookie` | **200** — both reach the front controller |
+| Seven security headers | **all present**, verified on the wire |
+| `Cache-Control: public, immutable` on assets | present |
+| **`Authorization` forwarding** | **works** — `X-Probe-Auth: Bearer TESTTOKEN`, `(null)` in the control |
+| **`X-XSRF-Token` forwarding** | **works** — same shape |
+
+The two forwarding rules were observed through env-var echoes **set in the vhost, not in
+the file under test**, so the artifact was measured rather than modified. This is the
+mechanism behind **G0-B.4**; the file's half of it is correct. (Whether the *host* honours
+`.htaccess` at all remains G0-B.1–B.4 and still needs the canary.)
+
+### The gap: there is no SPA fallback
+
+| Request | Result |
+|---|---|
+| `/employees/` (a prerendered page exists) | 200 |
+| `/employees/123` | **404** |
+| `/dashboard` | **404** |
+
+The rewrite routes `^/(api\|sanctum)` to `index.php` and nothing else. **Every client-side
+route that was not prerendered 404s** — on a shared link, and on a browser refresh of any
+detail page.
+
+This is independent of the Next.js finding and compounds it: even if the
+`generateStaticParams` problem were solved, these URLs would still 404 at the Apache layer
+until a fallback exists.
+
+### The fix, tested and NOT applied
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+```
+
+Placed after the API rule. Measured in the served copy:
+
+| | |
+|---|---|
+| `/employees/123`, `/dashboard` | **200**, SPA shell |
+| `/employees/` | **200, still the real prerendered page** — `!-f`/`!-d` lets real files win |
+| API, deny rules, ACME, static assets | **no regression** |
+
+**Deliberately not applied**, for three reasons: the file is in the frozen directory;
+Branch B is **NOT APPROVED**; and the rule presumes an `index.html` exists, which is true
+under Branch B and false under Branch A. Applying it now would bake in the branch decision
+this workstream has not made. It is recorded as a proposal with its evidence, ready for the
+pass that selects an architecture.
+
+### One limit on this measurement
+
+`index.php` was served as source — there is no PHP handler in this Apache, and
+`libapache2-mod-php` could not be installed because the PPA is refused by the egress policy
+(403), which per that policy was reported rather than worked around. So **routing to the
+front controller is verified; PHP execution behind it is not.** That was never this file's
+job.
+
+---
+
+## STATIC EXPORT MEASURED, NOT ESTIMATED — 2026-09-18
+
+The repository builds for a target this account cannot host, and the documented cost of
+fixing that is wrong. Both measured by running builds here; no host involved.
+
+### `next.config.ts` still says `output: "standalone"`
+
+That is the **Node server** build — Branch A. Shared hosting runs no Node server, so as it
+stands **the frontend builds for a target the account cannot serve.** Branch B (static
+export) is the shared-hosting path, and it had never been attempted.
+
+**Baseline build: PASS.** `npm run build` on Node 22, exit 0, 90 routes prerendered,
+11 dynamic (`routes-manifest.json`), 1 server-rendered (`/register`).
+
+### Attempting `output: "export"` — three findings, in the order the build produced them
+
+| # | Blocker | In the documented estimate? |
+|---|---|---|
+| 1 | `/manifest.webmanifest` needs `export const dynamic = "force-static"` | **No — missing entirely** |
+| 2 | The four `[id]` routes are missing `generateStaticParams()` | Yes |
+| 3 | **All four are `"use client"`, and Next rejects `generateStaticParams` on a client component** | **No — and it invalidates the estimate** |
+
+Finding 3 verbatim from the build:
+
+```
+Error: Next.js can't recognize the exported `generateStaticParams` field in route.
+App pages cannot use both "use client" and export function "generateStaticParams()".
+  × 4
+```
+
+### Why that matters
+
+`SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
+*"`generateStaticParams` on four dynamic routes"* — four one-line additions. **That is not
+implementable as written.** `app/(dashboard)/{admin/tenants,devices,employees,payroll}/[id]/page.tsx`
+all open with `"use client"`, so the compiler rejects the addition outright.
+
+The real shape is a **split per route**: a server component that exports
+`generateStaticParams`, with the existing client component moved into a child. Four file
+splits with prop-threading, not four one-line edits.
+
+And the harder half is unchanged by any of that: **those IDs are tenant data.** Nothing can
+enumerate every employee, device, payroll run and tenant at build time, so
+`generateStaticParams` can only return `[]` — which builds, and then 404s every real
+`/employees/123`. Making those routes work under export means client-side routing that
+reads the id from the URL at runtime, which is a different and larger change again.
+
+### Static-export feasibility is not application runtime feasibility
+
+The audit conflated these, and the distinction decides whether Branch B is viable at all:
+
+| | |
+|---|---|
+| **Static-export feasibility** | Can `next build` emit files? **Currently no**, and fixable — a metadata directive, four server/client splits, `generateStaticParams` returning `[]` |
+| **Application runtime feasibility** | Will the exported app *work*? **No, and the fixes above do not change that.** `[]` pre-renders nothing, so every real `/employees/123` returns 404 |
+
+**A passing export build would not mean a working application.** Same shape as the
+green-test-run trap in the root `CLAUDE.md`: the signal that looks like success arrives
+before the thing works.
+
+### Branch B is NOT APPROVED for implementation
+
+Until a deployment architecture is selected. It is gated on G0-A and G0-G, both
+`NOT VERIFIED`, and `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has
+returned No-Go on B3.
+
+**The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
+evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
+switch, four component splits, and a routing rearchitecture for entity pages. Corrected at
+source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
+`GATE-0-RESULT.md` (×3), `TCO_COMPARISON.md`, `SHARED_HOSTING_MIGRATION_PLAN.md`,
+`B1-B5_GATE_REPORT.md`, `shared-hosting/DEPLOYMENT.md` step 4, and this file's queue row 3.
+
+### What was NOT done, deliberately
+
+The experiment was reverted in full — `git checkout -- src/`, working tree clean,
+`next.config.ts` back to `standalone`. **No Branch B work was implemented.** It is gated on
+G0-A and G0-G, both `NOT VERIFIED`, and on the Option A/B decision that has just returned
+No-Go. Implementing it now would be the speculative spend this file has just recommended
+against.
+
+What is delivered is the measurement: if Branch B is ever revisited, the cost line needs
+rewriting first, and the new blocker (`manifest.ts`) needs adding.
+
+### Repository-side compatibility — where it actually stands
+
+| Layer | State |
+|---|---|
+| **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Compatible.** Verified by CI and by reading the code |
+| **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
+| **Frontend** — Branch B (static export) | **Does not build.** Three blockers, one of which invalidates the costing |
+
+The backend half of "shared-hosting compatible by default" is done. **The frontend half is
+not, and now has a measured gap rather than an assumed one.**
+
+---
+
+## THE PRE-REGISTERED DECISION RULE HAS FIRED — 2026-09-18
+
+Recorded because the owner asked for a decision, and one was already committed to in
+writing before any evidence existed. This is not a new judgement; it is reading the rule
+that `SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
+
+### The rule
+
+| Gate | The plan's pre-registered consequence |
+|---|---|
+| **B3** cron | **"No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. **→ Option A"** |
+
+`B3` is `G0-D` (the disambiguation table at line 162 of this file). **G0-D is FAIL** — there
+is no Scheduled Tasks section on this subscription, read from the dashboard on 2026-09-18.
+
+**So the rule's own answer is Option A: stay on the VPS.** The value of pre-registering a
+decision is that it cannot be renegotiated once the answer is inconvenient, and this one is
+inconvenient.
+
+### Two things stop that from being final
+
+1. **G0-D is FAIL *as provisioned*, not *impossible*.** Scheduled Tasks is a service-plan
+   permission, so a support grant or a tier change flips it. That request is written and
+   unsent: [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md).
+   **It is the only thing that can reverse the rule.**
+2. **The decision belongs to the owner, not to this file.** What is recorded here is that
+   the criterion they set has been met, and what follows from it.
+
+### A second gate is pointing the same way
+
+**B2** (wildcard TLS) carries the same *"No-Go → Option A"* consequence, and G0-C's TLS row
+is `PARTIAL`: per-hostname certificates are **proven**, wildcard is **blocked** because the
+zone sits on `ns1`/`ns2.telecom.net.et` and Plesk cannot perform DNS-01. That is not fatal
+the way B3 is — tenants can be certificated one at a time — but it converts self-service
+tenant signup into manual operator work per tenant, permanently.
+
+Two of the four fatal gates now point No-Go. None points Go.
+
+### Option C is not the escape hatch
+
+The plan already rejected it, and the reasoning holds better now than when it was written:
+
+> *"Once a VPS is in the picture, Option A is strictly better. The VPS in this hybrid is
+> doing the hard part — Redis, workers, WebSockets, storage — while the shared host
+> contributes only PHP execution that the same VPS could do for free. The hybrid costs more
+> than the VPS alone, is harder to operate, and is slower."*
+
+Its stated exception is narrow: *"unless the requirement is specifically 'the domain and
+web tier must be hosted at Ethio Telecom' for a reason other than cost."* **If such a
+requirement exists — regulatory, contractual, data residency — it has never been recorded,
+and it would change this answer.** That is the one question worth putting to the owner
+rather than deciding for them.
+
+### The tier question, added to the ticket 2026-09-18
+
+Before Option A is taken as settled, one thing has never been asked. `GATE-0-RESULT.md`
+records that *"PHP versions / Node / cron granularity / proxy directives"* often **differ
+by tier**, and that **G0-A, G0-D and G0-G may all have different answers on a higher
+plan** — which is precisely the set blocking this migration:
+
+| Gate | State | Cost if it stays |
+|---|---|---|
+| **G0-D** cron | **FAIL** | The application cannot be installed at all |
+| **G0-A** custom directives | strong-evidence FAIL | Forces Branch B — the architectural frontend change |
+| **G0-G** Node runtime | **never read** | If it passes, Branch A works and the frontend needs **nothing** |
+
+**All three are service-plan permissions, not server capabilities. The account's tier has
+never been confirmed.** So the decision tree everyone has been reasoning over has a branch
+nobody checked: a higher plan could flip all three at once.
+
+Added as **ask 4** to the support request. It asks the provider to *sell* something rather
+than grant a favour, which is usually the easier conversation, and it can resolve three
+gates in one reply.
+
+**G0-G is also free to read from the panel right now**, and it carries the most information
+per unit of effort of anything outstanding: it is the difference between "the frontend
+needs an architectural rework" and "the frontend needs nothing".
+
+### What follows, in order
+
+1. **Send the support request.** One ticket, three asks. It is the only route to G0-D now
+   that Route D went with the Git repository, and it costs nothing to try.
+2. **Set a deadline on it.** No useful answer within a reasonable window means refused;
+   refused means the rule stands and the target is Option A.
+3. **Spend nothing further on Option B.** The repository is already Plesk-compatible and
+   that work does not rot — it is correct whenever this is revisited. But the static-export
+   refactor (B5 / Branch B) and anything else conditional on Option B should wait for an
+   answer to B3.
+4. **Answer B-6 now, and treat it as the top risk rather than a footnote.** Under Option A
+   the VPS is not a rollback target — **it is production** — and nobody has confirmed it is
+   still serving or what data it holds. `tin` and `national_id` are `encrypted` casts and
+   off-host backup was never configured, so its `APP_KEY` may be the only thing that can
+   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission.
+
+**No gate moved.** Gate 0 remains 1 verified, 1 failed, 28 outstanding. Recording that a
+decision rule has fired is not evidence about the host.
+
+---
+
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
 Everything resolvable from the repository has been done. These eight remain, in dependency
@@ -870,7 +1381,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
-| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
+| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which costs an **architectural frontend deployment change** (measured `7aed9d2`), not the "scoped" one this row used to claim |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
 | **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php`, **then set `ETHR_PROBE_WEB_TOKEN` in that copy to a second random value** — as shipped every web request returns 403 | The full output. Open it as `?token=<that value>` and pass **no other query parameter**; **delete the file in the same sitting** | Upload, edit the token, then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |

@@ -14,6 +14,7 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 | `canary.php` | Reports what arrived, prints the three `curl` checks to run |
 | `secret.txt.probe` | Bait. Must return **403**. Contains nothing confidential |
 | `shadow.txt` | Bait for G0-B.5. Exists on disk *and* is rewritten, so the response says which layer won. Contains nothing confidential |
+| `shadow.js` | **The same bait with a static extension, and the one that counts.** Added 2026-09-18 after measurement: Plesk's "serve static files directly by nginx" block always covers js/css/images but only *sometimes* covers `.txt`, so `shadow.txt` alone reports "the rewrite won" on a host that is shadowing every asset the deployment ships. **Run both; they can legitimately disagree.** Contains nothing confidential |
 
 ## Use
 
