@@ -149,6 +149,25 @@ NEXT ACTION:  Three lookups only — B3 (cron), B5 (Node.js), and the probe
               script for B4 + H1. Everything else is decided.
 ```
 
+> **Legacy IDs — read this before the letter-number labels above.** That block is the
+> 2026-08-29 status, kept as history. It uses the **retired** `B3/B4/B5/H1` scheme, and
+> three of those labels now **collide** with live blockers of the same name that mean
+> something else entirely. `B5` above is *Node.js*; **B-5** below is *no database import
+> route*. `B3` above is *cron*; **B-3** below is *an unidentified Plesk vhost skeleton*.
+> Per `HOSTING_VERIFICATION_CHECKLIST.md:17`, the retired labels map to gates, not to the
+> blocker register:
+>
+> | Retired | Means | Now |
+> |---|---|---|
+> | `B3` | cron / Scheduled Tasks | **G0-D** |
+> | `B4` | PHP version, extensions, GD | **G0-E** |
+> | `B5` | Node.js availability | **G0-G** |
+> | `H1` | `CREATE TRIGGER` privilege | **G0-F** |
+>
+> The live blockers are **B-1 … B-6**, always written with the hyphen, in the register
+> further down. When a document says "the four remaining facts", it is speaking the 2026-08-29
+> language and predates every blocker found since.
+
 ## DECISIONS TAKEN ON DELEGATION (2026-08-29)
 
 Owner said "decide for me". These are settled; they are not open questions.
@@ -252,7 +271,10 @@ copy of its rows — one table authoritative per vhost.
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
 each file's own "branch on B3/B5" sections for exactly what changes once those answers
 land. Hosting migration *execution* (upload, migrate, cutover) has not started and is
-correctly blocked on the same four facts it always was. See NEXT ACTION.
+correctly blocked on the same four facts it always was. See NEXT ACTION. *(Written
+2026-08-31. Those "four facts" are the retired `B3/B4/B5/H1` — now `G0-D`, `G0-E`, `G0-G`,
+`G0-F` — and they are no longer all that blocks execution: blockers **B-1 … B-6** were
+found on 2026-09-17/18 and are the current list. See the legacy-ID table above.)*
 
 ---
 
