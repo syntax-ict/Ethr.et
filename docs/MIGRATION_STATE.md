@@ -1785,6 +1785,40 @@ and rollback is not retired.
 The overlay's responsibility split, per section: what is true of the code, and what the
 owner clicks. It does not restate the frozen `ENVIRONMENT.md` / `DEPLOYMENT.md`.
 
+### A defect this session introduced, caught by cross-checking rather than by CI
+
+The first version of `api/.env.shared-hosting.example` set `CACHE_STORE=file` and
+`SESSION_DRIVER=file`. Both were wrong, and neither the drift-guard test nor CI would have
+caught them — they are not `redis`, so every assertion passed.
+
+**`ENVIRONMENT.md` D-8 had already decided this, and `CACHE_STORE=database` was
+LIVE-VERIFIED against real MariaDB on 2026-08-31.** The reason is specific:
+`config/database.php`'s `cache_locks` table is what Laravel's database cache driver needs
+for `Cache::lock()` — the primitive `->withoutOverlapping()` uses internally, at **8 call
+sites in `routes/console.php`**. `file` moves those locks onto an implementation nobody
+verified, for no gain. The same verification run exercised `RateLimiter` behind all ten
+named limiters: 32 requests against a 30/min limit, 30 allowed, 2 blocked.
+
+Corrected to `database` for both. The lesson is the generalisable part: **forbidding the
+wrong value is not the same as pinning the right one.** The guard now asserts the D-8
+values positively, so `file` — or anything else — fails.
+
+### One deliberate divergence from D-8, recorded rather than hidden
+
+D-8 says `BROADCAST_CONNECTION=log`; the template says `null`. Kept, for four reasons:
+
+- `SystemHealthService::broadcastStatus()` treats anything outside `['reverb','pusher']` as
+  `disabled`, so both report identically
+- `config/broadcasting.php:25` coalesces to `'null'` as its own fallback — it is the
+  config's stated intent
+- CI already sets `BROADCAST_CONNECTION: "null"`, so it is a tested value; `log` is not
+- `log` writes a line per broadcast against a **fixed shared-hosting disk quota**, and when
+  that quota fills every write path fails, including the database's
+
+`BroadcastConnectionConfigTest` exists because `null` was once a trap — `env()` parses the
+literal `"null"` into PHP null and `BroadcastManager` threw *"Broadcast connection [] is not
+defined"*. That is fixed and pinned, which is why `null` is now the safer of the two.
+
 ### Application code audit — clean, and that is the finding
 
 The overlay's §6 list was carried into `api/app`, `api/config` and `api/bootstrap`. Nothing

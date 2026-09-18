@@ -147,3 +147,39 @@ it('selects no driver the shared-hosting target cannot run', function () {
     expect($env)->not->toMatch('/^REDIS_HOST=redis\s*$/m');
     expect($env)->not->toMatch('#^MINIO_ENDPOINT=http://minio:9000\s*$#m');
 });
+
+it('matches the driver swaps ENVIRONMENT.md D-8 already decided', function () {
+    // Forbidding `redis` is not enough, and this test learned that the hard way:
+    // the template first shipped CACHE_STORE=file and SESSION_DRIVER=file, which
+    // pass every assertion above and still contradict a decision that was
+    // LIVE-VERIFIED against real MariaDB on 2026-08-31.
+    //
+    // CACHE_STORE=database is load-bearing. `config/database.php`'s `cache_locks`
+    // table is what Laravel's database cache driver needs for `Cache::lock()`,
+    // the primitive `->withoutOverlapping()` uses internally at 8 call sites in
+    // routes/console.php. `file` moves those locks onto an implementation nobody
+    // verified, for no gain.
+    $env = (string) file_get_contents(base_path('.env.shared-hosting.example'));
+
+    $decided = [
+        'CACHE_STORE' => 'database',
+        'QUEUE_CONNECTION' => 'database',
+        'SESSION_DRIVER' => 'database',
+        'FILESYSTEM_DISK' => 'local',
+    ];
+
+    foreach ($decided as $key => $value) {
+        expect($env)->toMatch(
+            "/^{$key}={$value}\\s/m",
+            "$key must be `$value` — ENVIRONMENT.md D-8 decided it and MIGRATION_STATE records why."
+        );
+    }
+
+    // BROADCAST_CONNECTION is the one deliberate divergence: D-8 says `log`,
+    // this template says `null`. Both report `disabled` through
+    // SystemHealthService::broadcastStatus(), config/broadcasting.php coalesces
+    // to `null` as its own fallback, CI sets `null`, and `log` would write a
+    // line per broadcast against a fixed disk quota. Recorded in
+    // MIGRATION_STATE rather than left as an unexplained difference.
+    expect($env)->toMatch('/^BROADCAST_CONNECTION=null\s/m');
+});
