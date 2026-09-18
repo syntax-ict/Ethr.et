@@ -1657,6 +1657,52 @@ documented workaround and would weaken the asks that do not.
 
 **Not sent.** Sending it is the owner's action, and it is the highest-value one available.
 
+### The Plesk Git repository was REMOVED — 2026-09-18, owner action
+
+Reported by the owner, to be reconfigured later. Recorded because it changes the register
+in three places, and one of them is the worst finding in this engagement.
+
+**The `/httpdocs/` deployment hazard is neutralised.** The configuration that pointed a
+`main` deployment at the live document root no longer exists. That setting had already
+fired once — it published the whole repository at the web root and made the capability
+probe web-executable — and it was still armed as of the last reading. It is now gone, not
+merely warned about. **This is the single largest risk reduction on the host side so far,
+and it came from removal rather than configuration.**
+
+**Route D is withdrawn.** *Additional deployment actions* was recorded as a fourth probe
+route and, more importantly, as the one non-shell way to run `key:generate`, `migrate`,
+`db:seed` and `ethr:create-admin` — the fatal row under **G0-D**. It depended on the Git
+extension being configured, so with no repository there is no Route D. G0-D's fatal
+consequence is therefore **back to having no workaround at all** until either the support
+request succeeds or Git is reconfigured. That is a real regression in options, and it is
+worth being explicit about rather than letting the risk reduction above obscure it.
+
+**Route C is now the only probe route again.** A (SSH) is Forbidden, B (Scheduled Tasks)
+is FAIL, D has just been withdrawn — so the web-served run under a random filename is all
+that remains for G0-E, G0-H, G0-I, G0-J and the storage rows. That makes the token gate
+added to the probe on 2026-09-18 load-bearing rather than merely prudent: manual action 6
+now requires setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy, and a run without it
+returns 403 and nothing else.
+
+**When it is reconfigured, the path is `/ethr/`.** Plesk's deployment path is relative to
+the webspace root, so `/ethr/` resolves to `~/ethr/` and yields `~/ethr/api/`, the layout
+`DEPLOYMENT.md` §0 requires. It must be set **before** the first deploy: Plesk runs
+deployment actions *after* writing the files, so no action can guard the target.
+
+#### One thing left unknown, deliberately
+
+Plesk offers to keep or delete the checked-out files when a repository is removed. Which
+option was taken here was not reported, so **whether `~/ethr/` still holds the repository
+is unknown.** It is not inferable — both outcomes are ordinary — and it decides whether
+reconfiguring is a fresh clone or a re-attach. One look at *File Manager* answers it.
+
+The related question from the previous listing is still open and now matters less: whether
+any domain or subdomain is rooted at `~/ethr/`. If the files were deleted, that exposure
+path is closed by accident; if they were kept, it is unchanged.
+
+**No gate moved.** G0-D stays **FAIL** — removing a Git repository does not create a
+scheduler. Gate 0 remains 1 verified, 1 failed, 28 outstanding.
+
 ### Repository-side verification run — 2026-09-18, what was actually executed
 
 Distinct from the Gate 0 table, which is host-side and unmoved. These are the claims a

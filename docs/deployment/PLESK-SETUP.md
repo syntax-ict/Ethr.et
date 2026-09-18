@@ -151,16 +151,31 @@ runbook expects.
 
 ### Plesk — *Git*
 
-**The deployment path currently reads `/httpdocs/`.** Deploying `main` there publishes the
-entire repository at the web root — which has already happened once. Repoint it to
-`/ethr/`.
+**The Git repository was REMOVED from Plesk on 2026-09-18** (owner action, to be
+reconfigured later). There is no deployment configured, so nothing can deploy anywhere —
+which neutralises the worst setting found in this engagement rather than merely warning
+about it.
+
+**When you reconfigure it, the deployment path is `/ethr/`, not `/httpdocs/`.** The removed
+configuration pointed at `/httpdocs/`, and deploying `main` there publishes the entire
+repository at the web root — which already happened once. Plesk's deployment path is
+relative to the webspace root, so `/ethr/` resolves to `~/ethr/` and yields `~/ethr/api/`,
+which is what the runbook expects.
+
+Set the path **before** the first deploy, not after: Plesk runs deployment actions *after*
+the files are written, so no action can guard the target.
 
 Two repository-side defences now exist for the part of that incident that mattered:
 `scripts/hosting-verification/ethr-hosting-check.php` refuses web execution without a
-token, and `scripts/.htaccess` denies the directory. Neither contains the copy already on
-the host.
+token, and `scripts/.htaccess` denies the directory. Neither contains a copy already on the
+host.
 
 Keep the deploy key **read-only**. Already done.
+
+> **Open question, not an assumption.** Plesk offers to keep or delete the checked-out
+> files when a repository is removed. Which happened here is unrecorded, so whether
+> `~/ethr/` still holds the repository is **unknown**. It is answerable from *File Manager*
+> in one look, and it decides whether reconfiguring is a fresh clone or a re-attach.
 
 ---
 
@@ -189,7 +204,7 @@ Keep the deploy key **read-only**. Already done.
 1. Enable the 18 extensions (`gd`, `pdo`, `pdo_mysql` especially)
 2. Copy `.env.shared-hosting.example` → `~/ethr/api/.env`, fill `APP_KEY`, `DB_*`, `MAIL_*`
 3. Create the database and user
-4. Repoint the Git deployment path from `/httpdocs/` to `/ethr/`
+4. Reconfigure Git deployment when you are ready — path **`/ethr/`**, set before the first deploy (it was removed 2026-09-18)
 5. Send the support request — cron, SSH, `TRIGGER`
 
 **Blocked on the provider**
