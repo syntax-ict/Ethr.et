@@ -568,13 +568,33 @@ host itself, is still the thing that converts a backup procedure into a verified
 `BACKUP-RESTORE.md:73`, which matters for B-6 as much as B-5: **"a Plesk-generated
 database backup of ETHR may be unrestorable on ETHR's own host."**
 
-The mechanism is the audit-log triggers. `SHOW CREATE TRIGGER` returns
-``CREATE DEFINER=`root`@`localhost` …`` verbatim — confirmed in that document, not
-assumed — and that is what `mysqldump` and the Plesk panel export write into a dump file.
-Restoring it as a non-`SUPER` user **stops dead at the trigger statement**, because naming
-a definer other than yourself needs `SUPER`. `DatabaseDumper` emits no `DEFINER` clause
-precisely to avoid this, which is why `ethr:backup` exists as a path that does not have
-the property.
+The mechanism is the audit-log triggers. Restoring a dump that names a definer **other
+than the account doing the restore** stops dead at the trigger statement with
+`1227 Access denied … SUPER`, measured against MariaDB 10.4.32 on 2026-09-15. That is what
+`mysqldump` and the Plesk panel export write into a dump file. `DatabaseDumper` emits no
+`DEFINER` clause precisely to avoid this, which is why `ethr:backup` exists as a path that
+does not have the property.
+
+**Correction 2026-09-18 — this section said the definer is `root@localhost`, universally.**
+It quoted `BACKUP-RESTORE.md`'s reading as "confirmed, not assumed". The 1227 mechanism is
+confirmed; the *specific definer* is not general, and the difference decides which
+operation the hazard bites. The migration emits `CREATE TRIGGER` with **no `DEFINER`
+clause** (lines 53 and 95), so the engine assigns whoever ran `migrate` — `DB_USERNAME`,
+which is `ethr` under Docker and a Plesk-issued per-database user on the target
+(`ENVIRONMENT.md:98`), never `root`. So:
+
+- **Importing the VPS dump — B-5, the migration step itself — bites for certain.** That
+  dump carries the VPS's definer, which by construction is not the Plesk user restoring
+  it. Use `ethr:restore`, or strip the `DEFINER` clauses.
+- **A steady-state Plesk backup of the shared host is conditional.** Its triggers will
+  name the Plesk database user, and that same user restores them, which is permitted. It
+  fails only where the accounts differ — including differing **only in the host part**
+  (`ethr@localhost` vs `ethr@%`), which gives the identical 1227.
+
+The instruction does not change: verify a restore before trusting the panel's backup. What
+changes is that the certainty belongs to the import step, and the steady-state case is
+worth testing rather than written off. Scope note added at the source in
+`deployment/BACKUP-RESTORE.md`.
 
 **Do not treat the panel's backup as the recovery path** until someone has restored one on
 the host and watched both triggers come back.
