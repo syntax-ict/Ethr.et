@@ -137,7 +137,7 @@ Verified against real MariaDB, not only the SQLite test suite.
 A formal gate review (`PHASE_A_CHANGE_REVIEW.md`, `HOSTING_VERIFICATION_CHECKLIST.md`,
 `B1-B5_GATE_REPORT.md`, `TCO_COMPARISON.md`) froze further hosting-code changes pending
 external verification. The owner supplied real account credentials
-(`etrhet@213.55.96.154`) and confirmed Plesk accepts a wildcard subdomain — resolving
+(`ethret@213.55.96.154`) and confirmed Plesk accepts a wildcard subdomain — resolving
 gate B1, the one gate this migration had no workaround for.
 
 Delegated ("decide for me"): architecture confirmed as full shared hosting, stay on the
