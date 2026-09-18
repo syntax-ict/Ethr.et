@@ -417,7 +417,7 @@ $ php -d memory_limit=-1 vendor/bin/pest --compact
 
 This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
 
-### 12c. PHPStan disagrees between this machine and CI, and the reason is unknown **[open]**
+### 12c. PHPStan disagreed between this machine and CI: the cause was the backend job having no `.env` **[closed 2026-09-18]**
 
 CI run #56 (2026-09-16, commit `49e2ee9`) was the **first run in which PHPStan had ever executed** — until `phpstan_gate` stopped requiring a Docker container it had never run there at all. It reported exactly four errors, all the same shape:
 
@@ -465,6 +465,46 @@ The four findings themselves are true on both platforms and were fixed on their 
 > **A more specific mechanism now exists to test, in place of the disproven one.** `vendor/larastan/larastan/src/Methods/ManagersMethodsExtension.php` grants extra methods to a value by resolving it through the live container and calling `->driver()` on it — but only when `$classReflection->is(Manager::class)`, i.e. when PHPStan considers the *value's* class to be `Illuminate\Support\Manager` (which `PasswordBrokerManager` extends) rather than the plain contract interface. Whether PHPStan consults this extension for a receiver statically typed as the *interface* — and whether that consultation itself depends on the container actually being reachable — is the next concrete thing to trace, not "boot succeeded or not" in the abstract.
 >
 > **What this rules out, precisely:** a config or invocation mismatch on this machine. Same command, same freshly-cleared cache, same gate function, same lockfile — the isolation is real. What remains open is genuinely internal to PHPStan/Larastan's interaction with either the OS or the exact PHP patch build, which this machine cannot distinguish from itself. Attempted a cross-OS check via a static, no-root PHP 8.2.32 Linux binary in WSL (no `sudo`, no Docker available for an apt-based or containerized PHP 8.2 on this host) — the download proved unreliable over two attempts today and was not completed. Left as the next concrete step, not abandoned: a working Linux PHP 8.2 build, `composer install --ignore-platform-reqs` against this same lockfile, and the identical `dumpType()` probe would either reproduce CI's error (confirming OS/build-specific PHPStan behaviour) or also pass (pointing at something GitHub-Actions-specific in how `shivammathur/setup-php` assembles the runtime, rather than Linux itself).
+
+> **Closed, 2026-09-18 — reproduced in both directions, and the mechanism traced to a specific line of Larastan.**
+>
+> **The variable was never the OS and never the PHP version.** Both were eliminated by direct test on a Linux container, against this same lockfile, on the exact pre-`bff4fb3` code restored with `git show`:
+>
+> | Runtime | Result on the pre-fix code |
+> |---|---|
+> | Linux, PHP 8.4.19 | `[OK] No errors` |
+> | Linux, PHP 8.2.33 (CI pins `8.2`) | `[OK] No errors` |
+> | Linux, PHP 8.4.19, **no `api/.env`** | **the same 4 errors, at the same 4 lines** |
+>
+> So the split reproduces on one machine, one OS and one PHP build, toggled by a single file. The previous pass recorded the opposite result for what it describes as this same test ("hid `.env`, set `BROADCAST_CONNECTION=null`, re-ran → `[OK] No errors`"). That line is **refuted**; it is left above rather than deleted, because it is the reason the investigation spent two days on OS and PHP-version hypotheses that were never the cause.
+>
+> **The mechanism, traced rather than hypothesised.** `vendor/larastan/larastan/src/Methods/ContractsMethodsExtension.php` takes any interface under `Illuminate\Contracts`, resolves that interface name **through the live application container**, and grants the interface whatever methods the resolved concrete class has:
+>
+> ```php
+> $concrete = $this->resolve($classReflection->getName());
+> if ($concrete === null) { return false; }          // <- grants nothing
+> $concreteReflection = $this->reflectionProvider->getClass($concrete::class);
+> ```
+>
+> Resolving `Illuminate\Contracts\Auth\PasswordBroker` reaches `PasswordBrokerManager::createTokenRepository()`, which reads `config('app.key')` and passes it straight into `DatabaseTokenRepository::__construct()`'s `string $hashKey`. With no `.env`, `config('app.key')` is **`null`**, so that constructor throws a `TypeError` — confirmed directly:
+>
+> ```
+> with .env:     BOOT OK; broker=Illuminate\Auth\Passwords\PasswordBroker
+> without .env:  BOOT OK; TypeError: DatabaseTokenRepository::__construct():
+>                Argument #4 ($hashKey) must be of type string, null given
+> ```
+>
+> `resolve()` returns `null`, `hasMethod()` returns `false`, and the contract keeps only the two methods it declares — producing exactly the four `method.notFound` errors, at exactly those four lines. With a `.env`, resolution succeeds, the concrete broker's `createToken()` / `tokenExists()` / `deleteToken()` are granted to the interface, and PHPStan reports nothing.
+>
+> **Note what is *not* the trigger: the value of `APP_KEY`.** A present-but-blank `APP_KEY=` resolves fine — `''` is a string. It is the *absence of the `.env` file* that makes the config value `null`. Tested, because the obvious guess is wrong.
+>
+> **Why CI had no `.env` and local always did.** At `49e2ee9` — the commit run #56 analysed — the workflow's `backend` job (which is the one that runs PHPStan) went straight from `composer install` to `./scripts/gates.sh backend`. The `cp .env.example .env && php artisan key:generate` step existed only in the `mysql` and `contract` jobs. It was added to `backend` by `b33adde`, as the fix for the 156 `MissingAppKeyException` test failures recorded as cause 4 in `CLAUDE.md`.
+>
+> **So this was never a second defect.** It is cause 4 wearing a different hat: one missing `.env` produced two unrelated-looking symptoms — 156 dead tests and four phantom-looking PHPStan errors — and only the first was recognised as a missing `APP_KEY` at the time.
+>
+> **The consequence, which is the part worth acting on.** `b33adde` gave the `backend` job a `.env`. That fixed the tests and, in the same step, put PHPStan into the permissive mode: **CI would no longer report these four errors, and would not catch the same class of bug again.** Larastan's contract-to-container widening means any `Illuminate\Contracts\*` receiver is silently checked against the *default binding*, not against the interface — which is precisely the assumption that made the original code fragile. Verified on the fixed tree: `[OK] No errors` both with and without `.env`, so nothing regressed and nothing is being suppressed today. What protects this specific call path now is not the analyser but `App\Support\PasswordTokens`' runtime `instanceof` and `PasswordBrokerNarrowingTest`, which is why `bff4fb3` deliberately chose a real check over an annotation or a baseline entry.
+>
+> **The general lesson, stated so it survives this one bug:** PHPStan's analysis depth here is a function of whether the application boots and binds. A green PHPStan run therefore says less than it appears to when the environment differs from the one the reader has in mind — and "it passes locally" was, for two days, evidence of an environment difference rather than of correct code.
 
 **File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
