@@ -498,8 +498,70 @@ assert schema, rows, triggers and documents came back.
 
 **So B-5 is not "no import route exists".** It is "`DATABASE_MIGRATION_PLAN.md` names
 `mysql -h localhost … < dump.sql`, which needs a shell, when a shell-free path is already
-built and tested." B-5 therefore **collapses into B-4**: both need one thing, a way to run
-a PHP CLI command, which is manual action 1.
+built." B-5 therefore **collapses into B-4**: both need one thing, a way to run a PHP CLI
+command, which is manual action 1.
+
+#### Correction 2026-09-18 — "and tested" was too strong, and the gap is on the production driver
+
+This section first read *"already built **and tested**."* Checked rather than left
+standing, and the word does not survive on the driver that matters.
+
+`BackupRestoreRehearsalTest` — the destructive round-trip the claim rests on — **skips
+itself on MySQL.** Its own guard, and the reasoning is sound:
+
+```php
+if (DB::connection()->getDriverName() !== 'sqlite') {
+    test()->markTestSkipped(
+        'Destructive restore rehearsal is SQLite-only; use `artisan ethr:backup:rehearse` on MySQL.'
+    );
+}
+```
+
+The stated reason is correct — these tests DROP EVERY TABLE, which `RefreshDatabase` undoes
+on SQLite but not on MySQL, where DDL implicitly commits and the database stays destroyed
+for every test after it. So the skip is right. The problem is what replaces it.
+
+**`ethr:backup:rehearse`, the named MySQL equivalent, is invoked nowhere.** Not by
+`scripts/gates.sh`, not by either CI workflow, not by any test — grepped 2026-09-18, the
+only hits are its own definition and the two lines above pointing at it. So:
+
+| Driver | Job | Destructive backup→restore rehearsal |
+|---|---|---|
+| SQLite | `Backend` | runs |
+| MariaDB | `Backend suite on MySQL` | **skipped, and nothing runs in its place** |
+
+Two consequences worth stating separately:
+
+1. **The backup path has never been exercised on the production driver.** Production is
+   MariaDB. `DatabaseDumper::quoteFlat()` carries its own note about SQLite and MySQL
+   quoting newlines differently — a divergence that already bit this project once — so
+   "passes on SQLite" is precisely the evidence that divergence defeats.
+2. **The SQLite rehearsal cannot cover B-6's hazard even in principle.** It asserts
+   triggers come back by reading `sqlite_master WHERE type='trigger'`. The B-6 mechanism
+   is ``CREATE DEFINER=`root`@`localhost` ``, and SQLite triggers have no `DEFINER`
+   concept at all. The one assertion that looks like it covers the risk is on the one
+   driver where the risk cannot exist.
+
+**Not fixed here, deliberately.** The fix is a CI change, and this environment cannot
+validate one: `composer install` cannot authenticate to github.com here, so there is no
+`api/vendor`, so no `artisan` command can be run at all. Pushing an unvalidated workflow
+edit is the specific thing `CLAUDE.md`'s CI section warns about — five structural defects,
+every one invisible from the working tree.
+
+The proposed patch, for whoever has a working backend:
+
+- The command refuses unless the database name contains one of `test`, `rehears`,
+  `scratch`, `staging`, `sandbox` (`BackupRehearsalCommand::DISPOSABLE`). CI's database is
+  `ethr_suite_mysql`, which matches none — so this needs a **second** database, e.g.
+  `ethr_rehearsal`, not `--force` on the suite's own.
+- Creating it needs the service's root credentials (`MARIADB_ROOT_PASSWORD: root` is
+  already set in `gates.yml`) and a grant to `ethr`; then `migrate` against it and run
+  `php artisan ethr:backup:rehearse` with `DB_DATABASE` overridden for that step only.
+- Verify the runner actually has a `mysql` client before relying on one.
+
+Until that runs, the honest statement is: **built, tested on SQLite, unexercised on
+MariaDB** — and item 3 of `BACKUP-RESTORE.md`'s checklist, running the rehearsal on the
+host itself, is still the thing that converts a backup procedure into a verified backup.
 
 ### And Plesk's own backup is not the recovery path
 
