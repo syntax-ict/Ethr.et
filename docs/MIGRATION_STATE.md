@@ -1420,7 +1420,41 @@ performed, so the path change is proved before any command is attached to it.
 - **Phase 3 — remove the action.** A standing deployment action that runs a
   grants-and-layout probe is not something to leave configured.
 
-**Nothing in phases 1–3 has been performed.** Recorded as the agreed route, not as history.
+~~**Nothing in phases 1–3 has been performed.**~~
+
+### SUPERSEDED — the deployment had ALREADY run into `/httpdocs/`
+
+**2026-09-18 14:42 host time**, before the sequence above was written. Owner's File Manager
+listing shows the entire repository in the document root: `api/`, `docs/`, `scripts/`,
+`src/`, `docker/`, `infrastructure/`, `.github/`, `.githooks/`, all `docker-compose.*.yml`,
+`CLAUDE.md`, `README.md`, `.env.production.example`, the three PowerShell launchers. The
+analysis above described a risk that had already materialised.
+
+**Assessed rather than assumed. No credentials were exposed:**
+
+| Checked | Result |
+|---|---|
+| A real `.env` deployed? | **No** — none is tracked, so none could deploy |
+| `START_BACKEND.ps1` APP_KEY literal? | **No** — removed; the file now only *describes* the past mistake |
+| Deployment wiped the docroot? | **No** — it merged. `.well-known/`, `cgi-bin/`, `css/`, `favicon.ico` keep their 25 Jul timestamps, so **certificate renewal is intact** |
+
+**What was exposed is reconnaissance, and one item is materially worse than the rest:**
+`httpdocs/scripts/hosting-verification/ethr-hosting-check.php` became **web-executable**.
+Requested with no query string it prints `disable_functions`, the filesystem layout, PHP
+limits, free space and outbound-network results — its own header says it must never be
+web-reachable. (It does *not* leak database grants: that section is skipped unless
+credentials are passed as arguments, and anyone able to pass them already has them.)
+`canary.php` also deployed but is built to be web-reachable and discloses nothing.
+`docs/` exposes the account username, host IPs and the full blocker register.
+
+**Containment, in order:** delete `httpdocs/scripts/` first — it carries both PHP files.
+Then remove every entry dated **18 Sep 14:42** and keep every entry dated **25 Jul** (that
+timestamp split is exactly the deployed-versus-original boundary). Then repoint the
+deployment path to `/ethr/` so a redeploy cannot recreate it.
+
+**What this does to the record:** the host is no longer ~50 commits behind — it is at
+`main`, in the wrong place. **U-5 is not resolved, it is inverted.** And this is the second
+irreversible action taken on `httpdocs/` without a prior disposability check, after **U-6**.
 
 ### What did not change
 
