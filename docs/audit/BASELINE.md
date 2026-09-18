@@ -510,7 +510,7 @@ The four findings themselves are true on both platforms and were fixed on their 
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.
 
-**Known coverage gaps [verified]:** no coverage instrumentation exists at all — `api/phpunit.xml` declares `<source>` but no `<coverage>` block, and `src/vitest.config.ts` has no `coverage` key. **No coverage figure can be stated and no threshold can regress.** `api/tests/Feature/Billing/` contains one file. `src/e2e/payroll.spec.ts` is 549 bytes and asserts only that the page renders a heading.
+**Known coverage gaps [verified]:** no coverage instrumentation is *configured* — `api/phpunit.xml` declares `<source>` but no `<coverage>` block, and `src/vitest.config.ts` has no `coverage` key, so **no threshold can regress**. Both figures have since been measured out-of-band rather than by a gate: frontend 32.34% of statements (§12f) and backend 58.89% of classes / 86.41% of lines (§12e). The original wording here — "no coverage figure can be stated" — was true when written and is not any more. `api/tests/Feature/Billing/` contains one file. `src/e2e/payroll.spec.ts` is 549 bytes and asserts only that the page renders a heading.
 
 ---
 
@@ -717,7 +717,7 @@ Total coverage moved **32.34% → 32.74%**. That the headline barely moved is th
 
 **Still at 0% and worth a look next**, in rough risk order: `lib/utils/date.ts` (35 stmts — date handling under convention #2's UTC-store / EAT-display split), `components/shared/auth-guard.tsx` (26 — a route authorization control, though defence-in-depth since the API enforces independently), `features/auth/sessions-api.ts` (50 — session revocation), and `app/kiosk/page.tsx` (417 — shared-device PIN check-in, which captures attendance).
 
-### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
+### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[closed 2026-09-18]**
 
 Risk 10 is "no coverage instrumentation". The obvious dodge is `phpdbg`, which ships with XAMPP and historically produced coverage without installing anything:
 
@@ -764,13 +764,42 @@ gate stops being read. If backend coverage is wanted it belongs where those two
 already are: outside `gates.sh`'s full sweep, as its own scope, run when somebody
 wants the answer.
 
-**A first backend figure still does not exist**, and this pass did not produce one.
-The run was started under PCOV and abandoned unfinished: this container executes
-only while a tool call is in flight, so the suite accrued about ten seconds of CPU
-per call against the several hundred it needs. That is an artefact of where this
-was attempted, not of the tooling — on CI or a developer's machine the run is
-ordinary. Recorded so the next attempt starts from "flip the flag" rather than
-from `phpdbg`.
+**The first backend coverage figure in this repository's history, measured
+2026-09-18 [verified].** The earlier attempt was abandoned unfinished because this
+container executes only while a tool call is in flight; run instead as a single
+uninterrupted foreground call, the suite completes ordinarily:
+
+```
+php -d extension=pcov.so -d pcov.enabled=1 -d pcov.directory=app \
+    vendor/bin/pest --coverage-text --only-summary-for-coverage-text
+```
+
+```
+Tests:    1797 passed (5299 assertions)   Duration: 360.42s
+
+Classes:  58.89%  (338/574)
+Methods:  73.73%  (1462/1983)
+Lines:    86.41%  (14847/17182)
+```
+
+Read the three numbers together rather than quoting the flattering one. **86.41%
+of lines but 58.89% of classes** is the shape of a suite that exercises its main
+paths heavily and leaves 236 classes untouched entirely — line coverage is high
+because the covered classes are the big ones. The class figure is the one to act
+on; the line figure is the one that will get quoted.
+
+**The cost claim above is now measured, not assumed.** The same suite, same
+machine, same commit, without the extension: **176.24s** against **360.42s** under
+PCOV — **2.05×**. "Coverage roughly doubles the backend job" was written as an
+estimate and turns out to be accurate, so the decision not to add it to the
+blocking sweep stands on a measurement rather than on an intuition.
+
+That decision is unchanged: nothing consumes the number yet — no threshold, no
+upload, no trend — and doubling the blocking job to produce a figure nobody reads
+is how a gate stops being read. What has changed is that the figure now exists, so
+a threshold has something to be set against. **Next step, whenever somebody wants
+it: `coverage: pcov` on the backend `setup-php` step, as its own scope beside
+`security` and `performance`, not inside the full sweep.**
 
 ---
 
@@ -962,7 +991,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2; first fully green run #66 on 2026-09-16**, and green on every `main` commit since (run #173 on `f25baef`) | `.github/workflows/` **[verified]** | Resolved |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend has **no figure yet**, but is no longer *blocked*: PCOV was verified working against this codebase on 2026-09-18 and CI's `setup-php` takes `coverage: pcov` as a one-word change (§12e). What remains is the decision of where to run it, not a missing capability |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Both sides now measured; neither is gated.** Frontend 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend 2026-09-18 — **58.89% of classes (338/574)**, 73.73% methods, 86.41% lines, under PCOV, 2.05× the uninstrumented runtime (§12e). The capability gap is closed; what remains is that **no threshold enforces either number**, so both can still fall silently |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |

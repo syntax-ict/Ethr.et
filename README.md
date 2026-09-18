@@ -34,7 +34,7 @@ with the constraints Ethiopian deployments actually impose:
 | Infrastructure | Docker · Nginx · Supervisor |
 
 Measured 2026-09-18: **104 controllers, 70 models, 62 migrations** under
-`/api/v1`, covered by **1796 backend tests (5298 assertions)** across 166 Pest
+`/api/v1`, covered by **1797 backend tests (5299 assertions)** across 166 Pest
 files, plus 85 Vitest files and 13 Playwright specs. Every figure here was
 counted on this commit, not carried over; the command below reproduces the
 backend one.
