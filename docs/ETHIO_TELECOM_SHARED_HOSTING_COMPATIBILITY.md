@@ -4,6 +4,14 @@
 **Method:** public product pages and the Ethio Telecom hosting portal. **No account
 was available to this audit**, so nothing here was tested against a live environment.
 
+> **Partially superseded 2026-09-17/18.** An account is now available and some rows are
+> measured: **B4 → VERIFIED 8.3.33**, **H7 → UNSUPPORTED (SSH Forbidden)**, wildcard DNS
+> re-confirmed, document root confirmed as `httpdocs`. The live register — with the
+> measured values, blockers **B-1…B-6** and the manual action queue — is
+> `deployment/GATE-0-RESULT.md` and `MIGRATION_STATE.md`. Rows below that still read
+> UNKNOWN are still unknown; this file was **not** bulk-updated, because a matrix edited
+> from memory is worse than one that is honestly stale.
+
 Every row is classified as **VERIFIED**, **UNKNOWN** or **UNSUPPORTED**.
 **UNKNOWN is never treated as supported.** The Go/No-Go decision in
 `docs/SHARED_HOSTING_MIGRATION_PLAN.md` depends on resolving the UNKNOWN rows marked
@@ -60,7 +68,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | B1 | **Wildcard subdomain** `*.ethr.et` served by one vhost | **UNKNOWN** | `ResolveTenant` resolves tenants **only** from the subdomain in production. Without a catch-all, every new tenant needs a manual Plesk subdomain — self-service signup (`RegisterTenantRequest` → `ProvisionTenant`) silently produces tenants nobody can reach. | Ask support: "Can I configure a wildcard subdomain `*.mydomain.et` pointing at one document root?" In Plesk this is *Add Subdomain* with the name `*` — supported by Plesk itself, but frequently disabled on shared plans. |
 | B2 | **Wildcard TLS certificate** `*.ethr.et` | **UNKNOWN** | "Free SSL" on shared plans is normally per-hostname Let's Encrypt. Wildcard issuance needs **DNS-01**, which needs API access to the DNS zone. Without it, tenant hosts serve a certificate error — fatal, since `SESSION_SECURE_COOKIE=true` means auth cookies are not sent over a distrusted connection. | Ask: "Does the free SSL support wildcard certificates via DNS-01, and do I control the DNS zone or an API token for it?" |
 | B3 | **Cron jobs** | **UNKNOWN** | 11 scheduled entries and all 15 queued job classes depend on it. Without cron: no leave accrual, no carry-forward, no invoicing, no overdue handling, no anomaly scan, no missing-punch scan, no scheduled reports, no digests, no approval reminders, no data cleanup, **and no queued email is ever sent**. | Plesk has a *Scheduled Tasks* panel. Ask for the **minimum interval** — some plans cap at 5, 15 or 30 minutes. 1-minute is wanted; 5 is tolerable. |
-| B4 | **PHP version ≥ 8.2** | **UNKNOWN** | Laravel 12 hard-requires it. Below 8.2 the application does not boot. | Plesk *PHP Settings* lists selectable versions. |
+| B4 | **PHP version ≥ 8.2** | **VERIFIED — 8.3.33** (panel, 2026-09-17) | Laravel 12 hard-requires it. Below 8.2 the application does not boot. | Plesk *PHP Settings* lists selectable versions. |
 | B5 | **Node.js runtime** (Plesk Node.js extension) | **UNKNOWN** | Decides Option B1 (keep SSR) vs Option B2 (static export). Not fatal either way — but it changes the amount of frontend work from ~zero to a scoped refactor. | Plesk *Node.js* panel. Ask for the available Node major version — Next 16 needs **Node 20.9+**. |
 
 ### 2.2 High-impact unknowns
@@ -73,7 +81,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | H4 | **CLI PHP available to cron** | **UNKNOWN** | Cron must invoke `php artisan`. Some plans expose only a URL-fetch scheduler, in which case queue and schedule must be driven by an authenticated HTTP endpoint instead. | Plesk *Scheduled Tasks* offers "Run a command" vs "Fetch a URL". Which are offered? |
 | H5 | **`upload_max_filesize` / `post_max_size`** | **UNKNOWN** | nginx currently allows 50 MB. Employee document upload and CSV import depend on this. | Plesk *PHP Settings*. |
 | H6 | **Outbound HTTPS from PHP** | **UNKNOWN** | Needed for external SMTP relay, Sentry, EthioTelecom SMS, webhook delivery (`DispatchWebhookJob`) and biometric device polling. Shared hosts often block non-standard outbound ports. | `file_get_contents('https://example.com')` from a test script; check ports 587/465 too. |
-| H7 | **SSH access** | **UNKNOWN** | Without it, `composer install`, `artisan migrate`, `artisan key:generate` and cache warming must all be done another way — Composer runs locally and `vendor/` is uploaded; migrations run via a one-shot protected route or Plesk's PHP CLI panel. Adds friction, not impossibility. | Plesk *Web Hosting Access* → SSH access setting. |
+| H7 | **SSH access** | ~~UNKNOWN~~ **UNSUPPORTED — measured 2026-09-17: Hosting Settings reports `Forbidden`, and Dev Tools offers no Terminal.** | This row rated it *"friction, not impossibility"* and named two workarounds. **Neither is confirmed available.** Composer-locally-plus-upload survives (Plesk Git and Composer extensions are present, and Git's deployment path is relative to the webspace root, so `ethr` targets `~/ethr/` natively). But *"migrations run via a one-shot protected route or Plesk's PHP CLI panel"* — the protected route is **unbuilt**, and the PHP CLI panel is *Scheduled Tasks*, which is **unverified**. If it offers URL-fetch only there is no route at all, so on this account the row's optimism is **not yet earned**. Tracked as blockers **B-4** (nothing runs `artisan`) and **B-5** (no SQL import route). | ~~Plesk *Web Hosting Access*~~ — answered. The open question moved to *Scheduled Tasks*. |
 
 ### 2.3 Likely-supported (still to confirm)
 

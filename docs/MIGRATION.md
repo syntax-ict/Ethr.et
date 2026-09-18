@@ -1,5 +1,15 @@
 # Workforce Migration
 
+> **Not the hosting migration.** This document is the *product feature* that imports an
+> existing workforce from a device, spreadsheet or manual entry. It has nothing to do with
+> the VPS → Ethio Telecom shared-hosting move.
+>
+> The name collides, and `docs/CLAUDE.md`'s session protocol lists `MIGRATION.md` among
+> the files to read "for … migration … work", which sends a reader here for the wrong
+> reason. For the hosting migration, read `MIGRATION_STATE.md` (live register),
+> `deployment/GATE-0-RESULT.md` (gates and blockers) and
+> `deployment/shared-hosting/DEPLOYMENT.md` (the runbook).
+
 The migration workspace discovers an existing workforce (from a device, a
 spreadsheet, or manual entry), stages each person with an identity-resolution
 verdict for human review, and commits the reviewer's decisions. Nothing about a
