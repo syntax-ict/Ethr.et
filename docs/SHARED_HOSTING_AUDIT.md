@@ -251,6 +251,11 @@ The four dynamic routes (`employees/[id]`, `payroll/[id]`, `devices/[id]`,
 need `generateStaticParams` returning `[]` plus a client-side param read, or a rewrite
 to a shell page.
 
+> **Do not act on the sentence above without reading *MEASURED 2026-09-18* at the end of
+> this section.** The `generateStaticParams` half is **not implementable on these files** —
+> they are `"use client"`, and Next rejects the combination. The "rewrite to a shell page"
+> alternative is the one that works.
+
 **Conclusion:** this application is a client-rendered SPA that happens to be built with
 Next.js. A static export is *technically viable* — a genuinely fortunate finding — but
 it is not free, and must not be done blind. It is Option B2 in the migration plan.
@@ -282,6 +287,70 @@ still in `next.config.ts`, and the four `[id]` dashboard routes still need
 > different directive and is *favourable* to static export. That false positive was hit on
 > this very re-verification and briefly looked like the conclusion had broken. Match on
 > word boundaries.
+
+### MEASURED 2026-09-18 (commit `7aed9d2`) — the export was attempted, and it does not build
+
+Everything above was read from the source. It was never *run*. Running it changes two of
+its conclusions and adds a blocker it did not list.
+
+**Baseline first, so the comparison is fair.** `npm run build` with the shipped
+`output: "standalone"` **passes** — exit 0, 90 routes prerendered, 11 dynamic
+(`routes-manifest.json`), one server-rendered (`/register`). The repository is not broken;
+it is simply built for a Node server.
+
+Switching to `output: "export"` produced three build-stopping blockers, in this order:
+
+| # | Blocker | §E's position |
+|---|---|---|
+| 1 | `/manifest.webmanifest` requires `export const dynamic = "force-static"` | **Not listed.** `app/manifest.ts` is a metadata route and was missed by the "not present, therefore not a blocker" sweep, which checked `route.ts` but not `manifest.ts` |
+| 2 | The four `[id]` routes lack `generateStaticParams()` | Listed, correctly |
+| 3 | **All four are `"use client"`, and Next rejects `generateStaticParams` on a client component** | **Not listed, and it invalidates the prescription** |
+
+Blocker 3, verbatim, four times:
+
+```
+Error: Next.js can't recognize the exported `generateStaticParams` field in route.
+App pages cannot use both "use client" and export function "generateStaticParams()".
+```
+
+**§E prescribes *"`generateStaticParams` returning `[]` plus a client-side param read"*.
+The first half of that cannot be done to these files.** §E notes on its own page that
+**107 of 126** page and layout files are `"use client"` — it simply never connected that
+count to this prescription. The four `[id]` pages are among them, so the compiler rejects
+the addition outright. The remedy is a **server-component wrapper per route** with the
+existing client component moved into a child: four file splits with prop-threading, not
+four one-line additions.
+
+#### The distinction that matters more than the blocker count
+
+These are two different questions and the audit conflates them:
+
+| | |
+|---|---|
+| **Static-export feasibility** | Can `next build` emit files? **Currently no**, and fixable — a metadata directive, four server/client splits, `generateStaticParams` returning `[]` |
+| **Application runtime feasibility** | Will the exported app *work*? **No, and the fixes above do not change that.** `[]` pre-renders nothing, so every real `/employees/123` returns 404 |
+
+The IDs are **tenant data**. Nothing can enumerate every employee, device, payroll run and
+tenant at build time. Making those routes work under export requires client-side routing
+that reads the id from the URL at runtime — §E's *"or a rewrite to a shell page"*, which is
+the option that actually works and the one it costed least explicitly.
+
+**So a passing export build would not mean a working application.** That is the same shape
+as the green-test-run trap in the root `CLAUDE.md`: the signal that looks like success is
+available before the thing itself works.
+
+#### Status
+
+`output: "standalone"` is unchanged and the experiment was reverted in full
+(`git checkout -- src/`, working tree clean). **No production implementation was made.**
+
+**Branch B is NOT APPROVED for implementation** until a deployment architecture is
+selected. It is gated on G0-A and G0-G, both `NOT VERIFIED`, and the pre-registered
+decision rule in `SHARED_HOSTING_MIGRATION_PLAN.md` §4 has returned No-Go on B3.
+
+**Stop describing this as four small route changes.** On the measured evidence it is an
+**architectural frontend deployment change**: a rendering-strategy switch, four component
+splits, and a routing rearchitecture for entity pages.
 
 ---
 

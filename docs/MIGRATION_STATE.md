@@ -905,6 +905,32 @@ enumerate every employee, device, payroll run and tenant at build time, so
 `/employees/123`. Making those routes work under export means client-side routing that
 reads the id from the URL at runtime, which is a different and larger change again.
 
+### Static-export feasibility is not application runtime feasibility
+
+The audit conflated these, and the distinction decides whether Branch B is viable at all:
+
+| | |
+|---|---|
+| **Static-export feasibility** | Can `next build` emit files? **Currently no**, and fixable — a metadata directive, four server/client splits, `generateStaticParams` returning `[]` |
+| **Application runtime feasibility** | Will the exported app *work*? **No, and the fixes above do not change that.** `[]` pre-renders nothing, so every real `/employees/123` returns 404 |
+
+**A passing export build would not mean a working application.** Same shape as the
+green-test-run trap in the root `CLAUDE.md`: the signal that looks like success arrives
+before the thing works.
+
+### Branch B is NOT APPROVED for implementation
+
+Until a deployment architecture is selected. It is gated on G0-A and G0-G, both
+`NOT VERIFIED`, and `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has
+returned No-Go on B3.
+
+**The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
+evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
+switch, four component splits, and a routing rearchitecture for entity pages. Corrected at
+source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
+`GATE-0-RESULT.md` (×3), `TCO_COMPARISON.md`, `SHARED_HOSTING_MIGRATION_PLAN.md`,
+`B1-B5_GATE_REPORT.md`, `shared-hosting/DEPLOYMENT.md` step 4, and this file's queue row 3.
+
 ### What was NOT done, deliberately
 
 The experiment was reverted in full — `git checkout -- src/`, working tree clean,
@@ -1015,7 +1041,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
-| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
+| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which costs an **architectural frontend deployment change** (measured `7aed9d2`), not the "scoped" one this row used to claim |
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
 | **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php`, **then set `ETHR_PROBE_WEB_TOKEN` in that copy to a second random value** — as shipped every web request returns 403 | The full output. Open it as `?token=<that value>` and pass **no other query parameter**; **delete the file in the same sitting** | Upload, edit the token, then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |

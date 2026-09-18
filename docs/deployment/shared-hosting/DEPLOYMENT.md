@@ -367,7 +367,7 @@ risks doing frontend work that turns out to be unnecessary. When B5 resolves neg
    `window.location.host` read. Accepts a first-paint flash on the tenant login page
    (React hydration error #418's original cause) in exchange for removing the last SSR
    dependency — documented trade-off, not an oversight.
-4. Add `generateStaticParams` returning `[]` to the four dynamic routes
+4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
    (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
    already a client component that fetches by id, so this only satisfies the exporter.
 5. `npm run build`, upload the exported `out/` directory into `~/httpdocs/`, alongside

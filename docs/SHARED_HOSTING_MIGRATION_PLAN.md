@@ -158,7 +158,7 @@ model, no tenancy model, no payroll calculation, no Ethiopian calendar, no local
 | Functionality preserved | ~95% |
 | Lost | Horizon dashboard, live WebSocket push (falls back to existing poll), sub-minute queue latency, read replica; under B2 also marketing-page SSR |
 | At risk | audit-log DB triggers (H1); payroll/import runtime under `max_execution_time` (H2) |
-| Work | Small backend, moderate deployment, plus a scoped frontend refactor if B2 |
+| Work | Small backend, moderate deployment, plus an **architectural frontend deployment change** if B2 — re-costed 2026-09-18 (`7aed9d2`); the earlier "scoped frontend refactor" is withdrawn |
 | Risk | **High until B1–B5 are answered** |
 | Cost | one shared plan (tier 3–4 for storage headroom) |
 
