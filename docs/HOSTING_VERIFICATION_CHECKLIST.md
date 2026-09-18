@@ -172,7 +172,7 @@ configuration. Those are panel questions and are listed separately below.
 | # | Item | Method | Status |
 | --- | --- | --- | --- |
 | D1 | Who controls the `ethr.et` zone | Registrar / Plesk *DNS Settings* | NOT VERIFIED |
-| D2 | Wildcard DNS record `*.ethr.et` can be created | Panel: *DNS Settings → Add A record, host `*`* | NOT VERIFIED |
+| D2 | Wildcard DNS record `*.ethr.et` can be created | Panel: *DNS Settings → Add A record, host `*`* | **VERIFIED PASS** — stronger than the row asks: the record does not need creating, it **already resolves**. `http://zzq7x.ethr.et/` (an arbitrary name) returned 200 on 2026-08-29, re-confirmed 2026-09-17 — `B1-B5_GATE_REPORT.md` B1a, and the DNS half of **G0-C**. Note what it does *not* show: that response is the **server default page**, so DNS resolves but no wildcard vhost serves the app yet — that is D3 |
 | D3 | Wildcard **subdomain** `*` accepted, one docroot | Panel: *Subdomains → Add*, name `*` | NOT VERIFIED |
 | D4 | `tenant1/2/3.ethr.et` all reach the app **without per-tenant setup** | Curl three arbitrary names | NOT VERIFIED |
 

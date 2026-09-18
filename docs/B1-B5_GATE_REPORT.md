@@ -20,10 +20,10 @@ Plan        Linux Bronze (shared, Plesk)
 | Gate | Subject | Status | On failure |
 | --- | --- | --- | --- |
 | **B1a** | Wildcard **DNS** | ✅ **VERIFIED — PASS** | — |
-| **B1b** | Wildcard **vhost** in Plesk | ✅ **VERIFIED — PASS** (owner: `*` accepted; not yet created) | — |
+| **B1b** | Wildcard **vhost** in Plesk | ⚠️ **PARTIAL — downgraded 2026-09-18** (~~✅ VERIFIED — PASS~~) Rests on an **owner report** that `*` was accepted, not on recorded output, and the vhost **has never been created**. `GATE-0-RESULT.md` grades the same fact **PARTIAL** under its own rule that *testimony is not output* — same defect class as the SSH row below. Resolved by creating the subdomain and recording what the panel does (queue item 8). | — |
 | **B2** | Wildcard TLS | ⚠️ **PARTIALLY VERIFIED** — LE works, wildcard needs DNS-01 | HTTP-01 per-tenant — **proven on this account** |
 | **B3** | Cron | 🔲 NOT VERIFIED | Scheduler/queue over authenticated HTTP endpoint |
-| **B4** | PHP ≥ 8.2 + extensions + GD | 🔲 NOT VERIFIED | Blocking — no fallback |
+| **B4** | PHP ≥ 8.2 + extensions + GD | ⚠️ **PARTIAL** — version **VERIFIED 8.3.33** (panel, 2026-09-17); the **20 mandatory extensions and the limits are still unmeasured** and need the probe. Now gate **G0-E**. | Blocking — no fallback |
 | **B5** | Node.js runtime | 🔲 NOT VERIFIED | Static export (Option B2) |
 | **H1** | `CREATE TRIGGER` privilege | 🔲 NOT VERIFIED | See `AUDIT_LOG_INTEGRITY_DECISION.md` |
 
