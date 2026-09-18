@@ -11,7 +11,7 @@
  *
  * DEPLOY
  *   1. Upload this whole directory to httpdocs/ethr-canary/ (.htaccess,
- *      canary.php, secret.txt.probe — all three).
+ *      canary.php, secret.txt.probe, shadow.txt — all four).
  *   2. Visit  https://<host>/ethr-canary/canary.php
  *   3. Follow the two manual checks it prints.
  *   4. Save the output, then DELETE THE DIRECTORY.
@@ -24,11 +24,29 @@ declare(strict_types=1);
 header('Content-Type: text/plain; charset=utf-8');
 
 $rewriteHit = isset($_GET['rewrite']);
-$scriptDir = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
-if ($scriptDir === '' || $scriptDir[0] !== '/') {
-    // CLI has no SCRIPT_NAME worth using; show the intended deploy path instead
-    // of a mangled one, so the printed curl commands stay copy-pasteable.
+$shadowHit = isset($_GET['shadow']);
+// Every check below is printed as a copy-pasteable URL, so getting this prefix
+// wrong turns all five into 404s against a path that does not exist — and the
+// canary reads a 404 on /REWRITE_OK as "mod_rewrite is NOT active", which would
+// be a false FAIL on G0-B.1.
+//
+// The subtlety is that an empty dirname does NOT mean CLI. Serving this from
+// the document root itself gives SCRIPT_NAME=/canary.php, dirname='/', and
+// rtrim leaves '' — which the previous test ('' -> fall back) mistook for CLI
+// and answered with the hardcoded '/ethr-canary'. Measured 2026-09-18 against
+// php -S: it printed http://host/ethr-canary/REWRITE_OK while actually serving
+// at /canary.php. Under the documented deploy (httpdocs/ethr-canary/) the old
+// code was right, so this only ever bit an operator who uploaded the four files
+// one directory up.
+//
+// So: ask the SAPI, not the string. '' is a legitimate answer meaning root.
+$rawScriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+if (PHP_SAPI === 'cli' || $rawScriptName === '' || $rawScriptName[0] !== '/') {
+    // Genuine CLI — there is no URL to derive. Show the intended deploy path so
+    // the printed commands are still copy-pasteable after filling in the host.
     $scriptDir = '/ethr-canary';
+} else {
+    $scriptDir = rtrim(str_replace(DIRECTORY_SEPARATOR, '/', dirname($rawScriptName)), '/');
 }
 $selfUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
     .'://'.($_SERVER['HTTP_HOST'] ?? '<host>')
@@ -56,6 +74,12 @@ if ($modules === null) {
 }
 
 printf("modules visible      : %s\n\n", $moduleNote);
+
+if ($shadowHit) {
+    echo "!! You reached this script via /shadow.txt, so the REWRITE won: this\n";
+    echo "!! host let .htaccess rewrite a path that exists as a real file on\n";
+    echo "!! disk. Record G0-B.5 = REWRITE WINS. Carry on reading.\n\n";
+}
 
 echo "── Automatic ───────────────────────────────────────────────────────\n";
 
@@ -88,7 +112,21 @@ echo "         production while the application still appeared to work.\n";
 echo "         A 404 is NOT a pass — it means the file is missing, so upload\n";
 echo "         secret.txt.probe and try again.\n\n";
 
+echo "[ ???? ] G0-B.5  does a real file shadow the rewrite?\n";
+echo "         curl -s {$selfUrl}/shadow.txt | head -1\n";
+echo "         shadow.txt exists on disk AND is rewritten to this script, so\n";
+echo "         the answer names which layer resolved the request first:\n";
+echo "           'NOT-A-SECRET...'  -> the FILE won; nginx/Apache served disk\n";
+echo "                                 before the rewrite ran\n";
+echo "           this canary's text -> the REWRITE won; Apache resolved it\n";
+echo "         Neither is a failure. DEPLOYMENT.md step 4a is correct either\n";
+echo "         way — it says to copy only index.php, which holds under both.\n";
+echo "         This records WHICH, so that if the document root ever behaves\n";
+echo "         unexpectedly the cause is known rather than guessed. The\n";
+echo "         runbook previously asserted the file-wins answer without ever\n";
+echo "         having measured it.\n\n";
+
 echo "$line\n";
-echo "Record all four in docs/deployment/GATE-0-RESULT.md, then DELETE this\n";
+echo "Record all five in docs/deployment/GATE-0-RESULT.md, then DELETE this\n";
 echo "directory from the server.\n";
 echo "$line\n";

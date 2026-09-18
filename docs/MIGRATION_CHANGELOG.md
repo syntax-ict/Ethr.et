@@ -1,8 +1,86 @@
 # Migration Changelog
 
 Chronological record of the Ethio Telecom shared-hosting migration effort,
-2026-08-29 through 2026-08-31. Four `--no-ff` merges to `main`, each independently
-revertable (`git revert -m 1 <sha>`).
+2026-08-29 onward. Four `--no-ff` merges to `main` covering 2026-08-29 – 2026-08-31,
+each independently revertable (`git revert -m 1 <sha>`), plus the entries below.
+
+---
+
+## 2026-09-17 — The document root had no step that built it
+
+**Reconciliation, not new scope.** `docs/deployment/shared-hosting/DEPLOYMENT.md` §0
+drew `~/httpdocs/` and named its contents, but no step in the runbook ever assembled
+it: steps 3–4 put the application in `~/ethr/api/`, step 5 deploys the frontend, and
+nothing in between copied `index.php` or `.htaccess` into the document root. Every rule
+G0-B measures is inert until that file is in place, so the gate rested on a step that
+did not exist — and running Gate 0 without it would have measured a deployment nobody
+could perform.
+
+Written as **step 4a**, from §0's own specification. **Four** defects in that file list
+surfaced, the last of them found by the control written to prevent the first three:
+
+1. **"2 lines repointed" is three.** `api/public/index.php:9` reads
+   `storage/framework/maintenance.php` and was missing from the list. Unrepointed it
+   resolves to `~/storage/…`, which never exists, so `php artisan down` succeeds on the
+   CLI and changes nothing about what is served — maintenance mode inert exactly when it
+   is relied on.
+2. **`robots.txt` was listed as copied from `api/public/`, and must not be.** On the VPS
+   that file serves the API vhost (`infrastructure/nginx.conf` roots three server blocks
+   at `api/public`) and reads `User-agent: * / Disallow:`. This deployment merges the API
+   and the public site into one document root, so copying it serves allow-all at
+   `/robots.txt`, silently replacing the frontend's generated file — losing the
+   `Disallow` list and the `Sitemap:` pointer, with the site fully functional and nothing
+   logged. `favicon.ico` is the same mechanism at cosmetic severity.
+3. **Under B5 = no it is order-dependent**: the exported `out/` and `api/public/` land in
+   the same directory and neither step said which wins.
+4. **`api/public/.htaccess` was missed entirely** — by the original §0 list *and* by the
+   first correction of it, because `ls` does not show dotfiles. It is the most dangerous
+   of the four to copy: Laravel's stock rules end in a catch-all (`!-d`, `!-f`,
+   `RewriteRule ^ index.php`) that sends every unmatched path to Laravel, which under
+   B5 = no swallows `/pricing`, `/dashboard` and every other client-routed path. The
+   deployment ships a purpose-built replacement whose front-controller rule is restricted
+   to `^/(api|sanctum)` for exactly this reason. Loud rather than silent, but the two
+   files share a name, which is the whole hazard.
+
+**The rule is now enforced rather than written down.**
+`api/tests/Feature/DocumentRootInventoryTest.php` enumerates `api/public/` against
+`document-root-inventory.php`, which records for every file whether it belongs in the
+shared document root and why, and fails naming any file with no decision. Same shape as
+`Security/TenantScopeBypassInventoryTest`, and for the stated reason: `CLAUDE.md` holds
+that a documented control nobody runs is worse than an admitted gap. Defect 4 above is
+what that test caught on its first run, against the corrected prose — which is the
+argument for it, made by the thing itself. It does not audit the existing decisions; a
+manifest cannot. It makes adding a fourth file deliberate.
+
+**One assertion downgraded from fact to gate.** Step 4a had claimed a real file in the
+document root always wins over the rewrite, citing both the `.htaccess` `!-f` guard *and*
+"Plesk serves static files from disk before any handler". The first is readable in the
+repository; the second was never measured, in a document whose own rule is that inference
+is not evidence. It is now **G0-B.5**, and the canary answers it in the same session as
+the other four (`shadow.txt` exists on disk *and* is rewritten, so the response names
+which layer resolved first). No failing answer — both outcomes leave step 4a correct —
+but "which layer answered" is the first question anyone asks when a document root
+misbehaves.
+
+**Branch A written out instead of flagged.** The G0-A contradiction (Node app in its own
+document root vs. `/api/*` from `~/httpdocs`) now carries both candidate resolutions with
+their costs: nginx directives splitting one origin (~1 day, no frontend change) versus
+the frontend going cross-origin (~1–2 weeks plus an auth-security review, and the service
+worker's API cache silently stops working). When G0-A answers, it is a lookup.
+
+**Freeze exception, recorded not assumed.** `GATE-0-RESULT.md` says
+`docs/deployment/shared-hosting/*` stays untouched until the facts exist. That rule exists
+so branch-dependent content is not written twice, and does not cover a step absent under
+every branch. The exception is recorded at the rule, scoped to step 4a and the §0 list it
+corrects, with the rest of the package still frozen.
+
+**Checked and found not to be a defect:** `public_path()` resolves to `~/ethr/api/public`,
+which nothing serves — but its only reference is `config/filesystems.php:88`'s `links`
+array, consumed solely by `storage:link`, which §4 already forbids.
+
+**No gate moved.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk
+account. No application code changed; the new test asserts repository shape, not runtime
+behaviour, and is not evidence about Ethio Telecom's server.
 
 ---
 
@@ -59,7 +137,7 @@ Verified against real MariaDB, not only the SQLite test suite.
 A formal gate review (`PHASE_A_CHANGE_REVIEW.md`, `HOSTING_VERIFICATION_CHECKLIST.md`,
 `B1-B5_GATE_REPORT.md`, `TCO_COMPARISON.md`) froze further hosting-code changes pending
 external verification. The owner supplied real account credentials
-(`etrhet@213.55.96.154`) and confirmed Plesk accepts a wildcard subdomain — resolving
+(`ethret@213.55.96.154`) and confirmed Plesk accepts a wildcard subdomain — resolving
 gate B1, the one gate this migration had no workaround for.
 
 Delegated ("decide for me"): architecture confirmed as full shared hosting, stay on the
@@ -130,8 +208,38 @@ to product/business decisions that aren't code fixes:
 
 ## What's still open
 
-Four facts, all requiring the Plesk account, none answerable from this repository:
-B3 (cron), B4 (PHP/extensions/GD), B5 (Node.js), H1 (`CREATE TRIGGER` privilege). See
-`docs/MIGRATION_STATE.md` → NEXT ACTION for exactly how to get each. Plus two
-confirmations only the owner can supply: a tax adviser/ERCA sign-off on the 1395/2025
-schedule before the first live payroll run, and real SMTP credentials.
+> **Superseded 2026-09-18.** This section read: *"Four facts, all requiring the Plesk
+> account … B3 (cron), B4 (PHP/extensions/GD), B5 (Node.js), H1 (`CREATE TRIGGER`
+> privilege). See `docs/MIGRATION_STATE.md` → NEXT ACTION."* It is left here as the
+> 2026-08-31 position, and corrected below, because it is wrong in three ways at once and
+> is the section a reader checks for current state.
+
+**1. The labels collide with live blockers that mean something else.** `B5` here is
+*Node.js*; **B-5** in the current register is *no database import route*. `B3` here is
+*cron*; **B-3** is *an unidentified Plesk vhost skeleton*. The retired scheme maps to
+**gates**, not blockers (`HOSTING_VERIFICATION_CHECKLIST.md:17`):
+
+| Retired | Means | Now |
+|---|---|---|
+| `B3` | cron / Scheduled Tasks | **G0-D** |
+| `B4` | PHP version, extensions, GD | **G0-E** |
+| `B5` | Node.js availability | **G0-G** |
+| `H1` | `CREATE TRIGGER` privilege | **G0-F** |
+
+**2. "Four facts" is no longer the list.** Gate 0 is **G0-A … G0-J**, and six blockers
+**B-1 … B-6** were found on 2026-09-17/18 — none of which existed when this was written.
+Two of the four are also partly answered: PHP is **8.3.33** (panel reading), and SSH is
+**Forbidden**, which is what created B-1 and B-4.
+
+**3. The cross-reference is stale.** `MIGRATION_STATE.md`'s live list is
+**MANUAL ACTION QUEUE**, ordered `0a → 0b → 1 … 8`. A `NEXT ACTION` heading still exists
+in that file but carries the 2026-08-29 position.
+
+**Current, in one line:** everything turns on manual action **1** — *can this account run
+a PHP CLI command on a schedule?* — which decides deployment (B-4), database import (B-5),
+backup and restore, and observability; preceded by **0a**, *is anything still serving at
+the VPS*, which decides whether a rollback target exists (B-6).
+
+Unchanged from the original, because both are still true: two confirmations only the owner
+can supply — a tax adviser/ERCA sign-off on the 1395/2025 schedule before the first live
+payroll run, and real SMTP credentials.

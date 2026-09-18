@@ -171,7 +171,7 @@ long-running process:
 ```
 
 `schedule:run` itself dispatches `queue:work --stop-when-empty` where the schedule in
-`routes/console.php` needs it — that file's 11 entries are otherwise unchanged from the
+`routes/console.php` needs it — that file's 14 entries are otherwise unchanged from the
 VPS, because nothing about *what* runs changed, only *how* it's triggered. This line is
 correct **only if B3 confirms command-type cron tasks at ≤5-minute granularity**; if
 Plesk offers URL-fetch tasks only, this whole section is replaced by an authenticated

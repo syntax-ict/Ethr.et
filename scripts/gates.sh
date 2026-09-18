@@ -190,11 +190,51 @@ composer_validate_gate() {
 # production dependencies, and lumping them together buries the five that
 # reach users. Dev findings are printed separately and do not fail the gate.
 
+# `composer audit` prints "No packages - skipping audit." and EXITS 0 when it
+# cannot resolve an installed set — which is every machine without `api/vendor`,
+# including a fresh clone. Before 2026-09-18 this gate passed that straight
+# through, so `./scripts/gates.sh security` printed "All gates passed" having
+# audited nothing at all. Measured here on 2026-09-18.
+#
+# CI is unaffected: security.yml runs `composer install` before this. The hole
+# was local, which is worse in one specific way — CLAUDE.md tells a human to run
+# this scope BY HAND, and by hand is exactly where vendor/ may be missing.
+#
+# Same defect class as the Pest undercount this script already guards: a run that
+# examines a fraction of what it claims and exits green. A gate that cannot see
+# its input must say so, not pass.
+# Deliberately NOT a pipeline. `composer audit` exits non-zero when it finds a
+# real advisory, and piping it into a checker would return the CHECKER's status
+# and swallow that — turning a genuine vulnerability into a pass. Both the exit
+# code and the output have to survive, so the output is captured and the status
+# read straight from the command.
+run_composer_audit() {
+    local output status
+    output="$("$@" 2>&1)"
+    status=$?
+    printf '%s\n' "$output"
+
+    # composer prints this and exits 0 when it cannot resolve an installed set.
+    if printf '%s' "$output" | grep -qiE 'No packages *- *skipping audit'; then
+        {
+            printf '\nGATE FAILED: composer audited NOTHING.\n'
+            printf '  It reported "No packages - skipping audit", which means it could not\n'
+            printf '  resolve an installed dependency set — usually a missing api/vendor.\n'
+            printf '  That is not a pass. Run `cd api && composer install` first, then\n'
+            printf '  re-run `./scripts/gates.sh security`.\n'
+        } >&2
+        return 1
+    fi
+
+    return "$status"
+}
+
 composer_audit_gate() {
     if have_php; then
-        (cd "$API_DIR" && composer audit --no-interaction)
+        (cd "$API_DIR" && run_composer_audit composer audit --no-interaction)
     elif container_up; then
-        docker exec "$CONTAINER" sh -c 'cd /var/www/api && composer audit --no-interaction'
+        run_composer_audit docker exec "$CONTAINER" sh -c \
+            'cd /var/www/api && composer audit --no-interaction'
     else
         no_php_msg
         return 1
@@ -458,8 +498,34 @@ fi
 # blocking sweep for that reason, but they are reachable by name now: audit finding
 # F-6 was "ResponseTimeTest is not wired into any suite", and running it exactly
 # once by hand closed the measurement without closing the hole.
+#
+# Native-first, for the same reason `pest_gate` and `phpstan_gate` are. This
+# delegated to pest-isolated.sh unconditionally, which requires a running
+# `et-api-1`, so `gates.sh performance` was unrunnable on any machine without
+# Docker — including every CI runner, and including a developer machine with
+# native PHP and Docker stopped. That is the identical defect that left PHPStan
+# unable to pass in CI for fifty runs (see phpstan_gate above), missed here
+# because this scope sits outside the blocking sweep and so nobody ran it.
+#
+# It is why BASELINE §13e read "no performance baseline exists": the gate that
+# was supposed to produce one could not start.
+performance_gate() {
+    if have_php; then
+        (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest tests/Performance)
+        return $?
+    fi
+
+    if container_up; then
+        bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
+        return $?
+    fi
+
+    no_php_msg
+    return 1
+}
+
 if [[ "$SCOPE" == "performance" ]]; then
-    run_gate "Pest (performance budgets)" bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
+    run_gate "Pest (performance budgets)" performance_gate
 fi
 
 # Opt-in, never part of `all`, for the same reason as `mysql`: it needs a built

@@ -1,6 +1,36 @@
 # ETHR — Shared Hosting Deployment Runbook
 
-Target: Ethio Telecom Linux Bronze (Plesk), account `etrhet` @ `213.55.96.154`.
+Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethiotelecom.et`
+(`213.55.96.154`).
+
+> **STATUS BANNER — added 2026-09-18. Read before running anything below.**
+>
+> This runbook was written against an assumed shell account. Two facts measured on the
+> real account since then contradict its transport, and the steps have **deliberately not
+> been rewritten**, because the replacement depends on gates that are still unverified:
+>
+> - **SSH is Forbidden on this subscription** (Hosting Settings, 2026-09-17; no Terminal in
+>   Dev Tools). Every `ssh` and `rsync` command below **will not connect**. The intended
+>   replacement is the Plesk Git extension with a deployment path of `/ethr/` — see
+>   `docs/MIGRATION_STATE.md` → *GIT DEPLOYMENT ROUTE*.
+> - **There is no Scheduled Tasks section** (dashboard, 2026-09-18 — **G0-D FAIL**), so the
+>   single cron line this runbook and `ENVIRONMENT.md` depend on has no runner, and
+>   `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no documented
+>   non-shell route. Both are one support request; see the blocker register.
+>
+> - **Step 4 copies the wrong environment file.** `cp .env.production.example .env` (line
+>   133) copies a `docker-compose.prod.yml` artifact that selects redis for cache, queue and
+>   session, minio for storage and reverb for broadcasting, with `REDIS_HOST=redis` and
+>   `MINIO_ENDPOINT=http://minio:9000` — Docker service names that resolve to nothing here.
+>   **Copy [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example)
+>   instead**; it carries the identical key set with each conversion marked and explained.
+>
+> What *has* been corrected here is factual only — the account username (`ethret`, not
+> `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
+> acceptance criterion in `deploy-checklist.md`), and the line above naming which
+> environment template to copy. The procedures are untouched on purpose: choosing between
+> Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED, and rewriting
+> them now would bake in a guess.
 
 **Before starting, confirm the four facts in `docs/MIGRATION_STATE.md` → NEXT ACTION.**
 Two of them (B3 cron, B5 Node.js) change which steps in this runbook apply — they are
@@ -20,12 +50,15 @@ itself one of the still-open facts).
   api/
     app/ config/ routes/ database/ vendor/ storage/ bootstrap/ .env
 ~/httpdocs/                 document root
-  index.php                 copy of api/public/index.php, 2 lines repointed
+  index.php                 copy of api/public/index.php, 3 lines repointed
   .htaccess                 docs/deployment/shared-hosting/.htaccess
-  favicon.ico  robots.txt    copied from api/public/
   .well-known/               leave alone — ACME
   (frontend build output, IF B5 says no Node.js — see step 5)
 ```
+
+**Nothing else from `api/public/` is copied here.** An earlier version of this layout
+listed `favicon.ico` and `robots.txt` as copied from `api/public/`; both are wrong, and
+`robots.txt` is wrong in the silent direction. Step 4a says why and what replaces them.
 
 Chosen because it is **already verified possible on this account**: the Plesk File
 Manager listing showed the home directory sits one level above `httpdocs`
@@ -88,9 +121,9 @@ support *before* step 4, not after a failed deploy.
 # Everything except node_modules/vendor/tests — those are rebuilt or excluded below.
 rsync -avz --exclude='.git' --exclude='node_modules' --exclude='vendor' \
   --exclude='.env*' --exclude='tests' \
-  ./api/ etrhet@213.55.96.154:~/ethr/api/
+  ./api/ ethret@213.55.96.154:~/ethr/api/
 
-rsync -avz api/vendor/ etrhet@213.55.96.154:~/ethr/api/vendor/
+rsync -avz api/vendor/ ethret@213.55.96.154:~/ethr/api/vendor/
 ```
 
 If SSH shell access turns out to be disabled for this account despite port 22 being
@@ -102,7 +135,7 @@ it can do (it is how the hosting-check probe script would be run too).
 ## 4. Configure and migrate
 
 ```bash
-ssh etrhet@213.55.96.154
+ssh ethret@213.55.96.154
 cd ~/ethr/api
 
 cp .env.production.example .env
@@ -129,6 +162,169 @@ and FPM is itself worth flagging to Ethio Telecom support if found, not worked a
 (`FileStorageService`), so there is nothing under `public/storage` to serve. Do not add
 this step; it would create a broken symlink pointing at a `storage/app/public` that
 nothing writes to.
+
+## 4a. Assemble the document root
+
+Steps 1–4 put the application in `~/ethr/api/`, which is **not web-accessible** — that
+is the whole point of the layout in §0. Nothing has yet been placed in `~/httpdocs/`,
+so at this point the site still serves Plesk's placeholder page. This step builds the
+document root, and it is the step G0-B is a gate on: every rule in `.htaccess` is inert
+until the file is actually here.
+
+### The three files
+
+```bash
+ssh ethret@213.55.96.154
+
+# 1. The front controller.
+cp ~/ethr/api/public/index.php ~/httpdocs/index.php
+
+# 2. The rules under test by G0-B.
+#    (upload docs/deployment/shared-hosting/.htaccess from the repo first)
+#    -> ~/httpdocs/.htaccess
+
+# 3. Nothing else. Do not copy the rest of api/public/ — see "What is
+#    deliberately not copied" below.
+```
+
+### Repoint `index.php` — **three** lines, not two
+
+`api/public/index.php` resolves everything relative to its own directory, one level
+below the application root. Moved to `~/httpdocs/`, `__DIR__.'/..'` is `~`, so all three
+`require` paths must name `ethr/api` explicitly:
+
+| Line | From | To |
+| --- | --- | --- |
+| 9 | `__DIR__.'/../storage/framework/maintenance.php'` | `__DIR__.'/../ethr/api/storage/framework/maintenance.php'` |
+| 14 | `__DIR__.'/../vendor/autoload.php'` | `__DIR__.'/../ethr/api/vendor/autoload.php'` |
+| 18 | `__DIR__.'/../bootstrap/app.php'` | `__DIR__.'/../ethr/api/bootstrap/app.php'` |
+
+Line 9 is the one previous versions of this runbook missed by saying "2 lines". It is
+not decorative: it is how `php artisan down` takes the site offline. Left unrepointed it
+resolves to `~/storage/framework/maintenance.php`, which never exists, so maintenance
+mode would report success on the CLI and change nothing about what the web server
+serves — a silent failure during exactly the window you would rely on it.
+
+Verify all three at once before going further:
+
+```bash
+php -l ~/httpdocs/index.php
+curl -si https://www.ethr.et/api/v1/ping | head -1     # expect 200, not 500
+```
+
+A 500 here is almost always one of the three paths; `~/ethr/api/storage/logs/laravel.log`
+will name it.
+
+### `public_path()` no longer points at the document root
+
+With the app at `~/ethr/api` and the front controller at `~/httpdocs`, Laravel's
+`public_path()` resolves to `~/ethr/api/public` — a directory nothing serves. This is
+harmless **in this codebase** and was checked rather than assumed: the only reference is
+`config/filesystems.php:88`'s `links` array, which is consumed solely by
+`storage:link`, and §4's "No `storage:link` step" already forbids running it. Do not
+"fix" this with `Application::usePublicPath()`; nothing reads it, and pointing it at the
+document root would make `storage:link` look runnable again.
+
+### What is deliberately not copied
+
+`api/public/` contains three other files: `.htaccess`, `robots.txt` and `favicon.ico`.
+On the VPS all three serve the **API vhost** (`infrastructure/nginx.conf` roots three
+server blocks at `api/public`) — a different origin from the marketing site. This
+deployment merges the API and the public site into one document root, so copying them
+changes what they mean.
+
+**This list is pinned by a test**, because an earlier version of it was wrong in exactly
+the way prose is wrong: it named two files and missed `.htaccess`, which `ls` does not
+show. `api/tests/Feature/DocumentRootInventoryTest.php` enumerates `api/public/` against
+`document-root-inventory.php` and fails on any file with no recorded decision, so a
+fourth file cannot arrive here unnoticed. Add a file to `api/public/` and answer its
+question before this table can go stale again.
+
+| File | If copied here | Do instead |
+| --- | --- | --- |
+| `.htaccess` | **The dangerous one.** Laravel's stock rules end in a catch-all — `RewriteCond !-d`, `!-f`, `RewriteRule ^ index.php [L]` — that sends *every* unmatched path to Laravel. This document root also serves the frontend, so under B5 = no that swallows `/pricing`, `/dashboard` and every other client-routed path. Loud rather than silent, unlike the two below — but the confusion is easy, because both files are called `.htaccess`. | Use `docs/deployment/shared-hosting/.htaccess`, which is the purpose-built replacement: its front-controller rule is restricted to `^/(api\|sanctum)` for exactly this reason, and it adds the security headers and deny rules Laravel's has no reason to carry. |
+| `robots.txt` | `api/public/robots.txt` is `User-agent: * / Disallow:` — **allow everything, no sitemap**. Served at `https://www.ethr.et/robots.txt` it silently replaces the frontend's own `robots.txt` (`src/src/app/robots.ts`), dropping the `Disallow` list for `/admin`, `/dashboard`, `/login`, `/register` and the reset-password routes, and dropping the `Sitemap:` pointer that is how a crawler finds `/sitemap.xml` at all. Nothing logs this; the site works perfectly. | Leave it in `~/ethr/api/public/`. `/robots.txt` is the frontend's, in both B5 branches. |
+| `favicon.ico` | Laravel's default icon shadows the frontend's, which ships its own under `src/public/`. Cosmetic, not silent — but the same shadowing mechanism. | Leave it. |
+
+The general rule, worth stating once rather than per file: **a real file in
+`~/httpdocs/` wins over the rewrite**, so anything copied into the document root is a
+permanent override of whatever the application would otherwise have produced at that
+path. Copy only what §0 lists.
+
+Be precise about how much of that rule is measured, because this file's own standard is
+that inference is not evidence:
+
+- **Apache-side: verifiable from the repository.** The front-controller rule in
+  `shared-hosting/.htaccess` is guarded by `RewriteCond %{REQUEST_FILENAME} !-f` and
+  `!-d`. A request matching a real file therefore never reaches the rewrite. Read it in
+  the file; nothing about the host is assumed.
+- **nginx/Plesk-side: NOT measured.** Whether Plesk's nginx serves a static file from
+  disk before Apache ever sees the request is a property of this host's configuration and
+  has never been tested. An earlier version of this section stated it as fact. It is now
+  gate **G0-B.5**, which the canary answers in the same session as the other four —
+  see `docs/deployment/GATE-0-RESULT.md`.
+
+Both paths lead to the same instruction, which is why the rule is safe to act on now: on
+Apache the file wins by the `!-f` guard, and on nginx-first it wins even harder. G0-B.5
+tells you *which*, which matters when something behaves unexpectedly, not *whether* to
+copy the file.
+
+### The public paths, and what serves each
+
+**On the platform host** — `www.ethr.et`, and `ethr.et` which 301s to it. A tenant host
+(`{tenant}.ethr.et`) is a different vhost with a different answer for three of these
+rows; see the note below the table.
+
+Written out per B5 branch because the answer differs, and because two of these paths are
+generated by the frontend at build time rather than existing as source files — which is
+what makes the `robots.txt` collision above easy to miss.
+
+| Path | B5 = yes (Node.js) | B5 = no (static export) |
+| --- | --- | --- |
+| `/api/*`, `/sanctum/*` | `.htaccess` → `index.php` → Laravel | same |
+| `/` and the marketing routes | Node app (SSR) | `out/index.html` etc., via BRANCH B's two rewrite rules |
+| `/robots.txt` | Node app, from `src/src/app/robots.ts` | `out/robots.txt`, generated by the same file at build |
+| `/sitemap.xml` | Node app, from `src/src/app/sitemap.ts` | `out/sitemap.xml`, same |
+| `/.well-known/acme-challenge/*` | Apache, from disk — `.htaccess` exempts it before every other rule | same |
+
+**A tenant host is not this table.** Tenant public pages route `/`, `/media/`,
+`/robots.txt`, `/sitemap.xml` and `/preview` to **Laravel**, not the frontend — a
+tenant's `robots.txt` and sitemap are that organisation's own, generated per host. Two of
+those paths therefore carry the same name as a row above and are answered by the other
+half of the stack. That work is on PR #17 (`claude/ethr-tenant-landing-pages-a59gly`),
+which is unmerged at the time of writing and which deliberately leaves its Plesk
+`.htaccess` equivalent unwritten until G0-B answers whether `.htaccess` is honoured at
+all. When it merges, this section needs a pointer to `docs/TENANT_PUBLIC_PAGES.md` →
+*Deployment*, not a copy of its rows: the two tables describe different vhosts and
+keeping one authoritative for each is what stops them drifting.
+
+Two caveats, neither of which this repository can close:
+
+- **B5 = yes is gated on G0-A, not just G0-B.** §5's Node branch puts the Node app in
+  its own document root, separate from `~/httpdocs`. For one domain to serve both
+  `/api/*` from `~/httpdocs/index.php` and `/` from the Node app, something has to split
+  the traffic. That split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
+  `NOT VERIFIED`. There are exactly two shapes it can take, written out here so that
+  when G0-A answers this is a lookup rather than a design session:
+
+  | | **A1 — nginx splits the traffic** | **A2 — the frontend goes cross-origin** |
+  | --- | --- | --- |
+  | Selected when | G0-A **PASS** — *Additional nginx directives* accepts a `location` block | G0-A **FAIL** — the field is absent, read-only, or rejects the probe |
+  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `~/httpdocs/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
+  | Frontend change | **None.** `src/src/api/client.ts:14`'s relative `baseURL: "/api/v1"` keeps working, and so does the service worker's same-origin API cache (`src/public/sw.js:59`). | `baseURL` becomes absolute; CORS with credentials; `SameSite=None; Secure` cookies; Sanctum stateful-domain config; a widened CSP `connect-src`; **and the service worker's API cache silently stops working**, because it intercepts same-origin only. |
+  | Cost | ~1 day | ~1–2 weeks **plus an auth-security review** — the cookie and CORS changes are exactly the surface where a mistake is both easy and serious |
+
+  A1 is strongly preferred and is what the rest of this package assumes. Do not start A2
+  on a guess: it is the expensive branch, and G0-A is one directive and one `curl` to
+  settle (`GATE-0-RESULT.md` → *Plesk panel checklist* → G0-A, which says to answer it
+  first for this reason).
+- **B5 = no is where the collision actually bites.** Both `api/public/` and the exported
+  `out/` land in the same directory, so whichever is copied last wins and neither step
+  says so. Following this runbook as written — copy nothing from `api/public/` but
+  `index.php` — removes the ambiguity rather than relying on step order.
+
+Confirm the result rather than the intent: `deploy-checklist.md` → *Public paths* turns
+each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 
@@ -193,7 +389,7 @@ Plesk → *Scheduled Tasks* → add:
 * * * * * cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-One line. `schedule:run` is what dispatches everything else — the 11 entries in
+One line. `schedule:run` is what dispatches everything else — the 14 entries in
 `routes/console.php`, unchanged, plus `queue:work --stop-when-empty` wherever the
 schedule needs it (see `ENVIRONMENT.md` "Queue and scheduler"). If the panel's minimum
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —

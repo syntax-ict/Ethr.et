@@ -45,6 +45,26 @@ real domain.
       of `minio`) and is worth confirming explicitly rather than assumed from the code
       review alone
 
+## Public paths
+
+The document root serves the API and the public site from one directory
+(`DEPLOYMENT.md` step 4a), so a file copied there silently overrides what the
+application would have produced. These four checks are the only thing that
+distinguishes "the rules are in place" from "the rules are ignored and nothing said so".
+
+- [ ] `curl -s https://www.ethr.et/robots.txt` contains **both** `Disallow: /admin` and
+      a `Sitemap:` line. If it reads `User-agent: * / Disallow:` with nothing else, the
+      backend's `api/public/robots.txt` was copied into `~/httpdocs/` — remove it and
+      redeploy the frontend. This is the silent one: the site is fully functional either
+      way, and nothing logs the difference.
+- [ ] `curl -si https://www.ethr.et/sitemap.xml | head -1` → 200, and the body is XML
+      with `<urlset`, not an HTML 404 page
+- [ ] `curl -si https://www.ethr.et/api/v1/ping | head -1` → 200 — proves the three
+      repointed `require` paths in `~/httpdocs/index.php` all resolve (step 4a)
+- [ ] `php artisan down` on the server, then `curl -si https://www.ethr.et/ | head -1`
+      → 503; `php artisan up` afterwards. A 200 here means line 9 of `index.php` was not
+      repointed, and maintenance mode is inert. Do this **before** cutover, never after.
+
 ## TLS
 
 - [ ] `https://www.ethr.et` presents a valid certificate — no browser warning
@@ -55,7 +75,7 @@ real domain.
 
 ## Cron / queue
 
-- [ ] `php artisan schedule:list` shows all 11 entries (only meaningful once cron is
+- [ ] `php artisan schedule:list` shows all 14 entries (only meaningful once cron is
       actually configured per `DEPLOYMENT.md` step 6)
 - [ ] After the first minute the cron entry has had to fire, `SELECT * FROM jobs` and
       `SELECT * FROM failed_jobs` — confirm jobs are being picked up and, just as

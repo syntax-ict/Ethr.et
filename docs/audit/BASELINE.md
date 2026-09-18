@@ -121,9 +121,28 @@ Production: `laravel/framework`, `laravel/sanctum` ^4.3, `laravel/horizon` ^5.47
 
 Dev: `pestphp/pest`, `phpunit/phpunit` ^11.5.50, `larastan/larastan`, `laravel/pint`, `laravel/pail`, `laravel/sail`, `mockery`, `fakerphp/faker`.
 
-### 3a. BLOCKER — Horizon hard-requires two extensions shared hosting rarely has
+### 3a. ~~BLOCKER~~ — Horizon hard-requires two extensions shared hosting rarely has — **RESOLVED**
 
-**[verified]** `api/composer.lock:1999-2001`:
+> **Resolved, and this section was left reading as live. Corrected 2026-09-18.**
+>
+> Horizon was **removed** in `cdf85d1`. Re-verified today: `laravel/horizon` appears in
+> neither `composer.json` (`require` *or* `require-dev`) nor `composer.lock` (`packages`
+> *or* `packages-dev`), and a parse of every production package's platform requirements
+> finds **zero** hard `ext-pcntl` / `ext-posix` requires.
+>
+> §15 row 6 of *this document* already records it as Resolved with the lockfile parsed.
+> §3a and §13c did not carry the same note, so the same file said both things — and
+> `docs/CLAUDE.md` was repeating the live version, which is the copy every session reads
+> first.
+>
+> **Also checked, so it is not left hanging:** `SystemHealthService.php` and
+> `QueueHealth.php` still mention Horizon, but only in comments explaining its removal.
+> No code calls a Horizon class, so there is no runtime consequence.
+>
+> The evidence below is preserved as the original finding. The line reference no longer
+> resolves, because the package is gone.
+
+**[verified at the time]** `api/composer.lock:1999-2001`:
 
 ```json
 "name": "laravel/horizon",
@@ -727,7 +746,7 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 
 **Still NOT VERIFIED:** any of this on Ethio Telecom's server. 10.4.32 is the local XAMPP build; the documented target is MariaDB 10.11, and the host's version is unread (G0-E).
 
-### 13c. Horizon blocks `composer install` — see §3a.
+### 13c. ~~Horizon blocks `composer install`~~ — **RESOLVED**, see §3a and §15 row 6. Horizon was removed in `cdf85d1`; the lockfile carries zero hard `pcntl`/`posix` requires.
 
 ### 13d. Unindexable login lookups **[verified]**
 
@@ -809,9 +828,37 @@ This meant the MySQL search branch was not merely untested but **untestable** un
 
 Recorded because the property is general, not specific to search: **any future feature built on `MATCH … AGAINST` will appear broken under the test suite and work in production.** The schema now has no fulltext index at all — `emp_search` was the only one, and it was dropped on 2026-09-16 — so this is a warning for whoever adds the next one, not a description of anything present.
 
-### 13e. No performance baseline exists
+### 13e. No performance baseline existed — **first one recorded 2026-09-17**
 
-`api/tests/Performance/ResponseTimeTest.php` runs against SQLite and is excluded from the default sweep. The budgets at `docs/CLAUDE.md:850-862` were set against dedicated hardware. **No shared-hosting measurement exists — NOT VERIFIED.**
+`api/tests/Performance/ResponseTimeTest.php` runs against SQLite and is excluded from the default sweep. The budgets at `docs/CLAUDE.md:850-862` were set against dedicated hardware. **No shared-hosting measurement exists — NOT VERIFIED**, and that part is unchanged.
+
+> **Why there was no local baseline either, which turned out to be a gate defect rather than an oversight.**
+>
+> `./scripts/gates.sh performance` delegated **unconditionally** to `scripts/pest-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no container. So the scope was unrunnable on any machine without Docker — every CI runner, and any developer with native PHP and Docker stopped.
+>
+> That is the **identical defect** that left PHPStan unable to pass in CI for fifty runs (CI cause 3 in the root `CLAUDE.md`). `pest_gate` and `phpstan_gate` were both made native-first when that was found; this scope was missed, because it sits outside the blocking sweep and so nothing ever ran it. A gate nobody runs does not report its own breakage. It is now native-first with the container as fallback, the same shape as the other two.
+>
+> **The benchmark also threw its own measurements away.** Each case did `expect($ms)->toBeLessThan(500)` and nothing else — enough to answer "did it pass", but it meant a route could drift from 20ms to 490ms and stay green the whole way with nobody seeing it coming. `assertWithinBudget()` now prints the measured figure, the budget, and the percentage consumed, so the gate output *is* the baseline.
+>
+> **Measured, native PHP 8.2.12 on this machine, SQLite `:memory:`, best-of-3 per case** (the existing `timedRequest()` helper's own method — three runs, fastest kept, to filter GC and disk noise rather than to flatter the result):
+>
+> | Case | Measured | Budget | Used |
+> |---|---|---|---|
+> | employee list, 1000 rows, filtered+sorted | 14.8 ms | 500 ms | 3% |
+> | employee search (LIKE) over 1000 rows | 5.3 ms | 100 ms | 5% |
+> | attendance list, 50 employees × 30 days | 32.5 ms | 300 ms | 11% |
+> | executive dashboard, cache miss | 10.7 ms | 200 ms | 5% |
+> | manager dashboard | 2.6 ms | 200 ms | 1% |
+> | payroll run detail with entries | 39.6 ms | 300 ms | 13% |
+> | leave balance calculation | 3.8 ms | 100 ms | 4% |
+>
+> Two consecutive runs agreed within noise (worst case 37.2 → 39.6 ms).
+>
+> **What this is, and is not.** It is a regression baseline on *this* hardware against SQLite, which is what the file itself says it is for. It is **not** a production benchmark: production is MariaDB on a shared vCPU, and neither variable is represented here. What it does give is a scaling factor that was previously unavailable — the tightest case uses **13%** of its budget, so these routes would tolerate roughly a **7–8× slower** environment before any budget fires. Gate 0's P1 (`3M-iteration loop`, `GATE-0-RESULT.md`) measures exactly that ratio on the real host, which converts this table into a prediction rather than leaving it a local curiosity.
+>
+> The search figure also corroborates §13f independently: 5.3 ms over 1000 rows on the `LIKE` implementation that replaced the `MATCH…AGAINST` branch, consistent with the ~13 ms at 5,000 employees measured there.
+>
+> **The frontend half of the same question is §18**, measured the same day by a separate session via `./scripts/gates.sh lighthouse`. The two are complementary and neither substitutes for the other: this section is server response time under load, §18 is what a browser experiences on the public site. Both were absent until 2026-09-17, which is why §13e's original title claimed there was no baseline at all.
 
 ---
 
@@ -849,7 +896,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 18 | ~~Nothing transitions an invoice from `draft` to `sent`~~ — **owner decided 2026-09-15**, invoices are created `sent`; chain verified end to end | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
-| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins all **156** `withoutGlobalScope(s)` call sites across **53** files, per file, and fails when the count moves. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 156 that exist. That audit is still unowned |
+| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **161 across 55** as re-measured 2026-09-18. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 156 that exist. That audit is still unowned |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
 | 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |
@@ -1086,10 +1133,11 @@ No application code changed. No architecture decisions taken. No dependencies ad
 
 ## 18. Public-site baseline — **measured 2026-09-17**
 
-§13e recorded that no performance baseline existed. It does now. These are the
-first `[verified]` numbers for the public site: a production build served by
-`next start`, measured by `./scripts/gates.sh lighthouse` — three runs per URL,
-medians below.
+§13e recorded that no performance baseline existed. Two now do, measured the
+same day from opposite ends of the stack and neither a substitute for the other:
+**§13e covers the backend** (API response times, Pest, SQLite), and **this
+section covers the public site** — a production build served by `next start`,
+measured by `./scripts/gates.sh lighthouse`, three runs per URL, medians below.
 
 | route | perf | a11y | best-pr. | SEO | FCP | LCP | TBT |
 |---|---|---|---|---|---|---|---|
