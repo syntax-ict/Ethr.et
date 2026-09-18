@@ -1324,6 +1324,37 @@ Three facts for whoever takes it:
   or hand-rolled checks would do it. That is a dependency decision for the owner,
   not a build-config one, and it is why nothing was changed here.
 
+**The `zod/mini` swap was then taken to the point of decision, and declined
+2026-09-18.** Every unknown was tested rather than assumed, and all four came back
+favourable:
+
+| question | answer |
+|---|---|
+| Do `trim` / `toLowerCase` still transform the output in mini? | **Yes** — `m.string().check(m.trim(), m.toLowerCase(), …)` returns `"acme-1"` for `"  ACME-1 "`, identical to classic |
+| Do i18n message keys survive? | **Yes** — `validation.name_min` comes back unchanged |
+| Can classic `z.object` hold mini field schemas? | **Yes** — mixed schemas parse and transform correctly, both build on `zod/v4/core` |
+| Does `m.email()` keep Zod's own validator? | **Yes**, with the message key |
+
+So it is *feasible and safe*. It was declined on price, not risk:
+
+- The saving is **~11 KB gzipped on one route** — 2.4% of `/login`'s 462 KB.
+- The cost is rewriting `src/lib/forms/rules.ts`, which **21 files import**, in a
+  product where those forms enter payroll figures and employee records. Classic
+  Zod would also have to leave the four auth forms' own `z.object` calls, or it
+  ships to `/login` anyway and the saving is zero.
+- There is no partial version. The auth forms get their rules *from* `rules.ts`,
+  so bypassing it to convert only those four would duplicate validation logic —
+  strictly worse than the weight it saves.
+
+**What did change is the safety net**, which was missing and is worth having
+either way: `test/form-validation.test.tsx` now pins the *parsed output* of every
+transforming rule, not just accept/reject. Nothing did before, so a validator swap
+could have altered what the API receives while every existing test stayed green —
+and the worst case is `subdomain`, which is the tenant routing key. It also pins
+that `password` is the one rule that deliberately does **not** trim, because
+spaces are part of a secret. Whoever takes the migration now has a test that fails
+if the semantics move.
+
 ### `npm run analyze` has been doing nothing
 
 `package.json` defines `analyze: ANALYZE=true next build` and `next.config.ts`

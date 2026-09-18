@@ -45,6 +45,74 @@ function httpError(status: number, detail: string) {
   return err;
 }
 
+describe("rules — the value that actually reaches the server", () => {
+  // These rules do not only accept or reject: `.trim()` and `.toLowerCase()`
+  // are transforms, so the parsed output is what the form submits. Nothing
+  // pinned that until 2026-09-18, which meant a validator swap could have
+  // changed what the API received while every accept/reject test stayed green.
+  // A mangled subdomain is the worst case: it is the tenant routing key.
+
+  it("trims the fields whose stored value must not carry whitespace", () => {
+    expect(rules.name().parse("  Abebe  ")).toBe("Abebe");
+    expect(rules.text().parse("  hi  ")).toBe("hi");
+    expect(rules.requiredText().parse("  hi  ")).toBe("hi");
+    expect(rules.email().parse(" A@B.CO ")).toBe("A@B.CO");
+    expect(rules.phone().parse(" 0911223344 ")).toBe("0911223344");
+    expect(rules.url().parse(" HTTPS://x.com ")).toBe("HTTPS://x.com");
+  });
+
+  it("lowercases the subdomain, because it is the tenant routing key", () => {
+    expect(rules.subdomain().parse("  ACME-1 ")).toBe("acme-1");
+    expect(rules.subdomain().parse("Acme")).toBe("acme");
+  });
+
+  it("preserves case everywhere else, so a login is not silently rewritten", () => {
+    // email and url are trimmed but NOT lowercased: the local part of an
+    // address is case-sensitive per RFC 5321, and a path is always so.
+    expect(rules.email().parse("Abebe.T@Example.CO")).toBe(
+      "Abebe.T@Example.CO",
+    );
+    expect(rules.url().parse("https://x.com/A/b")).toBe("https://x.com/A/b");
+  });
+
+  it("does not trim a password, where spaces are part of the secret", () => {
+    // Deliberate asymmetry with every other rule. " short " is 7 characters
+    // and fails the 8-character floor precisely because the spaces count; if a
+    // refactor adds .trim() here this assertion is what catches it.
+    const spaced = rules.password().safeParse(" short ");
+    expect(spaced.success).toBe(false);
+    expect(rules.password().parse("  abcdefgh  ")).toBe("  abcdefgh  ");
+  });
+
+  it("carries i18n keys rather than English, for every failure mode", () => {
+    const key = (
+      r: {
+        safeParse: (v: string) => {
+          success: boolean;
+          error?: { issues: { message: string }[] };
+        };
+      },
+      v: string,
+    ) => r.safeParse(v).error?.issues[0]?.message;
+    expect(key(rules.name(), "a")).toBe("validation.name_min");
+    expect(key(rules.email(), "nope")).toBe("validation.email");
+    expect(key(rules.phone(), "123")).toBe("validation.phone");
+    expect(key(rules.subdomain(), "ad")).toBe("validation.subdomain_min");
+    expect(key(rules.subdomain(), "admin")).toBe(
+      "validation.subdomain_reserved",
+    );
+    expect(key(rules.password(), "short")).toBe("validation.password_min");
+    expect(key(rules.select(), "")).toBe("validation.select_required");
+    expect(key(rules.publicId(), "tooshort")).toBe(
+      "validation.select_required",
+    );
+    expect(key(rules.etb(), "1.555")).toBe("validation.amount");
+    expect(key(rules.integer(), "1.5")).toBe("validation.integer");
+    expect(key(rules.date(), "21/08/2026")).toBe("validation.date");
+    expect(key(rules.url(), "ftp://x.com")).toBe("validation.url_scheme");
+  });
+});
+
 describe("rules — client mirrors of the backend FormRequests", () => {
   it("accepts every Ethiopian phone shape the canonicalizer accepts", () => {
     // The registration bug this mirrors: the browser rejected `0911…`, which is
