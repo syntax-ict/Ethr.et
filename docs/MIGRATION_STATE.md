@@ -1800,8 +1800,36 @@ verified, for no gain. The same verification run exercised `RateLimiter` behind 
 named limiters: 32 requests against a 30/min limit, 30 allowed, 2 blocked.
 
 Corrected to `database` for both. The lesson is the generalisable part: **forbidding the
-wrong value is not the same as pinning the right one.** The guard now asserts the D-8
-values positively, so `file` — or anything else — fails.
+wrong value is not the same as pinning the right one.**
+
+**Then the same mistake surfaced a second time, in a worse place.** A systematic diff of
+the template against *every* `+` line in `ENVIRONMENT.md` — not just the driver block —
+found two more, both from **D-5**:
+
+| Key | Prescribed | Template shipped |
+|---|---|---|
+| `APP_URL` | `https://www.ethr.et` | `https://ethr.et` |
+| `CORS_ALLOWED_ORIGINS` | `https://www.ethr.et` | `https://ethr.et` |
+
+D-5 rests on measured evidence: **Plesk already 301-redirects the bare apex to
+`www.ethr.et`** (verified, `B1-B5_GATE_REPORT.md`), and `www` is already in
+`Tenant::RESERVED_SUBDOMAINS`. Both values were inherited unexamined from the VPS template.
+
+**The CORS one is the dangerous shape.** A mismatch between `APP_URL` and
+`CORS_ALLOWED_ORIGINS` is not a server error — it is the *browser* refusing every API call
+while the server logs nothing and the health endpoint stays green. `APP_DOMAIN` correctly
+stays `ethr.et` (tenancy root, not canonical host) and `SANCTUM_STATEFUL_DOMAINS`'s
+`*.ethr.et` already covers `www`.
+
+**So the guard was rewritten to stop restating values at all.** It now parses
+`ENVIRONMENT.md`'s own diff blocks and compares every `+` line against the template, which
+keeps the source of truth in one file — hardcoding the list is exactly how the first two
+drifted. It asserts the parse found something first, for the same reason
+`TenantScopeBypassInventoryTest` does: a pattern that silently matches nothing would make
+the test pass while checking nothing.
+
+Eight prescribed values, all matching, with `BROADCAST_CONNECTION` as the single documented
+exception below. Mutation-checked: reverting `APP_URL` to the apex fails.
 
 ### One deliberate divergence from D-8, recorded rather than hidden
 

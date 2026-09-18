@@ -148,38 +148,53 @@ it('selects no driver the shared-hosting target cannot run', function () {
     expect($env)->not->toMatch('#^MINIO_ENDPOINT=http://minio:9000\s*$#m');
 });
 
-it('matches the driver swaps ENVIRONMENT.md D-8 already decided', function () {
-    // Forbidding `redis` is not enough, and this test learned that the hard way:
-    // the template first shipped CACHE_STORE=file and SESSION_DRIVER=file, which
-    // pass every assertion above and still contradict a decision that was
-    // LIVE-VERIFIED against real MariaDB on 2026-08-31.
+it('matches every value ENVIRONMENT.md prescribes for this target', function () {
+    // Forbidding the wrong value is not the same as pinning the right one, and
+    // this test learned that twice in one session. The template first shipped
+    // CACHE_STORE=file / SESSION_DRIVER=file (contradicting D-8, where
+    // CACHE_STORE=database was LIVE-VERIFIED on real MariaDB because
+    // `cache_locks` backs the Cache::lock() that ->withoutOverlapping() uses at
+    // 8 call sites), then APP_URL / CORS_ALLOWED_ORIGINS on the bare apex
+    // (contradicting D-5, where Plesk's own 301 to www.ethr.et is verified).
     //
-    // CACHE_STORE=database is load-bearing. `config/database.php`'s `cache_locks`
-    // table is what Laravel's database cache driver needs for `Cache::lock()`,
-    // the primitive `->withoutOverlapping()` uses internally at 8 call sites in
-    // routes/console.php. `file` moves those locks onto an implementation nobody
-    // verified, for no gain.
+    // The CORS one is the dangerous shape: a mismatch between APP_URL and
+    // CORS_ALLOWED_ORIGINS is not a server error, it is the browser refusing
+    // every API call while the server logs nothing.
+    //
+    // So rather than restate values here — which is how the first two drifted —
+    // this reads ENVIRONMENT.md's own diff blocks and compares each `+` line.
+    // The source of truth stays one file.
+    $doc = (string) file_get_contents(
+        ethrRepoPath('docs/deployment/shared-hosting/ENVIRONMENT.md')
+    );
     $env = (string) file_get_contents(base_path('.env.shared-hosting.example'));
 
-    $decided = [
-        'CACHE_STORE' => 'database',
-        'QUEUE_CONNECTION' => 'database',
-        'SESSION_DRIVER' => 'database',
-        'FILESYSTEM_DISK' => 'local',
-    ];
+    preg_match_all('/^\+ ?([A-Z][A-Z0-9_]*)=(.*)$/m', $doc, $matches, PREG_SET_ORDER);
 
-    foreach ($decided as $key => $value) {
+    expect($matches)->not->toBeEmpty(
+        'Parsed no + lines from ENVIRONMENT.md. The diff-block format changed and this '
+        .'test is now checking nothing — fix the pattern rather than deleting the test.'
+    );
+
+    foreach ($matches as [, $key, $prescribed]) {
+        $prescribed = trim($prescribed);
+
+        // The one deliberate divergence. D-8 says `log`; this target uses `null`.
+        // Both report `disabled` through SystemHealthService::broadcastStatus();
+        // config/broadcasting.php coalesces to 'null' as its own fallback; CI
+        // sets "null" so it is a tested value and `log` is not; and `log` writes
+        // a line per broadcast against a fixed disk quota, where filling the
+        // quota fails every write path including the database's. Recorded in
+        // MIGRATION_STATE.
+        if ($key === 'BROADCAST_CONNECTION') {
+            expect($env)->toMatch('/^BROADCAST_CONNECTION=null\s/m');
+
+            continue;
+        }
+
         expect($env)->toMatch(
-            "/^{$key}={$value}\\s/m",
-            "$key must be `$value` — ENVIRONMENT.md D-8 decided it and MIGRATION_STATE records why."
+            '/^'.preg_quote($key, '/').'='.preg_quote($prescribed, '/').'\s*(#|$)/m',
+            "$key must be `$prescribed` — ENVIRONMENT.md prescribes it for this target."
         );
     }
-
-    // BROADCAST_CONNECTION is the one deliberate divergence: D-8 says `log`,
-    // this template says `null`. Both report `disabled` through
-    // SystemHealthService::broadcastStatus(), config/broadcasting.php coalesces
-    // to `null` as its own fallback, CI sets `null`, and `log` would write a
-    // line per broadcast against a fixed disk quota. Recorded in
-    // MIGRATION_STATE rather than left as an unexplained difference.
-    expect($env)->toMatch('/^BROADCAST_CONNECTION=null\s/m');
 });
