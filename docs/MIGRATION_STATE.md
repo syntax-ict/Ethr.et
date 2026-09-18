@@ -1293,6 +1293,73 @@ hosting plus a small VPS for cron and queue only). Option C is the cheaper of th
 exists in the plan precisely for this outcome. That is an owner decision and nothing here
 pre-empts it.
 
+### G0-D continued — *Additional deployment actions* EXISTS (owner-read, 2026-09-18)
+
+Route 1 of the three above was taken and the field is present. **Nothing has been entered,
+saved or executed.** This section is analysis against the plan, not a configuration.
+
+*Recorded honestly: the screenshot referenced by the owner did not reach this session. The
+finding rests on their direct statement that the field exists, which is observation. Its
+options, limits and user context have **not** been seen here.*
+
+#### It satisfies the install requirement. It does not satisfy the asynchronous one.
+
+That distinction is the whole of it, and the plan already draws the line — one-shot work
+versus recurring work:
+
+| Requirement | Shape | Deployment actions |
+|---|---|---|
+| **Install / init (B-4)** — `key:generate`, `migrate --force`, `db:seed --class=ProductionSeeder --force`, `ethr:create-admin` (`DEPLOYMENT.md` step 4) | one-shot, at deploy time | ✅ **yes** — exactly this shape |
+| **Schema / import (B-5)** | one-shot | ✅ **yes**, via `migrate`, or `ethr:restore` |
+| **Scheduler** — 14 entries | recurring, every minute | ❌ **no** |
+| **Queue** — 16 job classes | continuous or repeated | ❌ **no** |
+| **`ethr:backup`** | recurring | ❌ **no** — it would run at deploy time, which is not a backup schedule |
+| **Observability** (`health-check.md`'s SQL) | ad-hoc / recurring | ⚠️ once per deployment only |
+
+A deploy-time hook cannot be made into a timer without something external triggering
+deployments, so the scheduler and queue remain unsolved. **The fatal row is fixed; the
+degrading rows are not.** That moves this account from *"ETHR cannot be installed"* to
+*"ETHR can be installed and its asynchronous half is dead"* — a real advance, and still
+not a deployable product.
+
+#### The larger find: this is a fourth probe route, and it beats Route C
+
+`GATE-0-RESULT.md` documents three: **A** (SSH — blocked), **B** (Scheduled Tasks — now
+**FAILED**), **C** (web-served — "the last resort"). Deployment actions are a **Route D**
+the plan never considered, and on this account they are *better than C*: the probe runs
+from `~/`, **never web-reachable**, which is the security property the plan insists on and
+the only reason C was called a last resort.
+
+Route A's own description says it *"answers everything: G0-E, G0-F, G0-H, G0-I, G0-J and
+the storage rows."* Route D reaches the same place — **five gates**, without SSH and
+without exposing the probe.
+
+#### Two hazards to settle before anything is configured
+
+1. **The probe exits non-zero by design.** Since `8e71045` it returns `1` on a mandatory
+   gap and `2` on other failures — that fix exists precisely so a fatal result cannot read
+   as success. If Plesk treats a non-zero deployment action as a failed deployment, a probe
+   run may abort later actions or mark the deployment failed. **This is unverified**; the
+   panel's behaviour on non-zero exit has not been seen. Output must be redirected to a
+   file readable in File Manager, and the exit code neutralised if Plesk is strict.
+
+2. **Triggering a deployment collides with U-5.** Deployment actions fire *on a
+   deployment*. The host's checkout is at `716ab93`, ~50 commits behind `main`, and U-5
+   says reconciling it before Gate 0 completes *"would deploy an unverified
+   configuration."* So running the probe this way is not free — it advances the host.
+
+   **And a prerequisite nobody has established: where does the Git extension currently
+   deploy to?** This file already lists it as unknown. If that path is `httpdocs`, a
+   deployment overwrites the live document root. **Read the deployment path before
+   triggering anything.**
+
+#### One argument worth carrying into the support request
+
+Deployment actions execute shell commands as the subscription user. So the platform
+**already runs shell for this account** — `SSH: Forbidden` is a restriction on interactive
+login, not on execution. That is a concrete answer to the likely brush-off, and it applies
+to the cron ask as much as the SSH one.
+
 ### What did not change
 
 No other gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
