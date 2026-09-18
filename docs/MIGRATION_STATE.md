@@ -1197,6 +1197,32 @@ the precise failure this document exists to prevent.
 
 Stopped there. Not marked verified, not marked failed, not marked anything.
 
+### The rest of `deploy-checklist.md`'s repo-side criteria — checked, and clean
+
+Of the checklist's 23 acceptance criteria, **six assert something about a repository
+artifact** and are therefore checkable without the host. The scheduler count above was one
+of them and was wrong. The other five, and the two route checks, were verified against the
+code and **all hold**:
+
+| Criterion | Evidence |
+|---|---|
+| `robots.txt` carries `Disallow: /admin` **and** a `Sitemap:` line | `src/src/app/robots.ts` — `/admin` in `disallow`, `sitemap: ${SITE_URL}/sitemap.xml` |
+| `/sitemap.xml` is XML, not an HTML 404 | `src/src/app/sitemap.ts` present, typed `MetadataRoute.Sitemap` |
+| `GET /api/v1/ping` → 200 | `api/routes/api.php:119` |
+| `GET /api/v1/health` reports real service state | `api/routes/api.php:121` → `HealthController` (the `:653` one is the *admin* route, a different thing) |
+| `ProductionSeeder` ran, **not** `DatabaseSeeder` | both present; `DatabaseSeeder` does create the demo tenant the checklist warns about |
+| `GET /api/docs` refused outside local | `config/scramble.php` uses `RestrictedDocsAccess`; `AppServiceProvider:259` documents it |
+| `APP_ENV=production`, `APP_DEBUG=false` | `api/.env.production.example` |
+
+So the checklist's repository half is sound; its one defect was the count. The remaining
+sixteen criteria need the host and stay unverified.
+
+*Method note, because it nearly produced a false positive:* the first search for the
+`ping` route used the pattern `'ping'` and found nothing, because the route is registered
+as `'/ping'` with a leading slash. Reported as missing, that would have sent someone
+hunting for a route that exists. A grep that finds nothing is not evidence of absence
+until the pattern has been checked against the thing it is meant to match.
+
 ---
 
 ## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
