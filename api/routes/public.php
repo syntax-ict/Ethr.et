@@ -1,0 +1,93 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Controllers\Public\TenantLandingController;
+use App\Http\Controllers\Public\TenantPagePreviewController;
+use App\Http\Controllers\Public\TenantPublicAssetController;
+use App\Http\Controllers\Public\TenantRobotsController;
+use App\Http\Controllers\Public\TenantSitemapController;
+use App\Support\TenantPublicAsset;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Public tenant surface
+|--------------------------------------------------------------------------
+|
+| Served from `{tenant}.ethr.et/` to anyone, with no session and no token.
+|
+| A separate file from `api.php` and `web.php` on purpose. The middleware
+| stack is registered in bootstrap/app.php and is deliberately short: security
+| headers, tenant resolution, locale, rate limit. It carries no `auth:sanctum`,
+| no `EnsureUserBelongsToTenant`, no `statefulApi()` and no cookie
+| authentication — so there is no route by which an anonymous request can
+| arrive at authenticated tenant logic. Keeping that true is the reason this
+| file exists rather than a route group inside one of the others, where a later
+| edit to the enclosing group would quietly widen it.
+|
+| Every route here answers 404 unless the hostname is authoritative, names an
+| active tenant, and that tenant has published a profile.
+|
+*/
+
+Route::get('/', TenantLandingController::class)->name('public.tenant.landing');
+
+// A fixed kind, never a path — see App\Support\TenantPublicAsset.
+//
+// `/media/`, not `/assets/`: the page's own stylesheet and fonts are static
+// files under `/assets/`, served by the web server before Laravel is reached.
+// Keeping the dynamic route on a different prefix means the two can never
+// shadow each other, whichever server is in front.
+Route::get('/media/{kind}', TenantPublicAssetController::class)
+    ->whereIn('kind', TenantPublicAsset::KINDS)
+    ->name('public.tenant.asset');
+
+// A section entry's image, addressed by that entry's ULID.
+//
+// Declared before nothing and after `/media/{kind}` deliberately: `section` is
+// not one of TenantPublicAsset::KINDS, so the route above cannot match it and
+// the two cannot shadow each other. The ULID is resolved through the
+// tenant-scoped model, so an identifier from another tenant is simply not
+// found — the URL still carries no path of any kind.
+Route::get('/media/section/{item}', [TenantPublicAssetController::class, 'section'])
+    ->where('item', '[0-9A-HJKMNP-TV-Z]{26}')
+    ->name('public.tenant.section-asset');
+
+/*
+ * The two files every crawler asks for before it asks for anything else.
+ *
+ * Both answer 404 in exactly the cases the landing page does — see
+ * PublishedTenantLocator — so neither becomes a way to learn that an
+ * organisation uses ETHR but has not published.
+ *
+ * These need a web-server rule as well as a route. On a tenant host only
+ * `location = /` and `^~ /media/` reach Laravel; everything else proxies to
+ * the Next.js frontend, so without the matching rules in
+ * infrastructure/nginx.conf these would be served by the wrong application
+ * with every test still green.
+ */
+Route::get('/robots.txt', TenantRobotsController::class)->name('public.tenant.robots');
+Route::get('/sitemap.xml', TenantSitemapController::class)->name('public.tenant.sitemap');
+
+/*
+ * The tenant's page as it would look, before it is published.
+ *
+ * `signed` is the whole authorisation. That is deliberate rather than lazy:
+ * the dashboard is a separate origin using Sanctum cookies, and adding `auth`
+ * here would drag session state into the one route group whose design property
+ * is that it has none. The signature authorises one URL for fifteen minutes
+ * and carries nothing else.
+ *
+ * It still does not choose the tenant — ResolveTenant does that from the
+ * hostname — so a signature minted for one tenant is worthless on another's.
+ */
+Route::get('/preview', TenantPagePreviewController::class)
+    // `signed:relative`, not `signed`. The URL is minted for the tenant's own
+    // hostname, which is not `config('app.url')`, so an absolute signature
+    // would be computed over the wrong host and never validate. The host is
+    // deliberately not part of the signature: ResolveTenant reads it, so a
+    // signature carried to another tenant's host renders that tenant's page
+    // and never this one's.
+    ->middleware('signed:relative')
+    ->name('public.tenant.preview');

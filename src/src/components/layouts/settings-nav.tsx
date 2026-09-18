@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   SlidersHorizontal,
+  Globe,
   Clock,
   Timer,
   ListChecks,
@@ -73,6 +74,12 @@ export function SettingsNav() {
           label: t("nav.general", "General"),
           href: "/settings",
           icon: SlidersHorizontal,
+          show: can.manageSettings,
+        },
+        {
+          label: t("nav.public_page", "Public Page"),
+          href: "/settings/public-page",
+          icon: Globe,
           show: can.manageSettings,
         },
       ],

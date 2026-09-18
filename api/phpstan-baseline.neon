@@ -451,50 +451,8 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Scim/ScimUserController.php
 
 		-
-			message: '#^Offset ''body_am'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''body_en'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''notification…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''subject_am'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset ''subject_en'' on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
 			message: '#^Offset 1 on array\{list\<string\>, list\<non\-empty\-string\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Offset string on array\{\} on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
-
-		-
-			message: '#^Variable \$custom in empty\(\) always exists and is always falsy\.$#'
-			identifier: empty.variable
 			count: 1
 			path: app/Http/Controllers/Api/V1/Settings/NotificationTemplateController.php
 
@@ -525,54 +483,6 @@ parameters:
 		-
 			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
 			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''fiscal_year_start…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''mfa_policy'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''pagumen_proration…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''pay_period'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''retirement_age'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''run_day'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''session_timeout…'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
-			message: '#^Offset ''working_days'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
@@ -4051,6 +3961,30 @@ parameters:
 			path: app/Models/Tenant.php
 
 		-
+			message: '#^Method App\\Models\\TenantPublicProfile\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicProfile\)\|null but returns App\\Models\\TenantPublicProfile\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicProfile.php
+
+		-
+			message: '#^Method App\\Models\\TenantPublicSection\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicSection\)\|null but returns App\\Models\\TenantPublicSection\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicSection.php
+
+		-
+			message: '#^Method App\\Models\\TenantPublicItem\:\:findByPublicId\(\) should return static\(App\\Models\\TenantPublicItem\)\|null but returns App\\Models\\TenantPublicItem\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/TenantPublicItem.php
+
+		-
+			message: '#^Method App\\Models\\TenantPublicProfile\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TenantPublicProfile.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$org_scope\.$#'
 			identifier: property.notFound
 			count: 1
@@ -4719,18 +4653,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$monthly_deduction_cents\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayrollEngine.php
-
-		-
-			message: '#^Offset ''fiscal_year_start…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Payroll/PayrollEngine.php
-
-		-
-			message: '#^Offset ''pagumen_proration…'' on array\{\}\|string on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Services/Payroll/PayrollEngine.php
 
