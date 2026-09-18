@@ -858,6 +858,83 @@ observable, not merely whether it is possible.
 
 ---
 
+## THE DEPLOYMENT `.htaccess` WAS EXECUTED — 2026-09-18
+
+`docs/deployment/shared-hosting/.htaccess` is the routing brain of the whole deployment:
+deny rules, header policy, API routing, ACME passthrough. **It had never been run.** The
+canary (G0-B.1–B.4) tests whether the host honours `.htaccess` *at all*; nothing tested
+whether *this file* is correct.
+
+Apache 2.4.58 was installed locally, a document root assembled per the runbook, and the
+real file served. **Repository file untouched throughout — the served copy was a copy.**
+
+### What passed, measured
+
+| Check | Result |
+|---|---|
+| Deny rules — `.env`, `.env.production`, `composer.json/lock`, `package.json`, `package-lock.json`, `artisan`, `phpunit.xml` | **403 on all seven** |
+| `storage/`, `bootstrap/cache/` | **403 both** |
+| ACME passthrough `/.well-known/acme-challenge/…` | **200** — certificate renewal survives the rules |
+| Static asset | **200** |
+| API routing `/api/v1/ping`, `/sanctum/csrf-cookie` | **200** — both reach the front controller |
+| Seven security headers | **all present**, verified on the wire |
+| `Cache-Control: public, immutable` on assets | present |
+| **`Authorization` forwarding** | **works** — `X-Probe-Auth: Bearer TESTTOKEN`, `(null)` in the control |
+| **`X-XSRF-Token` forwarding** | **works** — same shape |
+
+The two forwarding rules were observed through env-var echoes **set in the vhost, not in
+the file under test**, so the artifact was measured rather than modified. This is the
+mechanism behind **G0-B.4**; the file's half of it is correct. (Whether the *host* honours
+`.htaccess` at all remains G0-B.1–B.4 and still needs the canary.)
+
+### The gap: there is no SPA fallback
+
+| Request | Result |
+|---|---|
+| `/employees/` (a prerendered page exists) | 200 |
+| `/employees/123` | **404** |
+| `/dashboard` | **404** |
+
+The rewrite routes `^/(api\|sanctum)` to `index.php` and nothing else. **Every client-side
+route that was not prerendered 404s** — on a shared link, and on a browser refresh of any
+detail page.
+
+This is independent of the Next.js finding and compounds it: even if the
+`generateStaticParams` problem were solved, these URLs would still 404 at the Apache layer
+until a fallback exists.
+
+### The fix, tested and NOT applied
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+```
+
+Placed after the API rule. Measured in the served copy:
+
+| | |
+|---|---|
+| `/employees/123`, `/dashboard` | **200**, SPA shell |
+| `/employees/` | **200, still the real prerendered page** — `!-f`/`!-d` lets real files win |
+| API, deny rules, ACME, static assets | **no regression** |
+
+**Deliberately not applied**, for three reasons: the file is in the frozen directory;
+Branch B is **NOT APPROVED**; and the rule presumes an `index.html` exists, which is true
+under Branch B and false under Branch A. Applying it now would bake in the branch decision
+this workstream has not made. It is recorded as a proposal with its evidence, ready for the
+pass that selects an architecture.
+
+### One limit on this measurement
+
+`index.php` was served as source — there is no PHP handler in this Apache, and
+`libapache2-mod-php` could not be installed because the PPA is refused by the egress policy
+(403), which per that policy was reported rather than worked around. So **routing to the
+front controller is verified; PHP execution behind it is not.** That was never this file's
+job.
+
+---
+
 ## STATIC EXPORT MEASURED, NOT ESTIMATED — 2026-09-18
 
 The repository builds for a target this account cannot host, and the documented cost of
