@@ -75,7 +75,7 @@ distinguishes "the rules are in place" from "the rules are ignored and nothing s
 
 ## Cron / queue
 
-- [ ] `php artisan schedule:list` shows all 11 entries (only meaningful once cron is
+- [ ] `php artisan schedule:list` shows all 14 entries (only meaningful once cron is
       actually configured per `DEPLOYMENT.md` step 6)
 - [ ] After the first minute the cron entry has had to fire, `SELECT * FROM jobs` and
       `SELECT * FROM failed_jobs` — confirm jobs are being picked up and, just as

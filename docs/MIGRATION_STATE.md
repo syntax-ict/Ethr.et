@@ -1579,9 +1579,128 @@ mis-pointed deployment does.
 - **Is any domain or subdomain rooted at `~/ethr/`?** Unanswered from the previous listing
   and still the difference between *relocated* and *moved the exposure elsewhere*.
 
+### The agent session has no network route to the host — measured, not assumed
+
+Recorded once, because it has been implicitly re-tested several times and it bounds
+everything else in this file.
+
+The environment these sessions run in reaches the internet through an egress proxy with an
+allowlist. A request to the production vhost is refused at the tunnel, before any HTTP
+request is formed:
+
+```
+$ curl -sS -o /dev/null -w '%{http_code}' https://www.ethr.et/
+curl: (56) CONNECT tunnel failed, response 403
+```
+
+and the proxy's own status endpoint logs the refusal with its reason:
+
+```json
+{ "kind": "connect_rejected",
+  "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)",
+  "host": "www.ethr.et:443" }
+```
+
+`repo.packagist.org`, `api.github.com` and `git clone` over HTTPS all return 200 from the
+same shell, so this is a **per-host policy denial, not a broken network** — the distinction
+matters, because a general outage would be worth retrying and this is not.
+
+**The consequence, stated plainly: no agent session can perform the public-exposure checks,
+run the canary, or read the Plesk panel.** Every `curl` result in this document came from
+the owner's machine and every panel reading from the owner's screen, and that will remain
+true. It is not a limitation to be worked around — attempting to would mean routing through
+a third party, which is worse than the gap it closes.
+
+This is why the Gate 0 table is mostly `NOT VERIFIED` and will stay that way until the
+owner supplies evidence: **29 of its 30 rows have an evidence source of panel, canary or
+probe, all host-side.** A repository session cannot raise the count. That is a property of
+where the evidence lives, not of how much work is left.
+
+### The freeze, partially lifted — facts corrected, procedures untouched
+
+`docs/deployment/shared-hosting/*` has been frozen since the pause. Three defects had been
+recorded against it and deferred on freeze discipline rather than on correctness, each one
+"riding the same rewrite" that never came. They are now fixed, because every one of them is
+**true independently of any gate outcome**:
+
+| File | Was | Now |
+|---|---|---|
+| `DEPLOYMENT.md` ×5 | `etrhet@213.55.96.154` | `ethret@…` — the account username, transposed |
+| `DEPLOYMENT.md` header | `213.55.96.154` only | adds `lin6.ethiotelecom.et` |
+| `deploy-checklist.md:78` | *"shows all 11 entries"* | **14** — and this one is an **acceptance criterion** |
+| `ENVIRONMENT.md:174` | *"that file's 11 entries"* | 14 |
+| `DEPLOYMENT.md:362` | *"the 11 entries in …"* | 14 |
+
+`DEPLOYMENT.md` also gains a **status banner** recording the two measured facts that
+contradict its transport: SSH is Forbidden, so every `ssh` and `rsync` line in it will not
+connect; and there is no Scheduled Tasks section, so its one cron line has no runner.
+
+**The procedures are deliberately NOT rewritten.** Choosing between Branch A and Branch B
+rests on G0-A and G0-G, both `NOT VERIFIED`, and the replacement transport rests on G0-D,
+which is `FAIL` pending a support request. Rewriting the steps now would bake a guess into
+the runbook — which is the failure this freeze existed to prevent. Correcting a username
+carries no such risk. The freeze stands over the procedures; it no longer stands over
+demonstrable facts.
+
+### Repository-side verification run — 2026-09-18, what was actually executed
+
+Distinct from the Gate 0 table, which is host-side and unmoved. These are the claims a
+checkout *can* settle, and they were settled by running things rather than reading them.
+
+| Check | Result | How |
+|---|---|---|
+| **Tenant-scope bypass inventory** | **161 sites / 55 files — matches the pin exactly** | The test's own scan logic (`app/`, `/withoutGlobalScopes?\s*\(/`) replicated in plain PHP, no vendor needed |
+| **The 5 bypasses added since the 2026-09-16 audit** | **all carry a predicate** — audited individually | ±8-line read, per `BASELINE.md` §11c's method |
+| **Backend suite (Pint, PHPStan, Pest)** | **PASS** | CI run #230, job *Backend* |
+| **Backend suite on MariaDB** | **PASS** | CI run #230, job *Backend suite on MySQL* — a real MariaDB service, not SQLite |
+| **Frontend (i18n, Prettier, ESLint, tsc, Vitest)** | **PASS** | CI run #230 on Node 24 |
+| **API contract (OpenAPI drift)** | **PASS** | CI run #230 |
+| **`npm audit --omit=dev`** | **0 vulnerabilities** | run here, 2026-09-18 |
+| **Tracked secrets** | **none** | no `.env` (only `*.example`), no key material, no `base64:` `APP_KEY` literal anywhere |
+| **`src/.env.production` is tracked** | **correct, not a finding** | every key is `NEXT_PUBLIC_*` or `NEXT_TELEMETRY_DISABLED` — compiled into the client bundle by definition, and the file says so |
+
+**A local Vitest run here failed 2 of 583 tests** — `employees-import.test.tsx`, the
+multipart upload. That is **not a regression**: this container runs Node 22.22.2, the repo
+pins **24** in `.nvmrc`, and root `CLAUDE.md` §5 already documents MSW's Node interceptor
+never settling a `multipart/form-data` request on Node 20 or 22. CI on Node 24 passes the
+same file. Recorded because a future session on a non-pinned Node will see it again.
+
+**The bypass count had drifted in the documentation.** Root `CLAUDE.md` and
+`BASELINE.md` §15 row 11 both said **156 across 53 files**, the figure from when the pin was
+built. The pin is now **161 across 55**, moved by three commits — `716ab93` and `748dcb9`
+(the queued-context tenant fixes) and `71db6da` (the platform-admin plan catalog). Both
+documents corrected, with the original figure kept as the dated measurement it was.
+
+**Five bypasses had therefore never been individually audited**, because they entered after
+the only pass that read them line by line. All five were read on 2026-09-18 and all five
+hold — two platform-admin surfaces behind `admin.manage` plus `EnsurePlatformContext` and
+`RequirePlatformMfa`, one deriving `tenant_id` from a tenant-owned device, two in
+`DispatchWebhookJob`. One inconsistency is recorded in `CLAUDE.md` rather than changed:
+`handle()` states `tenant_id` explicitly where `failed()` relies on `webhook_id` alone.
+Both hold; the disagreement between two halves of one class is the shape a later defect
+takes.
+
+### The backend suite could not be run in this container — cause identified
+
+Recorded so it is not retried. `composer install` fails here regardless of flags:
+
+```
+[403] https://api.github.com/repos/phpstan/phpstan/zipball/…
+Could not authenticate against github.com
+```
+
+The egress proxy blocks GitHub **archive** endpoints — `codeload.github.com` returns 403
+directly — and composer reads that 403 as an authentication failure. `git clone` over
+HTTPS works, and `repo.packagist.org` returns 200, so `--prefer-source` gets further but
+still dies on packages that are dist-only. `npm ci` works, because `registry.npmjs.org` is
+on the proxy's bypass list.
+
+**This is why CI is the evidence for every backend row above, not a local run.** CI has
+unrestricted egress and runs the same `gates.sh`.
+
 ### What did not change
 
-No other gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
+No gate moved. G0-A, G0-B.1–B.5, G0-C, G0-F, G0-G, G0-H, G0-I and G0-J are still
 unverified, and G0-E is still a version-only panel reading. **Gate 0 stands at 1 verified,
 1 failed, 28 outstanding.** Nothing is deployed to a serving path.
 
