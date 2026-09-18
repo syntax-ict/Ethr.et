@@ -858,6 +858,88 @@ observable, not merely whether it is possible.
 
 ---
 
+## `nginx-directives.conf` WAS EXECUTED — 2026-09-18. It holds.
+
+The third deployment artifact, and its own header said so: *"STATUS: NOT VERIFIED against
+any live host. Every line below is a translation of a directive in this directory's
+`.htaccess`, not a measurement."* One measured thing was claimed — 17 sample URIs matched
+under PCRE on 2026-09-15 — but that tested the **regexes**, not nginx.
+
+nginx 1.24.0 installed locally; the repository file **included verbatim** into a server
+block; the same document root shape served. File unchanged.
+
+### Syntax
+
+```
+nginx -t  →  syntax is ok, test is successful
+```
+
+First time the file has been parsed by nginx at all.
+
+### Every deny and allow claim, now measured under nginx rather than under a regex
+
+| Must be denied | | Must NOT be denied | |
+|---|---|---|---|
+| `/.env` | **403** | `/.well-known/acme-challenge/token` | **200** |
+| `/.git/config` | **403** | `/manifest.json` | **200** |
+| `/composer.json`, `/composer.lock` | **403** | `/assets/app.min.js` | **200** |
+| `/package.json`, `/package-lock.json` | **403** | `/_next/static/chunks/main.js` | **200** |
+| `/artisan`, `/phpunit.xml` | **403** | `/storagebin/x` | **200** |
+| `/storage/…`, `/bootstrap/cache/…` | **403** | `/` | **200** |
+
+**16 of 16 as claimed.** The two that matter most are the negatives: ACME passes, so
+certificate renewal survives, and `/storagebin/x` passes, so the `storage` rule is a
+directory match and not a prefix match.
+
+### The `add_header` inheritance trap — tested, and it holds
+
+`GATE-0-RESULT.md` G0-B.2 warns: *"nginx `add_header` does not inherit into a location that
+has one of its own, so one passing URL proves nothing about the others."* So one URL was
+not trusted:
+
+| Path | Headers |
+|---|---|
+| `/` | **7/7** |
+| `/assets/app.min.js` | **7/7** |
+| `/_next/static/chunks/main.js` | **7/7** |
+| `/manifest.json` | **7/7** |
+| `/.well-known/acme-challenge/token` | **7/7** |
+| `/.env` (a **403**) | **7/7** |
+
+All seven reach every path type, including the denied response — the `always` flag working
+as intended.
+
+**It holds for a reason, and the reason is fragile.** Parsed properly (comments stripped,
+brace depth tracked): **no active `add_header` sits inside any `location` block** — all
+seven are at server level. The file *documents* the trap and ships a commented repeat-block
+for static assets, which is good practice. **The moment anyone uncomments that block, or
+Plesk's generated config adds an `add_header` to a static-file location, the server-level
+seven vanish from those responses silently.** That is the failure this file exists to
+prevent, and it can be reintroduced by an edit that looks like an improvement.
+
+*(Method note: the first check for this used `awk` and latched onto the word "location"
+inside a comment, reporting a dozen false positives. Re-done with comment stripping and
+brace tracking. A pattern that matches prose is not a pattern that matches code.)*
+
+### `client_max_body_size 32m` — enforced
+
+| Upload | Result |
+|---|---|
+| 8 MB | 405 (method not allowed on a static path — **not** 413, so under the limit) |
+| 40 MB | **413** |
+
+The limit is real. It is the directive that otherwise fails silently: uploads simply stop
+working at a size nobody documented.
+
+### What this does not establish
+
+The file is **correct as written**. Whether *this host* will accept it is **G0-A**, still
+`NOT VERIFIED` and strong-evidence FAIL — there was no directive textarea on the settings
+page. A correct file you cannot paste anywhere is still not a control. Its header's own
+instruction stands: do not treat a paste as a control until G0-B.2 and G0-B.3 pass.
+
+---
+
 ## THE CANARY WAS EXECUTED TOO — 2026-09-18, and it is sound
 
 The canary is the instrument that will **answer** G0-B.1–B.5. If it mis-reports, those
