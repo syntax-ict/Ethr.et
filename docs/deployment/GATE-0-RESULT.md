@@ -43,8 +43,35 @@ Master plan §8: *evidence before implementation.* `docs/HOSTING_VERIFICATION_CH
 > answer that changes what the rest of the migration *is*. Two minutes, one directive,
 > one `curl`.
 >
-> Operator order: **G0-A → Step 1 (probe) → Step 2 (canary) → rest of Step 3 (panel).**
+> ~~Operator order: **G0-A → Step 1 (probe) → Step 2 (canary) → rest of Step 3 (panel).**~~
 > The step numbers below are kept as they were so existing references still resolve.
+>
+> ---
+>
+> **Superseded 2026-09-18 — G0-A is no longer first, and this file disagreed with
+> `MIGRATION_STATE.md` about it.**
+>
+> That banner put G0-A first; `MIGRATION_STATE.md`'s **MANUAL ACTION QUEUE** puts it
+> **third**, behind *0a* and *Scheduled Tasks*. Two authoritative documents naming two
+> different first actions, for a session whose whole scarcity is the operator's time.
+>
+> **The queue is right, and this banner is what moved.** Its reasoning — *"G0-A is the one
+> answer that changes what the rest of the migration is"* — was true when written, before
+> B-1 and B-4 were understood. It no longer is:
+>
+> | | Question it answers | If the answer is bad |
+> |---|---|---|
+> | **Scheduled Tasks** (queue 1) | *Can this migration be performed at all?* | No route runs `artisan`, so no `migrate`, no `key:generate`, no database import, no backup/restore, no queue, no scheduler — and five of `deploy-checklist.md`'s checks cannot run either |
+> | **G0-A** (queue 3) | *How much frontend work?* | ~1 day becomes a bounded, already-scoped static-export change |
+>
+> G0-A sizes the work. Scheduled Tasks decides whether there is work to size. And *0a* —
+> is anything still serving at the VPS — precedes both, because it decides whether any of
+> this can be **undone**; `ROLLBACK_RUNBOOK.md` now depends on that answer explicitly.
+>
+> **Authoritative order lives in `MIGRATION_STATE.md` → MANUAL ACTION QUEUE** (`0a → 0b →
+> 1 … 8`). Follow it there rather than here, so this cannot drift again. G0-A is queue
+> item 3, and it is still two minutes, one directive, one `curl` — it just is not the
+> thing to do first.
 
 ### Step 1 — the capability probe (sensitive; keep it out of the web root)
 
