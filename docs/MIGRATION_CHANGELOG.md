@@ -208,8 +208,38 @@ to product/business decisions that aren't code fixes:
 
 ## What's still open
 
-Four facts, all requiring the Plesk account, none answerable from this repository:
-B3 (cron), B4 (PHP/extensions/GD), B5 (Node.js), H1 (`CREATE TRIGGER` privilege). See
-`docs/MIGRATION_STATE.md` → NEXT ACTION for exactly how to get each. Plus two
-confirmations only the owner can supply: a tax adviser/ERCA sign-off on the 1395/2025
-schedule before the first live payroll run, and real SMTP credentials.
+> **Superseded 2026-09-18.** This section read: *"Four facts, all requiring the Plesk
+> account … B3 (cron), B4 (PHP/extensions/GD), B5 (Node.js), H1 (`CREATE TRIGGER`
+> privilege). See `docs/MIGRATION_STATE.md` → NEXT ACTION."* It is left here as the
+> 2026-08-31 position, and corrected below, because it is wrong in three ways at once and
+> is the section a reader checks for current state.
+
+**1. The labels collide with live blockers that mean something else.** `B5` here is
+*Node.js*; **B-5** in the current register is *no database import route*. `B3` here is
+*cron*; **B-3** is *an unidentified Plesk vhost skeleton*. The retired scheme maps to
+**gates**, not blockers (`HOSTING_VERIFICATION_CHECKLIST.md:17`):
+
+| Retired | Means | Now |
+|---|---|---|
+| `B3` | cron / Scheduled Tasks | **G0-D** |
+| `B4` | PHP version, extensions, GD | **G0-E** |
+| `B5` | Node.js availability | **G0-G** |
+| `H1` | `CREATE TRIGGER` privilege | **G0-F** |
+
+**2. "Four facts" is no longer the list.** Gate 0 is **G0-A … G0-J**, and six blockers
+**B-1 … B-6** were found on 2026-09-17/18 — none of which existed when this was written.
+Two of the four are also partly answered: PHP is **8.3.33** (panel reading), and SSH is
+**Forbidden**, which is what created B-1 and B-4.
+
+**3. The cross-reference is stale.** `MIGRATION_STATE.md`'s live list is
+**MANUAL ACTION QUEUE**, ordered `0a → 0b → 1 … 8`. A `NEXT ACTION` heading still exists
+in that file but carries the 2026-08-29 position.
+
+**Current, in one line:** everything turns on manual action **1** — *can this account run
+a PHP CLI command on a schedule?* — which decides deployment (B-4), database import (B-5),
+backup and restore, and observability; preceded by **0a**, *is anything still serving at
+the VPS*, which decides whether a rollback target exists (B-6).
+
+Unchanged from the original, because both are still true: two confirmations only the owner
+can supply — a tax adviser/ERCA sign-off on the 1395/2025 schedule before the first live
+payroll run, and real SMTP credentials.

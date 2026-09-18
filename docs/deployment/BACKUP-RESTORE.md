@@ -72,6 +72,35 @@ So the damage does not arrive later as failing inserts. **The restore stops dead
 
 The consequence for operations: **a Plesk-generated database backup of ETHR may be unrestorable on ETHR's own host.** Do not treat the panel's backup as the recovery path until someone has restored one on the host and watched both triggers come back. `ethr:backup` exists precisely so there is a path that does not have this property.
 
+#### Scope of the `root@localhost` reading — added 2026-09-18
+
+The 1227 mechanism above is general. **The specific definer is not**, and the distinction
+changes which operation it bites.
+
+`2026_07_22_000001_restrict_audit_log_to_insert_only.php` emits `CREATE TRIGGER` with **no
+`DEFINER` clause** (lines 53 and 95), so the engine assigns whoever ran `migrate`. That is
+the connection's `DB_USERNAME` — `ethr` under `docker-compose.yml`, and on Plesk a
+restricted per-database user issued by the panel (`ENVIRONMENT.md:98`), never `root`. The
+`root@localhost` reading above is therefore a true measurement **of the schema it was run
+against**, not a property ETHR's migration produces everywhere.
+
+What follows, and it sharpens rather than softens the warning:
+
+- **Importing the VPS dump into shared hosting — the migration step itself — is where this
+  definitely bites.** That dump carries the *VPS's* definer, which is by construction not
+  the Plesk user restoring it. Different account, no `SUPER`, `1227`, restore stops at the
+  trigger. This is `MIGRATION_STATE.md` B-5, and it is not conditional.
+- **A Plesk backup of the shared host in steady state is conditional.** Once ETHR's own
+  `migrate` has created the triggers as the Plesk database user, a panel dump names *that*
+  user as definer and that same user is the one restoring — which is permitted. It fails
+  only if the accounts differ, including the case where they differ **only in the host
+  part** (`ethr@localhost` vs `ethr@%`), which is easy to hit and gives the identical
+  `1227`.
+
+So the operational instruction is unchanged — verify a restore before trusting the panel's
+backup — but the reason to expect trouble is strongest at import, and a steady-state panel
+backup is worth actually testing rather than written off.
+
 Recorded in `docs/audit/BASELINE.md` §13b.
 
 ---

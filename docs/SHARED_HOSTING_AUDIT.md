@@ -89,12 +89,12 @@ schema-sufficient.
 
 | Component | Required by ETHR? | Current implementation | Shared-hosting support | Migration strategy |
 | --- | --- | --- | --- | --- |
-| **PHP 8.2+** | Yes, hard | php-fpm 8.2 (`docker/php`) | **UNKNOWN** — must be confirmed on the account | Blocking gate. If < 8.2, shared hosting is impossible without a VPS. |
+| **PHP 8.2+** | Yes, hard | php-fpm 8.2 (`docker/php`) | ~~UNKNOWN~~ **VERIFIED 8.3.33** — Plesk *PHP Settings*, 2026-09-17 | ~~Blocking gate.~~ **Cleared.** Satisfies `^8.2`. Panel reading, not probe output, so G0-E's *extension* and *limit* rows are still open — only the version row is answered. |
 | **Laravel 12** | Yes | `api/` | Runs on any PHP 8.2 host with a writable `storage/` | Deploy `api/public` as document root. No code change. |
 | **MariaDB/MySQL** | Yes | `mariadb` container, `DB_CONNECTION=mariadb` | Offered (Linux + MySQL plans) | Point `DB_*` at the Plesk database. Confirm server flavour matches `DB_CONNECTION`. |
 | **DB read replica** | No — optimisation | `mariadb-replica`, `DB_READ_HOST` | Not offered | Drop. Unset `DB_READ_HOST`; `config/database.php` collapses to one connection. Zero code change. |
 | **Redis (queue)** | **No — driver-level only** | `QUEUE_CONNECTION=redis` | **UNKNOWN**, assume absent | `QUEUE_CONNECTION=database`. Laravel's own default; the `jobs` / `job_batches` / `failed_jobs` tables already exist. **Zero code change** — there is no `Redis::` call anywhere in `app/`. |
-| **Redis (cache)** | No — driver-level only | `CACHE_STORE=redis` | UNKNOWN | `CACHE_STORE=database`. Caveat: two files hardcode `cache()->store('redis')` — see §D. |
+| **Redis (cache)** | No — driver-level only | `CACHE_STORE=redis` | UNKNOWN, assume absent | `CACHE_STORE=database`. ~~Caveat: two files hardcode `cache()->store('redis')`~~ — **fixed in Phase A (`80cac67`); re-verified by grep 2026-09-18, no `store('redis')` survives in `api/app/`.** See §D. |
 | **Redis (session)** | No — driver-level only | `SESSION_DRIVER=redis` | UNKNOWN | `SESSION_DRIVER=database`. Sessions table exists. |
 | **Redis (rate limiting)** | No | `RateLimiter` over the cache store | — | Follows `CACHE_STORE`. 10 named limiters in `AppServiceProvider`, all driver-agnostic. |
 | **Laravel Horizon** | **No — it is a Redis-queue runner** | 6 supervisors, `config/horizon.php` | Needs Redis + long-running processes | Replace with cron-driven `queue:work --stop-when-empty`. The *dashboard* is lost; the *jobs* are not. |
@@ -193,10 +193,26 @@ wildcard subdomains, cron, Node.js runtime, PHP version, DB trigger privilege.
 
 ---
 
-## D. Exact hardcoded infrastructure references
+## D. Exact hardcoded infrastructure references — **ALL FIXED, and there were five**
+
+> **Corrected 2026-09-18. This section is called "the headline result of the audit", and
+> it reads as outstanding work in the present tense. It is not — every site below was
+> fixed in Phase A (`80cac67`, merged `12f53de`), and the count was wrong.**
+>
+> - **The count is five, not four.** `MIGRATION_STATE.md` **D5** already records this:
+>   *"Was reported as 4; `checkReadReplica()`'s hardcoded `mariadb` found during
+>   implementation."* The table below never gained the fifth row.
+> - **All five are fixed.** Re-verified today by grep: no `= 'minio'`, no
+>   `cache()->store('redis')`, no `Storage::disk('minio')` survives in those three files,
+>   and `HealthController.php:103` now carries a comment reading *"The connection in use,
+>   not `mariadb` by name. Same defect class as the …"*.
+>
+> The table is kept as the original finding rather than deleted — it was accurate when
+> written, and a defect that was real and then fixed should read as history. The
+> **Impact** column describes what *would* happen, not what does.
 
 The application is almost entirely env-driven. Grepping `app/` for hardcoded
-infrastructure yields **exactly four sites in three files**:
+infrastructure yielded **four sites in three files** *(five — see the correction above)*:
 
 | File | Line | Code | Impact |
 | --- | --- | --- | --- |
@@ -239,6 +255,34 @@ to a shell page.
 Next.js. A static export is *technically viable* — a genuinely fortunate finding — but
 it is not free, and must not be done blind. It is Option B2 in the migration plan.
 
+### Re-verified 2026-09-17, because this conclusion became load-bearing
+
+`deployment/GATE-0-RESULT.md`'s amended G0-A consequence now rests on this section: if the
+account has no custom-directive field, static export is what keeps the frontend
+same-origin. That made it worth re-checking against a `src/` that had moved 41 commits
+since — PR #16 added locale-routed marketing pages, which is exactly the kind of change
+that could have introduced a server-side dependency.
+
+**It did not. The conclusion holds, and the counts above are stale in a benign direction.**
+
+| §E claim | Then | Now | Effect |
+| --- | --- | --- | --- |
+| zero `route.ts` | 0 | **1** — `app/og.png/route.tsx` | **None.** It carries `export const dynamic = "force-static"` and a comment saying it "keeps working under `output: export`, where a dynamic route handler would not." Built export-compatible on purpose |
+| zero `generateStaticParams` | 0 | **1** — `(marketing)/[locale]/layout.tsx:21` | **None** — this is what static export needs, not an obstacle |
+| dynamic segments | 4 | **5** — `[locale]` is new | **None.** It ships `generateStaticParams` *and* `dynamicParams = false`, whose own comment cites `output: "export"` |
+| zero `"use server"` | 0 | 0 | unchanged |
+
+**All three named blockers still stand** and still need the work described above:
+`middleware.ts` exists, `(auth)/layout.tsx` reads `headers()` (twice), `rewrites()` is
+still in `next.config.ts`, and the four `[id]` dashboard routes still need
+`generateStaticParams` returning `[]`.
+
+> **A warning for whoever re-runs this check.** Grepping for
+> `export const (dynamic|revalidate|runtime)` matches **`dynamicParams`**, which is a
+> different directive and is *favourable* to static export. That false positive was hit on
+> this very re-verification and briefly looked like the conclusion had broken. Match on
+> word boundaries.
+
 ---
 
 ## F. What is lost in every shared-hosting scenario
@@ -268,4 +312,7 @@ Not answerable from the codebase. Listed with a verification procedure in
 4. What **PHP version and extension set**? `>= 8.2` with `gd` is mandatory.
 5. Can the DB user **`CREATE TRIGGER`**? Determines whether migrations run at all.
 6. What are **`max_execution_time`**, **`memory_limit`**, **`upload_max_filesize`**?
-7. Is **SSH** available? Determines whether Composer can run on the server.
+7. ~~Is **SSH** available?~~ — **ANSWERED 2026-09-17: no, `Forbidden`.** The framing was
+   also slightly off: Composer *can* run on the server, via the Plesk Composer extension.
+   What SSH actually determines is whether anything can run **`php artisan`** — blockers
+   **B-4** and **B-5** in `MIGRATION_STATE.md`. That now rests on Plesk *Scheduled Tasks*.

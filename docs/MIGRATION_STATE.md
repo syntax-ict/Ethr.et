@@ -128,7 +128,10 @@ PHASE A:      IMPLEMENTED BUT NOT YET APPROVED FOR PRODUCTION
 TARGET:  etrhet @ line6.ethiotelecom.et / 213.55.96.154 (Linux Bronze, Plesk)
 
 B1a wildcard DNS          VERIFIED PASS   (6 unconfigured names all resolve)
-B1b wildcard vhost        VERIFIED PASS   (owner: `*` accepted; not yet created)
+B1b wildcard vhost        PARTIAL         (owner reports `*` accepted — testimony,
+                                           not recorded output; vhost NOT created.
+                                           deployment/GATE-0-RESULT.md governs; see
+                                           its G0-C section)
 B2  wildcard TLS          PARTIAL         (LE already working per-hostname on this
                                            account; wildcard needs DNS-01, zone is
                                            not in Plesk. HTTP-01 fallback PROVEN)
@@ -145,6 +148,25 @@ DECISION:     GO on Option B (Ethio Telecom Bronze), staying on Bronze
 NEXT ACTION:  Three lookups only — B3 (cron), B5 (Node.js), and the probe
               script for B4 + H1. Everything else is decided.
 ```
+
+> **Legacy IDs — read this before the letter-number labels above.** That block is the
+> 2026-08-29 status, kept as history. It uses the **retired** `B3/B4/B5/H1` scheme, and
+> three of those labels now **collide** with live blockers of the same name that mean
+> something else entirely. `B5` above is *Node.js*; **B-5** below is *no database import
+> route*. `B3` above is *cron*; **B-3** below is *an unidentified Plesk vhost skeleton*.
+> Per `HOSTING_VERIFICATION_CHECKLIST.md:17`, the retired labels map to gates, not to the
+> blocker register:
+>
+> | Retired | Means | Now |
+> |---|---|---|
+> | `B3` | cron / Scheduled Tasks | **G0-D** |
+> | `B4` | PHP version, extensions, GD | **G0-E** |
+> | `B5` | Node.js availability | **G0-G** |
+> | `H1` | `CREATE TRIGGER` privilege | **G0-F** |
+>
+> The live blockers are **B-1 … B-6**, always written with the hyphen, in the register
+> further down. When a document says "the four remaining facts", it is speaking the 2026-08-29
+> language and predates every blocker found since.
 
 ## DECISIONS TAKEN ON DELEGATION (2026-08-29)
 
@@ -249,7 +271,10 @@ copy of its rows — one table authoritative per vhost.
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
 each file's own "branch on B3/B5" sections for exactly what changes once those answers
 land. Hosting migration *execution* (upload, migrate, cutover) has not started and is
-correctly blocked on the same four facts it always was. See NEXT ACTION.
+correctly blocked on the same four facts it always was. See NEXT ACTION. *(Written
+2026-08-31. Those "four facts" are the retired `B3/B4/B5/H1` — now `G0-D`, `G0-E`, `G0-G`,
+`G0-F` — and they are no longer all that blocks execution: blockers **B-1 … B-6** were
+found on 2026-09-17/18 and are the current list. See the legacy-ID table above.)*
 
 ---
 
@@ -354,6 +379,741 @@ required it.
 - **Trial-expiry 402 + upgrade CTA.** Real enforcement exists (generic 403); the
   dedicated UX is a billing/conversion decision — what does "upgrade" link to, is
   there self-serve checkout — not something to invent without the owner.
+
+---
+
+## "The VPS is stored on Git" — what that does and does not cover (2026-09-17)
+
+Reported by the owner, and corroborated: the GitHub repository's own description reads
+*"Cloned from VPS."* Checked what is actually in Git, because the distinction decides
+whether B-5 collapses or B-6 gets worse.
+
+**Git holds the code and the directory skeleton. It holds no data and no keys.**
+
+| | In Git? | Evidence |
+| --- | --- | --- |
+| Application code, config, migrations | **Yes** | 1,599 tracked files |
+| Laravel runtime directory tree | **Yes** | 13 tracked `.gitignore` placeholders under `api/storage` and `api/bootstrap` |
+| Database dump, SQLite file | **No** | No `.sql`/`.sqlite`/`.dump` tracked anywhere; `api/database/database.sqlite` gitignored |
+| Uploaded files — employee documents, photos | **No** | `storage/app/private` holds only its placeholder |
+| **`.env`, and therefore `APP_KEY`** | **No** | `api/.env` gitignored, correctly |
+
+### The consequence, and it is a data one rather than a rollback one
+
+This **strengthens** the code half of rollback: redeploying from Git does not need the VPS
+to be serving, so B-6's "the rollback target has no open ports" matters less than it
+first appeared — *for code*.
+
+It does not touch the data half, and there the picture is worse than B-6 described:
+
+- `deployment/BACKUP-RESTORE.md:119` — `--off-host` is **deliberately absent** from the
+  scheduled backup line, and the command *"warns on every run that the backup exists only
+  on the host it protects."*
+- `:185` — *"Configure the off-host disk and confirm `--off-host` lands an archive"* is an
+  **unchecked box**.
+- `Employee.php:93-94` — `tin` and `national_id` use the `encrypted` cast. **A database
+  backup without its `APP_KEY` cannot decrypt them.**
+
+So if the VPS ever held real tenant data, then its database backup lives **only on the
+VPS**, and the `APP_KEY` needed to read the encrypted columns lives **only in the VPS's
+`.env`** — neither in Git, neither off-host. Decommissioning or losing that machine loses
+both, and the encrypted PII becomes unrecoverable even if a dump later turns up.
+
+### This sharpens queue item 0b rather than answering it
+
+"Stored on Git" answers *"is the code safe?"* — yes. It does not answer *"does the VPS
+hold a database?"*, which is what 0b asks and what decides whether B-5 collapses into B-4.
+
+**If the answer to 0b is yes, then before the VPS is touched again:** take a dump and
+preserve its `APP_KEY` off the machine. That is cheap now and impossible afterwards.
+**If no**, this section is moot, B-5 collapses, and the migration is a fresh deployment —
+which is the hypothesis the repository's own evidence favours (`ethr.et` never served live
+traffic; the VPS is recorded as dormant).
+
+---
+
+## B-6 — the DNS cutover already happened, and the rollback target may not serve
+
+**Reviewed 2026-09-17. This is the most serious finding of that review, and it is not a
+gate — it is a safety property that has quietly stopped holding.**
+
+### The runbook's stated current state is false
+
+`docs/ROLLBACK_RUNBOOK.md:8`, Scenario A — *"before DNS cutover (**the current state, as of
+this writing**)"*:
+
+> *"Nothing to roll back. `ethr.et` still points at the VPS (dormant — no live traffic)."*
+
+**It does not.** Measured twice on 2026-09-17 from this workstation:
+
+```
+213.55.96.154   ethr.et
+213.55.96.154   www.ethr.et
+213.55.96.154   zzq7x.ethr.et      <- wildcard, never configured
+```
+
+`213.55.96.154` is the **Plesk host**. The DNS half of the cutover has already been
+performed — and nothing in this repository records who did it, when, or under what plan.
+`MIGRATION_STATE.md:177` still says the opposite (`91.99.81.71`, Hetzner), because that
+observation is dated 2026-08-29.
+
+**Scenario A therefore does not apply.** We are not "before DNS cutover". We are after it,
+with an unverified deployment target and no record of the transition.
+
+### Scenario B tells you to roll back to a host with no open ports
+
+Scenario B's instruction is *"Repoint the A/AAAA records … back to the VPS IP."* The
+repository's own measurement of that IP, `MIGRATION_STATE.md:177`:
+
+> *"`91.99.81.71` = Hetzner, Falkenstein DE, where ports **80/443/8080/22/21 are all
+> closed**. **Nothing is serving the domain today**."*
+
+If that is still true, **executing Scenario B produces a total outage, not a
+restoration.** A rollback plan whose target serves nothing is worse than an admitted
+absence of one, because it will be trusted in the exact moment there is no time to check
+it.
+
+**Stated precisely, because the two halves have different evidence:** the DNS change is
+**measured by me today**. The port state is the **repository's own 2026-08-29
+measurement**, which I could not re-verify — this session's proxy refuses outbound to both
+hosts. The VPS may well have been brought back up. That is exactly why it needs checking
+rather than assuming, in either direction.
+
+### Why this outranks the Gate 0 work
+
+Every Gate 0 blocker is a question about whether the migration *can* proceed. This is a
+question about whether it can be *undone*. `deploy-checklist.md` is run "before step 8
+(DNS cutover)" — and step 8 appears to have already happened, out of order, with the
+pre-cutover checklist unrun.
+
+### Actions — neither needs the Plesk panel
+
+1. **Is the VPS actually serving?** `curl -sI http://91.99.81.71/` and check ports 80/443.
+   Serving → Scenario B is viable and only the runbook's Scenario A text is wrong. Not
+   serving → **there is no rollback target**, and that must be fixed or accepted
+   explicitly before anything is deployed to Plesk.
+2. **Who repointed DNS, and when?** It changes the risk model: if `ethr.et` now resolves to
+   a Plesk host serving a placeholder, the domain is publicly live against an unverified
+   deployment.
+
+~~Held, not fixed: `ROLLBACK_RUNBOOK.md` is not frozen and Scenario A's premise is provably
+wrong, so it *could* be corrected now. It is not, because the correct replacement text
+depends on answer 1 — "roll back to a working VPS" and "there is no rollback target" are
+different documents, and writing one before knowing which would mean writing it twice.~~
+
+**FIXED 2026-09-18, and the hold was reasoning from the wrong premise.** What depends on
+0a is *which rollback procedure is viable*. What does **not** depend on it is that
+Scenario A's stated premise is false **today** — `ethr.et` resolves to `213.55.96.154`,
+measured twice, whatever the VPS is doing. So there was a correction available that does
+not need writing twice, and the hold was costing more than it saved:
+
+- The document instructs the reader to *"read down to the one that matches reality"*, and
+  Scenario A **announced itself as reality**. Following the instruction as written stops
+  at A and concludes there is nothing to roll back.
+- The frozen `shared-hosting/rollback.md` delegates to this file as "the real plan". That
+  one cannot be edited under the freeze — so this file is the only place the chain can be
+  corrected at all, which makes it the highest-leverage safety fix available.
+
+Corrected without pre-supposing 0a's answer: a banner stating the measured DNS fact and
+that the current state is Scenario B or C; Scenario A struck through but retained as
+history and as the still-correct pre-cutover procedure; Scenario B's repoint instruction
+gated on 0a, saying plainly that repointing at a host which serves nothing converts one
+outage into two and that TTL then caches the bad answer; and Scenario B's
+`SELECT MAX(updated_at)` check flagged as needing a SQL route that B-4 has not
+established.
+
+The *decision* between "roll back to a working VPS" and "there is no rollback target"
+still belongs to 0a and to the owner. What the runbook no longer does is assert one of
+them.
+
+---
+
+## B-5 REVISED 2026-09-18 — the remedy already exists, and the plan names the wrong tool
+
+`deployment/BACKUP-RESTORE.md` was reviewed and it changes B-5 materially, in the
+favourable direction. **`ethr:restore` was built for exactly this constraint.**
+
+That file, line 34, on `ethr:backup` and `ethr:restore`: *"Both run as plain PHP CLI,
+which is **the entire design constraint**: they must work from **Plesk → Scheduled Tasks**
+with no shell and no `mysqldump`."*
+
+Verified in the codebase, not taken from the prose: `BackupCommand.php`,
+`RestoreCommand.php`, `BackupRehearsalCommand.php` (`ethr:backup`, `ethr:restore`,
+`ethr:backup:rehearse`), plus `tests/Feature/BackupRestoreRehearsalTest.php`, which the
+doc describes as performing a real populate → back up → **drop every table** → restore →
+assert schema, rows, triggers and documents came back.
+
+**So B-5 is not "no import route exists".** It is "`DATABASE_MIGRATION_PLAN.md` names
+`mysql -h localhost … < dump.sql`, which needs a shell, when a shell-free path is already
+built." B-5 therefore **collapses into B-4**: both need one thing, a way to run a PHP CLI
+command, which is manual action 1.
+
+#### Correction 2026-09-18 — "and tested" was too strong, and the gap is on the production driver
+
+This section first read *"already built **and tested**."* Checked rather than left
+standing, and the word does not survive on the driver that matters.
+
+`BackupRestoreRehearsalTest` — the destructive round-trip the claim rests on — **skips
+itself on MySQL.** Its own guard, and the reasoning is sound:
+
+```php
+if (DB::connection()->getDriverName() !== 'sqlite') {
+    test()->markTestSkipped(
+        'Destructive restore rehearsal is SQLite-only; use `artisan ethr:backup:rehearse` on MySQL.'
+    );
+}
+```
+
+The stated reason is correct — these tests DROP EVERY TABLE, which `RefreshDatabase` undoes
+on SQLite but not on MySQL, where DDL implicitly commits and the database stays destroyed
+for every test after it. So the skip is right. The problem is what replaces it.
+
+**`ethr:backup:rehearse`, the named MySQL equivalent, is invoked nowhere.** Not by
+`scripts/gates.sh`, not by either CI workflow, not by any test — grepped 2026-09-18, the
+only hits are its own definition and the two lines above pointing at it. So:
+
+| Driver | Job | Destructive backup→restore rehearsal |
+|---|---|---|
+| SQLite | `Backend` | runs |
+| MariaDB | `Backend suite on MySQL` | **skipped, and nothing runs in its place** |
+
+Two consequences worth stating separately:
+
+1. **The backup path has never been exercised on the production driver.** Production is
+   MariaDB. `DatabaseDumper::quoteFlat()` carries its own note about SQLite and MySQL
+   quoting newlines differently — a divergence that already bit this project once — so
+   "passes on SQLite" is precisely the evidence that divergence defeats.
+2. **The SQLite rehearsal cannot cover B-6's hazard even in principle.** It asserts
+   triggers come back by reading `sqlite_master WHERE type='trigger'`. The B-6 mechanism
+   is ``CREATE DEFINER=`root`@`localhost` ``, and SQLite triggers have no `DEFINER`
+   concept at all. The one assertion that looks like it covers the risk is on the one
+   driver where the risk cannot exist.
+
+**Not fixed here, deliberately.** The fix is a CI change, and this environment cannot
+validate one: `composer install` cannot authenticate to github.com here, so there is no
+`api/vendor`, so no `artisan` command can be run at all. Pushing an unvalidated workflow
+edit is the specific thing `CLAUDE.md`'s CI section warns about — five structural defects,
+every one invisible from the working tree.
+
+The proposed patch, for whoever has a working backend:
+
+- The command refuses unless the database name contains one of `test`, `rehears`,
+  `scratch`, `staging`, `sandbox` (`BackupRehearsalCommand::DISPOSABLE`). CI's database is
+  `ethr_suite_mysql`, which matches none — so this needs a **second** database, e.g.
+  `ethr_rehearsal`, not `--force` on the suite's own.
+- Creating it needs the service's root credentials (`MARIADB_ROOT_PASSWORD: root` is
+  already set in `gates.yml`) and a grant to `ethr`; then `migrate` against it and run
+  `php artisan ethr:backup:rehearse` with `DB_DATABASE` overridden for that step only.
+- Verify the runner actually has a `mysql` client before relying on one.
+
+Until that runs, the honest statement is: **built, tested on SQLite, unexercised on
+MariaDB** — and item 3 of `BACKUP-RESTORE.md`'s checklist, running the rehearsal on the
+host itself, is still the thing that converts a backup procedure into a verified backup.
+
+### And Plesk's own backup is not the recovery path
+
+`BACKUP-RESTORE.md:73`, which matters for B-6 as much as B-5: **"a Plesk-generated
+database backup of ETHR may be unrestorable on ETHR's own host."**
+
+The mechanism is the audit-log triggers. Restoring a dump that names a definer **other
+than the account doing the restore** stops dead at the trigger statement with
+`1227 Access denied … SUPER`, measured against MariaDB 10.4.32 on 2026-09-15. That is what
+`mysqldump` and the Plesk panel export write into a dump file. `DatabaseDumper` emits no
+`DEFINER` clause precisely to avoid this, which is why `ethr:backup` exists as a path that
+does not have the property.
+
+**Correction 2026-09-18 — this section said the definer is `root@localhost`, universally.**
+It quoted `BACKUP-RESTORE.md`'s reading as "confirmed, not assumed". The 1227 mechanism is
+confirmed; the *specific definer* is not general, and the difference decides which
+operation the hazard bites. The migration emits `CREATE TRIGGER` with **no `DEFINER`
+clause** (lines 53 and 95), so the engine assigns whoever ran `migrate` — `DB_USERNAME`,
+which is `ethr` under Docker and a Plesk-issued per-database user on the target
+(`ENVIRONMENT.md:98`), never `root`. So:
+
+- **Importing the VPS dump — B-5, the migration step itself — bites for certain.** That
+  dump carries the VPS's definer, which by construction is not the Plesk user restoring
+  it. Use `ethr:restore`, or strip the `DEFINER` clauses.
+- **A steady-state Plesk backup of the shared host is conditional.** Its triggers will
+  name the Plesk database user, and that same user restores them, which is permitted. It
+  fails only where the accounts differ — including differing **only in the host part**
+  (`ethr@localhost` vs `ethr@%`), which gives the identical 1227.
+
+The instruction does not change: verify a restore before trusting the panel's backup. What
+changes is that the certainty belongs to the import step, and the steady-state case is
+worth testing rather than written off. Scope note added at the source in
+`deployment/BACKUP-RESTORE.md`.
+
+**Do not treat the panel's backup as the recovery path** until someone has restored one on
+the host and watched both triggers come back.
+
+### What this does to the priority
+
+It concentrates everything on the same question. Manual action 1 — *can this account run a
+PHP CLI command on a schedule?* — now decides **deployment** (B-4), **database import**
+(B-5), **backup and restore** (this section), and **observability**
+(`health-check.md`'s SQL checks). One panel page, four blockers.
+
+---
+
+## B-5 — the database has no import route either, and one question may delete it
+
+`docs/DATABASE_MIGRATION_PLAN.md` was reviewed on 2026-09-17 and had not been checked
+against SSH being Forbidden. **Both of its paths are blocked, by the same missing
+capability class as B-4 but by different mechanisms:**
+
+| Path | The blocking step | Why it is blocked |
+| --- | --- | --- |
+| **Existing-data migration** | `mysql -h localhost -u… "$DB" < ethr_pre_migration_*.sql` (§ *Schema transfer*) | Runs the import **on the shared host**. Needs a shell there. The `mysqldump` half is fine — that runs on the VPS, which has SSH |
+| **Fresh deployment** | `php artisan migrate` + `ProductionSeeder` | This is **B-4**. Same blocker, already recorded |
+
+So there is currently no route to get a schema into the shared-hosting database at all,
+by either path. Recorded as **B-5**, distinct from B-4 because the remedy differs: B-4
+needs something that runs `artisan`; B-5 needs either that *or* a database import UI.
+
+### The question that might delete B-5 entirely
+
+**Which path applies has never been decided**, and the repository's own evidence points
+hard at one of them. `MIGRATION_STATE.md` records `ethr.et` as having had **no live
+traffic** — *"nothing is serving the domain today, so there is no live-traffic cutover
+risk… the VPS is dormant, not serving."* The plan's own opening says: *"This assumes there
+is existing data to migrate — if the shared-hosting deployment is instead a fresh start
+with `ProductionSeeder` and no prior tenants, skip straight to 'Fresh deployment'."*
+
+If the VPS holds no real tenant data, then:
+
+- the `mysqldump` → `mysql <` half of the plan **does not apply at all**, and B-5 collapses
+  into B-4;
+- the storage-transfer section likewise;
+- and the whole database migration becomes `artisan migrate` + `ProductionSeeder`, which
+  is one blocker rather than two.
+
+**This is answerable without Plesk.** It is a question about the VPS, not the shared host,
+and it is the only outstanding item on the critical path that does not require the panel —
+which is why it is queued ahead of the panel work below.
+
+Held, not fixed: `DATABASE_MIGRATION_PLAN.md` is **not** in the frozen directory, so it
+could be rewritten now. It is not being rewritten, for the same reason as U-2 — if the
+path turns out to be "fresh deployment", half the document becomes irrelevant rather than
+wrong, and rewriting it before that answer means writing it twice.
+
+---
+
+## UNFIXED — held deliberately, 2026-09-17
+
+Known defects and unresolved states that are **not** being repaired right now, each with
+why. Distinct from the blocked gates: those are *unmeasured*. These are *known wrong or
+known unresolved and consciously left*. Listed so none of them becomes a surprise.
+
+| # | Unfixed | Why it is held | What changes it |
+| --- | --- | --- | --- |
+| **U-1** | **None of this session's corrections are on `main`.** PR #19 and #20 are green and unmerged, so `main` still carries: §0's file list telling you to copy `robots.txt` into the document root, no step 4a at all, an 18-extension probe list **missing `simplexml`**, Node "≥ 20.9", a canary without `shadow.txt`, and no manual action queue. An operator working from `main` today gets the defective procedure. | Merging is the owner's decision, not mine | Merge #19, then #20 |
+| **U-2** | **`DEPLOYMENT.md` steps 3 and 4 describe a procedure nobody can perform here** — `rsync` over SSH, `artisan` over SSH — on an account where SSH is Forbidden | Freeze discipline. The exception test is *branch-independent **and** blocks Gate 0*; this is branch-independent but does not block Gate 0. Rewriting before the SSH question resolves means writing it twice | SSH granted → steps stand as written. SSH refused → rewrite around Git + Composer + a task runner |
+| **U-3** | **B-4 — nothing can run `artisan`.** `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner. The Git route delivers code and Composer delivers `vendor/`; neither executes anything | External capability, not a repository defect | Manual queue #1 (command-type Scheduled Task) or #2 (SSH) |
+| **U-4** | **B-3 — `httpdocs/ethr.et/` is an unidentified Plesk object** with its document root inside `httpdocs/` | Identification needs the panel. Deleting a vhost is not deleting a folder, so it is not being touched on a guess | Manual queue #5 |
+| **U-5** | **The host carries a Git deployment at `716ab93`, 47 commits behind `origin/main`** | Not reconciled, and reconciling it before Gate 0 would deploy an unverified configuration | Gate 0 completing, then a deliberate first deployment |
+| **U-6** | **`httpdocs/public/` and `httpdocs/et/` were removed without the disposability confirmation `B1-B5_GATE_REPORT.md` required** | Irreversible. `et/` was recorded empty; `public/` was never inspected | Nothing — recorded as a permanent gap rather than quietly dropped |
+
+**U-1 is the one with a deadline.** Every other entry waits on evidence or on a decision
+with no cost to delay. U-1 degrades: the longer the corrections sit on branches, the more
+likely someone runs Gate 0 from `main` and gets the four-check canary, the missing
+`simplexml` row, and the instruction to copy `robots.txt` into the document root.
+
+### Production env template — completeness checked 2026-09-17
+
+`api/config/*.php` reads **232** env vars; `.env.production.example` declares **62**. That
+gap sounds alarming and mostly is not: 128 of the undeclared ones carry defaults in
+`config/`, and of the 46 with no default, all but one belong to drivers this target does
+not use — AWS/S3, SQS, DynamoDB, Memcached, Pusher, Postmark, Resend, Slack, Papertrail.
+A `null` for those is correct.
+
+Two were checked properly rather than assumed:
+
+- **`SENTRY_DSN` — false alarm.** `config/sentry.php:13` reads
+  `env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN'))`, and the template declares the primary.
+  No mismatch. Recorded because the naming looks like a bug and is not.
+- **`CONTACT_INBOX` — a real template gap, now closed.** `config/mail.php:125` reads it
+  with no default; it was absent from the template. The *code* is fine and deliberately so
+  — `ContactController` persists the lead either way and logs
+  `"Lead saved; no contact inbox configured"` at info level, with a comment saying this is
+  not an error. But a production deployment built from the template would silently collect
+  leads nobody is notified about, with a log line as the only signal. Added as a commented
+  entry with that reasoning, so leaving it blank is a decision rather than an omission.
+
+No other deployment-relevant variable is missing.
+
+### Checked and clean — recorded so it is not re-checked
+
+`api/.env.production.example` carries **no real secret**. Every `*_KEY`, `*_PASSWORD`,
+`*_SECRET` and `*_TOKEN` value is an instruction-style placeholder or empty (verified by
+pattern, values never printed). A first-pass entropy heuristic flagged nine of them; that
+was a false positive and is recorded as such rather than left as a scare.
+
+---
+
+## GIT DEPLOYMENT ROUTE — verified from the repository, 2026-09-17
+
+`DEPLOYMENT.md` step 3 uploads with `rsync` over SSH and step 4 runs `artisan` over SSH.
+**Neither is available on this account** (SSH Forbidden, measured). Plesk's **Git** and
+**Composer** extensions are present, so that is the route. What follows is what the
+*repository* guarantees about it — checked, not assumed. The Plesk-side behaviour is
+flagged as unknown rather than described.
+
+### The layout maps cleanly — no repackaging needed
+
+Plesk Git's deployment path is relative to the **webspace root**, so a path of `ethr`
+deploys to `~/ethr/`. The repository root holds `api/ docker/ docs/ infrastructure/
+scripts/ src/`, which makes the result `~/ethr/api/` — **exactly what §0 specifies**, a
+sibling of `httpdocs` and outside the document root. Nothing has to be restructured.
+
+### Three things checked, because Git deploys differ from rsync in ways that break Laravel
+
+| Risk | Result | Evidence |
+| --- | --- | --- |
+| **Git does not carry empty directories**, and Laravel needs `storage/framework/{cache,sessions,views}`, `storage/logs` and `bootstrap/cache` to exist or it fails at runtime | **SAFE** | Every one carries a tracked `.gitignore` — 13 of them under `api/storage` and `api/bootstrap`. The tree is recreated by the clone. This is the classic Git-vs-rsync deployment break and it does not apply here |
+| Deploy payload size | **SAFE** | 1,599 tracked files, largest is 700 KB (`generated.ts`). No binaries, no bundled dependencies |
+| Secrets reaching the host through Git | **SAFE** | `vendor/`, `node_modules/`, `.env`, `api/.env`, `api/.env.production`, `storage/*.key` and `public/storage` are all gitignored. Nothing carrying a credential is tracked |
+
+### Ordering that must not be got wrong
+
+`.env` **before** Composer, not after. `composer install` runs `package:discover`,
+`config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, and
+`routes/channels.php` calls `Broadcast::channel()` at load time — so Composer exits 1 with
+a null Pusher key if no `.env` exists yet. This is the same defect that was CI cause 2.
+`DEPLOYMENT.md` step 1 already warns about it; under the Git route the hazard is larger,
+because the Plesk Composer extension is a button that can be pressed at any moment.
+
+So: **Git deploy → create `~/ethr/api/.env` → then Composer.**
+
+### What this route does and does not solve
+
+**Solves:** getting code onto the host (B-1's `rsync` half) and installing dependencies.
+
+**Does not solve B-4.** `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` still
+have no runner. Git puts the files there; Composer fills `vendor/`; nothing executes
+`artisan`. That remains blocked on SSH or a command-type Scheduled Task — manual action
+queue items 2 and 1.
+
+### Unknown on the Plesk side — not asserted here
+
+Which branch the extension tracks and whether it can be changed; whether the deployment
+path is editable after creation; whether "additional deployment actions" exist on this
+plan (they normally run shell commands, which would be a route for `artisan` — but shell
+is Forbidden, so assume not until seen). The extension currently reports `716ab93`, **47
+commits behind `origin/main`**, which is itself a sign it is configured but not tracking
+anything current.
+
+---
+
+## The frozen package, reviewed read-only 2026-09-18 — one consequence that outlives deployment
+
+`ENVIRONMENT.md` and `health-check.md` are inside the frozen directory, so they were read
+and not edited. Both are broadly sound. Two observations, recorded here because this file
+is not fenced:
+
+**`ENVIRONMENT.md:170` — the package's one operational instruction is gated on G0-D.**
+It is `* * * * * cd ~/ethr/api && php artisan schedule:run`, a **command-type** Scheduled
+Task. If G0-D returns "Fetch a URL only", that single line is inert and the scheduler,
+the queue, invoicing, leave accrual and payslip notifications have no delivery mechanism.
+Nothing else in the file assumes a shell, which is the right shape — it just means the
+whole asynchronous half of the product rests on one unread panel page.
+
+**`health-check.md` — post-deployment monitoring has no verified access route, and B-5
+does not end at deployment.** Its two primary ongoing checks are SQL:
+
+- `SELECT COUNT(*) FROM failed_jobs` — there is no Horizon UI here, so this *is* the
+  failed-job surface
+- `SELECT MAX(created_at) FROM jobs` — the doc's own reasoning is that *"cron silently
+  not firing looks identical to nothing to do"*, so this is the only way to tell them apart
+
+With SSH Forbidden, running either needs a database UI. **phpMyAdmin was not in the Dev
+Tools list the owner reported** — it is usually under a separate *Databases* section
+rather than Dev Tools, so its absence from that list is not evidence either way, and it
+has not been checked.
+
+The third row degrades correctly on its own: disk usage offers *Plesk → Statistics* before
+`du -sh … over SSH`, so it survives.
+
+**Why this matters beyond the gates.** B-1 and B-5 have been framed as deployment
+blockers. This is the same gap in the operations phase: if there is no way to run SQL, then
+after a successful deployment there is still no way to see that queued jobs are failing or
+that cron has stopped — the two failure modes this product has already been bitten by
+(`ScanAttendanceAnomaliesJob` failed on every scheduled run and was found by opening the
+health endpoint for an unrelated reason). **Add "is there a database UI?" to the Scheduled
+Tasks panel visit** — same page-load, and it decides whether this deployment is
+observable, not merely whether it is possible.
+
+---
+
+## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
+
+Everything resolvable from the repository has been done. These eight remain, in dependency
+order. Each says where to click, what to bring back, whether to change anything, and which
+gate it unlocks. **Do not do 8 before 5.**
+
+| # | Action | Plesk location | Bring back | Change anything? | Unlocks |
+| --- | --- | --- | --- | --- | --- |
+| **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
+| **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
+| **1** | **Scheduled Tasks capability** — **and, on the same visit, whether a database UI (phpMyAdmin) exists** | Websites & Domains → *Scheduled Tasks*; then look for a *Databases* section | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
+| **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
+| **3** | **Custom-directive capability** | Websites & Domains → *Apache & nginx Settings*, **bottom of page** | Whether any *"Additional directives for HTTP/HTTPS"* or *"Additional nginx directives"* textarea exists | No | **G0-A**. Absent → FAIL, which now costs a scoped frontend change, not weeks |
+| **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
+| **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
+| **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php` | The full output. Open it with **no query string**; **delete the file in the same sitting** | Upload then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
+| **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**, and without it you run four checks, not five |
+| **8** | **Wildcard subdomain** | Websites & Domains → *Add Subdomain*, name it `*` | What the panel does when you save | Yes — create it | **G0-C**. **Only after 5**: adding a subdomain while an unexplained `ethr.et` object exists would compound B-3 |
+
+**Highest value is action 1.** Without a shell, Scheduled Tasks is the only route to run
+`artisan migrate`. Command-type or PHP-script tasks → the migration is performable.
+URL-fetch only → there is no documented way to perform it on this account, and SSH stops
+being a convenience and becomes a prerequisite.
+
+**Still blocked after all eight:** **G0-F** (`CREATE TRIGGER`) and **G0-I** (server version,
+charset) both need database credentials passed to the probe, which needs Route A or B —
+so they wait on action 1 or 2. Route C cannot answer them by design, and that is the point
+of Route C rather than a shortfall.
+
+---
+
+## ACCOUNT EVIDENCE — 2026-09-17 (first real observations)
+
+Panel readings and a File Manager listing from the live Ethio Telecom account. Full
+record and gate-by-gate effect: `deployment/GATE-0-RESULT.md` → *Account evidence*. **No
+gate moved** — none of this is probe or canary output.
+
+**Resolved:** SSH/shell is **FORBIDDEN** (the `/bin/false` caveat this file's own gate
+report warned about is exactly what happened) · PHP **8.3.33**, satisfying `^8.2` ·
+Composer and Git both present as Plesk extensions · Imunify and a WAF are active, which
+may influence how G0-B.2 and G0-B.3 read.
+
+**Document root CONFIRMED `httpdocs`.** Hosting Settings displays `/`, which read
+literally would put the application in the web root; `.well-known/acme-challenge/` was
+observed inside `httpdocs/`, and ACME challenges can only be served from the document
+root. Plesk's `/` is relative to the webspace root. The `~/ethr` layout is intact.
+
+**The account was not untouched**, contrary to `GATE-0-RESULT.md`'s previous claim.
+`httpdocs/backend/` held a stock Laravel+Breeze scaffold — *not ETHR* — with no `.env`
+and no `vendor/`; it and `dist/`, `public/`, `et/` have been removed by the owner.
+`~/production.ethr.et/` is a **second vhost**. `httpdocs/` is now a pristine Plesk
+default, which is a better starting point for G0-B than what preceded it.
+
+### Blockers, recorded rather than resolved
+
+| # | Blocker | Effect |
+| --- | --- | --- |
+| **B-1** | SSH **Forbidden** | The capability probe has no shell route; its fallback (Scheduled Tasks) depends on **G0-D**, unverified |
+| **B-2** | No "Additional directives" fields on Apache & nginx Settings | G0-A untestable as written — strong evidence of FAIL, unconfirmed |
+| **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton (2026-09-17 23:48) with its document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost; inverts the layout. Identify it in the panel before removing — deleting a vhost is not deleting a folder |
+| **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no non-shell equivalent anywhere in the package |
+
+**B-1 is partly routed around.** `deployment/GATE-0-RESULT.md` Step 1 now carries three
+probe routes. Route C — web-served under a random filename with **no database credentials**
+— works on this account today and closes **G0-E, G0-H, the storage rows and the CPU half of
+G0-J**. It is safe because the probe skips the database section entirely when credentials
+are absent, so the access-log hazard that made web-serving a last resort does not arise.
+**G0-F and G0-I stay blocked**, and G0-F is the one that aborts `migrate` by design, so it
+must be answered before any deployment.
+
+**B-1 and B-4 remain one support request** — *Hosting Settings → SSH access → `/bin/bash`* —
+and together they reframe G0-D. Without a shell, Scheduled Tasks is not merely how the
+scheduler runs: **it is the only route to migrate the database.** If G0-D returns "Fetch
+a URL only", this migration has no documented way to be performed. G0-D is now the
+highest-value remaining panel read.
+
+### One capability found, worth keeping
+
+**Plesk Git's deployment path is relative to the webspace root, not to `httpdocs`.** So
+setting it to `ethr` deploys to `~/ethr/` — exactly the layout `DEPLOYMENT.md` §0
+specifies, outside the document root. That matters now that SSH is forbidden and step 3's
+`rsync` is unavailable: Git + Composer extensions are the remaining deployment route, and
+they can reach the correct target natively. Recorded here rather than in the runbook
+because `docs/deployment/shared-hosting/*` stays frozen and this is not step 4a.
+
+### Citation audit 2026-09-18 — every checkable claim, checked
+
+The migration documents cite specific files and line numbers. A runbook that points at the
+wrong line wastes the account session, and this sweep has already found four cases of a
+document describing an artifact incorrectly. So every mechanically checkable citation was
+verified against the file it names. **Eight of nine hold exactly**, which is worth
+recording so nobody re-does it:
+
+| Claim | Source | Result |
+|---|---|---|
+| `index.php` lines **9 / 14 / 18** are maintenance, autoloader, bootstrap | `DEPLOYMENT.md` step 4a | ✅ exact |
+| `src/public/favicon.ico` present | `document-root-inventory.php` | ✅ |
+| Frontend robots generator at `src/src/app/robots.ts` | `document-root-inventory.php` | ✅ |
+| `api/public/robots.txt` reads `User-agent: * / Disallow:` | `document-root-inventory.php` | ✅ verbatim |
+| `api/public/.htaccess` ends in `!-d`, `!-f`, `RewriteRule ^ index.php [L]` | `document-root-inventory.php` | ✅ at lines 22–24 |
+| `shared-hosting/.htaccess:144` applies far-future caching to that exact extension set | `GATE-0-RESULT.md:176` | ✅ line 144 is that `FilesMatch`, extension set quoted verbatim |
+| `infrastructure/nginx.conf` roots **three** server blocks at `api/public` | PR #20 / inventory | ✅ exactly 3 |
+| `shared-hosting/.htaccess` restricts the front controller to `^/(api\|sanctum)`, guarded by `!-d`/`!-f`, and denies `.env`/`.git`/composer files | three documents | ✅ lines 64–67 and 32 |
+
+#### The one that does not hold — `DEPLOYMENT.md:319`, Branch A
+
+It reads: *"Delete the entire **"Everything else → frontend, BRANCH B"** block … (leave
+BRANCH A as a comment for documentation, **per that file's own instructions**)."*
+
+That attribution is wrong. The file's own Branch A instruction, at
+`shared-hosting/.htaccess:72`, says the opposite:
+
+> `BRANCH A — Node.js runtime available (B5 = yes). DO NOT USE this .htaccess branch;`
+> `delete this whole "Everything else" block instead` and let Plesk's Node.js/Passenger
+> integration own routing … Passenger inserts its own front-controller rule ahead of this
+> file … a second catch-all rule here would conflict with it.
+
+Delete the **whole section**, says the file. Delete **only BRANCH B**, says the runbook —
+citing the file.
+
+**Severity: low, and measured rather than assumed.** Lines 69–102 of that `.htaccess` were
+checked for any active directive and contain **none** — the whole "Everything else"
+section is commented out, and the file's only live catch-all is the `^/(api|sanctum)` rule
+at 64–67. So neither instruction can leave a conflicting rule behind for Passenger, which
+is the harm the file's warning exists to prevent. What it costs is an operator's time and
+confidence: following the runbook, reading "per that file's own instructions", opening the
+file and finding the opposite — at the one moment when the account session is running.
+
+**Not corrected here.** `DEPLOYMENT.md` is inside the frozen directory and line 319 is the
+Branch A frontend section, not step 4a, so fixing it would widen a freeze exception the
+owner asked to keep narrow. Recorded for the same pass that lifts the freeze. The fix is
+one clause: either drop "per that file's own instructions", or change the instruction to
+delete the whole section and say why (Passenger's own catch-all).
+
+Also confirmed while in the file, because its absence would be worse than any of the
+above: `.well-known/acme-challenge/` is passed through untouched at lines 54–55, so
+certificate renewal survives the deployment.
+
+### The rest of the frozen package, reviewed read-only 2026-09-18
+
+`ENVIRONMENT.md` and `health-check.md` were reviewed earlier. That left four files in the
+package never opened in this sweep: `README.md`, `deploy-checklist.md`, `rollback.md` and
+`nginx-directives.conf`. All four read, none edited — the directory stays frozen.
+
+**`nginx-directives.conf` reviews clean, and is the best file in the package.** It opens
+with `STATUS: NOT VERIFIED against any live host` and says every line is a translation of
+the `.htaccess`, not a measurement. Its three `location ~` regexes *were* measured — run
+against 17 sample URIs under PCRE on 2026-09-15, with the dangerous near-misses recorded
+(`/.well-known/acme-challenge/token` NOT denied, `/storagebin/x` NOT denied as a prefix).
+Braces balance, 23 active directives, and every `add_header` is server-level — with the
+inheritance trap that makes that matter documented at its own line 77 and mirrored in
+`GATE-0-RESULT.md`'s G0-B.2 row. Nothing to fix.
+
+The other three each carry one defect. All are frozen, so all are recorded rather than
+corrected.
+
+#### 1. `rollback.md` contradicts itself inside a single sentence
+
+Its entire instruction is:
+
+> `Repoint ethr.et / www.ethr.et back to the VPS's IP.`
+>
+> That's it … since `ethr.et` had no live traffic before this migration (verified — see
+> `docs/B1-B5_GATE_REPORT.md`; **the VPS is dormant, not serving**).
+
+It tells the operator to roll back *to* the VPS, and in the parenthetical justifying that
+instruction states the VPS **is not serving**. Repointing DNS at a host that answers
+nothing is not a rollback; it is a second outage on top of the first.
+
+This is B-6, which `PRODUCTION_CHECKLIST.md` row 24 was already downgraded for — but the
+downgrade was recorded in the checklist, and the runbook the checklist points at still
+reads as though the procedure works. **The most dangerous of the four findings**, because
+it is the file someone opens while the site is visibly broken, and it is short enough to
+be followed without reading twice. Manual action **0a** — *is anything still serving at
+`91.99.81.71`?* — is what settles it, and this is the second reason that item is top of
+the queue.
+
+#### 2. `README.md` omits `nginx-directives.conf` from the package index
+
+Its table lists six files; the directory holds seven. The missing one is the `.htaccess`
+fallback — the file to paste if the canary comes back saying `.htaccess` is ignored, which
+is the branch `GATE-0-RESULT.md` calls *"the gate most likely to come back negative."* An
+operator working from the package README would not know it exists, at exactly the moment
+they need it.
+
+#### 3. `README.md` still uses the retired B3/B4/B5/H1 taxonomy
+
+*"once `docs/MIGRATION_STATE.md`'s four remaining facts (B3, B4, B5, H1) are answered."*
+Those IDs were superseded by the `B-1…B-6` register and the `G0-A…G0-J` gates.
+`PRODUCTION_CHECKLIST.md` row 3 carried the identical staleness and was corrected on
+2026-09-18; this is the same defect in a file the freeze protects.
+
+#### 4. `deploy-checklist.md` — the pre-cutover gate cannot currently be executed
+
+The file itself is good, and its Public-paths section already carries step 4a's
+`robots.txt` trap. The problem is B-4, not the checklist. Of its 23 checks, **five need
+`artisan` or raw SQL**, and neither has a verified route on this account:
+
+| Check | Verifies |
+|---|---|
+| `php artisan migrate:status` | schema, and specifically that the audit-log trigger migration did not abort the run (G0-F / H1) |
+| `SELECT @@character_set_server` = `utf8mb4` | Amharic does not silently truncate or corrupt |
+| `php artisan down` → expect `503` | that `index.php` line 9 was repointed — step 4a's own verification |
+| `php artisan schedule:list` | the scheduler is wired |
+| `SELECT * FROM jobs` / `failed_jobs` | the queue is being picked up, and nothing fails silently on first contact with real MySQL |
+
+Five of twenty-three undersells it: those five are precisely the checks covering the parts
+that **fail silently** — schema, Amharic integrity, maintenance mode, scheduler, queue.
+The other eighteen are `curl` and can be run from anywhere.
+
+So B-4 does not only block deployment and database import. It blocks the gate that is
+supposed to certify the deployment *before* DNS is pointed at it. Manual action 1 already
+decided deployment, import, backup/restore and observability; it decides this too.
+
+---
+
+## VPS ARTIFACT INVENTORY (classification only — 2026-09-17)
+
+**Nothing here is removed, and nothing here is scheduled for removal.** This is step 1 of
+the owner's cleanup rule: *inventory and classify first; remove only confirmed VPS-only
+artifacts, and only after shared-hosting migration evidence exists.* No migration gate is
+verified, so **no artifact is eligible for removal yet**. The VPS remains the rollback
+target (`docs/deployment/shared-hosting/rollback.md` depends on it being live).
+
+Derived by reading which files CI and `gates.sh` actually invoke, not by pattern-matching
+on the word "docker".
+
+### Required by ETHR — must survive the migration
+
+| Artifact | Why |
+| --- | --- |
+| `scripts/gates.sh` | **The trap.** It greps as Docker-related, and it is the quality gate CI itself invokes — `.github/workflows/gates.yml` and `security.yml` both call it rather than restating the gates, specifically so the two cannot drift. Removing it removes CI. |
+| `scripts/api-types-check.sh` | Called by CI directly *and* by `gates.sh`'s `api_types_gate`. |
+| `scripts/docs-link-check.js` | `gates.sh`'s `docs_gate`. |
+
+### Shared-hosting compatible — Docker is a fallback path, not a requirement
+
+| Artifact | Why |
+| --- | --- |
+| `scripts/pest-isolated.sh` | Native-first since the CI fix; the container is the fallback branch. Runs fine with no Docker present. |
+| `scripts/phpstan-isolated.sh` | Same shape, same fix (CI cause 3). |
+
+### Definitely VPS-only
+
+| Artifact | Note |
+| --- | --- |
+| `infrastructure/nginx.conf` | **The second trap.** VPS-only as *configuration*, but it is the live evidence base for the current document-root and public-routing architecture: it roots three server blocks at `api/public`, which is *why* `api/public/robots.txt` exists and why copying it into the merged shared-hosting document root is wrong. Cited by `DEPLOYMENT.md` step 4a and by `api/tests/Feature/document-root-inventory.php`. Do not remove it without first relocating that evidence, or those two artifacts lose their justification. |
+| `infrastructure/nginx-common.conf` | Security headers and rate limits; translated into the deployment `.htaccess` and `nginx-directives.conf`. |
+| `infrastructure/supervisor.conf` | Process management — no equivalent on shared hosting (cron replaces it, gate G0-D). |
+| `infrastructure/certbot-webroot/` | Superseded by Plesk's own Let's Encrypt integration. |
+| `docker-compose.prod.yml` | The 13-service production stack. |
+| `scripts/deploy.sh`, `backup.sh`, `restore.sh`, `rollback.sh`, `setup-replication.sh`, `init-storage.sh`, `prod-build-test.sh`, `api-reload.sh` | All assume Docker + SSH into containers. Risk R10 already records that this tooling needs rebuilding under Option B. |
+| `docs/VPS_DEPLOYMENT.md` | Reference architecture for the source/rollback environment. |
+
+### Uncertain — needs an owner decision, not a judgement call
+
+| Artifact | The question |
+| --- | --- |
+| `docker-compose.yml`, `.override.yml`, `.lowmem.yml`, `.hostnames.yml`, `.test.yml` and `docker/*` | These are **local development and E2E**, not production. Shared hosting does not replace a local dev loop, and `CONTRIBUTING.md` / `LOCAL_SETUP.md` document them as how you run the project. Keeping them costs nothing; removing them costs every contributor. Flagged as VPS-adjacent rather than VPS-only. |
+| `scripts/seed.sh`, `scripts/run-e2e.sh` | Same category — developer tooling that happens to drive containers. |
+| `RUN_ALL.ps1`, `START_BACKEND.ps1`, `START_FRONTEND.ps1` | Already known-wrong: they predate the Docker setup, `RUN_ALL.ps1` prints "SQLite" while the stack is MariaDB, and none starts the queue worker or Reverb. Candidates for removal on *correctness* grounds independent of the migration — which is a different argument from "VPS-only", and should be decided as one. |
+
+### What must be true before any of this is removed
+
+The owner's twelve-point objective, none of which is met: ETHR running on the real Plesk
+host, Laravel/PHP/DB compatibility, document roots and public entry points, `.htaccess`
+behaviour, environment/config, authentication, tenant isolation intact, cron/scheduler,
+storage/file handling, no regression in critical workflows, `dev.ethr.et` / `ethr.et`
+routing, and HTTPS/SSL — each verified **through the actual account**. Then: re-run the
+tests, update the migration documentation, and make the removal its own checkpoint.
 
 ---
 
@@ -502,9 +1262,12 @@ decision rather than a blocker.
 
 Account: `etrhet` @ `213.55.96.154` (Plesk). All quick, ~10 minutes total.
 
-**Already answered — do not re-ask:** **B1b** (wildcard subdomain) — owner confirmed
-Plesk accepts the literal name `*` for *Add Subdomain*, deliberately not yet created.
-This was the one gate with no workaround; it has passed.
+**Already answered — do not re-ask the owner:** **B1b** — the owner confirmed Plesk
+accepts the literal name `*` for *Add Subdomain*. Do not put that question again.
+**But the gate is not closed:** the vhost has never been created and no panel output was
+recorded, so `deployment/GATE-0-RESULT.md` holds G0-C at **PARTIAL** under its own
+"only from output" rule. The action is to *create* it in this session and record the
+result — not to re-ask whether it can be.
 
 **From the panel:**
 
