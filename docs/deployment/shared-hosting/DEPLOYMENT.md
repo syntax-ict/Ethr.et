@@ -18,11 +18,19 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 >   `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no documented
 >   non-shell route. Both are one support request; see the blocker register.
 >
+> - **Step 4 copies the wrong environment file.** `cp .env.production.example .env` (line
+>   133) copies a `docker-compose.prod.yml` artifact that selects redis for cache, queue and
+>   session, minio for storage and reverb for broadcasting, with `REDIS_HOST=redis` and
+>   `MINIO_ENDPOINT=http://minio:9000` — Docker service names that resolve to nothing here.
+>   **Copy [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example)
+>   instead**; it carries the identical key set with each conversion marked and explained.
+>
 > What *has* been corrected here is factual only — the account username (`ethret`, not
-> `etrhet`), the server name, and the scheduler entry count (14, not 11, which is an
-> acceptance criterion in `deploy-checklist.md`). The procedures are untouched on purpose:
-> choosing between Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED,
-> and rewriting them now would bake in a guess.
+> `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
+> acceptance criterion in `deploy-checklist.md`), and the line above naming which
+> environment template to copy. The procedures are untouched on purpose: choosing between
+> Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED, and rewriting
+> them now would bake in a guess.
 
 **Before starting, confirm the four facts in `docs/MIGRATION_STATE.md` → NEXT ACTION.**
 Two of them (B3 cron, B5 Node.js) change which steps in this runbook apply — they are

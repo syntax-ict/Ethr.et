@@ -1785,6 +1785,35 @@ and rollback is not retired.
 The overlay's responsibility split, per section: what is true of the code, and what the
 owner clicks. It does not restate the frozen `ENVIRONMENT.md` / `DEPLOYMENT.md`.
 
+### Application code audit — clean, and that is the finding
+
+The overlay's §6 list was carried into `api/app`, `api/config` and `api/bootstrap`. Nothing
+needed changing, which is worth recording so the sweep is not repeated:
+
+| Checked | Result |
+|---|---|
+| Hardcoded VPS absolute paths (`/var`, `/opt`, `/srv`, `/home`, `/etc`) | **None.** The single hit is `MAIL_SENDMAIL_PATH`'s `/usr/sbin/sendmail` default — standard, env-overridable, and unused while `MAIL_MAILER=smtp` |
+| Docker service names as **config defaults** | **None.** `config/database.php:115` and `config/broadcasting.php:35` both default to `localhost`. The Docker names existed only in the env template and the compose files |
+| **Horizon** | **Already removed**, and deliberately: `SystemHealthService` records that it hard-required `ext-pcntl` and `ext-posix`, *"which shared hosting does not provide"*. `HORIZON_PREFIX` in the env template is vestigial |
+| Health checks | Already config-driven — `broadcastStatus()` reads `config('broadcasting.default')`, `storageStatus()` resolves `config('filesystems.default')` rather than a hardcoded disk name |
+| `QueueHealth` | Already written *for* this target: its docblock describes shared hosting with no Supervisor and one Plesk Scheduled Task, and what stops when that entry is silently disabled |
+
+So the de-VPS work on the application itself was done in earlier passes. What was left
+undone was the **manifest and the environment template** — the two files that decide whether
+the application can be installed and booted at all, and both are now fixed.
+
+One cross-check on this session's own change: `broadcastStatus()` treats anything outside
+`['reverb','pusher']` as `disabled`, so the `BROADCAST_CONNECTION=null` chosen for the
+shared-hosting template reports correctly. `null` is also what CI already sets, so it is a
+tested value rather than a guess.
+
+### The runbook still pointed at the wrong environment file
+
+`DEPLOYMENT.md:133` says `cp .env.production.example .env`. Adding a correct template does
+not help anyone who follows the runbook, so the status banner now names
+`api/.env.shared-hosting.example` explicitly. That is a factual correction — *which file* —
+not a procedural rewrite, and stays inside the freeze rule applied earlier.
+
 ### VPS artifact audit — conclusion: NOTHING REMOVED, and why
 
 The inventory of 2026-09-17 stands and was not re-derived. Re-reading it against the
