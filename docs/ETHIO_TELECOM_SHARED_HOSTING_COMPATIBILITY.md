@@ -96,7 +96,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | Free SSL (per-hostname) | **VERIFIED** (advertised) | Wildcard is the open question — B2. |
 | SMTP (plan mailboxes) | **VERIFIED** (email accounts included) | Deliverability and rate limits **UNKNOWN**. |
 | PHP extension `gd` | **UNKNOWN** | Usually present. Its absence degrades image handling silently. |
-| PHP extension `intl`, `bcmath`, `zip` | **UNKNOWN** | Commonly available; must be confirmed. |
+| PHP extension `intl`, `phar`/`zip` | **UNKNOWN** | Commonly available; must be confirmed. `bcmath` was listed here and is **not required** — `suggest`-only, zero `bc*` calls. `zip` is needed only as the fallback half of `phar` **or** `zip`, for `BackupService` *(corrected 2026-09-18)*. |
 
 ### 2.4 UNSUPPORTED — assume absent on any shared plan
 
@@ -150,8 +150,9 @@ each **UNKNOWN**.
 1. *PHP Settings* → PHP version; `memory_limit`; `max_execution_time`;
    `upload_max_filesize`; `post_max_size`.
 2. *PHP Settings* → the loaded-extensions list. Confirm: `pdo_mysql`, `mbstring`,
-   `openssl`, `tokenizer`, `xml`, `dom`, `ctype`, `fileinfo`, `curl`, `bcmath`,
-   `iconv`, `zip`, `gd`, `intl`.
+   `openssl`, `tokenizer`, `xml`, `dom`, `ctype`, `fileinfo`, `curl`, `iconv`,
+   `simplexml`, `libxml`, `gd`, and one of `phar`/`zip`. `intl` is optional.
+   *(Corrected 2026-09-18: `bcmath` removed — not required.)*
 3. *Scheduled Tasks* → is it present? "Run a command" or only "Fetch a URL"?
    What is the minimum interval?
 4. *Node.js* → is the extension present? Which Node major versions?
@@ -167,7 +168,11 @@ each **UNKNOWN**.
 echo PHP_VERSION, "\n";
 echo ini_get('memory_limit'), ' ', ini_get('max_execution_time'), ' ', ini_get('upload_max_filesize'), "\n";
 print_r(array_values(array_intersect(get_loaded_extensions(),
-    ['pdo_mysql','mbstring','openssl','tokenizer','xml','dom','ctype','fileinfo','curl','bcmath','iconv','zip','gd','intl','redis','sodium'])));
+    // The 18 mandatory, then the optional. bcmath removed 2026-09-18 (not required).
+    ['pdo','pdo_mysql','mbstring','openssl','tokenizer','xml','dom','ctype','json',
+     'fileinfo','filter','hash','session','curl','iconv','simplexml','libxml','gd',
+     // optional; one of phar/zip is needed for backup archiving
+     'phar','zip','intl','redis','sodium','opcache','exif','xmlwriter'])));
 var_dump(function_exists('proc_open'), function_exists('exec'));
 var_dump((bool) @file_get_contents('https://api.github.com', false,
     stream_context_create(['http' => ['timeout' => 5]])));

@@ -11,17 +11,22 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 | File | Purpose |
 |---|---|
 | `.htaccess` | The rules under test — rewrite, headers, deny, `Authorization` forwarding |
-| `canary.php` | Reports what arrived, prints the three `curl` checks to run |
+| `canary.php` | Reports what arrived, prints the **five** `curl` checks to run |
 | `secret.txt.probe` | Bait. Must return **403**. Contains nothing confidential |
 | `shadow.txt` | Bait for G0-B.5. Exists on disk *and* is rewritten, so the response says which layer won. Contains nothing confidential |
 | `shadow.js` | **The same bait with a static extension, and the one that counts.** Added 2026-09-18 after measurement: Plesk's "serve static files directly by nginx" block always covers js/css/images but only *sometimes* covers `.txt`, so `shadow.txt` alone reports "the rewrite won" on a host that is shadowing every asset the deployment ships. **Run both; they can legitimately disagree.** Contains nothing confidential |
 
+*Counts corrected 2026-09-19.* This file said "four" files and, ten lines apart, both
+"three" and "four" curl checks. It is five and five: `shadow.js` was added on 2026-09-18
+as the second G0-B.5 bait and the counts here were never brought along. Six fetches in
+total — loading `canary.php` is itself the G0-B.1 reading.
+
 ## Use
 
 ```
-1. Upload all four to   httpdocs/ethr-canary/
+1. Upload all five to   httpdocs/ethr-canary/   (.htaccess is hidden — check it went)
 2. Open                 https://www.ethr.et/ethr-canary/canary.php
-3. Run the four curl commands it prints, each with --resolve (below)
+3. Run the five curl commands it prints, each with --resolve (below)
 4. Record results in    docs/deployment/GATE-0-RESULT.md  (G0-B rows)
 5. DELETE THE DIRECTORY
 ```

@@ -113,9 +113,24 @@ schema-sufficient.
 
 Traced through `composer.lock` `require` blocks and `app/` source.
 
-**Mandatory:** `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
-`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `bcmath`, `iconv`,
-`zip` (dompdf), **`gd`** (image compression and thumbnails in `FileStorageService`).
+**Mandatory (18):** `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
+`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `iconv`, `simplexml`,
+`libxml`, **`gd`** (EXIF stripping in `FileStorageService`, plus thumbnails).
+
+> **Two corrections, measured 2026-09-18.** This list said it was *"traced through
+> `composer.lock` `require` blocks and `app/` source"* — and that trace is exactly what
+> disproves two of its entries.
+>
+> **`bcmath` removed.** It appears in `composer.lock` four times, every one under
+> `suggest`, never `require`. The application calls no `bc*` function: money is stored in
+> integer minor units (`salary_cents`, `price_cents`), which is why it never needed
+> arbitrary precision.
+>
+> **`zip (dompdf)` removed — the attribution was wrong twice over.** `dompdf/dompdf`
+> requires `ext-dom` and `ext-mbstring` only, and **no production package requires
+> `ext-zip` at all.** Its one use is `BackupService`, which tries `PharData` first and
+> falls back to `ZipArchive`, throwing a clear `RuntimeException` if neither exists — so
+> the requirement is **`phar` OR `zip`**, and neither alone is mandatory.
 
 **Conditional:** `intl` (locale formatting), `redis`/`phpredis` (**only** if Redis is
 kept), `sodium` (Laravel encryption paths).
@@ -172,7 +187,7 @@ capability, the dependency is named.
 | File upload | 🟢 GREEN | Bounded by `upload_max_filesize` / `post_max_size`. nginx currently allows 50 MB. |
 | File download / signed URLs | 🟡 YELLOW | `temporaryUrl()` needs S3 **or** the local disk with `serve => true` (already set in `config/filesystems.php`). One hardcoded disk name to change — §D. |
 | Image thumbnails / EXIF strip | 🟡 YELLOW | Needs `ext-gd`. Degrades silently without it. |
-| PDF generation (payslips, invoices, reports) | 🟢 GREEN | `barryvdh/laravel-dompdf` — pure PHP; needs `ext-zip` + `ext-gd`. |
+| PDF generation (payslips, invoices, reports) | 🟢 GREEN | `barryvdh/laravel-dompdf` — pure PHP. **Needs `ext-dom` + `ext-mbstring`**, which is what `dompdf/dompdf` actually declares; `ext-gd` matters for images inside a PDF. *Corrected 2026-09-18: this said `ext-zip`, and no production package requires `ext-zip` at all.* |
 | CSV import (employees, attendance) | 🟡 YELLOW | Staged in DB then queued. Execution-time sensitive. |
 | Reports / scheduled reports | 🟡 YELLOW | `RunScheduledReportsJob` runs hourly — scheduler-dependent. |
 | Dashboard digests | 🟡 YELLOW | `RunDashboardDigestsJob`, hourly — scheduler-dependent. |

@@ -102,6 +102,14 @@ output. The probe's own header names this as the no-shell fallback. It answers e
 Route A does — **but only if G0-D offers a command-type or PHP-script task.** If Scheduled
 Tasks is URL-fetch only, this route does not exist either. Read G0-D before relying on it.
 
+> **G0-D WAS READ — 2026-09-18 — and neither condition applies. ROUTE B DOES NOT EXIST.**
+> There is no *Scheduled Tasks* section on this subscription at all: not command-type, not
+> URL-fetch, absent. See the G0-D row in the gate table below. With Route A Forbidden and
+> Route D withdrawn when the Plesk Git repository was removed, **Route C is the only live
+> probe route.** The paragraphs below are kept because they describe how to read a
+> scheduled task's output correctly, which applies again the moment ask 1 or ask 2 of
+> `ETHIO-TELECOM-SUPPORT-REQUEST.md` is granted.
+
 **Read the output, not the panel's task status.** Until 2026-09-18 the probe exited `0`
 unconditionally — including on a run whose own summary read *"Laravel 12 will not run
 as-is."* Plesk judges a scheduled task by its exit status, so a probe that had found a
@@ -297,7 +305,7 @@ Record it as its own result, against the `document root editable` row (currently
 2. Establish which vhost answered. Compare a request for `www.ethr.et` against one for a
    name known to hit the server default (`zzq7x.ethr.et`, per `B1-B5_GATE_REPORT.md`). If
    they return the same page, the `ethr.et` vhost is not the one serving you.
-3. Re-upload all four canary files into the **confirmed** document root.
+3. Re-upload all **five** canary files into the **confirmed** document root — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt` and `shadow.js`, as step 1 of the upload instructions above already says. *(Corrected 2026-09-19: this row said "four" while the same document said five 96 lines earlier. `shadow.js` is the bait that counts, so a recovery path that quietly drops it hands back a false PASS on G0-B.5.)*
 4. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — then run
    them, with `--resolve`.
 
@@ -382,16 +390,30 @@ reason the conclusion survives.*
 
 | # | Blocker | Effect |
 |---|---|---|
-| **B-1** | SSH **Forbidden** | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depends on **G0-D, unverified**. |
+| **B-1** | SSH **Forbidden** | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depended on G0-D, **which was answered FAIL on 2026-09-18**: there is no Scheduled Tasks section, so the fallback does not exist either. |
 | **B-2** | No directive fields on Apache & nginx Settings | G0-A cannot be run as written. See the amended consequence below. |
 | **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton created 2026-09-17 23:48, document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost carrying the certificate; inverts the `~/ethr` layout. Identify what was created in the panel before removing it — deleting a vhost is not deleting a folder. |
 | **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` (`DEPLOYMENT.md` step 4) have no non-shell equivalent defined anywhere in this package. |
+| **B-5** | No route to get a schema into the database | Both paths need something this account does not offer: the existing-data path runs `mysql < dump.sql` **on the shared host**, and the fresh path is B-4. Distinct from B-4 because the remedy differs — B-4 needs something that runs `artisan`; B-5 needs that **or** a database import UI, which is the still-open half of manual queue #1. |
+| **B-6** | The DNS cutover already happened and the rollback target may not serve | Not a gate — a safety property that stopped holding. `ROLLBACK_RUNBOOK.md` Scenario A calls "before DNS cutover" *the current state*; `ethr.et` resolves to `213.55.96.154` (the Plesk host), measured twice on 2026-09-17. Whether the VPS still serves, and whether it still holds tenant data and its `APP_KEY`, is unanswered. |
+
+*B-5 and B-6 were added to this table on 2026-09-19. They were recorded in
+`MIGRATION_STATE.md` on 2026-09-17/18 and this register — the one that governs — still
+listed four. `MIGRATION_CHANGELOG.md` has said "six blockers" since.*
 
 **B-1 and B-4 are one support request**, and it reframes G0-D. Without a shell, Scheduled
 Tasks is no longer just how the scheduler runs — **it is the only way to migrate the
 database at all.** If G0-D returns "Fetch a URL only", there is no documented route to
 perform this migration, and that is a hard blocker rather than the costed design change
-the rest of this package describes. **G0-D is now the highest-value panel read.**
+the rest of this package describes. ~~**G0-D is now the highest-value panel read.**~~
+
+**G0-D returned worse than that on 2026-09-18 — the section is absent — so the hard
+blocker is the live case, not the hypothetical one.** The highest-value panel read is now
+**G0-G**, the Node.js page, because it is the one remaining gate whose answer changes what
+the repository must contain: Node present means Branch A stands and the frontend needs
+nothing; Node absent means Branch B, which measurement at `7aed9d2` shows to be an
+architectural frontend deployment change rather than a few route edits. The highest-value
+*action* is sending `ETHIO-TELECOM-SUPPORT-REQUEST.md`, which is what could reopen G0-D.
 
 ---
 
@@ -597,7 +619,9 @@ location = /ethr-proxy-probe { return 200 "proxy-directives-accepted"; }
 
 > **Two documents disagreed about this gate, and this is the resolution.**
 > `MIGRATION_STATE.md:131` records `B1b wildcard vhost VERIFIED PASS (owner: '*' accepted;
-> not yet created)` and its NEXT ACTION says *"already answered — do not re-ask."* This
+> not yet created)` and its NEXT ACTION says *"B1b is answered … do not put that question
+> again"* — quoted from the 2026-09-19 rewrite; it read *"already answered — do not
+> re-ask"* before, with the same meaning. This
 > file records the same gate `PARTIAL`. Both describe the same fact and grade it
 > differently: an **owner report** that the panel accepted the literal name `*`, with **no
 > vhost actually created** and no output recorded.
