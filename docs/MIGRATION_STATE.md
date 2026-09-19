@@ -1350,8 +1350,9 @@ needs an architectural rework" and "the frontend needs nothing".
 
 ### What follows, in order
 
-1. **Send the support request.** One ticket, three asks. It is the only route to G0-D now
-   that Route D went with the Git repository, and it costs nothing to try.
+1. **Send the support request.** One ticket, four asks *(three when this was written; a
+   fourth — what the higher tiers include — was added 2026-09-18)*. It is the only route to
+   G0-D now that Route D went with the Git repository, and it costs nothing to try.
 2. **Set a deadline on it.** No useful answer within a reasonable window means refused;
    refused means the rule stands and the target is Option A.
 3. **Spend nothing further on Option B.** The repository is already Plesk-compatible and
@@ -1790,13 +1791,20 @@ It does **not** solve the scheduler or the queue, because deployment actions fir
 deployment, not on a schedule. Treat it as the difference between *cannot install* and
 *installs but the asynchronous half is dead*.
 
-**2 — One support request to Ethio Telecom, three asks.** Account `ethret`, server
+**2 — One support request to Ethio Telecom, three asks.** *(Four as of 2026-09-18 — see below.)* Account `ethret`, server
 `lin6.ethiotelecom.et`:
 
 - enable **Scheduled Tasks / cron** for this subscription — this is the one that matters;
 - enable **SSH access** for `ethret` (clears B-1 and B-4 outright, and gives crontab);
 - grant **`TRIGGER`** to the database user (**G0-F**; the audit-log migration aborts the
   entire run by design without it — `AUDIT_LOG_INTEGRITY_DECISION.md`).
+
+*A fourth ask was added 2026-09-18 and is not in the list above because this passage records
+what was decided on the day:* **what the tiers above this one include** — PHP versions, Node,
+cron granularity and proxy directives often differ by tier, so one question about plans can
+bear on G0-A, G0-D and G0-G together. See
+[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md),
+which is the sendable text and carries all four.
 
 Either of the first two alone substantially unblocks the migration. None is a code change.
 
@@ -2664,43 +2672,62 @@ even to our own dev database user.
 
 ## NEXT ACTION
 
-Nothing further is available to do without external input. Two independent things are
-needed from the owner, unrelated to each other. Neither requires the other.
+**Rewritten 2026-09-19.** This section predated G0-D being answered and predated the
+probe reaching the host. It told the owner to ask questions that have since been
+measured, and to upload a file by a route that does not exist. The corrections are
+named rather than silently applied, because this is the section a reader jumps to and
+a wrong instruction here costs more than a wrong one anywhere else in the file.
 
-### 1. ~~Push to GitHub~~ — done 2026-09-15
+| What it said | What the measurements say |
+|---|---|
+| *"All quick, ~10 minutes total"* | Not quick. **G0-D FAILED** — no *Scheduled Tasks* section exists. With no cron and no shell there is **no route on this account that runs `artisan`**: no `migrate`, no `key:generate`, no scheduler, no queue worker |
+| *"1. B3 — Scheduled Tasks: present?"* | **Answered — FAIL** (owner-read 2026-09-18). Do not re-ask |
+| *"4. Upload the probe from the home directory and run it"* | **Do not.** Nothing on the account can run it, and it is already **on** the host — the Git deployment put it under `httpdocs/`, and its URL last measured **HTTP 200**. The open question is containment, not deployment |
+| *(no mention of a support request)* | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) now exists, drafted and **unsent**. Sending it is the highest-value action available |
 
-`docs/phase-0-baseline` is pushed (32 commits, exit 0). The August finding that
-this was "not a retry-worthy failure" no longer holds; it was retried and it
-worked. What remains is a reviewed `--no-ff` merge into `main`, which is a
-decision rather than a blocker.
+What still holds from the old text: **nothing further is executable without external
+input.** The repository-side pass is closed — see *PLESK COMPATIBILITY PASS — 2026-09-18*
+above. Every item below needs the Plesk panel or the owner's own machine.
 
-### 2. Resume the hosting migration
+### In priority order
 
-Account: `ethret` @ `213.55.96.154` (Plesk). All quick, ~10 minutes total.
+1. **Read the Plesk *Node.js* page — G0-G.** The highest-value panel read, because it is
+   the one that decides whether the frontend needs architectural work or none at all.
+   Next.js 16's floor is Node 20.9; this repo pins **24** in `.nvmrc`. If Node is present
+   at a usable version, Branch A (`output: "standalone"`) stands and the frontend needs
+   no change. If it is absent, the fallback is Branch B — and Branch B is **not** "four
+   small route changes". Measured at commit `7aed9d2`, it is an architectural frontend
+   deployment change; `SHARED_HOSTING_AUDIT.md` §E carries the evidence.
+2. **Send the support request.** Four asks: cron, SSH, the `TRIGGER` grant (G0-F), and
+   what the higher tiers actually include. **B-1**, **B-4** and **G0-D** all turn on the
+   answer, and three of them have no other route.
+3. **Return the probe URL's response headers and its first body line.** One request
+   separates explanations **(a)–(d)** above, which no further status code can. Until it
+   is answered, containment stays **NOT VERIFIED** and exposure stays graded **LIVE**.
+4. **Deploy the canary** — `scripts/hosting-verification/htaccess-canary/`, five files,
+   six fetches. It answers **G0-B.1 through G0-B.5** with no shell, no cron and no
+   support ticket, which makes it the only gate group whose route is fully open today.
+5. **B-6** — `curl -sI http://91.99.81.71/`. Is the VPS still serving, and does it still
+   hold data? Nothing is removed from the VPS inventory until this is answered.
+6. **B-3** — identify in the panel what created `httpdocs/ethr.et/` before removing it.
+   Deleting a vhost is not deleting a folder.
+7. **When Plesk Git is reconfigured**, set the deployment path to `/ethr/` **before** the
+   first deploy. Setting it afterwards is precisely what put the repository under the
+   document root and produced item 3.
 
-**Already answered — do not re-ask the owner:** **B1b** — the owner confirmed Plesk
-accepts the literal name `*` for *Add Subdomain*. Do not put that question again.
-**But the gate is not closed:** the vhost has never been created and no panel output was
-recorded, so `deployment/GATE-0-RESULT.md` holds G0-C at **PARTIAL** under its own
-"only from output" rule. The action is to *create* it in this session and record the
-result — not to re-ask whether it can be.
+Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
+Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —
+but **G0-C is not closed**, because the vhost has never been created and no panel output
+was recorded, and this register grades from output. **Bronze's quotas** still matter only
+for tier sizing, and D2 keeps us on Bronze regardless.
 
-**From the panel:**
+The audit-log question (item 7 in an earlier version of this file) remains resolved by
+**D8**: the migration aborts with a diagnosis if `CREATE TRIGGER` is denied rather than
+degrading silently. If G0-F comes back negative the response is ask 3 above, not a code
+change.
 
-1. **B3** — *Scheduled Tasks*: present? "Run a command" offered, or URL-fetch only?
-   Minimum interval?
-2. **B5** — *Node.js*: extension present? Which Node major version (need ≥ 20.9)?
-3. **Bronze's actual quotas** — storage, bandwidth, databases, subdomains (only
-   matters for tier sizing — see D2, staying on Bronze for now regardless).
+### Gate 0 as it stands
 
-**By uploading one file, from the home directory, never `httpdocs`:**
-
-4. Run `scripts/hosting-verification/ethr-hosting-check.php`, save the output, **delete
-   it from the server immediately after**. Answers B4 (PHP + extensions + limits) and
-   H1 (`CREATE TRIGGER`) together in one pass.
-
-That's the whole remaining list. The audit-log question (item 7 in an earlier version
-of this file) is **no longer outstanding** — resolved by D8: the migration aborts with
-a diagnosis if `CREATE TRIGGER` is denied, rather than degrading silently. If H1 turns
-out negative, the response is a support request to Ethio Telecom for the `TRIGGER`
-grant, not a code change.
+Of the 30 rows in `deployment/GATE-0-RESULT.md`: **1 VERIFIED**, 1 PANEL-READ, 2 PARTIAL,
+**1 FAIL**, **25 NOT VERIFIED**. That ratio is the honest summary of this workstream — the
+repository is prepared and internally consistent; almost nothing about the host is known.

@@ -1,10 +1,14 @@
-# Ethio Telecom support request — three asks, one ticket
+# Ethio Telecom support request — four asks, one ticket
 
 **Status:** drafted 2026-09-18, **not yet sent.**
 
 This exists because three separate documents name "one support request" as the remedy for
 the blockers holding the migration, and none of them contained the text. It is written to
 be pasted with minimal editing.
+
+*Title corrected 2026-09-19: it read "three asks" while the body carried four. Ask 4 was
+added the day after the draft and the heading was never brought along — which is how a
+document tells its own reader to skip a quarter of itself.*
 
 **It is the single highest-value action available.** Asks 1 and 2 are alternative solutions
 to the same fatal problem — either one substantially unblocks the migration. Ask 3 is
@@ -59,7 +63,8 @@ round trip and no grant.
 > I am preparing to deploy a PHP/Laravel application to hosting account **`ethret`** on
 > **`lin6.ethiotelecom.et`**, serving **ethr.et**. Three capabilities the application needs
 > are not currently available on the subscription. I would be grateful if you could enable
-> them, or tell me which tier provides them.
+> them, or tell me which tier provides them. I have a fourth question, about the plans
+> themselves, at the end.
 >
 > **1. Scheduled Tasks (cron)**
 >
