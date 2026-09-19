@@ -396,9 +396,17 @@ Plesk → *Scheduled Tasks* → add:
 * * * * * cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-One line. `schedule:run` is what dispatches everything else — the 14 entries in
-`routes/console.php`, unchanged, plus `queue:work --stop-when-empty` wherever the
-schedule needs it (see `ENVIRONMENT.md` "Queue and scheduler"). If the panel's minimum
+~~One line.~~ **Two — corrected 2026-09-19.** `schedule:run` drives the 14 entries in
+`routes/console.php`, unchanged, but it does **not** dispatch `queue:work`: that file
+contains no such entry, and eleven of its fourteen entries do nothing but enqueue. The
+worker needs its own recurring command:
+
+```
+* * * * * cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 >> /dev/null 2>&1
+```
+
+The queue list is not optional — a bare `queue:work` drains only `default` and starves the
+other three. See `ENVIRONMENT.md` "Queue and scheduler" for the measurement. If the panel's minimum
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —
 Laravel's scheduler is idempotent about "was this due since last checked".
 

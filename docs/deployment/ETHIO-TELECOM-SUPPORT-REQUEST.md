@@ -11,7 +11,13 @@ added the day after the draft and the heading was never brought along — which 
 document tells its own reader to skip a quarter of itself.*
 
 **It is the single highest-value action available.** Asks 1 and 2 are alternative solutions
-to the same fatal problem — either one substantially unblocks the migration. Ask 3 is
+to the same fatal problem — either one substantially unblocks the migration.
+
+*Ask 1 corrected 2026-09-19: it requested **one** cron line and claimed that line drove the
+whole background half. It does not. `routes/console.php` has no `queue:work` entry, and
+eleven of its fourteen entries only enqueue, so `schedule:run` alone fills the `jobs` table
+and drains nothing. The ask is now two lines. Sending the earlier version would have got
+exactly what was asked for and still left every queued job unrun.* Ask 3 is
 independent and aborts the database migration by design if refused.
 
 **Ask 4 — added 2026-09-18 — may be worth more than the other three combined.**
@@ -72,16 +78,22 @@ round trip and no grant.
 > understand this is controlled by a service-plan permission rather than by the server, so
 > I assume it is not enabled on my plan.
 >
-> The application needs one recurring task:
+> The application needs two recurring tasks:
 >
 > ```
 > * * * * *  cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
+> * * * * *  cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 >> /dev/null 2>&1
 > ```
 >
-> This single line drives the application's entire background half — scheduled billing,
-> leave accrual, payslip notifications and queued email. Without it those features do not
-> run at all. A one-minute interval is what the framework expects; if the minimum interval
+> Together these drive the application's entire background half — scheduled billing, leave
+> accrual, payslip notifications and queued email. The first decides *when* work is due;
+> the second performs it. Without both, those features do not run at all. Neither is
+> long-running: the second exits as soon as the queue is empty, and in under a minute
+> regardless. A one-minute interval is what the framework expects; if the minimum interval
 > on this plan is longer, please tell me what it is, as the application can be adjusted.
+>
+> If the plan limits how many scheduled tasks a subscription may have, please tell me that
+> limit as well — two is the minimum this application needs.
 >
 > Please also confirm whether tasks can be of the **"Run a command"** type, as opposed to
 > "Fetch a URL" only.

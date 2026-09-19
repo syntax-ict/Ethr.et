@@ -1265,7 +1265,7 @@ rewriting first, and the new blocker (`manifest.ts`) needs adding.
 
 | Layer | State |
 |---|---|
-| **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Compatible.** Verified by CI and by reading the code |
+| **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Code compatible; deployment assets were not.** Verified by CI and by reading the code — but CI never starts a worker and the reading stopped at `app/`. On 2026-09-19 every deployment asset was found to start its queue worker with `artisan horizon`, a command removed in `cdf85d1`. See *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER* below |
 | **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
 | **Frontend** — Branch B (static export) | **Does not build** — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
 
@@ -2690,6 +2690,103 @@ correctly reported PHP 8.2.33, all 18 mandatory extensions present, MariaDB
 10.11.18, `CREATE TRIGGER` **permitted** (`log_bin=0`), and per-table `GRANT`
 **denied** (`1142`) — the last confirming that compensating control A1 is unavailable
 even to our own dev database user.
+
+---
+
+
+## NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER — measured 2026-09-19
+
+The most consequential finding of this workstream, and it was invisible from every
+document because every document described the intent rather than the file.
+
+### What was measured
+
+`laravel/horizon` appears **zero times** in `api/composer.lock`. There is no
+`api/config/horizon.php`. No command in `api/app/` carries that signature. Horizon was
+removed in `cdf85d1` — `docs/CLAUDE.md` says so, correctly, and calls it *"removed
+entirely, not merely undeployed."*
+
+**Twelve invocations of it survived the removal, across five deployment assets:**
+
+| Asset | Sites | What happens |
+|---|---|---|
+| `infrastructure/supervisor.conf` | `[program:ethr-horizon]`, in the autostart group | Exits with *"Command 'horizon' is not defined"*, retries `startretries=5`, gives up. **The VPS runs with no queue worker while every other process reports healthy** |
+| `docker-compose.yml` | `worker` service | Same exit, under `restart: unless-stopped` — a crashloop |
+| `docker-compose.prod.yml` | 3 worker commands + 3 healthchecks | All six unusable |
+| `docker-compose.lowmem.yml` | 1 command + 1 healthcheck | Same |
+| `scripts/prod-build-test.sh` | `horizon:status`, `horizon:supervisors` | The production build test asserts a supervisor that cannot exist |
+
+All **16** jobs in `app/Jobs` implement `ShouldQueue`, as do 2 of the 4 listeners. So a
+missing worker is not a degraded mode — it is the entire asynchronous half of the product.
+
+**The root `CLAUDE.md` warns *"without the queue worker no job ever runs"*, and the worker
+it tells you to start is the broken one.** That is why nothing caught this: the failure
+sits in the process whose job is to make other failures visible.
+
+### The shared-hosting half is a separate, independent gap
+
+`routes/console.php` was read in full. **It has no `queue:work` entry**, and of its 14
+entries:
+
+- **6** are `Schedule::job(...)`, which *enqueues*;
+- **5** are `Schedule::call(...)` closures whose only action is `Job::dispatch(...)->onQueue(...)`;
+- **3** run inline (`devices:sync`, `ethr:backup`, the heartbeat) — and `devices:sync`
+  itself only dispatches `PullDeviceEventsJob`.
+
+So **eleven of fourteen do nothing but insert rows into the `jobs` table.**
+
+Both shared-hosting runbooks asserted the opposite. `ENVIRONMENT.md`: *"`schedule:run`
+itself dispatches `queue:work --stop-when-empty` where the schedule in `routes/console.php`
+needs it."* `DEPLOYMENT.md`: *"**One line.**"* And the support request asked for that one
+line, saying it *"drives the application's entire background half."*
+
+**It would have been granted and still left every queued job unrun** — invoicing, cleanup,
+trial notices, scheduled reports and dashboard digests, alongside everything a user
+triggers: payroll, tenant backups, device pulls, announcements and webhooks. Cron and the
+worker are two runners; three documents had collapsed them into one.
+
+### What was fixed, and what deliberately was not
+
+**Fixed** — the two single-worker paths, where the queue set is not a judgement call:
+
+| Asset | Now |
+|---|---|
+| `infrastructure/supervisor.conf` | `[program:ethr-queue]` running `queue:work --queue=attendance,notifications,default,exports --tries=3 --backoff=10 --max-time=3600` |
+| `docker-compose.yml` | The same command |
+
+The `--queue` list is explicit because **a bare `queue:work` reads only `default`** and this
+application dispatches onto four. `QueueHealth::QUEUES` is the authoritative list, verified
+against every `onQueue()` call and every `Schedule::job()` argument. `--max-time` recycles
+the process hourly, so a deploy reaches the queue without a machine restart.
+
+**Not fixed, on purpose** — `docker-compose.prod.yml`, `docker-compose.lowmem.yml` and
+`scripts/prod-build-test.sh`. They partition work three ways by queue name —
+*attendance/devices/sync*, *notifications*, *payroll* — and **three of those queues do not
+exist.** Even with Horizon present, that topology would leave `default` and `exports`
+undrained while dedicating two containers to queues that never receive anything. Choosing
+the replacement partition, and whether three containers are still the right shape without
+Horizon's per-supervisor memory control, is a deployment-architecture decision for the
+owner. All three now carry a banner saying they are broken and why.
+
+**Not implemented** — adding `Schedule::command('queue:work --stop-when-empty …')` to
+`routes/console.php`, which would make the runbooks' "one line" claim true. It also fires
+on the VPS, where `supervisor.conf` now runs a daemon, so one-runner-or-two is the owner's
+call. The runbooks and the ticket instead ask for a **second cron line**, which is correct
+under either choice.
+
+### The guard
+
+`api/tests/Feature/DeploymentWorkerConsistencyTest.php` pins three things: no executable
+line in the two fixed assets may invoke a command absent from `composer.lock`; their
+`--queue` list must equal `QueueHealth::QUEUES` as a set; and the unfixed stacks must keep
+their banner while they still invoke Horizon. All three were shown to fail against the
+pre-fix files.
+
+### What this does to the compatibility claim
+
+The row below read **"Backend — Compatible. Verified by CI and by reading the code."** CI
+never started a worker, and the reading stopped at `app/`. The backend *code* is
+shared-hosting compatible; the *deployment assets* were not, on any path.
 
 ---
 
