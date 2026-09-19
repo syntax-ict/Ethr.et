@@ -1483,8 +1483,10 @@ decision rule has fired is not evidence about the host.
 
 ## MANUAL ACTION QUEUE — the only things that still need a human in Plesk
 
-Everything resolvable from the repository has been done. These eight remain, in dependency
-order. Each says where to click, what to bring back, whether to change anything, and which
+Everything resolvable from the repository has been done. These **nine** remain, in
+dependency order (the count said "eight" while listing nine — row 1, the Scheduled Tasks
+read, was removed when **G0-D** was answered FAIL on 2026-09-18, and the total was never
+adjusted). Each says where to click, what to bring back, whether to change anything, and which
 gate it unlocks. **Do not do 8 before 5.**
 
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
@@ -1497,7 +1499,7 @@ gate it unlocks. **Do not do 8 before 5.**
 | **4** | **Static-file handling** | Same page, nginx section | Exact current value of *"Serve static files directly by nginx"*, verbatim or "empty" | No | **G0-B.5**, and it conditions how **G0-B.2** must be read |
 | **5** | **Identify the unexplained object** | Websites & Domains | What object exists named `ethr.et` besides domain id 2536, and its document root | **No — identify only.** Deleting a vhost is not deleting a folder | **B-3**; unblocks action 8 |
 | **6** | **Capability probe, Route C** | File Manager → upload to `httpdocs/<random>.php`, **then set `ETHR_PROBE_WEB_TOKEN` in that copy to a second random value** — as shipped every web request returns 403 | The full output. Open it as `?token=<that value>` and pass **no other query parameter**; **delete the file in the same sitting** | Upload, edit the token, then delete | **G0-E**, **G0-H**, storage rows, **G0-J** CPU half. Read the truncation table in `deployment/GATE-0-RESULT.md` Step 1 first |
-| **7** | **Canary, five checks** | File Manager → `httpdocs/ethr-canary/` | Output of all five checks, each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Take **all five** files from `main` — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `README.md`. ~~Take the four files from branch `claude/gate0-procedure-corrections` — `shadow.txt` is **not on `main`**~~ *(corrected 2026-09-18: it is, since `7fb91cc`; the branch is merged and this row would have sent you to a stale copy).* Miss `shadow.txt` and you run four checks, not five |
+| **7** | **Canary — five gates, SIX fetches** | File Manager → `httpdocs/ethr-canary/` | Output of all six fetches — **G0-B.5 needs two, `shadow.txt` AND `shadow.js`** — each `curl` with `--resolve www.ethr.et:443:213.55.96.154`; plus the `favicon.ico` header comparison for G0-B.2's static-asset scope | Upload then delete the directory | **G0-B.1–B.5**. Upload **five** files from `main` — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, **`shadow.js`**. `README.md` stays in the repository; it explains the baits and there is no reason to publish that. **`shadow.js` was added 2026-09-18 and is the bait that counts**: with a static block that excludes `.txt`, `shadow.txt` alone reports "the rewrite won" while every asset the deployment ships is being shadowed — a false PASS on G0-B.5 that also hides G0-B.2. **The two can legitimately disagree; record both.** ~~Take the four files from branch `claude/gate0-procedure-corrections`~~ *(corrected 2026-09-18: `shadow.txt` is on `main` since `7fb91cc`; that branch is merged and this row would have sent you to a stale copy).* Miss `shadow.txt` and you run five checks, not six. **Miss `shadow.js` and you run six checks and get the wrong answer** — which is worse |
 | **8** | **Wildcard subdomain** | Websites & Domains → *Add Subdomain*, name it `*` | What the panel does when you save | Yes — create it | **G0-C**. **Only after 5**: adding a subdomain while an unexplained `ethr.et` object exists would compound B-3 |
 
 **Highest value is action 1.** Without a shell, Scheduled Tasks is the only route to run
@@ -1946,6 +1948,14 @@ degrading rows are not.** That moves this account from *"ETHR cannot be installe
 not a deployable product.
 
 #### The larger find: this is a fourth probe route, and it beats Route C
+
+> **SUPERSEDED 2026-09-18 — read this before acting on the section below.** Route D depended
+> on the Plesk Git extension being configured, and **the repository was removed from Plesk
+> later the same day**, so *there is no Route D*. The analysis is kept because it remains
+> correct about what deployment actions can and cannot do, and because Route D returns the
+> moment Git is reconfigured. **Route C is the only live probe route** — A is Forbidden, B
+> is FAIL, D is withdrawn — which is what makes the probe's token gate load-bearing. See
+> *THE PLESK GIT REPOSITORY WAS REMOVED* below.
 
 `GATE-0-RESULT.md` documents three: **A** (SSH — blocked), **B** (Scheduled Tasks — now
 **FAILED**), **C** (web-served — "the last resort"). Deployment actions are a **Route D**

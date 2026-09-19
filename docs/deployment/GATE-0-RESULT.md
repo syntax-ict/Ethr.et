@@ -201,7 +201,7 @@ Answers (all routes): G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
 The probe above sits in `~/` and is never served by Apache, so it structurally cannot answer *"is `.htaccess` honoured?"*. `scripts/hosting-verification/htaccess-canary/` is the opposite trade: it is web-reachable and discloses nothing — five booleans, no environment detail.
 
-1. Upload all four files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`) to `httpdocs/ethr-canary/`.
+1. Upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, **`shadow.js`**) to `httpdocs/ethr-canary/`. `README.md` stays in the repository — it explains the baits, and there is no reason to publish that. **`shadow.js` was added 2026-09-18 and is the bait that counts**: without it, a host serving `.js`/`.css` directly but not `.txt` reports a false PASS on G0-B.5 and hides G0-B.2 with it.
 2. Open `https://www.ethr.et/ethr-canary/canary.php` and follow the printed checks.
 3. Run the four `curl` commands it gives you — **pinned to the Plesk host**, see below.
 4. Save the output, **delete the directory.**
