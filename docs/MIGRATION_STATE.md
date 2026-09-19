@@ -2164,6 +2164,20 @@ recorded against it and deferred on freeze discipline rather than on correctness
 contradict its transport: SSH is Forbidden, so every `ssh` and `rsync` line in it will not
 connect; and there is no Scheduled Tasks section, so its one cron line has no runner.
 
+**Two more factual corrections, 2026-09-19**, under the same rule and for the same reason
+— the fact is true whatever the gates return:
+
+| File | Was | Now |
+|---|---|---|
+| `DEPLOYMENT.md:35` | *"confirm the **four facts** in … NEXT ACTION. Two of them (B3 cron, B5 Node.js)"* | Names **G0-G** as the one that still changes which steps apply, and records that **G0-D is answered FAIL** |
+| `DEPLOYMENT.md:112` | *"confirm H1 (… NEXT ACTION **#4**)"* | Names **G0-F** and the gate register row |
+| `ENVIRONMENT.md:158` | *"still-open panel facts (… NEXT ACTION **#3**)"* | Names the **disk quota** row and the tier ask |
+
+All three were **positional** references into a list, and the list was renumbered when
+`NEXT ACTION` was rewritten against the measurements the same day. A reference by position
+survives only until the target is edited; these now name the gate, which does not move.
+That is the repair, not the renumbering.
+
 **The procedures are deliberately NOT rewritten.** Choosing between Branch A and Branch B
 rests on G0-A and G0-G, both `NOT VERIFIED`, and the replacement transport rests on G0-D,
 which is `FAIL` pending a support request. Rewriting the steps now would bake a guess into

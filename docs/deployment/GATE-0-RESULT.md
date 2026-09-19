@@ -597,7 +597,9 @@ location = /ethr-proxy-probe { return 200 "proxy-directives-accepted"; }
 
 > **Two documents disagreed about this gate, and this is the resolution.**
 > `MIGRATION_STATE.md:131` records `B1b wildcard vhost VERIFIED PASS (owner: '*' accepted;
-> not yet created)` and its NEXT ACTION says *"already answered — do not re-ask."* This
+> not yet created)` and its NEXT ACTION says *"B1b is answered … do not put that question
+> again"* — quoted from the 2026-09-19 rewrite; it read *"already answered — do not
+> re-ask"* before, with the same meaning. This
 > file records the same gate `PARTIAL`. Both describe the same fact and grade it
 > differently: an **owner report** that the panel accepted the literal name `*`, with **no
 > vhost actually created** and no output recorded.
