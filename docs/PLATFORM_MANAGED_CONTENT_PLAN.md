@@ -239,7 +239,7 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 | ~~**5**~~ | ~~Wire the marketing pages to the data~~ — **done, §8**. Pricing, metrics and contact read the database; the invented testimonial is **deleted** (it was still rendering when §8 claimed otherwise — see the correction there) | 2–3 |
 | ~~**6**~~ | ~~Contact form actually captures leads~~ — **done** (`leads` table, queued notification, honeypot) | 1–2 |
 | ~~**7**~~ | ~~SEO: locale-prefixed `/am` and `/en` routes, robots, sitemap, OG image, JSON-LD, Ethiopic font~~ — **done, §9** | 3–4 |
-| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB | 3–4 |
+| 8 | **Performance only.** Accessibility is done (`aria-expanded`/`aria-controls` on the mobile menu, Phase 5) and so is reusing the shared language switcher. **Self-hosted analytics was dropped by owner decision, 2026-09-17** — see §10. What is left is the 427 KB, now **attributed** in `audit/BASELINE.md` §18a: 146 KB framework floor, 87 KB Sentry that cannot go without giving up tracing, and **64 KB of Zod on `/login`** — which §18a also shows is the *heaviest public route* at 462 KB, not the landing page | 3–4 |
 | ~~**9**~~ | ~~Anonymous-visitor e2e, an Amharic render assertion, a Lighthouse gate scope~~ — **done, §11** | 1–2 |
 
 Phases 3 and 4 are independent of each other; both depend on 2.
@@ -255,6 +255,38 @@ measurement found and the three it deliberately left open.
 By owner decision on 2026-09-17, Phase 8 ships as a **separate pull request**
 after the current one merges, so that branch stays reviewable as the locale and
 content change it already is.
+
+**Phase 8 groundwork, done 2026-09-18** (`audit/BASELINE.md` §18a). No bundle was
+cut yet; what changed is that the number now has an owner per kilobyte:
+
+- The 427 KB **reproduces** (428 KB on a fresh build), so the baseline holds.
+- **146 KB is the React/Next floor** and **87 KB is Sentry**, which `next.config.ts`
+  already documents as untouchable without dropping tracing — a product decision
+  that was not taken unilaterally. Together that is 233 KB of the 428 that Phase 8
+  cannot spend.
+- **The landing page was the wrong page to worry about.** `/login` is 462 KB and
+  `/register` 459 KB against `/[locale]`'s 389 KB, and they are public entry points
+  on the same networks.
+- **The one large dependency is Zod, 64 KB gzipped on `/login`** — but only
+  ~11 KB of that is reachable by switching to `zod/mini`, because `zod/v4/core`
+  (215 KB raw) is shared by both and is most of the chunk. Returning the rest
+  means leaving Zod, which is an owner's dependency decision. Every form routes
+  through one file, `src/lib/forms/rules.ts`, so the edit is small and the blast
+  radius is every form in the product. See §18a, which also corrects the first
+  version of this claim.
+- **`npm run analyze` produces nothing** — Next 16 builds with Turbopack and the
+  analyzer is a webpack plugin. Use `next build --experimental-analyze` or
+  `.next/diagnostics/route-bundle-stats.json`. Phase 8 would otherwise have begun
+  by trusting a tool that measures nothing.
+
+All three of §18's "left open" findings are now closed: the `badge-72.png` 404 is
+**fixed**; the `--text-secondary` contrast finding was **wrong and is withdrawn**
+— the colour it named is not in the codebase and the real token passes AA
+everywhere, which removes a "repaint the whole product" item from Phase 8's
+scope; and the **two-manifest** question is decided by deleting the unused
+`app/manifest.ts`, which turned out to disagree with the live manifest on brand
+colour and default language, so leaving it was a trap rather than mere
+duplication.
 
 ---
 
@@ -282,7 +314,15 @@ Three further findings the audit added: the public language switcher offers four
 2. **Is the 6-month trial a standing offer or a launch promotion?** It is real in code (`AuthService.php:49`) and more generous than advertised — during trial *all* features and limits are unlocked, not Starter's.
 3. **Is there one real customer who will go on the record?** The machinery is built and empty: `/admin/platform-settings` takes the quote, who said it, their role and organisation, and the date they agreed to be quoted. Without a name and that date the API will not publish it, so the only thing missing is a real customer. If there is none, the section stays absent — which is the correct output, not a gap.
 4. **Where should contact submissions go**, and with what retention? The retention period also belongs in the privacy policy.
-5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact. The verifiable ones (AES-256, tax per 979/2016, pension 7%/11%) will be checked against the implementation and kept where the code supports them.
+5. **The compliance claims** — "Full compliance with Proclamation 1321/2024" is a legal conclusion, not a code fact and **still the owner's to make or drop**. The three verifiable ones **were checked against the implementation on 2026-09-18**, and one was wrong:
+
+   | claim | code | verdict |
+   |---|---|---|
+   | AES-256 encryption of bank details and TIN | `config/app.php:116` `'cipher' => 'AES-256-CBC'`; `Employee.tin`, `Employee.national_id`, `EmployeeBankDetail.account_number` all cast `encrypted` | **true, kept** |
+   | Pension 7% employee + 11% employer | `PensionCalculator.php:10-11` — `employeeRate = 7.0`, `employerRate = 11.0` | **true, kept** |
+   | "Income tax per Proclamation **979/2016**" | `TaxCalculator.php:24` implements **1395/2025**, in force 7 July 2025; 979/2016 is `SUPERSEDED_BRACKETS`, retained only to reprocess periods before that date | **false — corrected to 1395/2025** |
+
+   The tax citation was the interesting one: the *code* is current and the *marketing* was two years stale, advertising a repealed ladder. For a payroll product sold on Ethiopian statutory compliance that is the claim least able to afford being wrong, and it appeared in four strings — `compliance_tax` and `payroll_desc`, in both `en` and `am`. The current proclamation had appeared nowhere user-facing at all.
 
 ---
 

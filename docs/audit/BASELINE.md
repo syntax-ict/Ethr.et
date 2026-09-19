@@ -329,7 +329,7 @@ static::addGlobalScope('tenant', function (Builder $builder): void {
 
 ### Scope bypasses — measured
 
-**[verified]** `withoutGlobalScope` / `withoutGlobalScopes` appears at **147 code sites** (comments excluded) across 29 directories. Of these, **35 have no `tenant_id`/`tenantId` token within a -4/+8-line window.**
+**[verified]** `withoutGlobalScope` / `withoutGlobalScopes` appears at **161 code sites** across **55 files**, re-counted 2026-09-18 and pinned per file by `tests/Feature/Security/tenant-scope-bypasses.php`. At the original baseline this read 147 sites across 29 directories, of which **35 had no `tenant_id`/`tenantId` token within a -4/+8-line window**; the audit of those 35 is recorded in §11c below.
 
 Most of the 35 are legitimate:
 
@@ -417,7 +417,7 @@ $ php -d memory_limit=-1 vendor/bin/pest --compact
 
 This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
 
-### 12c. PHPStan disagrees between this machine and CI, and the reason is unknown **[open]**
+### 12c. PHPStan disagreed between this machine and CI: the cause was the backend job having no `.env` **[closed 2026-09-18]**
 
 CI run #56 (2026-09-16, commit `49e2ee9`) was the **first run in which PHPStan had ever executed** — until `phpstan_gate` stopped requiring a Docker container it had never run there at all. It reported exactly four errors, all the same shape:
 
@@ -466,11 +466,51 @@ The four findings themselves are true on both platforms and were fixed on their 
 >
 > **What this rules out, precisely:** a config or invocation mismatch on this machine. Same command, same freshly-cleared cache, same gate function, same lockfile — the isolation is real. What remains open is genuinely internal to PHPStan/Larastan's interaction with either the OS or the exact PHP patch build, which this machine cannot distinguish from itself. Attempted a cross-OS check via a static, no-root PHP 8.2.32 Linux binary in WSL (no `sudo`, no Docker available for an apt-based or containerized PHP 8.2 on this host) — the download proved unreliable over two attempts today and was not completed. Left as the next concrete step, not abandoned: a working Linux PHP 8.2 build, `composer install --ignore-platform-reqs` against this same lockfile, and the identical `dumpType()` probe would either reproduce CI's error (confirming OS/build-specific PHPStan behaviour) or also pass (pointing at something GitHub-Actions-specific in how `shivammathur/setup-php` assembles the runtime, rather than Linux itself).
 
+> **Closed, 2026-09-18 — reproduced in both directions, and the mechanism traced to a specific line of Larastan.**
+>
+> **The variable was never the OS and never the PHP version.** Both were eliminated by direct test on a Linux container, against this same lockfile, on the exact pre-`bff4fb3` code restored with `git show`:
+>
+> | Runtime | Result on the pre-fix code |
+> |---|---|
+> | Linux, PHP 8.4.19 | `[OK] No errors` |
+> | Linux, PHP 8.2.33 (CI pins `8.2`) | `[OK] No errors` |
+> | Linux, PHP 8.4.19, **no `api/.env`** | **the same 4 errors, at the same 4 lines** |
+>
+> So the split reproduces on one machine, one OS and one PHP build, toggled by a single file. The previous pass recorded the opposite result for what it describes as this same test ("hid `.env`, set `BROADCAST_CONNECTION=null`, re-ran → `[OK] No errors`"). That line is **refuted**; it is left above rather than deleted, because it is the reason the investigation spent two days on OS and PHP-version hypotheses that were never the cause.
+>
+> **The mechanism, traced rather than hypothesised.** `vendor/larastan/larastan/src/Methods/ContractsMethodsExtension.php` takes any interface under `Illuminate\Contracts`, resolves that interface name **through the live application container**, and grants the interface whatever methods the resolved concrete class has:
+>
+> ```php
+> $concrete = $this->resolve($classReflection->getName());
+> if ($concrete === null) { return false; }          // <- grants nothing
+> $concreteReflection = $this->reflectionProvider->getClass($concrete::class);
+> ```
+>
+> Resolving `Illuminate\Contracts\Auth\PasswordBroker` reaches `PasswordBrokerManager::createTokenRepository()`, which reads `config('app.key')` and passes it straight into `DatabaseTokenRepository::__construct()`'s `string $hashKey`. With no `.env`, `config('app.key')` is **`null`**, so that constructor throws a `TypeError` — confirmed directly:
+>
+> ```
+> with .env:     BOOT OK; broker=Illuminate\Auth\Passwords\PasswordBroker
+> without .env:  BOOT OK; TypeError: DatabaseTokenRepository::__construct():
+>                Argument #4 ($hashKey) must be of type string, null given
+> ```
+>
+> `resolve()` returns `null`, `hasMethod()` returns `false`, and the contract keeps only the two methods it declares — producing exactly the four `method.notFound` errors, at exactly those four lines. With a `.env`, resolution succeeds, the concrete broker's `createToken()` / `tokenExists()` / `deleteToken()` are granted to the interface, and PHPStan reports nothing.
+>
+> **Note what is *not* the trigger: the value of `APP_KEY`.** A present-but-blank `APP_KEY=` resolves fine — `''` is a string. It is the *absence of the `.env` file* that makes the config value `null`. Tested, because the obvious guess is wrong.
+>
+> **Why CI had no `.env` and local always did.** At `49e2ee9` — the commit run #56 analysed — the workflow's `backend` job (which is the one that runs PHPStan) went straight from `composer install` to `./scripts/gates.sh backend`. The `cp .env.example .env && php artisan key:generate` step existed only in the `mysql` and `contract` jobs. It was added to `backend` by `b33adde`, as the fix for the 156 `MissingAppKeyException` test failures recorded as cause 4 in `CLAUDE.md`.
+>
+> **So this was never a second defect.** It is cause 4 wearing a different hat: one missing `.env` produced two unrelated-looking symptoms — 156 dead tests and four phantom-looking PHPStan errors — and only the first was recognised as a missing `APP_KEY` at the time.
+>
+> **The consequence, which is the part worth acting on.** `b33adde` gave the `backend` job a `.env`. That fixed the tests and, in the same step, put PHPStan into the permissive mode: **CI would no longer report these four errors, and would not catch the same class of bug again.** Larastan's contract-to-container widening means any `Illuminate\Contracts\*` receiver is silently checked against the *default binding*, not against the interface — which is precisely the assumption that made the original code fragile. Verified on the fixed tree: `[OK] No errors` both with and without `.env`, so nothing regressed and nothing is being suppressed today. What protects this specific call path now is not the analyser but `App\Support\PasswordTokens`' runtime `instanceof` and `PasswordBrokerNarrowingTest`, which is why `bff4fb3` deliberately chose a real check over an annotation or a baseline entry.
+>
+> **The general lesson, stated so it survives this one bug:** PHPStan's analysis depth here is a function of whether the application boots and binds. A green PHPStan run therefore says less than it appears to when the environment differs from the one the reader has in mind — and "it passes locally" was, for two days, evidence of an environment difference rather than of correct code.
+
 **File counts are static and were measured [verified]:** 141 PHP test files, 70 Vitest files, 12 Playwright specs. Frontend Vitest and Playwright counts remain **NOT MEASURED** — not run this pass.
 
 Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only Unit and Feature as testsuites; Performance is deliberately outside them. Frontend: Vitest + MSW; Playwright projects `chromium-desktop` and `webkit-mobile`.
 
-**Known coverage gaps [verified]:** no coverage instrumentation exists at all — `api/phpunit.xml` declares `<source>` but no `<coverage>` block, and `src/vitest.config.ts` has no `coverage` key. **No coverage figure can be stated and no threshold can regress.** `api/tests/Feature/Billing/` contains one file. `src/e2e/payroll.spec.ts` is 549 bytes and asserts only that the page renders a heading.
+**Known coverage gaps [verified]:** no coverage instrumentation is *configured* — `api/phpunit.xml` declares `<source>` but no `<coverage>` block, and `src/vitest.config.ts` has no `coverage` key, so **no threshold can regress**. Both figures have since been measured out-of-band rather than by a gate: frontend 32.34% of statements (§12f) and backend 58.89% of classes / 86.41% of lines (§12e). The original wording here — "no coverage figure can be stated" — was true when written and is not any more. `api/tests/Feature/Billing/` contains one file. `src/e2e/payroll.spec.ts` is 549 bytes and asserts only that the page renders a heading.
 
 ---
 
@@ -677,7 +717,7 @@ Total coverage moved **32.34% → 32.74%**. That the headline barely moved is th
 
 **Still at 0% and worth a look next**, in rough risk order: `lib/utils/date.ts` (35 stmts — date handling under convention #2's UTC-store / EAT-display split), `components/shared/auth-guard.tsx` (26 — a route authorization control, though defence-in-depth since the API enforces independently), `features/auth/sessions-api.ts` (50 — session revocation), and `app/kiosk/page.tsx` (417 — shared-device PIN check-in, which captures attendance).
 
-### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
+### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[closed 2026-09-18]**
 
 Risk 10 is "no coverage instrumentation". The obvious dodge is `phpdbg`, which ships with XAMPP and historically produced coverage without installing anything:
 
@@ -699,6 +739,74 @@ So backend coverage requires **PCOV or Xdebug installed into the PHP runtime**. 
 This is recorded because `phpdbg` being on PATH makes the dodge look available, and the failure mode points at the wrong component. Anyone who tries it will lose the same twenty minutes.
 
 Frontend coverage is unaffected — Vitest uses v8 coverage and needs no extension.
+
+**The extension is not the obstacle it reads as — tested 2026-09-18.** This section
+ends on "requires PCOV or Xdebug installed into the PHP runtime", which sounds
+environmental. Two things were checked:
+
+1. **PCOV works against this codebase.** Built from source (`git clone
+   https://github.com/krakjoe/pcov && phpize && ./configure --enable-pcov && make`),
+   loaded with `php -d extension=…/pcov.so`, `pcov.enabled=1`, and the Pest suite
+   starts and runs under it. Nothing in this project resists instrumentation.
+   Note the flag: `--coverage` alone is rejected as *"ambiguous"* — Pest wants
+   `--coverage-text --only-summary-for-coverage-text`.
+2. **CI is one word away.** All three `shivammathur/setup-php@v2` steps in
+   `gates.yml` (lines ~76, ~148, ~265) set `coverage: none`. That action installs
+   PCOV when given `coverage: pcov` — no build step, no Dockerfile, no apt.
+
+So the blocker is a decision, not a missing capability.
+
+**It was deliberately not flipped here**, for the reason this repository already
+applies to `security` and `performance`: coverage roughly doubles the backend job,
+and at present *nothing consumes the number* — no threshold, no upload, no trend.
+Adding that cost to the blocking sweep buys a figure nobody reads, which is how a
+gate stops being read. If backend coverage is wanted it belongs where those two
+already are: outside `gates.sh`'s full sweep, as its own scope, run when somebody
+wants the answer.
+
+**The first backend coverage figure in this repository's history, measured
+2026-09-18 [verified].** The earlier attempt was abandoned unfinished because this
+container executes only while a tool call is in flight; run instead as a single
+uninterrupted foreground call, the suite completes ordinarily:
+
+```
+php -d extension=pcov.so -d pcov.enabled=1 -d pcov.directory=app \
+    vendor/bin/pest --coverage-text --only-summary-for-coverage-text
+```
+
+```
+Tests:    1797 passed (5299 assertions)   Duration: 360.42s
+
+Classes:  58.89%  (338/574)
+Methods:  73.73%  (1462/1983)
+Lines:    86.41%  (14847/17182)
+```
+
+**The suite has moved since:** `main` added a case to
+`HostingRequirementsConsistencyTest` on 2026-09-19, taking it to **1798 tests / 5303
+assertions**. The run above is left at 1797/5299 because it is a dated measurement, not a
+current-state claim — rewriting the numbers inside a recorded run would falsify it. The
+coverage percentages are therefore "as at 2026-09-18", and one extra test will not have
+moved them materially.
+
+Read the three numbers together rather than quoting the flattering one. **86.41%
+of lines but 58.89% of classes** is the shape of a suite that exercises its main
+paths heavily and leaves 236 classes untouched entirely — line coverage is high
+because the covered classes are the big ones. The class figure is the one to act
+on; the line figure is the one that will get quoted.
+
+**The cost claim above is now measured, not assumed.** The same suite, same
+machine, same commit, without the extension: **176.24s** against **360.42s** under
+PCOV — **2.05×**. "Coverage roughly doubles the backend job" was written as an
+estimate and turns out to be accurate, so the decision not to add it to the
+blocking sweep stands on a measurement rather than on an intuition.
+
+That decision is unchanged: nothing consumes the number yet — no threshold, no
+upload, no trend — and doubling the blocking job to produce a figure nobody reads
+is how a gate stops being read. What has changed is that the figure now exists, so
+a threshold has something to be set against. **Next step, whenever somebody wants
+it: `coverage: pcov` on the backend `setup-php` step, as its own scope beside
+`security` and `performance`, not inside the full sweep.**
 
 ---
 
@@ -867,8 +975,8 @@ Recorded because the property is general, not specific to search: **any future f
 **[verified]** Production assets assuming VPS / Docker / root / SSH:
 
 - Six `docker-compose*.yml` files at root; `docker/` build inputs; `infrastructure/` (nginx, supervisor, certbot)
-- **`scripts/backup.sh:53`** — `docker compose exec -T mariadb mysqldump`; **`:63`** — `docker run --rm --volumes-from ethr-minio`. `restore.sh`, `rollback.sh`, `deploy.sh` and `prod-build-test.sh` are the same shape. **There is no non-Docker backup or restore path in this repository.**
-- `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` — Windows dev launchers predating the Docker work. `RUN_ALL.ps1` prints "SQLite" where README prescribes MariaDB, and starts neither the queue worker nor Reverb, both of which README calls mandatory.
+- **`scripts/backup.sh:53`** — `docker compose exec -T mariadb mysqldump`; **`:63`** — `docker run --rm --volumes-from ethr-minio`. `restore.sh`, `rollback.sh`, `deploy.sh` and `prod-build-test.sh` are the same shape. ~~**There is no non-Docker backup or restore path in this repository.**~~ **That last sentence was true when written and is now false — corrected 2026-09-18.** `ethr:backup`, `ethr:restore` and `ethr:backup:rehearse` are Artisan commands with no shell-out at all: `BackupCommand.php:12` states *"Runs from Plesk Scheduled Tasks as a PHP CLI job — no shell, no mysqldump"*, and `Services/Backup/DatabaseDumper.php` dumps in pure PHP precisely because shared hosting often has neither a shell nor `mysqldump` on PATH. The `.sh` files above are the **legacy Docker wrappers**, not the capability. This matters for decommissioning: removing them does not remove the ability to back up or restore. See `docs/deployment/VPS_DECOMMISSION.md`.
+- ~~`RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` — Windows dev launchers predating the Docker work, which announced "SQLite" where README prescribes MariaDB and started neither the queue worker nor Reverb~~ — **deleted 2026-09-18**. Nothing referenced them but the documents warning readers away from them, and they were the origin of the committed `APP_KEY` recorded in the changelog. Docker Compose is the only local path.
 
 Application-level hosting coupling is low: no shell-outs, no Redis calls, no absolute paths in `app/`.
 
@@ -887,16 +995,16 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 5 | ~~**Audit-log `DEFINER` breaks after restore** → all writes 500~~ — **fixed**; `DatabaseDumper` reconstructs triggers from `SHOW TRIGGERS` with no `DEFINER` clause, so the restoring user becomes the definer. Measured 2026-09-16 on MariaDB: a DEFINER-carrying dump is refused outright without `SUPER` (§13b), and a non-root user restores and enforces both triggers | `ethr:backup:rehearse` on MariaDB; `BackupRestoreRehearsalTest` **[verified]** | Resolved — but only for `ethr:backup`. A Plesk panel export still carries a DEFINER and may be unrestorable; see §13b |
 | 6 | ~~Horizon aborts `composer install`~~ — **removed** (`cdf85d1`); lockfile carries **zero** hard `pcntl`/`posix` requires | lockfile parsed **[verified]** | Resolved |
 | 7 | ~~Two critical RCE advisories in a production dependency~~ — **fixed 2026-09-15** (`ae52e08`) | `npm audit --omit=dev` **[verified]** | Resolved |
-| 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
+| 7b | ~~No CI of any kind~~ — **configured in Phase 2; first fully green run #66 on 2026-09-16**, and green on every `main` commit since (run #173 on `f25baef`) | `.github/workflows/` **[verified]** | Resolved |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend still blocked on PCOV or Xdebug (§12e) |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Both sides now measured; neither is gated.** Frontend 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend 2026-09-18 — **58.89% of classes (338/574)**, 73.73% methods, 86.41% lines, under PCOV, 2.05× the uninstrumented runtime (§12e). The capability gap is closed; what remains is that **no threshold enforces either number**, so both can still fall silently |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 18 | ~~Nothing transitions an invoice from `draft` to `sent`~~ — **owner decided 2026-09-15**, invoices are created `sent`; chain verified end to end | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
-| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **161 across 55** as re-measured 2026-09-18. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 156 that exist. That audit is still unowned |
+| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **161 across 55** as re-measured 2026-09-18. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 161 that exist. §11c is a first pass over the subset that lacked a nearby predicate |
 | 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
 | 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |
@@ -1202,21 +1310,183 @@ found at all.
    language" — WCAG 2.5.3, and a voice-control user could not say what they could
    see.
 
-### Three findings left open, deliberately
+### Three findings left open — all three now closed **[2026-09-18]**
 
-- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
-  below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
-  surface is marginally under. Lighthouse flags it intermittently, which is what a
-  4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
-  repainting the whole product — a Phase 8 decision, not a landing-page one. One
-  10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
-  the worst case; nothing else was touched.
-- **`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
-  `public/sw.js:110` reference it. Push-notification badges are therefore broken
-  app-wide. Not touched: it is service-worker behaviour, not the public site.
-- **Two manifests.** `public/manifest.json` is the one linked from every page;
-  `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
-  Both serve 200. One of them is dead, and deciding which is a PWA question.
+- ~~**`--text-secondary` (#6c7b91) is 4.3:1 on white.**~~ — **this finding was
+  wrong, and is withdrawn.** `#6c7b91` appears nowhere in the repository; the only
+  occurrence is the sentence it was written in. The token's actual value is
+  `#64748b` (`styles/globals.css:178`) and it **passes AA on every surface it is
+  used on**, computed 2026-09-18 by the WCAG 2.x relative-luminance formula:
+
+  | foreground | surface | ratio | |
+  |---|---|---|---|
+  | `#64748b` | `#ffffff` (`--surface-primary`, `--surface-elevated`) | **4.759** | pass |
+  | `#64748b` | `#f8fafc` (`--surface-secondary`) | **4.548** | pass |
+  | `#94a3b8` (dark) | `#0f172a` / `#1e293b` / `#020617` | 6.96 / 5.71 / 7.87 | pass |
+
+  So the "repaint the whole product" decision this handed Phase 8 **does not
+  exist**. Two caveats kept rather than dropped: 4.548 is a thin margin, so a
+  future darkening of `--surface-secondary` would break it and is worth a guard;
+  and the remaining `text-muted-foreground` pairings with reduced opacity are all
+  `disabled:` states and form placeholders, which is why Lighthouse's flag was
+  intermittent rather than constant.
+- ~~**`/icons/badge-72.png` does not exist**~~ — **fixed 2026-09-18.** It is
+  referenced by `public/manifest.json` (`purpose: "monochrome"`, 72×72) and
+  `public/sw.js:110`, so every push notification requested a 404 badge. The file
+  now exists, derived from `icon-192.png` rather than drawn by hand: the icon is
+  bimodal in luminance over its opaque pixels — 80.1% brand background, 19.9% a
+  white glyph — so the badge is that glyph's silhouette, thresholded at
+  luminance ≥ 200 and alpha > 128, rendered white-on-transparent and resized to
+  72×72 (lanczos3). 13.5% of the canvas is ink, which is what a badge should be:
+  Android masks it by alpha, so a near-solid square would show as a blob.
+- ~~**Two manifests.**~~ — **resolved 2026-09-18 by deleting `app/manifest.ts`.**
+  `root-shell.tsx:73` sets `manifest: "/manifest.json"`, so the built HTML carries
+  `<link rel="manifest" href="/manifest.json">` and the static file in `public/` is
+  the one every browser fetches. `app/manifest.ts` generated `/manifest.webmanifest`,
+  which nothing referenced.
+
+  The deciding fact is that the dead one was also **wrong**, so this was not a
+  coin-flip between two equivalent files:
+
+  | key | `public/manifest.json` (live) | `app/manifest.ts` (deleted) |
+  |---|---|---|
+  | `theme_color` | `#0F4C75` — the brand `--interactive-primary` | `#2563eb`, a generic blue |
+  | `lang` | `am`, the product default | `en` |
+  | `background_color` | `#ffffff` | `#0f172a` |
+
+  Keeping the typed `MetadataRoute.Manifest` generation would have meant porting
+  those values and repointing the link, which changes the manifest URL an already
+  installed PWA fetches — real risk for no user-visible gain. Deleting the unused
+  file removes the ambiguity with no behaviour change at all, and removes a trap:
+  anyone who "fixed" the duplication by repointing the link at the typed version
+  would have silently shipped the wrong brand colour and the wrong default language.
+
+### 18a. Phase 8 attribution — where the 428 KB actually is **[2026-09-18]**
+
+§18 measured the landing page at 427 KB gzipped and named Sentry's 87 KB. This
+is the rest of that number, attributed, so Phase 8 starts from evidence rather
+than from guessing which dependency is fat.
+
+**The baseline reproduces.** Re-running §18's own method on a fresh production
+build gives **428 KB gzipped / 1,415 KB raw** against the recorded 427 / 1,415 —
+the 1 KB is gzip level, not drift. The figure is trustworthy.
+
+| what | gzipped | can it be cut? |
+|---|---|---|
+| React + react-dom + Next runtime (one 146 KB chunk) | **146 KB** | No. This is the framework floor. |
+| Sentry | **87 KB** | **Not without giving up tracing** — see `next.config.ts`. `excludeDebugStatements` is already set, Replay is already verified absent, and the `instrumentation-client.ts` docblock argues the static import deliberately. Left alone. |
+| everything else on the landing page | ~195 KB | The only remaining surface. |
+
+**The finding §18 could not see, because it only measured the landing page.**
+Next 16 writes `.next/diagnostics/route-bundle-stats.json` — per-route first-load
+bytes and chunk paths, free with every build. Gzipping what it lists:
+
+| route | First Load JS (gz) |
+|---|---|
+| `/employees/[id]` (heaviest overall) | 527 KB |
+| **`/login`** | **462 KB** |
+| `/register` | 459 KB |
+| `/[locale]` (the page §18 measured) | 389 KB |
+| `/[locale]/pricing` | 387 KB |
+
+**`/login` is 73 KB heavier than the marketing pages**, and it is a public entry
+point reached on the same networks — so the audience §18 was worried about meets
+the *worst* public page, not the one that was measured.
+
+**The whole 119 KB is accounted for, and only Zod is a candidate.** Diffing
+`/login`'s chunks against `/[locale]`'s leaves 7 login-only chunks totalling
+119 KB gzipped. The other six were read too, so nobody re-opens this: 32 KB raw
+of `react-hook-form`, 26 KB of TanStack Query internals plus the lucide icon
+paths the form renders (`Building2`, `key-round`, `loader-circle`,
+`MessageSquareText`, `AlertTriangle`) and `hostContext`/`tenantFromHost`, 25 KB
+more of icons, and the rest is the auth form code itself. **Nothing foreign is
+leaking into `/login`** — no chart library, no date library, no dashboard shell.
+It is a login form that costs what a login form costs, on top of a high
+framework floor.
+
+That leaves exactly one candidate, and it is 63.9 KB gzipped (268 KB raw) of Zod — 1,126 internal references, and the IPv4 and MAC-address regex
+literals are its built-in string validators. Four forms pull it in:
+`(auth)/login/login-form.tsx`, `register-form.tsx`, `login/forgot/forgot-form.tsx`
+and `login/reset/reset-form.tsx`. Twenty-seven files import it overall.
+
+**The lead, and a correction to it made the same day.** The first version of this
+section said `zod/mini` was the fix and implied it would return the 64 KB. It
+would not, and the measurement that says so is this:
+
+| `node_modules/zod` | raw JS |
+|---|---|
+| `v4/classic` (what `import { z } from "zod"` gives) | 81 KB |
+| `v4/mini` | 34 KB |
+| **`v4/core` — required by both** | **215 KB** |
+
+`zod/mini` swaps an 81 KB layer for a 34 KB one. It cannot touch the 215 KB core,
+which is most of the chunk. The realistic saving is ~47 KB raw, call it **~11 KB
+gzipped of the 63.9 KB** — worth having, but not the win the number first
+suggested. Recorded rather than quietly fixed, because the difference between
+"64 KB of Zod" and "64 KB of Zod, 11 KB of which is reachable this way" is the
+difference between a planned change and a disappointed one.
+
+Three facts for whoever takes it:
+
+- **The resolver is not a blocker.** `@hookform/resolvers@5.4` imports from
+  `zod/v4/core`, the same core `zod/mini` builds on, so `zodResolver` accepts mini
+  schemas. The package also ships `standard-schema`, `valibot` and other resolvers.
+- **There is one swap point, not four.** Every form goes through
+  `src/lib/forms/rules.ts` (226 lines) — the auth forms themselves use only
+  `z.string()`, `z.object()` and `z.literal()` directly. That makes the edit small
+  and the blast radius large: `rules.ts` is shared with every dashboard form, so
+  this is not an auth-only change.
+- **Returning the whole 64 KB means leaving Zod**, because the core is the bulk of
+  it. A smaller validator (`valibot` has a resolver shipped but is not installed)
+  or hand-rolled checks would do it. That is a dependency decision for the owner,
+  not a build-config one, and it is why nothing was changed here.
+
+**The `zod/mini` swap was then taken to the point of decision, and declined
+2026-09-18.** Every unknown was tested rather than assumed, and all four came back
+favourable:
+
+| question | answer |
+|---|---|
+| Do `trim` / `toLowerCase` still transform the output in mini? | **Yes** — `m.string().check(m.trim(), m.toLowerCase(), …)` returns `"acme-1"` for `"  ACME-1 "`, identical to classic |
+| Do i18n message keys survive? | **Yes** — `validation.name_min` comes back unchanged |
+| Can classic `z.object` hold mini field schemas? | **Yes** — mixed schemas parse and transform correctly, both build on `zod/v4/core` |
+| Does `m.email()` keep Zod's own validator? | **Yes**, with the message key |
+
+So it is *feasible and safe*. It was declined on price, not risk:
+
+- The saving is **~11 KB gzipped on one route** — 2.4% of `/login`'s 462 KB.
+- The cost is rewriting `src/lib/forms/rules.ts`, which **21 files import**, in a
+  product where those forms enter payroll figures and employee records. Classic
+  Zod would also have to leave the four auth forms' own `z.object` calls, or it
+  ships to `/login` anyway and the saving is zero.
+- There is no partial version. The auth forms get their rules *from* `rules.ts`,
+  so bypassing it to convert only those four would duplicate validation logic —
+  strictly worse than the weight it saves.
+
+**What did change is the safety net**, which was missing and is worth having
+either way: `test/form-validation.test.tsx` now pins the *parsed output* of every
+transforming rule, not just accept/reject. Nothing did before, so a validator swap
+could have altered what the API receives while every existing test stayed green —
+and the worst case is `subdomain`, which is the tenant routing key. It also pins
+that `password` is the one rule that deliberately does **not** trim, because
+spaces are part of a secret. Whoever takes the migration now has a test that fails
+if the semantics move.
+
+### `npm run analyze` has been doing nothing
+
+`package.json` defines `analyze: ANALYZE=true next build` and `next.config.ts`
+wraps the config in `@next/bundle-analyzer`. **It produces no report and exits 0.**
+Next **16.3.5 builds with Turbopack by default** — `next build --help` lists
+`--webpack` as the opt-out — and the analyzer is a webpack plugin, so it is never
+loaded. Nothing warns.
+
+Two replacements, both already available: `next build --experimental-analyze`
+(the help text says "Only compatible with Turbopack"), and the
+`route-bundle-stats.json` above, which needs no special build at all and is what
+the table was built from.
+
+This is the §12/§13 pattern again — a tool that reports success while measuring
+nothing — and it is why §18 had no per-route attribution to work from.
 
 ### The 403s in the report are not a defect
 

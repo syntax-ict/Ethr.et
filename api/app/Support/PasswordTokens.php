@@ -35,10 +35,16 @@ use RuntimeException;
  * failing three frames deeper on a missing method.
  *
  * Found by PHPStan — in CI, on 2026-09-16, the first run in which it had ever
- * executed. A local run of the same version against the same lockfile reports
- * nothing here, and that divergence is not yet understood; see
- * docs/audit/BASELINE.md §12c. The finding stands on its own either way, which
- * is why it is fixed rather than suppressed.
+ * executed. A local run of the same version against the same lockfile reported
+ * nothing, which looked like a platform divergence and was not one: Larastan's
+ * ContractsMethodsExtension resolves every Illuminate\Contracts interface
+ * through the live container and grants it the bound concrete class's methods,
+ * so the contract is checked against the default binding rather than against
+ * itself. CI's backend job had no `.env` at the time, that resolution threw on a
+ * null `app.key`, and the widening did not happen. It has a `.env` now, so **CI
+ * no longer reports this and would not catch a reintroduction** — see
+ * docs/audit/BASELINE.md §12c. The check below, not the analyser, is what makes
+ * the guarantee hold; PasswordBrokerNarrowingTest pins it.
  */
 final class PasswordTokens
 {

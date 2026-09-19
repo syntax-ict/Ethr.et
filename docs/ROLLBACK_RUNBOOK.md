@@ -16,14 +16,24 @@ matches reality, not from the top unconditionally.
 >
 > **And the Scenario B instruction may not be executable.** It says to repoint at the VPS.
 > This repository's own last measurement (2026-08-29) records that host as dormant with
-> ports 80 and 443 closed, and it has not been re-checked since — this environment cannot
-> reach either host to confirm. **If it is still dormant, repointing converts one outage
-> into two.**
+> ports 80 and 443 closed, and it has **still** not been corroborated. **If it is still
+> dormant, repointing converts one outage into two.**
 >
 > Nothing below is safe to act on until **manual action 0a** is answered:
 > `curl -sI http://91.99.81.71/` — does anything still serve there? That single check
 > decides whether this runbook describes a rollback or a second failure. It needs no
-> Plesk panel and no shell. See `docs/MIGRATION_STATE.md` → B-6.
+> Plesk panel and no shell — **but it does need an ordinary network.** An attempt on
+> 2026-09-18 from an agent environment produced a confident false negative: that gateway
+> routes by Host header and SNI and discards the destination IP, so the probe never
+> reached the VPS while appearing to. **0a must be run by a human.** See
+> `docs/MIGRATION_STATE.md` → B-6 for the proof and why its controls did not catch it.
+>
+> **What `ethr.et` serves right now**, measured by name and therefore unaffected by that
+> problem: the apex and `www` return **`404`** (Plesk's error page), and a never-configured
+> wildcard name (`zzq7x.ethr.et`) returns **`200`** with Plesk's default page. The domain
+> is live against an unverified deployment, and because the wildcard answers 200, **any
+> check that asserts "the tenant subdomain returns 200" passes against nothing** — assert
+> on content.
 
 ## ~~Scenario A — before DNS cutover (the current state, as of this writing)~~
 
@@ -54,19 +64,29 @@ Repoint the A/AAAA records for ethr.et, www.ethr.et, and *.ethr.et back to the V
 
 > **Do not run this line until 0a is answered.** It assumes something that is currently
 > unverified: that the VPS answers. Recorded dormant with 80/443 closed on 2026-08-29 and
-> not re-checked since. Repointing at a host that serves nothing does not restore the
+> not corroborated since. Repointing at a host that serves nothing does not restore the
 > previous state — it replaces a questionable deployment with no deployment, and the TTL
 > below then works against you, because the bad answer is what gets cached.
 >
 > If 0a says the VPS is **not** serving, this scenario has no target and the real options
 > are to bring the VPS back up first, or to fix forward on Plesk. That is an owner
 > decision, and it should be taken before cutover, not during an incident.
+>
+> **Run 0a from an ordinary network, not from an agent or CI sandbox.** One attempt on
+> 2026-09-18 returned a confident "not serving" that was an artefact of the environment's
+> egress gateway, which routes by name and ignores the IP. `docs/MIGRATION_STATE.md` → B-6
+> has the proof.
 
 DNS TTL determines how long this takes to fully propagate — check what TTL was set
 before cutover and expect stragglers up to that long. The VPS is untouched by anything
-in the shared-hosting deployment (it's a separate host with its own database), so the
-moment DNS has propagated back, the application is exactly as it was before this
-migration started. Nothing to undo on the VPS side.
+in the shared-hosting deployment (it's a separate host with its own database), so
+**if it were serving**, the moment DNS propagated back the application would be exactly
+as it was before this migration started, with nothing to undo on the VPS side.
+
+**That conditional is doing all the work, and nothing has yet established whether it
+holds.** "Untouched" was written to mean "intact and ready", and those are different
+claims: nothing in the shared-hosting work touched the VPS, which is not the same as the
+VPS being up. Which one is true is exactly what 0a decides.
 
 **If the shared-hosting database received zero writes** (no new tenant signup, no
 login, nothing) during the window it was live, this scenario applies even if some time

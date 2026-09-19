@@ -27,7 +27,7 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 `docker compose up -d`. Without the queue worker no job ever runs; without Reverb a broadcast throws, so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
 
-The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
+Three `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers used to sit at the repository root and start only two of the four. They were removed on 2026-09-18; Docker Compose is the only supported way to run the stack locally.
 
 ### 4. Tenant isolation is fail-closed, and bypassed in 161 places
 

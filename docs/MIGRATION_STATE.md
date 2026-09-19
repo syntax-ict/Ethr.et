@@ -16,6 +16,48 @@ safe.
 `main`** — see "PARALLEL WORK MERGED TO MAIN" below. None of it depended on the hosting
 gates; all of it is correct regardless of where ETHR ends up deployed.
 
+### KNOWN BLOCKERS — recorded 2026-09-18, none resolvable from this repository
+
+An autonomous pass on 2026-09-18 was asked to carry the migration to completion,
+verify shared hosting, and remove the VPS assets. It could do none of those three,
+and the reasons are the same two facts each time. Recording them here so the next
+pass does not re-derive them:
+
+| # | blocker | why it cannot be cleared from here | what it blocks |
+|---|---|---|---|
+| **KB-1** | **Gate 0 has never been run against the account.** `deployment/GATE-0-RESULT.md`: *"Status: NOT RUN"*, *"Run by: owner (requires the Plesk account — this cannot be automated from the repository)"* | The four facts need the Plesk panel or an SSH session to `213.55.96.154`. No code path reaches them | Hosting verification; every downstream deployment decision |
+| **KB-2** | **The VPS/Docker production assets cannot be removed while KB-1 stands.** Root `CLAUDE.md` keeps them *"only until that cutover is verified"* | Deleting the working deployment path before the replacement is measured leaves the product with neither | VPS decommissioning |
+| **KB-3** | **Manual action 0a — *"is anything still serving on the VPS?"* — cannot be probed from an agent or CI sandbox.** Added 2026-09-18 after an attempt returned a false negative | This environment's egress gateway routes by Host header and SNI and **discards the destination IP**, so an IP-addressed probe never reaches the host it names. Proven by dialling the VPS IP with `Host: example.com` and receiving example.com from Cloudflare | **B-6**, the top-ranked safety finding. Needs a human on an ordinary network — one `curl`, no Plesk, no shell |
+
+**KB-3, added 2026-09-18 — manual action 0a cannot be run from any agent environment, and
+an attempt produced a confident false negative.** 0a had been deferred by every prior pass
+on the grounds that no environment could reach the host. That was re-tested, appeared to
+succeed, and the result — *"the VPS serves nothing"* — was written into this file and into
+`ROLLBACK_RUNBOOK.md` before it was checked properly. **It was false.** This environment's
+egress gateway routes by Host header and SNI and discards the destination IP, so the probe
+never addressed the VPS; the "controls" chosen to validate it shared the same flaw and
+confirmed nothing. Both documents are corrected, and **B-6 below** carries the proof, the
+tell that should have been caught first (two "different" hosts returning byte-identical
+`etag`s), and why the controls failed. The reusable part: *a control only controls for what
+it varies*. What survives is the set of findings measured by **name** rather than by IP —
+the apex serving a `404` and the wildcard serving `200` — because a name is what a browser
+resolves too.
+
+The lesson still generalises, just not the way it was first written: *"this environment
+cannot reach it"* deserved re-testing, and re-testing it was right. What was wrong was
+believing the retest on controls that could not have detected the failure.
+
+**What was done instead of stopping**: `deployment/VPS_DECOMMISSION.md` now carries the
+full inventory — what gets deleted, what only looks like it should (`docker-compose.yml`
+is the *only* supported local dev path and is not a VPS asset), which successor replaces
+each item, and the order. When KB-1 clears, the removal is a procedure to follow rather
+than an investigation to repeat.
+
+It also corrected one claim that would have made the removal look unsafe: §14 of
+`audit/BASELINE.md` said there was no non-Docker backup or restore path. There is —
+`ethr:backup` and `ethr:restore` are pure-PHP Artisan commands written for Plesk
+Scheduled Tasks. The `.sh` files are wrappers, not the capability.
+
 ### To resume the hosting migration, you need exactly four facts
 
 Everything else is decided (see DECISIONS TAKEN ON DELEGATION below). Nothing further
@@ -525,6 +567,76 @@ established.
 The *decision* between "roll back to a working VPS" and "there is no rollback target"
 still belongs to 0a and to the owner. What the runbook no longer does is assert one of
 them.
+
+### 0a ATTEMPTED 2026-09-18 — still unanswered, and now known to be unanswerable from any agent environment
+
+**An earlier version of this section claimed 0a was answered and that the VPS serves
+nothing. That was wrong, and it was wrong in the dangerous direction — it would have
+justified abandoning the rollback target. It is corrected here rather than deleted,
+because the way it went wrong is the reusable part.**
+
+The probes and what they appeared to show:
+
+| Probe | Appeared to show |
+|---|---|
+| `curl http://91.99.81.71/` | `503`, Envoy's `upstream connect error … remote connection failure` |
+| `curl https://91.99.81.71/` | `Connection reset by peer` |
+| `curl http://1.1.1.1/`, `http://213.55.96.154/` — "controls" | `301`, `200` — taken as proof the vantage point reached arbitrary IPs |
+
+That looked like a clean negative with working controls. **It was not a measurement of the
+VPS at all.** This environment's egress gateway routes by **Host header and SNI, and
+ignores the destination IP**. Two checks establish it beyond argument:
+
+1. **The TLS certificate presented for *both* IPs** is `subject=CN = *.ethr.et`,
+   `issuer=O = Anthropic, CN = Egress Gateway SDS Issuing CA (production)`, issued minutes
+   before the request. Not the real site's certificate — the gateway's.
+2. **Dialling `91.99.81.71:80` with `Host: example.com` returns example.com**, `server:
+   cloudflare`, `cf-ray` and all. The IP is discarded.
+
+Which also explains the tell that should have been caught first: `91.99.81.71` and
+`213.55.96.154` returned **byte-identical** 404s — same `content-length: 808`, same
+`etag: "328-657701a10331b"`, same `last-modified`. Two independent hosts do not agree to
+that precision. They were the same backend, reached by name, twice.
+
+**So the "controls" were the error.** They were chosen to prove the *path* worked, and they
+did — by the same name-based routing that made the target unreachable. A control only
+controls for what it varies, and these varied nothing that mattered. The genuine control
+would have been the Host-header test above, which was run only after a contradiction
+forced it.
+
+**0a therefore stands unanswered, exactly as before**, and the earlier passes' *"this
+environment cannot reach either host"* was substantively right. What is added is *why*, so
+the next pass does not spend the attempt again: **no agent environment behind this gateway
+can probe an IP as an IP.** 0a needs a human on an ordinary network, and the `curl -sI
+http://91.99.81.71/` in the queue below has to be run by one.
+
+**Nothing about the VPS is established here — not that it serves, not that it does not.**
+The repository's 2026-08-29 measurement remains the only evidence, uncorroborated.
+
+### What *is* established: the name-based findings, which do not depend on the IP
+
+These were measured by **name**, which is what a browser resolves too, so the gateway's
+routing does not invalidate them:
+
+| Host | Serves |
+|---|---|
+| `http://ethr.et/` → `https://www.ethr.et/` | **`404 Not Found`** — Plesk's error page (`/error_docs/styles.css`) |
+| `https://ethr.et/`, `https://www.ethr.et/` | same `404` |
+| `http://zzq7x.ethr.et/` — a never-configured wildcard name | **`200`**, Plesk's *"Web Server's Default Page"* |
+| `getent hosts ethr.et` | `213.55.96.154`, agreeing with the 2026-09-17 reading |
+
+The domain is publicly live against an unverified deployment, and the apex does not serve
+a placeholder — it serves a **server error**. Anyone visiting `ethr.et` today gets
+"Server Error / 404 Not Found".
+
+**The wildcard result is the one specific to this product, and it is recorded nowhere
+else.** ETHR is multi-tenant on subdomains. Every tenant subdomain currently resolves and
+answers **`200 OK`** with Plesk's default page — so any smoke test, uptime monitor or
+cutover check that asserts *"the tenant subdomain returns 200"* passes today against
+nothing at all. A check for that has to assert on content, not on status.
+
+**Still unanswered, and not derivable from here:** who repointed DNS, and when. That needs
+the registrar or DNS provider's audit log, not a probe.
 
 ---
 
@@ -1367,7 +1479,8 @@ needs an architectural rework" and "the frontend needs nothing".
    the VPS is not a rollback target — **it is production** — and nobody has confirmed it is
    still serving or what data it holds. `tin` and `national_id` are `encrypted` casts and
    off-host backup was never configured, so its `APP_KEY` may be the only thing that can
-   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission.
+   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission —
+   but **0a needs an ordinary network**, not an agent sandbox, per **KB-3**.
 
 **No gate moved.** Gate 0 remains 1 verified, 1 failed, 28 outstanding. Recording that a
 decision rule has fired is not evidence about the host.
@@ -1384,7 +1497,7 @@ gate it unlocks. **Do not do 8 before 5.**
 
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
 | --- | --- | --- | --- | --- | --- |
-| **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
+| **0a** | **Is the VPS still serving?** — *no Plesk needed, but it does need an ordinary network: **not** from an agent or CI sandbox (**KB-3**)* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |

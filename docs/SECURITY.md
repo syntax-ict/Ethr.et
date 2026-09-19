@@ -33,10 +33,9 @@
 > Corrected in Phase 1; Phase 2 then added `.github/workflows/gates.yml`, which
 > runs this test via `scripts/gates.sh backend`.
 >
-> It is still not "every commit": the workflow has never executed, because
-> nothing has been pushed to the remote. Restore the original wording once a
-> run exists to point at — not before. A control is a control when it has been
-> observed working.
+> It is now genuinely "every commit on `main`", and the runs exist to point at:
+> the first fully green run was #66 (2026-09-16), and run #173 is green on
+> `f25baef`. This control has been observed working.
 
 1. Dynamically discovers all Eloquent models
 2. Asserts non-global models have `tenant_id` column

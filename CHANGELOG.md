@@ -44,7 +44,8 @@ shared-hosting migration in more detail than belongs here.
 - **Removed a committed `APP_KEY`.** `START_BACKEND.ps1` hardcoded a literal
   key, which signs every signed URL and decrypts every `encrypted` cast. It was
   a local-development convenience, but nothing said so and any developer without
-  `APP_KEY` set adopted it silently. The script now generates one.
+  `APP_KEY` set adopted it silently. The script was changed to generate one,
+  and has since been removed outright — see Removed, below.
 - Documented the env policy at the repository root: `api/.env.production` is
   ignored (Laravel's own `api/.gitignore` already covered it; the root rule now
   states it too), and `src/.env.production` is labelled as the deliberate
@@ -55,8 +56,9 @@ shared-hosting migration in more detail than belongs here.
 - **Quality-gate automation.** `.githooks/pre-push` runs `gates.sh quick` and
   blocks a push that fails it, or that adds a `.env` file or `APP_KEY` literal.
   `.github/workflows/` calls the same `gates.sh` rather than restating the gate
-  list, so the two cannot drift. **The workflows have never executed** — nothing
-  has been pushed — so they are untested configuration, not a control.
+  list, so the two cannot drift. First fully green run #66 on 2026-09-16, after
+  five structural defects that had to be fixed before a single gate executed;
+  green on every `main` commit since. They are now an observed control.
 - **New gate scopes:** `quick` (no test suites, for the hook), `docs` (markdown
   link integrity), `security` (composer + npm audit). `composer validate` added
   to `backend`. `security` sits outside the full sweep like `performance`: it
@@ -95,6 +97,19 @@ shared-hosting migration in more detail than belongs here.
 - `docs/audit/BASELINE.md` — Phase 0 forensic baseline. Every claim typed
   `[verified]` / `[documented-done]` / `NOT VERIFIED` / `NOT MEASURED`.
 - `SECURITY.md`, `CONTRIBUTING.md`, `LICENSE`, `.editorconfig`, this file.
+
+### Removed
+
+- **The three PowerShell launchers.** `RUN_ALL.ps1`, `START_BACKEND.ps1` and
+  `START_FRONTEND.ps1` predated the Docker setup and started two of the four
+  processes the stack needs — no queue worker, no Reverb — which is the
+  configuration where a *successful* write still returns 500. `RUN_ALL.ps1` also
+  announced "SQLite" while the documented database is MariaDB. Nothing executed
+  them: every remaining reference was a document warning readers away, and
+  `CONTRIBUTING.md` already said to prefer Docker Compose. They were also where
+  the committed `APP_KEY` above came from. A launcher that silently omits Reverb
+  is worse than no launcher, because it sends you debugging the wrong layer.
+  `docker compose up -d` is now the only local path, and the only one documented.
 
 ### Fixed
 
