@@ -1263,7 +1263,7 @@ rewriting first, and the new blocker (`manifest.ts`) needs adding.
 |---|---|
 | **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Compatible.** Verified by CI and by reading the code |
 | **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
-| **Frontend** — Branch B (static export) | **Does not build.** Three blockers, one of which invalidates the costing |
+| **Frontend** — Branch B (static export) | **Does not build** — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
 
 The backend half of "shared-hosting compatible by default" is done. **The frontend half is
 not, and now has a measured gap rather than an assumed one.**

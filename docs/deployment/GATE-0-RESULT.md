@@ -297,7 +297,7 @@ Record it as its own result, against the `document root editable` row (currently
 2. Establish which vhost answered. Compare a request for `www.ethr.et` against one for a
    name known to hit the server default (`zzq7x.ethr.et`, per `B1-B5_GATE_REPORT.md`). If
    they return the same page, the `ethr.et` vhost is not the one serving you.
-3. Re-upload all four canary files into the **confirmed** document root.
+3. Re-upload all **five** canary files into the **confirmed** document root — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt` and `shadow.js`, as step 1 of the upload instructions above already says. *(Corrected 2026-09-19: this row said "four" while the same document said five 96 lines earlier. `shadow.js` is the bait that counts, so a recovery path that quietly drops it hands back a false PASS on G0-B.5.)*
 4. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — then run
    them, with `--resolve`.
 
