@@ -386,9 +386,14 @@ not assumed. No scheduler at all is fatal.
 
 PHP ≥ 8.2, plus all mandatory extensions, plus **GD**.
 
-Mandatory: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
-`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `bcmath`, `iconv`,
-`zip`, `gd`.
+Mandatory (18): `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
+`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `iconv`, `simplexml`,
+`libxml`, `gd`.
+
+*Corrected 2026-09-18: `bcmath` is `suggest`-only in `composer.lock` and the application
+calls no `bc*` function; `zip` is not required by dompdf or by any production package —
+the real requirement is `phar` OR `zip`, for `BackupService`. See `SHARED_HOSTING_AUDIT.md`
+§ extensions.*
 
 ### Why GD is called out separately
 
