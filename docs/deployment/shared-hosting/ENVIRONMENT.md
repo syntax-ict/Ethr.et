@@ -154,8 +154,11 @@ configured via `.env`.)
 
 `FILESYSTEM_DISK=local` puts every upload — employee photos, attendance selfies,
 documents, generated payslip PDFs, tenant backups from `BackupTenantJob` — on the
-account's own quota. Bronze's exact quota is one of the still-open panel facts (see
-`docs/MIGRATION_STATE.md` NEXT ACTION #3). `FileStorageService` already bounds photo
+account's own quota. Bronze's exact quota is one of the still-open panel facts — the
+**disk quota** row of `deployment/GATE-0-RESULT.md`, still `NOT VERIFIED`, and the tier
+question in `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`. *(This said "NEXT ACTION #3"
+until 2026-09-19. That section was renumbered when it was rewritten against the
+measurements, which is what a positional reference costs; it now names the row.)* `FileStorageService` already bounds photo
 uploads to 512 KB and selfies to 200 KB after compression (`PHOTO_MAX_BYTES`,
 `SELFIE_MAX_BYTES`), which caps *growth rate*, not the ceiling — monitor consumption
 once live rather than assuming a number that hasn't been confirmed.

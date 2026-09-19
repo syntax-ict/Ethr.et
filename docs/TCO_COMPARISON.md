@@ -27,6 +27,31 @@ command-type task, `artisan` has a runner and B-4/B-5 resolve. If it offers URL-
 **there is no documented way to deploy ETHR to this account**, and Option B is not a
 cheaper architecture — it is not an available one.
 
+> **THE PANEL PAGE WAS READ — 2026-09-18. The answer is worse than either branch above.**
+>
+> There is **no *Scheduled Tasks* section at all** on this subscription — not URL-fetch
+> only, not a longer minimum interval: absent. The dashboard listing is otherwise complete
+> and *Dev Tools* offers PHP, Git and Composer with no Terminal. **G0-D = FAIL.**
+>
+> So the "if" above resolves to the second branch, and with it:
+>
+> - `SHARED_HOSTING_MIGRATION_PLAN.md` §4's **pre-registered decision rule has fired** —
+>   *B3 cron fails → No-Go → Option A*. It was written down before any evidence existed
+>   precisely so it could not be renegotiated once the answer became inconvenient.
+> - **This table's premise is now the question, not the background.** Comparing the annual
+>   cost of Option A against Option B is comparing a running architecture against one with
+>   no demonstrated route to installation.
+> - What could still reopen it: ask 1 or ask 2 of
+>   [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
+>   (cron, or SSH), or ask 4 — the tiers above Bronze may carry *Scheduled Tasks*,
+>   custom directives and Node, which is three gates on one answer. **The request is
+>   drafted and not sent.**
+>
+> The costs in the rest of this document are not restated here and have not been
+> re-measured. Read them as *"if Option B becomes available"*, which is not currently
+> established. Full record: `MIGRATION_STATE.md` → *G0-D ANSWERED 2026-09-18* and
+> *THE PRE-REGISTERED DECISION RULE HAS FIRED*.
+
 Three smaller corrections to the rows below, same evidence:
 
 - **Option B, "Operational complexity: high to get running"** — understated. The deploy
@@ -45,6 +70,10 @@ Three smaller corrections to the rows below, same evidence:
 adds a prior question: *can* Option B be completed. Answer that first — it is one panel
 page — because a cost comparison between an expensive option and an impossible one is not
 a comparison.
+
+*That page was read on 2026-09-18 and the answer is in the block above: **no**, not as this
+subscription is provisioned. The prior question is therefore answered, and answered against
+Option B, until the support request returns something.*
 
 ---
 
