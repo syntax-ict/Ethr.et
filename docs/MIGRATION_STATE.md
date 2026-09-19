@@ -1474,7 +1474,8 @@ needs an architectural rework" and "the frontend needs nothing".
    the VPS is not a rollback target — **it is production** — and nobody has confirmed it is
    still serving or what data it holds. `tin` and `national_id` are `encrypted` casts and
    off-host backup was never configured, so its `APP_KEY` may be the only thing that can
-   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission.
+   read its own data. Manual actions **0a** and **0b** need no Plesk and no permission —
+   but **0a needs an ordinary network**, not an agent sandbox, per **KB-3**.
 
 **No gate moved.** Gate 0 remains 1 verified, 1 failed, 28 outstanding. Recording that a
 decision rule has fired is not evidence about the host.
@@ -1491,7 +1492,7 @@ gate it unlocks. **Do not do 8 before 5.**
 
 | # | Action | Plesk location | Bring back | Change anything? | Unlocks |
 | --- | --- | --- | --- | --- | --- |
-| **0a** | **Is the VPS still serving?** — *no Plesk needed* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
+| **0a** | **Is the VPS still serving?** — *no Plesk needed, but it does need an ordinary network: **not** from an agent or CI sandbox (**KB-3**)* | n/a — `curl -sI http://91.99.81.71/`, check 80/443 | Whether anything answers | No | **B-6.** Decides whether a rollback target exists at all. **Highest priority in this table** |
 | **0b** | **Does the VPS hold real tenant data?** If yes, dump it **and preserve its `APP_KEY`** off the machine before touching it — `tin` and `national_id` are `encrypted` casts, and off-host backup was never configured — *no Plesk needed* | n/a — this is a question about the VPS | Yes/no. If no: the deployment is a fresh start | No | Collapses **B-5** into B-4 and makes half of `DATABASE_MIGRATION_PLAN.md` not apply. **Do this first — it is free and it may remove work** |
 | ~~**1**~~ | ~~**Scheduled Tasks capability**~~ **ANSWERED 2026-09-18 — the section does not exist.** See *G0-D answered* below. The database-UI half of this item is **still open**: a *Databases* section IS present on the dashboard, but whether it offers a SQL console (phpMyAdmin) has not been read. | Websites & Domains → *Databases* → look for phpMyAdmin / a query console | Task types offered ("Run a command" / "Fetch a URL" / "Run a PHP script"), minimum interval, full path to the PHP binary. Plus: is there any web UI that can run SQL? | No | **G0-D** — decides whether the migration is performable at all without SSH (B-1/B-4). The database-UI half decides **B-5** *and* whether the deployment is observable afterwards: `health-check.md`'s two primary checks are both SQL |
 | **2** | **SSH availability** | Hosting Settings → *SSH access* | Whether the field is changeable by you or greyed out; the value you set | Set `/bin/bash` **if the field allows it** | Clears **B-1 and B-4**; makes probe Route A and `artisan` available. Setting it is not proof it works — verify separately |
