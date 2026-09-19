@@ -100,10 +100,10 @@ configuration. Those are panel questions and are listed separately below.
 | P8 | `openssl` — **mandatory** | Probe | NOT VERIFIED |
 | P9 | `fileinfo` — **mandatory** | Probe | NOT VERIFIED |
 | P10 | `intl` | Probe | NOT VERIFIED |
-| P11 | `zip` — needed by dompdf | Probe | NOT VERIFIED |
+| P11 | `zip` — **not** needed by dompdf. One of `phar` **or** `zip` is needed by `BackupService`; neither alone is mandatory *(corrected 2026-09-18)* | Probe | NOT VERIFIED |
 | P12 | `curl` — **mandatory** | Probe | NOT VERIFIED |
 | P13 | `xml`, `dom`, `simplexml` — **mandatory** | Probe | NOT VERIFIED — *this row was right and the probe was not; see the note below* |
-| P14 | `bcmath` — payroll arithmetic | Probe | NOT VERIFIED |
+| P14 | ~~`bcmath` — payroll arithmetic~~ **NOT REQUIRED** — `suggest`-only in `composer.lock`, zero `bc*` calls; payroll uses integer minor units *(corrected 2026-09-18)* | — | N/A |
 | P15 | `tokenizer` — **mandatory** | Probe | NOT VERIFIED |
 | P16 | `ctype` — **mandatory** | Probe | NOT VERIFIED |
 | P17 | `iconv` — **mandatory** | Probe | NOT VERIFIED |
