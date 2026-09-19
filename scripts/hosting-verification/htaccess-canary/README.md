@@ -59,7 +59,7 @@ a 404 on `secret.txt.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads a
    be `httpdocs`.
 3. Establish which vhost answered: compare `www.ethr.et` against a name known to hit the
    server default (`zzq7x.ethr.et`). Same page → the `ethr.et` vhost is not serving you.
-4. Re-upload all four files into the confirmed document root.
+4. Re-upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `shadow.js`) into the confirmed document root.
 5. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything.
 
 Step 5 matters even though nothing here is secret: a stray `.htaccess` in a live document root is a configuration surprise waiting to happen.

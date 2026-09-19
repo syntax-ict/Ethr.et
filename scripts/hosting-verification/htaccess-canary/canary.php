@@ -26,7 +26,7 @@ header('Content-Type: text/plain; charset=utf-8');
 $rewriteHit = isset($_GET['rewrite']);
 $shadowHit = isset($_GET['shadow']);
 // Every check below is printed as a copy-pasteable URL, so getting this prefix
-// wrong turns all five into 404s against a path that does not exist — and the
+// wrong turns all six printed URLs into 404s against a path that does not exist — and the
 // canary reads a 404 on /REWRITE_OK as "mod_rewrite is NOT active", which would
 // be a false FAIL on G0-B.1.
 //
