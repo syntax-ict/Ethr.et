@@ -1,3 +1,31 @@
+# ============================================================================
+# BROKEN AS OF 2026-09-19 -- DO NOT START THIS STACK EXPECTING JOBS TO RUN.
+#
+# Every worker service below runs `php artisan horizon`. Horizon was removed
+# from this project in cdf85d1: it is absent from composer.json and
+# composer.lock (0 occurrences), there is no config/horizon.php, and no command
+# in api/app/ carries that signature. Each worker container therefore exits
+# immediately with "Command 'horizon' is not defined", and the healthchecks
+# that shell out to `horizon:supervisors` can never pass.
+#
+# It is NOT fixed here, on purpose. The partition below splits work three ways
+# by queue name -- attendance/devices/sync, notifications, payroll -- and three
+# of those queues DO NOT EXIST. The application dispatches onto exactly four:
+# default, attendance, notifications, exports (QueueHealth::QUEUES, verified
+# against every onQueue() call and every Schedule::job() argument). So even with
+# Horizon present this topology would leave `default` and `exports` undrained
+# while dedicating two containers to queues that never receive anything.
+#
+# Choosing the replacement partition -- which queues each container drains, and
+# whether three containers are still the right shape without Horizon's
+# per-supervisor memory control -- is a deployment-architecture decision for the
+# owner, not something to infer from the old names. The single-worker paths
+# (infrastructure/supervisor.conf, docker-compose.yml) had no such ambiguity and
+# were fixed to `queue:work` on the same date.
+#
+# See docs/MIGRATION_STATE.md -> "NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER".
+# ============================================================================
+
 # ── Low-memory production topology (4 vCPU / 4 GB host) ─────────────────────
 #
 # docker-compose.prod.yml assumes the 8 GB minimum in docs/DEPLOYMENT.md
