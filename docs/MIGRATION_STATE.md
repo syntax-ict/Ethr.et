@@ -1837,6 +1837,14 @@ not a deployable product.
 
 #### The larger find: this is a fourth probe route, and it beats Route C
 
+> **SUPERSEDED 2026-09-18 — read this before acting on the section below.** Route D depended
+> on the Plesk Git extension being configured, and **the repository was removed from Plesk
+> later the same day**, so *there is no Route D*. The analysis is kept because it remains
+> correct about what deployment actions can and cannot do, and because Route D returns the
+> moment Git is reconfigured. **Route C is the only live probe route** — A is Forbidden, B
+> is FAIL, D is withdrawn — which is what makes the probe's token gate load-bearing. See
+> *THE PLESK GIT REPOSITORY WAS REMOVED* below.
+
 `GATE-0-RESULT.md` documents three: **A** (SSH — blocked), **B** (Scheduled Tasks — now
 **FAILED**), **C** (web-served — "the last resort"). Deployment actions are a **Route D**
 the plan never considered, and on this account they are *better than C*: the probe runs
