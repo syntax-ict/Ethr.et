@@ -831,6 +831,10 @@ the queue, invoicing, leave accrual and payslip notifications have no delivery m
 Nothing else in the file assumes a shell, which is the right shape — it just means the
 whole asynchronous half of the product rests on one unread panel page.
 
+*Read 2026-09-18, and the answer is neither branch above: there is no Scheduled Tasks
+section at all. **G0-D = FAIL**, so that single line is inert today, not conditionally.
+See* G0-D ANSWERED 2026-09-18 *below.*
+
 **`health-check.md` — post-deployment monitoring has no verified access route, and B-5
 does not end at deployment.** Its two primary ongoing checks are SQL:
 
@@ -1445,8 +1449,13 @@ must be answered before any deployment.
 **B-1 and B-4 remain one support request** — *Hosting Settings → SSH access → `/bin/bash`* —
 and together they reframe G0-D. Without a shell, Scheduled Tasks is not merely how the
 scheduler runs: **it is the only route to migrate the database.** If G0-D returns "Fetch
-a URL only", this migration has no documented way to be performed. G0-D is now the
-highest-value remaining panel read.
+a URL only", this migration has no documented way to be performed. ~~G0-D is now the
+highest-value remaining panel read.~~
+
+*G0-D was read on 2026-09-18 and returned worse than "Fetch a URL only" — the section is
+absent — so the sentence above is the live case, not the hypothetical one. The highest-value
+remaining panel read is **G0-G**; the highest-value action is sending the support request.
+See NEXT ACTION.*
 
 ### One capability found, worth keeping
 
