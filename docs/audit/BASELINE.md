@@ -782,6 +782,13 @@ Methods:  73.73%  (1462/1983)
 Lines:    86.41%  (14847/17182)
 ```
 
+**The suite has moved since:** `main` added a case to
+`HostingRequirementsConsistencyTest` on 2026-09-19, taking it to **1798 tests / 5303
+assertions**. The run above is left at 1797/5299 because it is a dated measurement, not a
+current-state claim — rewriting the numbers inside a recorded run would falsify it. The
+coverage percentages are therefore "as at 2026-09-18", and one extra test will not have
+moved them materially.
+
 Read the three numbers together rather than quoting the flattering one. **86.41%
 of lines but 58.89% of classes** is the shape of a suite that exercises its main
 paths heavily and leaves 236 classes untouched entirely — line coverage is high
