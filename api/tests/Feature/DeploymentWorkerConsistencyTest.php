@@ -28,6 +28,12 @@ use App\Services\Observability\QueueHealth;
  * the product.
  *
  * These assertions read files and need no database, network or container.
+ *
+ * One Pest trap, hit by this file on its first CI run: **`toContain` is
+ * variadic.** `toContain($needle, $message)` searches for BOTH strings, so the
+ * failure message becomes a second needle and the assertion fails even when the
+ * real needle is present. Use `expect(str_contains(...))->toBeTrue($message)`.
+ * `toBe`, `toMatch`, `toBeTrue` and `toBeFalse` all take a genuine message.
  */
 function ethrDeploymentAsset(string $relative): string
 {
@@ -126,8 +132,16 @@ it('keeps the unfixed worker stacks marked as broken', function () {
             continue;
         }
 
-        expect($contents)->toContain(
-            'BROKEN AS OF 2026-09-19',
+        // `str_contains(...)->toBeTrue($message)` rather than
+        // `toContain($needle, $message)`: Pest's toContain is VARIADIC, so a
+        // trailing string is a SECOND NEEDLE TO FIND, not a failure message.
+        // HostingRequirementsConsistencyTest carries the same warning, and this
+        // file still shipped the bug — CI run #289 failed with
+        // "To contain: docker-compose.prod.yml still invokes `artisan horizon`
+        // but no longer carries the banner…", which is this assertion hunting
+        // for its own error text in a compose file. The banner was present the
+        // whole time. toBeTrue() takes a real message; toContain() does not.
+        expect(str_contains($contents, 'BROKEN AS OF 2026-09-19'))->toBeTrue(
             "$asset still invokes `artisan horizon` but no longer carries the banner "
             .'saying so. Either fix the stack or keep the warning: a compose file that '
             .'reads as runnable and starts no worker is how this went unnoticed once.'
