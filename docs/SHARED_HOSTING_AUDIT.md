@@ -360,8 +360,11 @@ available before the thing itself works.
 (`git checkout -- src/`, working tree clean). **No production implementation was made.**
 
 **Branch B is NOT APPROVED for implementation** until a deployment architecture is
-selected. It is gated on G0-A and G0-G, both `NOT VERIFIED`, and the pre-registered
-decision rule in `SHARED_HOSTING_MIGRATION_PLAN.md` §4 has returned No-Go on B3.
+selected. It is gated on **G0-A, `NOT VERIFIED`**, and **G0-G, `PARTIAL`** *(corrected 2026-09-22 —
+this read "both `NOT VERIFIED`"; G0-G moved to PARTIAL when the panel was read)*, and the
+pre-registered decision rule in `SHARED_HOSTING_MIGRATION_PLAN.md` §4 has returned No-Go on
+B3. **The conclusion is unchanged:** PARTIAL is not PASS, G0-A is still unanswered, and the
+No-Go fired on G0-D regardless.
 
 **Stop describing this as four small route changes.** On the measured evidence it is an
 **architectural frontend deployment change**: a rendering-strategy switch, four component

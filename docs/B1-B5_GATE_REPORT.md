@@ -104,7 +104,9 @@ answers on 22 for whichever of them do have shell access. Neither fact says anyt
 This matters beyond one row, because it is the root of two live blockers:
 
 - **B-1** — the capability probe has no shell route. Its documented fallback is Plesk →
-  Scheduled Tasks, which depends on **G0-D**, unverified.
+  Scheduled Tasks, which depends on **G0-D** — ~~unverified~~ **answered FAIL on 2026-09-18:
+  no Scheduled Tasks section exists on this subscription.** The fallback does not merely rest
+  on an unknown; it rests on something measured absent, so B-1 currently has *no* route at all.
 - **B-4** — nothing runs `artisan`, so `key:generate`, `migrate`, `db:seed` and
   `ethr:create-admin` have no mechanism. This also takes five checks off
   `deploy-checklist.md` and the `SELECT` in `ROLLBACK_RUNBOOK.md` Scenario B.
