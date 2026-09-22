@@ -47,6 +47,29 @@ if (!URL.createObjectURL) {
   URL.revokeObjectURL = () => {};
 }
 
+// jsdom implements Blob without `stream()`. MSW reads a request body as a
+// stream, so a multipart POST carrying a File produced a request whose body
+// never finished — the handler ran (hit count 1, boundary present) and the
+// promise simply never settled, failing as a testing-library timeout with no
+// error. Measured: FormData with a string field settles; the same FormData
+// with a File hangs; `Blob.prototype.stream` and `File.prototype.stream` are
+// both `undefined`. With this polyfill the identical request settles in ~85ms
+// and the handler receives the file part intact.
+//
+// File extends Blob, so patching Blob covers both. `arrayBuffer()` and
+// `ReadableStream` are already present in this environment — only `stream()`
+// is missing.
+if (typeof Blob !== "undefined" && !Blob.prototype.stream) {
+  Blob.prototype.stream = function stream(this: Blob) {
+    return new ReadableStream<Uint8Array>({
+      start: async (controller) => {
+        controller.enqueue(new Uint8Array(await this.arrayBuffer()));
+        controller.close();
+      },
+    });
+  } as Blob["stream"];
+}
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 beforeEach(() => {
   localStorage.setItem("locale", "en");
