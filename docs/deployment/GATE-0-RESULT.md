@@ -656,7 +656,14 @@ Everything asynchronous depends on this: the scheduler, the queue worker, invoic
 
 **Websites & Domains → Node.js.** Present at all? Which versions? Can an app be started, or is it build-only?
 
-Needed only to *build* the frontend, unless the answer to G0-A forces a Node server.
+**Superseded 2026-09-22 by the measurement below.** This read: *"Needed only to build the
+frontend, unless the answer to G0-A forces a Node server."* The panel shows Plesk provides a
+**startable Node.js application** capability — a startup file, an application mode and an
+application URL — so this gate is not build-only. Two things gate whether that capability is
+actually usable for **Branch A**, and neither is settled by it being present: the **version**,
+observed at **22.23.2** against this repository's required **Node 24** — 22 does **not** satisfy
+24 — and **G0-A** routing, still `NOT VERIFIED`. The pre-registered **No-Go → Option A** decision
+is untouched by this: it fired on **G0-D**, which remains FAIL.
 
 > **Record the exact versions offered, and do not read "≥ 20.9" as the bar.** That figure
 > is Next.js 16's own floor. This repository pins **Node 24** in `.nvmrc`, and CI reads it
