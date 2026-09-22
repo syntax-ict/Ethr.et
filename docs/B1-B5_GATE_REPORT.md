@@ -267,9 +267,14 @@ That argument is about **Plesk's data model**, and it is probably right about it
 though, is enforced by the **service plan**, and whether Ethio Telecom's quota counts a
 wildcard as one host or as each host beneath it is **NOT VERIFIED** — it is asked in the
 higher-plans ask of `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`. Until it is answered,
-treat the storage/bandwidth framing as the *likely* case rather than the settled one. The cap only becomes fatal if
-wildcard vhosts are unsupported — in which case per-tenant subdomains would be capped at
-5 and the SaaS model cannot work on any tier below "unlimited".
+treat the storage/bandwidth framing as the *likely* case rather than the settled one.
+
+There are therefore **two** ways the cap bites, not one. The long-standing reading is that
+it becomes fatal only if **wildcard vhosts are unsupported** — per-tenant subdomains would
+then be capped at 5, and the SaaS model cannot work on any tier below "unlimited". The
+counting question above adds a second: even with `*` accepted, a quota that charges every
+host beneath it reaches the same ceiling by a different route. Both are closed by the same
+answer from Ethio Telecom.
 
 ---
 
