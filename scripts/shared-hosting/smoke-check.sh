@@ -43,10 +43,15 @@ else
 fi
 
 printf '\n\033[1m━━━ 4. Encryption in transit to the database\033[0m\n'
-# The approved architecture (SHARED_HOSTING_PLAN.md §3) puts MySQL on the plan
-# at DB_HOST=localhost, so there is no network hop to encrypt and no external
-# 5432 to reach. This check therefore REPORTS the shape rather than asserting
-# TLS unconditionally — asserting it would fail a correct localhost deploy.
+# DECISION DB-1 (SHARED_HOSTING_PLAN.md §0) puts MySQL on the plan at
+# DB_HOST=localhost, so there is no network hop to encrypt and no external 5432
+# to reach — gap-table row #6 is retired on that basis. This check therefore
+# REPORTS the shape rather than asserting TLS unconditionally, which would fail
+# a correct localhost deploy.
+#
+# It is kept rather than deleted precisely because the decision could be
+# revisited: point DB_HOST at anything non-loopback and the assertion below
+# turns back on and refuses to pass without TLS evidence.
 DB_HOST_VAL=$(grep -E '^DB_HOST=' "$API_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '"'"'"' ')
 case "${DB_HOST_VAL:-}" in
   ""|localhost|127.0.0.1|::1)
@@ -62,19 +67,21 @@ case "${DB_HOST_VAL:-}" in
 esac
 
 printf '\n\033[1m━━━ 5. Tenant isolation (the actual control)\033[0m\n'
-# NOTE ON RLS. The deploy brief asked this step to assert "RLS active for
-# ethr_app". It does not, and cannot, for two measured reasons:
+# NO RLS CHECK HERE, AND THAT IS SETTLED RATHER THAN OMITTED.
 #
-#   1. ETHR does not use row-level security. Isolation is an Eloquent global
-#      scope, api/app/Traits/BelongsToTenant.php:17-23 — `where tenant_id = ?`
-#      with `whereRaw('0 = 1')` when no tenant is resolved. Zero occurrences of
-#      ROW LEVEL SECURITY / CREATE POLICY / current_setting( exist under api/.
-#   2. The approved architecture is MySQL on the plan. MySQL has no RLS
-#      feature at all; it is PostgreSQL-only.
+# The deploy brief asked this step to assert "RLS active for ethr_app". That
+# premise was tested repo-wide and did not hold, and the question is now closed
+# by DECISION DB-1 in SHARED_HOSTING_PLAN.md §0: MySQL/MariaDB on the plan, no
+# external PostgreSQL. The audit found zero policies, zero ENABLE ROW LEVEL
+# SECURITY, no ethr_app role anywhere in the repository, and no test asserting
+# isolation below the query builder.
 #
-# A check named "RLS active" would therefore either always fail or be a
-# decoration that passes while testing nothing. This asserts the control that
-# actually exists, which is the thing worth smoke-checking after a deploy.
+# Isolation is an Eloquent global scope — api/app/Traits/BelongsToTenant.php:17-23,
+# `where tenant_id = ?`, falling back to `whereRaw('0 = 1')` when no tenant is
+# resolved. MySQL has no RLS feature regardless; it is PostgreSQL-only.
+#
+# A check named "RLS active" would therefore either always fail or pass while
+# testing nothing. This asserts the control that actually exists.
 ISO=$(php "$API_DIR/artisan" tinker --execute '
     $m = new \App\Models\Employee;
     echo in_array(\App\Traits\BelongsToTenant::class, class_uses_recursive($m)) ? "trait:yes" : "trait:no";
