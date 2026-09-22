@@ -42,7 +42,20 @@ declare(strict_types=1);
  * Counts are per file rather than per line on purpose: line numbers move with
  * every unrelated edit, and a check that cries wolf gets muted.
  *
- * Generated 2026-09-16 from `grep -rEc 'withoutGlobalScopes?\(' app/`.
+ * ## Counted by the tokeniser, not by grep (2026-09-22)
+ *
+ * This file was generated from `grep -rEc 'withoutGlobalScopes?\(' app/`, and
+ * that is a text search: it counts the same words written in a comment. Five of
+ * the 161 it once summed to were comments, every one in a file whose docblock
+ * explains why its bypass is safe. `Http/Middleware/EnsurePlatformContext.php`
+ * is absent below for exactly that reason — it never held a bypass at all, only
+ * a docblock mentioning one.
+ *
+ * Counting is now `countTenantScopeBypassCalls()` in the test beside this file,
+ * which walks `token_get_all()` and skips T_COMMENT, T_DOC_COMMENT and string
+ * literals. Regenerate with that, never with grep.
+ *
+ * Originally generated 2026-09-16; re-counted 2026-09-22.
  */
 return [
     'Console/Commands/CreateAdminCommand.php' => 2,
@@ -53,20 +66,19 @@ return [
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
-    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
+    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 15,
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
     'Http/Controllers/Api/V1/Device/DeviceController.php' => 5,
     'Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
-    'Http/Middleware/EnsurePlatformContext.php' => 1,
     'Http/Middleware/ScimAuth.php' => 1,
     'Http/Requests/Auth/LoginRequest.php' => 1,
     'Jobs/BackupTenantJob.php' => 3,
     'Jobs/DispatchWebhookJob.php' => 3,
     'Jobs/GenerateMonthlyInvoicesJob.php' => 2,
-    'Jobs/HandleOverdueInvoicesJob.php' => 7,
+    'Jobs/HandleOverdueInvoicesJob.php' => 6,
     'Jobs/NotifyAnnouncementAudienceJob.php' => 2,
     'Jobs/NotifyExpiringTrialsJob.php' => 1,
     'Jobs/ProcessPayrollJob.php' => 2,
@@ -76,7 +88,7 @@ return [
     'Listeners/NotifyDeviceOffline.php' => 1,
     'Listeners/NotifyPayrollProcessed.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
-    'Notifications/Concerns/RespectsNotificationPreferences.php' => 2,
+    'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
     'Services/Admin/PlatformAnalyticsService.php' => 3,
     'Services/Analytics/BranchAnalyticsService.php' => 5,
@@ -90,7 +102,7 @@ return [
     'Services/Dashboard/EmployeeDashboardService.php' => 1,
     'Services/Holiday/HolidayService.php' => 4,
     'Services/Identity/IdentityResolver.php' => 2,
-    'Services/Import/EmployeeImporter.php' => 2,
+    'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,
     'Services/Leave/LeaveDayCalculator.php' => 1,
     'Services/LoginAttemptService.php' => 1,

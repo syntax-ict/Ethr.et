@@ -10,7 +10,7 @@ declare(strict_types=1);
  * than every tenant's. That is the single property this product's safety rests
  * on, and `withoutGlobalScope` / `withoutGlobalScopes` turns it off.
  *
- * Most of the 161 call sites are legitimate — platform-admin surfaces,
+ * Most of the 156 call sites are legitimate — platform-admin surfaces,
  * pre-authentication lookups, global reference data, and queued jobs, which run
  * with no HTTP tenant context and must re-scope by hand. The rule is that every
  * one re-applies a tenant predicate. Nothing enforced that, and one was
@@ -19,13 +19,84 @@ declare(strict_types=1);
  * This does not audit the existing sites; a count cannot. It makes adding one a
  * deliberate act, which is what was missing when P0-1 went in.
  *
- * The figure above read **156** until 2026-09-22. On that date four files carried
- * four different counts of the same thing: this docblock said 156, the inventory
- * beside it summed to 161, `docs/CLAUDE.md` said "~147 sites do, nothing enforces
- * it" — wrong on the number AND on the enforcement, since this test is the
- * enforcement — and the root `CLAUDE.md` said 161. The second assertion below
- * exists so the documented figure can no longer drift from the enforced one.
+ * ## Why the figure moved 156 -> 161 -> 156
+ *
+ * On 2026-09-22 four files carried four different counts: this docblock said
+ * 156, the inventory beside it summed to 161, `docs/CLAUDE.md` said "~147 sites
+ * do, nothing enforces it" — wrong on the number AND on the enforcement, since
+ * this test is the enforcement — and the root `CLAUDE.md` said 161. They were
+ * reconciled upward, to 161. The second assertion below exists so the documented
+ * figure can no longer drift from the enforced one.
+ *
+ * **That reconciliation picked the wrong number.** Counting was `preg_match_all`
+ * over raw file text, which cannot tell a call from the same words in a comment,
+ * and five matches were comments — every one in a file whose docblock explains
+ * why its bypass is safe. Counting is now tokenised
+ * (`countTenantScopeBypassCalls` below) and the figure is 156 across 54 files:
+ * `Http/Middleware/EnsurePlatformContext.php` leaves the inventory entirely,
+ * because its only match was ever a docblock.
+ *
+ * The tempting inference here is wrong, so it is written down. It does *not*
+ * follow that the 156 -> 161 rise was comments rather than bypasses. Measured
+ * against the pin commit `21746a9` with the same tokeniser, that tree held
+ * **151 real calls and the same 5 comments** — so the originally-recorded 156
+ * was itself inflated, the five sites added between 09-16 and 09-18 were all
+ * real, and the overcount has been a constant +5 throughout. The first pinned
+ * figure (156) and the true figure today (156) are different quantities that
+ * coincide.
+ *
+ * The lesson is the one this gate exists to teach, turned on itself: a control
+ * that cannot distinguish the thing it guards from prose about that thing will
+ * fire on the wrong events, and the people it fires on are the ones writing the
+ * explanations.
  */
+/**
+ * Count real `withoutGlobalScope(s)` **calls** in one file.
+ *
+ * Tokenised rather than matched with a regex, and that is the point. A regex
+ * over raw file text cannot tell a call from the same words written in a
+ * comment, so `withoutGlobalScopes()` appearing in a docblock that *explains* a
+ * bypass was counted as a bypass. Five were, on 2026-09-22 — in the five files
+ * whose comments document why their bypass is safe. Writing a clear comment
+ * tripped this gate; adding a bypass in silence tripped the same gate with the
+ * same message, and nothing distinguished them.
+ *
+ * `token_get_all()` is PHP's own lexer, so T_COMMENT and T_DOC_COMMENT are
+ * separate token types and simply skipped, as are string literals. A call is a
+ * T_STRING naming the method followed by `(`, ignoring whitespace — which also
+ * matches `withoutGlobalScope ('tenant')` the way the old regex's `\s*` did.
+ */
+function countTenantScopeBypassCalls(string $path): int
+{
+    $tokens = token_get_all((string) file_get_contents($path));
+    $count = 0;
+    $total = count($tokens);
+
+    for ($i = 0; $i < $total; $i++) {
+        $token = $tokens[$i];
+
+        if (! is_array($token) || $token[0] !== T_STRING) {
+            continue;
+        }
+
+        if ($token[1] !== 'withoutGlobalScope' && $token[1] !== 'withoutGlobalScopes') {
+            continue;
+        }
+
+        $next = $i + 1;
+
+        while ($next < $total && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+            $next++;
+        }
+
+        if ($next < $total && $tokens[$next] === '(') {
+            $count++;
+        }
+    }
+
+    return $count;
+}
+
 it('has no unreviewed tenant-scope bypass', function () {
     $appDir = base_path('app');
     $expected = require __DIR__.'/tenant-scope-bypasses.php';
@@ -41,10 +112,7 @@ it('has no unreviewed tenant-scope bypass', function () {
             continue;
         }
 
-        $count = preg_match_all(
-            '/withoutGlobalScopes?\s*\(/',
-            (string) file_get_contents($file->getPathname())
-        );
+        $count = countTenantScopeBypassCalls($file->getPathname());
 
         if ($count > 0) {
             $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($appDir) + 1));
