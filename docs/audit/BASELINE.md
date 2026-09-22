@@ -977,6 +977,118 @@ The consequence is not a missing row. It is a row **the tenant cannot see**: the
 
 ---
 
+### 11d. The tenant-scope bypass audit — second pass **[2026-09-22]**
+
+> **Numbering note.** Two sections in this file are numbered `11c` — *File uploads and
+> audit logging* and *The tenant-scope bypass audit — first pass*. Neither is renumbered
+> here: root `CLAUDE.md` cites "§11c" for the bypass audit, and renaming either would break
+> that reference to fix a cosmetic collision. This section is `11d` regardless, since no
+> other section claims it.
+
+§11c above — *the bypass audit*, not the file-uploads one — covered the 33 sites its method
+flagged. This pass re-ran the question over
+**all** of them with a stricter test, and reaches a different — and less comfortable —
+shape of answer.
+
+**It found no site that can reach another tenant's rows.** It found five that are safe for
+reasons nothing enforces.
+
+#### Method, and why the numbers do not compare to §11c
+
+| | §11c (2026-09-16) | §11d (2026-09-22) |
+|---|---|---|
+| Enumeration | `preg_match_all` over raw text | `token_get_all()` — comments and string literals excluded |
+| Population | **156** = 151 real calls + 5 docblock mentions | **156** real calls |
+| Predicate test | a `tenant_id` / `tenant()` / `CurrentTenant` reference **within ±8 lines** | a `where`-family predicate on `tenant_id` **in the same statement** |
+
+**The two 156s are different quantities that coincide.** §11c's population included five
+comments and excluded five call sites that had not yet been written; today's is 156 real
+calls. Root `CLAUDE.md` §4 records why, and it is the same trap that made the count read
+161 for four days.
+
+The stricter test is the point. §11c asked *is a predicate nearby*; this asks *does the
+query state one*. A predicate eight lines away can be on a different query.
+
+#### Counts
+
+| Class | n |
+|---|---|
+| **SAFE** — `where`-family predicate on `tenant_id` in the same statement | **106** |
+| **SAFE-BY-DESIGN** — target is a global model (`Tenant`), so no tenant scope exists to drop | **11** |
+| **SAFE-BY-DESIGN** — no same-statement predicate, justified individually below | **39** |
+| **UNSAFE** | **0** |
+
+The 39, read one at a time:
+
+| Sub-class | n | Why it holds |
+|---|---|---|
+| Platform admin | 9 | every public method of all three `Admin*Controller`s carries `Gate::authorize('admin.manage')`; the route group adds `EnsurePlatformContext` + `RequirePlatformMfa` |
+| Derived from a tenant-owned key | 15 | `payroll_run_id`, `user_id`, `webhook_id`, `subscription_id`, a `$run` already scoped |
+| Platform billing / super-admin sweeps | 6 | invoices and subscriptions across all tenants, which is the feature |
+| Pre-authentication | 4 | the presented secret is the authority — API key hash, device token, PAT |
+| Scheduler sweeps that set tenant per row | 2 | `RunScheduledReportsJob:92` and `RunDashboardDigestsJob:79` both call `$currentTenant->set()` per row |
+| Console super-admin creation | 1 | `tenant_id => null` deliberately |
+| Builder helper / relation-constrained | 2 | predicate supplied by the caller or by the relation's foreign key |
+
+#### The five that are safe for reasons nothing enforces
+
+**1. `DeviceController.php:537` — keyed on a non-secret with no unique index.**
+`->where('serial_number', $serialNumber)->first()`. The 2026-08-23 migration's own comment
+calls serials *"printed on the hardware, enumerable"*, and **`serial_number` carries no
+unique index** (`0001_01_01_000004:53` is a plain nullable string), so two tenants can hold
+the same serial and `first()` picks arbitrarily. Saved by defence in depth, verified rather
+than assumed: a device with a token is rejected (`token_required`), and a token-less one
+must pass `webhookIpAllowed()`, which is **fail-closed** — null or empty allowlist returns
+`false` (`Device.php:68-75`). Residual: two token-less devices sharing a serial *and*
+overlapping allowlists. Note `DemoTenantSeeder.php:315` creates devices with no
+`webhook_token`, so token-less devices are reachable by a path that is not the controller.
+
+**2. `DeviceController.php:523` — `webhook_token` also has no unique index.** 256-bit
+`bin2hex(random_bytes(32))`, so collision is negligible *in practice* and unprevented *in
+schema*.
+
+**3. `OrganizationProvisioner.php:335` — a builder factory that cannot enforce its own
+contract.** `(new $modelClass)->newQuery()->withoutGlobalScope('tenant')` — dynamic model,
+no predicate. Safe **only** because both current callers add one immediately (`:301` and
+`:438`, each `->where('tenant_id', …)`). A third caller that forgot would be a silent
+cross-tenant read and nothing would catch it.
+
+**4. Fifteen sites derived from a key, stating nothing.** Bare `::find($id)` on
+tenant-scoped models. Each is safe because the id arrives from a trusted dispatch, but the
+query asserts nothing — the asymmetry root `CLAUDE.md` already flags inside
+`DispatchWebhookJob`, where `handle()` states `tenant_id` and `failed()` derives from
+`webhook_id`.
+
+**5. `StoreEmployeeRequest.php:52` — validation that does not scope.** Not a bypass, but
+adjacent and worth recording. `'supervisor_id' => ['nullable', 'exists:employees,public_id']`
+uses Laravel's presence verifier, which **does not apply Eloquent global scopes**, so
+another tenant's `public_id` passes validation. It does not become a leak:
+`EmployeeController::resolveRelationIds():287` resolves via a *scoped*
+`where('public_id', …)->first()`, so a foreign id resolves to `null`. The effect is a
+**silently nulled supervisor** — a data-integrity wart, and the reason
+`ScanMissingPunchesJob:84`'s unscoped supervisor lookup is in fact safe.
+
+#### What this pass does not claim
+
+It judged each statement, and each caller where a statement alone was not enough. It did
+**not** trace every dispatch path for all fifteen derived-key sites; the highest-risk ones
+were checked individually (`BackupTenantJob`'s requester is always `$request->user()->id`
+from the admin controller; `$runs` in `ExecutiveDashboardService` derives from a
+`where('tenant_id', $tenantId)` query at `:564`/`:597`) and the pattern taken as sound for
+the rest. Tracing those fifteen is a separate pass.
+
+**Nothing was changed.** This is a measurement, recorded so the next reader starts from it
+rather than repeating it.
+
+#### The shape, stated plainly
+
+It is not a list of bugs. It is that **106 of 156 sites prove their own safety and 50 do
+not** — they are safe because of something elsewhere: a gate, a dispatcher, a caller, a
+backfill, an unenforced uniqueness assumption. `TenantScopeBypassInventoryTest` counts all
+156 identically and audits none of them.
+
+---
+
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**
 
 Third and fourth findings from the billing tests §12 flagged as missing.
