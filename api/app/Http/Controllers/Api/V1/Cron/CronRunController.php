@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Cron;
 
 use App\Services\Observability\QueueHealth;
+use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +25,23 @@ use Illuminate\Support\Facades\Cache;
  */
 class CronRunController
 {
-    /** `php artisan schedule:run` — Laravel decides internally what is due. */
+    /**
+     * `php artisan schedule:run` — Laravel decides internally what is due.
+     *
+     * KEPT OUT OF THE PUBLISHED API CONTRACT, deliberately. CI caught this:
+     * Scramble discovered both routes and `src/api/generated.ts` went stale.
+     * Regenerating would have been the quick fix and the wrong one —
+     *
+     *   1. these routes 404 when CRON_TOKEN is unset precisely so an
+     *      unconfigured deployment does not confirm they exist; publishing
+     *      them in an OpenAPI document advertises them instead;
+     *   2. `generated.ts` is the FRONTEND's typed client, and the frontend
+     *      will never call these;
+     *   3. the drift diff showed this method's own prose — "shared hosting
+     *      runs no supervisor" — being lifted into a customer-facing
+     *      contract. Internal infrastructure detail does not belong there.
+     */
+    #[ExcludeRouteFromDocs]
     public function schedule(): JsonResponse
     {
         return $this->runExclusively('schedule', function (): array {
@@ -42,6 +59,7 @@ class CronRunController
      * HTTP timeout AND under the one-minute tick, so runs cannot overlap even
      * if the lock below were somehow lost.
      */
+    #[ExcludeRouteFromDocs]
     public function queue(): JsonResponse
     {
         return $this->runExclusively('queue', function (): array {
