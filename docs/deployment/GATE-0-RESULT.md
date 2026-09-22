@@ -369,6 +369,25 @@ reason the conclusion survives.*
    FAIL. Not confirmed** — the reading came from a flattened page capture, and the bottom
    of the page has not been read.
 
+4. **Re-read 2026-09-22 — what the page *does* offer, enumerated.** VERIFIED from the
+   panel: per-domain **Apache** settings, per-domain **nginx** settings, **proxy mode**
+   (still described as nginx proxying to Apache), **smart static files processing**,
+   **serve static files directly by nginx**, **maximum HTTP request body size**, **nginx
+   caching**, and configurable **additional headers, MIME types, index files and
+   handlers**. The Plesk build is **18.0.80** on `lin6.ethiotelecom.et`.
+
+   **This does not move G0-A, and the enumeration is the reason it cannot.** Reading 3
+   said the two directive textareas are absent; this list, gathered independently, does
+   not contain them either — so it *corroborates* that absence rather than resolving it.
+   And corroborated absence is still not the measurement G0-A asks for.
+
+   **Do not read any of these fields as routing evidence.** G0-A asks a specific question:
+   can `/` be served by a Node application while `/api/*` reaches the Laravel front
+   controller, on this account? None of the controls above has been shown to do that.
+   "Plesk exposes an nginx settings page" and "ETHR's routing works here" are different
+   claims, and only the first is VERIFIED. **G0-A stays `NOT VERIFIED` until routing is
+   actually demonstrated against this host.**
+
 ### The account was not untouched
 
 - `httpdocs/backend/` held a **stock Laravel + Breeze scaffold, not ETHR** — it carries
@@ -438,7 +457,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-D** | cron type | "Run a command" | **No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the subscription dashboard** (owner-read 2026-09-18). The listing is otherwise complete — Files, Databases, FTP, Backup &amp; Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories — and *Dev Tools* was separately read on 2026-09-17 (PHP, Git, Composer; no Terminal). | **FAIL — strong evidence, one confirmation short** | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
-| **G0-G** | Node.js — **build and application execution** *(was "Node.js (build only)"; corrected 2026-09-22 — the panel offers a startable application, so build-only was the wrong thing to be testing)* | **Node 24**, this repository's pin in `.nvmrc`. **Not** Next's 20.9 floor, and **not relaxed to fit the host** — see the rule below. Observed 22.23.2 is recorded in *Actual*; it does not meet this. | **PRESENT, and application-execution capable.** Panel 2026-09-22: Node.js Version **22.23.2**, package manager npm, Document Root `/ethr`, Application Root `/ethr`, Application Startup File `app.js`, Application Mode `production`, Application URL `http://ethr.et`, custom environment variables available; the panel offers *Enable Node.js* and *Run Node.js commands*. **Not build-only** — the startup-file/mode/URL trio answers this gate's third question. **But 22.23.2 is below the pinned 24**, and is the exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed*. Nothing was enabled or started. | **PARTIAL** | panel 2026-09-22 |
+| **G0-G** | Node.js — **build and application execution** *(was "Node.js (build only)"; corrected 2026-09-22 — the panel offers a startable application, so build-only was the wrong thing to be testing)* | **Two requirements, and only one is missed.** *CI build/test toolchain:* **Node 24**, this repository's pin in `.nvmrc` — **not** Next's 20.9 floor, and **not relaxed to fit the host**; observed 22.23.2 does **not** meet it. *Frontend application runtime:* **Node 22**, declared in `docker/frontend/Dockerfile` (`FROM node:22-alpine`, which both builds and runs `server.js`); observed 22.23.2 **is** that version. See the corrected note below — do not read this row as "22 fails ETHR's Node requirement". | **PRESENT, and application-execution capable.** Panel 2026-09-22: Node.js Version **22.23.2**, package manager npm, Document Root `/ethr`, Application Root `/ethr`, Application Startup File `app.js`, Application Mode `production`, Application URL `http://ethr.et`, custom environment variables available; the panel offers *Enable Node.js* and *Run Node.js commands*. **Not build-only** — the startup-file/mode/URL trio answers this gate's third question. **But 22.23.2 is below the pinned 24**, and is the exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed* — **on the Vitest harness**, which §12d itself says involves no application code. Nothing was enabled or started. | **PARTIAL** | panel 2026-09-22 |
 | **G0-H** | outbound SMTP 587/465 | open | | NOT VERIFIED | probe |
 | G0-H | mailbox send cap | known | | NOT VERIFIED | panel |
 | **G0-I** | `SELECT VERSION()` | verbatim | | NOT VERIFIED | probe DB1 |
@@ -638,7 +657,9 @@ location = /ethr-proxy-probe { return 200 "proxy-directives-accepted"; }
 
 **Websites & Domains → Add Subdomain**, name it `*`.
 
-ETHR is multi-tenant by subdomain. If a literal `*` vhost is not accepted, each tenant needs its own Plesk entry and the plan's subdomain cap becomes a **hard limit on how many tenants the product can have** — 5 on Bronze, 10 on Silver, unlimited only at the top tier. That is a business ceiling, not a hosting detail, and it should be settled before any tier is purchased.
+ETHR is multi-tenant by subdomain. If a literal `*` vhost is not accepted, each tenant needs its own Plesk entry and the plan's subdomain cap becomes a **hard limit on how many tenants the product can have** — **PUBLISHED** plan figures: 5 on Bronze, 10 on Silver, 15 on Gold, unlimited on Platinum. That is a business ceiling, not a hosting detail.
+
+**OPEN QUESTION — do not record the published number as the tenant cap.** Whether it *is* the ceiling turns on a second question nobody has answered: **how Ethio Telecom counts a wildcard against the quota.** If `*.ethr.et` counts as **one**, the number does not bind at all; if each host under it counts individually, the number *is* the customer ceiling. Elsewhere this repository has assumed the first (`MIGRATION_STATE.md` item 2 and R12, `B1-B5_GATE_REPORT.md`) — that assumption is **NOT VERIFIED**, because "Plesk stores a wildcard vhost as one entry" is a panel mechanic, while the quota is a **service-plan accounting policy** and the two need not agree. It is asked explicitly in the higher-plans ask of [`ETHIO-TELECOM-SUPPORT-REQUEST.md`](ETHIO-TELECOM-SUPPORT-REQUEST.md), and it should be settled **before** any tier is purchased — evidence first, then the purchase.
 
 Also check **SSL/TLS Certificates**: a wildcard certificate needs DNS-01, and the `ethr.et` zone is on `ns2.telecom.net.et`, not Plesk — so automatic issuance is likely impossible and renewals may be manual. Confirm rather than assume.
 
@@ -661,8 +682,9 @@ frontend, unless the answer to G0-A forces a Node server."* The panel shows Ples
 **startable Node.js application** capability — a startup file, an application mode and an
 application URL — so this gate is not build-only. Two things gate whether that capability is
 actually usable for **Branch A**, and neither is settled by it being present: the **version**,
-observed at **22.23.2** against this repository's required **Node 24** — 22 does **not** satisfy
-24 — and **G0-A** routing, still `NOT VERIFIED`. The pre-registered **No-Go → Option A** decision
+observed at **22.23.2**, which misses the `.nvmrc` **24** CI/test pin but **matches the frontend
+runtime this repository already declares** in `docker/frontend/Dockerfile` — see the corrected
+note below — and **G0-A** routing, still `NOT VERIFIED`. The pre-registered **No-Go → Option A** decision
 is untouched by this: it fired on **G0-D**, which remains FAIL.
 
 > **Record the exact versions offered, and do not read "≥ 20.9" as the bar.** That figure
@@ -729,7 +751,10 @@ is untouched by this: it fired on **G0-D**, which remains FAIL.
 > What still gates Branch A is **G0-A** routing, `NOT VERIFIED` — and upstream of all of it,
 > **G0-D** remains FAIL, so nothing runs `artisan` regardless.
 
-**Question 2 — version. 22.23.2 does NOT satisfy the requirement, and the miss is exact.**
+**Question 2 — version. 22.23.2 misses the `.nvmrc` CI/test pin, and the miss is exact.**
+*(Heading corrected 2026-09-22: it read "does NOT satisfy the requirement", which the note above
+shows is true of the CI toolchain and false of the frontend runtime. The measurement below is
+unchanged; only the scope of the claim is.)*
 > The rule above says the bar is this repository's pinned **24**, not Next's 20.9 floor, and
 > says to record the gap rather than round it up. `audit/BASELINE.md` §12d ran the frontend
 > suite version by version:
@@ -787,8 +812,8 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
 | **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §1, then verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
 | **G0-B.3** | Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §2 and do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
-| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It also reduces **G0-G to build-only Node**. Cross-origin remains the cost only if Branch A is chosen anyway. |
-| **G0-C** | Per-tier subdomain cap becomes a hard tenant cap. Settle before purchasing a tier. |
+| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It would also reduce this repository's *use* of Node to build-only — ~~and so **G0-G to build-only Node**~~ **withdrawn 2026-09-22**: the panel shows a startable Node application (startup file, application mode, application URL), so G0-G is not a build-only gate whatever Branch is chosen; choosing Branch B would leave that capability unused, not absent. Cross-origin remains the cost only if Branch A is chosen anyway. |
+| **G0-C** | Per-tier subdomain cap becomes a hard tenant cap — **but only if the provider counts a wildcard host-by-host.** That counting rule is an **OPEN QUESTION**, asked in the higher-plans ask of the support request; the published number is not by itself the tenant ceiling. Settle it before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. Unbuilt; must be costed. |
 | **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. **Less likely to fail than it looks — see below.** |
 | **G0-G** | Frontend must ship as static files. **Not bounded work** — measured 2026-09-18 (`7aed9d2`): the export does not build, and making it build still leaves entity routes 404ing because their ids are tenant data. See `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18*. |

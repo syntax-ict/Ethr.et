@@ -24,19 +24,42 @@ re-confirmed against the portal before purchase.
 
 ---
 
-## 1. Product tiers (VERIFIED from public listings — re-confirm on the portal)
+## 1. Product tiers (**PUBLISHED** plan specification — not a capability measurement)
 
 Ethio Telecom sells **Linux Web Hosting (with MySQL DB)**, **Windows Web Hosting (with
 MS SQL Server DB)**, **VPS** and **Dedicated Hosting**. ETHR requires the **Linux +
 MySQL** line; the Windows/MSSQL line is not viable (Laravel targets MySQL/MariaDB here,
 and `config/database.php` has no `sqlsrv` connection).
 
-| Tier | Storage | Bandwidth | Databases | Email accts | Subdomains | SSL |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | 5 GB | 50 GB | 1 | 5 | listed | Free |
-| 2 | 20 GB | 250 GB | 3 | 10 | listed | Free |
-| 3 | 50 GB | Unlimited | 5 | 25 | listed | Free |
-| 4 | 100 GB | Unlimited | 10 | 90 | Unlimited | Free |
+**Named 2026-09-22 from the published plan specification.** This table carried unnamed
+"tier 1–4" rows and the word *listed* where the subdomain counts belong, which made it
+impossible to quote back at support or to match against a plan name in the panel.
+
+| Plan | Storage | Bandwidth | Databases | Email accts | Free domain | Subdomains | Websites | SSL |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Bronze** *(current)* | 5 GB | 50 GB | 1 | 5 | 1 | **5** | 1 | Free |
+| **Silver** | 20 GB | 250 GB | 3 | 10 | 1 | **10** | 3 | Free |
+| **Gold** | 50 GB | Unlimited | 5 | 25 | 1 | **15** | 5 | Free |
+| **Platinum** | 100 GB | Unlimited | 10 | 90 | 1 | **Unlimited** | 10 | Free |
+
+> **What this table is, and what it is not.** Every figure above is **PUBLISHED** plan
+> data. It is evidence of what Ethio Telecom advertises and of nothing else. In
+> particular it is **NOT VERIFIED** evidence that any plan — including the one this
+> account is on — provides **cron / Scheduled Tasks, SSH, a PHP CLI, `php artisan`
+> execution, the `TRIGGER` privilege, or custom nginx/Apache directives.** None of those
+> appears in a plan specification at all, so a higher tier cannot be assumed to carry
+> them. That is precisely why the higher-plans ask exists in
+> [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
+> rather than being answered from this table.
+>
+> **The subdomain column is also not a tenant ceiling** — see `TCO_COMPARISON.md`
+> Finding 2 and `deployment/GATE-0-RESULT.md` → G0-C. Whether a wildcard counts as one
+> against the quota is an **OPEN QUESTION**.
+>
+> **Naming collision, worth stating once.** *Gold* and *Platinum* here are **shared
+> hosting** plans. The **VPS Gold** and **VPS Platinum** named below and in
+> `TCO_COMPARISON.md` are a different product line — root servers, different prices. The
+> bare word "Gold" is ambiguous in this repository; always qualify it.
 
 Control panel: **Plesk** (not cPanel). Price band roughly **452–1,009 ETB**.
 Server location: Ethiopia.
@@ -48,7 +71,9 @@ shared-schema tenancy: one database serves every tenant. Even tier 1 is schema-s
 documents and per-tenant backups (`BackupTenantJob`). If storage stays on the hosting
 account rather than external S3, tier 3 or 4 is the realistic floor.
 
-### VPS tiers (VERIFIED — relevant to the hybrid option)
+### VPS tiers (**PUBLISHED** — and note the name collision with shared *Gold*/*Platinum* above)
+
+**Prices below are PUBLISHED figures from a third-party directory dated 2020, not VERIFIED ones** — `TCO_COMPARISON.md` Finding 1 records that both Ethio Telecom web properties fail TLS verification when fetched, so no price here was read first-hand. VPS is the **Option A fallback**, not the production target.
 
 | Plan | RAM | Storage | Bandwidth | Root | Price |
 | --- | --- | --- | --- | --- | --- |
@@ -67,7 +92,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | --- | --- | --- | --- | --- |
 | B1 | **Wildcard subdomain** `*.ethr.et` served by one vhost | **UNKNOWN** | `ResolveTenant` resolves tenants **only** from the subdomain in production. Without a catch-all, every new tenant needs a manual Plesk subdomain — self-service signup (`RegisterTenantRequest` → `ProvisionTenant`) silently produces tenants nobody can reach. | Ask support: "Can I configure a wildcard subdomain `*.mydomain.et` pointing at one document root?" In Plesk this is *Add Subdomain* with the name `*` — supported by Plesk itself, but frequently disabled on shared plans. |
 | B2 | **Wildcard TLS certificate** `*.ethr.et` | **UNKNOWN** | "Free SSL" on shared plans is normally per-hostname Let's Encrypt. Wildcard issuance needs **DNS-01**, which needs API access to the DNS zone. Without it, tenant hosts serve a certificate error — fatal, since `SESSION_SECURE_COOKIE=true` means auth cookies are not sent over a distrusted connection. | Ask: "Does the free SSL support wildcard certificates via DNS-01, and do I control the DNS zone or an API token for it?" |
-| B3 | **Cron jobs** | **UNKNOWN** | 14 scheduled entries and all 16 queued job classes depend on it. Without cron: no leave accrual, no carry-forward, no invoicing, no overdue handling, no anomaly scan, no missing-punch scan, no scheduled reports, no digests, no approval reminders, no data cleanup, **and no queued email is ever sent**. | Plesk has a *Scheduled Tasks* panel. Ask for the **minimum interval** — some plans cap at 5, 15 or 30 minutes. 1-minute is wanted; 5 is tolerable. |
+| B3 | **Cron jobs** | **UNKNOWN** | 14 scheduled entries and all 16 queued job classes depend on it. Without cron: no leave accrual, no carry-forward, no invoicing, no overdue handling, no anomaly scan, no missing-punch scan, no scheduled reports, no digests, no approval reminders, no data cleanup, **and no queued email is ever sent**. | ~~Plesk has a *Scheduled Tasks* panel.~~ **Corrected 2026-09-22 — that was a generic Plesk assumption, and it is false on this account.** Measured 2026-09-18: **no Scheduled Tasks / Task Scheduler / Cron Jobs section exists** on the subscription dashboard, on an otherwise complete listing. That is **G0-D = FAIL** (`deployment/GATE-0-RESULT.md`), and it is what fired the pre-registered **No-Go → Option A**. Plesk the product having the feature says nothing about this service plan exposing it. Still to ask: whether it can be granted, at what **minimum interval**, and whether tasks may be of the *"Run a command"* type — the cron ask of the support request. |
 | B4 | **PHP version ≥ 8.2** | **VERIFIED — 8.3.33** (panel, 2026-09-17) | Laravel 12 hard-requires it. Below 8.2 the application does not boot. | Plesk *PHP Settings* lists selectable versions. |
 | B5 | **Node.js runtime** (Plesk Node.js extension) | **UNKNOWN** | Decides Option B1 (keep SSR) vs Option B2 (static export). Not fatal either way — but it changes the amount of frontend work from ~zero to a scoped refactor. | Plesk *Node.js* panel. Ask for the available Node major version — Next 16 needs **Node 20.9+**. |
 

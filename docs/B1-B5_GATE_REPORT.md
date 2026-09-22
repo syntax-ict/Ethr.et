@@ -257,10 +257,17 @@ No CAA record exists, so nothing blocks issuance at the policy level.
 
 ### Consequence for tier choice
 
-Bronze's subdomain cap (5, per 2020 directory data) is **probably not the blocker it
-appeared to be**: a wildcard vhost is *one* subdomain entry, not one per tenant. If
-Plesk accepts `*` as a subdomain name, the numeric cap is irrelevant and Bronze's real
-constraints are **5 GB storage and 50 GB bandwidth**. The cap only becomes fatal if
+Bronze's subdomain cap (**5**, PUBLISHED plan data) is ~~**probably not the blocker it
+appeared to be**~~ **still open — qualified 2026-09-22**. The argument was: a wildcard
+vhost is *one* subdomain entry, not one per tenant, so if Plesk accepts `*` as a subdomain
+name the numeric cap is irrelevant and Bronze's real constraints are **5 GB storage and 50
+GB bandwidth**.
+
+That argument is about **Plesk's data model**, and it is probably right about it. The cap,
+though, is enforced by the **service plan**, and whether Ethio Telecom's quota counts a
+wildcard as one host or as each host beneath it is **NOT VERIFIED** — it is asked in the
+higher-plans ask of `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`. Until it is answered,
+treat the storage/bandwidth framing as the *likely* case rather than the settled one. The cap only becomes fatal if
 wildcard vhosts are unsupported — in which case per-tenant subdomains would be capped at
 5 and the SaaS model cannot work on any tier below "unlimited".
 

@@ -110,10 +110,12 @@ round trip and no grant.
 >
 > **2. What the higher service plans provide**
 >
-> Rather than ask for each capability separately, could you tell me what the plans above
-> my current one include — specifically:
+> My current plan is **Linux Bronze**. Rather than ask for each capability separately,
+> could you tell me what **Silver**, **Gold** and **Platinum** include — specifically:
 >
 > - Scheduled Tasks / cron, and the minimum interval
+> - whether PHP can be run from the command line on the account at all — by a scheduled
+>   task or any other means — since that is what the first question really turns on
 > - SSH access
 > - a Node.js runtime
 > - the ability to add custom Apache or nginx directives
@@ -126,8 +128,23 @@ round trip and no grant.
 > then a plan's subdomain number is also the maximum number of customers I can serve on it.
 > If a wildcard counts as one, that limit does not apply and a smaller plan may be enough.
 >
+> For the storage and quota figures I have from your published plan pages, so you can
+> correct me rather than retype them:
+>
+> | Plan | Storage | Bandwidth | Databases | Subdomains | Websites |
+> |---|---|---|---|---|---|
+> | Bronze *(current)* | 5 GB | 50 GB | 1 | 5 | 1 |
+> | Silver | 20 GB | 250 GB | 3 | 10 | 3 |
+> | Gold | 50 GB | Unlimited | 5 | 15 | 5 |
+> | Platinum | 100 GB | Unlimited | 10 | Unlimited | 10 |
+>
+> What I cannot tell from those pages is the part above — cron, command-line PHP, SSH,
+> Node.js and directives are not listed for any plan, which is why I am asking.
+>
 > If a higher plan provides these as standard, upgrading may be simpler for both of us
 > than granting them individually, and I am willing to move to the plan that fits.
+> **Please treat this as a request for information rather than an order** — I would like
+> to confirm the capabilities and the billing period before changing plan.
 >
 > **3. Database privilege: `TRIGGER`**
 >
