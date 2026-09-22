@@ -205,3 +205,58 @@ it('matches every value ENVIRONMENT.md prescribes for this target', function () 
         );
     }
 });
+
+it('keeps the support request agreeing with itself about how many asks it makes', function () {
+    // The ticket is pasted into an email to Ethio Telecom and sent once. A
+    // count that contradicts the body is therefore not a documentation nit: it
+    // tells the recipient how many items to look for, and they will stop
+    // counting where it says to.
+    //
+    // Measured 2026-09-19: the title read "three asks" and the body carried
+    // four. Ask 4 — what the higher tiers include — was added the day after the
+    // draft, and neither the title, the opening sentence, nor the index entry in
+    // docs/README.md came along. That fourth ask bears on G0-A, G0-D and G0-G at
+    // once, so the stale heading was pointing away from the most valuable item
+    // in the document.
+    $path = ethrRepoPath('docs/deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md');
+    $doc = (string) file_get_contents($path);
+
+    // The asks as the recipient sees them: bold numbered headings inside the
+    // blockquoted ticket body.
+    preg_match_all('/^> \*\*(\d+)\. /m', $doc, $items);
+    $numbers = array_map('intval', $items[1]);
+
+    expect($numbers)->not->toBeEmpty(
+        'Parsed no numbered asks from the ticket body. The format changed and this test is '
+        .'now checking nothing — fix the pattern rather than deleting the test.'
+    );
+
+    expect($numbers)->toBe(
+        range(1, count($numbers)),
+        'The ticket body numbers its asks '.implode(', ', $numbers).' — they must run 1..N '
+        .'with no gap and no repeat, because the recipient answers them by number.'
+    );
+
+    $words = [1 => 'one', 2 => 'two', 3 => 'three', 4 => 'four', 5 => 'five', 6 => 'six'];
+    $expected = $words[count($numbers)] ?? (string) count($numbers);
+
+    preg_match('/^# .*?— (\w+) asks/m', $doc, $title);
+
+    expect($title[1] ?? null)->toBe(
+        $expected,
+        'The document title says "'.($title[1] ?? '?').' asks" while the body carries '
+        .count($numbers).'. Update the title, the opening sentence of the ticket, and the '
+        .'row in docs/README.md together.'
+    );
+
+    // docs/README.md is where a reader decides whether to open this file at all.
+    $index = (string) file_get_contents(ethrRepoPath('docs/README.md'));
+
+    preg_match('/ETHIO-TELECOM-SUPPORT-REQUEST\.md.*$/m', $index, $row);
+
+    expect($row[0] ?? '')->toMatch(
+        '/\b(\*\*)?'.$expected.'(\*\*)? asks\b/i',
+        'The docs/README.md row for the support request must say "'.$expected.' asks" to '
+        .'match the document. It said "three" for a day after the fourth was added.'
+    );
+});

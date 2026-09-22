@@ -154,8 +154,11 @@ configured via `.env`.)
 
 `FILESYSTEM_DISK=local` puts every upload — employee photos, attendance selfies,
 documents, generated payslip PDFs, tenant backups from `BackupTenantJob` — on the
-account's own quota. Bronze's exact quota is one of the still-open panel facts (see
-`docs/MIGRATION_STATE.md` NEXT ACTION #3). `FileStorageService` already bounds photo
+account's own quota. Bronze's exact quota is one of the still-open panel facts — the
+**disk quota** row of `deployment/GATE-0-RESULT.md`, still `NOT VERIFIED`, and the tier
+question in `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`. *(This said "NEXT ACTION #3"
+until 2026-09-19. That section was renumbered when it was rewritten against the
+measurements, which is what a positional reference costs; it now names the row.)* `FileStorageService` already bounds photo
 uploads to 512 KB and selfies to 200 KB after compression (`PHOTO_MAX_BYTES`,
 `SELFIE_MAX_BYTES`), which caps *growth rate*, not the ceiling — monitor consumption
 once live rather than assuming a number that hasn't been confirmed.
@@ -170,9 +173,38 @@ long-running process:
 * * * * * cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-`schedule:run` itself dispatches `queue:work --stop-when-empty` where the schedule in
-`routes/console.php` needs it — that file's 14 entries are otherwise unchanged from the
-VPS, because nothing about *what* runs changed, only *how* it's triggered. This line is
+> **THIS WAS FALSE — measured 2026-09-19.** It read: *"`schedule:run` itself dispatches
+> `queue:work --stop-when-empty` where the schedule in `routes/console.php` needs it."*
+> **`routes/console.php` contains no `queue:work` entry.** Its 14 entries were read in
+> full: six are `Schedule::job(...)`, which *enqueues*; five are `Schedule::call(...)`
+> closures whose only action is `Job::dispatch(...)->onQueue(...)`; the remaining three
+> (`devices:sync`, `ethr:backup`, the heartbeat) run inline, and `devices:sync` itself only
+> dispatches `PullDeviceEventsJob`. All 16 jobs implement `ShouldQueue`.
+>
+> So **eleven of the fourteen entries do nothing but insert rows into the `jobs` table**,
+> and the cron line above drains none of them. Granted exactly as written, it restores the
+> **scheduler** and leaves the **worker** absent — invoicing, cleanup, trial notices,
+> scheduled reports and dashboard digests would queue and never run, alongside everything
+> a user triggers: payroll, tenant backups, device pulls, announcements and webhooks.
+>
+> Cron and the worker are two runners, and this section had collapsed them into one.
+> **A second recurring command is required**, naming the queues explicitly because a bare
+> `queue:work` reads only `default`:
+>
+> ```cron
+> * * * * * cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 >> /dev/null 2>&1
+> ```
+>
+> `--max-time=50` keeps it inside the minute so two ticks cannot pile up; `--stop-when-empty`
+> means it costs nothing when the table is empty. The alternative — adding
+> `Schedule::command('queue:work --stop-when-empty …')->everyMinute()` to
+> `routes/console.php`, which would make the "one line" claim true — is **not implemented
+> here**: it also fires on the VPS, where `infrastructure/supervisor.conf` now runs a
+> `queue:work` daemon, and choosing between one runner and two is the owner's call.
+> Recorded in `MIGRATION_STATE.md` → *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER*.
+
+That file's 14 entries are otherwise unchanged from the VPS, because nothing about *what*
+runs changed, only *how* it's triggered. This line is
 correct **only if B3 confirms command-type cron tasks at ≤5-minute granularity**; if
 Plesk offers URL-fetch tasks only, this whole section is replaced by an authenticated
 HTTP endpoint design that has not been built (see above).

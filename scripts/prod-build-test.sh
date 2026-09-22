@@ -298,6 +298,12 @@ check $? "reads and writes hit different hosts ($HOSTS)"
 dc exec -T api sh -c 'wget -q -O /dev/null http://frontend:3000' >/dev/null 2>&1
 check $? "frontend serves over the internal network"
 
+# BROKEN 2026-09-19: Horizon was removed in cdf85d1 and `horizon:status` is no
+# longer a defined command, so this check and the one below cannot pass. They
+# are left in place rather than deleted because they are the acceptance criteria
+# for a worker topology that still has to be chosen -- see the banner at the top
+# of docker-compose.prod.yml. Deleting them would make the test go green over a
+# stack with no queue worker, which is the worse failure.
 dc exec -T worker-realtime php artisan horizon:status 2>/dev/null | grep -q "running"
 check $? "Horizon is running"
 

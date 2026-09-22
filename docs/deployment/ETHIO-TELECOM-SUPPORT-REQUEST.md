@@ -1,4 +1,4 @@
-# Ethio Telecom support request — three asks, one ticket
+# Ethio Telecom support request — four asks, one ticket
 
 **Status:** drafted 2026-09-18, **not yet sent.**
 
@@ -6,9 +6,28 @@ This exists because three separate documents name "one support request" as the r
 the blockers holding the migration, and none of them contained the text. It is written to
 be pasted with minimal editing.
 
+*Title corrected 2026-09-19: it read "three asks" while the body carried four. Ask 4 was
+added the day after the draft and the heading was never brought along — which is how a
+document tells its own reader to skip a quarter of itself.*
+
 **It is the single highest-value action available.** Asks 1 and 2 are alternative solutions
-to the same fatal problem — either one substantially unblocks the migration. Ask 3 is
+to the same fatal problem — either one substantially unblocks the migration.
+
+*Ask 1 corrected 2026-09-19: it requested **one** cron line and claimed that line drove the
+whole background half. It does not. `routes/console.php` has no `queue:work` entry, and
+eleven of its fourteen entries only enqueue, so `schedule:run` alone fills the `jobs` table
+and drains nothing. The ask is now two lines. Sending the earlier version would have got
+exactly what was asked for and still left every queued job unrun.* Ask 3 is
 independent and aborts the database migration by design if refused.
+
+**Ask 4 — added 2026-09-18 — may be worth more than the other three combined.**
+`deployment/GATE-0-RESULT.md` records that *"PHP versions / Node / cron granularity /
+proxy directives"* often **differ by tier**, and that **G0-A, G0-D and G0-G may all have
+different answers on a higher plan**. Those are exactly the three gates blocking this
+migration: no custom directives, no Scheduled Tasks, and a Node runtime nobody has read.
+The account's tier has never been confirmed. One question about plans can therefore
+resolve three gates at once, and it asks the provider to *sell* something rather than to
+grant a favour — which is usually the easier conversation.
 
 **Before sending, check nothing here is stale** — particularly the subscription tier, which
 this repository has never confirmed.
@@ -17,7 +36,7 @@ this repository has never confirmed.
 
 ## What must NOT go in the ticket
 
-- No passwords, no `APP_KEY`, no database credentials. None of the three asks needs one.
+- No passwords, no `APP_KEY`, no database credentials. None of the four asks needs one.
 - No repository URL or source code. The asks are about the hosting account's capabilities.
 
 ---
@@ -38,8 +57,8 @@ round trip and no grant.
 
 ## Suggested subject
 
-> Hosting account `ethret` (`ethr.et`) — requesting Scheduled Tasks, SSH access, and a
-> database `TRIGGER` grant
+> Hosting account `ethret` (`ethr.et`) — Scheduled Tasks, SSH access, a database
+> `TRIGGER` grant, and what the higher plans include
 
 ---
 
@@ -50,7 +69,8 @@ round trip and no grant.
 > I am preparing to deploy a PHP/Laravel application to hosting account **`ethret`** on
 > **`lin6.ethiotelecom.et`**, serving **ethr.et**. Three capabilities the application needs
 > are not currently available on the subscription. I would be grateful if you could enable
-> them, or tell me which tier provides them.
+> them, or tell me which tier provides them. I have a fourth question, about the plans
+> themselves, at the end.
 >
 > **1. Scheduled Tasks (cron)**
 >
@@ -58,16 +78,22 @@ round trip and no grant.
 > understand this is controlled by a service-plan permission rather than by the server, so
 > I assume it is not enabled on my plan.
 >
-> The application needs one recurring task:
+> The application needs two recurring tasks:
 >
 > ```
 > * * * * *  cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
+> * * * * *  cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 >> /dev/null 2>&1
 > ```
 >
-> This single line drives the application's entire background half — scheduled billing,
-> leave accrual, payslip notifications and queued email. Without it those features do not
-> run at all. A one-minute interval is what the framework expects; if the minimum interval
+> Together these drive the application's entire background half — scheduled billing, leave
+> accrual, payslip notifications and queued email. The first decides *when* work is due;
+> the second performs it. Without both, those features do not run at all. Neither is
+> long-running: the second exits as soon as the queue is empty, and in under a minute
+> regardless. A one-minute interval is what the framework expects; if the minimum interval
 > on this plan is longer, please tell me what it is, as the application can be adjusted.
+>
+> If the plan limits how many scheduled tasks a subscription may have, please tell me that
+> limit as well — two is the minimum this application needs.
 >
 > Please also confirm whether tasks can be of the **"Run a command"** type, as opposed to
 > "Fetch a URL" only.
@@ -100,6 +126,19 @@ round trip and no grant.
 > installing a weaker audit trail silently. If the privilege cannot be granted on shared
 > hosting, please let me know, as I need to plan around it explicitly.
 >
+> **4. What the higher service plans provide**
+>
+> Rather than ask for each capability separately, could you tell me what the plans above
+> my current one include — specifically:
+>
+> - Scheduled Tasks / cron, and the minimum interval
+> - SSH access
+> - a Node.js runtime
+> - the ability to add custom Apache or nginx directives
+>
+> If a higher plan provides these as standard, upgrading may be simpler for both of us
+> than granting them individually, and I am willing to move to the plan that fits.
+>
 > Thank you very much for your help.
 
 ---
@@ -112,6 +151,8 @@ round trip and no grant.
 | **1 only** | Installation is possible via deployment actions; the scheduler and queue still have no runner | Scheduler and queue move behind an authenticated HTTP endpoint — unbuilt, and must be costed before it is promised |
 | **2 only** | Installation and operations work; no recurring tasks | As above |
 | **3 only** | `migrate` aborts at `2026_07_22_000001` | See `docs/AUDIT_LOG_INTEGRITY_DECISION.md` — this is a deliberate stop, and the decision to proceed without triggers is the owner's to record |
+| **4 — "no plan offers cron / Node"** | The three blocking gates are **permanent**, not provisioning | This is the answer that settles it. `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule stands unqualified: **Option A**. Record it and stop spending on Option B |
+| **4 — a higher plan provides them** | G0-A, G0-D and G0-G may all flip together | Price it against the VPS in `TCO_COMPARISON.md` before upgrading. Note that **Branch B is still an architectural frontend change** unless the plan also provides a Node runtime — see `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18* |
 
 ## What this ticket does *not* ask for, and why
 

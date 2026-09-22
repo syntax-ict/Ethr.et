@@ -113,9 +113,24 @@ schema-sufficient.
 
 Traced through `composer.lock` `require` blocks and `app/` source.
 
-**Mandatory:** `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
-`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `bcmath`, `iconv`,
-`zip` (dompdf), **`gd`** (image compression and thumbnails in `FileStorageService`).
+**Mandatory (18):** `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
+`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `iconv`, `simplexml`,
+`libxml`, **`gd`** (EXIF stripping in `FileStorageService`, plus thumbnails).
+
+> **Two corrections, measured 2026-09-18.** This list said it was *"traced through
+> `composer.lock` `require` blocks and `app/` source"* — and that trace is exactly what
+> disproves two of its entries.
+>
+> **`bcmath` removed.** It appears in `composer.lock` four times, every one under
+> `suggest`, never `require`. The application calls no `bc*` function: money is stored in
+> integer minor units (`salary_cents`, `price_cents`), which is why it never needed
+> arbitrary precision.
+>
+> **`zip (dompdf)` removed — the attribution was wrong twice over.** `dompdf/dompdf`
+> requires `ext-dom` and `ext-mbstring` only, and **no production package requires
+> `ext-zip` at all.** Its one use is `BackupService`, which tries `PharData` first and
+> falls back to `ZipArchive`, throwing a clear `RuntimeException` if neither exists — so
+> the requirement is **`phar` OR `zip`**, and neither alone is mandatory.
 
 **Conditional:** `intl` (locale formatting), `redis`/`phpredis` (**only** if Redis is
 kept), `sodium` (Laravel encryption paths).
@@ -172,7 +187,7 @@ capability, the dependency is named.
 | File upload | 🟢 GREEN | Bounded by `upload_max_filesize` / `post_max_size`. nginx currently allows 50 MB. |
 | File download / signed URLs | 🟡 YELLOW | `temporaryUrl()` needs S3 **or** the local disk with `serve => true` (already set in `config/filesystems.php`). One hardcoded disk name to change — §D. |
 | Image thumbnails / EXIF strip | 🟡 YELLOW | Needs `ext-gd`. Degrades silently without it. |
-| PDF generation (payslips, invoices, reports) | 🟢 GREEN | `barryvdh/laravel-dompdf` — pure PHP; needs `ext-zip` + `ext-gd`. |
+| PDF generation (payslips, invoices, reports) | 🟢 GREEN | `barryvdh/laravel-dompdf` — pure PHP. **Needs `ext-dom` + `ext-mbstring`**, which is what `dompdf/dompdf` actually declares; `ext-gd` matters for images inside a PDF. *Corrected 2026-09-18: this said `ext-zip`, and no production package requires `ext-zip` at all.* |
 | CSV import (employees, attendance) | 🟡 YELLOW | Staged in DB then queued. Execution-time sensitive. |
 | Reports / scheduled reports | 🟡 YELLOW | `RunScheduledReportsJob` runs hourly — scheduler-dependent. |
 | Dashboard digests | 🟡 YELLOW | `RunDashboardDigestsJob`, hourly — scheduler-dependent. |
@@ -251,6 +266,11 @@ The four dynamic routes (`employees/[id]`, `payroll/[id]`, `devices/[id]`,
 need `generateStaticParams` returning `[]` plus a client-side param read, or a rewrite
 to a shell page.
 
+> **Do not act on the sentence above without reading *MEASURED 2026-09-18* at the end of
+> this section.** The `generateStaticParams` half is **not implementable on these files** —
+> they are `"use client"`, and Next rejects the combination. The "rewrite to a shell page"
+> alternative is the one that works.
+
 **Conclusion:** this application is a client-rendered SPA that happens to be built with
 Next.js. A static export is *technically viable* — a genuinely fortunate finding — but
 it is not free, and must not be done blind. It is Option B2 in the migration plan.
@@ -282,6 +302,70 @@ still in `next.config.ts`, and the four `[id]` dashboard routes still need
 > different directive and is *favourable* to static export. That false positive was hit on
 > this very re-verification and briefly looked like the conclusion had broken. Match on
 > word boundaries.
+
+### MEASURED 2026-09-18 (commit `7aed9d2`) — the export was attempted, and it does not build
+
+Everything above was read from the source. It was never *run*. Running it changes two of
+its conclusions and adds a blocker it did not list.
+
+**Baseline first, so the comparison is fair.** `npm run build` with the shipped
+`output: "standalone"` **passes** — exit 0, 90 routes prerendered, 11 dynamic
+(`routes-manifest.json`), one server-rendered (`/register`). The repository is not broken;
+it is simply built for a Node server.
+
+Switching to `output: "export"` produced three build-stopping blockers, in this order:
+
+| # | Blocker | §E's position |
+|---|---|---|
+| 1 | `/manifest.webmanifest` requires `export const dynamic = "force-static"` | **Not listed.** `app/manifest.ts` is a metadata route and was missed by the "not present, therefore not a blocker" sweep, which checked `route.ts` but not `manifest.ts` |
+| 2 | The four `[id]` routes lack `generateStaticParams()` | Listed, correctly |
+| 3 | **All four are `"use client"`, and Next rejects `generateStaticParams` on a client component** | **Not listed, and it invalidates the prescription** |
+
+Blocker 3, verbatim, four times:
+
+```
+Error: Next.js can't recognize the exported `generateStaticParams` field in route.
+App pages cannot use both "use client" and export function "generateStaticParams()".
+```
+
+**§E prescribes *"`generateStaticParams` returning `[]` plus a client-side param read"*.
+The first half of that cannot be done to these files.** §E notes on its own page that
+**107 of 126** page and layout files are `"use client"` — it simply never connected that
+count to this prescription. The four `[id]` pages are among them, so the compiler rejects
+the addition outright. The remedy is a **server-component wrapper per route** with the
+existing client component moved into a child: four file splits with prop-threading, not
+four one-line additions.
+
+#### The distinction that matters more than the blocker count
+
+These are two different questions and the audit conflates them:
+
+| | |
+|---|---|
+| **Static-export feasibility** | Can `next build` emit files? **Currently no**, and fixable — a metadata directive, four server/client splits, `generateStaticParams` returning `[]` |
+| **Application runtime feasibility** | Will the exported app *work*? **No, and the fixes above do not change that.** `[]` pre-renders nothing, so every real `/employees/123` returns 404 |
+
+The IDs are **tenant data**. Nothing can enumerate every employee, device, payroll run and
+tenant at build time. Making those routes work under export requires client-side routing
+that reads the id from the URL at runtime — §E's *"or a rewrite to a shell page"*, which is
+the option that actually works and the one it costed least explicitly.
+
+**So a passing export build would not mean a working application.** That is the same shape
+as the green-test-run trap in the root `CLAUDE.md`: the signal that looks like success is
+available before the thing itself works.
+
+#### Status
+
+`output: "standalone"` is unchanged and the experiment was reverted in full
+(`git checkout -- src/`, working tree clean). **No production implementation was made.**
+
+**Branch B is NOT APPROVED for implementation** until a deployment architecture is
+selected. It is gated on G0-A and G0-G, both `NOT VERIFIED`, and the pre-registered
+decision rule in `SHARED_HOSTING_MIGRATION_PLAN.md` §4 has returned No-Go on B3.
+
+**Stop describing this as four small route changes.** On the measured evidence it is an
+**architectural frontend deployment change**: a rendering-strategy switch, four component
+splits, and a routing rearchitecture for entity pages.
 
 ---
 

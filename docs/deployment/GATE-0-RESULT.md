@@ -62,7 +62,7 @@ Master plan §8: *evidence before implementation.* `docs/HOSTING_VERIFICATION_CH
 > | | Question it answers | If the answer is bad |
 > |---|---|---|
 > | **Scheduled Tasks** (queue 1) | *Can this migration be performed at all?* | No route runs `artisan`, so no `migrate`, no `key:generate`, no database import, no backup/restore, no queue, no scheduler — and five of `deploy-checklist.md`'s checks cannot run either |
-> | **G0-A** (queue 3) | *How much frontend work?* | ~1 day becomes a bounded, already-scoped static-export change |
+> | **G0-A** (queue 3) | *How much frontend work?* | **An architectural frontend deployment change** — measured 2026-09-18 (`7aed9d2`), not the "bounded, already-scoped" change this row previously claimed |
 >
 > G0-A sizes the work. Scheduled Tasks decides whether there is work to size. And *0a* —
 > is anything still serving at the VPS — precedes both, because it decides whether any of
@@ -101,6 +101,14 @@ Plesk → **Scheduled Tasks** → run once as a PHP CLI task, reading the mailed
 output. The probe's own header names this as the no-shell fallback. It answers everything
 Route A does — **but only if G0-D offers a command-type or PHP-script task.** If Scheduled
 Tasks is URL-fetch only, this route does not exist either. Read G0-D before relying on it.
+
+> **G0-D WAS READ — 2026-09-18 — and neither condition applies. ROUTE B DOES NOT EXIST.**
+> There is no *Scheduled Tasks* section on this subscription at all: not command-type, not
+> URL-fetch, absent. See the G0-D row in the gate table below. With Route A Forbidden and
+> Route D withdrawn when the Plesk Git repository was removed, **Route C is the only live
+> probe route.** The paragraphs below are kept because they describe how to read a
+> scheduled task's output correctly, which applies again the moment ask 1 or ask 2 of
+> `ETHIO-TELECOM-SUPPORT-REQUEST.md` is granted.
 
 **Read the output, not the panel's task status.** Until 2026-09-18 the probe exited `0`
 unconditionally — including on a run whose own summary read *"Laravel 12 will not run
@@ -201,7 +209,7 @@ Answers (all routes): G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
 The probe above sits in `~/` and is never served by Apache, so it structurally cannot answer *"is `.htaccess` honoured?"*. `scripts/hosting-verification/htaccess-canary/` is the opposite trade: it is web-reachable and discloses nothing — five booleans, no environment detail.
 
-1. Upload all four files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`) to `httpdocs/ethr-canary/`.
+1. Upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, **`shadow.js`**) to `httpdocs/ethr-canary/`. `README.md` stays in the repository — it explains the baits, and there is no reason to publish that. **`shadow.js` was added 2026-09-18 and is the bait that counts**: without it, a host serving `.js`/`.css` directly but not `.txt` reports a false PASS on G0-B.5 and hides G0-B.2 with it.
 2. Open `https://www.ethr.et/ethr-canary/canary.php` and follow the printed checks.
 3. Run the four `curl` commands it gives you — **pinned to the Plesk host**, see below.
 4. Save the output, **delete the directory.**
@@ -297,7 +305,7 @@ Record it as its own result, against the `document root editable` row (currently
 2. Establish which vhost answered. Compare a request for `www.ethr.et` against one for a
    name known to hit the server default (`zzq7x.ethr.et`, per `B1-B5_GATE_REPORT.md`). If
    they return the same page, the `ethr.et` vhost is not the one serving you.
-3. Re-upload all four canary files into the **confirmed** document root.
+3. Re-upload all **five** canary files into the **confirmed** document root — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt` and `shadow.js`, as step 1 of the upload instructions above already says. *(Corrected 2026-09-19: this row said "four" while the same document said five 96 lines earlier. `shadow.js` is the bait that counts, so a recovery path that quietly drops it hands back a false PASS on G0-B.5.)*
 4. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — then run
    them, with `--resolve`.
 
@@ -382,16 +390,30 @@ reason the conclusion survives.*
 
 | # | Blocker | Effect |
 |---|---|---|
-| **B-1** | SSH **Forbidden** | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depends on **G0-D, unverified**. |
+| **B-1** | SSH **Forbidden** | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depended on G0-D, **which was answered FAIL on 2026-09-18**: there is no Scheduled Tasks section, so the fallback does not exist either. |
 | **B-2** | No directive fields on Apache & nginx Settings | G0-A cannot be run as written. See the amended consequence below. |
 | **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton created 2026-09-17 23:48, document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost carrying the certificate; inverts the `~/ethr` layout. Identify what was created in the panel before removing it — deleting a vhost is not deleting a folder. |
 | **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` (`DEPLOYMENT.md` step 4) have no non-shell equivalent defined anywhere in this package. |
+| **B-5** | No route to get a schema into the database | Both paths need something this account does not offer: the existing-data path runs `mysql < dump.sql` **on the shared host**, and the fresh path is B-4. Distinct from B-4 because the remedy differs — B-4 needs something that runs `artisan`; B-5 needs that **or** a database import UI, which is the still-open half of manual queue #1. |
+| **B-6** | The DNS cutover already happened and the rollback target may not serve | Not a gate — a safety property that stopped holding. `ROLLBACK_RUNBOOK.md` Scenario A calls "before DNS cutover" *the current state*; `ethr.et` resolves to `213.55.96.154` (the Plesk host), measured twice on 2026-09-17. Whether the VPS still serves, and whether it still holds tenant data and its `APP_KEY`, is unanswered. |
+
+*B-5 and B-6 were added to this table on 2026-09-19. They were recorded in
+`MIGRATION_STATE.md` on 2026-09-17/18 and this register — the one that governs — still
+listed four. `MIGRATION_CHANGELOG.md` has said "six blockers" since.*
 
 **B-1 and B-4 are one support request**, and it reframes G0-D. Without a shell, Scheduled
 Tasks is no longer just how the scheduler runs — **it is the only way to migrate the
 database at all.** If G0-D returns "Fetch a URL only", there is no documented route to
 perform this migration, and that is a hard blocker rather than the costed design change
-the rest of this package describes. **G0-D is now the highest-value panel read.**
+the rest of this package describes. ~~**G0-D is now the highest-value panel read.**~~
+
+**G0-D returned worse than that on 2026-09-18 — the section is absent — so the hard
+blocker is the live case, not the hypothetical one.** The highest-value panel read is now
+**G0-G**, the Node.js page, because it is the one remaining gate whose answer changes what
+the repository must contain: Node present means Branch A stands and the frontend needs
+nothing; Node absent means Branch B, which measurement at `7aed9d2` shows to be an
+architectural frontend deployment change rather than a few route edits. The highest-value
+*action* is sending `ETHIO-TELECOM-SUPPORT-REQUEST.md`, which is what could reopen G0-D.
 
 ---
 
@@ -597,7 +619,9 @@ location = /ethr-proxy-probe { return 200 "proxy-directives-accepted"; }
 
 > **Two documents disagreed about this gate, and this is the resolution.**
 > `MIGRATION_STATE.md:131` records `B1b wildcard vhost VERIFIED PASS (owner: '*' accepted;
-> not yet created)` and its NEXT ACTION says *"already answered — do not re-ask."* This
+> not yet created)` and its NEXT ACTION says *"B1b is answered … do not put that question
+> again"* — quoted from the 2026-09-19 rewrite; it read *"already answered — do not
+> re-ask"* before, with the same meaning. This
 > file records the same gate `PARTIAL`. Both describe the same fact and grade it
 > differently: an **owner report** that the panel accepted the literal name `*`, with **no
 > vhost actually created** and no output recorded.
@@ -668,11 +692,11 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
 | **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §1, then verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
 | **G0-B.3** | Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §2 and do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
-| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — a bounded change already scoped in §E and D6 (delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, `generateStaticParams` on four dynamic routes, `output: "export"`, marketing pages lose SSR). It also reduces **G0-G to build-only Node**. Cross-origin remains the cost only if Branch A is chosen anyway. |
+| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It also reduces **G0-G to build-only Node**. Cross-origin remains the cost only if Branch A is chosen anyway. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap. Settle before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. Unbuilt; must be costed. |
 | **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. **Less likely to fail than it looks — see below.** |
-| **G0-G** | Frontend must ship as static files. Bounded work; see the baseline §11. |
+| **G0-G** | Frontend must ship as static files. **Not bounded work** — measured 2026-09-18 (`7aed9d2`): the export does not build, and making it build still leaves entity routes 404ing because their ids are tenant data. See `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18*. |
 | **G0-H** | Mail may cap tenant count before CPU or storage does, and the queue dead-man's-switch needs a non-email alert path. |
 | **G0-I** | Below the floor, `migrate` fails on the *first* migrations (255-char `utf8mb4` primary keys at 1020 bytes vs the old 767-byte limit). |
 | **G0-J** | Payroll already runs synchronously in the request (`PayrollController.php:38`) against a documented *dedicated-hardware* budget of 30s for 500 employees. A slow shared CPU makes queueing it mandatory rather than advisable. |

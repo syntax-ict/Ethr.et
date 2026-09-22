@@ -11,7 +11,7 @@
  *
  * DEPLOY
  *   1. Upload this whole directory to httpdocs/ethr-canary/ (.htaccess,
- *      canary.php, secret.txt.probe, shadow.txt — all four).
+ *      canary.php, secret.txt.probe, shadow.txt, shadow.js — all five).
  *   2. Visit  https://<host>/ethr-canary/canary.php
  *   3. Follow the two manual checks it prints.
  *   4. Save the output, then DELETE THE DIRECTORY.
@@ -26,7 +26,7 @@ header('Content-Type: text/plain; charset=utf-8');
 $rewriteHit = isset($_GET['rewrite']);
 $shadowHit = isset($_GET['shadow']);
 // Every check below is printed as a copy-pasteable URL, so getting this prefix
-// wrong turns all five into 404s against a path that does not exist — and the
+// wrong turns all six printed URLs into 404s against a path that does not exist — and the
 // canary reads a 404 on /REWRITE_OK as "mod_rewrite is NOT active", which would
 // be a false FAIL on G0-B.1.
 //
@@ -76,9 +76,18 @@ if ($modules === null) {
 printf("modules visible      : %s\n\n", $moduleNote);
 
 if ($shadowHit) {
-    echo "!! You reached this script via /shadow.txt, so the REWRITE won: this\n";
-    echo "!! host let .htaccess rewrite a path that exists as a real file on\n";
-    echo "!! disk. Record G0-B.5 = REWRITE WINS. Carry on reading.\n\n";
+    $which = $_GET['shadow'] === 'js' ? 'shadow.js' : 'shadow.txt';
+    echo "!! You reached this script via /{$which}, so the REWRITE won for that\n";
+    echo "!! extension: this host let .htaccess rewrite a path that exists as a\n";
+    echo "!! real file on disk.\n";
+    if ($which === 'shadow.txt') {
+        echo "!! This is the WEAKER of the two baits. Test /shadow.js as well\n";
+        echo "!! before recording G0-B.5 -- see the G0-B.5 block below for why.\n\n";
+    } else {
+        echo "!! shadow.js is the bait that matters: it carries a static\n";
+        echo "!! extension, so this answer covers the files the deployment\n";
+        echo "!! actually ships. Record G0-B.5 = REWRITE WINS.\n\n";
+    }
 }
 
 echo "── Automatic ───────────────────────────────────────────────────────\n";
@@ -112,19 +121,31 @@ echo "         production while the application still appeared to work.\n";
 echo "         A 404 is NOT a pass — it means the file is missing, so upload\n";
 echo "         secret.txt.probe and try again.\n\n";
 
-echo "[ ???? ] G0-B.5  does a real file shadow the rewrite?\n";
+echo "[ ???? ] G0-B.5  does a real file shadow the rewrite?  RUN BOTH\n";
 echo "         curl -s {$selfUrl}/shadow.txt | head -1\n";
-echo "         shadow.txt exists on disk AND is rewritten to this script, so\n";
-echo "         the answer names which layer resolved the request first:\n";
-echo "           'NOT-A-SECRET...'  -> the FILE won; nginx/Apache served disk\n";
-echo "                                 before the rewrite ran\n";
-echo "           this canary's text -> the REWRITE won; Apache resolved it\n";
-echo "         Neither is a failure. DEPLOYMENT.md step 4a is correct either\n";
-echo "         way — it says to copy only index.php, which holds under both.\n";
-echo "         This records WHICH, so that if the document root ever behaves\n";
-echo "         unexpectedly the cause is known rather than guessed. The\n";
-echo "         runbook previously asserted the file-wins answer without ever\n";
-echo "         having measured it.\n\n";
+echo "         curl -s {$selfUrl}/shadow.js  | head -1\n\n";
+echo "         Each exists on disk AND is rewritten to this script, so the\n";
+echo "         answer names which layer resolved the request first:\n";
+echo "           'NOT-A-SECRET...'  -> the FILE won; nginx served disk before\n";
+echo "                                 the rewrite ran\n";
+echo "           this canary's text -> the REWRITE won; Apache resolved it\n\n";
+echo "         WHY TWO BAITS, AND WHY .js IS THE ONE THAT COUNTS.\n";
+echo "         Measured 2026-09-18 against a local reproduction of Plesk's\n";
+echo "         topology (nginx proxying to Apache):\n";
+echo "           static block includes .txt  -> both report FILE won\n";
+echo "           static block EXCLUDES .txt  -> shadow.txt says REWRITE won,\n";
+echo "                                          shadow.js says FILE won\n";
+echo "         Plesk's generated static block always covers js/css/images;\n";
+echo "         whether it covers .txt varies by version. So .txt alone can\n";
+echo "         report 'rewrite won' on a host that is shadowing every asset\n";
+echo "         the deployment ships — which is .js, .css and .woff2, never\n";
+echo "         .txt. THEY CAN LEGITIMATELY DISAGREE; record both.\n\n";
+echo "         If shadow.js says the FILE won, .htaccess never runs for\n";
+echo "         static assets, so the seven security headers and\n";
+echo "         Cache-Control: immutable silently do not reach them. That is\n";
+echo "         G0-B.2's real failure mode hiding behind G0-B.5's answer.\n";
+echo "         DEPLOYMENT.md step 4a is correct either way — it copies only\n";
+echo "         index.php, which holds under both.\n\n";
 
 echo "$line\n";
 echo "Record all five in docs/deployment/GATE-0-RESULT.md, then DELETE this\n";

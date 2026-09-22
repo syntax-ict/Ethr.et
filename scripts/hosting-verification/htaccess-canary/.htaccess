@@ -45,7 +45,15 @@
     #    unguarded by !-f: that guard is what the real deployment's .htaccess
     #    uses, and guarding here would answer the question by construction
     #    rather than by measurement.
-    RewriteRule ^shadow\.txt$ canary.php?shadow=1 [L,QSA]
+    RewriteRule ^shadow\.txt$ canary.php?shadow=txt [L,QSA]
+
+    # 5b. The same bait with a STATIC extension. Plesk's "serve static files
+    #     directly by nginx" block always covers js/css/images; whether it
+    #     covers .txt varies by version. Measured 2026-09-18: with a block that
+    #     excludes .txt, shadow.txt reports "the rewrite won" while shadow.js
+    #     is shadowed — a false negative on G0-B.5 for exactly the file types
+    #     the deployment ships. Test both; they can legitimately disagree.
+    RewriteRule ^shadow\.js$ canary.php?shadow=js [L,QSA]
 
     # 4. Header forwarding, same directives the real deployment uses.
     RewriteCond %{HTTP:Authorization} .

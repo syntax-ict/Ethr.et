@@ -32,10 +32,16 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 > Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED, and rewriting
 > them now would bake in a guess.
 
-**Before starting, confirm the four facts in `docs/MIGRATION_STATE.md` → NEXT ACTION.**
-Two of them (B3 cron, B5 Node.js) change which steps in this runbook apply — they are
-marked inline below. Do not guess; each branch is written out so there is nothing to
-improvise once the answer is known.
+**Before starting, read `docs/MIGRATION_STATE.md` → NEXT ACTION**, which is kept current
+and ordered by what each item unblocks.
+
+Of the facts it lists, one still changes which steps in this runbook apply: **G0-G**
+(Node.js — Branch A vs Branch B), marked inline below. The other, **G0-D** (cron), has
+since been **answered FAIL**, which is what the status banner above records. Do not guess;
+each branch is written out so there is nothing to improvise once the answer is known.
+
+*(This said "the four facts … Two of them (B3 cron, B5 Node.js)" until 2026-09-19. B3 is
+answered, and the list it counted no longer has four entries.)*
 
 This assumes local access to the repository (to build/upload from) and SSH access to
 the account (confirmed open on port 22; whether *this* account's shell is enabled is
@@ -109,7 +115,8 @@ Plesk → *Databases* → create one MySQL database and one user with full privi
 it. Record host (will be `localhost` — port 3306 is not internet-exposed on this
 account, confirmed), database name, username, password.
 
-**Before migrating, confirm H1** (`docs/MIGRATION_STATE.md` NEXT ACTION #4): does this
+**Before migrating, confirm H1 — now `G0-F`** (`deployment/GATE-0-RESULT.md`, still
+`NOT VERIFIED`; ask 3 of `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`): does this
 user have the `TRIGGER` privilege? If not, `2026_07_22_000001_restrict_audit_log_to_insert_only.php`
 will abort the migration run **by design** (see `docs/AUDIT_LOG_INTEGRITY_DECISION.md`
 — this is a deliberate compliance gate, not a bug). Resolve it with Ethio Telecom
@@ -367,7 +374,7 @@ risks doing frontend work that turns out to be unnecessary. When B5 resolves neg
    `window.location.host` read. Accepts a first-paint flash on the tenant login page
    (React hydration error #418's original cause) in exchange for removing the last SSR
    dependency — documented trade-off, not an oversight.
-4. Add `generateStaticParams` returning `[]` to the four dynamic routes
+4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
    (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
    already a client component that fetches by id, so this only satisfies the exporter.
 5. `npm run build`, upload the exported `out/` directory into `~/httpdocs/`, alongside
@@ -389,9 +396,17 @@ Plesk → *Scheduled Tasks* → add:
 * * * * * cd ~/ethr/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-One line. `schedule:run` is what dispatches everything else — the 14 entries in
-`routes/console.php`, unchanged, plus `queue:work --stop-when-empty` wherever the
-schedule needs it (see `ENVIRONMENT.md` "Queue and scheduler"). If the panel's minimum
+~~One line.~~ **Two — corrected 2026-09-19.** `schedule:run` drives the 14 entries in
+`routes/console.php`, unchanged, but it does **not** dispatch `queue:work`: that file
+contains no such entry, and eleven of its fourteen entries do nothing but enqueue. The
+worker needs its own recurring command:
+
+```
+* * * * * cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 >> /dev/null 2>&1
+```
+
+The queue list is not optional — a bare `queue:work` drains only `default` and starves the
+other three. See `ENVIRONMENT.md` "Queue and scheduler" for the measurement. If the panel's minimum
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —
 Laravel's scheduler is idempotent about "was this due since last checked".
 

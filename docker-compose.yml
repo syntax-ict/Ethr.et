@@ -72,7 +72,15 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    command: php artisan horizon
+    # Was `php artisan horizon` until 2026-09-19. Horizon was removed in cdf85d1
+    # and is absent from composer.lock, so this container exited immediately with
+    # "Command 'horizon' is not defined" and restart: unless-stopped turned that
+    # into a crashloop. The root CLAUDE.md warns "without the queue worker no job
+    # ever runs" -- and the worker it tells you to start was this one.
+    #
+    # Queue order and --max-time: see infrastructure/supervisor.conf, which
+    # carries the reasoning. The list must match QueueHealth::QUEUES.
+    command: php artisan queue:work --queue=attendance,notifications,default,exports --tries=3 --backoff=10 --max-time=3600
     volumes:
       - ./api:/var/www/api
     environment:

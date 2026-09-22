@@ -23,7 +23,7 @@ Plan        Linux Bronze (shared, Plesk)
 | **B1b** | Wildcard **vhost** in Plesk | ⚠️ **PARTIAL — downgraded 2026-09-18** (~~✅ VERIFIED — PASS~~) Rests on an **owner report** that `*` was accepted, not on recorded output, and the vhost **has never been created**. `GATE-0-RESULT.md` grades the same fact **PARTIAL** under its own rule that *testimony is not output* — same defect class as the SSH row below. Resolved by creating the subdomain and recording what the panel does (queue item 8). | — |
 | **B2** | Wildcard TLS | ⚠️ **PARTIALLY VERIFIED** — LE works, wildcard needs DNS-01 | HTTP-01 per-tenant — **proven on this account** |
 | **B3** | Cron | 🔲 NOT VERIFIED | Scheduler/queue over authenticated HTTP endpoint |
-| **B4** | PHP ≥ 8.2 + extensions + GD | ⚠️ **PARTIAL** — version **VERIFIED 8.3.33** (panel, 2026-09-17); the **20 mandatory extensions and the limits are still unmeasured** and need the probe. Now gate **G0-E**. | Blocking — no fallback |
+| **B4** | PHP ≥ 8.2 + extensions + GD | ⚠️ **PARTIAL** — version **VERIFIED 8.3.33** (panel, 2026-09-17); the **18 mandatory extensions and the limits are still unmeasured** and need the probe (the count was 20 until 2026-09-18, when `bcmath` was measured as never required — `suggest`-only in `composer.lock`, zero `bc*` calls — and `zip` was restated as `phar` OR `zip`; see `SHARED_HOSTING_AUDIT.md` §E). Now gate **G0-E**. | Blocking — no fallback |
 | **B5** | Node.js runtime | 🔲 NOT VERIFIED | Static export (Option B2) |
 | **H1** | `CREATE TRIGGER` privilege | 🔲 NOT VERIFIED | See `AUDIT_LOG_INTEGRITY_DECISION.md` |
 
@@ -386,9 +386,14 @@ not assumed. No scheduler at all is fatal.
 
 PHP ≥ 8.2, plus all mandatory extensions, plus **GD**.
 
-Mandatory: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
-`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `bcmath`, `iconv`,
-`zip`, `gd`.
+Mandatory (18): `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `dom`,
+`ctype`, `json`, `fileinfo`, `filter`, `hash`, `session`, `curl`, `iconv`, `simplexml`,
+`libxml`, `gd`.
+
+*Corrected 2026-09-18: `bcmath` is `suggest`-only in `composer.lock` and the application
+calls no `bc*` function; `zip` is not required by dompdf or by any production package —
+the real requirement is `phar` OR `zip`, for `BackupService`. See `SHARED_HOSTING_AUDIT.md`
+§ extensions.*
 
 ### Why GD is called out separately
 
@@ -452,7 +457,7 @@ safe. It does not. Here is the actual per-concern finding from the code:
 | --- | --- | --- |
 | **API routes** (`route.ts`) | **0** | None |
 | **Server actions** (`"use server"`) | **0** | None |
-| **`generateStaticParams`** | **0** | The 4 dynamic routes need it added |
+| **`generateStaticParams`** | **0** | The 4 dynamic routes need it — **but they are `"use client"`, and Next forbids the combination**, so each needs a server-component split first (measured `7aed9d2`) |
 | **Route segment config** (`dynamic`/`revalidate`/`runtime`) | **0** | None |
 | **ISR** | Not used | None |
 | **Server components** | 19 of 126 files lack `"use client"` — but only **one** does real server work | See below |
