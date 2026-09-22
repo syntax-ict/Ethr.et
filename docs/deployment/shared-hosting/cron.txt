@@ -3,7 +3,7 @@
 # ┌──────────────────────────────────────────────────────────────────────────┐
 # │ THESE CANNOT BE INSTALLED ON THIS ACCOUNT TODAY.                         │
 # │                                                                          │
-# │ No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the     │
+# │ No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the    │
 # │ subscription dashboard (owner-read 2026-09-18). That is G0-D = FAIL in   │
 # │ deployment/GATE-0-RESULT.md, and it is the blocker that fired the        │
 # │ pre-registered No-Go -> Option A rule in                                 │
@@ -12,6 +12,11 @@
 # │ This file exists so that the exact lines are ready to paste the moment   │
 # │ ask 1 of deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md is answered. It is  │
 # │ a prepared answer, not a working configuration.                          │
+# │                                                                          │
+# │ THE BACKGROUND HALF IS NOT BLOCKED ON THAT ANSWER. Since 2026-09-22 the  │
+# │ same two tasks can be driven over HTTP from anywhere -- see the last     │
+# │ section. The cron lines below remain preferable where they are offered:  │
+# │ no token to hold, no request timeout, no public surface.                 │
 # └──────────────────────────────────────────────────────────────────────────┘
 #
 # TWO entries are required, not one. This is the correction recorded on
@@ -36,6 +41,42 @@
 * * * * *  cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty --max-time=50 --tries=3 --backoff=10 >> /dev/null 2>&1
 
 # ── If only "Fetch a URL" tasks are offered ─────────────────────────────────
-# Then neither line above can run, and the scheduler and queue must move behind
-# an authenticated HTTP endpoint. That endpoint is UNBUILT. It is a real design
-# change and must be costed, not assumed — see GATE-0-RESULT.md -> G0-D.
+# Then neither line above can run, and the scheduler and queue move behind an
+# authenticated HTTP endpoint instead.
+#
+# THAT ENDPOINT NOW EXISTS. Built and merged 2026-09-22 (b61cb05); this section
+# said "UNBUILT ... must be costed, not assumed" until then. Two tasks, same
+# one-minute interval, same split and for the same reason as above:
+#
+#   POST https://ethr.et/api/v1/cron/schedule
+#   POST https://ethr.et/api/v1/cron/queue
+#
+# AUTHENTICATION. Set CRON_TOKEN in api/.env to at least 32 random characters:
+#
+#   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+#
+# Present it as the X-Cron-Token header where the caller sets headers. Plesk's
+# fetch-a-URL task cannot, so ?token=... on the query string is accepted too:
+#
+#   POST https://ethr.et/api/v1/cron/schedule?token=YOUR_TOKEN
+#
+# The query form puts the token in access logs and Referer headers. Prefer the
+# header wherever the caller allows one; treat a query-form token as rotatable.
+#
+# WHAT TO EXPECT, so a silent failure is not mistaken for success:
+#
+#   200  ran. JSON body carries exit_code and tailed output
+#   409  the previous run is still going. Normal under load, not an error
+#   404  CRON_TOKEN unset, shorter than 32 chars, or the token did not match.
+#        404 rather than 401/403 is deliberate: an unconfigured deployment must
+#        not confirm these routes exist. So a 404 here means CHECK YOUR TOKEN --
+#        it does not mean the route is missing
+#   429  more than 10 requests in a minute from one IP
+#
+# POST, not GET. A GET would be followed by a crawler or link prefetcher.
+#
+# THIS DOES NOT MAKE G0-D PASS. G0-D asks whether the HOST can run a command; it
+# still cannot, and on this subscription there is no Scheduled Tasks section at
+# all -- not even a fetch-a-URL task to point at these. See GATE-0-RESULT.md ->
+# G0-D. What changed is that the driver no longer has to be the host: an uptime
+# monitor, a GitHub Actions cron, or any always-on machine will do.
