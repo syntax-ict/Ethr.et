@@ -190,6 +190,18 @@ class AppServiceProvider extends ServiceProvider
         // budget from a shared office address. Generous enough that no legitimate
         // console session notices it; low enough to bound a scripted sweep of the
         // audit log or the user-search endpoint.
+        // The cron routes are guarded by a shared secret, so the limiter is not
+        // the access control — it is the brake on guessing one. Keyed to the IP
+        // and deliberately tight: a legitimate caller fires at most once a
+        // minute per task, so 10 leaves ample headroom for a retry while
+        // capping an online search at 14,400 attempts a day against a 32-char
+        // minimum token. It counts REJECTED requests too -- which is only true
+        // because the route lists `throttle:cron` BEFORE VerifyCronToken; the
+        // other order would brake legitimate callers and nobody else.
+        RateLimiter::for('cron', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+
         RateLimiter::for('platform-admin', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
