@@ -104,7 +104,6 @@ it('has no unreviewed tenant-scope bypass', function () {
     )));
 });
 
-
 it('states the same bypass count in docs/CLAUDE.md as the inventory enforces', function () {
     // Four files carried four different counts of this on 2026-09-22 (147, 156,
     // 161, 161). The inventory beside this test is the enforced figure; the
