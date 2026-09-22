@@ -29,8 +29,10 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 > `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
 > acceptance criterion in `deploy-checklist.md`), and the line above naming which
 > environment template to copy. The procedures are untouched on purpose: choosing between
-> Branch A and Branch B rests on **G0-A** and **G0-G**, both NOT VERIFIED, and rewriting
-> them now would bake in a guess.
+> Branch A and Branch B rests on **G0-A** (`NOT VERIFIED`) and **G0-G** (`PARTIAL` since the
+> panel read of 2026-09-22 — this line said "both NOT VERIFIED" until then), and rewriting
+> them now would still bake in a guess: G0-G being PARTIAL narrows the question without
+> answering it, and G0-A is untouched.
 
 **Before starting, read `docs/MIGRATION_STATE.md` → NEXT ACTION**, which is kept current
 and ordered by what each item unblocks.

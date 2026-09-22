@@ -1239,9 +1239,10 @@ before the thing works.
 
 ### Branch B is NOT APPROVED for implementation
 
-Until a deployment architecture is selected. It is gated on G0-A and G0-G, both
-`NOT VERIFIED`, and `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has
-returned No-Go on B3.
+Until a deployment architecture is selected. It is gated on G0-A (`NOT VERIFIED`) and G0-G
+(`PARTIAL` as of 2026-09-22 — this read "both `NOT VERIFIED`"), and
+`SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has returned No-Go on B3. The
+conclusion stands: PARTIAL is not PASS.
 
 **The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
 evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
@@ -1254,8 +1255,8 @@ source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compresse
 
 The experiment was reverted in full — `git checkout -- src/`, working tree clean,
 `next.config.ts` back to `standalone`. **No Branch B work was implemented.** It is gated on
-G0-A and G0-G, both `NOT VERIFIED`, and on the Option A/B decision that has just returned
-No-Go. Implementing it now would be the speculative spend this file has just recommended
+G0-A (`NOT VERIFIED`) and G0-G (`PARTIAL` as of 2026-09-22; this read "both `NOT VERIFIED`"),
+and on the Option A/B decision that has just returned No-Go. Implementing it now would be the speculative spend this file has just recommended
 against.
 
 What is delivered is the measurement: if Branch B is ever revisited, the cost line needs
@@ -1433,7 +1434,7 @@ default, which is a better starting point for G0-B than what preceded it.
 
 | # | Blocker | Effect |
 | --- | --- | --- |
-| **B-1** | SSH **Forbidden** | The capability probe has no shell route; its fallback (Scheduled Tasks) depends on **G0-D**, unverified |
+| **B-1** | SSH **Forbidden** | The capability probe has no shell route; its fallback (Scheduled Tasks) depends on **G0-D** — ~~unverified~~ **answered FAIL 2026-09-18, the section does not exist**, so the fallback is not merely unproven, it is absent |
 | **B-2** | No "Additional directives" fields on Apache & nginx Settings | G0-A untestable as written — strong evidence of FAIL, unconfirmed |
 | **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton (2026-09-17 23:48) with its document root **inside** `httpdocs/` | Purpose unknown; possible collision with the live `ethr.et` vhost; inverts the layout. Identify it in the panel before removing — deleting a vhost is not deleting a folder |
 | **B-4** | No route to run `artisan` | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no non-shell equivalent anywhere in the package |
@@ -2188,8 +2189,9 @@ survives only until the target is edited; these now name the gate, which does no
 That is the repair, not the renumbering.
 
 **The procedures are deliberately NOT rewritten.** Choosing between Branch A and Branch B
-rests on G0-A and G0-G, both `NOT VERIFIED`, and the replacement transport rests on G0-D,
-which is `FAIL` pending a support request. Rewriting the steps now would bake a guess into
+rests on G0-A (`NOT VERIFIED`) and G0-G (`PARTIAL` as of 2026-09-22; this read "both `NOT
+VERIFIED`"), and the replacement transport rests on G0-D, which is `FAIL` pending a support
+request. Rewriting the steps now would bake a guess into
 the runbook — which is the failure this freeze existed to prevent. Correcting a username
 carries no such risk. The freeze stands over the procedures; it no longer stands over
 demonstrable facts.
