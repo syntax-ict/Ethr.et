@@ -135,6 +135,14 @@ round trip and no grant.
 > - SSH access
 > - a Node.js runtime
 > - the ability to add custom Apache or nginx directives
+> - the subdomain limit, and **how subdomains are counted against it** — specifically,
+>   whether a single wildcard subdomain (`*.ethr.et`) counts as **one** against the limit,
+>   or whether each subdomain under it counts individually
+>
+> The last point decides which plan I need rather than being a detail: the application
+> gives each customer organisation its own subdomain, so if they are counted individually
+> then a plan's subdomain number is also the maximum number of customers I can serve on it.
+> If a wildcard counts as one, that limit does not apply and a smaller plan may be enough.
 >
 > If a higher plan provides these as standard, upgrading may be simpler for both of us
 > than granting them individually, and I am willing to move to the plan that fits.
