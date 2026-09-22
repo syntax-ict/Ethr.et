@@ -438,7 +438,7 @@ Fill `Actual` and `Status` from real output. Cite the evidence — `probe:DB4`, 
 | **G0-D** | cron type | "Run a command" | **No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the subscription dashboard** (owner-read 2026-09-18). The listing is otherwise complete — Files, Databases, FTP, Backup &amp; Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories — and *Dev Tools* was separately read on 2026-09-17 (PHP, Git, Composer; no Terminal). | **FAIL — strong evidence, one confirmation short** | panel |
 | G0-D | minimum cron interval | <= 1 min | | NOT VERIFIED | panel |
 | **G0-F** | `CREATE TRIGGER` permitted | yes | | NOT VERIFIED | probe DB4 |
-| **G0-G** | Node.js (build only) | >= 20.9 is Next's floor — **this repo pins 24**, see below | | NOT VERIFIED | probe / panel |
+| **G0-G** | Node.js (build only) | >= 20.9 is Next's floor — **this repo pins 24**, see below | **PRESENT, and application-execution capable.** Panel 2026-09-22: Node.js Version **22.23.2**, package manager npm, Document Root `/ethr`, Application Root `/ethr`, Application Startup File `app.js`, Application Mode `production`, Application URL `http://ethr.et`, custom environment variables available; the panel offers *Enable Node.js* and *Run Node.js commands*. **Not build-only** — the startup-file/mode/URL trio answers this gate's third question. **But 22.23.2 is below the pinned 24**, and is the exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed*. Nothing was enabled or started. | **PARTIAL** | panel 2026-09-22 |
 | **G0-H** | outbound SMTP 587/465 | open | | NOT VERIFIED | probe |
 | G0-H | mailbox send cap | known | | NOT VERIFIED | panel |
 | **G0-I** | `SELECT VERSION()` | verbatim | | NOT VERIFIED | probe DB1 |
@@ -669,6 +669,67 @@ Needed only to *build* the frontend, unless the answer to G0-A forces a Node ser
 > end-of-life runtime that this repository has measured as broken for its own suite. If 24
 > is unavailable, record what *is* offered and treat the gap as a finding rather than
 > rounding it up to "≥ 20.9, fine."
+
+
+
+> **MEASURED 2026-09-22 — panel read, nothing enabled.**
+>
+> | Field | Value, verbatim |
+> |---|---|
+> | Node.js Version | **22.23.2** |
+> | Package Manager | npm |
+> | Document Root | `/ethr` |
+> | Application Root | `/ethr` |
+> | Application Startup File | `app.js` |
+> | Application Mode | `production` |
+> | Application URL | `http://ethr.et` |
+> | Custom environment variables | available |
+> | Actions offered | *Enable Node.js*, *Run Node.js commands* |
+>
+> **Question 1 — present at all? YES.**
+>
+> **Question 3 — can an app be started, or is it build-only? IT CAN BE STARTED.** A startup
+> file, an application mode and an application URL are not build-only fields. This gate's
+> row has read *"Node.js (build only)"* since it was written, on the assumption that the
+> frontend would at most be compiled here. That assumption is now measured false, and the
+> consequence runs the other way from the one this register anticipated — see the G0-A note
+> below.
+>
+> **Question 2 — version. 22.23.2 does NOT satisfy the requirement, and the miss is exact.**
+> The rule above says the bar is this repository's pinned **24**, not Next's 20.9 floor, and
+> says to record the gap rather than round it up. `audit/BASELINE.md` §12d ran the frontend
+> suite version by version:
+>
+> | Node | Result |
+> |---|---|
+> | 22.23.2 | **2 failed, 3 passed** |
+> | 24.21.0 | 5 passed |
+>
+> The offered version is not merely *below* 24 — it is **the same version string** that
+> matrix measured as failing. `employees-import.test.tsx` fails on 20 *and* 22: MSW's
+> interceptor never settles a `multipart/form-data` request, and the promise hangs to the
+> 20s timeout.
+>
+> **State the limit of that evidence honestly.** §12d also records that the request *"is
+> intercepted before it leaves the process, so no application code is involved"* — it is an
+> MSW/undici test-harness failure, not a demonstrated production-runtime defect on Node 22.
+> What is demonstrated is that **this repository's own suite does not pass on 22.23.2**, so
+> 22 is a runtime nothing here has ever been verified green on. That is why the rule says
+> treat the gap as a finding. It is not a pass, and it is not a catastrophe either; it is an
+> unverified runtime, recorded as such.
+>
+> **Not asked, and therefore not known:** whether other Node versions are selectable from
+> that page. The panel shows one value; whether it is a fixed version or the current
+> selection of a dropdown was not established. See the next action.
+>
+> **One thing to resolve before anything is enabled.** Document Root and Application Root
+> both read `/ethr`. This register records the account's document root as `httpdocs`
+> (confirmed by `.well-known/acme-challenge/` observed inside it), and the migration layout
+> places the Laravel application at `~/ethr/` **deliberately outside** the web root — that
+> placement is the control that makes `api/.env` unreachable regardless of the `.htaccess`
+> deny rules. Whether these fields are Plesk defaults shown before enabling, or a
+> configuration that would serve `~/ethr/`, was not established and **must not be inferred**.
+> Nothing was enabled, so nothing is currently exposed by this.
 
 
 ### Tier comparison — and the question that decides whether any of this is worth doing

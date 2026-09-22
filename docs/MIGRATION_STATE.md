@@ -1338,7 +1338,7 @@ plan** — which is precisely the set blocking this migration:
 |---|---|---|
 | **G0-D** cron | **FAIL** | The application cannot be installed at all |
 | **G0-A** custom directives | strong-evidence FAIL | Forces Branch B — the architectural frontend change |
-| **G0-G** Node runtime | **never read** | If it passes, Branch A works and the frontend needs **nothing** |
+| **G0-G** Node runtime | **READ 2026-09-22 — PARTIAL** | Present, and **application-execution capable** (startup file, application mode, application URL) — so the runtime half of Branch A exists. But the offered version is **22.23.2**, below the pinned **24**, and is the exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed*. It does **not** rescue Option B: **G0-D is still FAIL**, so nothing runs `artisan` |
 
 **All three are service-plan permissions, not server capabilities. The account's tier has
 never been confirmed.** So the decision tree everyone has been reasoning over has a branch
@@ -2811,13 +2811,18 @@ above. Every item below needs the Plesk panel or the owner's own machine.
 
 ### In priority order
 
-1. **Read the Plesk *Node.js* page — G0-G.** The highest-value panel read, because it is
-   the one that decides whether the frontend needs architectural work or none at all.
-   Next.js 16's floor is Node 20.9; this repo pins **24** in `.nvmrc`. If Node is present
-   at a usable version, Branch A (`output: "standalone"`) stands and the frontend needs
-   no change. If it is absent, the fallback is Branch B — and Branch B is **not** "four
-   small route changes". Measured at commit `7aed9d2`, it is an architectural frontend
-   deployment change; `SHARED_HOSTING_AUDIT.md` §E carries the evidence.
+1. ~~**Read the Plesk *Node.js* page — G0-G.**~~ **DONE 2026-09-22 — PARTIAL.** Node is
+   present and **can run an application** (Application Startup File `app.js`, Application
+   Mode `production`, Application URL `http://ethr.et`), so it is not build-only as this
+   plan assumed. The version offered is **22.23.2** — below the pinned **24**, and the
+   exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed*. Full evidence
+   in `deployment/GATE-0-RESULT.md` → *G0-G*.
+
+   **It does not move the Option A/B decision**, because that rule fired on **G0-D**, which
+   is still FAIL: no cron and no shell means nothing runs `artisan`, so the application
+   cannot be installed whatever the frontend does. What it does change is the *reason*
+   Branch B would be chosen — it is no longer "there is no Node runtime". The remaining
+   question is narrow: **is the Node version selectable, or fixed at 22.23.2?**
 2. **Send the support request.** Four asks: cron, SSH, the `TRIGGER` grant (G0-F), and
    what the higher tiers actually include. **B-1**, **B-4** and **G0-D** all turn on the
    answer, and three of them have no other route.
@@ -2848,6 +2853,6 @@ change.
 
 ### Gate 0 as it stands
 
-Of the 30 rows in `deployment/GATE-0-RESULT.md`: **1 VERIFIED**, 1 PANEL-READ, 2 PARTIAL,
-**1 FAIL**, **25 NOT VERIFIED**. That ratio is the honest summary of this workstream — the
+Of the 30 rows in `deployment/GATE-0-RESULT.md`: **1 VERIFIED**, 1 PANEL-READ, **3 PARTIAL**,
+**1 FAIL**, **24 NOT VERIFIED** *(G0-G moved NOT VERIFIED → PARTIAL on 2026-09-22, panel read)*. That ratio is the honest summary of this workstream — the
 repository is prepared and internally consistent; almost nothing about the host is known.
