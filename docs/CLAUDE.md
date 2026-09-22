@@ -918,15 +918,39 @@ All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIso
 
 ## Queue Failure Recovery
 
-| Queue | After All Retries Fail |
-|---|---|
-| `attendance` | Log to `failed_jobs`, `Queue::failing` alert (see below) |
-| `payroll` | Mark payroll run as `failed` with error details, notify tenant admin |
-| `devices` | Trigger `DeviceOffline` event, notify admin |
-| `notifications` | Log failure, do not retry (notification is stale) |
-| `exports` | Mark export as `failed`, notify requesting user |
-| `sync` | **Not queued** — offline sync is synchronous, see below |
-| `default` | Log to `failed_jobs`, surface in admin dashboard |
+> **MEASURED 2026-09-22 against `app/Jobs` — five of the seven rows below were
+> wrong.** This table is the specification the code is supposed to meet, and it
+> had drifted far enough that two of its rows named queues that do not exist. The
+> original is kept in the right-hand column so the gap is auditable rather than
+> quietly closed; **where the two columns disagree, the code is what runs.**
+>
+> The queues this application actually dispatches onto are exactly four —
+> `default`, `attendance`, `notifications`, `exports` — which is
+> `QueueHealth::QUEUES`, verified against every `onQueue()` call and every
+> `Schedule::job()` argument. `payroll` and `devices` are **not** queues; those
+> jobs carry no `onQueue()` and land on `default`.
+>
+> **8 of the 16 jobs define a `failed()` handler.** The other 8 rely on the
+> `Queue::failing` hook alone, which logs but takes no domain action.
+
+| Queue | What actually happens after all retries fail | What this table used to claim |
+|---|---|---|
+| `attendance` | Log to `failed_jobs`, `Queue::failing` alert. `ScanMissingPunchesJob` has a `failed()`; `ScanAttendanceAnomaliesJob` does not | *(unchanged — accurate)* |
+| `notifications` | Log to `failed_jobs` via the hook. **They do retry** — `NotifyExpiringTrialsJob` and `NotifyAnnouncementAudienceJob` both set `$tries = 2`, and neither defines `failed()` | *"Log failure, **do not retry** (notification is stale)"* — the retry claim is false |
+| `exports` | Log to `failed_jobs` via the hook, and nothing else. **Neither `RunScheduledReportsJob` nor `RunDashboardDigestsJob` defines `failed()`**, so no row is marked failed and nobody is told | *"Mark export as `failed`, notify requesting user"* — **unimplemented.** `RunScheduledReportsJob`'s own docblock cites this row as if it were in force |
+| `default` | Log to `failed_jobs`, surfaced by `AdminDashboardController` with retry/dismiss and counted by `SystemHealthService` | *(unchanged — accurate, and verified)* |
+| ~~`payroll`~~ → `default` | `ProcessPayrollJob::failed()` sets the run to `failed`, writes `Log::error` and an `AuditLog` `payroll.failed` record — so a crashed run stops being indistinguishable from a running one. **No tenant admin is notified**; there is no notification on this path at all | *"Mark payroll run as `failed` with error details, **notify tenant admin**"* — half true; also not a real queue |
+| ~~`devices`~~ → `default` | **`PullDeviceEventsJob` has no `failed()`.** Its `handle()` catch sets the device to `error`, writes a failed `DeviceSyncLog`, logs and rethrows. `DeviceOffline` is dispatched from the *success* path — when the adapter reports the device unreachable and it was previously online — so on an exception no event fires and no admin is notified | *"Trigger `DeviceOffline` event, notify admin"* — describes the wrong path; also not a real queue |
+| `sync` | **Not queued** — offline sync is synchronous, see below | *(unchanged — accurate)* |
+
+**The `devices` row is the one worth a decision rather than a doc edit.** `offline`
+(the reachability check says down) and `error` (the sync machinery threw) are
+genuinely different states and the model distinguishes them, so firing
+`DeviceOffline` from `failed()` might well be wrong. What is *not* defensible is
+the current asymmetry: a device that is unreachable politely notifies an admin,
+and a device whose sync throws for two attempts notifies nobody. Either add a
+`failed()` that notifies, or change this row to say admins are not told — but the
+two should not disagree.
 
 All failed jobs visible in Super Admin dashboard with retry/dismiss actions.
 

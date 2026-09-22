@@ -148,3 +148,56 @@ it('keeps the unfixed worker stacks marked as broken', function () {
         );
     }
 });
+
+it('keeps QueueHealth::QUEUES equal to the queues the code dispatches onto', function () {
+    // This closes the loop. The test above pins the worker's --queue list to
+    // QueueHealth::QUEUES; this one pins QueueHealth::QUEUES to the code. Together
+    // they guarantee the worker drains everything that is dispatched.
+    //
+    // Without it, adding `->onQueue('payroll')` to a job would silently create a
+    // queue nothing drains: the worker line would still match the constant, and
+    // the jobs would pile up until someone opened the health endpoint. That is
+    // not hypothetical — docs/CLAUDE.md's queue-failure table assigned recovery
+    // policies to `payroll` and `devices` queues for months, and neither has ever
+    // existed.
+    $sources = '';
+
+    foreach ([
+        dirname(base_path()).'/api/app',
+        dirname(base_path()).'/api/routes',
+    ] as $dir) {
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+
+        foreach ($files as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $sources .= (string) file_get_contents($file->getPathname());
+            }
+        }
+    }
+
+    // `default` is implicit: a job dispatched without onQueue() lands there, and
+    // several do.
+    $found = ['default'];
+
+    preg_match_all("/->onQueue\('([a-z_]+)'\)/", $sources, $m);
+    $found = array_merge($found, $m[1]);
+
+    // Schedule::job(new SomeJob, 'queue') — the queue is the second argument.
+    preg_match_all("/Schedule::job\(\s*new\s+\w+\s*,\s*'([a-z_]+)'/", $sources, $m);
+    $found = array_merge($found, $m[1]);
+
+    $found = array_values(array_unique($found));
+    sort($found);
+
+    $declared = QueueHealth::QUEUES;
+    sort($declared);
+
+    expect($found)->toBe(
+        $declared,
+        'The queues the code dispatches onto ('.implode(', ', $found).') differ from '
+        .'QueueHealth::QUEUES ('.implode(', ', $declared).'). A queue in the code but not '
+        .'the constant is drained by nothing; a queue in the constant but not the code is '
+        .'a worker argument for work that never arrives. Update both, and the recovery '
+        .'table in docs/CLAUDE.md with them.'
+    );
+});

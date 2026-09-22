@@ -30,8 +30,15 @@ use Illuminate\Support\Str;
  * report and it never arrived, with no error to explain why.
  *
  * Runs on the `exports` queue — report generation is the same class of expensive
- * work, and CLAUDE.md's queue-failure table already routes `exports` failures to
- * "mark as failed, notify requesting user".
+ * work.
+ *
+ * NOTE, corrected 2026-09-22: this used to add that CLAUDE.md's queue-failure
+ * table "already routes `exports` failures to 'mark as failed, notify requesting
+ * user'". That was a specification, not a description — **this job defines no
+ * `failed()` handler**, so on exhaustion nothing is marked and nobody is told;
+ * only the `Queue::failing` hook logs. The table now records what actually
+ * happens. Citing a spec as though it were behaviour is what let the gap sit
+ * here unnoticed.
  */
 class RunScheduledReportsJob implements ShouldQueue
 {
