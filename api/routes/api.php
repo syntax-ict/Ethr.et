@@ -114,11 +114,33 @@ use App\Http\Middleware\RequiresPlanFeature;
 use App\Http\Middleware\ScimAuth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\Api\V1\Cron\CronRunController;
+use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]))
     ->middleware('throttle:health');
 Route::get('/health', HealthController::class)->middleware('throttle:health');
+
+// ── HTTP-driven scheduler and queue runner ──────────────────────────────────
+// G0-D is FAIL: this subscription has no Scheduled Tasks section, so nothing
+// on the host can start `schedule:run` or `queue:work`. Anything that fetches
+// a URL on a timer can drive these instead.
+//
+// VerifyCronToken 404s when CRON_TOKEN is unset, so an unconfigured
+// deployment does not advertise that they exist. POST, not GET: these are not
+// safe or idempotent, and a GET would be followed by a link-prefetcher or a
+// crawler that stumbled on the URL.
+Route::prefix('cron')
+    // ORDER IS LOAD-BEARING. throttle FIRST: VerifyCronToken abort(404)s a bad
+    // token, and middleware runs in the order listed, so with the token check
+    // first the limiter never sees a rejected request -- it would throttle only
+    // legitimate callers and give an attacker unlimited guesses.
+    ->middleware(['throttle:cron', VerifyCronToken::class])
+    ->group(function () {
+        Route::post('/schedule', [CronRunController::class, 'schedule']);
+        Route::post('/queue', [CronRunController::class, 'queue']);
+    });
 
 // Public endpoints
 Route::get('/plans', [PlanController::class, 'index']);
