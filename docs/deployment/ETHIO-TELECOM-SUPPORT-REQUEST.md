@@ -67,8 +67,16 @@ round trip and no grant.
 
 ## Suggested subject
 
-> Hosting account `ethret` (`ethr.et`) — Scheduled Tasks, SSH access, a database
-> `TRIGGER` grant, and what the higher plans include
+> Hosting account `ethret` (`ethr.et`) — Scheduled Tasks (cron), what the higher plans
+> include, a database `TRIGGER` grant, and SSH access
+
+*Re-ordered 2026-09-22 to match the body.* It read *"Scheduled Tasks, SSH access, a
+database `TRIGGER` grant, and what the higher plans include"* — the pre-re-rank order,
+which put **SSH second** while the body ranks it **last** and calls it *"a convenience
+rather than a requirement."* The subject line is what triages the ticket, so a stale order
+there is worse than anywhere else: it advertises the one ask the deployment contract says
+ETHR must not depend on, ahead of the two that decide whether the migration is possible
+at all.
 
 ---
 
