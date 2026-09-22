@@ -702,7 +702,34 @@ is untouched by this: it fired on **G0-D**, which remains FAIL.
 > consequence runs the other way from the one this register anticipated — see the G0-A note
 > below.
 >
-> **Question 2 — version. 22.23.2 does NOT satisfy the requirement, and the miss is exact.**
+> **CORRECTED 2026-09-22, same day — "the requirement" was one word doing two jobs.**
+> The paragraph below says 22.23.2 fails *the* requirement. That is right about the CI
+> toolchain and wrong as a blanket statement, and the distinction decides whether Node is a
+> blocker here or a non-issue. **`docker/frontend/Dockerfile` line 1 is `FROM node:22-alpine`**,
+> and all three stages derive from it: it **builds** the frontend on Node 22 (`RUN npm run
+> build`) and **runs** the standalone server on Node 22 (`CMD ["node", "server.js"]`).
+> `src/package.json` declares no `engines` floor. So:
+>
+> | Requirement | Version | Where it is declared | Does 22.23.2 meet it? |
+> |---|---|---|---|
+> | CI build/test toolchain | **24** | `.nvmrc`, read by `setup-node` at 4 sites in `gates.yml` and `security.yml` | **No** |
+> | Frontend application runtime | **22** | `docker/frontend/Dockerfile` | **Yes — it is the declared version** |
+>
+> §12d's two failures are `employees-import.test.tsx` and `alert-thresholds-dialog.test.tsx`
+> — **Vitest files**, and §12d says of the failing one that the request *"is intercepted
+> before it leaves the process, so no application code is involved."* Node 22 broke the
+> **test harness**, not the application. That is why the pin is in `.nvmrc` and not in
+> `engines`.
+>
+> **Consequence: the Plesk version is not a Branch A blocker.** 22.23.2 is the version this
+> repository already ships its frontend on. **The `.nvmrc` 24 pin stays exactly as it is** —
+> it is the toolchain two tests genuinely fail on, and it is not relaxed to fit anything.
+> These are two different requirements and only one of them is missed.
+>
+> What still gates Branch A is **G0-A** routing, `NOT VERIFIED` — and upstream of all of it,
+> **G0-D** remains FAIL, so nothing runs `artisan` regardless.
+
+**Question 2 — version. 22.23.2 does NOT satisfy the requirement, and the miss is exact.**
 > The rule above says the bar is this repository's pinned **24**, not Next's 20.9 floor, and
 > says to record the gap rather than round it up. `audit/BASELINE.md` §12d ran the frontend
 > suite version by version:
