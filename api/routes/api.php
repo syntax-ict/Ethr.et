@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\Auth\TenantContextController;
 use App\Http\Controllers\Api\V1\Auth\TrustedDeviceController;
 use App\Http\Controllers\Api\V1\Billing\BillingController;
 use App\Http\Controllers\Api\V1\ContactController;
+use App\Http\Controllers\Api\V1\Cron\CronRunController;
 use App\Http\Controllers\Api\V1\Dashboard\AlertThresholdController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
 use App\Http\Controllers\Api\V1\Dashboard\DashboardDigestController;
@@ -112,10 +113,9 @@ use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
 use App\Http\Middleware\RequiresPlanFeature;
 use App\Http\Middleware\ScimAuth;
+use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
-use App\Http\Controllers\Api\V1\Cron\CronRunController;
-use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn () => response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]))
