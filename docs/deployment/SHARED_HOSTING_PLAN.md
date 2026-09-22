@@ -215,11 +215,13 @@ port 5432, and nobody has ever asked. Shared hosts commonly restrict outbound po
 4. **It keeps the data in the plan you are paying for.**
 
 **It does not fix G0-D.** Queue, scheduler and backups (#9/#10/#21) still have no runner,
-so this is the right *shape* and still gated on ask 1. And the static export is **not free**
-— `SHARED_HOSTING_AUDIT.md` measured 2026-09-18 that the export does not currently build
-(`app/manifest.ts` needs `force-static`; four `[id]` routes are `"use client"`, which Next
-forbids combining with `generateStaticParams`, and their ids are tenant data so they need
-client-side routing).
+so this is the right *shape* and still gated on ask 1.
+
+**And the static export is not free — it was built on 2026-09-22 and costs ≈8 days
+(6–11), of which 3 are gated on `.htaccess` being honoured.** §3A carries the measured
+breakdown: seven distinct build failures, the actual mechanism entity routes need, and two
+controls that disappear silently. Read it before committing to this recommendation —
+**A is bounded only if G0-B.1/B.2 come back positive**, and the canary answers that today.
 
 ---
 
@@ -306,18 +308,134 @@ larger than the frontend work it replaces:
 **Not costed here**, because costing it needs a design decision first. Flagged as the
 gating question for C.
 
+### Option A's cost, measured rather than asserted
+
+**Everything in this subsection was produced by building it on 2026-09-22.** The project
+was copied to a scratchpad, `node_modules` hard-linked, `output: "export"` set **there**,
+and built repeatedly — fixing one failure to reveal the next. The repository was not
+modified. Where this contradicts what §3 and the bullets below previously said, **the
+measurement wins**; the earlier text was written from this repository's prior assertions,
+not from a build.
+
+#### Build failures, in the order they occur
+
+| # | File | Error (verbatim) | Fix | Kind |
+|---|---|---|---|---|
+| 1 | `src/app/manifest.ts` | `export const dynamic = "force-static"/export const revalidate not configured on route "/manifest.webmanifest"` | add `export const dynamic = "force-static"` | mechanical, 1 line |
+| 2 | `src/app/robots.ts` | same, route `/robots.txt` | same | mechanical, 1 line |
+| 3 | `src/app/sitemap.ts` | same, route `/sitemap.xml` | same | mechanical, 1 line |
+| 4 | 4 × `[id]/page.tsx` | `Page "/admin/tenants/[id]" is missing "generateStaticParams()"` | see below | design |
+| 5 | same | `App pages cannot use both "use client" and export function "generateStaticParams()"` | server/client split, forwarding `params` | mechanical shape, per route |
+| 6 | same | `returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated` | placeholder param | design |
+| 7 | `src/app/(auth)/layout.tsx:35` | `Route /login with dynamic = "error" couldn't be rendered statically because it used headers()` | move the host read client-side | design, with a known regression |
+
+**Correction — this document previously named only `manifest.ts`.** `robots.ts` and
+`sitemap.ts` fail identically. `sitemap.ts` was confirmed **independently**, by reverting
+its fix and watching the build fail again on `/sitemap.xml`.
+
+**#7 is not free.** That file's own docblock records why it reads `headers()`: the
+client-side host read it replaced caused **React hydration error #418 on every tenant login
+page**, because server and client disagreed about the heading and whether to show the
+organisation field. Reverting it reintroduces that bug unless the layout defers render
+until mounted (a visible flash) or the markup is made host-independent.
+
+#### Two consequences with no error and no build failure
+
+**`headers()` in `next.config.ts:33-77` is silently dropped.** The build prints
+`⚠ Specified "headers" will not automatically work with "output: export"` and continues.
+**CSP, HSTS, X-Frame-Options and Permissions-Policy stop being served.** Nothing fails; the
+site simply loses them. Restoring them means `.htaccess` — which is **G0-B.2**, unverified.
+
+**`middleware.ts` does not block the build — correcting this document's earlier claim that
+A "requires deleting it".** The export builds with the file present; Next 16 emits only a
+deprecation warning. What actually happens is worse than a build error, because it is
+silent: a static host cannot execute middleware, so its two behaviours simply stop. It
+enforces the **host-based `/admin` boundary** and **locale redirects**.
+
+Measured: `out/` contains **6 `admin*.html` files** as ordinary static files in the same
+document root, so under one vhost **every tenant hostname serves the admin console shell**.
+The middleware's docblock names its backstop — *"Nginx refuses `/admin` on non-platform
+hosts too… That is the authoritative control"* — and **on this plan that backstop does not
+exist**, because G0-A (#8) reports no custom directives. Neither control would be in force.
+
+Data is not exposed: `Gate::authorize('admin.manage')` and `<RoleGate minRole="super_admin">`
+both still refuse. This is a **defence-in-depth regression**, not a breach — but it returns
+the boundary to exactly the *"permission check rather than structural"* state the middleware
+was written to fix. `.htaccess` could restore it, which is **G0-B.1**, also unverified.
+
+#### How a static export actually serves entity routes
+
+Affected: `/employees/[id]`, `/devices/[id]`, `/payroll/[id]`, `/admin/tenants/[id]`.
+
+This document previously said they "404 because the ids are tenant data". That is the
+symptom. The mechanism, measured, is:
+
+1. `generateStaticParams` **cannot return `[]`** — Next rejects it outright (failure #6). It
+   must return at least one **placeholder**, e.g. `[{ id: "_" }]`.
+2. The export then emits **exactly one file per route**. Measured: `out/employees/_.html`
+   and nothing else.
+3. The web server must rewrite `/employees/*` → `/employees/_.html` — a classic SPA
+   fallback, in `.htaccess`.
+4. **Each page must read the real id from the URL after hydration**, not from `params`.
+
+**Step 4 is mandatory, and step 3 alone is not enough.** `out/` was served with exactly that
+rewrite and driven with a real browser. Loading `/employees/01HTESTID` rendered the page,
+`location.pathname` was `/employees/01HTESTID` — and the hydrated application requested:
+
+```
+/api/v1/employees/_
+```
+
+**The placeholder, not the id.** All four pages do `const { id } = use(params)`
+(`employees/[id]/page.tsx:45`, `devices:133`, `payroll:56`, `admin/tenants:74`), and under
+export `params` is frozen to the build-time value. So the rewrite alone ships pages that
+always fetch the wrong record. Each page needs its id source changed to a
+`usePathname()`-derived read.
+
+**So Option A is bounded — but only if `.htaccess` is honoured.** The mechanism above is
+real and standard. Step 3 *is* `.htaccess`. If G0-B.1 comes back negative there is no
+rewrite, and with no rewrite there is no mechanism at all for entity routes — at which point
+**A stops being bounded**, alongside losing the security headers (G0-B.2) and the `/admin`
+boundary. That is the single contingency this estimate rests on.
+
+**Not measured, and it matters:** whether *in-app* client navigation passes the real id.
+Next's client router parses the URL, so it plausibly does. If so the failure mode is *works
+when you click through, breaks on refresh and on every shared link* — which changes how
+likely the defect is to reach production, but not the fix.
+
+#### Estimate
+
+**≈ 8 days, realistically 6–11.** Marked **M** measured · **E** estimated.
+
+| Work | Days | Basis | Gated on |
+|---|---|---|---|
+| `force-static` × 3 | 0.1 | **M** — build-verified | — |
+| Server/client split × 4 + `params` forwarding | 1.0 | **M** shape, **E** polish on 500–800-line components | — |
+| Placeholder params + `.htaccess` rewrites × 4 | 0.5 | **E** — mechanism proven **M**, `.htaccess` unwritten | **G0-B.1** |
+| Change id source `params` → URL in 4 pages + tests | 1.5 | **E** — the measured `employees/_` defect | — |
+| `(auth)/layout.tsx` host read + fix hydration #418 | 1.5 | **E** — regression documented, not reproduced | — |
+| Restore CSP/HSTS/X-Frame-Options via `.htaccess` | 0.5 | **E** | **G0-B.2** |
+| Restore the `/admin` host boundary | 1.0 | **E** | **G0-B.1** |
+| Locale redirects lost with middleware | 0.5 | **E** — `out/en/*` and `out/am/*` exist **M**; unprefixed forwarding does not | — |
+| Full-suite regression + manual pass | 1.5 | **E** | — |
+| **Total** | **≈ 8** | ~1.6 measured-grounded, ~6.5 estimated | **3.0 days gated on G0-B.1/B.2** |
+
+**Three line items totalling 3 days are gated on G0-B.1/B.2**, which the canary answers with
+no shell, no cron and no support ticket — and which is already item 4 of
+`MIGRATION_STATE.md`'s next-action list. **Run it before committing to A**: it converts the
+widest part of this estimate into a measurement, and it is the one check that can show A to
+be unbounded before the work starts rather than during it.
+
 ### What Option C removes
 
 Real, and worth weighing against the above:
 
-- **The static-export build failure.** Measured 2026-09-18 and re-verified today: all four
-  `[id]` pages (`admin/tenants`, `employees`, `payroll`, `devices`) begin `"use client"`,
-  which Next forbids combining with `generateStaticParams`; `app/manifest.ts` needs
-  `force-static`. C keeps SSR, so none of this applies.
-- **Entity routes 404ing.** Under A, `generateStaticParams` can only return `[]` because
-  the ids are tenant data, so every real `/employees/123` 404s without client-side routing.
-  C removes the problem rather than working around it.
-- **`middleware.ts` (147 lines) survives.** A requires deleting it.
+- **The static-export build failures above** — all seven. C keeps SSR, so none apply.
+- **The entity-route mechanism.** C serves `/employees/123` directly. No placeholder, no
+  SPA rewrite, no per-page id rewiring, and no dependency on `.htaccess` for any of it.
+- **The silent losses.** C keeps `next.config.ts`'s `headers()` (CSP/HSTS) and keeps
+  `middleware.ts` (the `/admin` host boundary, locale redirects) working as written —
+  neither of which A can retain without `.htaccess`.
 - **Node-on-shared-hosting risk.** B depends on enabling Plesk Node.js while
   `Document Root: /ethr` is still unexplained (B-3), and on the version being 22.23.2
   against an `.nvmrc` pin of 24. C moves the runtime to a platform built for it.
@@ -350,21 +468,25 @@ Same criteria, all three. **M** = measured from the repo · **E** = estimated.
 | Criterion | A — static export | B — Node on Plesk | C — split hosting |
 |---|---|---|---|
 | Depends on **G0-A** (#8, no directives) | **No** — `.htaccess` suffices *(M)* | **Yes** *(M)* | No *(M)* |
+| Depends on **G0-B.1/B.2** (`.htaccess` honoured) | **Yes — and it is load-bearing.** Entity routes, CSP/HSTS and the `/admin` boundary all rest on it *(M)* | No *(M)* | No *(M)* |
 | Depends on **G0-C** (#17, wildcard TLS) | Yes *(M)* | Yes *(M)* | **Yes, for the API** *(M)* |
 | Depends on **G0-D** (#9/#10/#21) | Yes *(M)* | Yes *(M)* | Yes *(M)* — unchanged by any frontend choice |
-| Frontend build works today | **No** — export fails *(M)* | **Yes** *(M)* | **Yes** *(M)* |
-| Entity routes work | No — 404 on tenant ids *(M)* | Yes *(M)* | Yes *(M)* |
-| Repo changes needed | delete `middleware.ts`, split 4 routes, `force-static`, client routing *(M)* | **None** *(M)* | base URL + CORS/Sanctum config, **plus a tenancy decision** *(M)* |
+| Frontend build works today | **No** — 7 distinct failures *(M)* | **Yes** *(M)* | **Yes** *(M)* |
+| Entity routes work | No — need placeholder + SPA rewrite + URL-derived id *(M)* | Yes *(M)* | Yes *(M)* |
+| Repo changes needed | `force-static` ×3, split 4 routes, placeholder params, rewire 4 id reads, client-side host read in `(auth)/layout.tsx` *(M)*. **Not** deleting `middleware.ts` — it builds fine and goes inert *(M)* | **None** *(M)* | base URL + CORS/Sanctum config, **plus a tenancy decision** *(M)* |
+| Engineering cost | **≈8 days, 6–11** *(E)*, of which **3 days gated on G0-B.1/B.2** | ~0 | base URL + config *(M)*; tenancy change **uncosted** |
 | Vendors | 1 | 1 | **2** |
 | Extra recurring cost | none | none | low tens of USD/month *(E)* |
 | SSR retained | No *(M)* | Yes *(M)* | Yes *(M)* |
-| New security surface | none | none | cross-origin auth — **manageable on a custom domain** *(M)*; tenancy change is the real risk *(M)* |
-| Blocked on an unanswered host question | ask 1 | ask 1 **+ Node while B-3 open** | ask 1 |
+| Loses CSP/HSTS headers | **Yes, silently** — `next.config.ts:33-77` dropped with a warning *(M)*; recoverable only via `.htaccess` | No *(M)* | No *(M)* |
+| Loses the `/admin` host boundary | **Yes, silently** — middleware inert, and its documented nginx backstop is what G0-A says is absent *(M)* | No *(M)* | No *(M)* |
+| New security surface | **defence-in-depth regression** (above); data still protected by `admin.manage` + `RoleGate` *(M)* | none | cross-origin auth — **manageable on a custom domain** *(M)*; tenancy change is the real risk *(M)* |
+| Blocked on an unanswered host question | ask 1 **+ the canary (G0-B.1/B.2)** | ask 1 **+ Node while B-3 open** | ask 1 |
 
 ### Recommendation
 
-**Keep A as the recommended target. Hold C as the contingency if G0-A is confirmed FAIL and
-the export work proves larger than estimated.**
+**Keep A as the recommended target — but run the canary before committing to it. A is
+bounded only if `.htaccess` is honoured.** Hold C as the contingency.
 
 Reasoning, in the order it decides:
 
@@ -374,14 +496,27 @@ Reasoning, in the order it decides:
 2. **C does not escape #17.** It looked like it might — a platform gives wildcard TLS for
    free — but the API still needs per-tenant hostnames, so the wildcard problem moves
    rather than disappears. That is the single finding that keeps C from being the answer.
-3. **C's true cost is a tenancy change, not a CORS change**, and it is uncosted. A's true
-   cost is bounded and known: four route splits, a directive, a deletion, client routing.
-   A known cost beats an unknown one.
-4. **B is the weakest.** It depends on G0-A, which has the strongest evidence of FAIL of
+3. **C's true cost is a tenancy change, not a CORS change**, and it is uncosted. A's cost
+   is now **measured at ≈8 days, realistically 6–11**. A known cost beats an unknown one —
+   *provided the condition in 4 holds*.
+4. **A's boundedness is conditional, and this is the sentence to act on.** Three of its
+   nine line items — **3 of the 8 days** — are gated on **G0-B.1/B.2**. `.htaccess` is not
+   a convenience for A; it is the mechanism. It carries the SPA rewrite without which
+   entity routes have **no way to be served at all**, the CSP/HSTS headers that static
+   export drops silently, and the `/admin` host boundary that middleware can no longer
+   enforce. **If `.htaccess` is not honoured, A is not bounded either** — and the estimate
+   above should be treated as void rather than merely optimistic.
+5. **B is the weakest.** It depends on G0-A, which has the strongest evidence of FAIL of
    any open gate, *and* on enabling Node while B-3 is unexplained.
-5. **C becomes the right answer if** G0-A is confirmed FAIL *and* someone decides tenancy
-   can move off the hostname. Both are decisions, not measurements, and neither has been
-   made.
+6. **C becomes the right answer if** the canary shows `.htaccess` is ignored, *or* if G0-A
+   is confirmed FAIL and someone decides tenancy can move off the hostname. The first is a
+   measurement that can be taken today; the second is a decision nobody has made.
+
+> **The next action this section implies is not a choice between A and C.** It is the
+> canary — five files, six fetches, no shell, no cron, no support ticket, already item 4 of
+> `MIGRATION_STATE.md`'s next-action list. It answers G0-B.1 through B.5, and it is the one
+> check that can show A to be unbounded *before* the eight days are spent rather than
+> during them.
 
 **Unchanged by any of this:** the pre-registered **No-Go → Option A (stay on the VPS)**
 still stands, because it fired on G0-D.
