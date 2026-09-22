@@ -80,6 +80,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 |---|---|
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | **Start here.** Hosting verification — all rows `NOT VERIFIED` |
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
+| [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md) | **The deployment contract.** PRIMARY: Plesk UI, Git deployment, Laravel integration, Scheduled Tasks, database. OPTIONAL: SSH. NEVER REQUIRED: Docker, systemd, Supervisor, root, VPS-only services. Records which PRIMARY elements are observed on the account and which are not |
 | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) | **Ready to send.** One ticket, **four** asks — cron, SSH, `TRIGGER`, and what the higher tiers include. Unblocks B-1, B-4 and G0-F, and the fourth may resolve G0-A, G0-D and G0-G at once |
 | [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, checklists. Procedures frozen until Gate 0 reports; facts corrected 2026-09-18 |
 | [`HOSTING_VERIFICATION_CHECKLIST.md`](HOSTING_VERIFICATION_CHECKLIST.md) | ~60 capability rows, every one `NOT VERIFIED` |
