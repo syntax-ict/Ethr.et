@@ -10,7 +10,7 @@ declare(strict_types=1);
  * than every tenant's. That is the single property this product's safety rests
  * on, and `withoutGlobalScope` / `withoutGlobalScopes` turns it off.
  *
- * Most of the 156 call sites are legitimate — platform-admin surfaces,
+ * Most of the 161 call sites are legitimate — platform-admin surfaces,
  * pre-authentication lookups, global reference data, and queued jobs, which run
  * with no HTTP tenant context and must re-scope by hand. The rule is that every
  * one re-applies a tenant predicate. Nothing enforced that, and one was
@@ -18,6 +18,13 @@ declare(strict_types=1);
  *
  * This does not audit the existing sites; a count cannot. It makes adding one a
  * deliberate act, which is what was missing when P0-1 went in.
+ *
+ * The figure above read **156** until 2026-09-22. On that date four files carried
+ * four different counts of the same thing: this docblock said 156, the inventory
+ * beside it summed to 161, `docs/CLAUDE.md` said "~147 sites do, nothing enforces
+ * it" — wrong on the number AND on the enforcement, since this test is the
+ * enforcement — and the root `CLAUDE.md` said 161. The second assertion below
+ * exists so the documented figure can no longer drift from the enforced one.
  */
 it('has no unreviewed tenant-scope bypass', function () {
     $appDir = base_path('app');
@@ -95,4 +102,37 @@ it('has no unreviewed tenant-scope bypass', function () {
             '',
         ]
     )));
+});
+
+it('states the same bypass count in docs/CLAUDE.md as the inventory enforces', function () {
+    // Four files carried four different counts of this on 2026-09-22 (147, 156,
+    // 161, 161). The inventory beside this test is the enforced figure; the
+    // conventions document is what a contributor reads first, and it was the
+    // furthest out — it said "~147 sites do, nothing enforces it", which
+    // understates the number and denies the existence of this very test.
+    //
+    // A reader who believes bypasses are unenforced works differently from one
+    // who knows a pin will fail on the next one. That is why this is worth a
+    // test rather than a one-time correction.
+    $inventory = require __DIR__.'/tenant-scope-bypasses.php';
+    $sites = array_sum($inventory);
+    $files = count($inventory);
+
+    $conventions = (string) file_get_contents(
+        dirname(base_path()).'/docs/CLAUDE.md'
+    );
+
+    expect(preg_match('/\*\*(\d+) sites across (\d+) files\*\*/', $conventions, $m))->toBe(
+        1,
+        'docs/CLAUDE.md no longer states the bypass inventory as "**N sites across M files**". '
+        .'Restore that phrasing in Non-Negotiable Convention #1 rather than deleting this test — '
+        .'the drift it guards against is a documented count falling behind the enforced one.'
+    );
+
+    expect([(int) $m[1], (int) $m[2]])->toBe(
+        [$sites, $files],
+        'docs/CLAUDE.md states '.$m[1].' bypass sites across '.$m[2].' files; the inventory this '
+        .'test enforces has '.$sites.' across '.$files.'. Update Convention #1 in the same change '
+        .'that updates tenant-scope-bypasses.php.'
+    );
 });
