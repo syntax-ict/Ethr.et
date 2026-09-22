@@ -107,7 +107,7 @@ Tasks is URL-fetch only, this route does not exist either. Read G0-D before rely
 > URL-fetch, absent. See the G0-D row in the gate table below. With Route A Forbidden and
 > Route D withdrawn when the Plesk Git repository was removed, **Route C is the only live
 > probe route.** The paragraphs below are kept because they describe how to read a
-> scheduled task's output correctly, which applies again the moment ask 1 or ask 2 of
+> scheduled task's output correctly, which applies again the moment the **cron** or **SSH** ask of
 > `ETHIO-TELECOM-SUPPORT-REQUEST.md` is granted.
 
 **Read the output, not the panel's task status.** Until 2026-09-18 the probe exited `0`

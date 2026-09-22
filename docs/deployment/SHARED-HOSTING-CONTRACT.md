@@ -59,7 +59,7 @@ offers a startable application.
 | **Plesk Laravel integration** | **Never observed.** Not in the dashboard listing, which was otherwise complete — Files, Databases, FTP, Backup & Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories. Zero mentions anywhere in this repository | **UNEVIDENCED** |
 
 Neither gap invalidates the contract. Both are **service-plan permissions or extensions**,
-not server capabilities — the same class as SSH, and exactly what ask 4 of
+not server capabilities — the same class as SSH, and exactly what the **higher-plans** ask of
 [`ETHIO-TELECOM-SUPPORT-REQUEST.md`](ETHIO-TELECOM-SUPPORT-REQUEST.md) exists to resolve.
 What they mean is that the PRIMARY path is **not currently executable end to end**, and
 saying so is not pessimism; it is the difference between a contract and a wish.

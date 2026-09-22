@@ -10,8 +10,18 @@ be pasted with minimal editing.
 added the day after the draft and the heading was never brought along — which is how a
 document tells its own reader to skip a quarter of itself.*
 
-**It is the single highest-value action available.** Asks 1 and 2 are alternative solutions
-to the same fatal problem — either one substantially unblocks the migration.
+**It is the single highest-value action available.**
+
+*Re-ranked 2026-09-22 by [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).* The
+order is now **cron → higher plans → `TRIGGER` → SSH**, which is criticality order under
+that contract rather than the order the asks happened to be written in:
+
+| # | Ask | Why here |
+|---|---|---|
+| **1** | Scheduled Tasks (cron) | **The only blocker.** It is the contract's PRIMARY path for the scheduler and queue worker, and nothing else in the contract can drive recurring work |
+| **2** | What the higher plans provide | The commercial route to ask 1, and it may deliver the Laravel extension and custom directives with it — one reply can resolve several gates |
+| **3** | Database privilege `TRIGGER` | Independent of the others; aborts the database migration by design if refused |
+| **4** | SSH | **Now a fallback, not an equal alternative.** SSH would supply `crontab` and so could solve ask 1's problem — but the contract says ETHR must not *require* it, so building the scheduler on it would violate the contract we just set. Asked for as a convenience, ranked last deliberately |
 
 *Ask 1 corrected 2026-09-19: it requested **one** cron line and claimed that line drove the
 whole background half. It does not. `routes/console.php` has no `queue:work` entry, and
@@ -20,7 +30,7 @@ and drains nothing. The ask is now two lines. Sending the earlier version would 
 exactly what was asked for and still left every queued job unrun.* Ask 3 is
 independent and aborts the database migration by design if refused.
 
-**Ask 4 — added 2026-09-18 — may be worth more than the other three combined.**
+**Ask 2 — added 2026-09-18 as ask 4, promoted 2026-09-22 — may be worth more than the other three combined.**
 `deployment/GATE-0-RESULT.md` records that *"PHP versions / Node / cron granularity /
 proxy directives"* often **differ by tier**, and that **G0-A, G0-D and G0-G may all have
 different answers on a higher plan**. Those are exactly the three gates blocking this
@@ -67,10 +77,10 @@ round trip and no grant.
 > Hello,
 >
 > I am preparing to deploy a PHP/Laravel application to hosting account **`ethret`** on
-> **`lin6.ethiotelecom.et`**, serving **ethr.et**. Three capabilities the application needs
+> **`lin6.ethiotelecom.et`**, serving **ethr.et**. A few capabilities the application needs
 > are not currently available on the subscription. I would be grateful if you could enable
-> them, or tell me which tier provides them. I have a fourth question, about the plans
-> themselves, at the end.
+> them, or tell me which tier provides them. **Item 1 is the one that blocks me**; the
+> others matter less and I have ordered them accordingly.
 >
 > **1. Scheduled Tasks (cron)**
 >
@@ -98,35 +108,7 @@ round trip and no grant.
 > Please also confirm whether tasks can be of the **"Run a command"** type, as opposed to
 > "Fetch a URL" only.
 >
-> **2. SSH / shell access**
->
-> *Hosting Settings* shows SSH access as **Forbidden** for this account, and there is no
-> Terminal under *Dev Tools*.
->
-> Beyond ordinary file management, I need shell access to run four one-off installation
-> commands — generating an application key, creating the database schema, seeding initial
-> data, and creating the first administrator account. There is no way to perform these from
-> the control panel, so without either this or item 1 the application cannot be installed
-> at all.
->
-> I note that the Plesk **Git** extension on this same account offers *additional
-> deployment actions*, which execute shell commands as the subscription user. The platform
-> therefore already runs shell commands for this account; what I am asking for is
-> interactive access to the same capability. If full SSH is not possible on this plan, item
-> 1 alone would be sufficient.
->
-> **3. Database privilege: `TRIGGER`**
->
-> The application's schema includes database triggers that protect an audit log from being
-> modified after the fact. Creating them requires the `TRIGGER` privilege on the
-> application's own database, granted to its own database user — no access to any other
-> database is needed.
->
-> Without this privilege the schema creation stops with an error by design, rather than
-> installing a weaker audit trail silently. If the privilege cannot be granted on shared
-> hosting, please let me know, as I need to plan around it explicitly.
->
-> **4. What the higher service plans provide**
+> **2. What the higher service plans provide**
 >
 > Rather than ask for each capability separately, could you tell me what the plans above
 > my current one include — specifically:
@@ -147,6 +129,39 @@ round trip and no grant.
 > If a higher plan provides these as standard, upgrading may be simpler for both of us
 > than granting them individually, and I am willing to move to the plan that fits.
 >
+> **3. Database privilege: `TRIGGER`**
+>
+> The application's schema includes database triggers that protect an audit log from being
+> modified after the fact. Creating them requires the `TRIGGER` privilege on the
+> application's own database, granted to its own database user — no access to any other
+> database is needed.
+>
+> Without this privilege the schema creation stops with an error by design, rather than
+> installing a weaker audit trail silently. If the privilege cannot be granted on shared
+> hosting, please let me know, as I need to plan around it explicitly.
+>
+> **4. SSH / shell access** — *lowest priority of the four*
+>
+> This one is a convenience rather than a requirement. The application is deliberately
+> built to install and run through the control panel alone, so please treat items 1 to 3
+> as the ones that matter. I mention it only because it would make the one-off steps
+> below quicker if it happens to be available on my plan.
+>
+> *Hosting Settings* shows SSH access as **Forbidden** for this account, and there is no
+> Terminal under *Dev Tools*.
+>
+> Beyond ordinary file management, I need shell access to run four one-off installation
+> commands — generating an application key, creating the database schema, seeding initial
+> data, and creating the first administrator account. There is no way to perform these from
+> the control panel, so without either this or item 1 the application cannot be installed
+> at all.
+>
+> I note that the Plesk **Git** extension on this same account offers *additional
+> deployment actions*, which execute shell commands as the subscription user. The platform
+> therefore already runs shell commands for this account; what I am asking for is
+> interactive access to the same capability. If full SSH is not possible on this plan, item
+> 1 alone would be sufficient.
+>
 > Thank you very much for your help.
 
 ---
@@ -155,12 +170,12 @@ round trip and no grant.
 
 | Declined | Consequence | Next step |
 |---|---|---|
-| **1 and 2 both** | The application cannot be installed on this account as provisioned | The architecture decision reopens — Option A (stay on the VPS) or Option C (shared hosting plus a small VPS for cron and queue), both already costed in `shared-hosting/SHARED_HOSTING_MIGRATION_PLAN.md`. **Owner decision.** |
+| **1 and 4 both** | The application cannot be installed on this account as provisioned | The architecture decision reopens — Option A (stay on the VPS) or Option C (shared hosting plus a small VPS for cron and queue), both already costed in `shared-hosting/SHARED_HOSTING_MIGRATION_PLAN.md`. **Owner decision.** |
 | **1 only** | Installation is possible via deployment actions; the scheduler and queue still have no runner | Scheduler and queue move behind an authenticated HTTP endpoint — unbuilt, and must be costed before it is promised |
-| **2 only** | Installation and operations work; no recurring tasks | As above |
+| **4 only** | Installation and operations work; no recurring tasks | As above |
 | **3 only** | `migrate` aborts at `2026_07_22_000001` | See `docs/AUDIT_LOG_INTEGRITY_DECISION.md` — this is a deliberate stop, and the decision to proceed without triggers is the owner's to record |
-| **4 — "no plan offers cron / Node"** | The three blocking gates are **permanent**, not provisioning | This is the answer that settles it. `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule stands unqualified: **Option A**. Record it and stop spending on Option B |
-| **4 — a higher plan provides them** | G0-A, G0-D and G0-G may all flip together | Price it against the VPS in `TCO_COMPARISON.md` before upgrading. Note that **Branch B is still an architectural frontend change** unless the plan also provides a Node runtime — see `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18* |
+| **2 — "no plan offers cron / Node"** | The three blocking gates are **permanent**, not provisioning | This is the answer that settles it. `SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule stands unqualified: **Option A**. Record it and stop spending on Option B |
+| **2 — a higher plan provides them** | G0-A, G0-D and G0-G may all flip together | Price it against the VPS in `TCO_COMPARISON.md` before upgrading. Note that **Branch B is still an architectural frontend change** unless the plan also provides a Node runtime — see `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18* |
 
 ## What this ticket does *not* ask for, and why
 

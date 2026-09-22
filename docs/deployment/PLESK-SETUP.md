@@ -138,7 +138,7 @@ One command does both:
 queued email is ever sent — and `key:generate`, `migrate`, `db:seed` and `ethr:create-admin`
 have no runner, so the application cannot be *installed*.
 
-Nothing in the repository can fix this. It is ask 1 and ask 2 of the support request.
+Nothing in the repository can fix this. It is the **cron** and **SSH** asks of the support request.
 
 ---
 
