@@ -708,7 +708,7 @@ known unresolved and consciously left*. Listed so none of them becomes a surpris
 | --- | --- | --- | --- |
 | ~~**U-1**~~ | ~~**None of this session's corrections are on `main`.**~~ **RESOLVED 2026-09-18.** Both PRs merged in the order this row prescribed: **#19 → `e7e0199`**, **#20 → `7fb91cc`**. `main` now carries step 4a, the probe list including `simplexml` — **20 extensions as merged; 18 since 2026-09-18**, when `bcmath` was measured as never required and `zip` restated as `phar` OR `zip` — the five-check canary, the manual action queue, and the blocker register. The defective procedure is no longer what an operator gets from `main`. | — | Done |
 | **U-2** | **`DEPLOYMENT.md` steps 3 and 4 describe a procedure nobody can perform here** — `rsync` over SSH, `artisan` over SSH — on an account where SSH is Forbidden | Freeze discipline. The exception test is *branch-independent **and** blocks Gate 0*; this is branch-independent but does not block Gate 0. Rewriting before the SSH question resolves means writing it twice | SSH granted → steps stand as written. SSH refused → rewrite around Git + Composer + a task runner |
-| **U-3** | **B-4 — nothing can run `artisan`.** `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner. The Git route delivers code and Composer delivers `vendor/`; neither executes anything | External capability, not a repository defect | **Manual queue #1 is closed** — answered 2026-09-18, there is no Scheduled Tasks section, so a command-type task is not on the table *(this row said it was until 2026-09-19)*. What is left: **queue #2 (SSH)**, ask 2 of the support request; a **command-type Plesk Git deployment action**, which executes shell as the subscription user but only on deploy, so it covers the four one-off commands and not the scheduler; or a **SQL console** if *Databases* offers phpMyAdmin — the still-open half of queue #1 — which imports a schema dump but runs no `artisan` |
+| **U-3** | **B-4 — nothing can run `artisan`.** `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner. The Git route delivers code and Composer delivers `vendor/`; neither executes anything | External capability, not a repository defect | **Manual queue #1 is closed** — answered 2026-09-18, there is no Scheduled Tasks section, so a command-type task is not on the table *(this row said it was until 2026-09-19)*. What is left: **queue #2 (SSH)**, the **SSH** ask of the support request; a **command-type Plesk Git deployment action**, which executes shell as the subscription user but only on deploy, so it covers the four one-off commands and not the scheduler; or a **SQL console** if *Databases* offers phpMyAdmin — the still-open half of queue #1 — which imports a schema dump but runs no `artisan` |
 | **U-4** | **B-3 — `httpdocs/ethr.et/` is an unidentified Plesk object** with its document root inside `httpdocs/` | Identification needs the panel. Deleting a vhost is not deleting a folder, so it is not being touched on a guess | Manual queue #5 |
 | **U-5** | **The host carries a Git deployment at `716ab93`, 47 commits behind `origin/main`** | Not reconciled, and reconciling it before Gate 0 would deploy an unverified configuration | Gate 0 completing, then a deliberate first deployment |
 | **U-6** | **`httpdocs/public/` and `httpdocs/et/` were removed without the disposability confirmation `B1-B5_GATE_REPORT.md` required** | Irreversible. `et/` was recorded empty; `public/` was never inspected | Nothing — recorded as a permanent gap rather than quietly dropped |
@@ -896,7 +896,7 @@ Route C, the only live route, runs under a real web SAPI where the four values *
 production values and no caveat is needed. The probe's gating was correct for both real
 routes.
 
-It is worth fixing anyway for one reason: **ask 2 of the support request is SSH.** If it is
+It is worth fixing anyway for one reason: **the support request asks for SSH.** If it is
 granted, Route A becomes live the same day, and this is precisely the run that would then
 mis-grade three of G0-E's rows.
 
@@ -1344,7 +1344,7 @@ plan** — which is precisely the set blocking this migration:
 never been confirmed.** So the decision tree everyone has been reasoning over has a branch
 nobody checked: a higher plan could flip all three at once.
 
-Added as **ask 4** to the support request. It asks the provider to *sell* something rather
+Added to the support request *(as ask 4; re-ranked to **ask 2** on 2026-09-22, when the asks were reordered by criticality under the deployment contract)*. It asks the provider to *sell* something rather
 than grant a favour, which is usually the easier conversation, and it can resolve three
 gates in one reply.
 

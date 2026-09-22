@@ -41,9 +41,9 @@ cheaper architecture — it is not an available one.
 > - **This table's premise is now the question, not the background.** Comparing the annual
 >   cost of Option A against Option B is comparing a running architecture against one with
 >   no demonstrated route to installation.
-> - What could still reopen it: ask 1 or ask 2 of
+> - What could still reopen it: the **cron** or **SSH** asks of
 >   [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
->   (cron, or SSH), or ask 4 — the tiers above Bronze may carry *Scheduled Tasks*,
+>   , or the **higher-plans** ask — the tiers above Bronze may carry *Scheduled Tasks*,
 >   custom directives and Node, which is three gates on one answer. **The request is
 >   drafted and not sent.**
 >
