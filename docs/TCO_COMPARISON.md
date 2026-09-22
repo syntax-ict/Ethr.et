@@ -91,6 +91,14 @@ Public sources disagree, and the disagreement is not a rounding error:
 | whtop directory (data dated 2020) | **VPS Gold** (4 GB / 50 GB, root) | ETB **10,379** | **per year** |
 | whtop directory (data dated 2020) | **VPS Platinum** (8 GB / 100 GB, root) | ETB **15,845** | **per year** |
 
+> **Read the plan names carefully — they collide.** *VPS Gold* and *VPS Platinum* above are
+> **root servers**, the Option A fallback. Ethio Telecom **also** sells shared **Gold** and
+> **Platinum** Linux hosting plans (50 GB and 100 GB, no root) — the ones a tier upgrade from
+> Bronze would actually reach. They are listed in
+> [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) §1.
+> An unqualified "Gold" in a price comparison is ambiguous by a factor of roughly three, so
+> always write *VPS Gold* or *shared Gold*.
+
 If the monthly reading is right, Linux Silver is **ETB 24,000/year** — **2.3× the cost of
 VPS Gold**, which is a full root server that runs ETHR's existing architecture unchanged.
 
@@ -106,14 +114,31 @@ tiers before anything else. This single question may decide the whole migration.
 
 ### Finding 2 — the lower shared tiers cap subdomains numerically
 
-The same directory listing gives **Linux Bronze: 5 subdomains** and **Linux Silver: 10
-subdomains**. Only the top tier advertises "unlimited".
+The published plan specification gives **Bronze 5**, **Silver 10**, **Gold 15** and
+**Platinum unlimited** subdomains. Only Platinum advertises "unlimited".
 
-A numeric cap is not merely tight for ETHR — it is **structurally incompatible** with the
-product. ETHR provisions tenants from self-service signup with no operator action, and
-each tenant is a subdomain. A 5- or 10-tenant ceiling is not a SaaS platform.
+**If those numbers are per-host, a numeric cap is not merely tight for ETHR — it is
+structurally incompatible with the product.** ETHR provisions tenants from self-service
+signup with no operator action, and each tenant is a subdomain. A 5- or 10-tenant ceiling
+would not be a SaaS platform.
 
-And "unlimited" on the top tier still does not mean **wildcard** — see gate B1. Unlimited
+**Corrected 2026-09-22 — that "if" was previously stated as a fact, and it is an OPEN
+QUESTION.** This paragraph read *"A 5- or 10-tenant ceiling is not a SaaS platform"* flatly.
+Whether the published number is the tenant ceiling depends entirely on **how Ethio Telecom
+counts a wildcard against the quota**, which nobody has asked until now:
+
+| If `*.ethr.et` counts as… | Then the published number is… |
+| --- | --- |
+| **one** subdomain | irrelevant — Bronze's 5 never binds, and tier choice turns on storage and bandwidth instead |
+| **each host individually** | the **maximum number of customers** the plan can serve |
+
+Those are opposite conclusions from the same figure, and the repository has at different
+times asserted both. It is now asked explicitly in the higher-plans ask of
+[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
+and tracked as **NOT VERIFIED** at `deployment/GATE-0-RESULT.md` → G0-C. **Do not size a
+plan on either reading until it is answered.**
+
+And "unlimited" on Platinum still does not mean **wildcard** — see gate B1. Unlimited
 manually-created subdomains and one `*` vhost are different capabilities, and only the
 second one works here.
 

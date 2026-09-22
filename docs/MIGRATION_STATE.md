@@ -175,7 +175,7 @@ Owner said "decide for me". These are settled; they are not open questions.
 | # | Decision | Basis |
 | --- | --- | --- |
 | **1** | **Architecture: Option B — everything on Ethio Telecom shared hosting.** | VPS withdrawn by owner. B1 fully verified PASS, which was the only gate without a workaround. Nothing found so far blocks it. |
-| **2** | **Stay on Bronze. Do not upgrade yet.** | Wildcard makes the 5-subdomain cap irrelevant — `*` is one entry. One database is sufficient (single-DB tenancy, verified). Bronze's real limits are 5 GB storage / 50 GB bandwidth, and those should be sized against real data, not guessed. Upgrading is reversible and instant; over-buying now is just waste. |
+| **2** | **Stay on Bronze. Do not upgrade yet.** *(Decision unchanged 2026-09-22; one premise downgraded.)* | ~~Wildcard makes the 5-subdomain cap irrelevant — `*` is one entry.~~ **NOT VERIFIED.** That a wildcard vhost is one Plesk *entry* is a panel mechanic; whether Ethio Telecom counts it as one against the **plan quota** is a service-plan accounting policy, and the two need not agree. Asked in the higher-plans ask of the support request; tracked at `deployment/GATE-0-RESULT.md` → G0-C. The decision itself is **unaffected and if anything reinforced** — an unanswered counting rule is a reason to buy nothing yet, not a reason to upgrade. One database is sufficient (single-DB tenancy, verified). Bronze's real limits are 5 GB storage / 50 GB bandwidth, and those should be sized against real data, not guessed. Upgrading is reversible and instant; over-buying now is just waste. |
 | **3** | **Audit log: fail-fast, with a diagnosis.** Implemented. | The trigger is the only real enforcement (model guards are instance-methods only). If H1 fails, ask Ethio Telecom to grant `TRIGGER` — a support request, not a code change. |
 | **4** | **TLS: pursue wildcard, ship on per-tenant HTTP-01.** | A working LE cert already exists on this account, which *proves* HTTP-01. Wildcard needs the zone in Plesk or a DNS API token — worth requesting from Ethio Telecom, but it is an optimisation, not a blocker. |
 | **5** | **Canonical host is `www.ethr.et`.** | Plesk already 301s apex → www; `www` is already reserved in `Tenant::RESERVED_SUBDOMAINS`. Set `APP_URL` and `CORS_ALLOWED_ORIGINS` accordingly. |
@@ -2608,7 +2608,7 @@ Telecom Plesk account**, not further analysis.
 | R4 | `CREATE TRIGGER` denied → audit log not immutable | **Critical** | Still unverified live, but the code-side risk is resolved: D8 reverted the mitigation back to fail-fast-with-diagnosis, so a denial now blocks deployment loudly rather than degrading the guarantee silently. |
 | R5 | `max_execution_time` too low for payroll and imports | High | Unverified |
 | R11 | **Shared hosting may cost more than the VPS** | **High** | Public data contradicts itself; unresolved |
-| R12 | **Subdomain caps (5/10) on lower tiers** are structurally incompatible with SaaS tenancy | ~~High~~ **Moot** | A wildcard vhost is *one* Plesk entry, not one per tenant — R1's resolution makes this cap irrelevant regardless of tier. |
+| R12 | **Subdomain caps on lower tiers** (PUBLISHED: Bronze 5, Silver 10, Gold 15, Platinum unlimited) are structurally incompatible with SaaS tenancy | ~~High~~ ~~**Moot**~~ **REOPENED 2026-09-22 — High, unresolved** | The mooting argument was *"a wildcard vhost is one Plesk entry, not one per tenant."* True of Plesk's own data model, **NOT VERIFIED** as the provider's quota accounting — and only the second one caps tenants. Asked in the higher-plans ask of the support request; see `deployment/GATE-0-RESULT.md` → G0-C. |
 | R6 | Document root not editable → cannot point at `api/public` | Medium | Unverified |
 | R7 | `ext-gd` absent → image compression and thumbnails degrade **silently** | Medium | Unverified; probe covers it |
 | R8 | Outbound HTTPS blocked → SMTP, webhooks, SMS, Sentry, device polling fail | Medium | Unverified; probe covers it |
@@ -2814,8 +2814,10 @@ above. Every item below needs the Plesk panel or the owner's own machine.
 1. ~~**Read the Plesk *Node.js* page — G0-G.**~~ **DONE 2026-09-22 — PARTIAL.** Node is
    present and **can run an application** (Application Startup File `app.js`, Application
    Mode `production`, Application URL `http://ethr.et`), so it is not build-only as this
-   plan assumed. The version offered is **22.23.2** — below the pinned **24**, and the
-   exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed*. Full evidence
+   plan assumed. The version offered is **22.23.2** — below `.nvmrc`'s **24** CI/test pin, and the
+   exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed* **on the Vitest
+   harness**. It is, however, the frontend runtime this repository already declares in
+   `docker/frontend/Dockerfile`, so it is not a Branch A blocker. Full evidence
    in `deployment/GATE-0-RESULT.md` → *G0-G*.
 
    **It does not move the Option A/B decision**, because that rule fired on **G0-D**, which
@@ -2823,8 +2825,9 @@ above. Every item below needs the Plesk panel or the owner's own machine.
    cannot be installed whatever the frontend does. What it does change is the *reason*
    Branch B would be chosen — it is no longer "there is no Node runtime". The remaining
    question is narrow: **is the Node version selectable, or fixed at 22.23.2?**
-2. **Send the support request.** Four asks: cron, SSH, the `TRIGGER` grant (G0-F), and
-   what the higher tiers actually include. **B-1**, **B-4** and **G0-D** all turn on the
+2. **Send the support request.** Four asks, in the criticality order set 2026-09-22: **cron**,
+   **what the higher plans provide**, the **`TRIGGER`** grant (G0-F), then **SSH** — SSH last
+   deliberately, because `deployment/SHARED-HOSTING-CONTRACT.md` makes it OPTIONAL. **B-1**, **B-4** and **G0-D** all turn on the
    answer, and three of them have no other route.
 3. **Return the probe URL's response headers and its first body line.** One request
    separates explanations **(a)–(d)** above, which no further status code can. Until it
