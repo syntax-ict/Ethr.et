@@ -29,7 +29,7 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
 
-### 4. Tenant isolation is fail-closed, and bypassed in 161 places
+### 4. Tenant isolation is fail-closed, and bypassed in 156 places
 
 `BelongsToTenant` adds a global scope that applies `whereRaw('0 = 1')` when no tenant is resolved — absence of context yields *no* rows, not *all* rows. That design is why this product is safe by default.
 
