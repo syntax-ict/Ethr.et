@@ -106,4 +106,20 @@ to answer it is while somebody already has the account open.
 
 The fix is Plesk → **Apache & nginx Settings → Additional nginx directives**. That translation is already written, so nobody has to work out nginx `location` semantics under deadline: [`docs/deployment/shared-hosting/nginx-directives.conf`](../../../docs/deployment/shared-hosting/nginx-directives.conf).
 
+> ⚠ **On this account that field appears not to exist**, so read this remedy as
+> *prepared* rather than *available*. The owner read Apache & nginx Settings on
+> 2026-09-17 and reported **no directives textarea at all** — neither
+> "Additional directives for HTTP/HTTPS" nor "Additional nginx directives" — on
+> an otherwise complete page. In Plesk both are gated by a service-plan
+> permission. Recorded as **B-2** in [`MIGRATION_STATE.md`](../../../docs/MIGRATION_STATE.md)
+> and as the evidence behind **G0-A**, currently `NOT VERIFIED` with *"strong
+> evidence of FAIL, unconfirmed"*.
+>
+> It is stated here because this is the page someone reads **at the moment the
+> canary has just failed**, which is the worst moment to discover the remedy has
+> nowhere to go. If the field is genuinely absent the route is the higher-plans
+> ask of [`ETHIO-TELECOM-SUPPORT-REQUEST.md`](../../../docs/deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md),
+> not a paste. **Confirm the absence first** — one look at the bottom of that
+> page also closes G0-A, which is item 3 of the plan's own priority list.
+
 It covers the silent half — headers, deny rules, timeouts, upload size — and deliberately refuses to guess at routing, because the correct form of that depends on whether nginx proxies to Apache or serves the root itself, which is precisely what this canary is here to find out. Read its header before pasting it; it is unverified against any live host.
