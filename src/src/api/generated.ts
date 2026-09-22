@@ -4108,6 +4108,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/public-page/suspension": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Take a tenant's public page down, or put it back
+         * @description `*.ethr.et` is ETHR's own domain, so whatever a tenant publishes there is
+         *     published partly on ETHR's reputation. Until now nothing could pull a
+         *     page that turned out to be fraudulent, offensive or impersonating — this
+         *     is that lever, and it is the platform's alone.
+         *
+         *     Deliberately separate from `is_published`. A takedown must not destroy
+         *     the tenant's own publication state: restoring is one column write rather
+         *     than a guess about what they had wanted, and an administrator who
+         *     republishes cannot quietly undo a suspension.
+         *
+         *     The suspended page answers exactly as an unpublished one does — same
+         *     status, same body — so suspension does not become a way to discover
+         *     which organisations have been moderated.
+         */
+        put: operations["adminTenant.suspendPublicPage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/government-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record, or withdraw, that this tenant really is a government body
+         * @description The only thing standing between a private company and state-official
+         *     branding on its public page, because every other signal — the industry
+         *     chosen at onboarding, the free-text `type` column — is written by the
+         *     tenant about itself. Granting it is a human decision made here; the
+         *     column is absent from Tenant::$fillable so no tenant-facing route can
+         *     reach it. See App\Rules\SelectablePreset.
+         */
+        put: operations["adminTenant.verifyGovernment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/revenue": {
         parameters: {
             query?: never;
@@ -4356,6 +4413,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/public-page/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sections */
+        get: operations["publicSection.index"];
+        put?: never;
+        /** Create section */
+        post: operations["publicSection.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/sections/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put the sections in the given order
+         * @description Takes the whole ordered list rather than a single move, and rewrites
+         *     every position inside one transaction. Positions are renumbered densely
+         *     from zero, so there is no unique constraint to dance around and no way
+         *     for a half-applied reorder to leave two sections claiming one slot.
+         */
+        put: operations["publicSection.reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/sections/{section}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update section */
+        put: operations["publicSection.update"];
+        post?: never;
+        /** Delete section */
+        delete: operations["publicSection.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/sections/{section}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create item */
+        post: operations["publicSection.storeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/items/{item}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update item */
+        put: operations["publicSection.updateItem"];
+        post?: never;
+        /** Delete item */
+        delete: operations["publicSection.destroyItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/items/{item}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach an image, and the text describing it, to one entry
+         * @description Reuses FileStorageService, which verifies the file's magic bytes against
+         *     its declared type and strips EXIF — so the location data in a photograph
+         *     taken on a phone does not get published along with it.
+         */
+        post: operations["publicSection.uploadItemImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/retirement-cases": {
         parameters: {
             query?: never;
@@ -4561,6 +4734,106 @@ export interface paths {
         /** Branding settings */
         put: operations["settings.updateBranding"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the tenant logo with an uploaded file
+         * @description `PUT /settings/branding` has always accepted `logo_url` as a bare string,
+         *     so `tenants.logo_path` may hold an arbitrary external URL. That was
+         *     tolerable while the logo appeared only inside the authenticated app; on a
+         *     public page it would mean every anonymous visitor issues a request to a
+         *     third-party host, which is a tracking vector nobody opted into.
+         *
+         *     So the public page renders a logo only when it is a file this application
+         *     stored (see TenantPublicAsset), and this endpoint is how a tenant gets
+         *     one. The old string field still works for the in-app logo; it simply has
+         *     no effect on the public surface.
+         */
+        post: operations["settings.uploadBrandingLogo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's public landing page configuration
+         * @description Returns the same shape whether or not a profile row exists yet, so the
+         *     settings screen renders an empty form rather than an error on a tenant
+         *     that has never touched this. Unpublished is the default everywhere.
+         */
+        get: operations["settings.showPublicPage"];
+        /** Public page settings */
+        put: operations["settings.updatePublicPage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/hero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replace the hero image on the public page
+         * @description Stored under the tenant's existing `tenants/{public_id}/` prefix in a
+         *     `public/` subdirectory, so a glance at a storage path says whether the
+         *     object is meant to be reachable without authentication.
+         */
+        post: operations["settings.uploadPublicHero"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/public-page/preview-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mint a short-lived URL that shows the page as it would look
+         * @description Fifteen minutes, and the signature is the whole authorisation — see
+         *     App\Http\Controllers\Public\TenantPagePreviewController for why a
+         *     signed URL rather than session authentication on the tenant host.
+         *
+         *     The URL is built against this tenant's own hostname. It still does not
+         *     carry a tenant selector: ResolveTenant reads the host, so a signature
+         *     minted here is worthless anywhere else even though it is valid.
+         */
+        post: operations["settings.publicPagePreviewUrl"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6408,6 +6681,26 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * PublicSectionKind
+         * @description The kinds of block a tenant may put on its public landing page. A fixed catalogue, not free-form blocks. Every kind here has a Blade partial that knows how to render it safely, translated headings in both locales, and a place in at least one preset's defaults — `SectionKindWiringTest` asserts all three for every case, because the failure mode of adding a kind and forgetting one is a blank section in production.  What is deliberately absent is as important as what is here. There is no `documents` kind: government bodies genuinely want to publish directives and forms, and that is precisely why it is not bolted on — it means anonymous file downloads, a new MIME class and a malware-distribution surface, which is its own change with its own decisions. There is no `form` kind either, for the same reason in reverse: it would be the first anonymous write endpoint on the public surface.  Every kind holds text an administrator typed. **No kind reads an HR table.** Not `announcements`, not `employees`, not a headcount from a query. That is the whole security posture of this feature, and `stats` is where the temptation is strongest.
+         *     | |
+         *     |---|
+         *     | `hero` <br/> The page's opening block. Reads the profile; stores nothing of its own. |
+         *     | `about` <br/> Free prose about the organisation. Reads the profile's description. |
+         *     | `services` <br/> What the organisation does or offers, as repeatable cards. |
+         *     | `stats` <br/> Figures the organisation chooses to publish. Typed, never queried. |
+         *     | `notices` <br/> Public notices and announcements — typed here, never read from the `announcements` table, which is entirely internal HR content. |
+         *     | `news` <br/> News and updates the organisation publishes about itself. Distinct from NOTICES, and the distinction is editorial rather than technical — worth stating because "we already have notices" is the first thing a reviewer will think.  A notice is a statement of record: dated, text-first, read by someone who came looking for it. A relocation, a tender, a consultation period. It belongs in a list, newest first, and a photograph would cheapen it.  News is the opposite errand: read by someone who arrived for another reason and stayed. A graduation, a new wing, a partnership. It is image-led, carries an excerpt, and links out to the full story.  The same table, the same caps and the same escaping. Only the partial and the reading differ — which is exactly the kind of thing a section kind is for, and exactly why it is not a `layout` variant of NOTICES: a tenant publishing both should not have to choose. |
+         *     | `leadership` <br/> Named office-holders an organisation publishes deliberately. |
+         *     | `gallery` <br/> Photographs of premises or work. |
+         *     | `faq` <br/> Questions the public actually asks. |
+         *     | `hours` <br/> Opening hours, structured so they can also feed the JSON-LD. |
+         *     | `contact` <br/> Phone, email and address. Reads the profile; stores nothing of its own. |
+         *     | `cta` <br/> The closing call to action. |
+         * @enum {string}
+         */
+        PublicSectionKind: "hero" | "about" | "services" | "stats" | "notices" | "news" | "leadership" | "gallery" | "faq" | "hours" | "contact" | "cta";
         /** QrAttendanceRequest */
         QrAttendanceRequest: {
             idempotency_key: string;
@@ -7156,7 +7449,9 @@ export interface components {
             timezone: string;
             ethiopian_calendar: boolean;
             logo_path: string | null;
-            theme: unknown[] | null;
+            theme: {
+                [key: string]: unknown;
+            } | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -7605,6 +7900,117 @@ export interface components {
              *     rules only keep obviously wrong uploads out of that path.
              */
             photo: string;
+        };
+        /**
+         * UploadPublicImageRequest
+         * @description A logo or hero image for the tenant's public landing page.
+         *
+         *     Its own endpoint, and a POST, for the same reason UploadProfilePhotoRequest
+         *     is: PHP does not populate $_FILES on a PUT, so a file field on the JSON
+         *     settings endpoint could never arrive however the client sent it.
+         *
+         *     GIF is absent from the accepted types deliberately. The other three cover
+         *     every real logo — PNG and WebP for transparency, JPEG for photographs — and
+         *     an animated logo on an organisation's public page is a support question, not
+         *     a feature. Narrower input is also less for FileStorageService's decoder to
+         *     be handed.
+         */
+        UploadPublicImageRequest: {
+            /**
+             * Format: binary
+             * @description VerifyUploadedFiles has already checked the magic bytes against
+             *     the declared type by the time this runs, and FileStorageService
+             *     strips EXIF and re-encodes. These rules keep obviously wrong
+             *     uploads out of that path rather than being the only defence. 2 MB rather than the 5 MB profile photos allow: this image is
+             *     fetched by every anonymous visitor on a connection that is often
+             *     mobile data, so the ceiling is a page-weight decision as much as
+             *     a storage one.
+             */
+            image: string;
+        };
+        /**
+         * UploadPublicItemImageRequest
+         * @description An image for one entry on the public page, and the text that describes it.
+         *
+         *     The same limits as the hero and logo uploads — 2 MB, JPG/PNG/WebP, no GIF —
+         *     because these are page-weight decisions and a builder can add two dozen of
+         *     them. FileStorageService verifies the magic bytes and strips EXIF, so a file
+         *     whose extension disagrees with its contents is refused there rather than
+         *     trusted here.
+         *
+         *     `alt` is required, and that is the reason this request exists rather than
+         *     reusing UploadPublicImageRequest. An uploaded image with no alternative text
+         *     is a WCAG 1.1.1 failure, on a page whose entire purpose is to be read by the
+         *     public — including by someone using a screen reader. Making it required at
+         *     the moment the file arrives is the only point where the two are certainly
+         *     together; anywhere later and "add it afterwards" quietly becomes "never".
+         */
+        UploadPublicItemImageRequest: {
+            /**
+             * Format: binary
+             * @description Maximum file size: 2048 kilobytes.
+             */
+            image: string;
+            alt: string;
+            alt_am?: string | null;
+        };
+        /**
+         * UpsertPublicItemRequest
+         * @description Validation for one entry inside a section.
+         *
+         *     Three rules here are load-bearing rather than tidy:
+         *
+         *      - `link_url` goes through PublicUrl, the same rule the profile's website
+         *        field uses: http(s) only, and nothing resolving to a private address. A
+         *        `javascript:` value would otherwise become a link the page's own visitors
+         *        click.
+         *      - `icon` is an allow-list, because the value is interpolated into an SVG
+         *        `<use href="#icon-…">` reference where free text is an injection point.
+         *      - `meta` admits scalars only, so it stays a place for a stat's figure or an
+         *        hours row's times rather than arbitrary nested data no template can read.
+         *
+         *     Alternative text is required too, but not here: the image arrives through
+         *     its own upload endpoint, so the requirement belongs there, where the file
+         *     and the text are in the same request. See UploadPublicItemImageRequest.
+         */
+        UpsertPublicItemRequest: {
+            title?: string | null;
+            title_am?: string | null;
+            body?: string | null;
+            body_am?: string | null;
+            image_alt?: string | null;
+            image_alt_am?: string | null;
+            /** @enum {string|null} */
+            icon?: "briefcase" | "clipboard" | "file-text" | "stamp" | "scale" | "shield" | "users" | "user-tie" | "building" | "landmark" | "map-pin" | "globe" | "phone" | "mail" | "message" | "clock" | "calendar" | "graduation-cap" | "stethoscope" | "bank" | "factory" | "bed" | "leaf" | "star" | "check" | "info" | null;
+            link_url?: string | null;
+            link_label?: string | null;
+            link_label_am?: string | null;
+            meta?: (string | null)[] | null;
+        };
+        /**
+         * UpsertPublicSectionRequest
+         * @description Validation for one block on a tenant's public page.
+         *
+         *     Everything here is rendered to anonymous visitors as plain text — the
+         *     templates escape, and no public view contains an unescaped echo outside the
+         *     JSON-LD block, which a test enforces. So these rules are about length and
+         *     shape rather than sanitisation: HTML typed into a heading appears as the
+         *     characters that were typed, which is the correct behaviour for a field with
+         *     no rich-text editor behind it.
+         *
+         *     The cap on sections is the rule worth keeping. Without it a tenant can add
+         *     blocks until the page is megabytes and the storage bill is someone else's
+         *     problem — on shared hosting, for a page served to anyone who asks.
+         */
+        UpsertPublicSectionRequest: {
+            kind: components["schemas"]["PublicSectionKind"];
+            is_visible?: boolean;
+            heading?: string | null;
+            heading_am?: string | null;
+            intro?: string | null;
+            intro_am?: string | null;
+            /** @enum {string|null} */
+            layout?: "grid" | "list" | "columns" | null;
         };
         /** UserResource */
         UserResource: {
@@ -18576,6 +18982,72 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "adminTenant.suspendPublicPage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default true */
+                    suspended?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        is_suspended: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.verifyGovernment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @default true */
+                    verified?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        government_verified: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "adminDashboard.revenue": {
         parameters: {
             query?: never;
@@ -19054,6 +19526,459 @@ export interface operations {
                     };
                 };
             };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sections: {
+                            id: string;
+                            kind: string;
+                            position: number;
+                            is_visible: boolean;
+                            heading: string | null;
+                            heading_am: string | null;
+                            intro: string | null;
+                            intro_am: string | null;
+                            layout: string | null;
+                            has_items: boolean;
+                            allows_images: boolean;
+                            reads_profile: boolean;
+                            items: {
+                                id: string;
+                                position: number;
+                                title: string | null;
+                                title_am: string | null;
+                                body: string | null;
+                                body_am: string | null;
+                                /**
+                                 * @description Presence, never the path. Where the file lives is this
+                                 *     platform's business, exactly as with the tenant logo.
+                                 */
+                                has_image: boolean;
+                                image_url: string | null;
+                                image_alt: string | null;
+                                image_alt_am: string | null;
+                                icon: string | null;
+                                link_url: string | null;
+                                link_label: string | null;
+                                link_label_am: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "publicSection.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertPublicSectionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        kind: string;
+                        position: number;
+                        is_visible: boolean;
+                        heading: string | null;
+                        heading_am: string | null;
+                        intro: string | null;
+                        intro_am: string | null;
+                        layout: string | null;
+                        has_items: boolean;
+                        allows_images: boolean;
+                        reads_profile: boolean;
+                        items: {
+                            id: string;
+                            position: number;
+                            title: string | null;
+                            title_am: string | null;
+                            body: string | null;
+                            body_am: string | null;
+                            /**
+                             * @description Presence, never the path. Where the file lives is this
+                             *     platform's business, exactly as with the tenant logo.
+                             */
+                            has_image: boolean;
+                            image_url: string | null;
+                            image_alt: string | null;
+                            image_alt_am: string | null;
+                            icon: string | null;
+                            link_url: string | null;
+                            link_label: string | null;
+                            link_label_am: string | null;
+                            meta: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    order: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sections: {
+                            id: string;
+                            kind: string;
+                            position: number;
+                            is_visible: boolean;
+                            heading: string | null;
+                            heading_am: string | null;
+                            intro: string | null;
+                            intro_am: string | null;
+                            layout: string | null;
+                            has_items: boolean;
+                            allows_images: boolean;
+                            reads_profile: boolean;
+                            items: {
+                                id: string;
+                                position: number;
+                                title: string | null;
+                                title_am: string | null;
+                                body: string | null;
+                                body_am: string | null;
+                                /**
+                                 * @description Presence, never the path. Where the file lives is this
+                                 *     platform's business, exactly as with the tenant logo.
+                                 */
+                                has_image: boolean;
+                                image_url: string | null;
+                                image_alt: string | null;
+                                image_alt_am: string | null;
+                                icon: string | null;
+                                link_url: string | null;
+                                link_label: string | null;
+                                link_label_am: string | null;
+                                meta: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertPublicSectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        kind: string;
+                        position: number;
+                        is_visible: boolean;
+                        heading: string | null;
+                        heading_am: string | null;
+                        intro: string | null;
+                        intro_am: string | null;
+                        layout: string | null;
+                        has_items: boolean;
+                        allows_images: boolean;
+                        reads_profile: boolean;
+                        items: {
+                            id: string;
+                            position: number;
+                            title: string | null;
+                            title_am: string | null;
+                            body: string | null;
+                            body_am: string | null;
+                            /**
+                             * @description Presence, never the path. Where the file lives is this
+                             *     platform's business, exactly as with the tenant logo.
+                             */
+                            has_image: boolean;
+                            image_url: string | null;
+                            image_alt: string | null;
+                            image_alt_am: string | null;
+                            icon: string | null;
+                            link_url: string | null;
+                            link_label: string | null;
+                            link_label_am: string | null;
+                            meta: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Section removed";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "publicSection.storeItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpsertPublicItemRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        position: number;
+                        title: string | null;
+                        title_am: string | null;
+                        body: string | null;
+                        body_am: string | null;
+                        /**
+                         * @description Presence, never the path. Where the file lives is this
+                         *     platform's business, exactly as with the tenant logo.
+                         */
+                        has_image: boolean;
+                        image_url: string | null;
+                        image_alt: string | null;
+                        image_alt_am: string | null;
+                        icon: string | null;
+                        link_url: string | null;
+                        link_label: string | null;
+                        link_label_am: string | null;
+                        meta: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.updateItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpsertPublicItemRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        position: number;
+                        title: string | null;
+                        title_am: string | null;
+                        body: string | null;
+                        body_am: string | null;
+                        /**
+                         * @description Presence, never the path. Where the file lives is this
+                         *     platform's business, exactly as with the tenant logo.
+                         */
+                        has_image: boolean;
+                        image_url: string | null;
+                        image_alt: string | null;
+                        image_alt_am: string | null;
+                        icon: string | null;
+                        link_url: string | null;
+                        link_label: string | null;
+                        link_label_am: string | null;
+                        meta: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "publicSection.destroyItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Entry removed";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "publicSection.uploadItemImage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadPublicItemImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        position: number;
+                        title: string | null;
+                        title_am: string | null;
+                        body: string | null;
+                        body_am: string | null;
+                        /**
+                         * @description Presence, never the path. Where the file lives is this
+                         *     platform's business, exactly as with the tenant logo.
+                         */
+                        has_image: boolean;
+                        image_url: string | null;
+                        image_alt: string | null;
+                        image_alt_am: string | null;
+                        icon: string | null;
+                        link_url: string | null;
+                        link_label: string | null;
+                        link_label_am: string | null;
+                        meta: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
         };
     };
@@ -19576,6 +20501,241 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.uploadBrandingLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadPublicImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Logo updated";
+                        logo_path: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.showPublicPage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_page: {
+                            url: string;
+                            is_published: boolean;
+                            is_indexable: boolean;
+                            /**
+                             * @description null means the classic layout, which is a real choice rather
+                             *     than a missing value — the settings screen shows it as an
+                             *     option so an opt-in can be undone.
+                             */
+                            preset: string | null;
+                            /**
+                             * @description What this tenant would get if they never chose. The screen
+                             *     labels it as the recommendation, so an administrator is not
+                             *     asked to guess which of eight layouts suits their sector.
+                             */
+                            preset_default: string;
+                            /**
+                             * @description Which presets this tenant may actually select. The government
+                             *     layout is absent unless the platform has verified them, so
+                             *     the UI can disable it with a reason instead of offering a
+                             *     choice the API will reject.
+                             */
+                            available_presets: unknown[];
+                            /**
+                             * @description Suspension is the platform's, not the tenant's. Surfaced so
+                             *     the screen can explain why a published page is not reachable
+                             *     rather than leaving an administrator to think it is broken.
+                             */
+                            is_suspended: boolean;
+                            headline: string | null;
+                            description: string | null;
+                            contact_email: string | null;
+                            contact_phone: string | null;
+                            address_line: string | null;
+                            city: string | null;
+                            region: string | null;
+                            website_url: string | null;
+                            social_links: {
+                                [key: string]: string;
+                            };
+                            meta_description: string | null;
+                            has_hero_image: boolean;
+                            /**
+                             * @description Tells the settings screen whether the stored logo will
+                             *     actually appear publicly, so it can prompt for a re-upload
+                             *     instead of leaving an administrator wondering why it does not.
+                             *     Independent of the profile row: the logo is a tenant column a
+                             *     tenant may have set long before opening this screen.
+                             */
+                            has_public_logo: boolean;
+                            published_at: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "settings.updatePublicPage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Public page updated";
+                        public_page: {
+                            url: string;
+                            is_published: boolean;
+                            is_indexable: boolean;
+                            /**
+                             * @description null means the classic layout, which is a real choice rather
+                             *     than a missing value — the settings screen shows it as an
+                             *     option so an opt-in can be undone.
+                             */
+                            preset: string | null;
+                            /**
+                             * @description What this tenant would get if they never chose. The screen
+                             *     labels it as the recommendation, so an administrator is not
+                             *     asked to guess which of eight layouts suits their sector.
+                             */
+                            preset_default: string;
+                            /**
+                             * @description Which presets this tenant may actually select. The government
+                             *     layout is absent unless the platform has verified them, so
+                             *     the UI can disable it with a reason instead of offering a
+                             *     choice the API will reject.
+                             */
+                            available_presets: unknown[];
+                            /**
+                             * @description Suspension is the platform's, not the tenant's. Surfaced so
+                             *     the screen can explain why a published page is not reachable
+                             *     rather than leaving an administrator to think it is broken.
+                             */
+                            is_suspended: boolean;
+                            headline: string | null;
+                            description: string | null;
+                            contact_email: string | null;
+                            contact_phone: string | null;
+                            address_line: string | null;
+                            city: string | null;
+                            region: string | null;
+                            website_url: string | null;
+                            social_links: {
+                                [key: string]: string;
+                            };
+                            meta_description: string | null;
+                            has_hero_image: boolean;
+                            /**
+                             * @description Tells the settings screen whether the stored logo will
+                             *     actually appear publicly, so it can prompt for a re-upload
+                             *     instead of leaving an administrator wondering why it does not.
+                             *     Independent of the profile row: the logo is a tenant column a
+                             *     tenant may have set long before opening this screen.
+                             */
+                            has_public_logo: boolean;
+                            published_at: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.uploadPublicHero": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["UploadPublicImageRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Hero image updated";
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "settings.publicPagePreviewUrl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url: string;
+                        /** @constant */
+                        expires_in: 900;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "settings.updateSso": {

@@ -53,7 +53,16 @@ return [
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
     // every plan. Each states plan_id as its own predicate.
     'Http/Controllers/Api/V1/Admin/AdminPlanController.php' => 2,
-    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 16,
+    // 16 → 19 on 2026-09-17, for the two platform controls over a tenant's
+    // public page: suspendPublicPage (two — the tenant, then its profile) and
+    // verifyGovernment (one). Both are `admin.manage` platform surfaces with no
+    // tenant context to inherit, and both state a tenant predicate immediately:
+    // the tenant is found by its own `public_id`, and the profile by
+    // `tenant_id`, a key that is itself tenant-owned. Neither is reachable from
+    // a tenant-facing route, which is the point of both — a takedown a tenant
+    // could lift, or a government verification a tenant could grant itself, is
+    // not a control.
+    'Http/Controllers/Api/V1/Admin/AdminTenantController.php' => 19,
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,

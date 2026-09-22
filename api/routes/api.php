@@ -97,6 +97,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimGroupController;
 use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
+use App\Http\Controllers\Api\V1\Settings\PublicSectionController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
@@ -649,6 +650,13 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/exit-impersonation', [AdminTenantController::class, 'exitImpersonation']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
+
+            // Platform controls over a tenant's public page. Neither is
+            // reachable from any tenant-facing route: a takedown a tenant
+            // could lift is not a takedown, and a verification a tenant could
+            // grant itself is not a verification.
+            Route::put('/tenants/{publicId}/public-page/suspension', [AdminTenantController::class, 'suspendPublicPage']);
+            Route::put('/tenants/{publicId}/government-verification', [AdminTenantController::class, 'verifyGovernment']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
@@ -694,6 +702,34 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::put('/settings', [SettingsController::class, 'update']);
     Route::put('/settings/organization', [SettingsController::class, 'updateOrganization']);
     Route::put('/settings/branding', [SettingsController::class, 'updateBranding']);
+    // Multipart, so POST: PHP does not populate $_FILES on a PUT, which is why
+    // the logo cannot simply be another field on the branding endpoint.
+    Route::post('/settings/branding/logo', [SettingsController::class, 'uploadBrandingLogo'])
+        ->middleware('throttle:uploads');
+
+    // The public landing page served at {tenant}.ethr.et — see routes/public.php
+    // for the anonymous half. These are the authenticated controls for it.
+    Route::get('/settings/public-page', [SettingsController::class, 'showPublicPage']);
+    Route::put('/settings/public-page', [SettingsController::class, 'updatePublicPage']);
+    Route::post('/settings/public-page/hero', [SettingsController::class, 'uploadPublicHero'])
+        ->middleware('throttle:uploads');
+
+    // The section builder. Everything here is `settings.manage`-gated in the
+    // controller, and every lookup goes through the tenant-scoped models, so a
+    // ULID belonging to another tenant is a 404 rather than a 403.
+    Route::post('/settings/public-page/preview-url', [SettingsController::class, 'publicPagePreviewUrl']);
+
+    Route::get('/settings/public-page/sections', [PublicSectionController::class, 'index']);
+    Route::post('/settings/public-page/sections', [PublicSectionController::class, 'store']);
+    Route::put('/settings/public-page/sections/order', [PublicSectionController::class, 'reorder']);
+    Route::put('/settings/public-page/sections/{section}', [PublicSectionController::class, 'update']);
+    Route::delete('/settings/public-page/sections/{section}', [PublicSectionController::class, 'destroy']);
+
+    Route::post('/settings/public-page/sections/{section}/items', [PublicSectionController::class, 'storeItem']);
+    Route::put('/settings/public-page/items/{item}', [PublicSectionController::class, 'updateItem']);
+    Route::delete('/settings/public-page/items/{item}', [PublicSectionController::class, 'destroyItem']);
+    Route::post('/settings/public-page/items/{item}/image', [PublicSectionController::class, 'uploadItemImage'])
+        ->middleware('throttle:uploads');
     Route::put('/settings/sso', [SettingsController::class, 'updateSso']);
     Route::post('/settings/scim-token', [SettingsController::class, 'generateScimToken']);
     Route::get('/settings/notification-templates', [NotificationTemplateController::class, 'index']);

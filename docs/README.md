@@ -43,6 +43,7 @@ Three standing caveats:
 | [`LANDING_PAGE_PRODUCTION_PLAN.md`](LANDING_PAGE_PRODUCTION_PLAN.md) | The public site (`/`, features, pricing, FAQ, contact) — what is not production ready and the phased plan to fix it. Read from source, nothing measured |
 | [`PLATFORM_MANAGED_CONTENT_PLAN.md`](PLATFORM_MANAGED_CONTENT_PLAN.md) | **Supersedes the content half of the above.** What the platform admin owns — plan prices and limits, contact details, logo, tagline — and how it moves out of hardcoded JSX into the database |
 | [`LOCALIZATION.md`](LOCALIZATION.md) | i18n, Amharic, the Ethiopian calendar |
+| [`TENANT_PUBLIC_PAGES.md`](TENANT_PUBLIC_PAGES.md) | The public landing page at `{tenant}.ethr.et` — what it may show, and what it may never |
 
 ## Features
 

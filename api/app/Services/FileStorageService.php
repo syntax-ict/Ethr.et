@@ -217,6 +217,62 @@ class FileStorageService
     }
 
     /**
+     * A read stream for a stored object, or null when it is not there.
+     *
+     * Added for the public asset route, which streams a tenant's logo and hero
+     * image to anonymous visitors. It cannot use temporaryUrl() the way every
+     * authenticated caller does: a signed URL expires, which is wrong for an
+     * `og:image` a crawler will fetch days later and for a browser cache that
+     * should survive a week.
+     *
+     * Deliberately takes a path and nothing else — the caller is responsible
+     * for having derived that path from the database rather than from a
+     * request. See App\Support\TenantPublicAsset, which is the only thing
+     * that does so for public traffic.
+     *
+     * @return resource|null
+     */
+    public function readStream(string $path)
+    {
+        $disk = Storage::disk($this->disk);
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $stream = $disk->readStream($path);
+
+        return is_resource($stream) ? $stream : null;
+    }
+
+    /** Byte size of a stored object, or null when it is not there. */
+    public function size(string $path): ?int
+    {
+        $disk = Storage::disk($this->disk);
+
+        return $disk->exists($path) ? $disk->size($path) : null;
+    }
+
+    /**
+     * A value that changes whenever the bytes at this path change.
+     *
+     * Used as the ETag for public assets. Built from the storage path plus the
+     * object's last-modified time rather than hashing the contents, because
+     * hashing means reading the whole object on every conditional request —
+     * which is precisely the work the ETag exists to avoid.
+     */
+    public function cacheSignature(string $path): ?string
+    {
+        $disk = Storage::disk($this->disk);
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        return substr(sha1($path.'|'.$disk->lastModified($path)), 0, 32);
+    }
+
+    /**
      * Reject any directory that could climb out of the tenant prefix.
      *
      * The prefix is the *only* thing separating one tenant's objects from

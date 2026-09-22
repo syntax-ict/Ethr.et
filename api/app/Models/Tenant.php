@@ -11,9 +11,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
-/** @property TenantStatus $status */
+/**
+ * Cast columns need an explicit @property or static analysis reads their type
+ * from the database column instead. `settings` is json, so without this line it
+ * analyses as `string|null` and every `is_array()` guard against it looks like
+ * dead code — which is how a real guard gets deleted as "unreachable".
+ *
+ * @property TenantStatus $status
+ * @property array<string, mixed>|null $settings
+ * @property array<string, mixed>|null $theme
+ * @property Carbon|null $government_verified_at
+ */
 class Tenant extends Model
 {
     use HasFactory, HasPublicId, SoftDeletes;
@@ -70,6 +81,11 @@ class Tenant extends Model
         'ethiopian_calendar',
         'settings',
         'trial_ends_at',
+        // `government_verified_at` is deliberately absent. It is what stops a
+        // private company presenting itself with state-official branding on
+        // *.ethr.et, so it is granted by a platform admin through the
+        // admin.manage surface and can never be set by a tenant's own request.
+        // See App\Rules\SelectablePreset.
     ];
 
     protected $hidden = [
@@ -84,12 +100,27 @@ class Tenant extends Model
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',
+            'government_verified_at' => 'datetime',
         ];
     }
 
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * The tenant's public landing page content, if it has ever been edited.
+     *
+     * Null is the normal state, not an error: a profile row is created lazily
+     * the first time an administrator saves the public page. No profile means
+     * no public page, which is the correct default for an HR product.
+     *
+     * @return HasOne<TenantPublicProfile, $this>
+     */
+    public function publicProfile(): HasOne
+    {
+        return $this->hasOne(TenantPublicProfile::class);
     }
 
     /** @return HasOne<Subscription, $this> */

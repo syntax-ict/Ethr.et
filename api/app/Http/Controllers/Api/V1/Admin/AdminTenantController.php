@@ -17,6 +17,7 @@ use App\Models\Device;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\TenantPublicProfile;
 use App\Models\User;
 use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
@@ -154,6 +155,89 @@ class AdminTenantController extends Controller
         return response()->json([
             'public_id' => $tenant->public_id,
             'status' => $tenant->status->value,
+        ]);
+    }
+
+    /**
+     * Take a tenant's public page down, or put it back.
+     *
+     * `*.ethr.et` is ETHR's own domain, so whatever a tenant publishes there is
+     * published partly on ETHR's reputation. Until now nothing could pull a
+     * page that turned out to be fraudulent, offensive or impersonating — this
+     * is that lever, and it is the platform's alone.
+     *
+     * Deliberately separate from `is_published`. A takedown must not destroy
+     * the tenant's own publication state: restoring is one column write rather
+     * than a guess about what they had wanted, and an administrator who
+     * republishes cannot quietly undo a suspension.
+     *
+     * The suspended page answers exactly as an unpublished one does — same
+     * status, same body — so suspension does not become a way to discover
+     * which organisations have been moderated.
+     */
+    public function suspendPublicPage(Request $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $suspend = $request->boolean('suspended', true);
+
+        // Platform surface: there is no tenant context on admin.ethr.et, so
+        // the scope is lifted and the tenant is named explicitly instead. The
+        // profile is then found by `tenant_id`, a key that is itself tenant
+        // owned, which is what keeps this bypass safe.
+        $tenant = Tenant::withoutGlobalScopes()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $profile = TenantPublicProfile::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->firstOrFail();
+
+        $profile->forceFill(['suspended_at' => $suspend ? now() : null])->save();
+
+        AuditLog::record(
+            $suspend ? 'admin.public_page_suspended' : 'admin.public_page_restored',
+            $tenant,
+            ['subdomain' => $tenant->subdomain],
+        );
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'is_suspended' => $profile->isSuspended(),
+        ]);
+    }
+
+    /**
+     * Record, or withdraw, that this tenant really is a government body.
+     *
+     * The only thing standing between a private company and state-official
+     * branding on its public page, because every other signal — the industry
+     * chosen at onboarding, the free-text `type` column — is written by the
+     * tenant about itself. Granting it is a human decision made here; the
+     * column is absent from Tenant::$fillable so no tenant-facing route can
+     * reach it. See App\Rules\SelectablePreset.
+     */
+    public function verifyGovernment(Request $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $verified = $request->boolean('verified', true);
+
+        $tenant = Tenant::withoutGlobalScopes()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $tenant->forceFill(['government_verified_at' => $verified ? now() : null])->save();
+
+        AuditLog::record(
+            $verified ? 'admin.tenant.government_verified' : 'admin.tenant.government_verification_revoked',
+            $tenant,
+            ['subdomain' => $tenant->subdomain],
+        );
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'government_verified' => $tenant->government_verified_at !== null,
         ]);
     }
 

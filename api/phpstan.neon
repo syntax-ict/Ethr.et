@@ -215,13 +215,6 @@ parameters:
         - message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\(Builder|Model)(<[^>]+>)?\:\:(withTrashed|trashed|restore)\(\)\.$#'
           path: app/Services/Onboarding/OrganizationProvisioner.php
 
-        # Larastan resolves the Tenant::$settings cast to `array{}|string`, so it
-        # believes the merged-vs-original settings comparison is always true. At
-        # runtime $tenant->settings is a populated array; the guard prevents a
-        # redundant write in the skip-only case. Covered by the settings-merge test.
-        - message: '#^Strict comparison using \!== between non-empty-array<mixed> and array\{\}\|string will always evaluate to true\.$#'
-          path: app/Services/Onboarding/OrganizationProvisioner.php
-
         # False positive, confirmed by two independent rewrites of the producing
         # method (a fluent Collection chain, then a plain foreach) that both
         # triggered the identical complaint — the cause is in how Larastan

@@ -218,6 +218,17 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(10)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });
 
+        // The public tenant landing page. Anonymous by definition, so the only
+        // key available is the IP — and it is keyed per host as well, because
+        // one IP crawling twenty tenants' pages is ordinary behaviour for a
+        // search engine and should not exhaust a budget that then locks a real
+        // visitor out of a different tenant's site. Generous because the page is
+        // one cheap query and renders no JavaScript; the limit exists to bound
+        // a scripted sweep, not to ration normal reading.
+        RateLimiter::for('public-page', function (Request $request) {
+            return Limit::perMinute(60)->by($request->getHost().'|'.$request->ip());
+        });
+
         // `sms` is a first-class channel name so notifications can declare it in
         // via() the same way they declare mail; the channel itself decides whether
         // the configured driver can actually deliver.
