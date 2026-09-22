@@ -281,7 +281,7 @@ These are hard constraints on every slice. No exceptions.
 
 | # | Convention | Detail |
 |---|---|---|
-| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, not by CI, which does not exist yet. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; ~147 sites do, nothing enforces it. |
+| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, **and by CI, which calls that same script** *(corrected 2026-09-22: this said "not by CI, which does not exist yet"; CI has been green since run #66 on 2026-09-16)*. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; **161 sites across 55 files** do, and `tests/Feature/Security/TenantScopeBypassInventoryTest.php` **pins that inventory per file and fails when a count moves** *(corrected 2026-09-22: this said "~147 sites do, nothing enforces it" — the count was stale and the enforcement exists; measured 161/55 against `api/app/`, matching the inventory file exactly)*. Note what the pin does and does not buy: it makes adding a bypass a deliberate act. It does not audit the ones already there. |
 | 2 | UTC storage | Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3). Ethiopia does not observe DST — the +3 offset is constant. |
 | 3 | Integer currency | ETB stored as `BIGINT` minor units (cents). Never use `FLOAT` or `DECIMAL`. Format: `X,XXX.XX ETB`. Use `formatETB(cents)` helper everywhere. |
 | 4 | ULID public IDs | `BIGINT` auto-increment PK (internal). `CHAR(26)` ULID `public_id` (API-facing). Never expose numeric PK in any API response. |
@@ -319,7 +319,25 @@ These are hard constraints on every slice. No exceptions.
 | Webhook Deliveries | Hard delete after 30 days | Storage management |
 | Import staging data | Hard delete after 7 days | Temporary data |
 
-Enforce via a custom PHPStan rule that checks all models against this table.
+> **NO SUCH RULE EXISTS — measured 2026-09-22.** This line read *"Enforce via a
+> custom PHPStan rule that checks all models against this table."* There is none:
+> `api/app/Rules/` holds four Laravel **validation** rules (`Base64Image`,
+> `ExternalUrl`, `PasswordPolicy`, `VerifyFileContent`) and no PHPStan rule, and
+> `api/phpstan.neon` declares no `rules:` or `services:` section, so nothing
+> custom is registered with PHPStan at all.
+>
+> What actually stands in is `tests/Feature/SoftDeletePolicyTest.php`, with **four
+> tests against a fifteen-row table**: employee document, grade, shift, leave
+> type. Three map to rows above (Documents, Positions/Grades, Shifts); **"leave
+> type" is not a row in this table at all** — the table says *Leave Requests*.
+> Eleven entities, including every "Never delete" row that carries the financial
+> and audit requirements, are unenforced.
+>
+> Stated plainly because the gap is the point: **this table is a convention, not a
+> control.** Either build the rule, widen the test to all fifteen rows, or stop
+> claiming enforcement — but a documented control nobody runs is worse than an
+> admitted gap, because it stops people looking. (That sentence is this
+> repository's own, from the PR template. It applied here.)
 
 ---
 
@@ -728,7 +746,7 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 - Run against Docker staging environment
 - Test at 375px and 1280px viewport widths
 
-**Tenant Isolation (run by `./scripts/gates.sh` — there is no CI yet):**
+**Tenant Isolation (run by `./scripts/gates.sh`, and by CI, which calls that same script):**
 - `TenantIsolationTest` dynamically discovers all Eloquent models
 - Asserts every tenant-scoped model has `tenant_id` column
 - Asserts cross-tenant queries return empty results
