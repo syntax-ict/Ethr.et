@@ -20,21 +20,31 @@
 > counterpart here at all.** Work from `GATE-0-RESULT.md`; use this file for the
 > finer-grained per-extension rows it carries.
 
-## ACCOUNT ACCESS: NOT AVAILABLE
+## ACCOUNT ACCESS: AVAILABLE SINCE 2026-09-17 — BUT NO PROBE HAS RUN
 
-**I have no access to an Ethio Telecom Plesk account, so I cannot run any of these tests
-myself.** No test domain was created, no probe was uploaded, no SQL was executed against
-their MySQL.
+**Corrected 2026-09-22.** This heading read *"ACCOUNT ACCESS: NOT AVAILABLE"* and the
+paragraph below it began *"I have no access to an Ethio Telecom Plesk account."* Both were
+true when written on 2026-08-29 and false from 2026-09-17, when account access was
+obtained — and the supersession note **thirteen lines above** already said so. A reader
+scanning headings met the false one first.
 
-Everything below is therefore currently **NOT VERIFIED**. Nothing in this document is a
-result; it is the procedure that produces the results.
+What is actually true, and it is the distinction that matters: **the panel can be read;
+the probe still cannot be run.** No test domain was created, no probe was uploaded, and no
+SQL was executed against their MySQL — because `ethr-hosting-check.php` needs a shell or a
+scheduled task, and SSH is **Forbidden** (B-1) while **G0-D is FAIL** (no Scheduled Tasks
+section exists). So the rows below stay **NOT VERIFIED** for a sharper reason than
+"nobody has looked": there is currently **no route to execute them**.
+
+Rows a panel read *can* answer are answered — see **N1–N3** below, and
+[`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) for PHP 8.3.33, SSH, cron and
+the wildcard DNS result. Everything else is procedure, not result.
 
 Two of Ethio Telecom's own web properties (`www.ethiotelecom.et`,
 `myportal.ethiotelecom.et`) failed TLS certificate verification when fetched during the
 Phase 2 audit, so even their published plan specifications could not be read first-hand
 and come from search-result summaries and a third-party hosting directory.
 
-**Nothing in this document is fabricated, and no item is marked VERIFIED.**
+**Nothing in this document is fabricated.** A row is marked from panel output or not at all — never from documentation, vendor marketing or inference, which is the same rule `deployment/GATE-0-RESULT.md` states for itself.
 
 ### What I need from you — the short list
 
@@ -142,15 +152,25 @@ configuration. Those are panel questions and are listed separately below.
 
 | # | Item | Method | Status |
 | --- | --- | --- | --- |
-| N1 | Plesk Node.js extension present | Panel: *Node.js* | NOT VERIFIED |
-| N2 | Node version (**≥ 20.9** for Next 16) | Panel dropdown / `node -v` | NOT VERIFIED |
-| N3 | npm available | `npm -v` | NOT VERIFIED |
+| N1 | Plesk Node.js extension present | Panel: *Node.js* | **PANEL-READ 2026-09-22 — PRESENT**, and it offers a *startable application* (startup file, application mode, application URL), not a build-only toolchain. Not enabled |
+| N2 | Node version — ~~**≥ 20.9** for Next 16~~ **the bar is `.nvmrc`'s 24 for the CI/test toolchain and 22 for the frontend runtime** *(see below)* | Panel: *Node.js* | **PANEL-READ 2026-09-22 — 22.23.2.** Misses the `.nvmrc` 24 CI pin; **matches** the frontend runtime `docker/frontend/Dockerfile` declares |
+| N3 | npm available | `npm -v` | **PANEL-READ 2026-09-22 — present** (*Package Manager: npm*). Not executed |
 | N4 | `npm run build` completes within account limits | Try it; note peak RAM | NOT VERIFIED |
 | N5 | Next.js production runtime stays resident | Deploy the standalone build | NOT VERIFIED |
 
-> N4 is a real risk independent of N1–N3: a Next 16 production build is memory-hungry
-> and shared hosts cap per-process RAM. If the panel supports Node but the build cannot
-> run on the host, building locally and uploading `.next/standalone` is the workaround.
+> **N2's bar, since the row used to state the wrong one.** *"≥ 20.9"* is **Next.js 16's own
+> floor**, not this repository's requirement, and `deployment/GATE-0-RESULT.md` carries an
+> explicit callout telling readers not to treat it as the bar. There are **two** real
+> requirements: the **CI build/test toolchain** pinned to **24** in `.nvmrc`, and the
+> **frontend application runtime**, **22**, declared by `docker/frontend/Dockerfile`
+> (`FROM node:22-alpine`, which both builds and runs `server.js`). The observed 22.23.2
+> misses the first and *is* the second. `.nvmrc` stays 24 and is not relaxed to fit the host.
+>
+> **N4 is a real risk independent of N1–N3**, and N1–N3 being answered does not shrink it:
+> a Next 16 production build is memory-hungry and shared hosts cap per-process RAM. If the
+> panel supports Node but the build cannot run on the host, building locally and uploading
+> `.next/standalone` is the workaround. **N4 and N5 stay NOT VERIFIED** — nothing has been
+> built or deployed on this account.
 
 ## 4. Apache / Plesk web server
 
