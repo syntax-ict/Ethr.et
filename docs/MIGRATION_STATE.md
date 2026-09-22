@@ -1774,16 +1774,30 @@ rather than degrading:
 | **Observability** | `health-check.md`'s two primary checks are SQL, with no verified route to run SQL |
 | **Deployment itself** | **`key:generate`, `migrate`, `db:seed`, `ethr:create-admin` have no runner.** This is not a degraded feature. Without it the application cannot be *initialised at all* |
 
-The last row is the one that changes the decision. Every other consequence is "the product
-runs badly". That one is "the product cannot be installed".
+**Two of those five rows were answered on 2026-09-22, and three were not.** The
+URL-driven scheduler (`b61cb05`) gives **Scheduler** and **Queue** a runner that does not
+have to be this host — `POST /api/v1/cron/schedule` and `/cron/queue`, driven by any timer
+anywhere. **Backup/restore, Observability and Deployment are untouched by it**: the
+endpoint runs `schedule:run` and `queue:work` and nothing else, so `ethr:backup`, ad-hoc
+SQL and `migrate` still have no route. The table is left as written because it is the
+pre-registered cost; this note is the delta.
+
+The last row is the one that changes the decision, and closing the first two makes it more
+so rather than less. Every other consequence was "the product runs badly". That one is
+"the product cannot be installed" — and it is still open.
 
 ### The plan's own position on this
 
 `SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
 scheduled entries and all 16 queued jobs stop."* `ETHIO_TELECOM_…_COMPATIBILITY.md` B3
 lists the same, ending *"**and no queued email is ever sent**."* `GATE-0-RESULT.md`'s
-consequence column says the scheduler and queue *"move behind an authenticated HTTP
+consequence column said the scheduler and queue *"move behind an authenticated HTTP
 endpoint. **Unbuilt; must be costed.**"*
+
+**That quotation is historical as of 2026-09-22.** The endpoint was built and merged
+(`b61cb05`), and the column now records it as built. The wording is kept rather than
+overwritten because it is what made this a *pre-registered* risk rather than a retrofit —
+the cost was named before it was paid.
 
 So this outcome was anticipated and costed as a risk. It has now occurred. **Option B is
 not performable on this account as currently provisioned** — that is a statement about the
