@@ -35,22 +35,60 @@ use App\Services\Observability\QueueHealth;
  * real needle is present. Use `expect(str_contains(...))->toBeTrue($message)`.
  * `toBe`, `toMatch`, `toBeTrue` and `toBeFalse` all take a genuine message.
  */
+/**
+ * Every asset that starts a queue worker. `docker-compose.prod.yml` and
+ * `docker-compose.lowmem.yml` joined this list on 2026-09-22, when they were
+ * fixed: until then they invoked `artisan horizon` and were pinned only by the
+ * banner assertion below.
+ *
+ * Why they were fixed then and not earlier: they are the VPS production path,
+ * and the VPS was what this project was migrating AWAY from — so a broken
+ * worker there was recorded rather than repaired. The pre-registered rule in
+ * docs/SHARED_HOSTING_MIGRATION_PLAN.md then fired on G0-D and returned
+ * No-Go -> Option A, and Option A is "stay on the VPS". That made these two
+ * files the live production path, which is what changed.
+ */
+const ETHR_WORKER_ASSETS = [
+    'infrastructure/supervisor.conf',
+    'docker-compose.yml',
+    'docker-compose.prod.yml',
+    'docker-compose.lowmem.yml',
+];
+
 function ethrDeploymentAsset(string $relative): string
 {
     return (string) file_get_contents(dirname(base_path()).'/'.$relative);
 }
 
-/** The `--queue=a,b,c` list from a worker command line, as a sorted set. */
+/**
+ * The UNION of every `--queue=a,b,c` list in an asset, as a sorted set.
+ *
+ * A union rather than a single match because `docker-compose.prod.yml` splits
+ * the work across two services (2026-09-22): `attendance,notifications,default`
+ * on one and `exports` on the other. The correctness property is that every
+ * dispatched queue is drained by SOMETHING in the file — not that one command
+ * line names them all.
+ */
 function ethrWorkerQueues(string $contents, string $asset): array
 {
-    expect(preg_match('/--queue=([a-z,]+)/', $contents, $m))->toBe(
-        1,
-        "$asset does not pass --queue to its worker. A bare `queue:work` drains "
+    // `expect(bool)->toBeTrue($message)` rather than `toBeGreaterThan(0, $message)`:
+    // this file's header records that Pest's `toContain` is VARIADIC, so its
+    // second argument is a second needle rather than a message. `toBeTrue` is
+    // one of the four documented there as taking a genuine message, so it is
+    // used here instead of betting on another expectation's signature.
+    expect(preg_match_all('/--queue=([a-z,]+)/', $contents, $m) > 0)->toBeTrue(
+        "$asset does not pass --queue to any worker. A bare `queue:work` drains "
         .'only `default`, so three of this application\'s four queues would starve '
         .'while the worker looked healthy.'
     );
 
-    $queues = explode(',', $m[1]);
+    $queues = [];
+
+    foreach ($m[1] as $list) {
+        $queues = array_merge($queues, explode(',', $list));
+    }
+
+    $queues = array_values(array_unique($queues));
     sort($queues);
 
     return $queues;
@@ -68,7 +106,7 @@ it('starts its workers with a command the application actually defines', functio
         .'delete it, because the defect it caught was invocations outliving the package.'
     );
 
-    foreach (['infrastructure/supervisor.conf', 'docker-compose.yml'] as $asset) {
+    foreach (ETHR_WORKER_ASSETS as $asset) {
         $contents = ethrDeploymentAsset($asset);
 
         // Comments may name horizon — they explain what was fixed. An executable
@@ -97,7 +135,7 @@ it('drains exactly the queues the application dispatches onto', function () {
     $expected = QueueHealth::QUEUES;
     sort($expected);
 
-    foreach (['infrastructure/supervisor.conf', 'docker-compose.yml'] as $asset) {
+    foreach (ETHR_WORKER_ASSETS as $asset) {
         // Compared as a set: the ORDER on the command line is meaningful to
         // Laravel (earlier queues drain first, which is why `attendance` leads)
         // but it is a tuning choice, not a correctness one. Membership is the
@@ -127,7 +165,17 @@ it('keeps the unfixed worker stacks marked as broken', function () {
     foreach (['docker-compose.prod.yml', 'docker-compose.lowmem.yml'] as $asset) {
         $contents = ethrDeploymentAsset($asset);
 
-        if (! str_contains($contents, 'artisan horizon')) {
+        // Strip comments first, exactly as the first test does. Both files now
+        // explain in prose WHY they used to run `artisan horizon`, so a
+        // whole-file str_contains() sees the phrase in a comment and demands a
+        // BROKEN banner for a stack that is no longer broken. Measured
+        // 2026-09-22: that is precisely what it did when these were fixed.
+        $executable = implode("\n", array_filter(
+            explode("\n", $contents),
+            static fn (string $line): bool => ! str_starts_with(ltrim($line), '#')
+        ));
+
+        if (! str_contains($executable, 'artisan horizon')) {
             // Fixed since this test was written — nothing left to mark.
             continue;
         }
