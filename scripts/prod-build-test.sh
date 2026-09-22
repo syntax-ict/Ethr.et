@@ -92,8 +92,8 @@ NEXT_PUBLIC_REVERB_APP_KEY=$REVERB_APP_KEY
 MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY
 MINIO_SECRET_KEY=$MINIO_SECRET_KEY
 # API_REPLICAS / WORKER_REPLICAS / REVERB_REPLICAS are not written here: nothing
-# reads them any more. docker-compose.prod.yml sets `replicas: 1` literally, and
-# the three workers are separate services rather than copies of one.
+# reads them any more. docker-compose.prod.yml sets its replica counts literally,
+# and the two workers are separate services rather than copies of one.
 EOF
 
 # api/.env.production.example is the committed template, with every secret blank.
@@ -150,9 +150,9 @@ services:
   api:       {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
   scheduler: {env_file: [./.prod-test-tmp/api.env]}
   reverb:    {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
-  worker-realtime:      {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
-  worker-notifications: {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
-  worker-heavy:         {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
+  # Pinned to one replica each so the assertions below address a known container.
+  worker-realtime: {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
+  worker-exports:  {env_file: [./.prod-test-tmp/api.env], deploy: {replicas: 1}}
   nginx:
     # Compose keys volumes by target path, so this replaces the host
     # /etc/letsencrypt bind mount rather than colliding with it.
@@ -225,7 +225,7 @@ say "3. Boot the stack"
 # nginx included: it gates on api and frontend being healthy, so starting it here
 # also proves those two dependency conditions can actually be satisfied.
 dc up -d --wait mariadb mariadb-replica redis redis-cache minio api scheduler reverb \
-  worker-realtime worker-notifications worker-heavy frontend nginx \
+  worker-realtime worker-exports frontend nginx \
   > "$TMP/up.log" 2>&1
 check $? "all services reached healthy (up --wait)"
 [ $FAILED -eq 0 ] || { echo "--- last 20 lines ---"; tail -20 "$TMP/up.log"; dc ps; }
@@ -298,26 +298,36 @@ check $? "reads and writes hit different hosts ($HOSTS)"
 dc exec -T api sh -c 'wget -q -O /dev/null http://frontend:3000' >/dev/null 2>&1
 check $? "frontend serves over the internal network"
 
-# BROKEN 2026-09-19: Horizon was removed in cdf85d1 and `horizon:status` is no
-# longer a defined command, so this check and the one below cannot pass. They
-# are left in place rather than deleted because they are the acceptance criteria
-# for a worker topology that still has to be chosen -- see the banner at the top
-# of docker-compose.prod.yml. Deleting them would make the test go green over a
-# stack with no queue worker, which is the worse failure.
-dc exec -T worker-realtime php artisan horizon:status 2>/dev/null | grep -q "running"
-check $? "Horizon is running"
+# FIXED 2026-09-22, with docker-compose.prod.yml. These two checks asserted
+# `horizon:status` and `horizon:supervisors`, neither of which is a defined
+# command since cdf85d1 removed Horizon. They were left failing on purpose --
+# deleting them would have made this test go green over a stack with no queue
+# worker, which is the worse failure -- until the replacement topology was
+# chosen. It now is: two services, attendance/notifications/default and exports.
+#
+# What replaces them has to answer the same question the old pair did: not "is a
+# worker running somewhere", but "is THIS container draining the queues it was
+# configured for". `horizon:status` failed that because it inspected every
+# master registered in Redis, so one healthy container made them all pass.
+#
+# Docker's own healthcheck is now that per-container probe, so assert on it.
+for svc in worker-realtime worker-exports; do
+  STATE=$(dc ps --format '{{.Service}} {{.Health}}' 2>/dev/null | awk -v s="$svc" '$1==s {print $2; exit}')
+  [ "$STATE" = "healthy" ]
+  check $? "$svc reports healthy (queue:work process is up; got: '${STATE:-none}')"
+done
 
-# Assert each worker container deployed the supervisors it was configured for,
-# not merely that Horizon is up somewhere. `horizon --environment=X` returns
-# silently when X matches no key in config/horizon.php, and `horizon:status`
-# inspects every master cluster-wide — so a typo'd environment yields a
-# container that boots, reports healthy, and processes nothing. This is the only
-# gate that would catch it before a deploy.
-SUPERVISORS=$(dc exec -T worker-realtime php artisan horizon:supervisors 2>/dev/null)
-for s in supervisor-attendance supervisor-sync supervisor-notifications \
-         supervisor-default supervisor-payroll supervisor-exports; do
-  echo "$SUPERVISORS" | grep -q "$s"
-  check $? "Horizon supervisor deployed: $s"
+# And assert the queue lists themselves, because a healthy container proves a
+# worker is running, not that it drains the right queues. A `--queue` list that
+# drifts from QueueHealth::QUEUES is the failure that looks healthy forever:
+# the queue simply fills and only the health endpoint would ever say so.
+for pair in "worker-realtime attendance,notifications,default" "worker-exports exports"; do
+  svc=${pair%% *}; want=${pair#* }
+  # /proc/1/cmdline is the container's own worker process, NUL-separated.
+  GOT=$(dc exec -T "$svc" sh -c "tr '\0' ' ' < /proc/1/cmdline" 2>/dev/null \
+        | grep -o -- '--queue=[a-z,]*' | head -1)
+  [ "$GOT" = "--queue=$want" ]
+  check $? "$svc drains --queue=$want (got: '${GOT:-none}')"
 done
 
 # Read the process environment rather than parsing `artisan about`, whose output

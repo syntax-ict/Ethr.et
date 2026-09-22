@@ -1,29 +1,39 @@
 # ============================================================================
-# BROKEN AS OF 2026-09-19 -- DO NOT START THIS STACK EXPECTING JOBS TO RUN.
+# FIXED 2026-09-22. This stack ran `php artisan horizon` until today and could
+# not start a worker: Horizon was removed in cdf85d1 and is absent from
+# composer.lock (0 occurrences), so every worker container exited immediately
+# with "Command 'horizon' is not defined" while `restart: always` turned that
+# into a crashloop.
 #
-# Every worker service below runs `php artisan horizon`. Horizon was removed
-# from this project in cdf85d1: it is absent from composer.json and
-# composer.lock (0 occurrences), there is no config/horizon.php, and no command
-# in api/app/ carries that signature. Each worker container therefore exits
-# immediately with "Command 'horizon' is not defined", and the healthchecks
-# that shell out to `horizon:supervisors` can never pass.
+# WHY IT WAS FIXED NOW. It was left broken deliberately while the VPS was the
+# thing this project was migrating AWAY from. The pre-registered decision rule
+# in docs/SHARED_HOSTING_MIGRATION_PLAN.md fired on G0-D (no Scheduled Tasks on
+# the shared host) and returned No-Go -> Option A, and Option A is "stay on the
+# VPS". This stack is therefore the LIVE production path, not a fallback.
 #
-# It is NOT fixed here, on purpose. The partition below splits work three ways
-# by queue name -- attendance/devices/sync, notifications, payroll -- and three
-# of those queues DO NOT EXIST. The application dispatches onto exactly four:
-# default, attendance, notifications, exports (QueueHealth::QUEUES, verified
-# against every onQueue() call and every Schedule::job() argument). So even with
-# Horizon present this topology would leave `default` and `exports` undrained
-# while dedicating two containers to queues that never receive anything.
+# WHAT REPLACED THE THREE-WAY PARTITION. The old split was attendance/devices/
+# sync, notifications, payroll. Three of those queues DO NOT EXIST: the
+# application dispatches onto exactly four, QueueHealth::QUEUES = default,
+# attendance, notifications, exports. So the old topology would have left
+# `default` and `exports` undrained even with Horizon present.
 #
-# Choosing the replacement partition -- which queues each container drains, and
-# whether three containers are still the right shape without Horizon's
-# per-supervisor memory control -- is a deployment-architecture decision for the
-# owner, not something to infer from the old names. The single-worker paths
-# (infrastructure/supervisor.conf, docker-compose.yml) had no such ambiguity and
-# were fixed to `queue:work` on the same date.
+# Two services now, split by latency rather than by queue name:
 #
-# See docs/MIGRATION_STATE.md -> "NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER".
+#   worker-realtime   attendance,notifications,default   someone is waiting
+#   worker-exports    exports                            long and memory-hungry
+#
+# Queue ORDER on the command line is meaningful -- Laravel drains left to right,
+# which is why `attendance` leads. Membership is the correctness property: every
+# queue in QueueHealth::QUEUES appears in exactly one of the two lines, so
+# nothing dispatched goes undrained. DeploymentWorkerConsistencyTest pins that.
+#
+# MEMORY IS SIZED DIFFERENTLY NOW, and the old figures do not carry over.
+# Horizon ran N worker PROCESSES per container under one master, so its ceilings
+# were N x per-worker + master. A plain `queue:work` is ONE process. Concurrency
+# therefore comes from `replicas`, and each container is sized for a single
+# worker plus headroom. `--memory` is the in-process cap Laravel checks BETWEEN
+# jobs; the container limit sits above it so a job that grows mid-run is not
+# OOM-killed before that check can recycle the worker.
 # ============================================================================
 
 # Shared definition for the three queue-worker services below. Declared at the
@@ -40,7 +50,7 @@ x-worker-base: &worker-base
     - ./api/.env.production
   environment:
     - DB_READ_HOST=mariadb-replica
-    # Horizon runs the queued broadcasts — see the note on the api service.
+    # Queued broadcasts run here — see the note on the api service.
     - REVERB_HOST=reverb
     - REVERB_PORT=8080
     - REVERB_SCHEME=http
@@ -191,98 +201,86 @@ services:
 
   # ── Queue workers ───────────────────────────────────────────────────────────
   #
-  # Three containers, not one `worker` at replicas: 2. config/horizon.php defines
-  # six supervisors totalling 23 processes; running all of them in a single 1G
-  # container (twice over) was an OOM kill waiting for a busy month-end, and it
-  # put supervisor-payroll's 1800-second jobs in the same cgroup as
-  # supervisor-attendance, whose entire point is the 30-second wait threshold in
-  # config/horizon.php.
+  # Two containers, split by LATENCY rather than by queue name. The previous
+  # three-way split was inherited from config/horizon.php, which no longer
+  # exists: Horizon was removed in cdf85d1, and with it the six supervisors and
+  # 23 processes those limits were derived from.
   #
-  # Every `memory:` below is derived from that file's per-supervisor `memory`
-  # option x its `maxProcesses`, plus ~256 MB for the master supervisor process.
-  # The two must be changed together: Docker OOM-kills the container before
-  # Horizon's own per-worker cap can apply, so a container whose limit is under
-  # its supervisors' ceiling dies instead of recycling a worker. Note that
-  # `horizon.memory_limit` is NOT that ceiling — it governs the master process
-  # only, and reading it as a worker cap is what mis-sized this the first time.
+  # Both share the `x-worker-base` anchor at the top of this file — one image,
+  # one environment; only the --queue list, the replica count, the resource
+  # limits and nothing else differ.
   #
-  # All three share the `x-worker-base` anchor at the top of this file — one
-  # image, one environment; only the --environment flag, the resource limits and
-  # the healthcheck differ. See the block comment above `environments` in
-  # config/horizon.php for the naming contract —
-  # in short, a name that matches no key there starts cleanly and silently
-  # processes nothing, which is what each healthcheck's grep exists to catch.
+  # SIZING, which does NOT follow the old arithmetic. Horizon ran N worker
+  # processes per container under one master, so each limit was
+  # per-supervisor-memory x maxProcesses + ~256 MB for the master. A plain
+  # `queue:work` is ONE process per container, so concurrency comes from
+  # `replicas` and each limit covers a single worker plus headroom.
+  #
+  # `--memory` and the container limit must still be changed together, for the
+  # reason the old comment gave and which has not changed: Docker OOM-kills the
+  # container before Laravel's own cap can apply, so a limit set at or under
+  # `--memory` dies instead of recycling the worker. Every limit below sits
+  # above its `--memory`, and the gap is the slack a job can grow into between
+  # the between-jobs checks.
+  #
+  # Keeping the queues isolated is still the point: an export that runs for
+  # minutes must not share a cgroup with attendance, whose whole value is being
+  # picked up promptly.
 
-  # attendance, devices, sync — someone or something is waiting on these.
-  # Ceiling: attendance 6x128 + sync 4x192 = 1536 MB, +256 master = 1792 MB.
+  # attendance, notifications, default — someone or something is waiting on
+  # these, so they share one worker and `attendance` is drained first.
+  # One process per replica; 4 replicas x 384 MB = 1536 MB.
   worker-realtime:
     <<: *worker-base
-    command: php artisan horizon --environment=production-realtime
+    command: >
+      php artisan queue:work
+      --queue=attendance,notifications,default
+      --tries=3 --backoff=10 --max-time=3600 --memory=256
     deploy:
-      replicas: 1
+      replicas: 4
       resources:
         limits:
           cpus: '2'
-          memory: 2G
+          # 128 MB above --memory=256, so a job that grows between the
+          # between-jobs memory checks is recycled rather than OOM-killed.
+          memory: 384M
     healthcheck:
-      # Not `horizon:status`: that inspects every master registered in Redis,
-      # cluster-wide, so any one healthy worker container makes all three report
-      # healthy. Grepping for a supervisor only this container is configured to
-      # run is what makes the probe about *this* container.
-      test: ["CMD-SHELL", "php artisan horizon:supervisors | grep -q supervisor-attendance"]
+      # Was `horizon:supervisors | grep -q supervisor-attendance`, which needed
+      # a command that no longer exists. This checks THIS container's own
+      # process table, which is what the old comment said it wanted: the
+      # previous alternative, `horizon:status`, inspected every master
+      # registered in Redis cluster-wide, so one healthy container made them
+      # all report healthy.
+      #
+      # The bracket in `queue:wor[k]` is load-bearing: without it the probe's
+      # OWN shell has the pattern in its argv and the check passes even with no
+      # worker running. Verified by running both forms against a container with
+      # and without a worker.
+      test: ["CMD-SHELL", "grep -q 'queue:wor[k]' /proc/[0-9]*/cmdline 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
-  # notifications, mail, sms, default — high volume, nothing blocked on it.
-  # Ceiling: notifications 5x128 + default 3x128 = 1024 MB, +256 master = 1280.
-  # This is the one limit that went UP rather than down once the real per-worker
-  # figures were declared: at 1G it sat *below* its own ceiling, which is the
-  # same defect as the original single worker container, just smaller.
-  worker-notifications:
+  # exports — long and memory-hungry, isolated so a slow export cannot delay
+  # anything a user is waiting on. 2 replicas x 768 MB = 1536 MB.
+  worker-exports:
     <<: *worker-base
-    command: php artisan horizon --environment=production-notifications
+    command: >
+      php artisan queue:work
+      --queue=exports
+      --tries=3 --backoff=10 --max-time=3600 --memory=512
     deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1536M
-    healthcheck:
-      test: ["CMD-SHELL", "php artisan horizon:supervisors | grep -q supervisor-notifications"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # payroll, exports — long and memory-hungry, and isolated so that is fine.
-  # Ceiling: payroll 3x384 + exports 2x256 = 1664 MB, +256 master = 1920 MB.
-  # Only 5 processes, yet nearly as much memory as worker-realtime's 10, because
-  # these are the only supervisors given more than the 128 MB default — payroll
-  # was previously stuck at it and recycled itself part-way through a run. The
-  # per-worker cap is also checked BETWEEN jobs, so an 1800-second payroll job
-  # grows unchecked for its whole duration; the slack between this ceiling and
-  # the limit below is what absorbs that. `nice` buys CPU priority, never RAM,
-  # which is why isolating these was the fix rather than de-prioritising them.
-  worker-heavy:
-    <<: *worker-base
-    command: php artisan horizon --environment=production-heavy
-    deploy:
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           cpus: '2'
-          # 384 MB above the 1920 MB ceiling — one extra payroll worker's worth.
-          # The other two containers get 256 MB of slack; this one gets more
-          # because it is the only place a single job runs long enough to grow
-          # past its cap before the between-jobs check can recycle it.
-          memory: 2304M
+          # 256 MB of slack rather than 128: this is the only place a single job
+          # runs long enough to grow well past its cap before the between-jobs
+          # check can act.
+          memory: 768M
     healthcheck:
-      # start_period covers the 1800s payroll timeout only in the sense that the
-      # supervisor registers immediately; a long-running job does not deregister
-      # it, so this stays accurate mid-run.
-      test: ["CMD-SHELL", "php artisan horizon:supervisors | grep -q supervisor-payroll"]
+      test: ["CMD-SHELL", "grep -q 'queue:wor[k]' /proc/[0-9]*/cmdline 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3

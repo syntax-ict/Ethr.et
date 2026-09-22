@@ -2718,6 +2718,41 @@ entirely, not merely undeployed."*
 | `docker-compose.lowmem.yml` | 1 command + 1 healthcheck | Same |
 | `scripts/prod-build-test.sh` | `horizon:status`, `horizon:supervisors` | The production build test asserts a supervisor that cannot exist |
 
+### ALL FIVE ARE NOW FIXED — 2026-09-22
+
+`supervisor.conf` and `docker-compose.yml` were fixed on 2026-09-19. The remaining three
+were left broken **on purpose**: choosing the replacement worker topology was an owner
+decision, and at the time the VPS was the thing this project was migrating *away* from.
+
+**What changed is which path is live.** The pre-registered rule in
+`SHARED_HOSTING_MIGRATION_PLAN.md` §4 fired on **G0-D** and returned **No-Go → Option A**
+— and Option A is *"stay on the VPS"*. That made `docker-compose.prod.yml` the production
+path rather than a fallback, so a stack that cannot start a worker stopped being a
+recorded curiosity and became a live gap.
+
+| | Was | Is |
+|---|---|---|
+| `docker-compose.prod.yml` | 3 services: `attendance/devices/sync`, `notifications`, `payroll` — **3 of those 5 queue names do not exist** | 2 services: `worker-realtime` on `attendance,notifications,default` (4 replicas), `worker-exports` on `exports` (2 replicas) |
+| `docker-compose.lowmem.yml` | 1 service, `--environment=production-lowmem` | 1 service, `--queue=attendance,notifications,default,exports` |
+| `scripts/prod-build-test.sh` | `horizon:status` + 6 `horizon:supervisors` greps | per-container Docker health state, plus an assertion on each worker's actual `--queue` list read from `/proc/1/cmdline` |
+
+**Sizing does not carry over, and assuming it did would have been the defect.** Horizon ran
+*N* worker processes per container under one master, so each `memory:` limit was
+`per-supervisor × maxProcesses + ~256 MB`. A plain `queue:work` is **one process**;
+concurrency now comes from `replicas`, and each limit covers a single worker plus headroom
+above its `--memory` cap.
+
+**The healthchecks needed a genuinely new answer.** `horizon:status` inspected every master
+registered in Redis *cluster-wide*, so one healthy container made all three report healthy
+— the file's own comment says so. The replacement greps this container's own process
+table. The bracket in `queue:wor[k]` is load-bearing: without it the probe's own shell
+carries the pattern in its argv and passes with no worker running. That was measured, not
+assumed — the naive form passed against a container with no worker.
+
+`DeploymentWorkerConsistencyTest` now covers **all four** worker assets rather than two,
+and asserts the *union* of every `--queue` list in a file equals `QueueHealth::QUEUES`,
+since prod now splits across two services.
+
 All **16** jobs in `app/Jobs` implement `ShouldQueue`, as do 2 of the 4 listeners. So a
 missing worker is not a degraded mode — it is the entire asynchronous half of the product.
 

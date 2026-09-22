@@ -1,29 +1,19 @@
 # ============================================================================
-# BROKEN AS OF 2026-09-19 -- DO NOT START THIS STACK EXPECTING JOBS TO RUN.
+# FIXED 2026-09-22. This stack ran `php artisan horizon` and could not start a
+# worker: Horizon was removed in cdf85d1 and is absent from composer.lock, so
+# the container exited immediately with "Command 'horizon' is not defined"
+# while `restart: always` turned that into a crashloop.
 #
-# Every worker service below runs `php artisan horizon`. Horizon was removed
-# from this project in cdf85d1: it is absent from composer.json and
-# composer.lock (0 occurrences), there is no config/horizon.php, and no command
-# in api/app/ carries that signature. Each worker container therefore exits
-# immediately with "Command 'horizon' is not defined", and the healthchecks
-# that shell out to `horizon:supervisors` can never pass.
+# It was left broken deliberately while the VPS was the thing this project was
+# migrating AWAY from. The pre-registered rule in
+# docs/SHARED_HOSTING_MIGRATION_PLAN.md fired on G0-D and returned
+# No-Go -> Option A -- "stay on the VPS" -- so this is a live path again.
 #
-# It is NOT fixed here, on purpose. The partition below splits work three ways
-# by queue name -- attendance/devices/sync, notifications, payroll -- and three
-# of those queues DO NOT EXIST. The application dispatches onto exactly four:
-# default, attendance, notifications, exports (QueueHealth::QUEUES, verified
-# against every onQueue() call and every Schedule::job() argument). So even with
-# Horizon present this topology would leave `default` and `exports` undrained
-# while dedicating two containers to queues that never receive anything.
-#
-# Choosing the replacement partition -- which queues each container drains, and
-# whether three containers are still the right shape without Horizon's
-# per-supervisor memory control -- is a deployment-architecture decision for the
-# owner, not something to infer from the old names. The single-worker paths
-# (infrastructure/supervisor.conf, docker-compose.yml) had no such ambiguity and
-# were fixed to `queue:work` on the same date.
-#
-# See docs/MIGRATION_STATE.md -> "NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER".
+# One container drains all four queues, which is the whole point of the lowmem
+# profile: `attendance,notifications,default,exports`, in that order, matching
+# QueueHealth::QUEUES exactly. Laravel drains left to right, so an export can
+# delay an attendance job here. That is the trade-off this profile accepts in
+# exchange for a single worker container; docker-compose.prod.yml isolates them.
 # ============================================================================
 
 # ── Low-memory production topology (4 vCPU / 4 GB host) ─────────────────────
@@ -53,11 +43,11 @@
 #     REDIS_CACHE_HOST is left unset below so config/database.php's `cache`
 #     connection falls back to REDIS_HOST and lands on REDIS_CACHE_DB (1) —
 #     same instance, different logical database, no code change needed.
-#   - One worker container running every queue, not three. See the
-#     'production-lowmem' environment in api/config/horizon.php for the exact
-#     budget and the capacity trade-off this makes (payroll can occupy half
-#     the pool for up to 30 minutes). Isolating queues into separate
-#     containers is a memory-per-container cost this tier cannot afford.
+#   - One worker container running every queue, not two. The trade-off, stated
+#     in the banner: Laravel drains --queue left to right, so a long export can
+#     delay an attendance job here. Isolating queues into separate containers,
+#     as docker-compose.prod.yml does, is a memory-per-container cost this tier
+#     cannot afford.
 #   - docker/mariadb/standalone.cnf, not primary.cnf: smaller
 #     innodb_buffer_pool_size, and log_bin dropped entirely since there is no
 #     replica to ship a binlog to (see that file's own comment).
@@ -159,16 +149,20 @@ services:
         max-size: "10m"
         max-file: "10"
 
-  # Single container, every queue. See 'production-lowmem' in
-  # api/config/horizon.php for the worker/memory budget and the trade-off it
-  # accepts. The healthcheck greps for the one supervisor this container runs,
-  # same pattern as docker-compose.prod.yml's per-container checks.
+  # Single container, every queue — see the banner for the trade-off it accepts.
+  # One `queue:work` process, so the 768M limit covers a single worker with
+  # 256 MB of slack above `--memory=512`; Docker would OOM-kill the container
+  # before Laravel's between-jobs check could recycle the worker if the limit
+  # sat at or under it.
   worker:
     build:
       context: .
       dockerfile: api/Dockerfile.prod
     container_name: ethr-worker
-    command: php artisan horizon --environment=production-lowmem
+    command: >
+      php artisan queue:work
+      --queue=attendance,notifications,default,exports
+      --tries=3 --backoff=10 --max-time=3600 --memory=512
     volumes:
       - api_storage:/var/www/ethr/api/storage
     env_file:
@@ -196,7 +190,12 @@ services:
           cpus: '0.5'
           memory: 384M
     healthcheck:
-      test: ["CMD-SHELL", "php artisan horizon:supervisors | grep -q supervisor-lowmem"]
+      # Was `horizon:supervisors | grep -q supervisor-lowmem`, a command that
+      # no longer exists. Checks this container's own process table instead.
+      # The bracket in `queue:wor[k]` is load-bearing: without it the probe's
+      # own shell carries the pattern in its argv and passes with no worker
+      # running.
+      test: ["CMD-SHELL", "grep -q 'queue:wor[k]' /proc/[0-9]*/cmdline 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
