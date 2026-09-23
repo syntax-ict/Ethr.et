@@ -735,7 +735,7 @@ repository states as non-negotiable:
 | `Traits/NeverDelete` | ~~**0.0%**~~ **covered 2026-09-23** | Convention 14's "Never delete" rows — attendance, payroll entries, payroll runs, audit logs. `docs/CLAUDE.md` already records the soft-delete table as *"a convention, not a control"* with four tests against fifteen rows. **This is the same finding from the other side, now measured.** The zero had a specific cause: `AuditLogImmutabilityTest` proves a row cannot be deleted **via `DB::table(...)->delete()`**, which exercises the database trigger and never the model. `NeverDeleteTest` covers the Eloquent layer, and pins the policy-to-code binding — removing the trait from one of the four models now fails a test |
 | `Traits/DispatchesWebhooks` | 14.3% | The dispatch path is covered at the service; the trait that triggers it is not |
 | `Services/Sso/SsoUser`, `Notifications/PasswordResetLinkNotification`, `Notifications/MissingPunchNotification`, `Notifications/AttendanceCorrectionRequestedNotification` | **0.0%** | — |
-| **Twelve policies** — `Announcement`, `ApiKey`, `AttendanceCorrection`, `AttendanceRecord`, `Branch`, `CustomRole`, `Department`, `Device`, `Holiday`, `Shift`, `Tenant`, `Webhook` | **0.0%** | **Verified 2026-09-23 — see §12h. Not an authorisation gap: the endpoints are authorised and these classes are simply never called.** *(The row said "Eleven" and listed twelve.)* |
+| **Twelve policies** — `Announcement`, `ApiKey`, `AttendanceCorrection`, `AttendanceRecord`, `Branch`, `CustomRole`, `Department`, `Device`, `Holiday`, `Shift`, `Tenant`, `Webhook` | **0.0%** | **Verified 2026-09-23 — see §12h; eleven DELETED 2026-09-23, see §12i.** Not an authorisation gap: the endpoints are authorised and these classes were simply never called. **`AttendanceRecord` was held back — it was the one of the twelve that is not a duplicate, and §12i records the under-scoped endpoint that finding exposed.** *(The row said "Eleven" and listed twelve.)* |
 
 Lowest non-zero, all device adapters and SSO: `ZktecoAdapter` 46.2%, `SupremaAdapter` 47.1%,
 `HikvisionAdapter` 59.8%, `SamlProvider` 37.2%. Every one talks to hardware or an external
@@ -785,6 +785,93 @@ Permission ability, so `Gate::before` returns null and `BranchPolicy` **would** 
 for the first time ever, in production. Its logic is currently unverified by anything.
 **Deleting them or exercising them is an owner decision**; this section only establishes
 which one is being decided.
+
+### 12i. Eleven of the twelve policies deleted — and the twelfth was not dead **[done 2026-09-23]**
+
+Owner decision on the choice §12h put up: **delete**. Eleven are gone, with their
+`Gate::policy()` registrations, their imports and the eleven now-orphaned model imports in
+`AppServiceProvider`. Nine policy classes remain and nine registrations remain, one per file.
+
+`AttendanceRecordPolicy` was **held back**, because reading the twelve before deleting them
+showed §12h's central claim is true of eleven and **false of one**.
+
+**§12h said the policies "duplicate the check they would delegate to, so they are redundant
+rather than divergent."** Eleven are exactly that — a single
+`return $user->hasPermission('...')`. `AttendanceRecordPolicy::view()` is not:
+
+```php
+if (! $user->hasPermission('attendance.view')) { return false; }
+if ($user->orgScope() === OrgScope::ALL)       { return true; }
+if (! $record->relationLoaded('employee'))     { $record->load('employee'); }
+
+return $record->employee && $user->canAccessEmployee($record->employee);
+```
+
+That is a **row-level** check. No permission string performs it, so deleting this class would
+have discarded the only written expression of it — and it is missing from the live path.
+
+#### The finding that fell out of the deletion — `GET /attendance/{attendanceRecord}` is not org-scoped
+
+`AttendanceController::show()` authorises on the ability alone and returns the record:
+
+```php
+public function show(AttendanceRecord $attendanceRecord): AttendanceRecordResource
+{
+    Gate::authorize('attendance.view');
+    $attendanceRecord->load('employee', 'shift');
+
+    return new AttendanceRecordResource($attendanceRecord);
+}
+```
+
+Five facts, each read from the code rather than inferred:
+
+1. `attendance.view` is in the **`$everyone`** grant list — `PermissionSeeder.php:215`. Every
+   authenticated user in a tenant holds it, down to `OrgScope::SELF`.
+2. `Gate::before` recognises it as a known ability and returns `hasPermission(...)` — **true** —
+   which short-circuits the pipeline, so `AttendanceRecordPolicy::view()` is never consulted.
+3. The route binds on the **primary key**: `Route::get('/{attendanceRecord}', ...)`
+   (`routes/api.php:331`) and `AttendanceRecord` declares no `getRouteKeyName()`, so the
+   identifier is a sequential integer.
+4. `show()` applies **no** `scopeAccessibleEmployees()`. Every sibling endpoint does —
+   `AttendanceController:131`, `:154`, `:210`, `:214`.
+5. `AttendanceRecordResource` returns the employee, `check_in`, `check_out`, `status` and
+   **`latitude` / `longitude`** — where a colleague physically was when they punched.
+
+**So any authenticated employee can read any attendance record in their own tenant by
+incrementing an integer.**
+
+**Scope of it, stated precisely.** This is **within-tenant**, not cross-tenant.
+`AttendanceRecord` uses `BelongsToTenant` (`AttendanceRecord.php:27`), so the global scope
+applies to route-model binding and another tenant's row resolves to a 404. Tenant isolation —
+the property this codebase is most careful about — holds. What does not hold is the
+**org-hierarchy** boundary *inside* a tenant, which `ScopesEmployeeAccess` exists to enforce
+and which the list endpoints enforce correctly.
+
+**Not fixed here, deliberately.** The fix is one line — `Gate::authorize('view', $attendanceRecord)`
+in place of `Gate::authorize('attendance.view')`, which routes through the policy that already
+holds the correct logic — but it is a **behaviour change on a live endpoint**: today every
+employee can read every record, and afterwards most cannot. That is the intended behaviour and
+also a visible change for anyone relying on the current one, so it is the owner's to authorise,
+not a cleanup to slip into a deletion PR. `AttendanceRecordPolicy` stays registered and intact
+so the fix stays one line.
+
+**The lesson is the one this file keeps recording.** §12h reasoned about the twelve as a class
+and reached a conclusion that was right eleven times out of twelve. The whole point of §11d's
+"106 of 156 prove their own safety" was that a property holding for a class says nothing about
+a member — and the same mistake was made one section later, on a smaller scale, by a reader who
+had just written that warning down. **Reading the twelve took about four minutes.** Nothing but
+opening the files would have found this: the coverage number said 0.0% for all twelve alike,
+and 0.0% is exactly as consistent with "harmless duplicate" as with "the only copy of a missing
+check."
+
+**What the deletion does and does not buy.** Eleven fewer classes that no test executes, so the
+latent trap §12h named is eleven-twelfths closed: writing `$this->authorize('view', $branch)`
+tomorrow now denies with a 403 — Laravel finds no policy, no ability, and fails closed — rather
+than silently consulting unverified logic. It buys **no** behaviour change on any live endpoint;
+every one of the eleven was unreachable, verified four ways before removal (no `authorizeResource`,
+no `can:` middleware, no model-style `authorize()`, and no reference anywhere outside the
+registration and its import).
 
 ---
 
@@ -2395,6 +2482,7 @@ Verified against a pre-upgrade baseline captured deliberately first, so a failur
 6. ~~Merge `docs/phase-0-baseline` into `main`~~ — done (`2b47bdf`).
 7. **Does a generated invoice count as `sent`?** (§15d, risk 18.) Nothing transitions `draft` → `sent`, so no invoice ever enters dunning and no non-paying tenant is ever suspended. Either `generateMonthlyInvoice()` should create them as `sent`, or there is a send step that was never built. This is a billing-process decision and is the last thing blocking the dunning chain from working at all.
 8. **Should deleting an employee deactivate their login?** (§15e.) `EmployeeController::destroy()` soft-deletes the employee and leaves the linked `User` active — no observer, no model hook, nothing in between. An offboarded employee keeps their account and can still log in, **by email as much as by employee number**, so this is not a tenancy or identifier-resolution bug and was deliberately not patched alongside §15e. It is an offboarding-policy decision with a real argument on each side: deleting a record that was created in error should probably not lock someone out, and a user may hold an account without being staff. Recommendation: deactivate, with an explicit reactivation path, since an HCM product that leaves ex-employees able to sign in is the more surprising default.
+9. **Should `GET /attendance/{attendanceRecord}` be org-scoped?** (§12i.) `AttendanceController::show()` authorises with `Gate::authorize('attendance.view')` and nothing else. `attendance.view` is in the `$everyone` grant list, the route binds on the sequential primary key, and `show()` is the one attendance read that applies no `scopeAccessibleEmployees()` — so **any authenticated employee can read any attendance record in their own tenant, including its check-in latitude and longitude**, by incrementing an integer. Tenant isolation is unaffected: `BelongsToTenant` still resolves another tenant's row to a 404, so this is an org-hierarchy boundary inside a tenant, not a tenancy defect. The fix is one line — `Gate::authorize('view', $attendanceRecord)`, routing through `AttendanceRecordPolicy::view()`, which already holds exactly the right check and is why that policy was kept when the other eleven were deleted. It is listed here rather than applied because it is a **visible behaviour change on a live endpoint**: today every employee can read every record and afterwards most cannot. Recommendation: scope it. An HCM product where any staff member can read a colleague's movements by guessing a number is the more surprising default, and the correct logic is already written and registered.
 
 ---
 
