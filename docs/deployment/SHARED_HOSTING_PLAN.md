@@ -1,7 +1,7 @@
 # Deploying ETHR to Ethio Telecom Linux **Gold** (Plesk) — gap analysis
 
-**Read-only analysis, 2026-09-22. Nothing is deployed and no gate status is changed by
-this document.** Authoritative gate state stays in
+**Read-only analysis, 2026-09-22; §5 added 2026-09-23. Nothing is deployed and no gate
+status is changed by this document.** Authoritative gate state stays in
 [`GATE-0-RESULT.md`](GATE-0-RESULT.md); the deployment contract stays in
 [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
 
@@ -528,3 +528,351 @@ still stands, because it fired on G0-D.
 No gate status changes. No architecture is adopted — this is analysis, and
 `SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** stands until G0-D moves.
 `SHARED-HOSTING-CONTRACT.md` is untouched.
+
+**This applies to §5 below as well**, which was added later and under a different premise.
+
+---
+
+## 5. Plan B — deploy assuming no host concessions
+
+**Added 2026-09-23, at the owner's direction, after no reply from Ethio Telecom.**
+
+**No gate status changes here either.** §4's disclaimer covers this section: **G0-D stays
+FAIL**, G0-A stays `NOT VERIFIED`, G0-C and G0-G stay `PARTIAL`. What changes is not any
+gate's value but what follows from it — and the central finding below is precisely that
+**G0-D = FAIL is still true and is no longer fatal.**
+
+### 5.0 The assumption set, and one naming warning
+
+Working assumption, set by the owner: **all four asks in
+[`ETHIO-TELECOM-SUPPORT-REQUEST.md`](ETHIO-TELECOM-SUPPORT-REQUEST.md) are DENIED.** No
+Scheduled Tasks, no plan upgrade, no `TRIGGER` grant, no SSH. Anything not in the plan's
+published or default feature set is unavailable.
+
+This is an **assumed** premise, not a measured one — the ticket was never sent. Everything
+downstream of it inherits that. Individual facts are marked:
+
+| Mark | Meaning |
+|---|---|
+| **MEASURED** | read from this repository's code, or from the account by the owner, on a dated occasion |
+| **PUBLISHED** | from Ethio Telecom's own plan pages, as transcribed in the support request |
+| **ASSUMED** | neither — reasoning, or a third party's documented behaviour taken on trust |
+
+> **Naming warning, because three different things are now called "B".** In §3A of this
+> document **B** is *Node on Plesk*. In
+> [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) §4 **Option
+> B** is *everything on shared hosting* and **Option A** is *stay on the VPS*. This section
+> is **"Plan B"** in the owner's sense — *the fallback if nobody answers* — and it is none
+> of those three. Where it needs them it names them in full.
+
+### 5.1 Every requirement that was waiting on an ask, under denial
+
+Three outcomes: **RESOLVED ANOTHER WAY** (a route exists that needs nothing from the host),
+**DEGRADED** (it works, worse), **HARD-BLOCKED** (no route today).
+
+| Row | Was | Under denial | Route, or why not |
+|---|---|---|---|
+| **#9** queue worker | BLOCKER (G0-D) | **RESOLVED — degraded** | `POST /api/v1/cron/queue` **MEASURED** (`routes/api.php:142`, built `b61cb05`). Needs an external caller; see §5.3a |
+| **#10** scheduler | BLOCKER (G0-D) | **RESOLVED — degraded** | `POST /api/v1/cron/schedule` **MEASURED** (`routes/api.php:141`) |
+| **#21** backups | BLOCKER (G0-D) | **RESOLVED — degraded** | Not a separate route: `ethr:backup --keep=7` is a `Schedule::command` entry **MEASURED** (`routes/console.php:103`), so the scheduler endpoint drives it. Degraded by Bronze's disk quota — §5.4 |
+| **#11** `artisan` at all (`key:generate`, `migrate`, `db:seed`, `ethr:create-admin`) | WORKAROUND | **UNCHANGED — and now the single point of failure** | Plesk Git *additional deployment actions*. **MEASURED as present** (owner, 2026-09-18) and **never executed**. Under denial there is no second route |
+| **#12** `storage:link`, writable dirs | ASK | **Inherits #11** | Same mechanism, same untested assumption |
+| **#22 / G0-F** `CREATE TRIGGER` | ASK | **HARD-BLOCKED — and it is an owner decision, not an engineering one** | `migrate` aborts at `2026_07_22_000001` by design **MEASURED**. [`AUDIT_LOG_INTEGRITY_DECISION.md`](../AUDIT_LOG_INTEGRITY_DECISION.md) pre-registered this exact case: on refusal the choice returns to the owner as accepted risk, and the mechanism is then an `AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag **that is deliberately not built**. See §5.7 |
+| **#8 / G0-A** path routing | BLOCKER | **CONFIRMED — and routed around** | Denial converts "strong evidence of FAIL" into the working assumption. Consequence: §3A's **B (Node on Plesk)** is foreclosed, and **A (static export)** is the only frontend path. Costed at ≈8 days, 3 of them gated on G0-B.1/B.2 |
+| **#7 / G0-G** Node runtime | ASK | **MOOT** | The panel offers a startable Node app **MEASURED** (2026-09-22) — but with #8 denied there is nothing to split `/api/*` from `/`, so the runtime being present buys nothing. G0-G stays `PARTIAL`; it simply stops mattering |
+| **#18** subdomain quota | ASK | **UNKNOWN — and now potentially product-limiting** | Nobody has established whether a wildcard counts as one. See question Q3 |
+| **#17 / G0-C** wildcard TLS | BLOCKER | **UNCHANGED — it was never one of the four asks** | A DNS question, not a hosting one. One workaround exists and is not a host concession — §5.3d |
+| **#2 #4** extensions · **G0-E** limits | ASK | **RESOLVED** | The probe supports **web execution** deliberately **MEASURED** (`ethr-hosting-check.php:35-38`, `:77-83`) — §5.3c |
+| **G0-H** SMTP · **G0-I** database · **G0-J** performance | NOT VERIFIED | **RESOLVED** | Same probe, same route |
+| **G0-B.1–B.5** `.htaccess` | NOT VERIFIED | **UNCHANGED — and now the critical path** | The canary needs no shell, no cron and no ticket, and static export is now the only frontend option. §5.3c |
+| **#5** Redis · **#13** object storage · **#14** Reverb | WORKAROUND | **UNCHANGED** | `CACHE_STORE`/`SESSION_DRIVER`/`QUEUE_CONNECTION=database`, local disk, `BROADCAST_CONNECTION=log`. All already prescribed |
+| **#15** SSH / Git deploy | WORKAROUND | **UNCHANGED** | [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md) already makes SSH OPTIONAL; ask 4's denial costs nothing it had not already priced |
+| **#19** mail | ASK | **Split** | Outbound 587/465 → probe. Mailbox send cap → a panel read |
+| **#20** device callbacks | ASK | **Inherits #8 and #16** | Ordinary inbound HTTPS to a named host once those hold |
+| **#1** PHP · **#3** · **#6** · **#16** | OK / RESOLVED | **UNCHANGED** | |
+
+#### The headline
+
+**The blocker that fired the pre-registered No-Go is the one that now has a route.**
+`SHARED_HOSTING_MIGRATION_PLAN.md` §4's rule fired on **B3 — cron**, and the reason it gave
+was *"Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop."*
+Those do not stop any more. An external caller drives `schedule:run` and `queue:work` over
+HTTP, and `ethr:backup` rides the scheduler with them.
+
+Two blockers remain, and **neither is G0-D**:
+
+| Remaining | Nature |
+|---|---|
+| **G0-C / #17** wildcard TLS | Subdomain tenancy has no certificate. A DNS problem with one unverified workaround |
+| **G0-F / #22** `CREATE TRIGGER` | `migrate` will not complete. An owner decision, then ~a day of work that is deliberately unbuilt |
+
+And one that is not a blocker but is the largest single cost: **static export, ≈8 days,
+6–11**, of which **3 days are void rather than merely optimistic if the canary shows
+`.htaccess` is ignored**.
+
+**This does not reverse the No-Go by itself.** The rule fired on a gate, and the gate has
+not moved. What it says is that the rule's stated *reason* no longer holds, which is a
+reason to re-take the decision rather than to consider it re-taken.
+
+### 5.2 What is actually known about the plan defaults, and what is not
+
+**Known — MEASURED on this account**, all by the owner reading the panel:
+
+| Fact | Date |
+|---|---|
+| PHP **8.3.33** | 2026-09-17 |
+| Proxy mode *"nginx proxies requests to Apache"* is **ON** — so Apache is in the path and `.htaccess` is processed at all | 2026-09-17 |
+| *"Serve static files directly by nginx"* **exists**; its value is **unread** | 2026-09-17 |
+| **No** *Additional directives for HTTP/HTTPS* and **no** *Additional nginx directives* fields on an otherwise complete page | 2026-09-17, read twice |
+| **No** Scheduled Tasks / Task Scheduler / Cron Jobs section on an otherwise complete dashboard | 2026-09-18 |
+| SSH **Forbidden**; no Terminal under Dev Tools | 2026-09-17 |
+| Git, PHP Composer, Imunify present; *additional deployment actions* field present | 2026-09-17 / 18 |
+| Node.js **22.23.2**, startable application (startup file, mode, URL) | 2026-09-22 |
+| Per-hostname Let's Encrypt **works**; wildcard blocked (needs DNS-01) | 2026-08-29 / 09-17 |
+| Home directory sits **above** `httpdocs` | 2026-08-29 |
+
+**Known — PUBLISHED**, transcribed from Ethio Telecom's plan pages into the support request:
+
+| Plan | Storage | Bandwidth | Databases | Subdomains | Websites |
+|---|---|---|---|---|---|
+| Bronze | 5 GB | 50 GB | 1 | 5 | 1 |
+| Silver | 20 GB | 250 GB | 3 | 10 | 3 |
+| Gold | 50 GB | Unlimited | 5 | 15 | 5 |
+| Platinum | 100 GB | Unlimited | 10 | Unlimited | 10 |
+
+**And one thing the published pages are MEASURED not to say.** The support request states it
+outright: *"cron, command-line PHP, SSH, Node.js and directives are not listed for any
+plan, which is why I am asking."* So *"anything not in the published feature set is
+unavailable"* — the owner's framing — resolves, for those five capabilities, to
+**unavailable on every tier**, not just on Bronze. That is why a plan upgrade is not a
+workaround for any of them, and why §5.4 turns out to be a short section.
+
+**Not known, and deliberately not guessed.** These are questions, in §5.8.
+
+### 5.3 Workarounds that need nothing from the host
+
+#### 5.3a The scheduler and the queue — an external caller
+
+The endpoints exist and are **MEASURED**: `POST /api/v1/cron/schedule` and
+`POST /api/v1/cron/queue`, guarded by `throttle:cron` then `VerifyCronToken`, 404ing
+entirely when `CRON_TOKEN` is unset. The queue route runs
+`queue:work --stop-when-empty --max-time=50` over the authoritative queue list, under a
+cache lock that returns **409** rather than starting a second worker.
+
+Four callers. **Cadence and pricing claims below are ASSUMED — this repository holds no
+measurement of any of them, and none was invented.**
+
+| Caller | Cadence | Token lives | For | Against |
+|---|---|---|---|---|
+| **GitHub Actions `schedule:`** | 5 min documented minimum; delivery best-effort, commonly late, runs droppable under load *(ASSUMED, from GitHub's published behaviour)* | an Actions secret, in the account that already holds the repository | No new vendor, no new bill, every run logged and attributable | Private-repo minutes are billed; runner egress is GitHub's shared ranges; and "late or skipped" quietly redefines every `dailyAt` in `routes/console.php` |
+| **The VPS already in hand** (`91.99.81.71`) | real `crontab`, 1 minute, reliable | a host the owner controls | Highest fidelity to what the scheduler was designed for | **It keeps the VPS.** `SHARED_HOSTING_MIGRATION_PLAN.md` §5's own argument then applies verbatim — *"once a VPS is in the picture, Option A is strictly better"* — and this is its **Option C** (shared + small VPS) under another name |
+| **A third-party cron service** | 1-minute offered by some; free-tier limits **unverified** | a third party's dashboard | Nothing to run or patch | A third party can drain your queues on demand, and its outage stops all background work **silently** |
+| **A laptop** | whenever it is on | locally | Named in `config/cron.php` for completeness | Not a production answer |
+
+**What it costs to put the token outside the host — stated in full, because it is the
+price of this whole section.**
+
+- It is a **bearer credential**. Whoever holds it can run the scheduler and drain queues at
+  will.
+- It is **the only control**. `VerifyCronToken` (`hash_equals` over SHA-256 digests,
+  constant-time) plus `Limit::perMinute(10)->by(ip)` are what guard the routes **MEASURED**.
+  There is **no IP allowlist** — and under G0-A denial you cannot add one at the web server
+  either, because that is exactly the directive field the panel does not offer. The token is
+  not one of several controls; it is the control.
+- **A leak discloses scheduler output, not just capability.** Both endpoints return
+  `exit_code` and up to 2000 characters of Artisan output **MEASURED**
+  (`CronRunController::tail()`). That is a consideration when choosing who holds it.
+- **Blast radius is availability and timing, not tenant data**: forced drains and scheduler
+  runs, plus that output. No tenant row is reachable through these routes.
+- **Rotation is manual on both sides** — `CRON_TOKEN` in the Plesk environment and the
+  caller's secret — with a window in between where background work is dead and nothing says
+  so.
+- **≥ 32 characters or the routes disable themselves** **MEASURED** (`config/cron.php:31`,
+  `VerifyCronToken:49`): a short token logs an error and 404s, rather than being quietly
+  accepted.
+
+**Recommendation, and it is not the obvious one.** If the VPS is kept for cron, this stops
+being a shared-hosting deployment and becomes Option C — at which point the migration's own
+prior analysis says Option A is strictly better, and Plan B should be abandoned rather than
+built. **So the VPS caller is the best engineering answer and the worst strategic one.** If
+Plan B is to mean anything, the caller must be something the migration is not trying to
+retire: GitHub Actions, at a cadence the schedule can tolerate, is the honest choice —
+**provided Q6 below is answered first.**
+
+#### 5.3b The install commands
+
+Plesk Git *additional deployment actions* execute shell commands as the subscription user on
+deploy. Under denial this carries `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`
+and `storage:link`, and it is **the only route**. It is **MEASURED as present** and has
+**never been executed** — nothing has been entered, saved or run.
+
+Two consequences worth naming rather than discovering:
+
+1. **If deployment actions do not work, Plan B ends there.** Not degraded — ended. Nothing
+   else on this account can run `artisan` even once.
+2. **If they do work, PHP CLI exists on this account**, which is one of the things ask 2 was
+   asking. Proving it costs one deploy with `php -v` in the field.
+
+#### 5.3c Measurement — both instruments already run without a concession
+
+**The probe can be driven over HTTP, and this was always designed in.** Its own header
+**MEASURED** (`ethr-hosting-check.php:35-38`): serving it from `httpdocs` is *"a last
+resort"*, a web request returns **403 and nothing else** unless `ETHR_PROBE_WEB_TOKEN` is
+set in the uploaded copy, and credentials may be passed as query parameters. That answers
+G0-E's extensions and limits, G0-F, G0-H, G0-I and G0-J with no shell and no cron.
+
+Three caveats, none fatal:
+
+- **Database credentials in a query string land in the access log** — the file says so
+  itself. Put them in the uploaded copy instead.
+- **Web-SAPI values differ from CLI values** for `max_execution_time` and `memory_limit`.
+  Under Plan B that is an advantage, not a distortion: there is no CLI path in normal
+  operation, and the cron endpoints run under the web SAPI too, so the web numbers are the
+  ones that govern.
+- **Containment is `NOT VERIFIED` and exposure is graded LIVE.** A copy is already under
+  `httpdocs` and its URL last measured **HTTP 200**, which is not what a token-less copy
+  should return. Resolve that before adding a token — it is question Q1.
+
+**The canary answers G0-B.1–B.5** with five files and six fetches, discloses nothing, and
+needs no concession. Under denial it stops being one item on a list and becomes **the
+measurement Plan B rests on**, because static export is now the only frontend and three of
+its eight days are void if `.htaccess` is ignored.
+
+#### 5.3d Wildcard TLS — one workaround, and it is not a hosting ask
+
+The zone is on `ns1`/`ns2.telecom.net.et`, so Plesk cannot serve the DNS-01 challenge.
+The standard escape is **CNAME delegation**: point `_acme-challenge.ethr.et` at a zone you
+do control, and answer the challenge there. It is a **one-time DNS record change**, not a
+hosting concession, and it goes to whoever administers the zone — a different party from
+hosting support.
+
+**Marked ASSUMED.** This repository holds no evidence about who controls that zone or
+whether they will add records. It is named because it is the only route that does not
+require the hosting plan to change, not because it is known to work.
+
+### 5.4 Gold versus Bronze — what actually differs for this deploy
+
+The account is **Bronze** (support request, and `shared-hosting/DEPLOYMENT.md`'s header).
+This document's title says *Gold*, and §1 reasons about *"Gold includes 5 databases"* and
+*"Gold publishes 15"* — that was the brief's premise, and it is not this account.
+**Noted rather than silently corrected**, because §1's gap table is otherwise sound: not one
+of its BLOCKER rows turns on a tier figure.
+
+| | Bronze | Gold | Matters here? |
+|---|---|---|---|
+| Storage | 5 GB | 50 GB | **Yes — see below** |
+| Bandwidth | 50 GB | Unlimited | Not initially |
+| Databases | 1 | 5 | No. ETHR needs one. Bronze leaves no room for a staging copy on the same account |
+| Subdomains | 5 | 15 | **Only if a wildcard counts individually** — Q3 |
+| Websites | 1 | 5 | No |
+
+**Does Bronze change any decision? Three answers, and only one is yes.**
+
+1. **Not the architecture. No.** Every blocker is a service-plan permission or a property of
+   the host, and the published pages list cron, CLI PHP, SSH, Node and directives for **no
+   tier at all**. Under the denial assumption the tier is not the variable.
+2. **Yes, for backups — and this one is concrete.** `ethr:backup --keep=7` retains seven
+   archives **MEASURED**, and `BACKUP-RESTORE.md` records that **no off-host disk is
+   configured**, so the backup lives on the machine it protects. Seven archives against a
+   **5 GB** quota is a real risk, and exhausting the quota does not merely stop backups: it
+   stops every write under `storage/` — logs, uploads and the archives themselves. On
+   Bronze, lower `--keep` or move backups off-host **before** the first scheduled run, not
+   after. *(Whether the MySQL database shares that 5 GB is unknown — Q4.)*
+3. **Possibly fatal for the product, and it is the same question either way.** If a wildcard
+   counts as one subdomain, the limit is irrelevant on both tiers. If each tenant subdomain
+   counts, Bronze caps the product at **5 customers** and Gold at **15** — and neither is a
+   business. **The tier is not what decides this; the counting rule is.** Q3.
+
+So: Bronze changes **one operational setting** and sharpens **one open question**. It does
+not change which architecture to build, and upgrading to Gold would not unblock anything
+that is blocked.
+
+### 5.5 The deploy path, end to end, under full denial
+
+Every step names the mechanism and whether anyone has ever done it here.
+
+| # | Step | Mechanism | Status |
+|---|---|---|---|
+| 1 | **Run the canary** | Upload 5 files, 6 fetches | Never run. **Do this first** — it can void 3 of static export's 8 days |
+| 2 | **Run the probe over HTTP** | Token in the uploaded copy, credentials in the file not the URL, delete after | Never run; a copy is already exposed (Q1) |
+| 3 | **Decide the `TRIGGER` question** | Owner, per `AUDIT_LOG_INTEGRITY_DECISION.md` | **Blocking. Nothing below proceeds past step 7 without it** |
+| 4 | **Build the static export** | §3A option A, ≈8 days | Not started; 3 days conditional on step 1 |
+| 5 | **Deliver code** | Plesk Git, deployment path `/ethr/` **set before the first deploy** | Never configured |
+| 6 | **Install dependencies** | Plesk Composer | Never run |
+| 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`, `storage:link` | Never run. **Single point of failure** (§5.3b) |
+| 8 | **Assemble the document root** | `index.php` + `.htaccess` + exported `out/` | Written, never applied |
+| 9 | **Configure the environment** | Plesk env vars from `api/.env.shared-hosting.example` — **not** `.env.production.example`, which selects redis/minio/reverb | Template exists |
+| 10 | **Set `CRON_TOKEN`** | ≥32 chars, Plesk env | — |
+| 11 | **Point an external caller at both cron endpoints** | §5.3a | Endpoints built; no caller configured |
+| 12 | **Lower backup retention** | `--keep`, per §5.4 | Not done |
+| 13 | **Certificates** | Per-hostname Let's Encrypt for `ethr.et`, `www`, `app` | Proven for named hosts |
+| 14 | **Verify** | `deploy-checklist.md`, `/api/v1/health`, `ethr:queue:check` | — |
+
+**What this path does *not* include, and cannot:** tenant subdomains. Steps 1–14 deliver a
+working single-hostname deployment. `{tenant}.ethr.et` needs step 13 to issue a wildcard,
+and it cannot.
+
+### 5.6 What is lost versus the ideal deploy
+
+| Lost | Why | Recoverable? |
+|---|---|---|
+| **Scheduler fidelity** | Cadence is the external caller's, not cron's. On GitHub Actions, `everyMinute` becomes ~5 minutes at best and late or skipped at worst | Only by changing caller |
+| **"Quiet vs dead" queue observability** | The heartbeat is `Schedule::call(...)->everyMinute()` **MEASURED**, and `ethr:queue:check` reads it. A caller that fires every 5–15 minutes makes a healthy system look intermittently dead | Retune the thresholds — not yet scoped |
+| **Background work surviving a third party** | The queue stops when the caller stops, silently | Monitor the heartbeat externally too |
+| **The `/admin` host boundary** | Static export makes `middleware.ts` inert, and its documented nginx backstop is exactly what G0-A denies **MEASURED** | `.htaccess`, if G0-B.1 passes. Data stays protected by `admin.manage` + `RoleGate` — a defence-in-depth regression, not a breach |
+| **CSP, HSTS, X-Frame-Options, Permissions-Policy** | `next.config.ts` `headers()` is dropped by `output: "export"` with a warning and no failure **MEASURED** | `.htaccess`, if G0-B.2 passes |
+| **SSR on marketing pages** | Static export | No |
+| **Real-time (Reverb)** | No long-running daemon; contract already says NEVER REQUIRED | No — by design |
+| **A second database for staging** | Bronze publishes 1 | Separate account, or a tier change |
+| **Off-host backups** | No off-host disk configured, and 5 GB shared with everything else | Configure a remote disk — needs outbound access (Q5) |
+
+### 5.7 What remains genuinely impossible
+
+Four things. The first two are the ones that decide whether Plan B ships at all.
+
+1. **Subdomain tenancy.** `*.ethr.et` has no certificate and no route to one from this
+   panel. `SESSION_SECURE_COOKIE=true` means tenants on an untrusted connection cannot log
+   in — this is `SHARED_HOSTING_MIGRATION_PLAN.md` §4's **B2 = No-Go**, and it is untouched
+   by everything above. The CNAME-delegation workaround (§5.3d) is the only route and is
+   **ASSUMED**, not known. **Without it, Plan B delivers a single-tenant-hostname product.**
+2. **Database-enforced audit-log immutability.** Without `TRIGGER` the migration aborts, by
+   a decision already taken and recorded. Proceeding requires the owner to accept the
+   downgrade explicitly *and* then build the `AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag, which
+   `AUDIT_LOG_INTEGRITY_DECISION.md` says must **not** be built pre-emptively. Until that
+   decision is taken this is not an engineering task.
+3. **Anything needing a resident process.** WebSockets, a supervised worker, a daemon of any
+   kind. Already excluded by the contract; listed so the list is complete.
+4. **Reliable sub-5-minute scheduling on a free external caller.** Some paid services offer
+   one minute; GitHub Actions does not, and its schedule is best-effort.
+
+**Not on this list:** running the scheduler, draining the queue, taking backups, installing
+the application, and measuring the host. All five were blocked on an ask a day ago and all
+five now have a route that needs nothing from Ethio Telecom.
+
+### 5.8 Open questions — for the owner, not guessable from here
+
+Deliberately not answered. Each would have had to be invented.
+
+| # | Question | Why it matters |
+|---|---|---|
+| **Q1** | The probe copy already under `httpdocs` returned **HTTP 200**. What are its response headers and first body line? | A token-less copy should return **403**. 200 means either a token was set or the file is not executing as PHP. Until this is answered, exposure stays graded LIVE and step 2 of §5.5 must not proceed |
+| **Q2** | Does Ethio Telecom's **published** spec sheet mention Scheduled Tasks / cron, SSH, Node.js, command-line PHP or custom directives for **any** tier — in any document, not just the plan comparison page? | The support request says it does not. If that holds, §5.4's conclusion stands and no upgrade helps. If some tier does list them, the denial assumption is wrong for that tier and this whole section reopens |
+| **Q3** | **Does a wildcard subdomain count as one against the subdomain limit, or does each tenant count individually?** | The single most consequential unknown in this document. If individual, the published limits cap the product at 5 customers (Bronze) or 15 (Gold) and no tier is viable |
+| **Q4** | Is the MySQL database counted against the plan's **5 GB** disk quota, or separately? | Decides whether the database competes with seven backup archives and the log directory for the same 5 GB |
+| **Q5** | What outbound network access does the account have — arbitrary HTTPS, SMTP 587/465, anything else? | Decides off-host backups, external S3 and outbound mail. The probe answers the SMTP ports; general outbound egress it does not |
+| **Q6** | **Which external caller do you want, and where should `CRON_TOKEN` live?** | GitHub Actions (no new vendor, poor cadence), the existing VPS (perfect cadence, but it makes this Option C and re-opens Option A), or a third-party service (good cadence, a stranger holds the key). §5.3a lays out the trade; the choice is yours |
+| **Q7** | Who administers the `ethr.et` zone at `ns1`/`ns2.telecom.net.et`, and will they add a `_acme-challenge` CNAME? | The only route to wildcard TLS, and the only route to subdomain tenancy |
+| **Q8** | `TRIGGER` denied — do you accept the audit-log downgrade, or does ETHR not deploy on this account? | Pre-registered as yours in `AUDIT_LOG_INTEGRITY_DECISION.md`. Steps 3 and 7 of §5.5 both stop here |
+| **Q9** | Is the account definitely **Bronze**? | This document's title and §1 reason about Gold. Nothing structural turns on it, but §5.4's figures do |
+
+### 5.9 What this section does not claim
+
+It does not claim the denial happened — no reply is not a refusal, and the ticket was never
+sent. It does not move a gate. It does not re-take
+`SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A**, which fired on G0-D and stands
+until someone re-takes it deliberately — though §5.1 gives the first substantive reason to.
+And it does not claim any of these routes works: **every one of them is a mechanism that
+exists in code or in the panel, and not one has ever been executed on this account.**
+
+---
+
