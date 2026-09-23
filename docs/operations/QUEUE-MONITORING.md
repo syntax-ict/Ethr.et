@@ -14,6 +14,82 @@ What is **not** built is the part that needs the host: which transport carries t
 
 ---
 
+## On the Ethio Telecom target there is no cron entry, so read this first
+
+Added 2026-09-23. **Everything else in this file assumes a Plesk cron entry exists and can
+stop.** On the target account there is no cron entry, because **G0-D is FAIL**: the
+subscription dashboard has no Scheduled Tasks section at all (owner-read 2026-09-18,
+`../deployment/GATE-0-RESULT.md`). What drives the scheduler and the queue there is an
+**external caller** hitting two endpoints — `POST /api/v1/cron/schedule` and
+`POST /api/v1/cron/queue` (`api/routes/api.php:134-143`, behind `throttle:cron` then
+`VerifyCronToken`). Which caller is **unchosen**; it is question **Q6** in
+`../deployment/SHARED_HOSTING_PLAN.md` §5.3a.
+
+That changes what can go wrong, what the symptoms look like, and which of this file's own
+tools you can actually use.
+
+### Only one of the four entry points at the top of this file works there
+
+| | On the target |
+|---|---|
+| `php artisan ethr:queue:check` | **No runner.** SSH Forbidden, no Scheduled Tasks, and the cron endpoints run only `schedule:run` and `queue:work` — not arbitrary commands (`CronRunController.php:48,66`) |
+| `ethr:queue:check --json` | Same |
+| `GET /api/v1/health` | **Works**, unauthenticated behind `throttle:health` (`routes/api.php:123`), and publishes the whole picture under `queue_detail` — `HealthController` calls `QueueHealth::snapshot()` with the same 900 s / 1800 s defaults the CLI uses |
+
+So on this account **the endpoint is the monitor and the CLI is not available.**
+`HealthController`'s own comment still says *"the thing that acts on it is
+`ethr:queue:check`, which runs from cron"* — true of the VPS, not of this target. An external
+uptime service polling `/api/v1/health` and reading `queue_detail.status` is the whole
+mechanism; §3 below already reaches that conclusion for a different reason.
+
+### Three failure modes cron did not have
+
+1. **A wrong or too-short token returns 404, by design.** `VerifyCronToken` 404s on an unset
+   token, on a token under 32 characters, and on a mismatch — deliberately, so an
+   unconfigured deployment does not advertise that these routes exist. The cost is that
+   **a misconfigured caller is indistinguishable from a missing route**: both are 404. If
+   background work is not running and the caller reports 404, check `CRON_TOKEN` before
+   concluding the deploy is broken. The short-token case does log
+   `CRON_TOKEN is shorter than the configured minimum` — that line is the only outward
+   difference.
+2. **409 is normal, not an error.** The previous drain is still going; a caller that treats
+   non-200 as failure will alarm under ordinary load.
+3. **The caller is off-host, so its silence leaves no trace here.** A cron entry that stops
+   at least leaves a host with a configuration you can look at. An external caller that is
+   rate-limited, suspended, or whose workflow was disabled leaves nothing on this account at
+   all. The heartbeat going stale is the only signal, which is exactly what §1 and §3 are
+   for — but it makes them load-bearing rather than a backstop.
+
+### The "never run" message names something that does not exist there
+
+`QueueHealth::snapshot()` distinguishes never-beaten from stale, and the never-beaten
+message reads *"scheduler has never run — is the Plesk Scheduled Task created?"*. On this
+account **there is no Scheduled Task to create.** An operator following that message goes
+looking for a panel section that is not there. The distinction it draws is still the right
+one; only the remedy it names is wrong for this target. **Read it as: is the external caller
+configured, and is its token right?**
+
+### The thresholds are marginal against a five-minute caller, and that is a decision, not a bug
+
+`snapshot()` defaults to **900 s** scheduler staleness and **1800 s** oldest-job
+(`QueueHealth.php:87`). A one-minute cron sat far inside both. The candidate callers do not:
+§5.3a marks every cadence claim there **ASSUMED**, and records that GitHub Actions documents
+a **five-minute minimum** and delivers best-effort, commonly late. Five minutes still fits
+inside 900 s — three missed ticks do not. **No threshold is changed here**, because the right
+value depends on which caller Q6 picks. Re-check both numbers once it is picked, and expect
+to widen them rather than narrow them.
+
+### Scheduler fresh does not mean the queue is draining
+
+The two endpoints are independent calls. A caller configured for `/cron/schedule` but not
+`/cron/queue` keeps the heartbeat perfectly fresh while nothing drains — jobs pile up and
+the scheduler looks healthy. The per-queue `oldest-job` check is what catches this, at 1800 s
+by default. **Configure both endpoints, and verify both, not just the one that makes the
+heartbeat move.** The same trap existed on cron, which is why `../deployment/shared-hosting/cron.txt`
+insists on two entries rather than one; it survives the move to HTTP unchanged.
+
+---
+
 ## The problem
 
 On the VPS, Supervisor kept a queue worker alive and Horizon showed its state. Neither survives the move to shared hosting: there are no long-running processes, and Horizon is being removed because it hard-requires `ext-pcntl` and `ext-posix`, which shared PHP-FPM rarely has (`../audit/BASELINE.md` §3a).
@@ -138,6 +214,12 @@ A monitoring page that is wrong in a familiar way is worse than no page. Both ar
 **Disable the Plesk cron entry and confirm an alert fires within the threshold.**
 
 That is the test. Everything else is a component check.
+
+> **On the Ethio Telecom target, the equivalent is: stop the external caller** — disable the
+> workflow, or rotate `CRON_TOKEN` on one side only — **and confirm an alert fires.** There
+> is no cron entry to disable there; see the section at the top of this file. Rotating the
+> token on one side is the closer analogue of the failure that actually worries us, because
+> it is silent on the host and returns 404 to the caller.
 
 A monitor that has never been observed failing is not a monitor — it is an assumption with a dashboard. The same reasoning applies here as to the backup rehearsal in `../deployment/GATE-0-RESULT.md`: a backup that has never been restored is not a backup.
 

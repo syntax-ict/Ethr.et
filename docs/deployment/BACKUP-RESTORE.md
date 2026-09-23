@@ -139,6 +139,71 @@ A silently missing trigger means `audit_log` has stopped being append-only. Ever
 
 ---
 
+## On the Ethio Telecom target, backup has a runner and restore does not
+
+Added 2026-09-23, because everything above assumes a command line and that account has
+none. **The two halves of this document do not have the same status there**, and nothing
+said so.
+
+**Backup has a route.** `ethr:backup` is a `Schedule::command` entry
+(`api/routes/console.php:107`), and `POST /api/v1/cron/schedule` runs `schedule:run`
+(`CronRunController::schedule()`), so an external caller drives the nightly backup with no
+shell and no cron. That is why `deployment/SHARED_HOSTING_PLAN.md` §5.1 grades blocker #21
+*"RESOLVED — degraded"*.
+
+**Restore does not, in the sense that matters.** `ethr:restore` is not scheduled and not
+exposed; the cron controller runs exactly two commands, `schedule:run` and `queue:work`
+(`CronRunController.php:48,66`). SSH is **Forbidden** and **G0-D is FAIL** — there is no
+Scheduled Tasks section — so no ordinary route on that account runs it.
+
+| | Route on this account | Ever executed there |
+|---|---|---|
+| `ethr:backup` | `schedule:run` via `POST /api/v1/cron/schedule` | No |
+| `ethr:restore` | **None of the above.** See the deployment-action route below | No |
+
+### There is one route, it is undocumented until now, and it is a footgun
+
+Plesk Git *additional deployment actions* run shell commands as the subscription user on
+deploy, and that is the only thing on this account that can run `artisan` at all
+(`SHARED_HOSTING_PLAN.md` §5.3b). `ethr:restore <name> --force` is non-interactive, so it
+would run there. Three things make that a last resort rather than a procedure:
+
+1. **A deployment action fires on every deploy.** A restore line left in the field restores
+   the database the next time anyone pushes. It has to be added, deployed once, and removed
+   — and the removal is the step that gets forgotten.
+2. **It is the same field the entire install depends on**, and §5.3b records that it has
+   **never been executed**. Discovering it does not work while trying to recover is the
+   worst possible time to find out.
+3. **It restores from an archive that must already be on the host.** That covers a bad
+   migration. It does not cover losing the account, which is the failure a backup exists
+   for.
+
+### The case with no route at all
+
+**Host loss.** `--off-host` is deliberately absent from the scheduled line (see *Off-host
+copies* below), so until a remote disk is configured every archive lives only on the 5 GB
+account it protects. If that account goes, the backups go with it, and the question of how
+to run `ethr:restore` never arises.
+
+And a copy retrieved from somewhere else is not automatically readable: `Employee.tin` and
+`national_id` use the `encrypted` cast, so **a dump without its `APP_KEY` cannot be read**
+(`PRODUCTION_CHECKLIST.md` row 22).
+
+### What would close this
+
+Not a document — these are owner decisions, listed so they are not mistaken for writing
+tasks:
+
+- **Configure the off-host disk** and add `--off-host` to the scheduled line. This is the
+  one that turns "backups exist" into "backups are a recovery path", and
+  `SHARED_HOSTING_PLAN.md` Q5 (what outbound access the account has) gates it.
+- **Decide whether restore gets a real runner** on that account, and if so which — there is
+  no third option today beyond the deployment-action route above.
+- **Rehearse a restore on the host.** `audit/BASELINE.md` item 1 still reads *"not rehearsed
+  on the Ethio Telecom host"*, and this section is why that line has not moved.
+
+---
+
 ## Scheduling
 
 One entry, already registered in `routes/console.php`:
