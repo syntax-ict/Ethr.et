@@ -219,6 +219,7 @@ Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenan
 ./scripts/gates.sh docs       # markdown link integrity
 ./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
+./scripts/gates.sh coverage   # backend line coverage — needs PCOV or Xdebug
 ```
 
 `performance` is outside the full sweep too, and was **unrunnable without Docker

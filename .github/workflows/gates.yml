@@ -436,3 +436,59 @@ jobs:
           DB_USERNAME: ethr
           DB_PASSWORD: ethr
         run: ./scripts/api-types-check.sh
+
+  # The first backend coverage figure this project has ever had.
+  #
+  # Risk 10 in docs/audit/BASELINE.md has read "no coverage instrumentation"
+  # since the baseline, and was half closed when the frontend was measured in
+  # 2026-09-16. The backend half stayed open for one reason: it needs a PHP
+  # extension. php-code-coverage 11.x ships PcovDriver and XdebugDriver and
+  # nothing else, and `coverage: none` on every other job in this file is why
+  # no number exists. See BASELINE 12e.
+  #
+  # PCOV rather than Xdebug: it is far faster and does only this, whereas Xdebug
+  # slows every run it is loaded into. Its own job so the other four keep
+  # `coverage: none` and stay as quick as they are.
+  #
+  # No threshold, deliberately. Nobody knows what the number is yet, and choosing
+  # a floor before measuring one would be picking it out of the air. This prints
+  # what it measured; a floor can follow once there is a baseline to set it from.
+  backend-coverage:
+    name: Backend coverage (PCOV)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          # The one line this whole job exists for.
+          coverage: pcov
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      # Same reason as the Backend job: Employee.tin and national_id use the
+      # `encrypted` cast, so without APP_KEY most of the suite dies with
+      # MissingAppKeyException rather than reporting coverage.
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Measure backend coverage
+        run: ./scripts/gates.sh coverage
