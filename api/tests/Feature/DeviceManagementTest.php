@@ -297,8 +297,15 @@ test('device manager throws for unknown adapter type', function () {
     $manager = new DeviceManager;
 
     $device = Device::factory()->make(['adapter_type' => 'unknown']);
-    $manager->adapter($device);
-})->throws(InvalidArgumentException::class);
+
+    // `expect(...)->toThrow()` rather than Pest's `->throws()` modifier. The
+    // modifier asserts the exception but records no PHPUnit assertion, and
+    // PHPUnit's default `beStrictAboutTestsThatDoNotTestAnything` then marks
+    // the test risky -- this was the whole of "1 risky" in every run's
+    // "Tests: 1 risky, 1890 passed". Same guarantee, counted.
+    expect(fn () => $manager->adapter($device))
+        ->toThrow(InvalidArgumentException::class);
+});
 
 // ── Webhook Endpoints ──
 
