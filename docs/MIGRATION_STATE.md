@@ -575,7 +575,8 @@ only hits are its own definition and the two lines above pointing at it. So:
 | Driver | Job | Destructive backup→restore rehearsal |
 |---|---|---|
 | SQLite | `Backend` | runs |
-| MariaDB | `Backend suite on MySQL` | **skipped, and nothing runs in its place** |
+| MariaDB | `Backend suite on MySQL` | ~~**skipped, and nothing runs in its place**~~ still skipped, and correctly so |
+| MariaDB | **`Backup restore rehearsal on MariaDB`** | **runs — added 2026-09-23** |
 
 Two consequences worth stating separately:
 
@@ -589,26 +590,41 @@ Two consequences worth stating separately:
    concept at all. The one assertion that looks like it covers the risk is on the one
    driver where the risk cannot exist.
 
-**Not fixed here, deliberately.** The fix is a CI change, and this environment cannot
-validate one: `composer install` cannot authenticate to github.com here, so there is no
-`api/vendor`, so no `artisan` command can be run at all. Pushing an unvalidated workflow
-edit is the specific thing `CLAUDE.md`'s CI section warns about — five structural defects,
-every one invisible from the working tree.
+~~**Not fixed here, deliberately.**~~ **Fixed 2026-09-23** — the `Backup restore rehearsal
+on MariaDB` job in `.github/workflows/gates.yml`.
 
-The proposed patch, for whoever has a working backend:
+The deferral above still describes this environment accurately: `composer install` cannot
+authenticate to github.com, so there is no `api/vendor` and no `artisan` command can be run
+locally. What changed is the reading of it. An unvalidated workflow edit is not
+unvalidatable — CI validates it, on a pull request, before it reaches `main`. The thing
+`CLAUDE.md`'s CI section actually warns against is *reasoning about* CI instead of reading
+it, which is the opposite of opening a PR and watching the job.
 
-- The command refuses unless the database name contains one of `test`, `rehears`,
-  `scratch`, `staging`, `sandbox` (`BackupRehearsalCommand::DISPOSABLE`). CI's database is
-  `ethr_suite_mysql`, which matches none — so this needs a **second** database, e.g.
-  `ethr_rehearsal`, not `--force` on the suite's own.
-- Creating it needs the service's root credentials (`MARIADB_ROOT_PASSWORD: root` is
-  already set in `gates.yml`) and a grant to `ethr`; then `migrate` against it and run
-  `php artisan ethr:backup:rehearse` with `DB_DATABASE` overridden for that step only.
-- Verify the runner actually has a `mysql` client before relying on one.
+**The shipped job is simpler than the patch proposed above, and the proposal's middle bullet
+was unnecessary.** It assumed the rehearsal would share the suite's service container and so
+need root credentials, a `GRANT`, a `mysql` client and a per-step `DB_DATABASE` override. It
+is a **separate job with its own service container** instead, which removes all four: the
+MariaDB image grants `MARIADB_USER` full privileges on `MARIADB_DATABASE`, so naming that
+database `ethr_rehearsal` from the start satisfies `BackupRehearsalCommand::DISPOSABLE`
+honestly — no `--force`, no grant, no client.
 
-Until that runs, the honest statement is: **built, tested on SQLite, unexercised on
-MariaDB** — and item 3 of `BACKUP-RESTORE.md`'s checklist, running the rehearsal on the
-host itself, is still the thing that converts a backup procedure into a verified backup.
+Separate for two further reasons. The command is destructive by design and **leaves the
+database dropped when it fails**, so it must not share one with the suite. And a failure
+should read as *the restore path broke* rather than taking the suite's result down with it,
+which is how the SQLite version's failure was originally traced.
+
+It seeds as well as migrates. The command refuses a database with zero tables, but
+migrations alone leave almost every table empty — and its verification compares row counts
+before and after, which an empty database satisfies **vacuously**. That failure mode is not
+hypothetical in this repository: §11j's sibling finding on 2026-09-23 was a test that had
+been vacuously green for a day, visible only as `1 risky` in a summary line nobody read.
+
+The honest statement is now: **built, tested on SQLite, and exercised on MariaDB in CI on
+every push and pull request.** What it still does not prove is a restore on Ethio Telecom's
+MySQL — the host's version is unread (G0-E) and whether its user may `CREATE TRIGGER` is
+`NOT VERIFIED` (G0-F) — so item 3 of `BACKUP-RESTORE.md`'s checklist, running the rehearsal
+on the host itself, remains the thing that converts a backup procedure into a verified
+backup.
 
 ### And Plesk's own backup is not the recovery path
 

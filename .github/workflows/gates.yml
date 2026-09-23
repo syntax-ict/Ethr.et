@@ -236,6 +236,123 @@ jobs:
       - name: Check markdown links
         run: ./scripts/gates.sh docs
 
+  backup-rehearsal-mysql:
+    name: Backup restore rehearsal on MariaDB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # THE RESTORE PATH HAD NEVER RUN IN CI ON THE PRODUCTION DRIVER.
+    #
+    # BackupRestoreRehearsalTest performs the destructive round-trip — populate,
+    # back up, DROP EVERY TABLE, restore, compare — and skips itself on MySQL.
+    # Its guard is correct: those tests drop every table, which RefreshDatabase
+    # undoes on SQLite but not on MySQL, where DDL implicitly commits and the
+    # database stays destroyed for every test after it.
+    #
+    # The skip names `artisan ethr:backup:rehearse` as the MySQL equivalent, and
+    # MIGRATION_STATE.md recorded on 2026-09-18 that it "is invoked nowhere. Not
+    # by scripts/gates.sh, not by either CI workflow, not by any test". So the
+    # table read:
+    #
+    #   SQLite   Backend                  runs
+    #   MariaDB  Backend suite on MySQL   skipped, and nothing runs in its place
+    #
+    # Which matters because BASELINE.md §15 ranks an unverifiable restore as the
+    # single largest risk in the system, above the cross-tenant defect: a product
+    # with a tenant leak has a bad day; one that cannot be restored has no
+    # recoverable failure mode at all. And DatabaseDumper::quoteFlat() carries its
+    # own note that SQLite and MySQL quote newlines differently — a divergence
+    # that already bit this project once — so "passes on SQLite" is precisely the
+    # evidence that divergence defeats.
+    #
+    # A SEPARATE JOB, not a step on `backend-mysql`, for two reasons. The command
+    # is destructive by design and leaves the database dropped when it fails, so
+    # it must not share a database with the suite. And a failure here should read
+    # as "the restore path broke" rather than taking the suite's result with it.
+    #
+    # The database is named `ethr_rehearsal` deliberately:
+    # BackupRehearsalCommand::DISPOSABLE refuses to run unless the name contains
+    # one of test, rehears, scratch, staging, sandbox. `ethr_suite_mysql`, which
+    # the suite job uses, matches none — so this needs its own, and naming it
+    # this way means the guard is satisfied honestly rather than with --force.
+    #
+    # Runs as the non-root `ethr` user, like the suite job, so the audit_log
+    # triggers are created and re-created without SUPER — which is the question
+    # G0-F asks about the production host, and which the rehearsal then verifies
+    # survived the round-trip.
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          # The image grants MARIADB_USER full privileges on MARIADB_DATABASE,
+          # so no root grant and no mysql client are needed here.
+          MARIADB_DATABASE: ethr_rehearsal
+          MARIADB_USER: ethr
+          MARIADB_PASSWORD: ethr
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      # Seeded, not just migrated. The command refuses a database with zero
+      # tables, but migrations alone leave almost every table empty — and its
+      # verification compares row counts before and after, which an empty
+      # database satisfies vacuously. The reference seeders (permissions, plans,
+      # tax brackets, organisation templates) are tenant-free and fast, and give
+      # the comparison something to be wrong about.
+      - name: Prepare a disposable database
+        working-directory: api
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr_rehearsal
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      # Back up, DROP EVERY TABLE, restore, then compare tables, rows, triggers
+      # and documents — and re-check that audit_log is still append-only, which
+      # is the assertion the SQLite rehearsal cannot make meaningfully: it reads
+      # `sqlite_master WHERE type='trigger'`, and SQLite triggers have no DEFINER
+      # concept, so the one check that looks like it covers the DEFINER hazard is
+      # on the one driver where that hazard cannot exist.
+      - name: Rehearse backup and restore
+        working-directory: api
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: ethr_rehearsal
+          DB_USERNAME: ethr
+          DB_PASSWORD: ethr
+        run: php artisan ethr:backup:rehearse
+
   api-contract:
     name: API contract (OpenAPI drift)
     runs-on: ubuntu-latest
