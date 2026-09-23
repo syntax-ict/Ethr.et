@@ -735,7 +735,7 @@ repository states as non-negotiable:
 | `Traits/NeverDelete` | ~~**0.0%**~~ **covered 2026-09-23** | Convention 14's "Never delete" rows — attendance, payroll entries, payroll runs, audit logs. `docs/CLAUDE.md` already records the soft-delete table as *"a convention, not a control"* with four tests against fifteen rows. **This is the same finding from the other side, now measured.** The zero had a specific cause: `AuditLogImmutabilityTest` proves a row cannot be deleted **via `DB::table(...)->delete()`**, which exercises the database trigger and never the model. `NeverDeleteTest` covers the Eloquent layer, and pins the policy-to-code binding — removing the trait from one of the four models now fails a test |
 | `Traits/DispatchesWebhooks` | 14.3% | The dispatch path is covered at the service; the trait that triggers it is not |
 | `Services/Sso/SsoUser`, `Notifications/PasswordResetLinkNotification`, `Notifications/MissingPunchNotification`, `Notifications/AttendanceCorrectionRequestedNotification` | **0.0%** | — |
-| **Eleven policies** — `Announcement`, `ApiKey`, `AttendanceCorrection`, `AttendanceRecord`, `Branch`, `CustomRole`, `Department`, `Device`, `Holiday`, `Shift`, `Tenant`, `Webhook` | **0.0%** | Convention 7 requires every controller action to be authorised by a policy. These are reached through HTTP tests that assert the *outcome*, so the policy classes themselves show no lines — plausible, and **not verified here**. Worth a look before anyone reads 0% as "unauthorised" |
+| **Twelve policies** — `Announcement`, `ApiKey`, `AttendanceCorrection`, `AttendanceRecord`, `Branch`, `CustomRole`, `Department`, `Device`, `Holiday`, `Shift`, `Tenant`, `Webhook` | **0.0%** | **Verified 2026-09-23 — see §12h. Not an authorisation gap: the endpoints are authorised and these classes are simply never called.** *(The row said "Eleven" and listed twelve.)* |
 
 Lowest non-zero, all device adapters and SSO: `ZktecoAdapter` 46.2%, `SupremaAdapter` 47.1%,
 `HikvisionAdapter` 59.8%, `SamlProvider` 37.2%. Every one talks to hardware or an external
@@ -743,7 +743,48 @@ IdP this project has never had in front of it — expected, and the reason **G0-
 device rows of Gate 0 are measurements nobody has taken**.
 
 **No threshold is set anywhere.** 86.7% is a baseline to compare against, not a bar to clear,
-and picking a floor is the owner's call.
+and picking a floor is the owner's call. *(Superseded 2026-09-23: a floor of `--min=85` was
+set against this baseline — §12e.)*
+
+### 12h. The twelve policies at 0.0% — resolved, and §12g's first explanation was wrong **[verified 2026-09-23]**
+
+§12g said the policy classes were *"reached through HTTP tests that assert the outcome, so
+the policy classes themselves show no lines"*, and flagged it unverified. **That reasoning is
+false, and it is worth saying why before the conclusion:** PCOV records lines that *execute*.
+If a policy method ran — whatever the test then asserted — its lines would be covered. 0.0%
+cannot mean "covered indirectly"; it can only mean **the method never runs**.
+
+**It never runs. Here is the mechanism, read from the code:**
+
+- The controllers on these resources authorise with a **permission-string ability**:
+  `Gate::authorize('org.view')` (`Organization/BranchController.php:72`), not
+  `$this->authorize('view', $branch)`.
+- `AppServiceProvider:263` installs a **`Gate::before`** hook: any ability
+  `Permission::isKnownAbility()` recognises returns `$user->hasPermission($ability)` — a
+  definitive `true`/`false` that **short-circuits the rest of the gate pipeline, model
+  policies included**.
+- So `Gate::policy(Branch::class, BranchPolicy::class)` (`:243`) is registered and never
+  consulted. **Zero model-style `authorize()` calls exist for any of the twelve.**
+
+**This is not a security gap, and convention 7 holds.** The convention reads *"authorized via
+`Policy` **or** `Gate`"*, and these take the Gate path, backed by the permission system.
+Sixteen model-style `authorize()` calls do exist elsewhere — `EmployeeController:187,200,225`,
+`PayrollController:105,114` — which is why `EmployeePolicy` (57.1%), `PayrollRunPolicy`
+(87.5%) and `LeaveRequestPolicy` (76.2%) carry coverage. **Both patterns are in use; these
+twelve are on the side that does not reach a policy.**
+
+**Nor do the two paths disagree.** `BranchPolicy::view()` is
+`return $user->hasPermission('org.view')` — byte for byte what the controller's
+`Gate::authorize('org.view')` resolves to through the hook. The policies **duplicate** the
+check they would delegate to, so they are redundant rather than divergent, and no behaviour
+is hiding behind the choice of path.
+
+**What is left is a latent trap, not a live defect.** Twelve registered policies that no test
+has ever executed. Write `$this->authorize('view', $branch)` tomorrow — `view` is not a known
+Permission ability, so `Gate::before` returns null and `BranchPolicy` **would** be consulted,
+for the first time ever, in production. Its logic is currently unverified by anything.
+**Deleting them or exercising them is an owner decision**; this section only establishes
+which one is being decided.
 
 ---
 
