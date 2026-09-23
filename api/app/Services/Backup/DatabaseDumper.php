@@ -263,18 +263,27 @@ class DatabaseDumper
      * The columns of `$table` a restore is allowed to supply values for —
      * every column except the generated ones.
      *
-     * `SELECT *` returns generated columns like any other, and replaying an
-     * INSERT that names one is rejected outright: *"cannot INSERT into
-     * generated column"* on SQLite, *"The value specified for generated column
-     * … is not allowed"* on MariaDB. So a dump taken with `SELECT *` stops
-     * being restorable the moment any table has a generated column **and at
-     * least one row** — which is a backup that passes every check at the time
-     * it is written and fails only when someone needs it.
+     * `SELECT *` returns generated columns like any other, and an INSERT that
+     * names one is **not portable**. What happens on replay depends on the
+     * engine and its `sql_mode`, measured in `BackupGeneratedColumnReplayTest`:
+     * SQLite rejects it outright (*"cannot INSERT into generated column"*);
+     * MariaDB on this repository's `mariadb` connection accepts it, because
+     * `config/database.php` sets `'strict' => false` there, and rejects it
+     * under a strict `sql_mode`.
      *
-     * It was latent rather than theoretical: `devices.serial_number_active`
-     * (2026-09-23, BASELINE §11h) already put one in the schema, and the
-     * round-trip kept passing only because the tables under test had no device
-     * rows. `users` and `employees` never have that luxury.
+     * So the dump written by `SELECT *` was restorable on the configuration
+     * this project ships and not on others — including a restore run through
+     * phpMyAdmin or a Plesk import, which carry their own `sql_mode`. A backup
+     * whose replayability is a property of whoever restores it is not one you
+     * can rely on, and the check runs where that can still be fixed.
+     *
+     * An earlier version of this comment, and of BASELINE §15f, said MariaDB
+     * rejected it too and that the rehearsal job passed only for want of a
+     * device row. Both were reasoned from the SQLite result rather than read
+     * off MariaDB, and both were wrong: `DemoTenantSeeder` creates three
+     * devices and the job passed with them. The correction is kept visible
+     * because the whole point of §15f is that an unverified claim about a
+     * backup is the defect.
      *
      * The generated column itself is not lost — `SHOW CREATE TABLE` and
      * `sqlite_master.sql` both carry its definition into the restored schema,
@@ -284,33 +293,144 @@ class DatabaseDumper
      */
     private function writableColumns(string $table): array
     {
+        return $this->columnsByKind($table)['writable'];
+    }
+
+    /**
+     * The generated columns of `$table`, read from the live schema.
+     *
+     * Public because `BackupService::create()` uses it to refuse a dump that
+     * names one, and because being schema-driven is the point: a generated
+     * column added tomorrow is covered without anyone remembering to list it.
+     *
+     * @return array<int, string>
+     */
+    public function generatedColumns(string $table): array
+    {
+        return $this->columnsByKind($table)['generated'];
+    }
+
+    /**
+     * Split `$table`'s columns into the ones a restore may supply values for
+     * and the ones the engine computes.
+     *
+     * @return array{writable: array<int, string>, generated: array<int, string>}
+     */
+    private function columnsByKind(string $table): array
+    {
         $db = DB::connection($this->connection);
 
         if ($db->getDriverName() === 'sqlite') {
-            // `table_info` omits generated columns; `table_xinfo` is the pragma
-            // that includes them, marked `hidden` 2 (virtual) or 3 (stored).
-            return array_map(
-                static fn ($row): string => (string) (((array) $row)['name'] ?? ''),
-                $db->select("PRAGMA table_info('".str_replace("'", "''", $table)."')"),
-            );
+            // `table_xinfo` is `table_info` plus the hidden columns, flagged
+            // `hidden`: 0 ordinary, 2 VIRTUAL generated, 3 STORED generated.
+            // (1 is a virtual-table hidden column, which this schema has none
+            // of; it is grouped with generated here because it is equally not
+            // something a restore may write.)
+            $writable = [];
+            $generated = [];
+
+            foreach ($db->select("PRAGMA table_xinfo('".str_replace("'", "''", $table)."')") as $row) {
+                $described = (array) $row;
+                $name = (string) ($described['name'] ?? '');
+
+                if ((int) ($described['hidden'] ?? 0) === 0) {
+                    $writable[] = $name;
+                } else {
+                    $generated[] = $name;
+                }
+            }
+
+            return ['writable' => $writable, 'generated' => $generated];
         }
 
         // `SHOW FULL COLUMNS` rather than `information_schema`: it needs only a
         // privilege on the table itself, which is what a shared-hosting account
         // is given. `Extra` reads 'VIRTUAL GENERATED' or 'STORED GENERATED'.
-        $columns = [];
+        $writable = [];
+        $generated = [];
 
         foreach ($db->select("SHOW FULL COLUMNS FROM `{$table}`") as $row) {
             $described = (array) $row;
+            $name = (string) ($described['Field'] ?? '');
 
             if (str_contains(mb_strtoupper((string) ($described['Extra'] ?? '')), 'GENERATED')) {
-                continue;
+                $generated[] = $name;
+            } else {
+                $writable[] = $name;
             }
-
-            $columns[] = (string) ($described['Field'] ?? '');
         }
 
-        return $columns;
+        return ['writable' => $writable, 'generated' => $generated];
+    }
+
+    /**
+     * Every `(table, columns)` in `$sqlPath` where an INSERT names a generated
+     * column — empty when the dump can be replayed.
+     *
+     * **Why this exists as a check and not only as a fixed dumper.** The
+     * manifest's sha256 proves the file is the one that was written. It says
+     * nothing about whether the file can be put back, and those are different
+     * properties: a dump naming a generated column is written without
+     * complaint, hashes correctly, and is rejected only at restore time — the
+     * one moment there is nothing to fall back on. §15f is what that looked
+     * like in practice.
+     *
+     * Every INSERT is read, not the first per table. `writeRows()` emits an
+     * identical column list for every row, so sampling one line would normally
+     * be equivalent — but "normally" is the word that makes a guard useless.
+     * The per-line cost is a string comparison against the previous list for
+     * that table; the schema lookup and the intersect happen only when a line
+     * differs from the one before it, which in a well-formed dump is once.
+     *
+     * @return array<string, array<int, string>> table => offending columns
+     */
+    public function findGeneratedColumnInserts(string $sqlPath): array
+    {
+        $handle = fopen($sqlPath, 'r');
+
+        if ($handle === false) {
+            throw new RuntimeException("Cannot read {$sqlPath}.");
+        }
+
+        $offences = [];
+        $generated = [];
+        $lastSeen = [];
+
+        try {
+            while (($line = fgets($handle)) !== false) {
+                if (! str_starts_with($line, 'INSERT INTO ')) {
+                    continue;
+                }
+
+                if (preg_match('/^INSERT INTO [`"]([^`"]++)[`"] \((.*?)\) VALUES /', $line, $matches) !== 1) {
+                    continue;
+                }
+
+                [, $table, $columnList] = $matches;
+
+                if (($lastSeen[$table] ?? null) === $columnList) {
+                    continue;
+                }
+
+                $lastSeen[$table] = $columnList;
+                $generated[$table] ??= $this->generatedColumns($table);
+
+                $named = array_map(
+                    static fn (string $column): string => trim($column, " `\""),
+                    explode(',', $columnList),
+                );
+
+                $hits = array_values(array_intersect($named, $generated[$table]));
+
+                if ($hits !== []) {
+                    $offences[$table] = array_values(array_unique([...($offences[$table] ?? []), ...$hits]));
+                }
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $offences;
     }
 
     /** Render one PHP value as a SQL literal. */
