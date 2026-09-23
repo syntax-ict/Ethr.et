@@ -211,8 +211,25 @@ The probe above sits in `~/` and is never served by Apache, so it structurally c
 
 1. Upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, **`shadow.js`**) to `httpdocs/ethr-canary/`. `README.md` stays in the repository — it explains the baits, and there is no reason to publish that. **`shadow.js` was added 2026-09-18 and is the bait that counts**: without it, a host serving `.js`/`.css` directly but not `.txt` reports a false PASS on G0-B.5 and hides G0-B.2 with it.
 2. Open `https://www.ethr.et/ethr-canary/canary.php` and follow the printed checks.
-3. Run the four `curl` commands it gives you — **pinned to the Plesk host**, see below.
+   **This is the baseline reading and it does not answer G0-B.1** — the script reports that
+   row as `[ ???? ]` until it is reached through the rewrite. See step 3.
+3. Run the checks it gives you — **pinned to the Plesk host**, see below. **Five checks,
+   six fetches**, because G0-B.5 needs both baits. *(Corrected 2026-09-23: this said "the
+   four `curl` commands", which is the same undercount the file already corrected once for
+   the file list — and dropping one leaves a gate unanswered rather than erroring.)*
+   **G0-B.1 is answered by `/REWRITE_OK` and by nothing else**: `canary.php:26` sets
+   `$rewriteHit` from `isset($_GET['rewrite'])`, and only
+   `RewriteRule ^REWRITE_OK$ canary.php?rewrite=1` supplies it, so opening the script by
+   its own filename bypasses the rewrite it is testing.
+   **On G0-B.5 the two baits can legitimately disagree — record both and score the gate
+   from `shadow.js`**, because `.js`, `.css` and `.woff2` are what the deployment ships and
+   `.txt` never is.
 4. Save the output, **delete the directory.**
+
+**Without a shell**, work through
+[`../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md)
+instead — the same six fetches with browser DevTools steps for the two that need request or
+response headers.
 
 Answers: G0-B.
 
@@ -307,7 +324,8 @@ Record it as its own result, against the `document root editable` row (currently
    they return the same page, the `ethr.et` vhost is not the one serving you.
 3. Re-upload all **five** canary files into the **confirmed** document root — `.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt` and `shadow.js`, as step 1 of the upload instructions above already says. *(Corrected 2026-09-19: this row said "four" while the same document said five 96 lines earlier. `shadow.js` is the bait that counts, so a recovery path that quietly drops it hands back a false PASS on G0-B.5.)*
 4. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — then run
-   them, with `--resolve`.
+   them, with `--resolve`. **Loading it still does not answer G0-B.1**; fetch `/REWRITE_OK`
+   for that, as step 3 above says.
 
 If the document root cannot be pointed at a directory you can write to, that is a finding
 in its own right: it blocks `DEPLOYMENT.md` step 4a, which assembles `~/httpdocs/`, and it
