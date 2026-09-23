@@ -10,6 +10,7 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 
 | File | Purpose |
 |---|---|
+| `RUN-SHEET.md` | **Offline checklist** — browser and Plesk File Manager only, no shell. Stays in the repository like this file; not uploaded |
 | `.htaccess` | The rules under test — rewrite, headers, deny, `Authorization` forwarding |
 | `canary.php` | Reports what arrived, prints the **five** `curl` checks to run |
 | `secret.txt.probe` | Bait. Must return **403**. Contains nothing confidential |
@@ -58,6 +59,11 @@ https://www.ethr.et/ethr-canary/canary.php
 **A 404 here means stop** — see *If canary.php returns 404* below. It is a document-root
 or vhost fact, not an `.htaccess` fact, and none of the five checks mean anything yet.
 
+**Opening it does not read G0-B.1, and it will show `[ ???? ]` for that row.** That is
+correct, not a failure: only `/REWRITE_OK` answers B.1 — see step 3. This step is the
+baseline reading (server software, SAPI) and a check that the directory is reachable at
+all.
+
 ### 3 · Run the six fetches
 
 `canary.php` prints these too, but without `--resolve` — it builds them from the hostname
@@ -91,15 +97,18 @@ Six fetches in total: loading `canary.php` in step 2 is the baseline reading, an
 
 | Check | Pass | What a failure means |
 |---|---|---|
-| **B.1** rewrite | `[ PASS ] G0-B.1` | a **404** means rewriting is off. **This is the one that unbounds Option A** — no rewrite, no way to serve `/employees/{id}` at all |
+| **B.1** rewrite | `[ PASS ] G0-B.1` — **only when fetched as `/REWRITE_OK`**, never by opening `canary.php` | a **404** means rewriting is off. **This is the one that unbounds Option A** — no rewrite, no way to serve `/employees/{id}` at all |
 | **B.2** headers | `X-Ethr-Canary: headers-ok` | nothing back → CSP, HSTS, X-Frame-Options and Permissions-Policy would not be applied in production. **Silent**: the site works perfectly and nothing logs it |
 | **B.3** deny | `403` | `200` → `.env`, `.git/` and `composer.json` web-readable while the app still looks fine. **`404` is NOT a pass** — the file did not upload; fix and re-run |
 | **B.4** auth | the `PASS` line | Sanctum auth and CSRF break silently — it looks like an auth bug and costs an afternoon |
-| **B.5** shadow | *(no failing answer)* | `NOT-A-SECRET…` → the **file** won (nginx served disk first). This canary's own text → the **rewrite** won |
+| **B.5** shadow | *(no failing answer)* — **run both baits and record both** | `NOT-A-SECRET…` → the **file** won (nginx served disk first). This canary's own text → the **rewrite** won. **They can legitimately disagree; score the gate from `shadow.js`** |
 
-**On B.5, `shadow.js` is the authoritative one.** Plesk's static block always covers
+**On B.5, `shadow.js` is the authoritative one, and the two disagreeing is a legitimate
+result rather than a contradiction to resolve.** Plesk's static block always covers
 js/css/images but only sometimes covers `.txt`, so `shadow.txt` alone can report "rewrite
-won" on a host that is shadowing every asset the deployment actually ships.
+won" on a host that is shadowing every asset the deployment actually ships. **`.js` is
+authoritative because `.js`, `.css` and `.woff2` are what the deployment ships; it never
+ships `.txt`.** Record both answers, score the gate from `shadow.js`.
 
 Why each of these matters to ETHR is in *What each check means*; which failure hurts most
 is in *If `.htaccess` is ignored*.
@@ -146,7 +155,8 @@ a 404 on `secret.txt.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads a
 3. Establish which vhost answered: compare `www.ethr.et` against a name known to hit the
    server default (`zzq7x.ethr.et`). Same page → the `ethr.et` vhost is not serving you.
 4. Re-upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `shadow.js`) into the confirmed document root.
-5. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything.
+5. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — and then
+   fetch `/REWRITE_OK` for B.1, which opening `canary.php` never answers.
 
 Step 5 matters even though nothing here is secret: a stray `.htaccess` in a live document root is a configuration surprise waiting to happen.
 
