@@ -341,9 +341,6 @@ class AdminTenantController extends Controller
             // The subdomain the client should send as X-Tenant from here on.
             // Server-authoritative, so exiting still works when the browser has
             // lost whatever it stashed at the start of the session.
-            // `Tenant` is a global model with no `tenant_id` column, so there is
-            // no tenant scope to re-apply — and the id read is the
-            // impersonator's own. Reviewed under BASELINE.md §11g.
             'tenant' => Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain,
         ]);
     }

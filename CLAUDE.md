@@ -106,9 +106,14 @@ returns **422** instead of 201-with-a-silent-null. Four constraints, each load-b
   generates `src/src/api/generated.ts` from `rules()`, and `ChangePlanRequest` already
   records that the `Rule::exists(...)` builder is untested against that gate. `rules()` is
   byte-identical to before, so the contract cannot drift.
-- **Never put an explanatory comment above a key in `rules()`.** Scramble publishes those
-  as OpenAPI `description`s — see `create_login` at `generated.ts:6904`, whose PHP comment
-  is in the client contract verbatim.
+- **Never put an explanatory comment above a key in any array Scramble reads.** It
+  publishes them as OpenAPI `description`s — see `create_login` at `generated.ts:6904`,
+  whose PHP comment is in the client contract verbatim. *(Widened 2026-09-23: this said
+  "in `rules()`", and that reading cost a red API-contract gate on PR #62 — a comment above
+  a key in a controller's `response()->json([...])` array was lifted into `generated.ts`
+  just the same. It is **any** array literal the spec is derived from: FormRequest rules
+  and controller response arrays alike. Put the explanation on a statement instead, or in
+  `BASELINE.md`.)*
 - The hook re-runs `resolveRelationIds()`'s own scoped lookup rather than restating
   `tenant_id`, so validation and resolution cannot disagree. The field/model map lives once,
   in `App\Support\EmployeeRelations::MAP`, read by both — an eighth field added to one and

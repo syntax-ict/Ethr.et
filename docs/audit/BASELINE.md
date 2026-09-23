@@ -1449,6 +1449,31 @@ since this change supplies the id, so once a queue drain has passed the deployme
 argument can be made a required `int` and the null branches deleted. Both halves are
 tested — the rejection and the compatibility contract.
 
+#### The Scramble comment trap is wider than §11f recorded it
+
+§11f drew the rule as *"never put an explanatory comment above a key in `rules()`"*. That
+reading is too narrow, and it cost a red API-contract gate on the first push of this work.
+The `AdminTenantController` site is reached through `response()->json([...])`, and a
+comment written above the `'tenant' =>` key was lifted verbatim into the published schema:
+
+```
+18521a18522,18524
+>   *  `Tenant` is a global model with no `tenant_id` column, so there is
+>   *  no tenant scope to re-apply — and the id read is the
+>   *  impersonator's own. Reviewed under BASELINE.md §11g.
+```
+
+So the rule is **any array literal the spec is derived from** — FormRequest rules and
+controller response arrays alike. A comment attached to a *statement* is fine, which is why
+the note on `resolveImpersonator()`'s lookup survived the same run untouched. The one
+adjacent to a response key was deleted rather than reworded: anything left there publishes,
+and `scramble:export` cannot run in this environment to check a reword. That site's reason
+lives in the table above instead.
+
+Worth recording as a pattern rather than an incident: the rule was written down two passes
+earlier, by the same hand that then broke it, because it was written about the place it was
+first met instead of about the mechanism.
+
 #### What this pass does not claim
 
 The bypass inventory is unchanged at **156 across 54 files**, verified with the tokeniser:
