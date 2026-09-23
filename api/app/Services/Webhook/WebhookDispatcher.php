@@ -55,6 +55,10 @@ final class WebhookDispatcher
             $event,
             $payload,
             $delivery->id,
+            // Carried so the job can state `tenant_id` on its own lookups
+            // rather than resting on this dispatcher having picked the right
+            // webhook. Same value the delivery row is filed against.
+            $webhook->tenant_id,
         )->onQueue('default');
 
         return $delivery;

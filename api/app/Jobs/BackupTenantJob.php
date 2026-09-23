@@ -54,6 +54,11 @@ class BackupTenantJob implements ShouldQueue
 
     public function handle(): void
     {
+        // No tenant predicate is possible here and none is missing: `Tenant` is
+        // a global model (docs/CLAUDE.md "Global Model List") with no
+        // `tenant_id` column and no `BelongsToTenant`, so there is no tenant
+        // scope to re-apply. Reviewed under BASELINE.md §11g; left alone
+        // deliberately rather than overlooked.
         $tenant = Tenant::withoutGlobalScopes()->find($this->tenantId);
 
         if (! $tenant) {
@@ -110,6 +115,13 @@ class BackupTenantJob implements ShouldQueue
             return;
         }
 
+        // Deliberately NOT scoped to $tenant->id, and it would be a regression
+        // to "fix" it. This job is dispatched only from AdminTenantController,
+        // a platform-admin surface, so the requester is a super admin whose
+        // `tenant_id` is null — never the backed-up tenant's. Adding
+        // `where('tenant_id', $tenant->id)` would find nobody and silently drop
+        // every backup notification. The cross-tenant read is the feature.
+        // Reviewed under BASELINE.md §11g.
         $requester = User::withoutGlobalScopes()->find($this->requestedByUserId);
 
         if (! $requester) {

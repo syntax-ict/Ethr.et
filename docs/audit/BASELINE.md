@@ -1053,7 +1053,11 @@ no predicate. Safe **only** because both current callers add one immediately (`:
 `:438`, each `->where('tenant_id', …)`). A third caller that forgot would be a silent
 cross-tenant read and nothing would catch it. *[Superseded 2026-09-23: the tenant is now a required argument and the predicate is inside the helper — §11e.]*
 
-**4. Fifteen sites derived from a key, stating nothing.** Bare `::find($id)` on
+**4. Fifteen sites derived from a key, stating nothing.** *[Count corrected 2026-09-23:
+there are **nine** bare `::find()` sites, not fifteen — see §11g. The fifteen is the size
+of the "derived from a tenant-owned key" row in the class table above, which also counts
+sites stating `webhook_id`, `payroll_run_id` and the like; this prose conflated that class
+with the bare-`find` subset. Resolved in §11g.]* Bare `::find($id)` on
 tenant-scoped models. Each is safe because the id arrives from a trusted dispatch, but the
 query asserts nothing — the asymmetry root `CLAUDE.md` already flags inside
 `DispatchWebhookJob`, where `handle()` states `tenant_id` and `failed()` derives from
@@ -1342,6 +1346,122 @@ fixed the seven that `resolveRelationIds()` owns, because those are the ones §1
 end to end. Any request elsewhere validating a `public_id` with the string form has the
 same presence-verifier gap, and whether it matters depends on what resolves the value
 afterwards — which is a separate pass, not an inference from this one.
+
+---
+### 11g. Site 4 closed — and the count was wrong — **2026-09-23**
+
+§11d's fourth fragile site read *"Fifteen sites derived from a key, stating nothing. Bare
+`::find($id)` on tenant-scoped models."* The owner authorised stating `tenant_id` at all
+fifteen. **There are nine, and only five of them can or should carry a predicate.** The
+measurement came first and it changed the work, so it is recorded before the fix.
+
+#### Where fifteen came from
+
+The class table above §11d's fragile-site list has a row *"Derived from a tenant-owned key
+| 15 | `payroll_run_id`, `user_id`, `webhook_id`, `subscription_id`, a `$run` already
+scoped"*. That row counts every site whose safety rests on a key — including ones that
+**do** state a predicate, just not on `tenant_id`. The prose beneath it then described that
+count as bare `::find()`, which is a strict subset. Two different quantities, one number —
+the same trap this file records for the 156/161 bypass count, repeated at smaller scale.
+
+Enumerated with the tokeniser (walking each `withoutGlobalScope(s)` statement to its
+terminating `;` and collecting the method chain, so multi-line chains are not missed):
+**156 bypass statements, 11 whose chain calls `find()`/`findOrFail()`, of which 2 already
+state a predicate** — `DispatchWebhookJob:50` states `tenant_id` and `id`, `:168` states
+`webhook_id`. Nine bare.
+
+#### The nine, and what each can actually take
+
+| # | Site | Model | Outcome |
+|---|---|---|---|
+| 1 | `Jobs/BackupTenantJob.php:57` | `Tenant` | **Impossible** — global model |
+| 2 | `Jobs/BackupTenantJob.php:113` | `User` | **Must not** — platform-admin requester |
+| 3 | `Jobs/DispatchWebhookJob.php:41` | `Webhook` | **Scoped** |
+| 4 | `Jobs/NotifyAnnouncementAudienceJob.php:50` | `Announcement` | **Scoped** |
+| 5 | `Jobs/ProcessPayrollJob.php:74` | `PayrollRun` | **Scoped** |
+| 6 | `Jobs/ProcessPayrollJob.php:120` | `PayrollRun` | **Scoped** |
+| 7 | `Services/Migration/WorkforceMigrationService.php:238` | `Employee` | **Scoped** |
+| 8 | `Admin/AdminTenantController.php:344` | `Tenant` | **Impossible** — global model |
+| 9 | `Admin/AdminTenantController.php:365` | `User` | **Must not** — super-admin recovery |
+
+**Two are impossible, not overlooked.** `Tenant` is on the Global Model List in
+`docs/CLAUDE.md`: no `BelongsToTenant`, no `tenant_id` column. There is no tenant scope to
+re-apply, and `withoutGlobalScopes()` there removes nothing tenant-related at all.
+
+**Two would be regressions.** `BackupTenantJob:113` notifies whoever asked for the export,
+and the job is dispatched only from `AdminTenantController:382` — a platform-admin surface.
+The requester is a super admin whose `tenant_id` is null, never the backed-up tenant's, so
+`where('tenant_id', $tenant->id)` would match nobody and **silently drop every backup
+notification**. `AdminTenantController:365` recovers the super admin behind an impersonation
+token: during impersonation the resolved tenant is the *impersonated* one, so any predicate
+finds nobody and exiting an impersonation stops working. Its authority is the
+`isSuperAdmin()` re-check on the next line, not the lookup. This is exactly the
+"intentional cross-tenant read" §11e warned would be turned into a null. Both now carry a
+comment saying so, so the next reader does not "fix" them.
+
+#### The five that were scoped, and where the predicate comes from
+
+Site 7 was the straightforward one: `mergeTarget()` already receives `$tenantId` as an
+argument, and its *other* branch — `$this->resolver->resolve($tenantId, $signals)` — scopes
+by it. Only the `if` branch trusted `$row->resolved_employee_id` outright, a staging column
+written earlier and possibly stale. Two halves of one method disagreeing; now they do not.
+
+Sites 3–6 had **no tenant id in scope at all**. Each is the *root* lookup of a queued job
+whose payload carried only a row id, so the tenant was derived *from the row being
+fetched* — and a predicate read off the row you just fetched proves nothing about which row
+you were entitled to fetch. `ProcessPayrollJob`'s own comment claimed it was "scoped
+explicitly by the run's own `tenant_id`", which is that circularity stated as a virtue.
+
+The fix is to carry the tenant in the payload. Each job has exactly one dispatch site and
+each dispatcher already holds the tenant, so the change is three call sites:
+
+| Job | Dispatcher | Source |
+|---|---|---|
+| `DispatchWebhookJob` | `WebhookDispatcher::queue()` | `$webhook->tenant_id` |
+| `NotifyAnnouncementAudienceJob` | `AnnouncementController` | `$announcement->tenant_id` |
+| `ProcessPayrollJob` | `PayrollController` | `$run->tenant_id` |
+
+What this buys is not theoretical. A wrong id in a payload — a bug, a replay, a
+hand-requeued job — previously meant acting on another tenant's row: `ProcessPayrollJob`
+computes and writes payroll, `failed()` marks a run failed, `DispatchWebhookJob` signs a
+payload and POSTs it to an endpoint, and `NotifyAnnouncementAudienceJob` calls
+`CurrentTenant::set()` from the row it found and then notifies **that** audience. It now
+finds nothing instead.
+
+`DispatchWebhookJob::failed()` also gained `tenant_id`, which is slightly beyond the
+bare-`find` brief and worth stating: it was not a bare `find` — it stated `webhook_id`. But
+root `CLAUDE.md` records its asymmetry with `handle()` as *"the shape a later defect
+takes"*, and the id is now in hand, so leaving the two halves disagreeing to stay inside a
+line-item boundary would have been the wrong call.
+
+#### A compatibility decision worth your attention
+
+`$tenantId` is declared **nullable with a default**, trailing the existing arguments, and
+the predicate is applied only when it is present. That is not hedging: PHP restores an
+object from `unserialize()` without running the constructor, so a property absent from an
+older serialized payload takes its declared default rather than staying uninitialized. A
+required `readonly int` would have made **every job already on the queue at deploy time
+fail permanently** — `DispatchWebhookJob` has `tries = 5` with backoff to 24h, so those
+failures would trickle in for a day.
+
+The cost is that the null branch is not self-proving. It is transitional: every dispatch
+since this change supplies the id, so once a queue drain has passed the deployment, the
+argument can be made a required `int` and the null branches deleted. Both halves are
+tested — the rejection and the compatibility contract.
+
+#### What this pass does not claim
+
+The bypass inventory is unchanged at **156 across 54 files**, verified with the tokeniser:
+no `withoutGlobalScope` call was added or removed, only predicates attached to existing
+ones. Four of the nine sites still state nothing, deliberately, and are now commented
+rather than left to be rediscovered.
+
+It does not re-audit the other six members of §11d's fifteen-strong "derived from a key"
+class — the ones stating `webhook_id`, `payroll_run_id` and similar. Those were already
+counted as deriving from a tenant-owned key and are unchanged.
+
+The new tests were **not run locally**; `composer install` fails here with `Could not
+authenticate against github.com` (`AuthHelper.php:132`). CI is the verification.
 
 ---
 

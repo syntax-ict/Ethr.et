@@ -341,6 +341,9 @@ class AdminTenantController extends Controller
             // The subdomain the client should send as X-Tenant from here on.
             // Server-authoritative, so exiting still works when the browser has
             // lost whatever it stashed at the start of the session.
+            // `Tenant` is a global model with no `tenant_id` column, so there is
+            // no tenant scope to re-apply — and the id read is the
+            // impersonator's own. Reviewed under BASELINE.md §11g.
             'tenant' => Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain,
         ]);
     }
@@ -362,6 +365,13 @@ class AdminTenantController extends Controller
             return null;
         }
 
+        // Deliberately NOT tenant-scoped, and scoping it would break exiting an
+        // impersonation. During impersonation the resolved tenant is the
+        // *impersonated* one, while the actor being recovered is a super admin
+        // belonging to another tenant or none — so any predicate here finds
+        // nobody and the session can never be restored. The authority is the
+        // `isSuperAdmin()` re-check below, not the lookup. Reviewed under
+        // BASELINE.md §11g.
         $impersonator = User::withoutGlobalScopes()->find($actorId);
 
         return $impersonator?->isSuperAdmin() ? $impersonator : null;

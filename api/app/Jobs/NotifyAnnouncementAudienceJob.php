@@ -43,11 +43,31 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
      */
     public int $timeout = 600;
 
-    public function __construct(private readonly int $announcementId) {}
+    /**
+     * `$tenantId` is nullable and trailing so jobs already queued when this
+     * deployed still unserialize — an absent property takes the declared
+     * default instead of staying uninitialized. Every dispatch since supplies
+     * it, and it can be tightened to a required `int` once a drain has passed.
+     */
+    public function __construct(
+        private readonly int $announcementId,
+        private ?int $tenantId = null,
+    ) {}
 
     public function handle(CurrentTenant $currentTenant): void
     {
-        $announcement = Announcement::withoutGlobalScopes()->find($this->announcementId);
+        // States `tenant_id` itself rather than resting on the dispatcher. This
+        // job goes on to call `$currentTenant->set()` from the row it finds and
+        // then notifies that audience, so an id pointing at the wrong tenant
+        // would not merely read across the boundary — it would send one
+        // tenant's announcement to another tenant's employees.
+        $query = Announcement::withoutGlobalScopes();
+
+        if ($this->tenantId !== null) {
+            $query->where('tenant_id', $this->tenantId);
+        }
+
+        $announcement = $query->find($this->announcementId);
 
         if ($announcement === null) {
             return;
