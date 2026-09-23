@@ -9,6 +9,7 @@
 #   ./scripts/gates.sh docs        markdown link integrity only
 #   ./scripts/gates.sh security    composer audit + npm audit (production deps)
 #   ./scripts/gates.sh performance the tests/Performance benchmarks only
+#   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #
@@ -526,6 +527,49 @@ performance_gate() {
 
 if [[ "$SCOPE" == "performance" ]]; then
     run_gate "Pest (performance budgets)" performance_gate
+fi
+
+# Opt-in, never part of `all`, and for a reason the other opt-ins do not share:
+# it needs a PHP *extension*. `all` has to stay runnable on a fresh clone, and a
+# stock PHP has neither PCOV nor Xdebug.
+#
+# It REFUSES rather than reporting 0%. That is the whole point of the check
+# below. php-code-coverage dropped the PHPDBG driver in v10 and this project is
+# on 11.x, so with no driver loaded the run does not error in any obvious way --
+# docs/audit/BASELINE.md 12e records the twenty minutes that costs, because Pest
+# reports `Coverage not found in path: .../coverage.php`, which reads like a Pest
+# bug and is not one. A coverage gate that answers "0%" when the instrument is
+# missing is worse than one that does not run: it is the same class of green lie
+# this repository keeps finding.
+#
+# No threshold. The first backend coverage figure for this project does not exist
+# yet, and picking a number before measuring one would be inventing it. This
+# prints what it measured, like `performance` does, so the output is a baseline
+# to compare against rather than a pass/fail nobody reads.
+coverage_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    if ! php -r 'exit(extension_loaded("pcov") || extension_loaded("xdebug") ? 0 : 1);'; then
+        printf '\033[31mNo coverage driver loaded.\033[0m\n'
+        printf 'phpunit/php-code-coverage 11.x ships exactly two drivers, PCOV and\n'
+        printf 'Xdebug. phpdbg is NOT a third one -- the driver was removed in v10, and\n'
+        printf 'the failure it produces names Pest rather than the missing extension.\n'
+        printf 'See docs/audit/BASELINE.md 12e.\n\n'
+        printf 'Install one:  pecl install pcov     (fast, coverage only)\n'
+        printf '              pecl install xdebug   (slower, loaded into every run)\n'
+        return 1
+    fi
+
+    # phpunit.xml already declares <source><include>app</include></source>, so
+    # the report covers application code and not vendor/.
+    (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest --coverage)
+}
+
+if [[ "$SCOPE" == "coverage" ]]; then
+    run_gate "Pest (backend coverage)" coverage_gate
 fi
 
 # Opt-in, never part of `all`, for the same reason as `mysql`: it needs a built

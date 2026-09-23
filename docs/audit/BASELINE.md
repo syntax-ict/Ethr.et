@@ -682,7 +682,22 @@ Total coverage moved **32.34% → 32.74%**. That the headline barely moved is th
 
 **Still at 0% and worth a look next**, in rough risk order: `lib/utils/date.ts` (35 stmts — date handling under convention #2's UTC-store / EAT-display split), `components/shared/auth-guard.tsx` (26 — a route authorization control, though defence-in-depth since the API enforces independently), `features/auth/sessions-api.ts` (50 — session revocation), and `app/kiosk/page.tsx` (417 — shared-device PIN check-in, which captures attendance).
 
-### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[open]**
+### 12e. Backend coverage needs a PHP extension — `phpdbg` is not a way round it **[instrument built 2026-09-23; no figure yet]**
+
+> **The extension is now supplied in CI.** `.github/workflows/gates.yml` carries a
+> `Backend coverage (PCOV)` job — `coverage: pcov` on `setup-php`, its own job so the other
+> four keep `coverage: none` and stay fast — running `./scripts/gates.sh coverage`.
+>
+> **No figure is recorded here yet**, because none has been measured. The first run produces
+> it and it belongs in this section and in risk 10 when it does. **No threshold either**:
+> choosing a floor before knowing the number would be inventing one, which is the habit this
+> file exists to break.
+>
+> The gate **refuses rather than reporting 0%** when no driver is loaded, and that refusal is
+> the reason it is worth having. A coverage run with no driver does not error in any obvious
+> way — it is the trap described below — and a gate answering "0%" because the instrument is
+> missing would be the same class of green lie as the 21-of-132 Pest collection. The refusal
+> path was exercised on a machine with neither extension before the job was written.
 
 Risk 10 is "no coverage instrumentation". The obvious dodge is `phpdbg`, which ships with XAMPP and historically produced coverage without installing anything:
 
@@ -909,7 +924,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]** | **Half closed.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend still blocked on PCOV or Xdebug (§12e) |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]**; `Backend coverage (PCOV)` job + `gates.sh coverage` **[instrument verified; refusal path exercised locally]** | **Half closed — and the backend half now has an instrument, not yet a number.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend was blocked on PCOV or Xdebug; CI now supplies PCOV (§12e). **The figure is unmeasured and deliberately not guessed** — record it here from the first green run. Until then this row is "the instrument exists", which is not the same as "the code is covered" |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
