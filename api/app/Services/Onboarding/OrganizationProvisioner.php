@@ -297,8 +297,7 @@ final class OrganizationProvisioner
         string $keyValue,
         callable $attributes,
     ): void {
-        $query = $this->query($modelClass)
-            ->where('tenant_id', $tenant->id)
+        $query = $this->query($modelClass, $tenant->id)
             ->where($keyColumn, $keyValue);
 
         $existing = $query->first();
@@ -324,15 +323,23 @@ final class OrganizationProvisioner
     }
 
     /**
-     * Unscoped query for a tenant-scoped model, including trashed rows when the
-     * model soft-deletes — their unique-index entries still block re-inserts.
+     * Query a tenant-scoped model without the global scope, including trashed
+     * rows when the model soft-deletes — their unique-index entries still block
+     * re-inserts, and the global scope would hide them.
+     *
+     * The tenant predicate is a required argument rather than something each
+     * caller remembers to add: dropping the global scope is what this helper is
+     * for, so re-applying the restriction has to be part of the same call. A
+     * new caller cannot omit it.
      *
      * @param  class-string<Model>  $modelClass
      * @return Builder<Model>
      */
-    private function query(string $modelClass): Builder
+    private function query(string $modelClass, int $tenantId): Builder
     {
-        $query = (new $modelClass)->newQuery()->withoutGlobalScope('tenant');
+        $query = (new $modelClass)->newQuery()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId);
 
         if ($this->softDeletes($modelClass)) {
             $query->withTrashed();
@@ -434,8 +441,7 @@ final class OrganizationProvisioner
     /** @param class-string<Model> $modelClass */
     private function codeTaken(string $modelClass, int $tenantId, string $code): bool
     {
-        return $this->query($modelClass)
-            ->where('tenant_id', $tenantId)
+        return $this->query($modelClass, $tenantId)
             ->where('code', $code)
             ->exists();
     }
