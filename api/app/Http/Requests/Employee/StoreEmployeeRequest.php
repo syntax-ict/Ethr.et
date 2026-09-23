@@ -6,12 +6,19 @@ namespace App\Http\Requests\Employee;
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Http\Requests\Employee\Concerns\ValidatesSupervisorTenancy;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreEmployeeRequest extends FormRequest
 {
+    // `supervisor_id`'s `exists` rule below is unscoped, because Laravel's
+    // presence verifier ignores global scopes. The tenant check is a
+    // withValidator() hook so that rules() — and therefore the generated API
+    // contract — is untouched. See the trait.
+    use ValidatesSupervisorTenancy;
+
     public function authorize(): bool
     {
         return true;

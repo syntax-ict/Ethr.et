@@ -96,13 +96,27 @@ with the loudest mechanism the site allows:
   pinned directly, along with the two-tenants-one-serial case, in
   `tests/Feature/Security/DeviceWebhookTenantScopeTest.php`.
 
-**Two were left open because enforcing them changes behaviour rather than guarding it**, so
-they are the owner's call: scoping the `supervisor_id` `exists:` rule turns today's silent
-null into a 422 (and its message must not distinguish "no such employee" from "exists in
-another tenant", or it leaks the thing the scope hides), and stating `tenant_id` at the
-fifteen bare `::find()` sites would turn any *intentional* cross-tenant read among them
-into a null. A unique index on `devices.serial_number` is a third: it would reject existing
-duplicate rows at migration time, which needs a production data audit first.
+**The fourth was an authorised behaviour change** (2026-09-23, §11f): `supervisor_id` from
+another tenant now returns **422** instead of 201-with-a-silent-null. The check is a
+`withValidator()` hook in `Http/Requests/Employee/Concerns/ValidatesSupervisorTenancy.php`,
+not a rule — it re-runs `EmployeeController::resolveRelationIds()`'s own scoped lookup, so
+validation and resolution cannot disagree, and `rules()` stays byte-identical so the
+Scramble-generated contract cannot drift. The rejection message is Laravel's generic
+`validation.exists` line, identical to a genuinely nonexistent id: a distinguishable one
+would confirm a `public_id` across tenants, which is what the scope hides. A test pins the
+two messages as equal.
+
+**Two remain open, and both are the owner's call**: stating `tenant_id` at the fifteen bare
+`::find()` sites would turn any *intentional* cross-tenant read among them into a null, and
+a unique index on `devices.serial_number` would reject existing duplicate rows at migration
+time, which needs a production data audit first.
+
+**Six siblings of the `supervisor_id` defect are still unfixed and were not in scope**:
+`department_id`, `branch_id`, `position_id`, `grade_id`, `team_id` and `cost_center_id` all
+use the same unscoped `exists:…,public_id` form in both employee requests, and
+`resolveRelationIds()` treats all seven identically. Each is the same silent null and the
+same one-line fix — and each is the same 422 behaviour change, so they are listed rather
+than done.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
