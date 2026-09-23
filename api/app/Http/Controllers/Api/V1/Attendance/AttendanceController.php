@@ -227,7 +227,12 @@ class AttendanceController extends Controller
 
     public function show(AttendanceRecord $attendanceRecord): AttendanceRecordResource
     {
-        Gate::authorize('attendance.view');
+        // Model-style, not Gate::authorize('attendance.view'): the ability alone
+        // is in the $everyone grant list, so it answers "may you read attendance"
+        // and never "may you read THIS record". AttendanceRecordPolicy::view()
+        // adds the orgScope()/canAccessEmployee() check every sibling read here
+        // applies through scopeAccessibleEmployees(). See BASELINE.md §12i.
+        Gate::authorize('view', $attendanceRecord);
 
         $attendanceRecord->load('employee', 'shift');
 
