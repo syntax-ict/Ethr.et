@@ -688,10 +688,10 @@ Total coverage moved **32.34% → 32.74%**. That the headline barely moved is th
 > `Backend coverage (PCOV)` job — `coverage: pcov` on `setup-php`, its own job so the other
 > four keep `coverage: none` and stay fast — running `./scripts/gates.sh coverage`.
 >
-> **No figure is recorded here yet**, because none has been measured. The first run produces
-> it and it belongs in this section and in risk 10 when it does. **No threshold either**:
-> choosing a floor before knowing the number would be inventing one, which is the habit this
-> file exists to break.
+> **MEASURED 2026-09-23, first run: `Total: 86.7 %`** — CI run 35891128495, job
+> *Backend coverage (PCOV)*, green. Recorded here because this section held the slot for it.
+> **Still no threshold**: choosing a floor is a decision, not a measurement, and it is the
+> owner's.
 >
 > The gate **refuses rather than reporting 0%** when no driver is loaded, and that refusal is
 > the reason it is worth having. A coverage run with no driver does not error in any obvious
@@ -719,6 +719,28 @@ So backend coverage requires **PCOV or Xdebug installed into the PHP runtime**. 
 This is recorded because `phpdbg` being on PATH makes the dodge look available, and the failure mode points at the wrong component. Anyone who tries it will lose the same twenty minutes.
 
 Frontend coverage is unaffected — Vitest uses v8 coverage and needs no extension.
+
+### 12g. What 86.7% hides — the zero-coverage files **[measured 2026-09-23]**
+
+A high total is the least interesting thing a first coverage run tells you. These files are
+at **0.0%** with 1903 tests running around them, and two of them enforce conventions this
+repository states as non-negotiable:
+
+| File | Coverage | Why it matters |
+|---|---|---|
+| `Traits/HasAuditLog` | **0.0%** | Convention 5 is the immutable audit log. `AuditLog::record()` is called at 206 sites, and the trait that backs it is never exercised |
+| `Traits/NeverDelete` | **0.0%** | Convention 14's "Never delete" rows — attendance, payroll entries, payroll runs, audit logs. `docs/CLAUDE.md` already records the soft-delete table as *"a convention, not a control"* with four tests against fifteen rows. **This is the same finding from the other side, now measured** |
+| `Traits/DispatchesWebhooks` | 14.3% | The dispatch path is covered at the service; the trait that triggers it is not |
+| `Services/Sso/SsoUser`, `Notifications/PasswordResetLinkNotification`, `Notifications/MissingPunchNotification`, `Notifications/AttendanceCorrectionRequestedNotification` | **0.0%** | — |
+| **Eleven policies** — `Announcement`, `ApiKey`, `AttendanceCorrection`, `AttendanceRecord`, `Branch`, `CustomRole`, `Department`, `Device`, `Holiday`, `Shift`, `Tenant`, `Webhook` | **0.0%** | Convention 7 requires every controller action to be authorised by a policy. These are reached through HTTP tests that assert the *outcome*, so the policy classes themselves show no lines — plausible, and **not verified here**. Worth a look before anyone reads 0% as "unauthorised" |
+
+Lowest non-zero, all device adapters and SSO: `ZktecoAdapter` 46.2%, `SupremaAdapter` 47.1%,
+`HikvisionAdapter` 59.8%, `SamlProvider` 37.2%. Every one talks to hardware or an external
+IdP this project has never had in front of it — expected, and the reason **G0-J and the
+device rows of Gate 0 are measurements nobody has taken**.
+
+**No threshold is set anywhere.** 86.7% is a baseline to compare against, not a bar to clear,
+and picking a floor is the owner's call.
 
 ---
 
@@ -924,7 +946,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 7b | ~~No CI of any kind~~ — **configured in Phase 2, never executed** | `.github/workflows/` **[verified]** | Medium (was High) |
 | 8 | ~~19 commits exist only on this machine~~ — **pushed 2026-09-15**, 32 commits on `origin` | `git push` exit 0 **[verified]** | Resolved |
 | 9 | ~~Queue can stop silently~~ — **heartbeat + `ethr:queue:check` built**; alert transport still needs G0-H | `QueueHealthTest` **[verified]** | Low (was Medium) |
-| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]**; `Backend coverage (PCOV)` job + `gates.sh coverage` **[instrument verified; refusal path exercised locally]** | **Half closed — and the backend half now has an instrument, not yet a number.** Frontend measured 2026-09-16 — 32.34% statements, **170 of 321 files at 0%** (§12f). Backend was blocked on PCOV or Xdebug; CI now supplies PCOV (§12e). **The figure is unmeasured and deliberately not guessed** — record it here from the first green run. Until then this row is "the instrument exists", which is not the same as "the code is covered" |
+| 10 | **No coverage instrumentation**; billing near-untested — first billing tests added 2026-09-15, which immediately found §15b | `phpunit.xml`, `vitest.config.ts` **[verified]**; `Backend coverage (PCOV)` job + `gates.sh coverage` **[verified in CI]** | **Closed as instrumentation; open as coverage.** Backend **86.7% MEASURED 2026-09-23** (§12e), frontend **32.34%** with 170 of 321 files at 0% (§12f). The backend total is far higher than a row reading "no coverage instrumentation" since the baseline would suggest — the suite was better than its instrumentation. **What the total hides is the point**: §12g lists the zero-coverage files, and two of them are the traits enforcing conventions 5 and 14 |
 | 15 | ~~Monthly invoicing had no idempotency guard — any re-run double-billed every tenant~~ — **fixed** (§15b) | `MonthlyInvoiceIdempotencyTest` **[verified]** | Resolved |
 | 16 | ~~Plan-change proration unclamped — an upgrade on an expired period reported a credit~~ — **fixed** (§15c) | `PlanChangeProrationTest` **[verified]** | Resolved |
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
