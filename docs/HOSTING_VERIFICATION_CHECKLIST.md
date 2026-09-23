@@ -29,10 +29,16 @@ obtained — and the supersession note **thirteen lines above** already said so.
 scanning headings met the false one first.
 
 What is actually true, and it is the distinction that matters: **the panel can be read;
-the probe still cannot be run.** No test domain was created, no probe was uploaded, and no
-SQL was executed against their MySQL — because `ethr-hosting-check.php` needs a shell or a
-scheduled task, and SSH is **Forbidden** (B-1) while **G0-D is FAIL** (no Scheduled Tasks
-section exists). So the rows below stay **NOT VERIFIED** for a sharper reason than
+the probe has not been run.** No test domain was created, no probe was uploaded, and no
+SQL was executed against their MySQL.
+**Corrected 2026-09-23: the reason given here was wrong.** This said `ethr-hosting-check.php`
+*needs a shell or a scheduled task*, and that SSH being **Forbidden** (B-1) with **G0-D FAIL**
+therefore left it with no route. It has a third route: a deliberate **web-execution mode**,
+403 by default and unlocked by setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy
+(`scripts/hosting-verification/ethr-hosting-check.php:75-81`). Step 2 below has always said
+"visit it in a browser"; this paragraph contradicted it. The rows stay **NOT VERIFIED**
+because nobody has run it — not because nobody can. So they stay **NOT VERIFIED** for a
+sharper reason than
 "nobody has looked": there is currently **no route to execute them**.
 
 Rows a panel read *can* answer are answered — see **N1–N3** below, and

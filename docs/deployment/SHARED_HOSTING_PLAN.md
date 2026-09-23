@@ -90,7 +90,7 @@ Legend — **OK** · **WORKAROUND** (possible, defined, costs something) · **BL
 | 1 | **PHP ≥ 8.2** | `php:8.2-fpm-alpine` | **8.3.33**, panel-read 2026-09-17 | **OK** |
 | 2 | **`ext-pdo_mysql`** (declared requirement) | built in image | MySQL plan; extension presence unprobed | **ASK** |
 | 3 | ~~**`ext-pdo_pgsql`**~~ | *not installed* — image builds `pdo_mysql` only | not needed | **RESOLVED by DECISION DB-1** — PostgreSQL is not being used, so this extension is not required. Was **ASK** |
-| 4 | **Other extensions** (`gd`, `intl`, `zip`, `bcmath`, `mbstring`, …) | built in image | G0-E rows `NOT VERIFIED` — the probe cannot run (see #9) | **ASK** |
+| 4 | **Other extensions** (`gd`, `intl`, `zip`, `bcmath`, `mbstring`, …) | built in image | G0-E rows `NOT VERIFIED` — the probe has not been run. *(Corrected 2026-09-23: this said the probe "cannot run". It has a web-execution mode — see `MIGRATION_STATE.md` NEXT ACTION item 2.)* | **ASK** |
 | 5 | **`ext-redis` / a Redis server** | `redis` + `redis-cache` services | **No Redis.** Shared hosting runs no long-running daemon | **WORKAROUND** — `CACHE_STORE=database`, `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`. Already the documented shared-hosting env |
 | 6 | ~~**Outbound TCP 5432 + TLS** to an external PostgreSQL~~ | N/A (DB is in-network) | N/A — MySQL is on the plan at `DB_HOST=localhost`, so there is no network hop | **RESOLVED by DECISION DB-1** — the requirement is withdrawn, not answered. Was **ASK**, and the only wholly-uncovered one. *If a remote database is ever adopted this row returns:* `smoke-check.sh` §4 asserts TLS on any non-loopback `DB_HOST` and refuses to pass without it |
 | 7 | **Next.js runtime** | `frontend` service, `output: "standalone"`, `node server.js` on `node:22-alpine` | Plesk Node.js **present and startable** (22.23.2, startup file, app mode, app URL) but **not enabled**; G0-G `PARTIAL` | **ASK** |
@@ -192,6 +192,14 @@ port 5432, and nobody has ever asked. Shared hosts commonly restrict outbound po
 ---
 
 ## 3. Recommendation
+
+> **The letters A, B and C below are local to this section.** They answer *which
+> frontend, given shared hosting*. In
+> [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) §4 the same
+> letters answer a different question — **Option A** there is *stay on the VPS* and
+> **Option B** is *everything on shared hosting*. Neither set is renamed, because both are
+> cited by date elsewhere. §5's naming warning has the full picture; where a reader needs
+> them, name them in full.
 
 ### Recommended — Laravel + **MySQL on the Gold plan**, Next.js as a **static export**, on one vhost
 
@@ -418,13 +426,20 @@ likely the defect is to reach production, but not the fix.
 | Restore the `/admin` host boundary | 1.0 | **E** | **G0-B.1** |
 | Locale redirects lost with middleware | 0.5 | **E** — `out/en/*` and `out/am/*` exist **M**; unprefixed forwarding does not | — |
 | Full-suite regression + manual pass | 1.5 | **E** | — |
-| **Total** | **≈ 8** | ~1.6 measured-grounded, ~6.5 estimated | **3.0 days gated on G0-B.1/B.2** |
+| **Total** | **≈ 8** | ~1.6 measured-grounded, ~6.5 estimated | **2.0 days gated on G0-B.1/B.2** |
 
-**Three line items totalling 3 days are gated on G0-B.1/B.2**, which the canary answers with
+**Three line items totalling 2 days are gated on G0-B.1/B.2**, which the canary answers with
 no shell, no cron and no support ticket — and which is already item 4 of
 `MIGRATION_STATE.md`'s next-action list. **Run it before committing to A**: it converts the
 widest part of this estimate into a measurement, and it is the one check that can show A to
 be unbounded before the work starts rather than during it.
+
+> **Arithmetic corrected 2026-09-23.** This paragraph, the Total row, §3A's comparison
+> table, §3A.4 and the next-action table all said **3 days** gated. The table's own gated
+> rows are 0.5 + 0.5 + 1.0 = **2.0**, and the nine rows total **8.1**. Recorded rather than
+> silently fixed, because the figure was quoted in five places and a reader who remembers
+> "3 days" should know which number moved and why. *"Three of its nine line items"* was
+> always right — three rows are gated; only the day count was wrong.
 
 ### What Option C removes
 
@@ -474,7 +489,7 @@ Same criteria, all three. **M** = measured from the repo · **E** = estimated.
 | Frontend build works today | **No** — 7 distinct failures *(M)* | **Yes** *(M)* | **Yes** *(M)* |
 | Entity routes work | No — need placeholder + SPA rewrite + URL-derived id *(M)* | Yes *(M)* | Yes *(M)* |
 | Repo changes needed | `force-static` ×3, split 4 routes, placeholder params, rewire 4 id reads, client-side host read in `(auth)/layout.tsx` *(M)*. **Not** deleting `middleware.ts` — it builds fine and goes inert *(M)* | **None** *(M)* | base URL + CORS/Sanctum config, **plus a tenancy decision** *(M)* |
-| Engineering cost | **≈8 days, 6–11** *(E)*, of which **3 days gated on G0-B.1/B.2** | ~0 | base URL + config *(M)*; tenancy change **uncosted** |
+| Engineering cost | **≈8 days, 6–11** *(E)*, of which **2 days gated on G0-B.1/B.2** | ~0 | base URL + config *(M)*; tenancy change **uncosted** |
 | Vendors | 1 | 1 | **2** |
 | Extra recurring cost | none | none | low tens of USD/month *(E)* |
 | SSR retained | No *(M)* | Yes *(M)* | Yes *(M)* |
@@ -500,7 +515,7 @@ Reasoning, in the order it decides:
    is now **measured at ≈8 days, realistically 6–11**. A known cost beats an unknown one —
    *provided the condition in 4 holds*.
 4. **A's boundedness is conditional, and this is the sentence to act on.** Three of its
-   nine line items — **3 of the 8 days** — are gated on **G0-B.1/B.2**. `.htaccess` is not
+   nine line items — **2 of the 8 days** — are gated on **G0-B.1/B.2**. `.htaccess` is not
    a convenience for A; it is the mechanism. It carries the SPA rewrite without which
    entity routes have **no way to be served at all**, the CSP/HSTS headers that static
    export drops silently, and the `/admin` host boundary that middleware can no longer
@@ -793,7 +808,7 @@ Every step names the mechanism and whether anyone has ever done it here.
 
 | # | Step | Mechanism | Status |
 |---|---|---|---|
-| 1 | **Run the canary** | Upload 5 files, 6 fetches | Never run. **Do this first** — it can void 3 of static export's 8 days |
+| 1 | **Run the canary** | Upload 5 files, 6 fetches | Never run. **Do this first** — 2 of static export's 8 days are gated on it, and a B.1 failure voids far more than that |
 | 2 | **Run the probe over HTTP** | Token in the uploaded copy, credentials in the file not the URL, delete after | Never run; a copy is already exposed (Q1) |
 | 3 | **Decide the `TRIGGER` question** | Owner, per `AUDIT_LOG_INTEGRITY_DECISION.md` | **Blocking. Nothing below proceeds past step 7 without it** |
 | 4 | **Build the static export** | §3A option A, ≈8 days | Not started; 3 days conditional on step 1 |

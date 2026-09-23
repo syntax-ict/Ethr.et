@@ -113,6 +113,18 @@ php artisan ethr:restore ethr-20260915-010000
 
 Destructive by definition — the dump begins with `DROP TABLE` for every table it contains. The command prints the manifest and asks for confirmation unless `--force`.
 
+**It refuses to write a dump whose INSERTs name a generated column.** Added 2026-09-23.
+`SELECT *` returns generated columns like any other, and an INSERT that supplies a value
+for one is not portable: SQLite rejects it outright, and MariaDB accepts it on the
+connection this project configures but rejects it under a strict `sql_mode` — so
+replayability had become a property of whoever runs the restore rather than of the backup.
+`BackupService::create()` now scans the dump it has just written and throws rather than
+finish, deleting the half-written directory first so nothing is left that looks like a
+backup. If you meet that error the fault is in `DatabaseDumper`, not in your data;
+`../audit/BASELINE.md` §15f and §15g have the full reading. Deliberately **not** checked at
+restore time: an older backup taken before the fix may still restore on a permissive
+engine, and refusing to try would turn a recoverable situation into an unrecoverable one.
+
 **It refuses a dump whose SHA-256 does not match its manifest.** Half-applying a corrupted dump is worse than refusing it: it restores *something*, and nobody can say what. This also catches truncation by a failed transfer, not just editing.
 
 ### After any restore, verify — do not assume

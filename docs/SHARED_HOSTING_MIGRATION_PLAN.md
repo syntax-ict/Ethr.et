@@ -16,8 +16,19 @@
 >
 > What has **not** started is *execution on the host* — upload, migrate, cutover — which
 > is blocked on Gate 0 and on blockers **B-1 to B-6** (`MIGRATION_STATE.md`). The
-> conditional Go in §4 below still stands; its five gates are still unresolved, and two
-> new ones have joined them. Read §4 with `deployment/GATE-0-RESULT.md` beside it.
+> conditional Go in §4 below still stands, and two new gates have joined its five.
+>
+> **Corrected 2026-09-23: "its five gates are still unresolved" is no longer true.** Two
+> are answered, and `deployment/GATE-0-RESULT.md` is where the measurements live:
+>
+> - **B3 (cron) is answered — G0-D = FAIL.** No Scheduled Tasks section exists on the
+>   subscription dashboard. What follows from that is **not** what the §4 table below
+>   still says; see the note on the B3 row.
+> - **B4 (PHP ≥ 8.2) is answered — PHP 8.3.33**, panel-read 2026-09-17. It passes.
+>
+> B1, B2 and B5 remain unresolved, as do the two newer gates. Read §4 with
+> `deployment/GATE-0-RESULT.md` beside it, and treat that file as authoritative for any
+> gate status — this document reasons about consequences, it does not record measurements.
 **Inputs:** `docs/SHARED_HOSTING_AUDIT.md`,
 `docs/ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`
 
@@ -248,19 +259,31 @@ The entire hardcoded-infrastructure surface is four lines in three files.
 That is the argument for attempting Option B rather than declaring shared hosting
 unsuitable.
 
+> **Naming warning — "Option A" means something else in the sibling document.** In this
+> file **Option A** is *stay on the VPS* and **Option B** is *everything on Ethio Telecom
+> shared hosting*. In
+> [`deployment/SHARED_HOSTING_PLAN.md`](deployment/SHARED_HOSTING_PLAN.md) §3A, **A** is
+> *static export*, **B** is *Node on Plesk* and **C** is *split hosting* — a different
+> question entirely (which frontend, given shared hosting) with the same letters. That
+> document carries the same warning at its §5. Neither set is renamed, because both are
+> cited by date elsewhere; where a reader needs them, name them in full.
+
 But the decision cannot be made yet, because the failure modes are not in the code:
 
 | Gate | If it fails |
 | --- | --- |
 | **B1** wildcard subdomain | **No-Go.** Self-service tenant signup produces unreachable tenants. Path-based tenancy is a product redesign, explicitly out of scope. → Option A |
 | **B2** wildcard TLS | **No-Go.** `SESSION_SECURE_COOKIE=true` means auth cookies are withheld over an untrusted connection; tenants cannot log in. → Option A |
-| **B3** cron | **No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. → Option A |
+| **B3** cron | **No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. → Option A ⚠️ **Disputed — see the banner at the top of this file.** B3 is answered (G0-D = FAIL) and `MIGRATION_STATE.md` → NEXT ACTION holds that the stated reason no longer applies. Not resolved on this pass |
 | **B4** PHP ≥ 8.2 | **No-Go.** Laravel 12 does not boot. → Option A |
 | **B5** Node.js runtime | **Not fatal.** Fails → Option B2 (static export), a scoped, costed frontend refactor. |
 | **H1** `CREATE TRIGGER` | **Not fatal, but a security downgrade that needs sign-off.** |
 | **H2** `max_execution_time` | **Not fatal.** Mitigation: move payroll processing fully behind the queue so the HTTP request only enqueues. |
 
-**Go / No-Go: BLOCKED — pending answers to B1–B5.**
+**Go / No-Go: BLOCKED — pending answers to B1, B2 and B5.** *(Corrected 2026-09-23: this
+said "B1–B5". B3 and B4 are answered — see the banner at the top of this file. The
+consequence the B3 row draws from its answer is disputed by `MIGRATION_STATE.md`; that is
+flagged on the row and is not resolved here.)*
 
 Nothing in this repository can answer them. They require the account, or a written
 answer from Ethio Telecom support. The verification procedure is in
