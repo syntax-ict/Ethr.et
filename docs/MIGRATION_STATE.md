@@ -2987,9 +2987,12 @@ unverified workaround; the other is an owner decision. Both are below.
    *"is the version selectable?"* only matters if G0-A is ever answered PASS.
 
 **Repository-side work is not closed any more, but it is not blocking either.** Plan B
-identified one bounded engineering task — **static export, ≈8 days, 6–11**, of which **3
-days are void rather than optimistic** if item 1 comes back negative. Do not start it before
-item 1.
+identified one bounded engineering task — **static export, ≈8 days, 6–11**, of which **2.0
+days are line items gated on `.htaccess`**. *(Corrected 2026-09-23: this said 3 days; §3A's
+gated rows are 0.5 + 0.5 + 1.0 = 2.0.)* And the failure case is **larger** than the gated
+rows, not equal to them: if item 1 comes back negative on **B.1**, the **whole ≈8-day
+estimate is void** — with no rewrite there is no mechanism to serve entity routes at all, so
+there is nothing left to re-cost. Do not start it before item 1.
 
 Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
 Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —

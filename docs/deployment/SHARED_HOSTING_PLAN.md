@@ -1,5 +1,20 @@
 # Deploying ETHR to Ethio Telecom Linux **Gold** (Plesk) — gap analysis
 
+> **The tier in that title is ASSUMED, and it is not this document's to settle.** *Gold* is
+> the **brief's** premise (§0), not a reading of this account. The account is reported
+> **Bronze** — owner-supplied on 2026-08-29 (`../B1-B5_GATE_REPORT.md`, *Target account*),
+> repeated in the never-sent support request and in
+> [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md)`:3`. That is **testimony,
+> not panel output**, which this repository grades PARTIAL wherever else it appears.
+> **Nobody has read the tier from the panel.** It is open question **Q9** (§5.8) and it stays
+> open here — deciding it needs the Plesk panel and the owner, not a document edit.
+>
+> Consequently every per-tier figure below — databases, subdomains, mailboxes, storage,
+> bandwidth — is **PUBLISHED** plan data applied to an **ASSUMED** tier. §5.4 works through
+> which of them would change on Bronze; the short answer it reaches is *one operational
+> setting and one sharpened question*. The title is left unrenamed because this document is
+> cited by name and date elsewhere.
+
 **Read-only analysis, 2026-09-22; §5 added 2026-09-23. Nothing is deployed and no gate
 status is changed by this document.** Authoritative gate state stays in
 [`GATE-0-RESULT.md`](GATE-0-RESULT.md); the deployment contract stays in
@@ -32,7 +47,7 @@ free:
 | Three migrations carry MySQL-specific SQL | measured across `api/database/migrations/` |
 | The platform requirement is MySQL | `api/composer.json` requires **`ext-pdo_mysql`**; it does **not** require `ext-pdo_pgsql` |
 | PostgreSQL is **never exercised** | zero references to `pgsql`/`postgres` in `phpunit*.xml`, any `.github/workflows/*.yml`, or `scripts/gates.sh`. `gates.sh mysql` runs MariaDB. A `pgsql` block exists in `config/database.php`, but a configured driver is not a tested one |
-| The plan ships MySQL | Gold includes **5 MySQL databases**; PostgreSQL would be an external paid service plus egress |
+| The plan ships MySQL | Gold includes **5 MySQL databases** — **PUBLISHED**, on an **ASSUMED** tier (Bronze publishes 1; Q9). ETHR needs one either way, so nothing here turns on it. PostgreSQL would be an external paid service plus egress |
 
 If RLS is wanted as *defence in depth* on top of the global scope, that remains a
 legitimate architectural goal — but it is a **new requirement**, not an existing
@@ -104,8 +119,8 @@ Legend — **OK** · **WORKAROUND** (possible, defined, costs something) · **BL
 | 15 | **SSH / Git deploy** | N/A | SSH **Forbidden**; Plesk **Git** and **Composer** extensions present | **WORKAROUND** — contract makes SSH OPTIONAL |
 | 16 | **SSL on `ethr.et`, `api.`, `app.`** | own certs | per-hostname Let's Encrypt **PROVEN** on this account | **OK** for named subdomains |
 | 17 | **Wildcard SSL `*.ethr.et`** (tenant subdomains) | own certs | wildcard **blocked** — needs DNS-01; G0-C `PARTIAL` | **BLOCKER** for subdomain tenancy |
-| 18 | **Subdomain quota vs tenant count** | unlimited | Gold publishes **15**; whether a wildcard counts as one is an **OPEN QUESTION** | **ASK** |
-| 19 | **Mail** | SMTP config | G0-H `NOT VERIFIED` — outbound 587/465 unprobed; plan includes 25 mailboxes | **ASK** |
+| 18 | **Subdomain quota vs tenant count** | unlimited | Gold publishes **15**, Bronze **5** — **PUBLISHED** figures on an **ASSUMED** tier (Q9); whether a wildcard counts as one is an **OPEN QUESTION** (Q3), and that counting rule, not the tier, is what decides whether the number binds at all | **ASK** |
+| 19 | **Mail** | SMTP config | G0-H `NOT VERIFIED` — outbound 587/465 unprobed; the mailbox count is **PUBLISHED** — 25 on Gold, 5 on Bronze — on an **ASSUMED** tier (Q9) | **ASK** |
 | 20 | **Biometric device callbacks** reaching the API | nginx → api | inbound HTTPS to a named host is ordinary web traffic; depends on #8 and #16 | **ASK** — no device has ever reached this host |
 | 21 | **Backups** | `ethr:backup` + volumes | `ethr:backup`/`ethr:restore` are **plain PHP CLI by design** | **BLOCKER** — same root as #9/#10 |
 | 22 | **`CREATE TRIGGER`** (audit-log integrity) | granted locally | G0-F `NOT VERIFIED`; managed MySQL often denies it (error 1419) | **ASK** |
@@ -226,7 +241,11 @@ port 5432, and nobody has ever asked. Shared hosts commonly restrict outbound po
 so this is the right *shape* and still gated on ask 1.
 
 **And the static export is not free — it was built on 2026-09-22 and costs ≈8 days
-(6–11), of which 3 are gated on `.htaccess` being honoured.** §3A carries the measured
+(6–11), of which 2.0 are line items gated on `.htaccess` being honoured.** That 2.0 is the
+exposure if the gate merely makes work conditional. It is **not** the exposure if the gate
+fails: a **G0-B.1 failure voids the whole ≈8-day estimate**, because `.htaccess` carries the
+SPA rewrite without which entity routes have no serving mechanism at all — there is nothing
+left to re-cost. §3A carries the measured
 breakdown: seven distinct build failures, the actual mechanism entity routes need, and two
 controls that disappear silently. Read it before committing to this recommendation —
 **A is bounded only if G0-B.1/B.2 come back positive**, and the canary answers that today.
@@ -415,6 +434,15 @@ likely the defect is to reach production, but not the fix.
 
 **≈ 8 days, realistically 6–11.** Marked **M** measured · **E** estimated.
 
+> **Read the Gated column as a void, not a discount.** The three gated rows total **2.0
+> days**, and that is what they cost if `.htaccess` merely makes the work conditional. It is
+> not what a **G0-B.1 failure** costs. `.htaccess` is the mechanism by which entity routes
+> are served *at all*, so on a B.1 failure this whole table is **VOID** — the ≈8 days is
+> discarded, not revised down to ≈6, and Option A stops being bounded. That consequence is
+> pre-registered in
+> [`../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md)
+> (the *B.1 FAIL* row), and it is the reading to act on.
+
 | Work | Days | Basis | Gated on |
 |---|---|---|---|
 | `force-static` × 3 | 0.1 | **M** — build-verified | — |
@@ -426,7 +454,7 @@ likely the defect is to reach production, but not the fix.
 | Restore the `/admin` host boundary | 1.0 | **E** | **G0-B.1** |
 | Locale redirects lost with middleware | 0.5 | **E** — `out/en/*` and `out/am/*` exist **M**; unprefixed forwarding does not | — |
 | Full-suite regression + manual pass | 1.5 | **E** | — |
-| **Total** | **≈ 8** | ~1.6 measured-grounded, ~6.5 estimated | **2.0 days gated on G0-B.1/B.2** |
+| **Total** | **≈ 8** | ~1.6 measured-grounded, ~6.5 estimated | **2.0 days gated on G0-B.1/B.2 — and all 8 void if B.1 fails** |
 
 **Three line items totalling 2 days are gated on G0-B.1/B.2**, which the canary answers with
 no shell, no cron and no support ticket — and which is already item 4 of
@@ -440,6 +468,14 @@ be unbounded before the work starts rather than during it.
 > silently fixed, because the figure was quoted in five places and a reader who remembers
 > "3 days" should know which number moved and why. *"Three of its nine line items"* was
 > always right — three rows are gated; only the day count was wrong.
+>
+> **And "five places" was itself short — corrected later the same day.** The sweep that
+> produced this note matched the literal string *"3 days gated"*, which missed three
+> variants that say the same thing in other words: §5.1's blocker row (*"3 of them gated"*),
+> §5.1's closing cost line (*"3 days are void"*) and §5.5 step 4 (*"3 days conditional"*),
+> plus one in `../MIGRATION_STATE.md`. **Eight places, not five.** All eight now read 2.0.
+> The lesson is the ordinary one for this corpus: a figure is quoted in more wordings than
+> the one you remember, so sweep for the *claim*, not for the sentence.
 
 ### What Option C removes
 
@@ -471,7 +507,8 @@ Real, and worth weighing against the above:
   data path is unchanged. This repository contains no latency measurement of any kind and
   none was invented; the offline-first design (IndexedDB queue, service worker) blunts but
   does not remove the concern.
-- **Cost.** *Estimated.* The Gold plan is already paid. A platform tier with wildcard
+- **Cost.** *Estimated.* The shared-hosting plan is already paid, whichever tier it is
+  (**ASSUMED**; Q9). A platform tier with wildcard
   custom domains is an additional recurring subscription in the low tens of USD per month,
   plus bandwidth. **Confirm current pricing before relying on any figure** — none is
   recorded in this repository, including in `TCO_COMPARISON.md`.
@@ -489,7 +526,7 @@ Same criteria, all three. **M** = measured from the repo · **E** = estimated.
 | Frontend build works today | **No** — 7 distinct failures *(M)* | **Yes** *(M)* | **Yes** *(M)* |
 | Entity routes work | No — need placeholder + SPA rewrite + URL-derived id *(M)* | Yes *(M)* | Yes *(M)* |
 | Repo changes needed | `force-static` ×3, split 4 routes, placeholder params, rewire 4 id reads, client-side host read in `(auth)/layout.tsx` *(M)*. **Not** deleting `middleware.ts` — it builds fine and goes inert *(M)* | **None** *(M)* | base URL + CORS/Sanctum config, **plus a tenancy decision** *(M)* |
-| Engineering cost | **≈8 days, 6–11** *(E)*, of which **2 days gated on G0-B.1/B.2** | ~0 | base URL + config *(M)*; tenancy change **uncosted** |
+| Engineering cost | **≈8 days, 6–11** *(E)*, of which **2.0 days gated on G0-B.1/B.2** — and **all 8 void, not reduced, if B.1 fails** *(M — the mechanism; see above)* | ~0 | base URL + config *(M)*; tenancy change **uncosted** |
 | Vendors | 1 | 1 | **2** |
 | Extra recurring cost | none | none | low tens of USD/month *(E)* |
 | SSR retained | No *(M)* | Yes *(M)* | Yes *(M)* |
@@ -515,7 +552,9 @@ Reasoning, in the order it decides:
    is now **measured at ≈8 days, realistically 6–11**. A known cost beats an unknown one —
    *provided the condition in 4 holds*.
 4. **A's boundedness is conditional, and this is the sentence to act on.** Three of its
-   nine line items — **2 of the 8 days** — are gated on **G0-B.1/B.2**. `.htaccess` is not
+   nine line items — **2.0 of the 8 days** — are gated on **G0-B.1/B.2**, and that 2.0 is
+   the *conditional* cost, not the *failure* cost: **if B.1 comes back negative the whole
+   ≈8-day estimate is void**, not reduced. `.htaccess` is not
    a convenience for A; it is the mechanism. It carries the SPA rewrite without which
    entity routes have **no way to be served at all**, the CSP/HSTS headers that static
    export drops silently, and the `/admin` host boundary that middleware can no longer
@@ -573,6 +612,15 @@ downstream of it inherits that. Individual facts are marked:
 | **PUBLISHED** | from Ethio Telecom's own plan pages, as transcribed in the support request |
 | **ASSUMED** | neither — reasoning, or a third party's documented behaviour taken on trust |
 
+> **A boundary inside MEASURED, because the tier landed on it.** *"Read from the account by
+> the owner"* means the owner says **what page they read**. Every row in §5.2's MEASURED
+> table names one — Hosting Settings, Dev Tools, Apache & nginx Settings, the subscription
+> dashboard. A fact the owner supplied without naming what was read is **ASSUMED**, however
+> dated and however plausible: `GATE-0-RESULT.md`'s own rule is that **testimony is not
+> output**, and `../B1-B5_GATE_REPORT.md` applies it to downgrade B1b on exactly that
+> ground. **The plan tier is the instance** — supplied 2026-08-29 under *Target account*,
+> no panel page named, never re-read. See the note under this document's title, and Q9.
+
 > **Naming warning, because three different things are now called "B".** In §3A of this
 > document **B** is *Node on Plesk*. In
 > [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) §4 **Option
@@ -593,7 +641,7 @@ Three outcomes: **RESOLVED ANOTHER WAY** (a route exists that needs nothing from
 | **#11** `artisan` at all (`key:generate`, `migrate`, `db:seed`, `ethr:create-admin`) | WORKAROUND | **UNCHANGED — and now the single point of failure** | Plesk Git *additional deployment actions*. **MEASURED as present** (owner, 2026-09-18) and **never executed**. Under denial there is no second route |
 | **#12** `storage:link`, writable dirs | ASK | **Inherits #11** | Same mechanism, same untested assumption |
 | **#22 / G0-F** `CREATE TRIGGER` | ASK | **HARD-BLOCKED — and it is an owner decision, not an engineering one** | `migrate` aborts at `2026_07_22_000001` by design **MEASURED**. [`AUDIT_LOG_INTEGRITY_DECISION.md`](../AUDIT_LOG_INTEGRITY_DECISION.md) pre-registered this exact case: on refusal the choice returns to the owner as accepted risk, and the mechanism is then an `AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag **that is deliberately not built**. See §5.7 |
-| **#8 / G0-A** path routing | BLOCKER | **CONFIRMED — and routed around** | Denial converts "strong evidence of FAIL" into the working assumption. Consequence: §3A's **B (Node on Plesk)** is foreclosed, and **A (static export)** is the only frontend path. Costed at ≈8 days, 3 of them gated on G0-B.1/B.2 |
+| **#8 / G0-A** path routing | BLOCKER | **CONFIRMED — and routed around** | Denial converts "strong evidence of FAIL" into the working assumption. Consequence: §3A's **B (Node on Plesk)** is foreclosed, and **A (static export)** is the only frontend path. Costed at ≈8 days, 2.0 of them gated on G0-B.1/B.2 — and all 8 void if B.1 fails |
 | **#7 / G0-G** Node runtime | ASK | **MOOT** | The panel offers a startable Node app **MEASURED** (2026-09-22) — but with #8 denied there is nothing to split `/api/*` from `/`, so the runtime being present buys nothing. G0-G stays `PARTIAL`; it simply stops mattering |
 | **#18** subdomain quota | ASK | **UNKNOWN — and now potentially product-limiting** | Nobody has established whether a wildcard counts as one. See question Q3 |
 | **#17 / G0-C** wildcard TLS | BLOCKER | **UNCHANGED — it was never one of the four asks** | A DNS question, not a hosting one. One workaround exists and is not a host concession — §5.3d |
@@ -622,8 +670,11 @@ Two blockers remain, and **neither is G0-D**:
 | **G0-F / #22** `CREATE TRIGGER` | `migrate` will not complete. An owner decision, then ~a day of work that is deliberately unbuilt |
 
 And one that is not a blocker but is the largest single cost: **static export, ≈8 days,
-6–11**, of which **3 days are void rather than merely optimistic if the canary shows
-`.htaccess` is ignored**.
+6–11**. 2.0 of those days are line items gated on `.htaccess`; but if the canary shows
+`.htaccess` is ignored it is **the whole estimate that is void, not 2 days of it** — with no
+rewrite there is no mechanism to serve entity routes at all, so there is nothing left to
+re-cost. *(Corrected 2026-09-23: this said "3 days are void". Both halves were wrong — the
+gated rows total 2.0, and the failure case voids all eight.)*
 
 **This does not reverse the No-Go by itself.** The rule fired on a gate, and the gate has
 not moved. What it says is that the rule's stated *reason* no longer holds, which is a
@@ -767,7 +818,11 @@ require the hosting plan to change, not because it is known to work.
 
 ### 5.4 Gold versus Bronze — what actually differs for this deploy
 
-The account is **Bronze** (support request, and `shared-hosting/DEPLOYMENT.md`'s header).
+The account is reported **Bronze** — **ASSUMED, not measured.** The provenance is owner
+testimony supplied on 2026-08-29 (`../B1-B5_GATE_REPORT.md`, *Target account*), repeated in
+the support request and in `shared-hosting/DEPLOYMENT.md`'s header. **No panel read of the
+tier exists.** It is **Q9**, and this section reasons about Bronze because that is the
+reported tier, not because it has been confirmed.
 This document's title says *Gold*, and §1 reasons about *"Gold includes 5 databases"* and
 *"Gold publishes 15"* — that was the brief's premise, and it is not this account.
 **Noted rather than silently corrected**, because §1's gap table is otherwise sound: not one
@@ -795,7 +850,8 @@ of its BLOCKER rows turns on a tier figure.
    after. *(Whether the MySQL database shares that 5 GB is unknown — Q4.)*
 3. **Possibly fatal for the product, and it is the same question either way.** If a wildcard
    counts as one subdomain, the limit is irrelevant on both tiers. If each tenant subdomain
-   counts, Bronze caps the product at **5 customers** and Gold at **15** — and neither is a
+   counts, the **PUBLISHED** caps put the product at **5 customers** on Bronze and **15** on
+   Gold — and neither is a
    business. **The tier is not what decides this; the counting rule is.** Q3.
 
 So: Bronze changes **one operational setting** and sharpens **one open question**. It does
@@ -808,10 +864,10 @@ Every step names the mechanism and whether anyone has ever done it here.
 
 | # | Step | Mechanism | Status |
 |---|---|---|---|
-| 1 | **Run the canary** | Upload 5 files, 6 fetches | Never run. **Do this first** — 2 of static export's 8 days are gated on it, and a B.1 failure voids far more than that |
+| 1 | **Run the canary** | Upload 5 files, 6 fetches | Never run. **Do this first** — 2.0 of static export's 8 days are gated on it, and a B.1 failure voids **all eight**, not two |
 | 2 | **Run the probe over HTTP** | Token in the uploaded copy, credentials in the file not the URL, delete after | Never run; a copy is already exposed (Q1) |
 | 3 | **Decide the `TRIGGER` question** | Owner, per `AUDIT_LOG_INTEGRITY_DECISION.md` | **Blocking. Nothing below proceeds past step 7 without it** |
-| 4 | **Build the static export** | §3A option A, ≈8 days | Not started; 3 days conditional on step 1 |
+| 4 | **Build the static export** | §3A option A, ≈8 days | Not started; **2.0** days conditional on step 1, and the whole estimate void if step 1 returns B.1 FAIL |
 | 5 | **Deliver code** | Plesk Git, deployment path `/ethr/` **set before the first deploy** | Never configured |
 | 6 | **Install dependencies** | Plesk Composer | Never run |
 | 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`, `storage:link` | Never run. **Single point of failure** (§5.3b) |
@@ -872,13 +928,13 @@ Deliberately not answered. Each would have had to be invented.
 |---|---|---|
 | **Q1** | The probe copy already under `httpdocs` returned **HTTP 200**. What are its response headers and first body line? | A token-less copy should return **403**. 200 means either a token was set or the file is not executing as PHP. Until this is answered, exposure stays graded LIVE and step 2 of §5.5 must not proceed |
 | **Q2** | Does Ethio Telecom's **published** spec sheet mention Scheduled Tasks / cron, SSH, Node.js, command-line PHP or custom directives for **any** tier — in any document, not just the plan comparison page? | The support request says it does not. If that holds, §5.4's conclusion stands and no upgrade helps. If some tier does list them, the denial assumption is wrong for that tier and this whole section reopens |
-| **Q3** | **Does a wildcard subdomain count as one against the subdomain limit, or does each tenant count individually?** | The single most consequential unknown in this document. If individual, the published limits cap the product at 5 customers (Bronze) or 15 (Gold) and no tier is viable |
+| **Q3** | **Does a wildcard subdomain count as one against the subdomain limit, or does each tenant count individually?** | The single most consequential unknown in this document. If individual, the **PUBLISHED** limits cap the product at 5 customers (Bronze) or 15 (Gold) — on a tier that is itself **ASSUMED** (Q9) — and no tier is viable |
 | **Q4** | Is the MySQL database counted against the plan's **5 GB** disk quota, or separately? | Decides whether the database competes with seven backup archives and the log directory for the same 5 GB |
 | **Q5** | What outbound network access does the account have — arbitrary HTTPS, SMTP 587/465, anything else? | Decides off-host backups, external S3 and outbound mail. The probe answers the SMTP ports; general outbound egress it does not |
 | **Q6** | **Which external caller do you want, and where should `CRON_TOKEN` live?** | GitHub Actions (no new vendor, poor cadence), the existing VPS (perfect cadence, but it makes this Option C and re-opens Option A), or a third-party service (good cadence, a stranger holds the key). §5.3a lays out the trade; the choice is yours |
 | **Q7** | Who administers the `ethr.et` zone at `ns1`/`ns2.telecom.net.et`, and will they add a `_acme-challenge` CNAME? | The only route to wildcard TLS, and the only route to subdomain tenancy |
 | **Q8** | `TRIGGER` denied — do you accept the audit-log downgrade, or does ETHR not deploy on this account? | Pre-registered as yours in `AUDIT_LOG_INTEGRITY_DECISION.md`. Steps 3 and 7 of §5.5 both stop here |
-| **Q9** | Is the account definitely **Bronze**? | This document's title and §1 reason about Gold. Nothing structural turns on it, but §5.4's figures do |
+| **Q9** | Is the account definitely **Bronze** — read from the panel, not repeated from what was supplied in August? | The tier is **ASSUMED** throughout this document: owner-supplied 2026-08-29, never panel-read. The title and §1 reason about *Gold* (the brief's premise); §5.4 reasons about *Bronze* (the reported tier). Nothing structural turns on it — §5.4 checks that explicitly — but §5.4's figures do, and so does the `--keep` backup-retention setting it tells you to lower **before** the first scheduled run |
 
 ### 5.9 What this section does not claim
 
