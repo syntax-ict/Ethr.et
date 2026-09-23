@@ -57,7 +57,9 @@ columns with **no unique index**, a builder helper safe only because both its ca
 the predicate, fifteen `::find()` sites that state nothing, and a `supervisor_id` validation
 rule that does not scope. The shape it reports: **106 of 156 sites prove their own safety;
 50 do not** — they are safe because of a gate, a dispatcher, a caller or a backfill
-somewhere else.
+somewhere else. *(That pair is the 2026-09-22 reading. It is **108 of 157; 49** after the
+closures below — re-measured in §11i, and the paragraph at the end of this section says
+what moved.)*
 
 **The five sites added since that audit were read individually on 2026-09-18**, because the
 pin having moved from 156/53 to 161/55 means five bypasses entered *after* the only pass
@@ -175,6 +177,22 @@ about it are load-bearing:
 `ValidatesSerialUniqueness` turns a constraint violation into a 422 instead of a 500. It
 queries cross-tenant on purpose and states no `tenant_id` — which is why the inventory
 moved to 157/55 and the entry says so plainly.
+
+**Re-measured after all five** (2026-09-23, §11i): **108 of 157 prove their own safety, 49
+do not**, still nothing that can reach another tenant's rows. Two sites moved into the
+self-proving class — `OrganizationProvisioner::query()` and
+`WorkforceMigrationService::mergeTarget()` — and `ValidatesSerialUniqueness` entered the
+other one, which is why 50 fell by one and not two.
+
+**Five sites gained a `tenant_id` predicate and still do not count, which is the part worth
+carrying.** The queued jobs write it as `if ($this->tenantId !== null) { $query->where(...) }`
+— a separate, conditional statement — because `$tenantId` is nullable for the deploy-drain
+reason above. A predicate conditional on a nullable payload field is stated by the
+dispatcher, not by the query, and §11g existed to stop relying on the dispatcher. Deleting
+those five `if` blocks once a drain has passed takes the figure to **113 of 157**; no
+other class in the 49 is a deletion away, because the rest are gates, secrets, global
+models and sweeps where a predicate is impossible or contrary to the feature. Having a
+predicate is necessary, not sufficient; having one conditionally is neither.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
