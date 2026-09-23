@@ -1822,6 +1822,22 @@ call site so the next reader does not "fix" them and conclude nothing happened. 
 two of the three — `email` and `name` — have no index at all to defeat, which is a
 separate observation and equally moot here.
 
+**No input matches differently — measured, not argued.** Saying "the class now follows the
+column's rule" would be misleading, because the class's rule *was* the column's rule: the
+six-replacement expression in `IdentityResolver` was **byte-identical** to
+`PHONE_EXPRESSION` in `2026_09_23_000003_index_login_identifier_lookups.php`, compared
+programmatically rather than by eye. The class wrote the column's definition out longhand;
+this change stops it doing that.
+
+Confirmed differentially on SQLite 3.45.1: both forms — the inline `REPLACE` chain and
+`phone_normalized` — run against 12 stored values including a slash (`091/234-5678`),
+embedded letters, a non-breaking space, Arabic-Indic digits, empty and NULL, queried with
+every value `normalizePhone()` accepts. **12 query values × 12 rows, 0 differences.**
+
+The asymmetry this section records is therefore **unchanged, not introduced**:
+`091/234-5678` normalises to `091/2345678` — the slash is not one of the six characters —
+so a query for `0912345678` misses it, before and after, identically.
+
 **What did change, and why it is not a performance claim.** `employee_code` and `phone`
 now compare against `employee_code_normalized` and `phone_normalized`, the generated
 columns added in §15e. Those columns already carry exactly these expressions, so the
