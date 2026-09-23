@@ -1860,6 +1860,17 @@ In the suite the same thing runs end to end: `PreFixDumper` is `writeRows()` as 
 before the fix, bound over `DatabaseDumper`, and `create()` is asserted to throw and to
 leave no directory behind.
 
+**On both drivers, and it took a second pass to get there.** That test was written inside
+`BackupRestoreRehearsalTest`, which skips on anything but SQLite because its *other* tests
+drop every table and MySQL commits DDL implicitly. Nothing about the guard is
+SQLite-specific — the throw path is one branch on an array — but `PreFixDumper` read
+`sqlite_master` and `PRAGMA table_xinfo` and quoted identifiers with `"`, and the file-wide
+skip did the rest. The result was a guard **proven to fire on SQLite and assumed to fire on
+the engine production uses**, which is the same species of claim §15g exists to correct.
+`PreFixDumper` now classifies columns through `DatabaseDumper::generatedColumns()` and
+takes its quote character from the driver, and the test lives in
+`BackupGeneratedColumnReplayTest`, which has no driver guard because it destroys nothing.
+
 **Was a real backup affected?** Not answerable from this repository. Nothing here records a
 `ethr:backup` run on any host, the product has never been deployed to Ethio Telecom (every
 Gate 0 row is NOT VERIFIED), and whether a Docker or VPS install ever ran the command is

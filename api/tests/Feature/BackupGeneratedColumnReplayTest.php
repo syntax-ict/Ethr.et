@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Services\Backup\BackupService;
 use App\Services\Backup\DatabaseDumper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Tests\Support\PreFixDumper;
 
 /**
  * What each engine actually does with a dump that names a generated column —
@@ -33,6 +35,15 @@ use Illuminate\Support\Str;
  * nothing here implicitly commits and breaks the surrounding transaction the
  * way a `CREATE TABLE` would on MySQL.
  */
+beforeEach(function () {
+    config(['backup.path' => storage_path('framework/testing/generated-column-backups')]);
+    File::deleteDirectory(config('backup.path'));
+});
+
+afterEach(function () {
+    File::deleteDirectory(config('backup.path'));
+});
+
 function attemptGeneratedColumnInsert(): ?string
 {
     $quote = DB::connection()->getDriverName() === 'sqlite' ? '"' : '`';
@@ -107,4 +118,43 @@ it('flags the statement on every driver, whatever the engine would do with it', 
     } finally {
         File::delete($path);
     }
+});
+
+it('refuses to write a backup whose INSERTs name a generated column', function () {
+    // The check the manifest cannot do. sha256 proves the file is the one that
+    // was written; it says nothing about whether the file can be put back, and
+    // that gap is precisely what shipped in §15f — written without complaint,
+    // hashing correctly, rejected only at restore time.
+    //
+    // Proven the only way a guard can be: against a dump produced the way the
+    // pre-fix dumper produced them. `PreFixDumper` is `writeRows()` as it stood
+    // before 2026-09-23 — `SELECT *`, then an INSERT naming every column it got
+    // back — so this fails against the old code and passes against the new one,
+    // rather than passing against both.
+    //
+    // **This test lives here, not in `BackupRestoreRehearsalTest`, so that it
+    // runs on MariaDB as well as SQLite.** It was written there first, and that
+    // file skips on any other driver because its other tests drop every table —
+    // a hazard this one does not share, since it destroys nothing. The effect
+    // was that the guard was proven to fire on SQLite and merely assumed to
+    // fire on the engine production actually uses.
+    //
+    // `createUser()` is enough of a fixture: `users` carries three generated
+    // columns, so one row is all the pre-fix dumper needs to emit an INSERT
+    // that names one.
+    createUser();
+
+    app()->bind(DatabaseDumper::class, fn () => new PreFixDumper);
+
+    $root = app(BackupService::class)->backupRoot();
+    $before = File::isDirectory($root) ? count(File::directories($root)) : 0;
+
+    expect(fn () => app(BackupService::class)->create('pre-fix'))
+        ->toThrow(RuntimeException::class, 'cannot be restored');
+
+    // And it left nothing behind that could be mistaken for a backup: the
+    // directory carries no manifest, so `prune()` would never list it.
+    $after = File::isDirectory($root) ? count(File::directories($root)) : 0;
+
+    expect($after)->toBe($before);
 });

@@ -42,11 +42,19 @@ use Tests\Support\PreFixDumper;
  * that closes the go-live gate.
  */
 beforeEach(function () {
-    // SQLite only, and not merely because the helpers below read `sqlite_master`.
+    // SQLite only, and the reason is the drop — not the driver.
     //
-    // These tests DROP EVERY TABLE, which is the whole point — a restore into a
-    // surviving schema proves nothing. On SQLite that is undone by the
-    // transaction `RefreshDatabase` rolls back. On MySQL, DDL implicitly
+    // Worth being exact, because the skip was briefly load-bearing for
+    // something it was never about: *"it refuses to write a backup whose
+    // INSERTs name a generated column"* used to live in this file, and so the
+    // `BackupService::create()` guard was proven to FIRE on SQLite and merely
+    // assumed to fire on MariaDB. That test destroys nothing, so it now lives
+    // in `BackupGeneratedColumnReplayTest`, which runs on both. Nothing about
+    // the guard was SQLite-specific; only this file's `beforeEach` was.
+    //
+    // What genuinely is: these tests DROP EVERY TABLE, which is the whole
+    // point — a restore into a surviving schema proves nothing. On SQLite that
+    // is undone by the transaction `RefreshDatabase` rolls back. On MySQL, DDL implicitly
     // commits, so the drop is permanent: the database stays destroyed and every
     // test that runs afterwards fails with a missing table. Measured on
     // MariaDB 10.4.32 — these three failures took `WriteEndpointSmokeTest` down
@@ -265,34 +273,6 @@ it('never replays a generated column, so a dump stays restorable', function () {
 
     expect(DB::table('devices')->where('serial_number', 'SN-RESTORE-1')->value('serial_number_active'))
         ->toBe('SN-RESTORE-1');
-});
-
-it('refuses to write a backup whose INSERTs name a generated column', function () {
-    // The check the manifest cannot do. sha256 proves the file is the one that
-    // was written; it says nothing about whether the file can be put back, and
-    // that gap is precisely what shipped in §15f — written without complaint,
-    // hashing correctly, rejected only at restore time.
-    //
-    // Proven the only way a guard can be: against a dump produced the way the
-    // pre-fix dumper produced them. `PreFixDumper` below is `writeRows()` as it
-    // stood before 2026-09-23 — `SELECT *`, then an INSERT naming every column
-    // it got back — so this fails against the old code and passes against the
-    // new one, rather than passing against both.
-    generatedColumnFixture();
-
-    app()->bind(DatabaseDumper::class, fn () => new PreFixDumper);
-
-    $root = app(BackupService::class)->backupRoot();
-    $before = File::isDirectory($root) ? count(File::directories($root)) : 0;
-
-    expect(fn () => app(BackupService::class)->create('pre-fix'))
-        ->toThrow(RuntimeException::class, 'cannot be restored');
-
-    // And it left nothing behind that could be mistaken for a backup: the
-    // directory carries no manifest, so `prune()` would never list it.
-    $after = File::isDirectory($root) ? count(File::directories($root)) : 0;
-
-    expect($after)->toBe($before);
 });
 
 it('brings the audit_log triggers back, so the log is still append-only', function () {
