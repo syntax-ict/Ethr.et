@@ -1093,6 +1093,10 @@ not** — they are safe because of something elsewhere: a gate, a dispatcher, a 
 backfill, an unenforced uniqueness assumption. `TenantScopeBypassInventoryTest` counts all
 156 identically and audits none of them.
 
+*[Re-measured 2026-09-23 after §11e–§11h: **108 of 157 and 49** — see §11i, which also
+records the five sites that gained a predicate and still do not count. The figures above
+are left as the 2026-09-22 reading they were.]*
+
 ---
 
 ### 11e. Enforcing three of the five — **2026-09-23**
@@ -1209,7 +1213,7 @@ route, and a tenant-scoped index would not have closed the site at all.]*
 
 #### What this pass does not claim
 
-It does not audit the 50 sites §11d found that do not prove their own safety; it enforces
+It does not audit the 50 sites §11d found that do not prove their own safety (49 since §11i); it enforces
 three specific invariants that §11d found unenforced. The count in
 `tests/Feature/Security/tenant-scope-bypasses.php` is unchanged at **156 across 54 files** —
 verified with the tokeniser after the change — because no bypass was added or removed.
@@ -1598,6 +1602,91 @@ but was never executed against MariaDB.
 With this, all five of §11d's "safe for reasons nothing enforces" sites are
 closed: §11e took three, §11f the `supervisor_id` rule and its six siblings,
 §11g the bare `::find()` sites, and §11h the device serial.
+
+---
+
+### 11i. Re-measuring §11d's shape after the five closures — **2026-09-23**
+
+§11d's headline — **106 of 156 sites prove their own safety, 50 do not** — was measured on
+2026-09-22, the day before §11e–§11h changed seven call sites and added an eighth. It is a
+dated measurement and it stays where it is; what it is no longer is a description of the
+code. §12b of this file is a catalogue of figures that drifted into fiction by being
+correct once, so this section re-runs it rather than leaving the reader to.
+
+Same test as §11d: a `where`-family predicate on `tenant_id` **in the same statement** as
+the bypass, over the **157** sites `tenant-scope-bypasses.php` now pins.
+
+| Class | §11d (156) | now (157) |
+|---|---|---|
+| **SAFE** — same-statement predicate on `tenant_id` | 106 | **108** |
+| **SAFE-BY-DESIGN** — target is a global model (`Tenant`), no scope to drop | 11 | 11 |
+| **SAFE-BY-DESIGN** — no same-statement predicate, justified individually | 39 | **38** |
+| **UNSAFE** | 0 | **0** |
+
+**The headline is now 108 of 157 prove their own safety; 49 do not.**
+
+#### What moved
+
+Two sites moved into SAFE, both by a code change rather than by a re-reading:
+
+- **`OrganizationProvisioner::query()`** (§11e). It was §11d's *builder helper* entry — an
+  unscoped builder whose safety lived in the two callers that added the predicate a line
+  later. The predicate is now on the same chain as the `withoutGlobalScope`, so the query
+  states it.
+- **`WorkforceMigrationService::mergeTarget()`** (§11g).
+  `->withoutGlobalScope('tenant')->where('tenant_id', $tenantId)->find(...)`, one statement.
+  It was inside §11d's *derived from a tenant-owned key* row, which drops 15 → 14 before
+  the paragraph below takes five more out of it.
+
+One site entered the justified-individually class, and it is the reason 39 falls by one
+rather than two:
+
+- **`ValidatesSerialUniqueness`** (§11h) — cross-tenant on purpose, guarded by a **global**
+  unique index instead of a predicate. §11h states that trade in full; the classification
+  here just declines to launder it.
+
+#### What did not move, and why that is the finding
+
+**Five sites gained a `tenant_id` predicate in §11g and still do not count.** They are
+`DispatchWebhookJob::handle()` and `::failed()`, `NotifyAnnouncementAudienceJob::handle()`,
+and `ProcessPayrollJob::handle()` and `::failed()`. Each has this shape:
+
+```php
+$query = PayrollRun::withoutGlobalScopes();
+
+if ($this->tenantId !== null) {
+    $query->where('tenant_id', $this->tenantId);
+}
+
+$run = $query->find($this->payrollRunId);
+```
+
+The predicate is in a **separate, conditional statement**, so §11d's test does not see it —
+and the test is right not to. A predicate guarded by `!== null` on a nullable payload field
+is not stated by the query; it is stated by the dispatcher, which is the dependency §11g
+opened in order to remove. The null branch exists for a good reason and §11g records it:
+PHP restores a queued job through `unserialize()` without running the constructor, so a
+required property would make every job already on the queue at deploy time fail
+permanently. It is transitional by design.
+
+That makes the closing figure **113 of 157**, not 108, and it is one commit behind a queue
+drain: make `$tenantId` required on the five, delete the five `if` blocks, and the
+predicate is on the chain. No other class in the 49 is a deletion away — by §11d's own
+table the rest are platform-admin gates, pre-authentication secrets, global models and
+scheduler sweeps, where a `tenant_id` predicate is either impossible or contrary to the
+feature.
+
+Until then the five are better than they were — the tenant is in the payload, one dispatch
+site each, and `QueuedJobTenantPredicateTest` fails if any of them stops scoping — without
+being self-proving, which is the exact distinction §11d exists to draw. **Having a
+predicate is necessary, not sufficient; having one conditionally is neither.**
+
+#### What this pass does not claim
+
+It does not re-audit the 49. §11d read them individually on 2026-09-22 and that reading is
+unchanged for every site this session did not touch. This is arithmetic over a known delta
+— four merged pull requests, read against the same test — not a third pass. **No code
+changed here.**
 
 ---
 
