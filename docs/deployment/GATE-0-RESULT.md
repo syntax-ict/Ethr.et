@@ -434,9 +434,45 @@ reason the conclusion survives.*
 | **B-5** | No route to get a schema into the database | Both paths need something this account does not offer: the existing-data path runs `mysql < dump.sql` **on the shared host**, and the fresh path is B-4. Distinct from B-4 because the remedy differs — B-4 needs something that runs `artisan`; B-5 needs that **or** a database import UI, which is the still-open half of manual queue #1. |
 | **B-6** | The DNS cutover already happened and the rollback target may not serve | Not a gate — a safety property that stopped holding. `ROLLBACK_RUNBOOK.md` Scenario A calls "before DNS cutover" *the current state*; `ethr.et` resolves to `213.55.96.154` (the Plesk host), measured twice on 2026-09-17. Whether the VPS still serves, and whether it still holds tenant data and its `APP_KEY`, is unanswered. |
 
+| **B-7** | **Hosting Settings → *Save* hangs.** Owner report, 2026-09-23: the button sits in its loading state and the form never completes | **Not a gate, and it blocks nothing currently queued** — no step in this migration needs a Hosting Settings save. Recorded because of what the form carries and what people try to do with it. See below. |
+
 *B-5 and B-6 were added to this table on 2026-09-19. They were recorded in
 `MIGRATION_STATE.md` on 2026-09-17/18 and this register — the one that governs — still
-listed four. `MIGRATION_CHANGELOG.md` has said "six blockers" since.*
+listed four. `MIGRATION_CHANGELOG.md` has said "six blockers" since.* **B-7 was added
+2026-09-23.**
+
+#### B-7 — what is known, and the two traps around it
+
+**Status: ASSUMED, owner report.** The hang is testimony, not output. **Nobody has read the
+failing request**: no HTTP status, no response body, no log line, no DevTools capture. Until
+one exists, the cause is unknown — a Plesk-side operation still running, a gateway timeout,
+a 500, and client-side validation all present identically as a spinning button. The one
+conclusive read is the browser's own Network tab while reproducing the save once; it needs
+no panel privileges and no shell.
+
+**Trap 1 — the *Document root* field reads `/`, and that is correct. Do not change it.**
+This register already confirms the document root is `httpdocs` (see *Document root —
+CONFIRMED `httpdocs`* above): Plesk displays the path relative to the webspace root, and the
+live certificate's `.well-known/acme-challenge/` sits inside `httpdocs/`, which only works if
+that is the document root. A save that ever completes writes whatever the form holds, so
+"correcting" `/` would move the document root to the home directory — exposing
+`~/ethr/api/.env` over HTTP and breaking certificate renewal. That is the exact failure this
+register recorded as **ruled out**, and it would be reintroduced by hand.
+
+**Trap 2 — saving this form cannot grant SSH.** `SSH access: Forbidden` is a service-plan
+restriction (**B-1**), not a per-domain toggle. Repeated saves will not move it; only Ethio
+Telecom can. If the save attempts were made to enable shell access, they were never going to
+succeed whatever the hang turns out to be.
+
+**And one piece of advice that will waste a reader's time:** diagnosing this via *Tools &
+Settings → Server Management → Logs* is not possible here. That is the **server
+administrator** panel; this is a subscription. The dashboard offers *Logs* under **Dev
+Tools**, at domain level, and nothing above it.
+
+**It does not block the canary.** The dashboard carries **Files** (File Manager) and **FTP**
+under *Files & Databases*, and either is a complete upload route for
+`httpdocs/ethr-canary/`. G0-B.1–B.5 remain runnable today without SSH, without cron and
+without this form.
 
 **B-1 and B-4 are one support request**, and it reframes G0-D. Without a shell, Scheduled
 Tasks is no longer just how the scheduler runs — **it is the only way to migrate the
