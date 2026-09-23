@@ -235,7 +235,16 @@ final class WorkforceMigrationService
     private function mergeTarget(MigrationStagingRow $row, int $tenantId, IdentitySignals $signals): ?Employee
     {
         if ($row->resolved_employee_id !== null) {
-            return Employee::withoutGlobalScope('tenant')->find($row->resolved_employee_id);
+            // States `tenant_id` rather than trusting the staging column alone.
+            // `resolved_employee_id` is written during staging and can be stale
+            // by the time a merge runs; the scope is dropped because a merge can
+            // run from a queued context with no resolved tenant. The `$tenantId`
+            // argument is the same one the `resolve()` branch below already
+            // scopes by, so the two halves of this method now agree — they did
+            // not before, which is the shape BASELINE.md §11g was opened on.
+            return Employee::withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->find($row->resolved_employee_id);
         }
 
         return $this->resolver->resolve($tenantId, $signals)->employee;

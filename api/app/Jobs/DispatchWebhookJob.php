@@ -29,16 +29,36 @@ class DispatchWebhookJob implements ShouldQueue
         return [60, 300, 1800, 7200, 86400];
     }
 
+    /**
+     * `$tenantId` is nullable and trailing so that jobs already on the queue
+     * when this deployed still unserialize — an absent property takes the
+     * declared default rather than staying uninitialized. Every dispatch since
+     * supplies it. Once a drain has passed, it can be tightened to a required
+     * `int` and the null branch in `handle()` deleted.
+     */
     public function __construct(
         private readonly int $webhookId,
         private readonly string $event,
         private readonly array $payload,
         private readonly int $deliveryId,
+        private ?int $tenantId = null,
     ) {}
 
     public function handle(): void
     {
-        $webhook = Webhook::withoutGlobalScopes()->find($this->webhookId);
+        // States `tenant_id` itself rather than resting on the dispatcher alone.
+        // The id arrives in a queue payload; if it were ever wrong — a bug, a
+        // replay, a hand-requeued job — an unscoped `find()` would hand back
+        // another tenant's webhook and this job would sign and POST their data
+        // to it. With the predicate the mismatch yields null and the guard
+        // below returns.
+        $query = Webhook::withoutGlobalScopes();
+
+        if ($this->tenantId !== null) {
+            $query->where('tenant_id', $this->tenantId);
+        }
+
+        $webhook = $query->find($this->webhookId);
 
         // Scoped by hand for the same reason the line above is: a queue worker
         // resolves no tenant, so `BelongsToTenant` would apply `0 = 1` and this
@@ -165,9 +185,20 @@ class DispatchWebhookJob implements ShouldQueue
         // `0 = 1` and the permanent-failure record is never written to the row
         // the tenant actually reads in the deliveries dialog. The log line fired
         // and the delivery kept whatever transient state it had.
-        $delivery = WebhookDelivery::withoutGlobalScopes()
-            ->where('webhook_id', $this->webhookId)
-            ->find($this->deliveryId);
+        // Now states `tenant_id` too, when the payload carries it. Root
+        // CLAUDE.md recorded the asymmetry this removes: handle() stated
+        // tenant_id while failed() derived from webhook_id alone. Both held —
+        // webhook_id is itself tenant-owned — but two halves of one class
+        // disagreeing about how much to state is the shape a later defect
+        // takes, and the id is in hand now.
+        $deliveryQuery = WebhookDelivery::withoutGlobalScopes()
+            ->where('webhook_id', $this->webhookId);
+
+        if ($this->tenantId !== null) {
+            $deliveryQuery->where('tenant_id', $this->tenantId);
+        }
+
+        $delivery = $deliveryQuery->find($this->deliveryId);
 
         if ($delivery && ! $delivery->delivered_at) {
             $delivery->update([

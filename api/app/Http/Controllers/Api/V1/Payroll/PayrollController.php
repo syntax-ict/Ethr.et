@@ -70,7 +70,7 @@ class PayrollController extends Controller
             // job: they announce a *completed* run, and at this point nothing
             // has been computed. Firing them here would have told every
             // subscriber payroll was done before a single entry existed.
-            ProcessPayrollJob::dispatch($run->id);
+            ProcessPayrollJob::dispatch($run->id, $run->tenant_id);
         }
 
         // Re-read: under QUEUE_CONNECTION=sync the job has already run to

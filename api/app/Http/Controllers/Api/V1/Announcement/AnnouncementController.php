@@ -61,7 +61,7 @@ class AnnouncementController extends Controller
 
         // Publishing is what makes an announcement visible; a draft scheduled for
         // later is notified when the job runs against a published_at in the past.
-        NotifyAnnouncementAudienceJob::dispatch($announcement->id)->onQueue('notifications');
+        NotifyAnnouncementAudienceJob::dispatch($announcement->id, $announcement->tenant_id)->onQueue('notifications');
 
         return (new AnnouncementResource($announcement))
             ->response()

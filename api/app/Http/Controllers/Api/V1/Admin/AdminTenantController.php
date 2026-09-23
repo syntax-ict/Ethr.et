@@ -362,6 +362,13 @@ class AdminTenantController extends Controller
             return null;
         }
 
+        // Deliberately NOT tenant-scoped, and scoping it would break exiting an
+        // impersonation. During impersonation the resolved tenant is the
+        // *impersonated* one, while the actor being recovered is a super admin
+        // belonging to another tenant or none — so any predicate here finds
+        // nobody and the session can never be restored. The authority is the
+        // `isSuperAdmin()` re-check below, not the lookup. Reviewed under
+        // BASELINE.md §11g.
         $impersonator = User::withoutGlobalScopes()->find($actorId);
 
         return $impersonator?->isSuperAdmin() ? $impersonator : null;

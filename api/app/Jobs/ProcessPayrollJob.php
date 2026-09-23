@@ -64,14 +64,33 @@ class ProcessPayrollJob implements ShouldQueue
      */
     public int $timeout = 900;
 
-    public function __construct(public readonly int $payrollRunId) {}
+    /**
+     * `$tenantId` is nullable and trailing so runs already queued when this
+     * deployed still unserialize — an absent property takes the declared
+     * default instead of staying uninitialized. Every dispatch since supplies
+     * it, and it can be tightened to a required `int` once a drain has passed.
+     */
+    public function __construct(
+        public readonly int $payrollRunId,
+        public ?int $tenantId = null,
+    ) {}
 
     public function handle(PayrollEngine $engine): void
     {
         // Jobs carry no HTTP tenant context, so the global scope would resolve
-        // to `whereRaw('0 = 1')` and find nothing. Scoped explicitly below by
-        // the run's own tenant_id rather than trusted to ambient state.
-        $run = PayrollRun::withoutGlobalScopes()->find($this->payrollRunId);
+        // to `whereRaw('0 = 1')` and find nothing. The predicate now comes from
+        // the dispatcher rather than from the row this query is fetching: the
+        // old comment said "scoped by the run's own tenant_id", but a predicate
+        // read off the row you just fetched proves nothing about which row you
+        // were entitled to fetch. This job computes and writes payroll, so the
+        // wrong run is the most expensive mistake in the codebase.
+        $query = PayrollRun::withoutGlobalScopes();
+
+        if ($this->tenantId !== null) {
+            $query->where('tenant_id', $this->tenantId);
+        }
+
+        $run = $query->find($this->payrollRunId);
 
         if ($run === null) {
             Log::warning('ProcessPayrollJob: run no longer exists', ['id' => $this->payrollRunId]);
@@ -117,7 +136,18 @@ class ProcessPayrollJob implements ShouldQueue
      */
     public function failed(Throwable $e): void
     {
-        $run = PayrollRun::withoutGlobalScopes()->find($this->payrollRunId);
+        // Same predicate as handle(), deliberately: the two halves of a job
+        // that disagree about how much to state is the shape root CLAUDE.md
+        // records for DispatchWebhookJob. This one marks a run `failed`, so
+        // picking the wrong row would write a wrong status into another
+        // tenant's payroll.
+        $query = PayrollRun::withoutGlobalScopes();
+
+        if ($this->tenantId !== null) {
+            $query->where('tenant_id', $this->tenantId);
+        }
+
+        $run = $query->find($this->payrollRunId);
 
         if ($run === null || $run->status !== 'processing') {
             return;

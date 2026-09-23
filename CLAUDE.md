@@ -106,9 +106,14 @@ returns **422** instead of 201-with-a-silent-null. Four constraints, each load-b
   generates `src/src/api/generated.ts` from `rules()`, and `ChangePlanRequest` already
   records that the `Rule::exists(...)` builder is untested against that gate. `rules()` is
   byte-identical to before, so the contract cannot drift.
-- **Never put an explanatory comment above a key in `rules()`.** Scramble publishes those
-  as OpenAPI `description`s — see `create_login` at `generated.ts:6904`, whose PHP comment
-  is in the client contract verbatim.
+- **Never put an explanatory comment above a key in any array Scramble reads.** It
+  publishes them as OpenAPI `description`s — see `create_login` at `generated.ts:6904`,
+  whose PHP comment is in the client contract verbatim. *(Widened 2026-09-23: this said
+  "in `rules()`", and that reading cost a red API-contract gate on PR #62 — a comment above
+  a key in a controller's `response()->json([...])` array was lifted into `generated.ts`
+  just the same. It is **any** array literal the spec is derived from: FormRequest rules
+  and controller response arrays alike. Put the explanation on a statement instead, or in
+  `BASELINE.md`.)*
 - The hook re-runs `resolveRelationIds()`'s own scoped lookup rather than restating
   `tenant_id`, so validation and resolution cannot disagree. The field/model map lives once,
   in `App\Support\EmployeeRelations::MAP`, read by both — an eighth field added to one and
@@ -121,10 +126,35 @@ returns **422** instead of 201-with-a-silent-null. Four constraints, each load-b
 soft-delete dataset. And `@mixin FormRequest` must use the imported name — the
 leading-slash FQN fails Pint's `fully_qualified_strict_types`, which cost a red gate.
 
-**Two remain open, and both are the owner's call**: stating `tenant_id` at the fifteen bare
-`::find()` sites would turn any *intentional* cross-tenant read among them into a null, and
-a unique index on `devices.serial_number` would reject existing duplicate rows at migration
-time, which needs a production data audit first.
+**The fifth was closed on 2026-09-23 (§11g), and the count in §11d was wrong.** There are
+**nine** bare `::find()` sites, not fifteen — the fifteen is the size of the
+"derived from a tenant-owned key" row in §11d's class table, which also counts sites
+stating `webhook_id` or `payroll_run_id`. The prose conflated a class with its subset, the
+same trap this file records for 156/161 one scale down. Of the nine:
+
+- **Five now state `tenant_id`.** `WorkforceMigrationService::mergeTarget()` already had
+  `$tenantId` in hand — its other branch scoped by it, so the two halves disagreed. The
+  four queued-job lookups (`DispatchWebhookJob`, `NotifyAnnouncementAudienceJob`,
+  `ProcessPayrollJob` ×2) had **no tenant id in scope at all**: each is the root lookup of
+  a job whose payload carried only a row id, so the tenant was derived *from the row being
+  fetched*, which proves nothing about which row you were entitled to fetch. The tenant is
+  now carried in the payload; each job has exactly one dispatch site.
+- **Two are impossible.** `Tenant` is on the Global Model List — no `BelongsToTenant`, no
+  `tenant_id` column, so there is no scope to re-apply.
+- **Two would be regressions, and now say so in a comment.** `BackupTenantJob`'s requester
+  is a platform admin whose `tenant_id` is null, so scoping would silently drop every
+  backup notification; `AdminTenantController::resolveImpersonator()` recovers the super
+  admin behind an impersonation, which is necessarily cross-tenant and is authorised by the
+  `isSuperAdmin()` re-check, not the lookup.
+
+**`$tenantId` on those jobs is nullable with a default, deliberately.** PHP restores a job
+from `unserialize()` without running the constructor, so a required `readonly int` would
+make every job already queued at deploy time fail permanently. The null branch is
+transitional: once a drain has passed, it can be made required and the branches deleted.
+
+**One remains open, and it is the owner's call**: a unique index on
+`devices.serial_number` would reject existing duplicate rows at migration time, which needs
+a production data audit first.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
