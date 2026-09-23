@@ -728,6 +728,12 @@ cache lock that returns **409** rather than starting a second worker.
 Four callers. **Cadence and pricing claims below are ASSUMED — this repository holds no
 measurement of any of them, and none was invented.**
 
+> **This section is the choice. The procedure is
+> [`shared-hosting/cron-caller.md`](shared-hosting/cron-caller.md)** — generating the token,
+> where it lives, verifying the first tick, what each response code means, and rotation.
+> Everything there is caller-independent except the one table that restates this choice, so
+> it can be read before **Q6** is answered and followed after.
+
 | Caller | Cadence | Token lives | For | Against |
 |---|---|---|---|---|
 | **GitHub Actions `schedule:`** | 5 min documented minimum; delivery best-effort, commonly late, runs droppable under load *(ASSUMED, from GitHub's published behaviour)* | an Actions secret, in the account that already holds the repository | No new vendor, no new bill, every run logged and attributable | Private-repo minutes are billed; runner egress is GitHub's shared ranges; and "late or skipped" quietly redefines every `dailyAt` in `routes/console.php` |
@@ -778,6 +784,12 @@ Two consequences worth naming rather than discovering:
    else on this account can run `artisan` even once.
 2. **If they do work, PHP CLI exists on this account**, which is one of the things ask 2 was
    asking. Proving it costs one deploy with `php -v` in the field.
+
+**That proof is now step 6a of §5.5** *(added 2026-09-23)*. It was named here and taken
+nowhere: the path went *deliver code → install dependencies → the full one-off install*,
+so consequence 1 — **Plan B ends here** — would have been discovered while running
+`key:generate`, `migrate`, `db:seed`, `ethr:create-admin` and `storage:link` together,
+rather than by a deploy that does nothing but print a version string.
 
 #### 5.3c Measurement — both instruments already run without a concession
 
@@ -870,11 +882,12 @@ Every step names the mechanism and whether anyone has ever done it here.
 | 4 | **Build the static export** | §3A option A, ≈8 days | Not started; **2.0** days conditional on step 1, and the whole estimate void if step 1 returns B.1 FAIL |
 | 5 | **Deliver code** | Plesk Git, deployment path `/ethr/` **set before the first deploy** | Never configured |
 | 6 | **Install dependencies** | Plesk Composer | Never run |
-| 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`, `storage:link` | Never run. **Single point of failure** (§5.3b) |
+| **6a** | **Smoke-test the deployment-actions field before trusting it** — put `php -v` in it, deploy, read the output | Plesk Git *additional deployment actions* | **Never run.** Costs one deploy and prints a version string. It is the cheapest possible test of §5.3b's single point of failure, and it is worth taking **before** step 7 rather than during it: if the field does not execute, Plan B ends, and that is better learned from a one-line deploy than from a half-completed `migrate` |
+| 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`, `storage:link` | Never run. **Single point of failure** (§5.3b), and step 6a is what de-risks it |
 | 8 | **Assemble the document root** | `index.php` + `.htaccess` + exported `out/` | Written, never applied |
 | 9 | **Configure the environment** | Plesk env vars from `api/.env.shared-hosting.example` — **not** `.env.production.example`, which selects redis/minio/reverb | Template exists |
 | 10 | **Set `CRON_TOKEN`** | ≥32 chars, Plesk env | — |
-| 11 | **Point an external caller at both cron endpoints** | §5.3a | Endpoints built; no caller configured |
+| 11 | **Point an external caller at both cron endpoints** | §5.3a for the choice; [`shared-hosting/cron-caller.md`](shared-hosting/cron-caller.md) for the procedure | Endpoints built; **no caller configured, and no request has ever been made to either endpoint from anywhere** |
 | 12 | **Lower backup retention** | `--keep`, per §5.4 | Not done |
 | 13 | **Certificates** | Per-hostname Let's Encrypt for `ethr.et`, `www`, `app` | Proven for named hosts |
 | 14 | **Verify** | `deploy-checklist.md`, `/api/v1/health`, `ethr:queue:check` | — |
