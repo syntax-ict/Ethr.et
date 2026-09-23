@@ -212,7 +212,7 @@ test('publishing an announcement notifies the audience', function () {
         'published_at' => now(),
     ]);
 
-    (new NotifyAnnouncementAudienceJob($announcement->id))->handle(app(CurrentTenant::class));
+    (new NotifyAnnouncementAudienceJob($announcement->id, $tenant->id))->handle(app(CurrentTenant::class));
 
     Notification::assertSentTo($reader, AnnouncementNotification::class);
 });
@@ -230,7 +230,7 @@ test('an announcement scheduled for the future notifies nobody yet', function ()
         'published_at' => now()->addWeek(),
     ]);
 
-    (new NotifyAnnouncementAudienceJob($announcement->id))->handle(app(CurrentTenant::class));
+    (new NotifyAnnouncementAudienceJob($announcement->id, $tenant->id))->handle(app(CurrentTenant::class));
 
     Notification::assertNothingSent();
 });
@@ -250,7 +250,7 @@ test('an announcement does not reach another tenant', function () {
         'published_at' => now(),
     ]);
 
-    (new NotifyAnnouncementAudienceJob($announcement->id))->handle(app(CurrentTenant::class));
+    (new NotifyAnnouncementAudienceJob($announcement->id, $tenant->id))->handle(app(CurrentTenant::class));
 
     Notification::assertNotSentTo($outsider, AnnouncementNotification::class);
 });

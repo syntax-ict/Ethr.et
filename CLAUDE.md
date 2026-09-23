@@ -57,9 +57,9 @@ columns with **no unique index**, a builder helper safe only because both its ca
 the predicate, fifteen `::find()` sites that state nothing, and a `supervisor_id` validation
 rule that does not scope. The shape it reports: **106 of 156 sites prove their own safety;
 50 do not** — they are safe because of a gate, a dispatcher, a caller or a backfill
-somewhere else. *(That pair is the 2026-09-22 reading. It is **108 of 157; 49** after the
-closures below — re-measured in §11i, and the paragraph at the end of this section says
-what moved.)*
+somewhere else. *(That pair is the 2026-09-22 reading. It is **113 of 157; 44** after the
+closures below — re-measured in §11i, closed in §11j, and the paragraphs at the end of
+this section say what moved.)*
 
 **The five sites added since that audit were read individually on 2026-09-18**, because the
 pin having moved from 156/53 to 161/55 means five bypasses entered *after* the only pass
@@ -150,10 +150,14 @@ same trap this file records for 156/161 one scale down. Of the nine:
   admin behind an impersonation, which is necessarily cross-tenant and is authorised by the
   `isSuperAdmin()` re-check, not the lookup.
 
-**`$tenantId` on those jobs is nullable with a default, deliberately.** PHP restores a job
-from `unserialize()` without running the constructor, so a required `readonly int` would
-make every job already queued at deploy time fail permanently. The null branch is
-transitional: once a drain has passed, it can be made required and the branches deleted.
+**`$tenantId` on those jobs was nullable with a default, deliberately — and is now
+required.** PHP restores a job from `unserialize()` without running the constructor, so a
+required `readonly int` makes every job *already queued* at deploy time fail permanently.
+That was why §11g hedged; §11j (2026-09-23) took the hedge out, which is why **a queue
+drain is now a deploy precondition** — `docs/DEPLOYMENT.md` → *Draining the queue before
+an upgrade*, which also names the one thing a drain does not clear:
+`DispatchWebhookJob` backs off to **24 hours**, so a delivery already deep in retry
+survives it.
 
 **The last was closed on 2026-09-23 (§11h), and all five of §11d's fragile sites are now
 enforced.** Live devices carry a unique `(serial_number, adapter_type)` index. Three things
@@ -184,15 +188,20 @@ self-proving class — `OrganizationProvisioner::query()` and
 `WorkforceMigrationService::mergeTarget()` — and `ValidatesSerialUniqueness` entered the
 other one, which is why 50 fell by one and not two.
 
-**Five sites gained a `tenant_id` predicate and still do not count, which is the part worth
-carrying.** The queued jobs write it as `if ($this->tenantId !== null) { $query->where(...) }`
-— a separate, conditional statement — because `$tenantId` is nullable for the deploy-drain
-reason above. A predicate conditional on a nullable payload field is stated by the
-dispatcher, not by the query, and §11g existed to stop relying on the dispatcher. Deleting
-those five `if` blocks once a drain has passed takes the figure to **113 of 157**; no
-other class in the 49 is a deletion away, because the rest are gates, secrets, global
-models and sweeps where a predicate is impossible or contrary to the feature. Having a
-predicate is necessary, not sufficient; having one conditionally is neither.
+**Closed the same day** (§11j): `$tenantId` is a required `readonly int` on all three jobs,
+the five `if` blocks are deleted, and each lookup states the predicate on its own chain.
+**The figure is now 113 of 157 prove their own safety, 44 do not** — the ceiling §11i named
+as reachable by deletion. The remaining 44 are gates, pre-authentication secrets, global
+models and sweeps, where a predicate is impossible or contrary to the feature; closing any
+of those would be a behaviour change, not a tightened signature.
+
+**The lesson to carry is the one that made those five count for nothing in between.** They
+had the tenant id in the payload and wrote `if ($this->tenantId !== null) { $query->where(...) }`
+— a separate, conditional statement. A predicate conditional on a nullable payload field is
+stated by the *dispatcher*, not by the query, which is the dependency §11g existed to
+remove. **Having a predicate is necessary, not sufficient; having one conditionally is
+neither.** `QueuedJobTenantPredicateTest` now reflects over all three constructors and
+fails if the argument goes back to optional *or* to `?int`.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 

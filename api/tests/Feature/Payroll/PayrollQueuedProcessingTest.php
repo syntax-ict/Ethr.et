@@ -74,7 +74,7 @@ it('computes the entries when the job runs', function () {
     expect(PayrollEntry::where('payroll_run_id', $run->id)->count())->toBe(0);
 
     // Run the job the way the worker would.
-    (new ProcessPayrollJob($run->id))->handle(app(PayrollEngine::class));
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->handle(app(PayrollEngine::class));
 
     $run->refresh();
 
@@ -119,13 +119,13 @@ it('refuses to recompute a run that is no longer processing', function () {
     $run = PayrollRun::where('tenant_id', $tenant->id)->firstOrFail();
 
     $engine = app(PayrollEngine::class);
-    (new ProcessPayrollJob($run->id))->handle($engine);
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->handle($engine);
     $countAfterFirst = PayrollEntry::where('payroll_run_id', $run->id)->count();
 
     // A worker that picks the same job up twice — because retry_after elapsed,
     // or because someone re-queued it by hand — must not append a second set of
     // entries. $tries = 1 makes this unlikely; the status guard makes it safe.
-    (new ProcessPayrollJob($run->id))->handle($engine);
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->handle($engine);
 
     expect(PayrollEntry::where('payroll_run_id', $run->id)->count())->toBe($countAfterFirst);
 });
@@ -140,7 +140,7 @@ it('marks the run failed so it cannot sit at processing forever', function () {
 
     expect($run->status)->toBe('processing');
 
-    (new ProcessPayrollJob($run->id))->failed(new RuntimeException('database went away'));
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->failed(new RuntimeException('database went away'));
 
     $run->refresh();
 
@@ -159,10 +159,10 @@ it('leaves a finished run alone when failed() fires late', function () {
     test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/process", payrollPayload('late-fail'));
     $run = PayrollRun::where('tenant_id', $tenant->id)->firstOrFail();
 
-    (new ProcessPayrollJob($run->id))->handle(app(PayrollEngine::class));
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->handle(app(PayrollEngine::class));
     expect($run->refresh()->status)->toBe('completed');
 
-    (new ProcessPayrollJob($run->id))->failed(new RuntimeException('a stale worker reporting in'));
+    (new ProcessPayrollJob($run->id, $run->tenant_id))->failed(new RuntimeException('a stale worker reporting in'));
 
     // A completed run must not be flipped to failed by a late signal from a
     // worker that already lost its lease.

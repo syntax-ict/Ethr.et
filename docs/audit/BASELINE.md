@@ -1093,8 +1093,8 @@ not** — they are safe because of something elsewhere: a gate, a dispatcher, a 
 backfill, an unenforced uniqueness assumption. `TenantScopeBypassInventoryTest` counts all
 156 identically and audits none of them.
 
-*[Re-measured 2026-09-23 after §11e–§11h: **108 of 157 and 49** — see §11i, which also
-records the five sites that gained a predicate and still do not count. The figures above
+*[Re-measured 2026-09-23 after §11e–§11h: **108 of 157 and 49** (§11i), then **113 and
+44** once the five conditional predicates became unconditional (§11j). The figures above
 are left as the 2026-09-22 reading they were.]*
 
 ---
@@ -1213,7 +1213,7 @@ route, and a tenant-scoped index would not have closed the site at all.]*
 
 #### What this pass does not claim
 
-It does not audit the 50 sites §11d found that do not prove their own safety (49 since §11i); it enforces
+It does not audit the 50 sites §11d found that do not prove their own safety (44 since §11j); it enforces
 three specific invariants that §11d found unenforced. The count in
 `tests/Feature/Security/tenant-scope-bypasses.php` is unchanged at **156 across 54 files** —
 verified with the tokeniser after the change — because no bypass was added or removed.
@@ -1457,6 +1457,12 @@ since this change supplies the id, so once a queue drain has passed the deployme
 argument can be made a required `int` and the null branches deleted. Both halves are
 tested — the rejection and the compatibility contract.
 
+*[Superseded 2026-09-23 — §11j. The drain has passed: `$tenantId` is a required
+`readonly int` on all three jobs, the null branches are deleted, and the compatibility
+test with them. The deploy precondition this paragraph describes is now written out in
+`docs/DEPLOYMENT.md` → *Draining the queue before an upgrade*, including the 24-hour
+`DispatchWebhookJob` backoff that a drain alone does not clear.]*
+
 #### The Scramble comment trap is wider than §11f recorded it
 
 §11f drew the rule as *"never put an explanatory comment above a key in `rules()`"*. That
@@ -1671,7 +1677,7 @@ permanently. It is transitional by design.
 
 That makes the closing figure **113 of 157**, not 108, and it is one commit behind a queue
 drain: make `$tenantId` required on the five, delete the five `if` blocks, and the
-predicate is on the chain. No other class in the 49 is a deletion away — by §11d's own
+predicate is on the chain. *[Done the same day — §11j. The figure is now **113 of 157**.]* No other class in the 49 is a deletion away — by §11d's own
 table the rest are platform-admin gates, pre-authentication secrets, global models and
 scheduler sweeps, where a `tenant_id` predicate is either impossible or contrary to the
 feature.
@@ -1687,6 +1693,90 @@ It does not re-audit the 49. §11d read them individually on 2026-09-22 and that
 unchanged for every site this session did not touch. This is arithmetic over a known delta
 — four merged pull requests, read against the same test — not a third pass. **No code
 changed here.**
+
+---
+
+### 11j. The drain deletions — the last five sites close — **2026-09-23**
+
+§11i left one item: five queued-job sites that carried a `tenant_id` predicate behind
+`if ($this->tenantId !== null)` and therefore did not satisfy §11d's test. This is that
+deletion.
+
+`$tenantId` is now a **required `readonly int`** on `ProcessPayrollJob`,
+`DispatchWebhookJob` and `NotifyAnnouncementAudienceJob`, the five `if` blocks are gone,
+and each lookup states the predicate on its own chain:
+
+```php
+$run = PayrollRun::withoutGlobalScopes()
+    ->where('tenant_id', $this->tenantId)
+    ->find($this->payrollRunId);
+```
+
+#### The measure
+
+| Class | §11d (156) | §11i (157) | now (157) |
+|---|---|---|---|
+| **SAFE** — same-statement predicate on `tenant_id` | 106 | 108 | **113** |
+| **SAFE-BY-DESIGN** — global model (`Tenant`) | 11 | 11 | 11 |
+| **SAFE-BY-DESIGN** — no same-statement predicate, justified individually | 39 | 38 | **33** |
+| **UNSAFE** | 0 | 0 | **0** |
+
+**113 of 157 prove their own safety; 44 do not.** That is the figure §11i named as the
+ceiling reachable by deletion, and it is reached. The remaining 44 are the classes §11d
+read individually — platform-admin gates, pre-authentication secrets, global models,
+billing sweeps, scheduler sweeps that set the tenant per row — where a `tenant_id`
+predicate is impossible or contrary to the feature. None of them is a deletion away, and
+closing any further would mean changing behaviour, not tightening a signature.
+
+#### What the deletion costs, and why it is not free
+
+§11g made the argument nullable for a real reason, restated because it is the whole risk
+here: **PHP restores a queued job from `unserialize()` without running the constructor.** A
+payload serialized before this deploy carries no `tenantId`. The property is typed with no
+default, so it stays *uninitialized* rather than taking null, and the first read throws
+`Error: Typed property … must not be accessed before initialization`.
+
+So this change **requires a queue drain before it deploys**, and that is now written where
+a deployer will meet it — `docs/DEPLOYMENT.md` → *Draining the queue before an upgrade* —
+rather than asserted in a commit message. The three job docblocks point at it by name.
+
+**A drain does not close the window completely, and the runbook says so.**
+`--stop-when-empty` stops when the queue has nothing *ready*; a delayed retry is not ready.
+`DispatchWebhookJob` backs off `[60, 300, 1800, 7200, 86400]`, so a delivery already four
+attempts in has its last attempt scheduled **24 hours out** and survives any drain run
+immediately before the deploy. The runbook gives three ways to handle that — a 24-hour
+quiet window, accepting a bounded loss, or flushing the delayed set — and names the trap in
+the second: `queue:retry` re-queues the *old* payload and fails identically, so recovery is
+a fresh dispatch from the deliveries dialog, not a retry.
+
+Worth being exact about the blast radius, because "fails permanently" reads worse than it
+is. The failure is an `Error` at the first property read, before any query runs: nothing is
+written, nothing is read across a tenant boundary, and the job lands in `failed_jobs` where
+it is visible. What is lost is the work, not the isolation. `ProcessPayrollJob`
+(`$tries = 1`) and `NotifyAnnouncementAudienceJob` (`$tries = 2`, no backoff) have no
+delayed-retry window worth planning around; the exposure is webhook deliveries alone.
+
+#### Tests
+
+`QueuedJobTenantPredicateTest`'s compatibility test —
+`omitting the tenant id keeps the old behaviour for jobs already queued` — is **deleted**,
+because the behaviour it pinned is the behaviour this section removes. Keeping it passing
+would have meant keeping the default.
+
+Two replace it, and they fail on different regressions:
+
+- `the tenant id is required on every job that scopes by it` reflects over all three
+  constructors and asserts the parameter is **not optional** and typed **non-nullable
+  `int`**. Optional is how the predicate became conditional in the first place; required
+  but `?int` is the same defect one step later, since a caller could pass null explicitly
+  and get the unscoped lookup back.
+- `a job that scopes by tenant cannot be constructed without one` asserts the
+  `ArgumentCountError`, which is what the signature actually buys.
+
+Every other construction site in the suite now passes a tenant id — six in
+`PayrollQueuedProcessingTest`, three in `NotificationDispatchTest`, two in
+`WebhookDeliveryTenantScopeTest`. The three production dispatch sites already did, since
+§11g; none of them changed.
 
 ---
 

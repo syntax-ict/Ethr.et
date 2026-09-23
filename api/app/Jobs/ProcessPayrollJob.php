@@ -65,14 +65,20 @@ class ProcessPayrollJob implements ShouldQueue
     public int $timeout = 900;
 
     /**
-     * `$tenantId` is nullable and trailing so runs already queued when this
-     * deployed still unserialize — an absent property takes the declared
-     * default instead of staying uninitialized. Every dispatch since supplies
-     * it, and it can be tightened to a required `int` once a drain has passed.
+     * `$tenantId` is required, as of the §11j drain.
+     *
+     * It was nullable with a default from §11g until 2026-09-23, so that jobs
+     * serialized before that deploy still unserialized — `unserialize()` does
+     * not run the constructor, and an absent property takes the declared
+     * default instead of staying uninitialized. That window is closed: the
+     * queue is drained before this deploys (`docs/DEPLOYMENT.md` → *Draining
+     * the queue before an upgrade*), so no payload without a tenant id can
+     * still be in flight, and a conditional predicate is not a predicate the
+     * query states.
      */
     public function __construct(
         public readonly int $payrollRunId,
-        public ?int $tenantId = null,
+        public readonly int $tenantId,
     ) {}
 
     public function handle(PayrollEngine $engine): void
@@ -84,13 +90,9 @@ class ProcessPayrollJob implements ShouldQueue
         // read off the row you just fetched proves nothing about which row you
         // were entitled to fetch. This job computes and writes payroll, so the
         // wrong run is the most expensive mistake in the codebase.
-        $query = PayrollRun::withoutGlobalScopes();
-
-        if ($this->tenantId !== null) {
-            $query->where('tenant_id', $this->tenantId);
-        }
-
-        $run = $query->find($this->payrollRunId);
+        $run = PayrollRun::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->find($this->payrollRunId);
 
         if ($run === null) {
             Log::warning('ProcessPayrollJob: run no longer exists', ['id' => $this->payrollRunId]);
@@ -141,13 +143,9 @@ class ProcessPayrollJob implements ShouldQueue
         // records for DispatchWebhookJob. This one marks a run `failed`, so
         // picking the wrong row would write a wrong status into another
         // tenant's payroll.
-        $query = PayrollRun::withoutGlobalScopes();
-
-        if ($this->tenantId !== null) {
-            $query->where('tenant_id', $this->tenantId);
-        }
-
-        $run = $query->find($this->payrollRunId);
+        $run = PayrollRun::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->find($this->payrollRunId);
 
         if ($run === null || $run->status !== 'processing') {
             return;
