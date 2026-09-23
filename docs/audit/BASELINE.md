@@ -751,6 +751,18 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 ### 13d. ~~Unindexable login lookups~~ **[verified 2026-09-15; FIXED 2026-09-23 — see §15e]**
 
 > **Fixed 2026-09-23.** The measurements and the reasoning below stand and are kept in full — including the conclusion *not* to fix it, which was correct for the two options it weighed. A third option closed it: generated columns carrying the same normalisation, indexed, identical on both drivers. §15e says what changed and what is still outstanding (the benchmark below has not been re-run).
+>
+> **The same wrappers elsewhere are a different question, and the answer is "leave them".**
+> `App\Services\Identity\IdentityResolver::fetchCandidates()` wraps `badge_number`,
+> `email` and `name` in `LOWER()`, and the obvious reading of this entry is that §15e's fix
+> applies there too. **It does not.** That query is one tenant-scoped `AND` over a six-way
+> `OR`, and a disjunction cannot use an index on any of those columns however they are
+> written — measured three ways (as it stood, with two terms moved to generated columns,
+> and with *every* term indexed) against a control with the `OR` removed, which is the only
+> variant that seeks. **Do not tidy those wrappers expecting a speed-up; there is none to
+> get.** The full reading is §15h. If the path ever needs to be fast the fix is structural
+> — one indexed equality per identifier, unioned in PHP — and that changes matching
+> behaviour.
 
 `api/app/Services/Auth/AuthIdentifierResolver.php:104-118` runs a 6-deep nested `REPLACE(REPLACE(...))` on `phone` inside `whereRaw`, and lines `:86`, `:136`, `:147` plus `LoginRequest.php:69` use `LOWER(email) = ?`. Neither expression can use an index; there is no `phone` index at all and no functional index on `email`.
 
