@@ -6,6 +6,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Traits\NeverDelete;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -25,8 +26,8 @@ use Illuminate\Support\Facades\DB;
  * records as a real possibility for a Plesk panel export.
  */
 
+// Exactly the rows docs/CLAUDE.md's soft-delete policy marks "Never delete".
 $neverDeletable = [
-    // Exactly the rows docs/CLAUDE.md's soft-delete policy marks "Never delete".
     'attendance records' => AttendanceRecord::class,
     'payroll entries' => PayrollEntry::class,
     'payroll runs' => PayrollRun::class,
@@ -38,10 +39,22 @@ test('every entity the soft-delete policy marks "Never delete" uses the trait', 
     // Removing the trait from one of these models fails here rather than in
     // production, which is the gap docs/CLAUDE.md records as "a convention, not
     // a control".
+    //
+    // Collected into a list rather than asserted per model, because Pest's
+    // toContain() is variadic over NEEDLES -- a second argument is another
+    // thing to search for, not a failure message. Passing one there is what
+    // made the first version of this test fail against models that do carry
+    // the trait. An empty-array assertion names the offenders on failure
+    // without needing a message at all.
+    $missing = [];
+
     foreach ($neverDeletable as $label => $model) {
-        expect(class_uses_recursive($model))
-            ->toContain(App\Traits\NeverDelete::class, "{$label} ({$model}) must use NeverDelete");
+        if (! in_array(NeverDelete::class, class_uses_recursive($model), true)) {
+            $missing[] = "{$label} ({$model})";
+        }
     }
+
+    expect($missing)->toBe([]);
 });
 
 test('delete() throws rather than deleting', function (string $model) {
@@ -55,7 +68,7 @@ test('forceDelete() throws too, so SoftDeletes cannot be used to get round it', 
 })->with(array_values($neverDeletable));
 
 test('the row is still there after a refused delete', function () {
-    $tenant = createTenant();
+    createTenant();
     $log = AuditLog::record('never-delete.probe');
 
     expect(fn () => $log->delete())->toThrow(LogicException::class);

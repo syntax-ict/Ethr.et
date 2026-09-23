@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Models\PayrollRun;
+use App\Models\User;
+use App\Traits\HasAuditLog;
 
 /*
  * The HasAuditLog trait -- which nothing calls.
@@ -62,8 +65,17 @@ test('an empty payload is stored as null, not as an empty array', function () {
 test('the trait is on the models whose changes the product claims to audit', function () {
     // Not the full list of 56 -- these are the ones whose audit trail the
     // product's own documentation treats as load-bearing.
-    foreach ([Employee::class, App\Models\PayrollRun::class, App\Models\User::class] as $model) {
-        expect(class_uses_recursive($model))
-            ->toContain(App\Traits\HasAuditLog::class, "{$model} must use HasAuditLog");
+    //
+    // Collected rather than asserted per model: Pest's toContain() is variadic
+    // over needles, so a second argument is another needle and not a failure
+    // message. See the same note in Security/NeverDeleteTest.
+    $missing = [];
+
+    foreach ([Employee::class, PayrollRun::class, User::class] as $model) {
+        if (! in_array(HasAuditLog::class, class_uses_recursive($model), true)) {
+            $missing[] = $model;
+        }
     }
+
+    expect($missing)->toBe([]);
 });
