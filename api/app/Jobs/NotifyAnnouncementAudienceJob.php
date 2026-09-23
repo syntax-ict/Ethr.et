@@ -44,14 +44,20 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
     public int $timeout = 600;
 
     /**
-     * `$tenantId` is nullable and trailing so jobs already queued when this
-     * deployed still unserialize — an absent property takes the declared
-     * default instead of staying uninitialized. Every dispatch since supplies
-     * it, and it can be tightened to a required `int` once a drain has passed.
+     * `$tenantId` is required, as of the §11j drain.
+     *
+     * It was nullable with a default from §11g until 2026-09-23, so that jobs
+     * serialized before that deploy still unserialized — `unserialize()` does
+     * not run the constructor, and an absent property takes the declared
+     * default instead of staying uninitialized. That window is closed: the
+     * queue is drained before this deploys (`docs/DEPLOYMENT.md` → *Draining
+     * the queue before an upgrade*), so no payload without a tenant id can
+     * still be in flight, and a conditional predicate is not a predicate the
+     * query states.
      */
     public function __construct(
         private readonly int $announcementId,
-        private ?int $tenantId = null,
+        private readonly int $tenantId,
     ) {}
 
     public function handle(CurrentTenant $currentTenant): void
@@ -61,13 +67,9 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
         // then notifies that audience, so an id pointing at the wrong tenant
         // would not merely read across the boundary — it would send one
         // tenant's announcement to another tenant's employees.
-        $query = Announcement::withoutGlobalScopes();
-
-        if ($this->tenantId !== null) {
-            $query->where('tenant_id', $this->tenantId);
-        }
-
-        $announcement = $query->find($this->announcementId);
+        $announcement = Announcement::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->find($this->announcementId);
 
         if ($announcement === null) {
             return;

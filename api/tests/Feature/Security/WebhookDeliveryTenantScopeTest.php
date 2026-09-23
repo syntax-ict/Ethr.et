@@ -112,6 +112,7 @@ it('delivers from the worker, where no tenant is resolved', function () {
         'payroll.processed',
         ['event' => 'payroll.processed'],
         $delivery->id,
+        $webhook->tenant_id,
     ))->handle();
 
     Http::assertSent(fn ($request) => $request->url() === $webhook->url);
@@ -146,6 +147,7 @@ it('records a permanent failure on the delivery the tenant can see', function ()
         'payroll.processed',
         ['event' => 'payroll.processed'],
         $delivery->id,
+        $webhook->tenant_id,
     ))->failed(new RuntimeException('endpoint unreachable'));
 
     $reloaded = WebhookDelivery::withoutGlobalScopes()->findOrFail($delivery->id);

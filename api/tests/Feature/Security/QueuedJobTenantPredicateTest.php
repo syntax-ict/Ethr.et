@@ -33,10 +33,11 @@ use Illuminate\Support\Facades\Notification;
  * condition a real worker is in — a test that left a tenant resolved would pass
  * through the global scope and prove nothing about the predicate.
  *
- * The compatibility case matters as much as the rejection: `$tenantId` is
- * nullable so jobs already on the queue at deploy time still unserialize.
- * `omitting the tenant id keeps the old behaviour` is that contract, and every
- * pre-existing test of these jobs constructs them without it.
+ * `$tenantId` was nullable with a default until 2026-09-23, so that jobs
+ * serialized before §11g deployed still unserialized. That window closed with
+ * the drain (§11i): it is now required, the predicate is on the query's own
+ * chain rather than behind an `if`, and `the tenant id is required on every job
+ * that scopes by it` pins that shape against a regression to either.
  */
 function processingRun(Tenant $tenant): PayrollRun
 {
@@ -181,20 +182,45 @@ test('announcement notification refuses an announcement belonging to another ten
     Notification::assertNothingSent();
 });
 
-// ── The compatibility contract ──
+// ── The contract, after the drain ──
 
-test('omitting the tenant id keeps the old behaviour for jobs already queued', function () {
-    $owner = Tenant::factory()->create();
-    $run = processingRun($owner);
+test('the tenant id is required on every job that scopes by it', function (string $jobClass) {
+    $tenantId = collect((new ReflectionMethod($jobClass, '__construct'))->getParameters())
+        ->first(fn (ReflectionParameter $parameter) => $parameter->getName() === 'tenantId');
 
-    app(CurrentTenant::class)->forget();
+    // Renaming it would otherwise make every assertion below vacuous.
+    expect($tenantId)->not->toBeNull();
 
-    // A payload serialized before §11g carries no tenant id. It must still
-    // resolve, or every job in flight at deploy time dies. Once a drain has
-    // passed, the argument can be made required and this test replaced.
-    (new ProcessPayrollJob($run->id))->failed(new RuntimeException('boom'));
+    $type = $tenantId->getType();
 
-    expect(PayrollRun::withoutGlobalScopes()->findOrFail($run->id)->status)->toBe('failed');
+    // Two separate regressions, and the test has to fail on each.
+    //
+    // Optional is how the predicate became conditional in the first place: a
+    // default means `handle()` has to ask whether it has a tenant, and a
+    // predicate applied only sometimes is stated by the dispatcher rather than
+    // by the query (BASELINE.md §11i — it is why these five sites did not
+    // count as self-proving even after §11g put the id in the payload).
+    //
+    // Nullable is the same defect one argument earlier: required but `?int`
+    // lets a caller pass null explicitly and get the unscoped lookup back,
+    // which is precisely the cross-tenant read the tests above prove is closed.
+    expect($tenantId->isOptional())->toBeFalse()
+        ->and($type)->toBeInstanceOf(ReflectionNamedType::class)
+        ->and($type->getName())->toBe('int')
+        ->and($type->allowsNull())->toBeFalse();
+})->with([
+    ProcessPayrollJob::class,
+    DispatchWebhookJob::class,
+    NotifyAnnouncementAudienceJob::class,
+]);
+
+test('a job that scopes by tenant cannot be constructed without one', function () {
+    // The shape assertions above describe the signature; this one proves what
+    // the signature buys. A payload serialized before §11g carries no tenant
+    // id, and after the drain there is none left in flight — so the old
+    // permissive construction must now fail loudly rather than fall through to
+    // an unscoped `find()`.
+    expect(fn () => new ProcessPayrollJob(1))->toThrow(ArgumentCountError::class);
 });
 
 // ── The one non-job site: a staging column that can be stale ──

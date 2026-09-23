@@ -30,18 +30,23 @@ class DispatchWebhookJob implements ShouldQueue
     }
 
     /**
-     * `$tenantId` is nullable and trailing so that jobs already on the queue
-     * when this deployed still unserialize — an absent property takes the
-     * declared default rather than staying uninitialized. Every dispatch since
-     * supplies it. Once a drain has passed, it can be tightened to a required
-     * `int` and the null branch in `handle()` deleted.
+     * `$tenantId` is required, as of the §11j drain.
+     *
+     * It was nullable with a default from §11g until 2026-09-23, so that jobs
+     * serialized before that deploy still unserialized — `unserialize()` does
+     * not run the constructor, and an absent property takes the declared
+     * default instead of staying uninitialized. That window is closed: the
+     * queue is drained before this deploys (`docs/DEPLOYMENT.md` → *Draining
+     * the queue before an upgrade*), so no payload without a tenant id can
+     * still be in flight, and a conditional predicate is not a predicate the
+     * query states.
      */
     public function __construct(
         private readonly int $webhookId,
         private readonly string $event,
         private readonly array $payload,
         private readonly int $deliveryId,
-        private ?int $tenantId = null,
+        private readonly int $tenantId,
     ) {}
 
     public function handle(): void
@@ -52,13 +57,9 @@ class DispatchWebhookJob implements ShouldQueue
         // another tenant's webhook and this job would sign and POST their data
         // to it. With the predicate the mismatch yields null and the guard
         // below returns.
-        $query = Webhook::withoutGlobalScopes();
-
-        if ($this->tenantId !== null) {
-            $query->where('tenant_id', $this->tenantId);
-        }
-
-        $webhook = $query->find($this->webhookId);
+        $webhook = Webhook::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->find($this->webhookId);
 
         // Scoped by hand for the same reason the line above is: a queue worker
         // resolves no tenant, so `BelongsToTenant` would apply `0 = 1` and this
@@ -185,20 +186,15 @@ class DispatchWebhookJob implements ShouldQueue
         // `0 = 1` and the permanent-failure record is never written to the row
         // the tenant actually reads in the deliveries dialog. The log line fired
         // and the delivery kept whatever transient state it had.
-        // Now states `tenant_id` too, when the payload carries it. Root
-        // CLAUDE.md recorded the asymmetry this removes: handle() stated
-        // tenant_id while failed() derived from webhook_id alone. Both held —
-        // webhook_id is itself tenant-owned — but two halves of one class
-        // disagreeing about how much to state is the shape a later defect
-        // takes, and the id is in hand now.
-        $deliveryQuery = WebhookDelivery::withoutGlobalScopes()
-            ->where('webhook_id', $this->webhookId);
-
-        if ($this->tenantId !== null) {
-            $deliveryQuery->where('tenant_id', $this->tenantId);
-        }
-
-        $delivery = $deliveryQuery->find($this->deliveryId);
+        // States `tenant_id` unconditionally, like handle(). Root CLAUDE.md
+        // recorded the asymmetry this removes: handle() stated tenant_id while
+        // failed() derived from webhook_id alone. Both held — webhook_id is
+        // itself tenant-owned — but two halves of one class disagreeing about
+        // how much to state is the shape a later defect takes.
+        $delivery = WebhookDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('webhook_id', $this->webhookId)
+            ->find($this->deliveryId);
 
         if ($delivery && ! $delivery->delivered_at) {
             $delivery->update([

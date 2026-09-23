@@ -452,6 +452,80 @@ invokes `rollback.sh` on a failed health check; leave it off until the check is
 trusted, since a false negative reverts a good release. `DEPLOY_NOTIFY_EMAIL`
 mails on failure if `mail` is present.
 
+### Draining the queue before an upgrade
+
+**Required before deploying a release that changes a queued job's constructor.**
+It applies to the 2026-09-23 change (`audit/BASELINE.md` §11i) that made
+`$tenantId` **required** on `ProcessPayrollJob`, `DispatchWebhookJob` and
+`NotifyAnnouncementAudienceJob`, and to any change of the same shape after it.
+
+**Why.** PHP restores a queued job from `unserialize()` **without running the
+constructor**. A payload serialized by the old code carries no `tenantId`; the
+property is typed and now has no default, so it stays *uninitialized* rather
+than taking null, and the first read throws
+`Error: Typed property … must not be accessed before initialization`. That was
+the whole reason §11g made it nullable — and the reason the predicate had to sit
+behind an `if`, which is why those five sites never counted as proving their own
+safety.
+
+The failure is loud, not silent: the job errors, exhausts its attempts and lands
+in `failed_jobs`. Nothing is written against the wrong tenant. What is lost is
+the work.
+
+#### Drain
+
+Run the worker to empty against **every** queue the app uses — a bare
+`queue:work` drains only `default` and leaves the other three:
+
+```bash
+# Docker (QUEUE_CONNECTION=redis)
+docker compose -f docker-compose.prod.yml exec -T api \
+  php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty
+
+# Shared hosting (QUEUE_CONNECTION=database)
+cd ~/ethr/api && php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty
+```
+
+Then confirm nothing is left *and nothing failed while draining*:
+
+```bash
+php artisan queue:failed        # expect no new rows
+# database driver only — redis keeps no `jobs` table
+php artisan tinker --execute='echo DB::table("jobs")->count(), PHP_EOL;'
+```
+
+#### What a drain does not clear — read this one
+
+`--stop-when-empty` stops when the queue has nothing **ready**. A *delayed*
+retry is not ready and is not drained.
+
+`DispatchWebhookJob` backs off `[60, 300, 1800, 7200, 86400]` seconds, so a
+delivery that has already failed four times schedules its last attempt **24
+hours out**. A drain immediately before the deploy does not remove it, and when
+it surfaces it will fail on the uninitialized property.
+
+Three ways to handle it, in preference order:
+
+1. **Deploy after a 24-hour window in which no webhook delivery failed.**
+   `php artisan queue:failed` and the deliveries dialog both show whether any
+   are in backoff.
+2. **Accept the loss and recover by hand.** Bounded and visible: only webhook
+   deliveries already in backoff, at most one attempt each. They appear in
+   `failed_jobs`; re-send from the webhook's deliveries dialog, which dispatches
+   a fresh payload carrying the tenant id. **`queue:retry` will not work** — it
+   re-queues the *old* payload, which fails the same way.
+3. **Flush the delayed set before deploying**, if losing those retries outright
+   is preferable to either of the above.
+
+`ProcessPayrollJob` (`$tries = 1`) and `NotifyAnnouncementAudienceJob`
+(`$tries = 2`, no backoff) have no delayed-retry window worth planning around; a
+drain covers both.
+
+#### On a first deployment
+
+Skip it. A fresh install has no queue and no serialized payloads — this is an
+upgrade concern only.
+
 ### Backup (`scripts/backup.sh`)
 
 ```bash
