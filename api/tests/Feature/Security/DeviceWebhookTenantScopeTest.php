@@ -7,6 +7,8 @@ use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Tenant;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * The two device-webhook lookups that drop the tenant scope, and the invariants
@@ -107,12 +109,22 @@ test('webhookIpAllowed admits an exact address and a CIDR block', function () {
 });
 
 test('a serial shared by two tenants cannot write attendance into the wrong one', function () {
-    // Serials are printed on the hardware and carry no unique index, so two
-    // tenants CAN register the same one. Which row `->first()` returns is not
-    // defined — so the invariant under test is not "it picks the right device"
-    // but "the wrong tenant gets nothing either way": if it selects tenant A's
-    // device, the source IP is not on A's allowlist and the call is rejected;
-    // if it selects tenant B's, the record is filed against B.
+    // Serials are printed on the hardware, and until §11h nothing stopped two
+    // tenants registering the same one. The invariant under test is not "it
+    // picks the right device" — which row `->first()` returned was undefined —
+    // but "the wrong tenant gets nothing either way".
+    //
+    // §11h added a unique index on `(serial_number, adapter_type)` for live
+    // devices, so this setup is no longer constructible against a current
+    // schema. The index is dropped first rather than the test deleted: the
+    // assertion still holds a real invariant for a database migrated before
+    // §11h, or one where the index is later dropped, and `resolveWebhookDevice()`
+    // is written not to depend on the constraint it backs up. Deleting the test
+    // would have retired a guarantee instead of strengthening it.
+    Schema::table('devices', function (Blueprint $table): void {
+        $table->dropUnique('devices_live_serial_unique');
+    });
+
     $tenantA = createTenant();
     $branchA = Branch::factory()->create(['tenant_id' => $tenantA->id]);
     Device::factory()->zkteco()->create([

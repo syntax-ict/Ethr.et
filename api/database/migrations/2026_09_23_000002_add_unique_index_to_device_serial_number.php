@@ -103,12 +103,12 @@ return new class extends Migration
             ->orderBy('id')
             ->get(['public_id', 'tenant_id', 'adapter_type']);
 
-        $lines = $offenders->map(
-            fn ($row) => sprintf('  %s (tenant %d, %s)', $row->public_id, $row->tenant_id, $row->adapter_type)
-        )->implode("\n");
+        $lines = $offenders
+            ->map(fn ($row) => sprintf('  %s (tenant %d, %s)', $row->public_id, $row->tenant_id, $row->adapter_type))
+            ->implode("\n");
 
         throw new RuntimeException(sprintf(
-            "Cannot make devices.(serial_number, adapter_type) unique: %d serial/adapter pair(s) are shared by "
+            'Cannot make devices.(serial_number, adapter_type) unique: %d serial/adapter pair(s) are shared by '
             ."more than one live device.\n\nAffected devices:\n%s\n\n"
             .'Resolve by deleting or re-serialising the duplicates, then migrate again. '
             .'Serial values are omitted here; the public_id is the handle.',
