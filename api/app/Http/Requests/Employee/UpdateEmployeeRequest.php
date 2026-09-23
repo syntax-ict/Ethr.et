@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee;
 
-use App\Http\Requests\Employee\Concerns\ValidatesSupervisorTenancy;
+use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Services\CurrentTenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -13,7 +13,7 @@ class UpdateEmployeeRequest extends FormRequest
 {
     // Same hook as StoreEmployeeRequest, shared rather than copied so the two
     // cannot drift apart. See the trait.
-    use ValidatesSupervisorTenancy;
+    use ValidatesRelationTenancy;
 
     public function authorize(): bool
     {

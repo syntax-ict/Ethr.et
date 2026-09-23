@@ -1212,12 +1212,19 @@ The new tests were **not run locally**. `composer install` fails in this environ
 
 ---
 
-### 11f. Site 5 closed — scoped supervisor validation — **2026-09-23**
+### 11f. Site 5 closed — scoped employee relation validation — **2026-09-23**
 
 §11e closed three of §11d's five and left two, both because enforcing them changes
-behaviour rather than guarding it. The owner authorised one of those changes: **a
-`supervisor_id` belonging to another tenant now returns 422 instead of 201 with a silently
-nulled supervisor.**
+behaviour rather than guarding it. The owner authorised one of those changes: **an
+employee relation `public_id` belonging to another tenant now returns 422 instead of 201
+with the field silently nulled.**
+
+It landed in two passes on the same day, and this section records both. The first scoped
+`supervisor_id` alone, which is the field §11d named. It also surfaced that the same
+defect sat on **six sibling fields** in the same two request classes; those were listed
+for the owner rather than changed, and then authorised. *"Six siblings"* below is that
+second pass. Where this section says "the rule" or "the field" in the singular, it is
+describing the first pass; all seven behave identically now.
 
 #### What was wrong
 
@@ -1248,7 +1255,8 @@ above `supervisor_id` would have been published into the client-facing contract,
 described the vulnerability.
 
 So the check moved to a `withValidator()` hook, in
-`Http/Requests/Employee/Concerns/ValidatesSupervisorTenancy.php`. Scramble reads `rules()`;
+`Http/Requests/Employee/Concerns/ValidatesSupervisorTenancy.php` (renamed to
+`ValidatesRelationTenancy.php` in the second pass). Scramble reads `rules()`;
 a hook is invisible to it. **`rules()` is byte-identical to the previous commit in both
 requests** — verified by diff — so the contract provably cannot move.
 
@@ -1273,8 +1281,9 @@ invalid."* — identical to what a genuinely nonexistent `public_id` produces.
 This is required, not cosmetic. A message distinguishing "no such employee" from "that
 employee is in another tenant" would confirm a `public_id`'s existence across tenants —
 precisely what the scope exists to hide, and a worse leak than the silent null it replaces.
-`SupervisorScopedValidationTest` asserts the two messages are equal rather than merely both
-422, so the assumption about Laravel's attribute derivation cannot rot silently.
+`EmployeeRelationScopedValidationTest` (then `SupervisorScopedValidationTest`) asserts the
+two messages are equal rather than merely both 422, so the assumption about Laravel's
+attribute derivation cannot rot silently.
 
 #### A consequence worth recording
 
@@ -1284,23 +1293,55 @@ which was true only by accident, as a side effect of the silent null. It is now 
 upstream. The job did not change; what changed is that its premise is now guaranteed
 instead of coincidental.
 
-#### Six siblings, deliberately not fixed
+#### Six siblings — **authorised and closed the same day**
 
-`resolveRelationIds()` maps **seven** fields and treats them identically; all seven carry
-the same unscoped `exists:…,public_id` rule in both requests. Only `supervisor_id` was
-authorised, so only `supervisor_id` changed. Unfixed, with the identical defect:
-`department_id`, `branch_id`, `position_id`, `grade_id`, `team_id`, `cost_center_id`.
+`resolveRelationIds()` maps **seven** fields and treats them identically; all seven carried
+the same unscoped `exists:…,public_id` rule in both requests. `supervisor_id` was
+authorised first and the other six were listed here as the owner's call. That call came
+the same day, so **all seven are now scoped**: `department_id`, `branch_id`, `position_id`,
+`grade_id`, `team_id`, `cost_center_id` and `supervisor_id`.
 
-They are listed rather than done because each is the same behaviour change — a 422 where
-clients currently get a silent null — and that is the owner's call six more times, not an
-audit's. The trait generalises with a field/model map when they are authorised.
+Three things changed to get there, and the first is the one that matters most:
+
+**The field/model map now has one home.** It lived twice — as a literal in
+`resolveRelationIds()` and, once the hook existed, implicitly in the hook. Two copies of
+the set a control iterates is the `DispatchWebhookJob` shape root `CLAUDE.md` warns about,
+and here it would have been worse than untidy: an *eighth* field added to the resolver and
+not to the validator is a silently nulled relation again — precisely the defect this
+section exists to close. It is now `App\Support\EmployeeRelations::MAP`, read by both.
+`EmployeeRelationScopedValidationTest` asserts every mapped field has a rule in both
+requests, so the map and the rules cannot cover different sets either.
+
+**The trait generalised** from `ValidatesSupervisorTenancy` to `ValidatesRelationTenancy`,
+iterating that map rather than naming a field. The per-field logic is unchanged: skip
+absent or already-rejected values, ask the resolver's own scoped query, and on a miss add
+Laravel's generic `validation.exists` line with the attribute name Laravel itself would
+derive.
+
+**One asymmetry is written down rather than worked around.** `CostCenter` is the only
+model in the map without `SoftDeletes`. The validator asks the model instead of assuming a
+`deleted_at` column, and the soft-delete test runs over a six-field dataset that omits
+`cost_center_id`, because there is no deleted state for it to be rejected in.
+
+The constraints from the `supervisor_id` pass all still hold and were re-verified: the
+check is a `withValidator()` hook and not a rule; **`rules()` is byte-identical to the
+previous commit in both requests**, confirmed by diffing the extracted method; no comment
+sits above an array key in `rules()`, so nothing new reaches the published schema; and
+`@mixin FormRequest` uses the imported name, since `fully_qualified_strict_types` rejects
+the leading-slash form — that one cost a red Pint gate on PR #60.
 
 #### What this pass does not claim
 
 The new tests were **not run locally**; `composer install` fails here with `Could not
 authenticate against github.com` (`AuthHelper.php:132`). CI is the verification. The bypass
 inventory is untouched at 156 across 54 files — this change adds no `withoutGlobalScope`
-call. No application behaviour other than `supervisor_id` validation was altered.
+call. No application behaviour outside these seven validation fields was altered.
+
+It does not claim the *other* unscoped `exists:` rules in this repository are safe. It
+fixed the seven that `resolveRelationIds()` owns, because those are the ones §11d traced
+end to end. Any request elsewhere validating a `public_id` with the string form has the
+same presence-verifier gap, and whether it matters depends on what resolves the value
+afterwards — which is a separate pass, not an inference from this one.
 
 ---
 

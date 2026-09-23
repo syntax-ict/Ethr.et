@@ -13,16 +13,14 @@ use App\Http\Resources\EmployeeReportingNodeResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
-use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
-use App\Models\Grade;
 use App\Models\Position;
-use App\Models\Team;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use App\Services\PlanLimitService;
 use App\Services\UserProvisioningService;
+use App\Support\EmployeeRelations;
 use App\Support\EthiopianPhone;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
@@ -272,17 +270,12 @@ class EmployeeController extends Controller
      */
     private function resolveRelationIds(array $data): array
     {
-        $map = [
-            'department_id' => Department::class,
-            'branch_id' => Branch::class,
-            'position_id' => Position::class,
-            'grade_id' => Grade::class,
-            'team_id' => Team::class,
-            'cost_center_id' => CostCenter::class,
-            'supervisor_id' => Employee::class,
-        ];
-
-        foreach ($map as $field => $modelClass) {
+        // The map moved to App\Support\EmployeeRelations so that
+        // ValidatesRelationTenancy rejects exactly the values this method would
+        // fail to resolve. While they were two literals, an eighth field added
+        // here and not there would silently null again — the defect
+        // BASELINE.md §11f closed.
+        foreach (EmployeeRelations::MAP as $field => $modelClass) {
             if (isset($data[$field])) {
                 $model = $modelClass::where('public_id', $data[$field])->first();
                 $data[$field] = $model?->id;
