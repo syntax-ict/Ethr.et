@@ -34,6 +34,56 @@ D8), this migration **aborts the entire run** if denied — deliberately, per
 can be tampered with. Confirm this before doing anything else in this plan; the
 hosting-check probe script answers it in one pass.
 
+## A data condition that aborts the run — duplicate device serials
+
+Unlike H1 this is not a privilege question, so the probe script cannot answer it; it is a
+property of the rows you are carrying across. It gets its own section for the same reason
+H1 has one: **it stops `php artisan migrate` dead**, and it is much cheaper to find now
+than mid-cutover.
+
+`2026_09_23_000002_add_unique_index_to_device_serial_number` makes
+`(serial_number, adapter_type)` unique across **live** devices — globally, not per tenant,
+because the webhook lookup it protects does not state `tenant_id` (`BASELINE.md` §11h).
+Nothing ever prevented duplicates before it, and the API never validated the field, so
+real duplicates are plausible rather than theoretical. The migration refuses to run
+against them and names the offending devices instead of failing with a driver error.
+
+Run this on the **source**, before the `mysqldump` below:
+
+```sql
+-- Live devices only. The index is built on a generated column that goes NULL
+-- once deleted_at is set, so soft-deleted rows may share a serial freely and
+-- must not be counted here — including them would report duplicates that the
+-- migration does not care about.
+SELECT serial_number, adapter_type, COUNT(*) AS n,
+       GROUP_CONCAT(public_id)        AS devices,
+       GROUP_CONCAT(DISTINCT tenant_id) AS tenants
+FROM devices
+WHERE deleted_at IS NULL
+  AND serial_number IS NOT NULL
+GROUP BY serial_number, adapter_type
+HAVING COUNT(*) > 1;
+```
+
+**Empty result:** nothing to do; the migration will apply cleanly.
+
+**Rows returned:** resolve them on the source while it is still live and you still have a
+shell, which is the whole reason this runs before the dump — after cutover you may have
+neither (`MIGRATION_STATE.md` blockers B-1 and B-4). For each group, keep one device and
+either delete the others or give them their real serials. `tenants` tells you which kind
+of problem you have: one tenant listed is a duplicate registration inside an account; two
+or more is the cross-tenant ambiguity §11d site 1 was opened on, and worth understanding
+before deleting anything, because both rows may be receiving webhooks today.
+
+**Re-run it on the imported copy before `php artisan migrate --force`.** The source can
+accept new devices between the dump and the cutover, so a clean result here is a
+statement about the moment you ran it, not about the bytes you eventually import. The
+migration performs the same check itself, so skipping the re-run costs you a failed
+migrate rather than a wrong result — but it fails at the least convenient moment.
+
+Not applicable to a fresh deployment: an empty `devices` table cannot hold duplicates.
+See "Fresh deployment (no data to migrate)" below.
+
 ## Backup — before touching anything on the source side
 
 The VPS's own `scripts/backup.sh` is the reference for what "backed up" means for this
