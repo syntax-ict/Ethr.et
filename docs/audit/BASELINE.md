@@ -689,9 +689,12 @@ Total coverage moved **32.34% → 32.74%**. That the headline barely moved is th
 > four keep `coverage: none` and stay fast — running `./scripts/gates.sh coverage`.
 >
 > **MEASURED 2026-09-23, first run: `Total: 86.7 %`** — CI run 35891128495, job
-> *Backend coverage (PCOV)*, green. Recorded here because this section held the slot for it.
-> **Still no threshold**: choosing a floor is a decision, not a measurement, and it is the
-> owner's.
+> *Backend coverage (PCOV)*, green. Reproduced on `main` the same day (run 35894050411).
+>
+> **Floor set 2026-09-23: `--min=85`**, owner's decision, against that measured 86.7%
+> baseline — 1.7 points of headroom. It is a **ratchet against regression, not a target**:
+> it fails when coverage drops and says nothing about whether 86.7% is enough. Raising it
+> means measuring again first.
 >
 > The gate **refuses rather than reporting 0%** when no driver is loaded, and that refusal is
 > the reason it is worth having. A coverage run with no driver does not error in any obvious
