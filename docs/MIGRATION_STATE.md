@@ -18,6 +18,13 @@ gates; all of it is correct regardless of where ETHR ends up deployed.
 
 ### To resume the hosting migration, you need exactly four facts
 
+> **Superseded — read NEXT ACTION at the end of this file first.** This framing is from
+> 2026-08-31 and survives because its four facts are still worth having. What it gets
+> wrong is the shape of the wait: **Plan B** (`deployment/SHARED_HOSTING_PLAN.md` §5)
+> restructured the workstream on the assumption that every support ask is denied, the
+> canary became the critical path, and the probe turned out to have a web-execution route
+> that does not need the shell this table's *How* column assumes.
+
 Everything else is decided (see DECISIONS TAKEN ON DELEGATION below). Nothing further
 can be settled from this repository — all four require the Plesk account.
 
@@ -2315,6 +2322,15 @@ same file. Recorded because a future session on a non-pinned Node will see it ag
 built. The pin is now **161 across 55**, moved by three commits — `716ab93` and `748dcb9`
 (the queued-context tenant fixes) and `71db6da` (the platform-admin plan catalog). Both
 documents corrected, with the original figure kept as the dated measurement it was.
+
+> **The 161 was itself wrong, and this entry is kept as written.** Counting was
+> `preg_match_all` over raw file text, which cannot tell a call from the same words in a
+> comment; five matches were docblocks. Re-counted with PHP's tokeniser, the figure on
+> 2026-09-18 was **156 real calls**, and the live pin today is **157 across 55** —
+> re-derived from `api/tests/Feature/Security/tenant-scope-bypasses.php` on 2026-09-23.
+> Root `CLAUDE.md` and `audit/BASELINE.md` §11g carry the full reconciliation. Corrected
+> here rather than rewritten, because "the pin is now 161" is what this session believed
+> and acted on.
 
 **Five bypasses had therefore never been individually audited**, because they entered after
 the only pass that read them line by line. All five were read on 2026-09-18 and all five

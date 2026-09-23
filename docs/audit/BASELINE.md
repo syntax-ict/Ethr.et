@@ -394,6 +394,11 @@ Classification: **P0 tenant-isolation defect.** Remediation (adding a `tenant_id
 
 ## 11c. File uploads and audit logging
 
+> **Two sections in this file are numbered `11c`.** This one, and *The tenant-scope bypass
+> audit — first pass* further down. Deliberate, not an oversight — §11d records why
+> neither is renumbered. **Citations of "§11c" elsewhere in the repository mean the bypass
+> audit, not this section.**
+
 **Uploads [verified]** — `api/app/Services/FileStorageService.php`: MIME detected at `:72` and re-verified post-upload at `:259`; GD guarded by `extension_loaded('gd')` at `:280`, `:321`, `:404`, so thumbnails degrade rather than fail; tenant-prefixed ULID paths `tenants/{public_id}/{directory}/{ulid}.ext`; private files served through signed `temporaryUrl()` against a disk with `'serve' => true`, which needs no `public/storage` symlink.
 
 **Audit logging [verified]** — `AuditLog::record(...)` appears at **206 call sites** in `app/`, typically inside the same transaction as the mutation it records. Immutability is enforced by two database triggers (§13b).
@@ -918,6 +923,10 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 ---
 
 ### 11c. The tenant-scope bypass audit — first pass **[2026-09-16]**
+
+> **This is the `11c` that other documents cite.** A second section earlier in this file —
+> *File uploads and audit logging* — also carries the number. §11d below records why
+> neither is renumbered.
 
 Risk #11 recorded that `TenantScopeBypassInventoryTest` pins all 156 `withoutGlobalScope(s)` call sites but "does not audit the 156 that exist — that audit is still unowned". This is the first pass of it.
 
