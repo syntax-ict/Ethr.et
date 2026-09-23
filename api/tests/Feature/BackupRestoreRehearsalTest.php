@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Models\AuditLog;
+use App\Models\Branch;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Backup\BackupService;
+use App\Services\Backup\DatabaseDumper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Tests\Support\PreFixDumper;
 
 /**
  * An actual destructive restore rehearsal, not a dump-and-inspect.
@@ -113,14 +117,66 @@ function tableNames(): array
         ->all();
 }
 
-it('restores the database after it has been destroyed', function () {
+/**
+ * Every table carrying a generated column, read from the live schema.
+ *
+ * Schema-driven on purpose. A hardcoded list is the thing that failed: the
+ * round-trip fixtures held no `devices` row when `serial_number_active` landed,
+ * so the test that exists to catch exactly this never saw it.
+ *
+ * @return array<string, array<int, string>> table => generated columns
+ */
+function tablesWithGeneratedColumns(): array
+{
+    return PreFixDumper::tablesWithGeneratedColumns();
+}
+
+/**
+ * One row in every table that has a generated column.
+ *
+ * Kept as one helper rather than spread across the tests so the coverage
+ * assertion below has a single thing to check, and so adding a table here is
+ * the obvious fix when it fails.
+ *
+ * @return array{tenant: Tenant, employee: Employee, user: User, device: Device}
+ */
+function generatedColumnFixture(): array
+{
     $tenant = createTenant(['subdomain' => 'habru']);
+
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'name' => 'Almaz Tesfaye',
         'employee_code' => 'EMP-RESTORE-1',
+        'phone' => '0911 22 33 44',
         'salary_cents' => 1234500,
     ]);
+
+    $user = User::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'email' => 'Selam@Acme.test',
+        'phone' => '0911 55 66 77',
+    ]);
+
+    // `devices.branch_id` is `foreignId()->constrained()` and NOT NULL, and
+    // DeviceFactory does not supply one — DemoTenantSeeder passes the HQ branch
+    // it has already created. A device therefore needs a branch to exist.
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id,
+        'serial_number' => 'SN-RESTORE-1',
+    ]);
+
+    return ['tenant' => $tenant, 'employee' => $employee, 'user' => $user, 'device' => $device];
+}
+
+it('restores the database after it has been destroyed', function () {
+    // The fixture covers every table with a generated column, not only
+    // `employees`. Before 2026-09-23 this test created a tenant and an employee
+    // and nothing else, so `devices` had no row and the dump never exercised
+    // `serial_number_active` — which is how §15f shipped under a green suite.
+    ['tenant' => $tenant, 'employee' => $employee] = generatedColumnFixture();
 
     $employeesBefore = Employee::withoutGlobalScopes()->count();
     $tenantsBefore = Tenant::withoutGlobalScopes()->count();
@@ -151,45 +207,92 @@ it('restores the database after it has been destroyed', function () {
         ->and($restored->public_id)->toBe($employee->public_id);
 });
 
+it('has a fixture row in every table that carries a generated column', function () {
+    // The assertion that would have caught §15f, and the reason it is written
+    // against the schema rather than a list: a generated column added to a
+    // table these fixtures do not touch makes this fail, and the failure names
+    // the table so the fix is obvious.
+    generatedColumnFixture();
+
+    $tables = tablesWithGeneratedColumns();
+
+    expect($tables !== [])->toBeTrue('No generated columns found at all — the schema query is wrong, not the fixture.');
+
+    foreach ($tables as $table => $columns) {
+        expect(DB::table($table)->count() > 0)->toBeTrue(
+            "`{$table}` carries generated column(s) ".implode(', ', $columns)
+            .' and the backup fixture creates no row in it, so the round-trip tests below cannot '
+            .'exercise them. Add one to generatedColumnFixture().'
+        );
+    }
+});
+
 it('never replays a generated column, so a dump stays restorable', function () {
-    // The dump is written with an explicit column list precisely so this holds.
     // `SELECT *` returns generated columns like any other, and an INSERT naming
-    // one is rejected outright — *"cannot INSERT into generated column"* here,
-    // *"The value specified for generated column … is not allowed"* on MariaDB.
-    // A dump that does that is written without complaint and fails only at the
-    // moment someone needs it back, which is the worst time to discover it.
-    //
-    // `devices.serial_number_active` put the first generated column in the
-    // schema on 2026-09-23 and this stayed green, because the tables under test
-    // held no device rows. `users` always has rows.
-    $tenant = createTenant();
-    $user = User::factory()->create([
-        'tenant_id' => $tenant->id,
-        'email' => 'Selam@Acme.test',
-    ]);
+    // one is rejected on replay — outright on SQLite, and on MariaDB depending
+    // on `sql_mode`, which belongs to whoever runs the restore rather than to
+    // the backup. A dump that replays where it was written and not where it is
+    // needed is the same defect wearing a hat.
+    generatedColumnFixture();
 
     $backup = app(BackupService::class)->create('generated-columns');
     $sql = File::get($backup['path'].DIRECTORY_SEPARATOR.'database.sql');
 
-    // The column must still reach the restored schema...
-    expect($sql)->toContain('email_normalized');
-
-    // ...and no INSERT may supply a value for it.
-    foreach (explode("\n", $sql) as $line) {
-        if (str_starts_with($line, 'INSERT INTO')) {
-            expect($line)->not->toContain('email_normalized');
+    foreach (tablesWithGeneratedColumns() as $table => $columns) {
+        foreach ($columns as $column) {
+            // The definition must reach the restored schema...
+            expect(str_contains($sql, $column))
+                ->toBeTrue("The dump does not define `{$table}`.`{$column}` at all.");
         }
     }
+
+    // ...and no INSERT may supply a value for one. Asked of the dump as a whole
+    // rather than of one column, so this covers whatever the schema grows next.
+    expect(app(DatabaseDumper::class)->findGeneratedColumnInserts(
+        $backup['path'].DIRECTORY_SEPARATOR.'database.sql'
+    ))->toBe([]);
 
     destroyDatabase();
     app(BackupService::class)->restore($backup['path']);
 
-    // And the restored database recomputes it, so the login-identifier indexes
-    // are populated on the other side of a restore rather than silently empty.
-    $restored = DB::table('users')->where('id', $user->id)->first();
+    // And the restored database recomputes them, so the login-identifier
+    // indexes are populated on the other side of a restore rather than empty.
+    $restored = DB::table('users')->where('email', 'Selam@Acme.test')->first();
 
     expect($restored)->not->toBeNull()
-        ->and($restored->email_normalized)->toBe('selam@acme.test');
+        ->and($restored->email_normalized)->toBe('selam@acme.test')
+        ->and($restored->phone_normalized)->toBe('0911556677');
+
+    expect(DB::table('devices')->where('serial_number', 'SN-RESTORE-1')->value('serial_number_active'))
+        ->toBe('SN-RESTORE-1');
+});
+
+it('refuses to write a backup whose INSERTs name a generated column', function () {
+    // The check the manifest cannot do. sha256 proves the file is the one that
+    // was written; it says nothing about whether the file can be put back, and
+    // that gap is precisely what shipped in §15f — written without complaint,
+    // hashing correctly, rejected only at restore time.
+    //
+    // Proven the only way a guard can be: against a dump produced the way the
+    // pre-fix dumper produced them. `PreFixDumper` below is `writeRows()` as it
+    // stood before 2026-09-23 — `SELECT *`, then an INSERT naming every column
+    // it got back — so this fails against the old code and passes against the
+    // new one, rather than passing against both.
+    generatedColumnFixture();
+
+    app()->bind(DatabaseDumper::class, fn () => new PreFixDumper);
+
+    $root = app(BackupService::class)->backupRoot();
+    $before = File::isDirectory($root) ? count(File::directories($root)) : 0;
+
+    expect(fn () => app(BackupService::class)->create('pre-fix'))
+        ->toThrow(RuntimeException::class, 'cannot be restored');
+
+    // And it left nothing behind that could be mistaken for a backup: the
+    // directory carries no manifest, so `prune()` would never list it.
+    $after = File::isDirectory($root) ? count(File::directories($root)) : 0;
+
+    expect($after)->toBe($before);
 });
 
 it('brings the audit_log triggers back, so the log is still append-only', function () {

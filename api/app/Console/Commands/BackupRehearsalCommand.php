@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Backup\BackupService;
+use App\Services\Backup\DatabaseDumper;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -260,6 +261,31 @@ class BackupRehearsalCommand extends Command
         }
 
         $this->components->twoColumnDetail('CREATE TRIGGER in dump', (string) $createTriggers);
+
+        // Replayability, which the manifest's sha256 cannot speak to: it proves
+        // the dump is the file that was written, not that the file can be put
+        // back. `BackupService::create()` refuses to finish a dump that fails
+        // this, so the line is expected to read "none" — it is printed because
+        // this report is what an operator reads to decide the backup is worth
+        // having, and an unstated property is one nobody checked. §15f, §15g.
+        $generatedInserts = app(DatabaseDumper::class)->findGeneratedColumnInserts($sqlPath);
+
+        $described = [];
+
+        foreach ($generatedInserts as $table => $columns) {
+            $described[] = $table.': '.implode(', ', $columns);
+        }
+
+        $this->components->twoColumnDetail(
+            'INSERTs naming a generated column',
+            $described === [] ? '<fg=green>none</>' : '<fg=red>'.implode('; ', $described).'</>'
+        );
+
+        if ($generatedInserts !== []) {
+            $failures[] = 'The dump names generated columns in its INSERT statements. Whether it replays '
+                .'then depends on the restoring engine\'s sql_mode rather than on the backup. '
+                .'See docs/audit/BASELINE.md §15f and §15g.';
+        }
 
         // The DEFINER hazard. MySQL records a definer with every trigger and
         // SHOW CREATE TRIGGER emits it; restore under a different user and every

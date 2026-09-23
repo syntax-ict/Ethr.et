@@ -882,7 +882,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 | # | Risk | Evidence | Severity |
 |---|---|---|---|
-| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally, and **rehearsed on MariaDB in CI on every push since 2026-09-23**; **still not rehearsed on the Ethio Telecom host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]**; the `Backup restore rehearsal on MariaDB` job, first green on `main` at `8b11904` **[verified in CI]** | **High** (was Critical) — still a go-live gate. §15f is why the severity has not moved further: the path carried a defect that made restore impossible on any database with a generated column and a row, and every test of it was green |
+| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally, and **rehearsed on MariaDB in CI on every push since 2026-09-23**; **still not rehearsed on the Ethio Telecom host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]**; the `Backup restore rehearsal on MariaDB` job, first green on `main` at `8b11904` **[verified in CI]** | **High** (was Critical) — still a go-live gate. §15f/§15g are why the severity has not moved further: the path carried a defect that made a dump replayable only on a permissive engine, every test of it was green, **and the first written account of the defect was itself wrong in two places**. A backup guard now runs at create time and the fixtures cover every table with a generated column |
 | 2 | ~~**Cross-tenant import lookup (P0-1)**~~ — **fixed in Phase 0.5**; the lookup now states `tenant_id` itself (`EmployeeImporter.php:110`), and `withoutGlobalScopes()` deliberately stays so the soft-delete scope is still dropped (D-001) | `TenantImportIsolationTest` — 4 tests, 9 assertions, green **[verified]** | Resolved |
 | 3 | ~~Payroll times out mid-transaction~~ — **queued** (`ProcessPayrollJob`), 202 + polling | `PayrollQueuedProcessingTest` **[verified]** | Resolved |
 | 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |
@@ -1782,7 +1782,93 @@ Every other construction site in the suite now passes a tenant id — six in
 
 ---
 
-### 15f. The backup could not be restored once any table had a generated column — **found and fixed 2026-09-23**
+### 15g. §15f's account of itself was wrong, and the fixture gap that hid it is closed — **2026-09-23**
+
+**Read this before §15f.** Two of §15f's claims were reasoned from the SQLite result rather
+than measured on MariaDB, and both are false:
+
+| §15f said | Measured |
+|---|---|
+| *"The value specified for generated column … is not allowed"* on MariaDB | **MariaDB accepts it** on the `mariadb` connection this project uses. `config/database.php` sets `'strict' => false` there, and every template — `.env.example`, `.env.production.example`, `.env.shared-hosting.example` — selects `DB_CONNECTION=mariadb` |
+| *"the MariaDB rehearsal job passed on `main` for the same reason [no device rows]"* | **`DemoTenantSeeder` creates three devices**, the rehearsal job runs `db:seed --force`, and the job passed on `main` at `8b11904` **with those rows present** — a full destroy-and-restore, with `BackupService::restore()` throwing on the first failed statement. So the dump replayed |
+
+**What that changes, and what it does not.** The defect was real and narrower than §15f
+said: **a backup taken on the documented configuration was restorable.** The exposure was
+never "no restore at all" on MariaDB; it was that replayability had become a property of
+*whoever runs the restore* rather than of the backup — a strict `sql_mode`, a restore
+through phpMyAdmin or a Plesk import, or `DB_CONNECTION=mysql` (which `config/database.php`
+gives `'strict' => true`) each turn the same file into one that will not go back. On SQLite
+it fails outright, measured. The fix and the guard are worth what they were; the severity
+sentence was not.
+
+`BackupGeneratedColumnReplayTest` now measures all three on both drivers rather than
+leaving them to recollection — SQLite's refusal, MariaDB's acceptance on the default
+connection, and MariaDB's refusal under `STRICT_ALL_TABLES`.
+
+**All three are measured, including the mechanism.** When this section was first written
+`sql_mode` was a *hypothesis* for why MariaDB accepted what SQLite refused. The test
+settled it on MariaDB 10.11 in CI: the same statement is accepted on the connection as
+configured and rejected once the session is put in `STRICT_ALL_TABLES`. Recorded that way
+round — hypothesis, then measurement — because the entire subject of §15f and this section
+is what happens when the two are confused.
+
+**The fixture gap, which is the part that generalises.** The round-trip tests in
+`BackupRestoreRehearsalTest` created a tenant and an employee and nothing else, so no
+`devices` row ever reached a dump there and `serial_number_active` was never exercised.
+Three tables carry generated columns today:
+
+| Table | Generated columns |
+|---|---|
+| `users` | `email_normalized`, `username_normalized`, `phone_normalized` |
+| `employees` | `employee_code_normalized`, `phone_normalized` |
+| `devices` | `serial_number_active` |
+
+`generatedColumnFixture()` creates a row in each, and
+**`it('has a fixture row in every table that carries a generated column')`** reads that list
+from `PRAGMA table_xinfo` rather than from a constant, so a generated column added to a
+table the fixtures do not touch fails and names the table. A hardcoded list is what failed
+here; replacing it with a longer hardcoded list would have failed the same way later.
+
+**And the guard the manifest cannot be.** `BackupService::create()` now calls
+`DatabaseDumper::findGeneratedColumnInserts()` and refuses to finish a backup whose INSERTs
+name a generated column, deleting the half-written directory first so nothing is left that
+could be mistaken for one. sha256 proves the dump is the file that was written; it cannot
+prove the file can be put back, and those are different properties. Schema-driven, so a
+future generated column is covered without the guard changing.
+
+Deliberately **not** at restore time: an older backup taken before the dumper was fixed may
+still restore on a permissive engine, and refusing to try would turn a recoverable
+situation into an unrecoverable one.
+
+Verified against a dump produced the pre-fix way — `SELECT *`, then an INSERT naming every
+column it returned — because a check that only passes after the fix proves nothing unless
+it failed before it:
+
+```
+=== pre-fix (SELECT *) ===
+  first INSERT : INSERT INTO "users" ("id", "tenant_id", "email", "phone", "email_normalized", "phone_normalized") VALUES …
+  guard        : FAIL — {"users":["email_normalized","phone_normalized"]}
+  replay       : REJECTED — SQLSTATE[HY000]: General error: 1 cannot INSERT into generated column "email_normalized"
+
+=== post-fix (explicit column list) ===
+  first INSERT : INSERT INTO "users" ("id", "tenant_id", "email", "phone") VALUES ('1', '1', 'Selam@Acme.test', '0911 55-66-77');
+  guard        : PASS — no INSERT names a generated column
+  replay       : accepted
+```
+
+In the suite the same thing runs end to end: `PreFixDumper` is `writeRows()` as it stood
+before the fix, bound over `DatabaseDumper`, and `create()` is asserted to throw and to
+leave no directory behind.
+
+**Was a real backup affected?** Not answerable from this repository. Nothing here records a
+`ethr:backup` run on any host, the product has never been deployed to Ethio Telecom (every
+Gate 0 row is NOT VERIFIED), and whether a Docker or VPS install ever ran the command is
+not something the repo can be read for. What *can* be said: on every configuration this
+repository documents, such a backup restores.
+
+---
+
+### 15f. The backup could not be restored once any table had a generated column — **found and fixed 2026-09-23** *(severity corrected by §15g — read that first)*
 
 Found while adding the generated columns in §15e, which is the only reason it was found at
 all: it had already shipped, and every test of the backup path was green.
@@ -1793,8 +1879,8 @@ replaying an INSERT that supplies a value for one is rejected outright:
 
 ```
 SQLite    cannot INSERT into generated column "email_normalized"
-MariaDB   The value specified for generated column 'email_normalized' in table 'users'
-          is not allowed
+MariaDB   accepted on the `mariadb` connection — this line originally claimed an
+          error, was never measured, and was wrong. See §15g.
 ```
 
 `BackupService::restore()` throws on the first statement that fails — correctly, it
@@ -1813,10 +1899,12 @@ RESULT: REJECTED — SQLSTATE[HY000]: General error: 1 cannot INSERT into genera
 **This was already live.** `devices.serial_number_active` (§11h) put a generated column in
 the schema earlier the same day. From that commit, any database with **at least one device
 row** produced a `database.sql` that was written without complaint, verified against its
-own sha256, listed in the manifest — and could not be restored. The round-trip tests kept
-passing because the tables they exercise held no device rows, and the `Backup restore rehearsal on
-MariaDB` CI job (added 2026-09-23, `docs/deployment/BACKUP-RESTORE.md`) passed on `main` for
-the same reason.
+own sha256, listed in the manifest — and **on some engines** could not be restored.
+*(The original sentence ended "could not be restored", flatly. §15g measured it: on the
+`mariadb` connection this project configures, it restored. Corrected here rather than
+deleted.)* The round-trip tests kept passing because the tables they exercise held no
+device rows. **The `Backup restore rehearsal on MariaDB` CI job did have them and passed
+anyway — §15g.**
 
 That is the property worth naming: **a backup defect of this shape is invisible at backup
 time and only observable at restore time**, which is the one moment when there is nothing

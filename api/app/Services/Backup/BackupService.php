@@ -65,6 +65,8 @@ class BackupService
             $sqlPath = $dir.DIRECTORY_SEPARATOR.'database.sql';
             $stats = $this->dumper->dumpTo($sqlPath);
 
+            $this->refuseUnreplayableDump($sqlPath, $dir);
+
             $files = $this->copyPrivateFiles($dir);
 
             $manifest = [
@@ -86,6 +88,55 @@ class BackupService
         } finally {
             umask($previousUmask);
         }
+    }
+
+    /**
+     * Refuse to finish a backup whose INSERTs name a generated column.
+     *
+     * The manifest's sha256 proves the dump is the file that was written. It
+     * cannot prove the file can be put back, and §15f is what the difference
+     * looks like: `writeRows()` used `SELECT *`, which returns generated
+     * columns, and the resulting INSERT is rejected on replay — on SQLite
+     * outright, and on MariaDB depending on `sql_mode`, which is a property of
+     * whoever runs the restore rather than of the backup. A dump that is
+     * replayable on the machine that wrote it and not on the machine that needs
+     * it is the same defect wearing a hat.
+     *
+     * So the check runs at **create** time, where it fails while there is still
+     * something to fall back on, and deliberately **not** at restore time: an
+     * older backup taken before the dumper was fixed may well still restore on
+     * a permissive engine, and refusing to try would turn a recoverable
+     * situation into an unrecoverable one.
+     *
+     * It is schema-driven — `generatedColumns()` reads the live schema — so a
+     * generated column added later is covered without this method changing.
+     *
+     * The half-written directory is removed first. It carries no manifest, so
+     * `prune()` would never list it and it would sit there looking like a
+     * backup.
+     */
+    private function refuseUnreplayableDump(string $sqlPath, string $dir): void
+    {
+        $offences = $this->dumper->findGeneratedColumnInserts($sqlPath);
+
+        if ($offences === []) {
+            return;
+        }
+
+        File::deleteDirectory($dir);
+
+        $lines = [];
+
+        foreach ($offences as $table => $columns) {
+            $lines[] = '  '.$table.': '.implode(', ', $columns);
+        }
+
+        throw new RuntimeException(
+            'Refusing to write a backup that cannot be restored: its INSERT statements name generated '
+            ."columns, which an engine may reject on replay.\n\n".implode("\n", $lines)."\n\n"
+            .'This is a defect in DatabaseDumper, not in your data — `writeRows()` must select an explicit '
+            .'column list that excludes generated columns. See docs/audit/BASELINE.md §15f and §15g.'
+        );
     }
 
     /**
