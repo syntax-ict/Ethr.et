@@ -830,16 +830,17 @@ Five facts, each read from the code rather than inferred:
    authenticated user in a tenant holds it, down to `OrgScope::SELF`.
 2. `Gate::before` recognises it as a known ability and returns `hasPermission(...)` — **true** —
    which short-circuits the pipeline, so `AttendanceRecordPolicy::view()` is never consulted.
-3. The route binds on the **primary key**: `Route::get('/{attendanceRecord}', ...)`
-   (`routes/api.php:331`) and `AttendanceRecord` declares no `getRouteKeyName()`, so the
-   identifier is a sequential integer.
+3. ~~The route binds on the **primary key**, so the identifier is a sequential integer.~~
+   **WRONG, corrected 2026-09-23 — see the correction below.** The route binds on
+   `public_id`, a ULID.
 4. `show()` applies **no** `scopeAccessibleEmployees()`. Every sibling endpoint does —
    `AttendanceController:131`, `:154`, `:210`, `:214`.
 5. `AttendanceRecordResource` returns the employee, `check_in`, `check_out`, `status` and
    **`latitude` / `longitude`** — where a colleague physically was when they punched.
 
-**So any authenticated employee can read any attendance record in their own tenant by
-incrementing an integer.**
+~~**So any authenticated employee can read any attendance record in their own tenant by
+incrementing an integer.**~~ **The claim is right about the missing check and wrong about how
+it is reached — corrected immediately below.**
 
 **Scope of it, stated precisely.** This is **within-tenant**, not cross-tenant.
 `AttendanceRecord` uses `BelongsToTenant` (`AttendanceRecord.php:27`), so the global scope
@@ -872,6 +873,73 @@ than silently consulting unverified logic. It buys **no** behaviour change on an
 every one of the eleven was unreachable, verified four ways before removal (no `authorizeResource`,
 no `can:` middleware, no model-style `authorize()`, and no reference anywhere outside the
 registration and its import).
+
+### 12j. §12i said "incrementing an integer". It binds on a ULID — and the real route in was worse **[corrected and FIXED 2026-09-23]**
+
+**The correction first, because it is the part that was shipped wrong.** §12i point 3 said the
+route binds on the primary key and the identifier is "a sequential integer". It is not.
+`AttendanceRecord` uses `HasPublicId`, and that trait declares
+`getRouteKeyName(): string { return 'public_id'; }` — a ULID. The check that produced the
+error was `grep getRouteKeyName app/Models/AttendanceRecord.php`, which returns nothing,
+read as "no override, so the primary key". **A model's traits are part of the model.** The
+same claim went into the commit message and PR #86's body and was merged before it was caught.
+
+**A ULID is not guessable**: 48 bits of millisecond timestamp and 80 bits of randomness, so
+knowing roughly when a record was created still leaves 80 bits. So the endpoint was never
+enumerable, and §12i overstated how the gap is reached.
+
+**Everything else in §12i stands, and understated the gap in a different direction.** The
+missing check was real, and there was a second endpoint with the same defect and an
+identifier that is simply *handed out*:
+
+| Endpoint | Authorised on | Org scope | Identifier |
+|---|---|---|---|
+| `GET /attendance/{attendanceRecord}` | `attendance.view` — `$everyone` | **none** | record ULID |
+| `GET /employees/{employee}/attendance/timeline` | `attendance.view` — `$everyone` | **none** | employee ULID |
+| `GET /employees/reporting-tree` | `employee.viewAny` — supervisor+ | **none** | *returns* every employee ULID |
+
+The timeline returns **90 days by default** of one named employee's check-in and check-out
+times. `EmployeeController::reportingTree()` builds the whole tenant's chart from every root
+with `directReportsRecursive` and applies no `scopeAccessibleEmployees()` — its sibling
+`index()` on the next line does.
+
+**So the chain needs no guessing at all.** A `SUPERVISOR` — `OrgScope::DIRECT_REPORTS`, holding
+`employee.viewAny` — reads the reporting tree, gets every employee's `public_id`, and reads the
+90-day attendance timeline of anyone in the tenant. That defeats org scoping for every role
+whose scope is narrower than `ALL`, which is what `ScopesEmployeeAccess` exists to enforce.
+It is a bigger hole than the one §12i described, reached by a supported feature rather than
+by brute force.
+
+**Fixed, both reads:**
+
+- `AttendanceController::show()` now calls `Gate::authorize('view', $attendanceRecord)`,
+  routing through `AttendanceRecordPolicy::view()` — the policy §12i kept for exactly this.
+- `EmployeeAttendanceTimelineController` now states both dimensions separately:
+  `Gate::authorize('attendance.view')` for "may you read attendance" and
+  `Gate::authorize('view', $employee)` for "may you read this employee", the latter through
+  `EmployeePolicy::view()`, which already pairs `employee.view` with `canAccessEmployee()`.
+
+**Neither fix costs self-service.** Both paths end at `canAccessEmployee()`, which returns true
+for `OrgScope::SELF` on your own record. The existing test *can view single attendance record*
+passes unchanged, and the timeline's only frontend caller is the employee detail page, which
+already required `employee.view` + `canAccessEmployee()` to load the employee it is a tab on.
+
+`AttendanceOrgScopeTest` pins all four outcomes — denied out of scope, allowed in scope, on
+each endpoint — plus the premise that `attendance.view` is granted to every role, so the file
+fails loudly rather than quietly if that grant ever changes. **Each of the four returns 200
+without the fix.**
+
+**`reporting-tree` is NOT changed here, and that is a decision rather than an oversight.** A
+tenant-wide org chart is a legitimate product feature and plenty of companies publish one. The
+defect was never that it lists people; it was that two other endpoints trusted an identifier
+to be secret when a supported endpoint hands it out. With both reads scoped, the tree leaks a
+name and a reporting line — which an org chart is *for* — and no longer unlocks anyone's
+movements. Whether the chart itself should respect `orgScope()` is **open question 10**.
+
+**The lesson, and it is the same one twice in one day.** §12h reasoned about twelve policies as
+a class and was wrong about one of them. §12i then read one file for a route key and was wrong
+about which key. Both were cheap to check and neither was checked. The rule this file keeps
+re-deriving: **a grep that returns nothing is evidence about the grep, not about the code.**
 
 ---
 
@@ -2482,7 +2550,9 @@ Verified against a pre-upgrade baseline captured deliberately first, so a failur
 6. ~~Merge `docs/phase-0-baseline` into `main`~~ — done (`2b47bdf`).
 7. **Does a generated invoice count as `sent`?** (§15d, risk 18.) Nothing transitions `draft` → `sent`, so no invoice ever enters dunning and no non-paying tenant is ever suspended. Either `generateMonthlyInvoice()` should create them as `sent`, or there is a send step that was never built. This is a billing-process decision and is the last thing blocking the dunning chain from working at all.
 8. **Should deleting an employee deactivate their login?** (§15e.) `EmployeeController::destroy()` soft-deletes the employee and leaves the linked `User` active — no observer, no model hook, nothing in between. An offboarded employee keeps their account and can still log in, **by email as much as by employee number**, so this is not a tenancy or identifier-resolution bug and was deliberately not patched alongside §15e. It is an offboarding-policy decision with a real argument on each side: deleting a record that was created in error should probably not lock someone out, and a user may hold an account without being staff. Recommendation: deactivate, with an explicit reactivation path, since an HCM product that leaves ex-employees able to sign in is the more surprising default.
-9. **Should `GET /attendance/{attendanceRecord}` be org-scoped?** (§12i.) `AttendanceController::show()` authorises with `Gate::authorize('attendance.view')` and nothing else. `attendance.view` is in the `$everyone` grant list, the route binds on the sequential primary key, and `show()` is the one attendance read that applies no `scopeAccessibleEmployees()` — so **any authenticated employee can read any attendance record in their own tenant, including its check-in latitude and longitude**, by incrementing an integer. Tenant isolation is unaffected: `BelongsToTenant` still resolves another tenant's row to a 404, so this is an org-hierarchy boundary inside a tenant, not a tenancy defect. The fix is one line — `Gate::authorize('view', $attendanceRecord)`, routing through `AttendanceRecordPolicy::view()`, which already holds exactly the right check and is why that policy was kept when the other eleven were deleted. It is listed here rather than applied because it is a **visible behaviour change on a live endpoint**: today every employee can read every record and afterwards most cannot. Recommendation: scope it. An HCM product where any staff member can read a colleague's movements by guessing a number is the more surprising default, and the correct logic is already written and registered.
+9. ~~**Should `GET /attendance/{attendanceRecord}` be org-scoped?**~~ **ANSWERED and FIXED 2026-09-23 — §12j.** Yes, and so should `GET /employees/{employee}/attendance/timeline`, which had the same missing check and a far easier identifier to obtain. Both now route through a policy that pairs the ability with `canAccessEmployee()`. **This entry as first written claimed the record id was "a sequential integer" — it is a ULID, and the correction is §12j.** The gap was real and the stated route in was wrong.
+
+10. **Should the reporting tree respect `orgScope()`?** (§12j.) `EmployeeController::reportingTree()` returns every employee in the tenant with `directReportsRecursive`, gated on `employee.viewAny` (supervisor and above) and applying no `scopeAccessibleEmployees()` — its sibling `index()` applies one. It was the identifier source in the §12j chain: a supervisor read it to obtain the `public_id` of anyone in the tenant. With both attendance reads now scoped, what it discloses is a name and a reporting line. **That is what an org chart is for**, and a tenant-wide chart is a normal product feature, so this is a product decision rather than a defect. Recommendation: leave it tenant-wide, and treat it as the standing reason never to authorise an endpoint on the secrecy of an employee `public_id`. If a tenant ever needs a scoped chart, that is a feature request with a permission of its own, not a patch to this method.
 
 ---
 

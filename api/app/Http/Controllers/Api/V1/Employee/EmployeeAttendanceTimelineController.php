@@ -36,7 +36,13 @@ class EmployeeAttendanceTimelineController extends Controller
 {
     public function __invoke(Request $request, Employee $employee): JsonResponse
     {
+        // Two dimensions, stated separately because they are separate questions:
+        // may you read attendance at all, and may you read THIS employee.
+        // attendance.view alone answers only the first -- it is in the $everyone
+        // grant list -- and this endpoint returns 90 days of one named employee's
+        // movements. EmployeePolicy::view() carries the orgScope() check.
         Gate::authorize('attendance.view');
+        Gate::authorize('view', $employee);
 
         $from = $request->filled('from')
             ? Carbon::parse($request->input('from'))
