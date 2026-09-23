@@ -330,6 +330,16 @@ jobs:
           DB_DATABASE: ethr_rehearsal
           DB_USERNAME: ethr
           DB_PASSWORD: ethr
+          # .env.example selects redis for all three, which is right for the
+          # local Docker stack and wrong here: this job runs no Redis service.
+          # The phpunit configs `force` exactly these values, which is why the
+          # test suites never hit it — and why `migrate` in the api-contract job
+          # does not either, since migrations touch no cache. `db:seed` does:
+          # PermissionSeeder calls Permission::clearCache(), and the first run of
+          # this job died on `RedisException: Connection refused` there.
+          CACHE_STORE: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
         run: |
           cp .env.example .env
           php artisan key:generate
@@ -351,6 +361,16 @@ jobs:
           DB_DATABASE: ethr_rehearsal
           DB_USERNAME: ethr
           DB_PASSWORD: ethr
+          # .env.example selects redis for all three, which is right for the
+          # local Docker stack and wrong here: this job runs no Redis service.
+          # The phpunit configs `force` exactly these values, which is why the
+          # test suites never hit it — and why `migrate` in the api-contract job
+          # does not either, since migrations touch no cache. `db:seed` does:
+          # PermissionSeeder calls Permission::clearCache(), and the first run of
+          # this job died on `RedisException: Connection refused` there.
+          CACHE_STORE: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
         run: php artisan ethr:backup:rehearse
 
   api-contract:
