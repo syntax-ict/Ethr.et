@@ -429,6 +429,59 @@ route that can trigger payroll-adjacent jobs — and deliberately **not implemen
 speculatively**; build it only once B3 confirms it's actually needed, sized to the
 panel's actual fetch-interval floor.
 
+## 6a. What a full disk actually looks like
+
+**Set backup retention before the first scheduled run, not after.** On Bronze the
+plan is **5 GB in total** *(PUBLISHED)*, shared by the application, `vendor/`,
+the exported frontend, logs, every uploaded employee document and every backup.
+There is no off-host disk configured, so `ethr:backup` writes to the machine it
+protects.
+
+**Retention is now 2, not 7** — `BACKUP_KEEP` in the environment,
+`config/backup.php` if unset. The arithmetic that decides it is in
+[`../BACKUP-RESTORE.md`](../BACKUP-RESTORE.md) → *Scheduling*; the short version
+is that what is retained is an **uncompressed** directory containing a full copy
+of `storage/app/private`, and `prune()` runs *after* `create()`, so at peak every
+employee document exists **`keep + 2`** times. At 7 that is nine copies. At 2 it
+is four.
+
+### The failure mode, stated plainly
+
+**A full quota does not present as a full disk. It presents as data corruption.**
+
+Nothing on this account reports "out of space" to a user. What happens instead is
+that **every write under `storage/` fails while every read keeps working**, so
+the application stays up and looks healthy:
+
+- **Log writes fail**, so the event that would have told you goes missing first.
+  The failure erases its own evidence before anyone sees it.
+- **Uploads fail after the HTTP request has already succeeded** — a payslip or a
+  scanned ID that the UI reported as saved is not on disk.
+- **Queued work fails** mid-job, and jobs that write files fail *after* their
+  database rows are committed. That is the shape that looks like corruption: the
+  record says the document exists and the document does not.
+- **The backup that would have let you undo it is the thing that filled the
+  disk**, and it fails too — leaving the newest retained copy older than the
+  damage.
+- **`/api/v1/health` can still return 200.** It is not a disk check.
+
+The same mechanism is already recorded elsewhere in this repository for a
+different cause — `HostingRequirementsConsistencyTest` explains why
+`BROADCAST_CONNECTION` must not be `log` on this target, because *"`log` writes a
+line per broadcast against a fixed disk quota, where filling the quota fails
+every write path including the database's."* Same quota, same silence.
+
+**So treat free space as a monitored quantity on this target, not as an
+assumption.** Read it in the Plesk panel before the first scheduled backup runs
+and after the first week, and keep `BACKUP_KEEP` at the lowest number that still
+gives you two restore points — one is not a retention policy, it is a single
+point of failure, because a backup you cannot read leaves nothing behind it.
+
+**The real fix is off-host retention, and it is not configured.** `--off-host`
+exists and is wired through `league/flysystem-aws-s3-v3`, but the scheduled run
+does not pass it and no disk is set up. Until it is, local retention is a stopgap
+and depth must stay small.
+
 ## 7. Verify
 
 ```bash

@@ -100,7 +100,11 @@ Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');
 // On shared hosting this arrives via one Plesk Scheduled Task running
 // `artisan schedule:run` every minute, not via a daemon. See
 // docs/deployment/BACKUP-RESTORE.md.
-Schedule::command('ethr:backup', ['--keep=7'])
+// No --keep here on purpose: the command falls back to config('backup.keep'),
+// so BACKUP_KEEP governs retention per environment. Passing it here would
+// override the env var on every host and re-create the defect where lowering
+// retention on a 5 GB plan had no effect. See config/backup.php.
+Schedule::command('ethr:backup')
     ->dailyAt('01:00')
     ->name('ethr-backup')
     ->withoutOverlapping();

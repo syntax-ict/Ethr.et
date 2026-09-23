@@ -26,7 +26,7 @@ There was also no restore *command* anywhere — only prose. Recovery procedures
 ```bash
 php artisan ethr:backup                     # database + employee documents
 php artisan ethr:backup --off-host          # and copy an archive off the account
-php artisan ethr:backup --keep=14           # retention
+php artisan ethr:backup --keep=2            # retention; omit it and config backup.keep governs
 php artisan ethr:restore <name>             # the half that makes it a backup
 php artisan ethr:restore <name> --force     # non-interactive
 ```
@@ -132,8 +132,26 @@ A silently missing trigger means `audit_log` has stopped being append-only. Ever
 One entry, already registered in `routes/console.php`:
 
 ```
-0 1 * * *   php artisan ethr:backup --keep=7
+0 1 * * *   php artisan ethr:backup
 ```
+
+**No `--keep` on that line, deliberately.** The command falls back to
+`config('backup.keep')`, so `BACKUP_KEEP` sets retention per environment — **7**
+on the VPS, **2** on shared hosting. Passing `--keep` here would override the env
+var on every host, which is the defect this had until 2026-09-23: the command's
+signature carried its own `--keep=7` default, so `config('backup.keep')` and
+`BACKUP_KEEP` were read by nothing and lowering retention on a fixed quota did
+nothing at all.
+
+**What is retained is not an archive.** `create()` writes an *uncompressed*
+directory — `database.sql` plus a full copy of every file in
+`storage/app/private` — and `prune()` runs *after* it, so the peak is
+`keep + 1` directories. Every employee document therefore exists **`keep + 2`**
+times at peak: once live, once per retained copy, once in the copy being made.
+The tar.gz only happens in `copyOffHost()`, which the scheduled run does not
+call. On a fixed quota see
+[`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md) → *What a full
+disk actually looks like*.
 
 01:00 UTC (04:00 EAT), deliberately **before** the 02:00 cleanup job, so a backup always exists from before data was pruned rather than after.
 
