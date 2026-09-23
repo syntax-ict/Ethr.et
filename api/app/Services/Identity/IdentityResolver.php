@@ -174,6 +174,37 @@ final class IdentityResolver
     }
 
     /**
+     * Candidate employees for scoring — one tenant-scoped query, six OR'd
+     * predicates.
+     *
+     * **`badge_number`, `email` and `name` keep their `LOWER()` wrappers, and
+     * that is deliberate.** The obvious tidy-up is to give them generated
+     * columns like `employee_code_normalized` and stop wrapping. It would buy
+     * nothing, because this query cannot use an index on any of these columns
+     * whatever they look like. Measured with `EXPLAIN QUERY PLAN` on SQLite
+     * 3.45.1 against this exact shape — `tenant_id = ? AND (a OR b OR … OR f)`
+     * — with three variants: as it stands, with code and phone moved to the
+     * generated columns, and with **every** term given an index. All three
+     * produce the identical plan:
+     *
+     *     SEARCH employees USING INDEX <some (tenant_id, …) index> (tenant_id=?)
+     *
+     * The seek is on `tenant_id` alone; the disjunction is then evaluated row
+     * by row. A control query with the same predicate and no `OR` seeks both
+     * columns, which is what makes the reading a measurement rather than a
+     * guess about the optimiser.
+     *
+     * So the two changes above are **not** a performance fix and are not
+     * claimed as one. They remove a second, hand-written copy of a
+     * normalisation rule that already exists as a generated column — the kind
+     * of duplication that stays correct until someone changes one of them.
+     *
+     * If this path ever needs to be fast, the fix is structural, not cosmetic:
+     * run one indexed equality per identifier and union the results in PHP,
+     * which would also mean deciding what `MAX_CANDIDATES` means across a
+     * union rather than a single `LIMIT`. That is a change to matching
+     * behaviour and belongs in its own review. `BASELINE.md` §15h.
+     *
      * @return array<int, Employee>
      */
     private function fetchCandidates(int $tenantId, IdentitySignals $signals): array
@@ -198,7 +229,11 @@ final class IdentityResolver
                     $q->orWhere('national_id_hash', $nationalIdHash);
                 }
                 if ($code !== null) {
-                    $q->orWhereRaw('LOWER(employee_code) = ?', [mb_strtolower($code)]);
+                    // `employee_code_normalized`, not `LOWER(employee_code)`: the
+                    // column IS `LOWER(employee_code)`, generated, and writing the
+                    // expression again here would be a second definition of the
+                    // same rule that nothing keeps in step with the first.
+                    $q->orWhere('employee_code_normalized', mb_strtolower($code));
                 }
                 if ($badge !== null) {
                     $q->orWhereRaw('LOWER(badge_number) = ?', [mb_strtolower($badge)]);
@@ -212,8 +247,14 @@ final class IdentityResolver
                     // dashes, parentheses) don't hide a real match. This does not
                     // reconcile country-code conventions (+251 vs leading 0) —
                     // that is telephony canonicalization, out of scope here.
-                    $stripped = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), '(', ''), ')', ''), '.', '')";
-                    $q->orWhereRaw("{$stripped} = ?", [$normalizedPhone]);
+                    //
+                    // `phone_normalized` carries exactly the six replacements this
+                    // line used to spell out, so the comparison is unchanged. The
+                    // asymmetry BASELINE §15e records for the login path is here
+                    // too and is likewise preserved: `normalizePhone()` strips
+                    // *every* non-digit, the column strips six characters, so a
+                    // number stored as `091/234-5678` has never matched.
+                    $q->orWhere('phone_normalized', $normalizedPhone);
                 }
                 if ($name !== null) {
                     $q->orWhereRaw('LOWER(name) = ?', [mb_strtolower($name)]);

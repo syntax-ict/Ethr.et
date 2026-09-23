@@ -1782,6 +1782,52 @@ Every other construction site in the suite now passes a tenant id — six in
 
 ---
 
+### 15h. The other `LOWER()` wrappers — measured, and mostly left alone — **2026-09-23**
+
+§15e closed the login path and recorded, as out of scope, that
+`App\Services\Identity\IdentityResolver` still wraps four columns in `LOWER()`. That note
+implied the same fix would apply there. **It does not, and the reason is worth keeping.**
+
+`fetchCandidates()` is one tenant-scoped query with six OR'd predicates —
+`national_id_hash`, `employee_code`, `badge_number`, `email`, `phone`, `name` — and a
+disjunction is not the shape §15e fixed. Measured with `EXPLAIN QUERY PLAN` on SQLite
+3.45.1 against the real index set, in three variants:
+
+| Variant | Plan |
+|---|---|
+| As `main` stood | `SEARCH employees USING INDEX … (tenant_id=?)` |
+| `employee_code` and `phone` moved to their generated columns | identical |
+| **Every** term given an index | identical |
+| *Control:* the same predicate with no `OR` | `SEARCH … (tenant_id=? AND employee_code_normalized=?)` |
+
+The seek is on `tenant_id` alone in all three; the disjunction is then evaluated row by
+row. The control is what makes this a measurement rather than a guess about the optimiser:
+the index works, the `OR` is what stops it being reachable.
+
+**So removing these wrappers cannot make the query faster, and three of them stay.**
+`badge_number`, `email` and `name` keep `LOWER()`, with the measurement recorded at the
+call site so the next reader does not "fix" them and conclude nothing happened. Note that
+two of the three — `email` and `name` — have no index at all to defeat, which is a
+separate observation and equally moot here.
+
+**What did change, and why it is not a performance claim.** `employee_code` and `phone`
+now compare against `employee_code_normalized` and `phone_normalized`, the generated
+columns added in §15e. Those columns already carry exactly these expressions, so the
+comparison is unchanged and `IdentityResolutionTest` — exact code, case-insensitive email,
+phone-only, name-resemblance, cross-tenant — is untouched and is the evidence. The gain is
+that the normalisation now has **one** definition instead of two. The duplicate mattered:
+§15e records a known asymmetry in the phone rule (`normalizePhone()` strips every
+non-digit, the column strips six characters, so `091/234-5678` has never matched), and
+that asymmetry existed **identically and separately** in this class. Anyone fixing it in
+one place would have left the other behind.
+
+**If this path ever needs to be fast**, the fix is structural: one indexed equality per
+identifier, unioned in PHP, which also means deciding what `MAX_CANDIDATES` means across a
+union rather than a single `LIMIT`. That changes matching behaviour and belongs in its own
+review, not in a wrapper cleanup.
+
+---
+
 ### 15g. §15f's account of itself was wrong, and the fixture gap that hid it is closed — **2026-09-23**
 
 **Read this before §15f.** Two of §15f's claims were reasoned from the SQLite result rather
@@ -2042,6 +2088,11 @@ migration would be exactly the silent behaviour change this section exists to av
   That is a different subsystem (device identity matching), it is not on the login path,
   and two of those columns have no index to defeat in the first place. Out of scope here;
   recorded so the next reader knows the pattern was not swept from the codebase.
+  *(Revisited 2026-09-23 — **§15h**. This bullet implied the §15e fix would apply there.
+  It does not: that query is a six-way disjunction, and measurement shows it cannot use an
+  index on any of those columns however they are written. Two now use the generated
+  columns to remove a duplicated normalisation rule; three keep `LOWER()` deliberately;
+  none of it is a performance change.)*
 - **An indexed VIRTUAL generated column is now a hosting requirement, and the host's
   MariaDB version has never been read.** Verified on **MariaDB 10.11** — both CI database
   jobs run that image, and §11h's unique index on `devices.serial_number_active` has been

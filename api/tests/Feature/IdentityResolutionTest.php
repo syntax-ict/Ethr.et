@@ -14,6 +14,7 @@ use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Services\Import\EmployeeImporter;
+use Illuminate\Support\Facades\DB;
 
 function identityResolver(): IdentityResolver
 {
@@ -90,6 +91,54 @@ describe('IdentityResolver scoring', function () {
         $match = identityResolver()->resolve($mine->id, new IdentitySignals(employeeCode: 'SHARED'));
 
         expect($match->outcome)->toBe(IdentityMatch::NEW);
+    });
+
+    it('normalises through the generated columns rather than restating the rule', function () {
+        // Not a performance assertion — BASELINE §15h measures that this query
+        // cannot use an index on any of these columns however they are written,
+        // because it is a six-way disjunction. What this pins is that the
+        // normalisation has ONE definition.
+        //
+        // `employee_code_normalized` and `phone_normalized` are generated
+        // columns carrying `LOWER(employee_code)` and a six-replacement chain
+        // over `phone`. Until 2026-09-23 this class spelled both out again in
+        // `orWhereRaw`, so the same rule existed twice with nothing keeping the
+        // copies in step — and §15e records a known asymmetry in the phone rule
+        // that a later fix would have corrected in one place and not the other.
+        $tenant = createTenant();
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = mb_strtolower($query->sql);
+        });
+
+        identityResolver()->resolve($tenant->id, new IdentitySignals(
+            employeeCode: 'EMP-001',
+            phone: '0911 22 33 44',
+            name: 'Almaz Tesfaye',
+        ));
+
+        $candidateQuery = collect($queries)->first(fn (string $sql) => str_contains($sql, 'employees'));
+
+        expect($candidateQuery)->not->toBeNull()
+            ->and($candidateQuery)->toContain('employee_code_normalized')
+            ->and($candidateQuery)->toContain('phone_normalized');
+
+        // The rule itself must not be restated alongside the column that holds it.
+        expect(str_contains($candidateQuery, 'lower(employee_code)'))->toBeFalse(
+            'The employee-code rule is written twice again: once as the generated column '
+            .'`employee_code_normalized` and once as `LOWER(employee_code)` here. See §15h.'
+        );
+        expect(str_contains($candidateQuery, 'replace('))->toBeFalse(
+            'The phone rule is written twice again: once as the generated column '
+            .'`phone_normalized` and once as a REPLACE chain here. See §15h.'
+        );
+
+        // `badge_number`, `email` and `name` keep LOWER() deliberately — there is
+        // no generated column holding those rules, so nothing is duplicated and
+        // an index would not be reachable anyway. Asserted so that removing the
+        // wrappers is a deliberate act rather than a tidy-up.
+        expect($candidateQuery)->toContain('lower(name)');
     });
 });
 
