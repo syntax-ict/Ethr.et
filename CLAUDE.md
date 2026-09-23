@@ -96,13 +96,35 @@ with the loudest mechanism the site allows:
   pinned directly, along with the two-tenants-one-serial case, in
   `tests/Feature/Security/DeviceWebhookTenantScopeTest.php`.
 
-**Two were left open because enforcing them changes behaviour rather than guarding it**, so
-they are the owner's call: scoping the `supervisor_id` `exists:` rule turns today's silent
-null into a 422 (and its message must not distinguish "no such employee" from "exists in
-another tenant", or it leaks the thing the scope hides), and stating `tenant_id` at the
-fifteen bare `::find()` sites would turn any *intentional* cross-tenant read among them
-into a null. A unique index on `devices.serial_number` is a third: it would reject existing
-duplicate rows at migration time, which needs a production data audit first.
+**The fourth was an authorised behaviour change** (2026-09-23, §11f), and it covers **all
+seven** employee relation fields — `department_id`, `branch_id`, `position_id`, `grade_id`,
+`team_id`, `cost_center_id` and `supervisor_id`. A `public_id` from another tenant now
+returns **422** instead of 201-with-a-silent-null. Four constraints, each load-bearing:
+
+- The check is a `withValidator()` hook in
+  `Http/Requests/Employee/Concerns/ValidatesRelationTenancy.php`, **not a rule**. Scramble
+  generates `src/src/api/generated.ts` from `rules()`, and `ChangePlanRequest` already
+  records that the `Rule::exists(...)` builder is untested against that gate. `rules()` is
+  byte-identical to before, so the contract cannot drift.
+- **Never put an explanatory comment above a key in `rules()`.** Scramble publishes those
+  as OpenAPI `description`s — see `create_login` at `generated.ts:6904`, whose PHP comment
+  is in the client contract verbatim.
+- The hook re-runs `resolveRelationIds()`'s own scoped lookup rather than restating
+  `tenant_id`, so validation and resolution cannot disagree. The field/model map lives once,
+  in `App\Support\EmployeeRelations::MAP`, read by both — an eighth field added to one and
+  not the other would be a silent null again.
+- The message is Laravel's generic `validation.exists` line, identical to a genuinely
+  nonexistent id: a distinguishable one would confirm a `public_id` across tenants, which is
+  what the scope hides. Tests pin the two as equal **per field**.
+
+`CostCenter` is the only one of the seven without `SoftDeletes`, so it is absent from the
+soft-delete dataset. And `@mixin FormRequest` must use the imported name — the
+leading-slash FQN fails Pint's `fully_qualified_strict_types`, which cost a red gate.
+
+**Two remain open, and both are the owner's call**: stating `tenant_id` at the fifteen bare
+`::find()` sites would turn any *intentional* cross-tenant read among them into a null, and
+a unique index on `devices.serial_number` would reject existing duplicate rows at migration
+time, which needs a production data audit first.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
