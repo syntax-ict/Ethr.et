@@ -22,8 +22,12 @@
 > are answered, and `deployment/GATE-0-RESULT.md` is where the measurements live:
 >
 > - **B3 (cron) is answered — G0-D = FAIL.** No Scheduled Tasks section exists on the
->   subscription dashboard. What follows from that is **not** what the §4 table below
->   still says; see the note on the B3 row.
+>   subscription dashboard. What follows from that is **not** what the §4 table
+>   originally said. **Resolved 2026-09-23:** the reason that table gave — *"leave accrual,
+>   invoicing, anomaly scanning, cleanup and every queued email stop"* — is false, MEASURED.
+>   `POST /api/v1/cron/schedule` and `POST /api/v1/cron/queue` drive the scheduler and the
+>   queue over HTTP. The row is corrected; **the No-Go decision it recorded is unchanged**
+>   and is the owner's to re-take. See the B3 row.
 > - **B4 (PHP ≥ 8.2) is answered — PHP 8.3.33**, panel-read 2026-09-17. It passes.
 >
 > B1, B2 and B5 remain unresolved, as do the two newer gates. Read §4 with
@@ -177,8 +181,16 @@ model, no tenancy model, no payroll calculation, no Ethiopian calendar, no local
 
 ### OPTION C — Hybrid: shared hosting + a small VPS for what shared hosting cannot do
 
-Shared hosting serves the web tier; one Ethio Telecom VPS Gold (4 GB, ETB 10,379/yr)
-carries the components that need a long-running process.
+Shared hosting serves the web tier; one Ethio Telecom VPS Gold (4 GB, **ETB 10,379/yr —
+ASSUMED**) carries the components that need a long-running process.
+
+> **That price is ASSUMED, not measured or published.** Its only source in this repository
+> is a third-party directory (whtop) carrying **data dated 2020**, recorded as
+> *"unconfirmed"* in [`TCO_COMPARISON.md`](TCO_COMPARISON.md) at every one of its four
+> appearances there, and never checked against the Ethio Telecom portal. It is quoted
+> unqualified twice in this section; both are now marked. **Confirm it on the portal before
+> any decision rests on it** — `TCO_COMPARISON.md` opens by saying the same thing about
+> every third-party figure it carries.
 
 ```
         Browser ──────────────► Shared host  (Plesk, PHP, docroot → api/public)
@@ -216,7 +228,7 @@ hybrid costs more than the VPS alone, is harder to operate, and is slower.
 | Functionality preserved | ~100% |
 | Work | Highest of the three |
 | Risk | Highest — cross-provider network dependency on the hot path |
-| Cost | shared plan **plus** ETB 10,379/yr VPS |
+| Cost | shared plan **plus** ETB 10,379/yr VPS — the VPS figure **ASSUMED** (see above) |
 
 **Recommendation: reject Option C** unless the requirement is specifically "the domain
 and web tier must be hosted at Ethio Telecom" for a reason other than cost. If that
@@ -229,8 +241,8 @@ requirement exists, say so and this becomes the right answer.
 | | **A — VPS** | **B — Shared** | **C — Hybrid** |
 | --- | --- | --- | --- |
 | Product features preserved | 100% | 100% | 100% |
-| Realtime push | Native | Degrades to 30 s poll | Native |
-| Queue latency | Sub-second | 1 min (cron) | Sub-second |
+| Realtime push | Native | Degrades to 30 s poll — **MEASURED** (`refetchInterval: 30000` in `src/src/features/notifications/api.ts:30`, and the same on the devices and admin dashboards) | Native |
+| Queue latency | Sub-second | ~~1 min (cron)~~ **ASSUMED, and overtaken — see below** | Sub-second |
 | Queue observability | Horizon UI | `failed_jobs` + logs | Horizon UI |
 | Audit-log DB triggers | Yes | **At risk (H1)** | Yes |
 | Wildcard tenant subdomains | Yes | **At risk (B1/B2)** | At risk |
@@ -242,6 +254,17 @@ requirement exists, say so and this becomes the right answer.
 | API contract changed | None | **None** | None |
 | Operational complexity | Medium | Low | **High** |
 | Cost | VPS | Lowest | Highest |
+
+> **The B column's queue latency was never measured, and the mechanism it assumed is
+> gone.** *"1 min (cron)"* took Plesk's minimum cron interval on trust — no such reading
+> exists in this repository. It is moot either way: **G0-D is FAIL**, there is no Scheduled
+> Tasks section, and the queue is driven instead by an **external caller** hitting
+> `POST /api/v1/cron/queue`. That caller is unchosen (question **Q6**), and every candidate
+> cadence in
+> [`deployment/SHARED_HOSTING_PLAN.md`](deployment/SHARED_HOSTING_PLAN.md) §5.3a is marked
+> **ASSUMED** there — GitHub Actions, the closest to free, documents a **5-minute** minimum
+> and delivers best-effort. So B's real queue latency is **unknown and bounded below by the
+> caller**, not by cron. No figure is substituted here, because none has been measured.
 
 ---
 
@@ -274,7 +297,7 @@ But the decision cannot be made yet, because the failure modes are not in the co
 | --- | --- |
 | **B1** wildcard subdomain | **No-Go.** Self-service tenant signup produces unreachable tenants. Path-based tenancy is a product redesign, explicitly out of scope. → Option A |
 | **B2** wildcard TLS | **No-Go.** `SESSION_SECURE_COOKIE=true` means auth cookies are withheld over an untrusted connection; tenants cannot log in. → Option A |
-| **B3** cron | **No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. → Option A ⚠️ **Disputed — see the banner at the top of this file.** B3 is answered (G0-D = FAIL) and `MIGRATION_STATE.md` → NEXT ACTION holds that the stated reason no longer applies. Not resolved on this pass |
+| **B3** cron | ~~**No-Go.** Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop. → Option A~~ **Resolved 2026-09-23 — the stated reason is false, MEASURED.** Those do not stop. `POST /api/v1/cron/schedule` and `POST /api/v1/cron/queue` exist (`api/routes/api.php:134-143`, behind `throttle:cron` then `VerifyCronToken`, built `b61cb05`), and `ethr:backup` rides the scheduler. **G0-D stays FAIL** — no gate moves here; what moves is the consequence this row draws from it. Since the rule's premise is gone, the No-Go stands only until someone **re-takes it deliberately**, which is an owner decision and not a documentation edit. Two caveats, neither a route back to the old reason: the endpoints need an **external caller**, unchosen (`deployment/SHARED_HOSTING_PLAN.md` §5.3a, question **Q6**), and nothing on this account has ever executed them |
 | **B4** PHP ≥ 8.2 | **No-Go.** Laravel 12 does not boot. → Option A |
 | **B5** Node.js runtime | **Not fatal.** Fails → Option B2 (static export), a scoped, costed frontend refactor. |
 | **H1** `CREATE TRIGGER` | **Not fatal, but a security downgrade that needs sign-off.** |
@@ -282,8 +305,9 @@ But the decision cannot be made yet, because the failure modes are not in the co
 
 **Go / No-Go: BLOCKED — pending answers to B1, B2 and B5.** *(Corrected 2026-09-23: this
 said "B1–B5". B3 and B4 are answered — see the banner at the top of this file. The
-consequence the B3 row draws from its answer is disputed by `MIGRATION_STATE.md`; that is
-flagged on the row and is not resolved here.)*
+consequence the B3 row drew from its answer was **resolved the same day**: its stated reason
+is false, MEASURED, and the row now says so. The No-Go itself is untouched — a gate fired
+it, the gate has not moved, and re-taking the decision is the owner's.)*
 
 Nothing in this repository can answer them. They require the account, or a written
 answer from Ethio Telecom support. The verification procedure is in
