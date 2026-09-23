@@ -12,6 +12,7 @@ use App\Services\Backup\BackupService;
 use App\Services\Backup\DatabaseDumper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Tests\Support\PreFixDumper;
 
 /**
  * An actual destructive restore rehearsal, not a dump-and-inspect.
@@ -127,20 +128,7 @@ function tableNames(): array
  */
 function tablesWithGeneratedColumns(): array
 {
-    $found = [];
-
-    foreach (tableNames() as $table) {
-        $generated = collect(DB::select("PRAGMA table_xinfo('".str_replace("'", "''", $table)."')"))
-            ->filter(fn ($column) => (int) $column->hidden !== 0)
-            ->pluck('name')
-            ->all();
-
-        if ($generated !== []) {
-            $found[$table] = $generated;
-        }
-    }
-
-    return $found;
+    return PreFixDumper::tablesWithGeneratedColumns();
 }
 
 /**
@@ -466,62 +454,3 @@ it('keeps only the requested number of backups', function () {
     expect($removed)->toHaveCount(1)
         ->and(File::directories($service->backupRoot()))->toHaveCount(2);
 });
-
-/**
- * `DatabaseDumper` as it stood before 2026-09-23 — data written from
- * `SELECT *`, so every INSERT names the generated columns too.
- *
- * Copied from the commit that replaced it rather than hand-written, so the test
- * above measures the real regression instead of a plausible-looking imitation
- * of it. It overrides only the data pass; schema and triggers come from the
- * parent unchanged, because those halves were never the defect.
- */
-final class PreFixDumper extends DatabaseDumper
-{
-    public function dumpTo(string $path): array
-    {
-        $stats = parent::dumpTo($path);
-
-        $tables = array_keys(tablesWithGeneratedColumns());
-
-        // Drop the fixed dumper's INSERTs for those tables, then write them the
-        // old way. Replacing rather than appending matters: a dump carrying
-        // both shapes is not a dump the pre-fix code could ever have produced,
-        // and a check that only looked at the first row per table would score
-        // it clean.
-        $kept = array_filter(
-            explode("\n", (string) File::get($path)),
-            function (string $line) use ($tables): bool {
-                foreach ($tables as $table) {
-                    if (str_starts_with($line, 'INSERT INTO "'.$table.'" (')) {
-                        return false;
-                    }
-                }
-
-                return true;
-            },
-        );
-
-        $lines = [];
-
-        foreach ($tables as $table) {
-            foreach (DB::table($table)->get() as $row) {
-                $values = array_map(
-                    fn ($value) => $value === null ? 'NULL' : "'".str_replace("'", "''", (string) $value)."'",
-                    array_values((array) $row),
-                );
-
-                $lines[] = sprintf(
-                    'INSERT INTO "%s" (%s) VALUES (%s);',
-                    $table,
-                    implode(', ', array_map(fn ($column) => '"'.$column.'"', array_keys((array) $row))),
-                    implode(', ', $values),
-                );
-            }
-        }
-
-        File::put($path, implode("\n", [...$kept, ...$lines])."\n");
-
-        return $stats;
-    }
-}
