@@ -75,12 +75,30 @@ distinguishes "the rules are in place" from "the rules are ignored and nothing s
 
 ## Cron / queue
 
-- [ ] `php artisan schedule:list` shows all 14 entries (only meaningful once cron is
-      actually configured per `DEPLOYMENT.md` step 6)
-- [ ] After the first minute the cron entry has had to fire, `SELECT * FROM jobs` and
-      `SELECT * FROM failed_jobs` — confirm jobs are being picked up and, just as
-      important, that nothing is failing silently on first contact with a real MySQL
-      table instead of the SQLite test suite
+> **Rewritten 2026-09-23. Both boxes below assumed a cron entry and a command line, and
+> the target account has neither** — **G0-D is FAIL** (no *Scheduled Tasks* section) and
+> **SSH is Forbidden**. `php artisan schedule:list` has nothing to run it on. The scheduler
+> and the queue are driven by an **external caller** over HTTP instead; the procedure is
+> [`cron-caller.md`](cron-caller.md), and which caller is still open question **Q6**.
+> The original boxes are kept struck through, because they are the right checks on any host
+> that *does* offer cron.
+
+- [ ] ~~`php artisan schedule:list` shows all 14 entries (only meaningful once cron is
+      actually configured per `DEPLOYMENT.md` step 6)~~ **No CLI on this account.** The
+      equivalent evidence is `GET /api/v1/health` → `queue_detail.scheduler.last_run_at`
+      moving after the caller fires
+- [ ] `POST /api/v1/cron/schedule` returns **200** with `status: "ok"` and `exit_code: 0`.
+      A **404 means check `CRON_TOKEN` first** — unset, under 32 characters, or mismatched
+      all 404 by design, and are indistinguishable from "no such route"
+- [ ] `POST /api/v1/cron/queue` returns **200** the same way. **Both endpoints, not one:**
+      a caller wired only to the scheduler leaves every queued job unrun while the
+      heartbeat stays fresh
+- [ ] ~~After the first minute the cron entry has had to fire,~~ **after the caller's first
+      tick,** `SELECT * FROM jobs` and `SELECT * FROM failed_jobs` — confirm jobs are being
+      picked up and, just as important, that nothing is failing silently on first contact
+      with a real MySQL table instead of the SQLite test suite. *(Whether this account has
+      any SQL console at all is blocker **B-5**, still open — `queue_detail.failed_jobs`
+      from the health endpoint carries the same count without one.)*
 
 ## Security
 

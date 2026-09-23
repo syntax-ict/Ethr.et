@@ -313,6 +313,38 @@ Nothing in this repository can answer them. They require the account, or a writt
 answer from Ethio Telecom support. The verification procedure is in
 `docs/ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md` §5.
 
+### What it would take to re-take this decision
+
+**Added 2026-09-23, because the rule above has a firing condition and no reversal
+condition.** The No-Go fired on **B3**, its stated reason turned out to be false (see the
+B3 row), and three documents now say the decision *"stands until someone re-takes it
+deliberately"* — without saying what re-taking it would rest on. That asymmetry is the gap:
+a rule that can only ever fire one way is not a decision procedure.
+
+**This section does not re-take the decision and does not move a gate.** It names what the
+evidence would have to show. **The thresholds are the owner's** — each row below marks who
+decides, and none is filled in here.
+
+| What | Status today | What re-taking Go would need | Whose call |
+|---|---|---|---|
+| **B3 cron** — the gate that fired the rule | **G0-D FAIL**, and its stated consequence is **false, MEASURED** | Nothing further on the evidence. But the endpoints have an **unchosen caller** (**Q6**) and **have never been called from anywhere**, so "resolved" is a mechanism that exists, not one that runs | Q6 is yours; the first successful tick is evidence, per [`deployment/shared-hosting/cron-caller.md`](deployment/shared-hosting/cron-caller.md) |
+| **B1 / B2** wildcard subdomain and TLS | **G0-C PARTIAL** — DNS half PASS; the panel accepting `*` rests on an **owner report**, and the vhost has never been created. Wildcard TLS needs DNS-01 | Either a wildcard certificate, which needs the `ethr.et` zone administrator (**Q7**), or an explicit decision that **per-tenant HTTP-01 is acceptable instead**. The second is a product decision, not a measurement | **Yours.** `deployment/SHARED_HOSTING_PLAN.md` §5.3d holds the workaround and calls it unverified |
+| **H1** `CREATE TRIGGER` | **G0-F NOT VERIFIED.** `migrate` aborts at `2026_07_22_000001` by design if it is denied | Either the grant, or the accepted-risk path **pre-registered** in [`AUDIT_LOG_INTEGRITY_DECISION.md`](AUDIT_LOG_INTEGRITY_DECISION.md) — which says the choice returns to the owner on refusal and that the mitigating flag must **not** be built pre-emptively | **Yours** (**Q8**). Steps 3 and 7 of §5.5 both stop here |
+| **B5** Node.js | **G0-G PARTIAL** — present and application-execution capable at **22.23.2**, below the pinned 24 | Nothing. This was never fatal: it selects the frontend branch, not the answer | Already decided — static export |
+| The frontend cost | **G0-B.1/B.2 NOT VERIFIED** | The **canary**. It is five files and six fetches, needs no shell, no cron and no ticket, and has never been run. A B.1 failure voids the ≈8-day estimate outright rather than reducing it | Nobody's decision — it is a measurement waiting to be taken |
+| The tier | **ASSUMED**, never panel-read (**Q9**) | A panel read. Nothing structural turns on it | **Yours** |
+
+**Two things this table is careful not to say.**
+
+1. **It does not claim the remaining gates are close to answerable.** Two of the six rows
+   wait on people outside this project — the DNS zone administrator (Q7) and, for the tier
+   and the plan's capabilities, Ethio Telecom. A third waits on a decision nobody has been
+   asked to make yet.
+2. **It does not rank the rows.** The canary is the cheapest and the only one that is purely
+   a measurement, which is why every next-action list in this corpus puts it first — but
+   cheapest is not the same as decisive, and **B1/B2 is the row that decides whether the
+   product can have more than one tenant.**
+
 ---
 
 ## 5. If approved — implementation order
