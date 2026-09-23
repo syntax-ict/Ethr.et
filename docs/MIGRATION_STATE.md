@@ -2843,6 +2843,140 @@ shared-hosting compatible; the *deployment assets* were not, on any path.
 
 ## NEXT ACTION
 
+**Rewritten 2026-09-23 for Plan B.** The 2026-09-19 text below the line is kept because its
+corrections are still right; what it got wrong is the *shape* of the wait. It said the
+workstream was blocked on Ethio Telecom and ranked **sending the support request** first.
+No reply came, the owner chose to replan on default plan capabilities only, and
+[`deployment/SHARED_HOSTING_PLAN.md`](deployment/SHARED_HOSTING_PLAN.md) **§5 — Plan B**
+is the result.
+
+| What the 2026-09-19 text said | What Plan B establishes |
+|---|---|
+| *"Nothing further is executable without external input"* | **Half right, and the half it got wrong is the important one.** Nothing is blocked on *Ethio Telecom* any more. Several things are still blocked on *the owner* — panel access, a decision — and those are a different kind of waiting |
+| *"Sending it is the highest-value action available"* | **No longer true.** Under the denial assumption nothing below waits on the ticket. It is now **upside, not a dependency** — see item 6 |
+| *"With no cron and no shell there is no route on this account that runs `artisan`"* | **Still true for `artisan` as a command**, and **no longer true for the work it was needed for.** `POST /api/v1/cron/{schedule,queue}` (built `b61cb05`) drive the scheduler and the queue, and `ethr:backup` rides the scheduler. Install commands still need Plesk Git *additional deployment actions* |
+| *"4. Upload the probe … Do not. Nothing on the account can run it"* | **Wrong, and it was wrong when written.** The probe has a deliberate **web-execution mode** — 403 by default, unlocked by setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy (`ethr-hosting-check.php:35-38`). It needs no shell and no cron. See item 2, and read it with the containment question, not instead of it |
+
+**The headline, and the reason this section is reordered.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+§4's decision rule fired on **B3 — cron**, and the reason it gave was *"Leave accrual,
+invoicing, anomaly scanning, cleanup and every queued email stop."* That reason no longer
+holds. **G0-D = FAIL is still true and is no longer fatal.** No gate moved, and the
+pre-registered **No-Go → Option A** stands until someone re-takes it deliberately — but it
+should now be re-taken rather than assumed.
+
+Two blockers remain and **neither is G0-D**: **G0-C** (wildcard TLS — no subdomain tenancy)
+and **G0-F** (`CREATE TRIGGER` — `migrate` will not complete). One is a DNS question with an
+unverified workaround; the other is an owner decision. Both are below.
+
+### In priority order
+
+1. **Run the canary. It is now the critical path, not one item among several.**
+   `scripts/hosting-verification/htaccess-canary/` — five files, six fetches, no shell, no
+   cron, no ticket. **Without a shell, work through
+   [`../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md)**,
+   which is the same six fetches with browser DevTools steps for the two that need request
+   or response headers.
+
+   It is first because G0-A's denial forecloses the Node branch, which makes **static
+   export the only frontend path**, and static export is bounded *only if `.htaccess` is
+   honoured*. **If G0-B.1 fails there is no SPA rewrite and therefore no mechanism to serve
+   entity routes at all** — `SHARED_HOSTING_PLAN.md` §3A's ≈8-day estimate should then be
+   discarded rather than treated as optimistic. This is the one check that can show Option
+   A unbounded *before* the eight days are spent.
+
+   **G0-B.1 is answered by `/REWRITE_OK` and by nothing else.** Opening `canary.php`
+   reports that row as `[ ???? ]`, which is correct rather than a failure.
+
+2. **Answer the probe's containment question, then run the probe — in that order.**
+   Its URL last measured **HTTP 200**, and a token-less copy should return **403**. Return
+   the response headers and the first body line first (this is §5.8's **Q1**); until that
+   is answered, containment stays **NOT VERIFIED** and exposure stays graded **LIVE**, and
+   adding a token to a copy whose exposure is not understood makes it worse.
+
+   Once it is answered, the probe over HTTP closes **G0-E's extensions and limits, G0-F,
+   G0-H, G0-I and G0-J** in one pass. Put the database credentials **in the uploaded copy,
+   not in the query string** — the file's own header says why: a browser request puts the
+   password in the access log. Web-SAPI values for `memory_limit` and `max_execution_time`
+   are the right ones to read here, because under Plan B there is no CLI path in normal
+   operation and the cron endpoints run under the web SAPI too.
+
+3. **Two decisions only you can take, both from `SHARED_HOSTING_PLAN.md` §5.8.**
+
+   - **Q8 — `TRIGGER` denied: do you accept the audit-log downgrade, or does ETHR not
+     deploy on this account?** `migrate` aborts at `2026_07_22_000001` by design.
+     [`AUDIT_LOG_INTEGRITY_DECISION.md`](AUDIT_LOG_INTEGRITY_DECISION.md) pre-registered
+     this exact case: the choice returns to you as accepted risk, and the mechanism is then
+     an `AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag that is **deliberately not built**. **This
+     blocks the deploy path at step 3 of §5.5** — nothing past installation proceeds
+     without it.
+   - **Q6 — which external caller drives the cron endpoints, and where does `CRON_TOKEN`
+     live?** GitHub Actions (no new vendor, 5-minute documented minimum and best-effort
+     delivery), the VPS you already have (perfect cadence — **but it makes this Option C,
+     and `SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better**), or
+     a third-party cron service (good cadence, a stranger holds a key that can drain your
+     queues and reads up to 2000 characters of Artisan output). §5.3a lays out the trade in
+     full.
+
+4. **Q3 — does a wildcard count as one subdomain, or does each tenant count individually?**
+   The single most consequential unknown in the workstream. If individually, the published
+   limits cap the product at **5 customers on Bronze** and **15 on Gold**, and no tier is
+   viable — which is a product question, not a hosting one. Ask Ethio Telecom, or find it
+   on the published spec sheet.
+
+5. **B-3** — identify in the panel what created `httpdocs/ethr.et/` before removing it.
+   Deleting a vhost is not deleting a folder.
+
+6. **Send the support request anyway.** Demoted from first to here, deliberately, and not
+   withdrawn: **nothing below or above now waits on it**, so it is no longer the highest-
+   value action — but a grant strictly improves Plan B and costs nothing to ask for. Cron
+   would restore real 1-minute scheduling and retire item 3's Q6 entirely; a `TRIGGER`
+   grant would retire Q8. Order unchanged: **cron → higher plans → `TRIGGER` → SSH**.
+
+   **No reply is not a refusal.** Plan B's denial premise is *assumed*, and the ticket has
+   still never been sent.
+
+7. **B-6** — `curl -sI http://91.99.81.71/`. Is the VPS still serving, and does it still
+   hold data? Nothing is removed from the VPS inventory until this is answered — and under
+   item 3's Q6 the VPS may turn out to be load-bearing rather than legacy.
+
+8. **When Plesk Git is reconfigured**, set the deployment path to `/ethr/` **before** the
+   first deploy. Setting it afterwards is precisely what put the repository under the
+   document root and produced item 2.
+
+9. ~~**Read the Plesk *Node.js* page — G0-G.**~~ **DONE 2026-09-22 — PARTIAL**, and
+   **MOOT under Plan B.** Node is present and can run an application (startup file `app.js`,
+   mode `production`, URL `http://ethr.et`) at **22.23.2** — below `.nvmrc`'s **24** CI pin,
+   though it is the runtime `docker/frontend/Dockerfile` already declares. Full evidence in
+   `deployment/GATE-0-RESULT.md` → *G0-G*.
+
+   It is moot because **G0-A's denial forecloses the Node branch regardless**: with no
+   custom directives there is nothing to split `/api/*` from `/`, so a startable runtime
+   buys nothing. G0-G stays `PARTIAL`; it simply stops deciding anything. The old question
+   *"is the version selectable?"* only matters if G0-A is ever answered PASS.
+
+**Repository-side work is not closed any more, but it is not blocking either.** Plan B
+identified one bounded engineering task — **static export, ≈8 days, 6–11**, of which **3
+days are void rather than optimistic** if item 1 comes back negative. Do not start it before
+item 1.
+
+Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
+Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —
+but **G0-C is not closed**, because the vhost has never been created and no panel output
+was recorded, and this register grades from output. **Bronze's quotas** matter for tier
+sizing and now for one operational setting: `BACKUP_KEEP` is **2** on shared hosting
+because retained backups are uncompressed and every document is stored `keep + 2` times at
+peak (`deployment/shared-hosting/DEPLOYMENT.md` §6a).
+
+The audit-log question is **no longer resolved by D8 alone**. D8 still holds — the migration
+aborts with a diagnosis rather than degrading silently — but the 2026-09-19 text said *"if
+G0-F comes back negative the response is ask 3 above, not a code change."* Under Plan B ask
+3 is assumed denied, so the response is item 3's **Q8**: your decision first, and then the
+`AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag, which must not be built pre-emptively.
+
+---
+
+*The 2026-09-19 corrections, retained because they are still right:*
+
 **Rewritten 2026-09-19.** This section predated G0-D being answered and predated the
 probe reaching the host. It told the owner to ask questions that have since been
 measured, and to upload a file by a route that does not exist. The corrections are
@@ -2855,55 +2989,6 @@ a wrong instruction here costs more than a wrong one anywhere else in the file.
 | *"1. B3 — Scheduled Tasks: present?"* | **Answered — FAIL** (owner-read 2026-09-18). Do not re-ask |
 | *"4. Upload the probe from the home directory and run it"* | **Do not.** Nothing on the account can run it, and it is already **on** the host — the Git deployment put it under `httpdocs/`, and its URL last measured **HTTP 200**. The open question is containment, not deployment |
 | *(no mention of a support request)* | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) now exists, drafted and **unsent**. Sending it is the highest-value action available |
-
-What still holds from the old text: **nothing further is executable without external
-input.** The repository-side pass is closed — see *PLESK COMPATIBILITY PASS — 2026-09-18*
-above. Every item below needs the Plesk panel or the owner's own machine.
-
-### In priority order
-
-1. ~~**Read the Plesk *Node.js* page — G0-G.**~~ **DONE 2026-09-22 — PARTIAL.** Node is
-   present and **can run an application** (Application Startup File `app.js`, Application
-   Mode `production`, Application URL `http://ethr.et`), so it is not build-only as this
-   plan assumed. The version offered is **22.23.2** — below `.nvmrc`'s **24** CI/test pin, and the
-   exact version `audit/BASELINE.md` §12d measured at *2 failed, 3 passed* **on the Vitest
-   harness**. It is, however, the frontend runtime this repository already declares in
-   `docker/frontend/Dockerfile`, so it is not a Branch A blocker. Full evidence
-   in `deployment/GATE-0-RESULT.md` → *G0-G*.
-
-   **It does not move the Option A/B decision**, because that rule fired on **G0-D**, which
-   is still FAIL: no cron and no shell means nothing runs `artisan`, so the application
-   cannot be installed whatever the frontend does. What it does change is the *reason*
-   Branch B would be chosen — it is no longer "there is no Node runtime". The remaining
-   question is narrow: **is the Node version selectable, or fixed at 22.23.2?**
-2. **Send the support request.** Four asks, in the criticality order set 2026-09-22: **cron**,
-   **what the higher plans provide**, the **`TRIGGER`** grant (G0-F), then **SSH** — SSH last
-   deliberately, because `deployment/SHARED-HOSTING-CONTRACT.md` makes it OPTIONAL. **B-1**, **B-4** and **G0-D** all turn on the
-   answer, and three of them have no other route.
-3. **Return the probe URL's response headers and its first body line.** One request
-   separates explanations **(a)–(d)** above, which no further status code can. Until it
-   is answered, containment stays **NOT VERIFIED** and exposure stays graded **LIVE**.
-4. **Deploy the canary** — `scripts/hosting-verification/htaccess-canary/`, five files,
-   six fetches. It answers **G0-B.1 through G0-B.5** with no shell, no cron and no
-   support ticket, which makes it the only gate group whose route is fully open today.
-5. **B-6** — `curl -sI http://91.99.81.71/`. Is the VPS still serving, and does it still
-   hold data? Nothing is removed from the VPS inventory until this is answered.
-6. **B-3** — identify in the panel what created `httpdocs/ethr.et/` before removing it.
-   Deleting a vhost is not deleting a folder.
-7. **When Plesk Git is reconfigured**, set the deployment path to `/ethr/` **before** the
-   first deploy. Setting it afterwards is precisely what put the repository under the
-   document root and produced item 3.
-
-Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
-Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —
-but **G0-C is not closed**, because the vhost has never been created and no panel output
-was recorded, and this register grades from output. **Bronze's quotas** still matter only
-for tier sizing, and D2 keeps us on Bronze regardless.
-
-The audit-log question (item 7 in an earlier version of this file) remains resolved by
-**D8**: the migration aborts with a diagnosis if `CREATE TRIGGER` is denied rather than
-degrading silently. If G0-F comes back negative the response is ask 3 above, not a code
-change.
 
 ### Gate 0 as it stands
 
