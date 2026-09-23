@@ -19,30 +19,111 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 *Counts corrected 2026-09-19.* This file said "four" files and, ten lines apart, both
 "three" and "four" curl checks. It is five and five: `shadow.js` was added on 2026-09-18
 as the second G0-B.5 bait and the counts here were never brought along. Six fetches in
-total — loading `canary.php` is itself the G0-B.1 reading.
+total.
 
-## Use
+*Corrected 2026-09-22.* The line above used to end "— loading `canary.php` is itself the
+G0-B.1 reading." It is not. `canary.php:26` sets `$rewriteHit` from `isset($_GET['rewrite'])`,
+and only the `RewriteRule ^REWRITE_OK$ canary.php?rewrite=1` supplies that. Opened
+directly, the script reports G0-B.1 as `????` and tells you to fetch `/REWRITE_OK`. The
+count of six is right; which fetch answers B.1 was not.
+
+## Run sheet
+
+**Why this is worth the fifteen minutes.** `SHARED_HOSTING_PLAN.md` §3A costs frontend
+Option A (static export) at **≈8 days, realistically 6–11** — and **3 of those days are
+gated on G0-B.1/B.2, which this canary answers.** `.htaccess` is not a convenience for
+that option, it is the mechanism: it carries the SPA rewrite that entity routes
+(`/employees/{id}` and three others) have **no alternative mechanism for**, plus the
+CSP/HSTS headers a static export silently drops and the `/admin` host boundary that
+middleware can no longer enforce. If `.htaccess` is ignored on this host, Option A is not
+bounded and that estimate is void rather than optimistic.
+
+So this is the one check that can show Option A unbounded **before** the eight days are
+spent rather than during them — and it needs no shell, no cron and no support ticket.
+
+### 1 · Upload
+
+All **five** files into **`httpdocs/ethr-canary/`**.
+
+`.htaccess` is hidden. In Plesk File Manager turn on **Show hidden files**; in an FTP
+client enable hidden files. It will otherwise silently not upload, and **every check below
+then reports a false negative**. Confirm it arrived before going on.
+
+### 2 · Open it
 
 ```
-1. Upload all five to   httpdocs/ethr-canary/   (.htaccess is hidden — check it went)
-2. Open                 https://www.ethr.et/ethr-canary/canary.php
-3. Run the five curl commands it prints, each with --resolve (below)
-4. Record results in    docs/deployment/GATE-0-RESULT.md  (G0-B rows)
-5. DELETE THE DIRECTORY
+https://www.ethr.et/ethr-canary/canary.php
 ```
 
-## Pin every request to the Plesk host
+**A 404 here means stop** — see *If canary.php returns 404* below. It is a document-root
+or vhost fact, not an `.htaccess` fact, and none of the five checks mean anything yet.
+
+### 3 · Run the six fetches
+
+`canary.php` prints these too, but without `--resolve` — it builds them from the hostname
+in the request it receives, so it cannot add the flag for you. Use these instead:
+
+```bash
+R="--resolve www.ethr.et:443:213.55.96.154"
+U="https://www.ethr.et/ethr-canary"
+
+# G0-B.1  mod_rewrite
+curl $R -s "$U/REWRITE_OK" | grep -E "G0-B.1|PASS"
+
+# G0-B.2  mod_headers
+curl $R -sI "$U/canary.php" | grep -i x-ethr-canary
+
+# G0-B.3  deny rules        <-- the deployment blocker
+curl $R -s -o /dev/null -w '%{http_code}\n' "$U/secret.txt.probe"
+
+# G0-B.4  Authorization forwarded
+curl $R -s -H 'Authorization: Bearer probe' "$U/canary.php" | grep -A1 "G0-B.4"
+
+# G0-B.5  static shadowing — RUN BOTH, they can legitimately disagree
+curl $R -s "$U/shadow.txt" | head -1
+curl $R -s "$U/shadow.js"  | head -1
+```
+
+Six fetches in total: loading `canary.php` in step 2 is the baseline reading, and
+`/REWRITE_OK` is what actually exercises G0-B.1.
+
+### 4 · Read the answers
+
+| Check | Pass | What a failure means |
+|---|---|---|
+| **B.1** rewrite | `[ PASS ] G0-B.1` | a **404** means rewriting is off. **This is the one that unbounds Option A** — no rewrite, no way to serve `/employees/{id}` at all |
+| **B.2** headers | `X-Ethr-Canary: headers-ok` | nothing back → CSP, HSTS, X-Frame-Options and Permissions-Policy would not be applied in production. **Silent**: the site works perfectly and nothing logs it |
+| **B.3** deny | `403` | `200` → `.env`, `.git/` and `composer.json` web-readable while the app still looks fine. **`404` is NOT a pass** — the file did not upload; fix and re-run |
+| **B.4** auth | the `PASS` line | Sanctum auth and CSRF break silently — it looks like an auth bug and costs an afternoon |
+| **B.5** shadow | *(no failing answer)* | `NOT-A-SECRET…` → the **file** won (nginx served disk first). This canary's own text → the **rewrite** won |
+
+**On B.5, `shadow.js` is the authoritative one.** Plesk's static block always covers
+js/css/images but only sometimes covers `.txt`, so `shadow.txt` alone can report "rewrite
+won" on a host that is shadowing every asset the deployment actually ships.
+
+Why each of these matters to ETHR is in *What each check means*; which failure hurts most
+is in *If `.htaccess` is ignored*.
+
+### 5 · Record, then delete
+
+Write the five results into `docs/deployment/GATE-0-RESULT.md`'s G0-B rows with today's
+date — then **delete `httpdocs/ethr-canary/` entirely**. Nothing in it is secret, but a
+stray `.htaccess` in a live document root is a configuration surprise waiting to happen.
+
+### While you are in the panel
+
+Read the bottom of **Apache & nginx Settings**. Confirming whether a directives textarea
+exists closes **G0-A** for free — and it is what decides whether the remedy below is
+available at all (see *If any of these fail*).
+
+## Why every request is pinned with `--resolve`
+
+The run sheet's `$R` is `--resolve www.ethr.et:443:213.55.96.154`, and it is not
+decoration.
 
 **Do not trust DNS or assume which vhost answers.** `docs/B1-B5_GATE_REPORT.md` records
 the account host as `213.55.96.154`; that IP is the repository's evidence for where this
-account lives. Add `--resolve` to every command:
-
-```bash
-curl --resolve www.ethr.et:443:213.55.96.154 -sI https://www.ethr.et/ethr-canary/canary.php
-```
-
-`canary.php` builds its printed commands from the hostname in the request it receives, so
-it cannot add the flag for you — add it by hand to each one.
+account lives.
 
 This is not paranoia on this host specifically: `B1-B5_GATE_REPORT.md` records
 `zzq7x.ethr.et` reaching the *server default* page rather than the `ethr.et` vhost, which

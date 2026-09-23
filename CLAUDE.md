@@ -49,6 +49,16 @@ That defect turned out to be a symptom. `CurrentTenant` was bound as a `singleto
 
 The 123 with a predicate were **not** individually audited. Having one is necessary, not sufficient.
 
+**A second pass ran on 2026-09-22** (`docs/audit/BASELINE.md` §11d), over *all* 156 with a
+stricter test — a `where`-family predicate on `tenant_id` **in the same statement**, rather
+than a mention within ±8 lines. **It found nothing that can reach another tenant's rows**,
+and five sites that are safe for reasons nothing enforces: two device lookups keyed on
+columns with **no unique index**, a builder helper safe only because both its callers add
+the predicate, fifteen `::find()` sites that state nothing, and a `supervisor_id` validation
+rule that does not scope. The shape it reports: **106 of 156 sites prove their own safety;
+50 do not** — they are safe because of a gate, a dispatcher, a caller or a backfill
+somewhere else.
+
 **The five sites added since that audit were read individually on 2026-09-18**, because the
 pin having moved from 156/53 to 161/55 means five bypasses entered *after* the only pass
 that ever looked at them line by line. The inventory test forced each to be a deliberate
