@@ -1032,7 +1032,7 @@ The 39, read one at a time:
 
 #### The five that are safe for reasons nothing enforces
 
-**1. `DeviceController.php:537` — keyed on a non-secret with no unique index.**
+**1. `DeviceController.php:537` — keyed on a non-secret with no unique index.** *[Still no index; the fail-closed allowlist this rests on is now pinned by tests — §11e.]*
 `->where('serial_number', $serialNumber)->first()`. The 2026-08-23 migration's own comment
 calls serials *"printed on the hardware, enumerable"*, and **`serial_number` carries no
 unique index** (`0001_01_01_000004:53` is a plain nullable string), so two tenants can hold
@@ -1043,7 +1043,7 @@ must pass `webhookIpAllowed()`, which is **fail-closed** — null or empty allow
 overlapping allowlists. Note `DemoTenantSeeder.php:315` creates devices with no
 `webhook_token`, so token-less devices are reachable by a path that is not the controller.
 
-**2. `DeviceController.php:523` — `webhook_token` also has no unique index.** 256-bit
+**2. `DeviceController.php:523` — `webhook_token` also has no unique index.** *[Superseded 2026-09-23: it has one now — §11e.]* 256-bit
 `bin2hex(random_bytes(32))`, so collision is negligible *in practice* and unprevented *in
 schema*.
 
@@ -1051,7 +1051,7 @@ schema*.
 contract.** `(new $modelClass)->newQuery()->withoutGlobalScope('tenant')` — dynamic model,
 no predicate. Safe **only** because both current callers add one immediately (`:301` and
 `:438`, each `->where('tenant_id', …)`). A third caller that forgot would be a silent
-cross-tenant read and nothing would catch it.
+cross-tenant read and nothing would catch it. *[Superseded 2026-09-23: the tenant is now a required argument and the predicate is inside the helper — §11e.]*
 
 **4. Fifteen sites derived from a key, stating nothing.** Bare `::find($id)` on
 tenant-scoped models. Each is safe because the id arrives from a trusted dispatch, but the
@@ -1086,6 +1086,125 @@ It is not a list of bugs. It is that **106 of 156 sites prove their own safety a
 not** — they are safe because of something elsewhere: a gate, a dispatcher, a caller, a
 backfill, an unenforced uniqueness assumption. `TenantScopeBypassInventoryTest` counts all
 156 identically and audits none of them.
+
+---
+
+### 11e. Enforcing three of the five — **2026-09-23**
+
+§11d found nothing that can reach another tenant's rows, and five sites that are safe for
+reasons *nothing enforces*. This pass closes three of them, choosing the mechanism that
+fails loudest at the point where the mistake would be made: a unique index over a test, a
+test over a comment. Two are left open deliberately, because enforcing them would change
+behaviour rather than guard it, and that is the owner's call rather than an audit's.
+
+#### What changed
+
+**§11d site 3 — `OrganizationProvisioner.php:335`. Code change; the strongest of the
+three.** The helper returned a ready-to-use unscoped builder and stated nothing; its safety
+lived entirely in the two callers that added `->where('tenant_id', …)` afterwards. The
+tenant is now a **required argument** and the predicate is applied inside the helper:
+
+```php
+private function query(string $modelClass, int $tenantId): Builder
+{
+    $query = (new $modelClass)->newQuery()
+        ->withoutGlobalScope('tenant')
+        ->where('tenant_id', $tenantId);
+```
+
+Both callers passed the same value one line later, so the generated SQL is unchanged — this
+is a pure guard, not a behaviour change. It is better than a test because it removes the
+failure mode instead of detecting it: a third caller *cannot* forget an argument the
+signature requires, and PHPStan says so before the code runs. This was judged the most
+likely of the five to break, because breaking it needed no unusual reasoning — just
+ordinary reuse of a `private` method that looks like it hands you a query.
+
+**§11d site 2 — `devices.webhook_token`. Unique index.**
+`2026_09_23_000001_add_unique_index_to_device_webhook_token`. The token lookup at
+`DeviceController.php:523` drops the tenant scope and lets the token both select and
+authenticate; that was safe only because `Device::generateWebhookToken()` happens to be
+`bin2hex(random_bytes(32))`. The invariant now lives in the schema, so a weaker generator —
+a short `Str::random()`, a derived value, an operator-supplied token — fails at the insert
+instead of silently resolving to another tenant's device.
+
+NULL is still allowed, and a unique index permits unlimited NULLs on both SQLite and
+MariaDB. Token-less devices are a supported mode (they authenticate by allowlist instead)
+and `DemoTenantSeeder.php:315` creates them, so **the column was deliberately not made NOT
+NULL** — that would have been a behaviour change, and a breaking one.
+
+The migration refuses to run if duplicate non-null tokens already exist, rather than failing
+with an opaque driver error. By construction there should be none: tokens are generated per
+row on create (`:101`), on rotate (`:251`), and by the 2026-08-23 backfill. Its message
+reports how many values are shared and **never a token value** — those are credentials.
+
+**§11d site 1 — `devices.serial_number`. Tests, not an index.** A unique index is the
+louder mechanism and the wrong one here: the correct index would be tenant-scoped
+(`tenant_id, serial_number, adapter_type`), and a unique index on a tuple the bypassed query
+does not fully state still permits the wrong row. What actually holds this site safe is
+`Device::webhookIpAllowed()` being fail-closed, so that is what is now pinned, at the level
+where someone would loosen it.
+
+`tests/Feature/Security/DeviceWebhookTenantScopeTest.php` adds: seven table-driven
+assertions that `webhookIpAllowed()` returns false for a null IP, an empty IP, a null
+allowlist, an empty allowlist, a non-matching IP, a whitespace-only allowlist and the case
+where both are absent; the positive cases (exact address, CIDR block); the token's
+64-hex-character shape and non-repetition; the unique index refusing a shared token while
+still admitting any number of token-less devices; and the cross-tenant case §11d called the
+residual — **two tenants holding the same serial**.
+
+That last test asserts the invariant that actually holds rather than the one that looks
+natural. Which row `->first()` returns is undefined, so it does not assert "the right device
+is chosen". It asserts that **the wrong tenant gets nothing either way**: selecting tenant
+A's device means the source IP is not on A's allowlist and the call is rejected; selecting
+tenant B's means the record is filed against B, because `webhookZkteco()` files against
+`$device->tenant_id` and resolves the employee with `->where('tenant_id', $device->tenant_id)`
+— verified, not assumed.
+
+Pre-existing coverage was better than the plan for this pass assumed:
+`DeviceManagementTest.php:357-450` already exercised `token_required`, the allowlisted-IP
+accept, the non-allowlisted reject and the no-allowlist fail-closed case at the HTTP level.
+What was missing was the unit-level edge cases and the two-tenant collision, which is what
+was added.
+
+#### What was left open, and why
+
+Both remaining sites need a decision, not an audit.
+
+**§11d site 4 — the fifteen bare `::find($id)` sites.** No database constraint can express
+"this id came from a trusted source", and a blanket lint against `::find()` under a bypass
+would fire on all fifteen legitimate sites and be suppressed — a comment in a linter's
+voice. Two real options: tests at the boundary (assert request-facing routes bind by
+`public_id` rather than integer id, and that each job fails closed on a foreign id), or
+stating `tenant_id` explicitly at all fifteen, which is mechanical and would move them into
+the self-proving column. The second carries a caveat worth stating: if any of the fifteen is
+today relying on a cross-tenant read that is *intentional*, adding the predicate turns it
+into a null and a downstream error. No evidence of that was found, but fifteen sites is
+enough that it should not be asserted without running the suite.
+
+**§11d site 5 — `supervisor_id` validation.** Scoping the `exists:employees,public_id` rule
+is **a behaviour change, not a guard**. Today a foreign `public_id` is accepted and silently
+nulled by `resolveRelationIds()`; a scoped rule returns 422 instead. That is visible to every
+API client, needs the OpenAPI contract updated, and carries a subtlety that makes it worth
+doing carefully rather than quickly: the current silent null tells an attacker nothing, while
+a 422 that distinguishes "no such employee" from "employee exists in another tenant" would
+confirm a `public_id` across tenants. A scoped rule must return the *same* message as a
+genuinely non-existent id, or it leaks what the scope was added to hide.
+
+A third flag, recorded so it is not re-derived: a unique index on `devices.serial_number`
+would **reject existing duplicate rows at migration time** and change what device
+registration accepts. It is a behaviour change, it needs a production data audit first, and
+that audit is not runnable from here.
+
+#### What this pass does not claim
+
+It does not audit the 50 sites §11d found that do not prove their own safety; it enforces
+three specific invariants that §11d found unenforced. The count in
+`tests/Feature/Security/tenant-scope-bypasses.php` is unchanged at **156 across 54 files** —
+verified with the tokeniser after the change — because no bypass was added or removed.
+
+The new tests were **not run locally**. `composer install` fails in this environment with
+`Could not authenticate against github.com` (`AuthHelper.php:132`), so there is no
+`vendor/autoload.php` and Pest cannot execute here. They are verified by CI.
 
 ---
 

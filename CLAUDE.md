@@ -78,6 +78,32 @@ explicitly while `failed()` relies on `webhook_id` alone. Both hold — `webhook
 itself tenant-owned — but the two halves of one class disagree about how much to state, and
 that asymmetry is the shape a later defect takes.
 
+**Three of those five are now enforced** (2026-09-23, `docs/audit/BASELINE.md` §11e), each
+with the loudest mechanism the site allows:
+
+- `devices.webhook_token` has a **unique index**. The token lookup drops the tenant scope
+  and lets the token both select and authenticate; that rested on
+  `Device::generateWebhookToken()` being `bin2hex(random_bytes(32))`, and now rests on the
+  schema. A weaker generator fails at the insert instead of resolving to another tenant's
+  device. NULL is still allowed on purpose — token-less devices authenticate by IP
+  allowlist, and the seeder creates them.
+- `OrganizationProvisioner::query()` takes the **tenant id as a required argument** and
+  applies the predicate itself. Both callers already passed it one line later, so the SQL
+  is unchanged; a third caller can no longer forget.
+- `devices.serial_number` keeps **no** unique index — the right one would be tenant-scoped,
+  and the bypassed query does not state `tenant_id`, so it would not make the lookup safe.
+  What holds that site is `Device::webhookIpAllowed()` being fail-closed, and that is now
+  pinned directly, along with the two-tenants-one-serial case, in
+  `tests/Feature/Security/DeviceWebhookTenantScopeTest.php`.
+
+**Two were left open because enforcing them changes behaviour rather than guarding it**, so
+they are the owner's call: scoping the `supervisor_id` `exists:` rule turns today's silent
+null into a 422 (and its message must not distinguish "no such employee" from "exists in
+another tenant", or it leaks the thing the scope hides), and stating `tenant_id` at the
+fifteen bare `::find()` sites would turn any *intentional* cross-tenant read among them
+into a null. A unique index on `devices.serial_number` is a third: it would reject existing
+duplicate rows at migration time, which needs a production data audit first.
+
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 
 Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenant_id` yourself.
