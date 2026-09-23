@@ -219,9 +219,46 @@ That is the first time `DatabaseDumper::dumpMysql()` has ever executed — `SHOW
 CREATE TABLE`, `SHOW TRIGGERS` and the DEFINER omission were, until this run,
 code that had never run anywhere.
 
-**What none of this proves:** that a restore works on Ethio Telecom's MySQL. 10.4.32 is
-a local XAMPP build against a documented target of MariaDB 10.11, the host's
-version is unread (G0-E), and whether the production user may `CREATE TRIGGER`
+**And it stayed a one-off for a week.** `BackupRestoreRehearsalTest` skips itself on
+MySQL — correctly, since it drops every table and DDL implicitly commits there — and
+`MIGRATION_STATE.md` recorded on 2026-09-18 that the named MySQL equivalent, this
+command, was *"invoked nowhere. Not by `scripts/gates.sh`, not by either CI workflow, not
+by any test."* So the largest risk `audit/BASELINE.md` §15 names was covered on SQLite and
+nowhere else.
+
+**It now runs on every push and pull request** — the `Backup restore rehearsal on MariaDB`
+job in `.github/workflows/gates.yml`, against its own disposable `ethr_rehearsal` database,
+as the non-root `ethr` user.
+
+**CI run, 2026-09-23, MariaDB 10.11.19-ubu2204, reference seeders only:**
+
+| | |
+|---|---|
+| Tables / rows / triggers before | 81 / 19,067 / 2 |
+| Dump size | 11,372,238 bytes |
+| `CREATE TRIGGER` in dump | 2 |
+| `DEFINER` clauses in dump | **none** |
+| Tables remaining after the drop | 0 |
+| Statements executed on restore | 19,236 |
+| Tables / rows / triggers after | 81 / 19,067 / 2 |
+| `audit_log` INSERT after restore | ok |
+| `audit_log` UPDATE after restore | rejected |
+
+Two things this recurring run adds over the 2026-09-15 one. It is on **10.11**, the
+documented target, rather than a local XAMPP 10.4.32. And the `DEFINER clauses: none`
+line is now asserted continuously on a driver where `DEFINER` exists at all — the SQLite
+rehearsal reads `sqlite_master WHERE type='trigger'`, and SQLite triggers have no `DEFINER`
+concept, so the one check that looks like it covers the B-6 hazard is on the one driver
+where that hazard cannot occur.
+
+**One half it does not exercise: `files restored` is 0.** The reference seeders create no
+uploads, so the document side of the round-trip is covered by the SQLite test and not by
+this job. Seeding a tenant with documents would close that, and would cost CI time; it is
+recorded here rather than left to be discovered from a zero in a table.
+
+**What none of this proves:** that a restore works on Ethio Telecom's MySQL. The CI run is
+MariaDB 10.11 in a container and the 2026-09-15 run was a local XAMPP 10.4.32; the host's
+own version is unread (G0-E), and whether the production user may `CREATE TRIGGER`
 at all is still `NOT VERIFIED` (G0-F). Every hosting capability in
 `GATE-0-RESULT.md` remains unmeasured. A green rehearsal here is a necessary
 condition, not the one that closes the gate.
