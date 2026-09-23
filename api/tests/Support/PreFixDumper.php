@@ -7,7 +7,6 @@ namespace Tests\Support;
 use App\Services\Backup\DatabaseDumper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use RuntimeException;
 
 /**
  * `DatabaseDumper` as it stood before 2026-09-23 — data written from
