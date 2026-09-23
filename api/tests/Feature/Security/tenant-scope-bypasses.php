@@ -75,6 +75,14 @@ return [
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     'Http/Middleware/ScimAuth.php' => 1,
     'Http/Requests/Auth/LoginRequest.php' => 1,
+    // Cross-tenant on purpose, and it states no `tenant_id` — the honest answer
+    // to this file's own question. Device serial uniqueness is *global*, because
+    // the webhook lookup it guards (`DeviceController::resolveWebhookDevice()`)
+    // cannot state `tenant_id` and so cannot tell two tenants' identical serials
+    // apart. A tenant-scoped check would leave exactly the ambiguity the index
+    // exists to remove. It reads existence only — no row is returned, no field
+    // read, and the message names nothing. BASELINE.md §11h.
+    'Http/Requests/Device/Concerns/ValidatesSerialUniqueness.php' => 1,
     'Jobs/BackupTenantJob.php' => 3,
     'Jobs/DispatchWebhookJob.php' => 3,
     'Jobs/GenerateMonthlyInvoicesJob.php' => 2,
