@@ -228,7 +228,15 @@ class DatabaseDumper
         $quote = $db->getDriverName() === 'sqlite' ? '"' : '`';
         $written = 0;
 
-        $db->table($table)->orderByRaw('1')->chunk(self::CHUNK, function ($chunk) use ($handle, $table, $quote, &$written) {
+        $columns = $this->writableColumns($table);
+
+        if ($columns === []) {
+            return 0;
+        }
+
+        $query = $db->table($table)->select($columns)->orderByRaw('1');
+
+        $query->chunk(self::CHUNK, function ($chunk) use ($handle, $table, $quote, &$written) {
             foreach ($chunk as $row) {
                 $columns = array_keys((array) $row);
                 $values = array_map(fn ($value) => $this->literal($value), array_values((array) $row));
@@ -249,6 +257,60 @@ class DatabaseDumper
         }
 
         return $written;
+    }
+
+    /**
+     * The columns of `$table` a restore is allowed to supply values for —
+     * every column except the generated ones.
+     *
+     * `SELECT *` returns generated columns like any other, and replaying an
+     * INSERT that names one is rejected outright: *"cannot INSERT into
+     * generated column"* on SQLite, *"The value specified for generated column
+     * … is not allowed"* on MariaDB. So a dump taken with `SELECT *` stops
+     * being restorable the moment any table has a generated column **and at
+     * least one row** — which is a backup that passes every check at the time
+     * it is written and fails only when someone needs it.
+     *
+     * It was latent rather than theoretical: `devices.serial_number_active`
+     * (2026-09-23, BASELINE §11h) already put one in the schema, and the
+     * round-trip kept passing only because the tables under test had no device
+     * rows. `users` and `employees` never have that luxury.
+     *
+     * The generated column itself is not lost — `SHOW CREATE TABLE` and
+     * `sqlite_master.sql` both carry its definition into the restored schema,
+     * which then recomputes the value from the columns that *are* replayed.
+     *
+     * @return array<int, string>
+     */
+    private function writableColumns(string $table): array
+    {
+        $db = DB::connection($this->connection);
+
+        if ($db->getDriverName() === 'sqlite') {
+            // `table_info` omits generated columns; `table_xinfo` is the pragma
+            // that includes them, marked `hidden` 2 (virtual) or 3 (stored).
+            return array_map(
+                static fn ($row): string => (string) (((array) $row)['name'] ?? ''),
+                $db->select("PRAGMA table_info('".str_replace("'", "''", $table)."')"),
+            );
+        }
+
+        // `SHOW FULL COLUMNS` rather than `information_schema`: it needs only a
+        // privilege on the table itself, which is what a shared-hosting account
+        // is given. `Extra` reads 'VIRTUAL GENERATED' or 'STORED GENERATED'.
+        $columns = [];
+
+        foreach ($db->select("SHOW FULL COLUMNS FROM `{$table}`") as $row) {
+            $described = (array) $row;
+
+            if (str_contains(mb_strtoupper((string) ($described['Extra'] ?? '')), 'GENERATED')) {
+                continue;
+            }
+
+            $columns[] = (string) ($described['Field'] ?? '');
+        }
+
+        return $columns;
     }
 
     /** Render one PHP value as a SQL literal. */

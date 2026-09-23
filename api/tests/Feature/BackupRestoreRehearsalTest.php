@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Backup\BackupService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -148,6 +149,47 @@ it('restores the database after it has been destroyed', function () {
         // dump would show up here as 1234499 or 1234501.
         ->and($restored->salary_cents)->toBe(1234500)
         ->and($restored->public_id)->toBe($employee->public_id);
+});
+
+it('never replays a generated column, so a dump stays restorable', function () {
+    // The dump is written with an explicit column list precisely so this holds.
+    // `SELECT *` returns generated columns like any other, and an INSERT naming
+    // one is rejected outright — *"cannot INSERT into generated column"* here,
+    // *"The value specified for generated column … is not allowed"* on MariaDB.
+    // A dump that does that is written without complaint and fails only at the
+    // moment someone needs it back, which is the worst time to discover it.
+    //
+    // `devices.serial_number_active` put the first generated column in the
+    // schema on 2026-09-23 and this stayed green, because the tables under test
+    // held no device rows. `users` always has rows.
+    $tenant = createTenant();
+    $user = User::factory()->create([
+        'tenant_id' => $tenant->id,
+        'email' => 'Selam@Acme.test',
+    ]);
+
+    $backup = app(BackupService::class)->create('generated-columns');
+    $sql = File::get($backup['path'].DIRECTORY_SEPARATOR.'database.sql');
+
+    // The column must still reach the restored schema...
+    expect($sql)->toContain('email_normalized');
+
+    // ...and no INSERT may supply a value for it.
+    foreach (explode("\n", $sql) as $line) {
+        if (str_starts_with($line, 'INSERT INTO')) {
+            expect($line)->not->toContain('email_normalized');
+        }
+    }
+
+    destroyDatabase();
+    app(BackupService::class)->restore($backup['path']);
+
+    // And the restored database recomputes it, so the login-identifier indexes
+    // are populated on the other side of a restore rather than silently empty.
+    $restored = DB::table('users')->where('id', $user->id)->first();
+
+    expect($restored)->not->toBeNull()
+        ->and($restored->email_normalized)->toBe('selam@acme.test');
 });
 
 it('brings the audit_log triggers back, so the log is still append-only', function () {

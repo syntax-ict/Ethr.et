@@ -71,6 +71,9 @@ class Employee extends Model
         'import_key',
     ];
 
+    // The two `*_normalized` entries are derived, like `national_id_hash` —
+    // generated columns that make the login-identifier lookups indexable, added
+    // by `2026_09_23_000003_index_login_identifier_lookups.php`.
     protected $hidden = [
         'id',
         'tenant_id',
@@ -78,6 +81,8 @@ class Employee extends Model
         'kiosk_pin',
         'national_id',
         'national_id_hash',
+        'employee_code_normalized',
+        'phone_normalized',
     ];
 
     protected function casts(): array

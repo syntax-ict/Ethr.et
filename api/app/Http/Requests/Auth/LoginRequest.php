@@ -65,8 +65,11 @@ class LoginRequest extends FormRequest
         // out of habit). Check for a super admin match first, independent of
         // tenant resolution, before falling through to the normal flow. Super
         // admins always authenticate by email.
+        // `email_normalized`, not `LOWER(email)`: a predicate on a function of a
+        // column cannot use an index on that column, and this lookup runs on
+        // every login attempt in the system. See BASELINE.md §15e.
         $superAdmin = User::withoutGlobalScopes()
-            ->whereRaw('LOWER(email) = ?', [mb_strtolower($value)])
+            ->where('email_normalized', mb_strtolower($value))
             ->whereNull('tenant_id')
             ->where('role', UserRole::SUPER_ADMIN)
             ->first();
