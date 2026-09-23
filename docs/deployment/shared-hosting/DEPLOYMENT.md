@@ -158,6 +158,13 @@ php artisan db:seed --class=ProductionSeeder --force
 php artisan ethr:create-admin
 ```
 
+**If you imported existing data first**, `migrate --force` can abort on a data condition
+rather than a privilege one: `2026_09_23_000002` makes live device
+`(serial_number, adapter_type)` unique and refuses to run against duplicates, naming
+them. Run the check in `docs/DATABASE_MIGRATION_PLAN.md` → "A data condition that aborts
+the run" against the imported copy before this step. A fresh deployment cannot hit it —
+an empty `devices` table has no duplicates.
+
 Identical sequence to the VPS runbook (`docs/DEPLOYMENT.md`) from `key:generate`
 onward — nothing about *what* these commands do changed, only that they run over SSH
 against a shared-hosting PHP CLI instead of inside a container. If PHP CLI turns out to
