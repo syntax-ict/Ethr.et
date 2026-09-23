@@ -748,7 +748,9 @@ That makes `DatabaseDumper`'s reconstruction of triggers from `SHOW TRIGGERS` wi
 
 ### 13c. ~~Horizon blocks `composer install`~~ — **RESOLVED**, see §3a and §15 row 6. Horizon was removed in `cdf85d1`; the lockfile carries zero hard `pcntl`/`posix` requires.
 
-### 13d. Unindexable login lookups **[verified]**
+### 13d. ~~Unindexable login lookups~~ **[verified 2026-09-15; FIXED 2026-09-23 — see §15e]**
+
+> **Fixed 2026-09-23.** The measurements and the reasoning below stand and are kept in full — including the conclusion *not* to fix it, which was correct for the two options it weighed. A third option closed it: generated columns carrying the same normalisation, indexed, identical on both drivers. §15e says what changed and what is still outstanding (the benchmark below has not been re-run).
 
 `api/app/Services/Auth/AuthIdentifierResolver.php:104-118` runs a 6-deep nested `REPLACE(REPLACE(...))` on `phone` inside `whereRaw`, and lines `:86`, `:136`, `:147` plus `LoginRequest.php:69` use `LOWER(email) = ?`. Neither expression can use an index; there is no `phone` index at all and no functional index on `email`.
 
@@ -880,7 +882,7 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 
 | # | Risk | Evidence | Severity |
 |---|---|---|---|
-| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally; **not yet rehearsed on the host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]** | **High** (was Critical) — still a go-live gate |
+| 1 | **No backup or restore path for any non-Docker host** — **built 2026-09-15**, round-trip tested locally, and **rehearsed on MariaDB in CI on every push since 2026-09-23**; **still not rehearsed on the Ethio Telecom host** | `ethr:backup` / `ethr:restore`, `BackupRestoreRehearsalTest` **[verified locally]**; the `Backup restore rehearsal on MariaDB` job, first green on `main` at `8b11904` **[verified in CI]** | **High** (was Critical) — still a go-live gate. §15f is why the severity has not moved further: the path carried a defect that made restore impossible on any database with a generated column and a row, and every test of it was green |
 | 2 | ~~**Cross-tenant import lookup (P0-1)**~~ — **fixed in Phase 0.5**; the lookup now states `tenant_id` itself (`EmployeeImporter.php:110`), and `withoutGlobalScopes()` deliberately stays so the soft-delete scope is still dropped (D-001) | `TenantImportIsolationTest` — 4 tests, 9 assertions, green **[verified]** | Resolved |
 | 3 | ~~Payroll times out mid-transaction~~ — **queued** (`ProcessPayrollJob`), 202 + polling | `PayrollQueuedProcessingTest` **[verified]** | Resolved |
 | 4 | ~~Duplicate job execution~~ — **fixed** (`76ca983`), invariant now tested | `QueueRetryAfterInvariantTest` **[verified]** | Resolved |
@@ -896,8 +898,8 @@ Application-level hosting coupling is low: no shell-outs, no Redis calls, no abs
 | 17 | ~~A 60-day-overdue invoice was never escalated if earlier tiers were missed~~ — **fixed** (§15d) | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 18 | ~~Nothing transitions an invoice from `draft` to `sent`~~ — **owner decided 2026-09-15**, invoices are created `sent`; chain verified end to end | `OverdueInvoiceEscalationTest` **[verified]** | Resolved |
 | 19 | ~~`due_date` stored with a time component against a `date` column — escalations fired a day late on SQLite, on time on MySQL~~ — **fixed** | §15d **[verified]** | Resolved |
-| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **161 across 55** as re-measured 2026-09-18. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved *as far as a count can* — it makes adding a bypass deliberate; it does not audit the 156 that exist. That audit is still unowned |
-| 12 | **Unindexable login scans** | `AuthIdentifierResolver.php:104` **[verified]** | Medium |
+| 11 | ~~**No tenant-isolation regression enforcement**~~ — **built 2026-09-16**. `TenantScopeBypassInventoryTest` pins every `withoutGlobalScope(s)` call site in `app/`, per file, and fails when the count moves — **156 across 53 files** when built, **157 across 55** today — the 161 recorded on 2026-09-18 overcounted by exactly five, every one a docblock rather than a call, and the real figure then rose by one in §11h. Proven to fail: injecting one bypass produced `COUNT CHANGED (1 -> 2)` | `tests/Feature/Security/tenant-scope-bypasses.php` **[verified]** | Resolved. The count makes adding a bypass deliberate; the audit it could not do was then done by hand — §11c, §11d, §11i, §11j. **113 of 157 sites prove their own safety, 44 do not, and none can reach another tenant's rows.** The 44 are gates, pre-authentication secrets, global models and sweeps, where a predicate is impossible or contrary to the feature |
+| 12 | ~~**Unindexable login scans**~~ — **fixed 2026-09-23** (§15e). All four identifier lookups wrapped the column in a SQL function, so each one scanned every row belonging to the tenant — and on the phone path the tenant's employees too. Five VIRTUAL generated columns and a `(tenant_id, …)` index on each; matching semantics unchanged | `LoginIdentifierIndexTest` — plan read per driver; `LoginIdentifierTest` untouched and green **[verified]** | Resolved |
 | 13 | ~~**Documentation asserts controls that do not exist**~~ — **corrected in Phase 1** (D-003); the four documents now describe what is true, and the CI they claimed exists and runs | `docs/CLAUDE.md`, `SECURITY.md` + 2 **[verified]** | Resolved — the failure mode recurred in a new form, though: CI then *existed* and had never passed. See the CLAUDE.md CI section |
 | 14 | **All hosting capabilities unverified** | checklist **[verified]** | Blocks Gate 0 |
 
@@ -1780,6 +1782,205 @@ Every other construction site in the suite now passes a tenant id — six in
 
 ---
 
+### 15f. The backup could not be restored once any table had a generated column — **found and fixed 2026-09-23**
+
+Found while adding the generated columns in §15e, which is the only reason it was found at
+all: it had already shipped, and every test of the backup path was green.
+
+`DatabaseDumper::writeRows()` read each table with `SELECT *` and wrote an INSERT naming
+every column it got back. `SELECT *` returns **generated** columns like any other, and
+replaying an INSERT that supplies a value for one is rejected outright:
+
+```
+SQLite    cannot INSERT into generated column "email_normalized"
+MariaDB   The value specified for generated column 'email_normalized' in table 'users'
+          is not allowed
+```
+
+`BackupService::restore()` throws on the first statement that fails — correctly, it
+refuses to half-apply a dump — so the effect is not a partial restore. **It is no restore
+at all.**
+
+**Measured**, PHP 8.4.19 / SQLite 3.45.1, replaying a dump-shaped INSERT against the same
+schema it came from:
+
+```
+SELECT * returns: id, email, email_normalized
+replaying: INSERT INTO t ("id", "email", "email_normalized") VALUES ('1', 'Bob@X', 'bob@x');
+RESULT: REJECTED — SQLSTATE[HY000]: General error: 1 cannot INSERT into generated column
+```
+
+**This was already live.** `devices.serial_number_active` (§11h) put a generated column in
+the schema earlier the same day. From that commit, any database with **at least one device
+row** produced a `database.sql` that was written without complaint, verified against its
+own sha256, listed in the manifest — and could not be restored. The round-trip tests kept
+passing because the tables they exercise held no device rows, and the `Backup restore rehearsal on
+MariaDB` CI job (added 2026-09-23, `docs/deployment/BACKUP-RESTORE.md`) passed on `main` for
+the same reason.
+
+That is the property worth naming: **a backup defect of this shape is invisible at backup
+time and only observable at restore time**, which is the one moment when there is nothing
+to fall back on. It is exactly the failure mode `BackupRestoreRehearsalTest` exists to
+catch, and it slipped past because the fixture data did not happen to populate the one
+table that had the new column.
+
+**Fixed.** `writeRows()` now selects an explicit column list from `writableColumns()`,
+which drops generated columns per driver — `PRAGMA table_info` omits them on SQLite
+(`table_xinfo` is the pragma that includes them, marked `hidden` 2 or 3), and
+`SHOW FULL COLUMNS` reports `VIRTUAL GENERATED` / `STORED GENERATED` in `Extra` on
+MariaDB. `SHOW FULL COLUMNS` rather than `information_schema` deliberately: it needs only
+a privilege on the table itself, which is what a shared-hosting account is given.
+
+Nothing is lost by dropping them. `SHOW CREATE TABLE` and `sqlite_master.sql` carry the
+column *definition* into the restored schema, which recomputes the value from the columns
+that are replayed — the new test asserts the recomputed value on the far side of a
+destroy-and-restore, not merely that the dump parses.
+
+**Pinned** by `BackupRestoreRehearsalTest` → *"never replays a generated column, so a dump
+stays restorable"*, which asserts both halves: the schema still carries `email_normalized`,
+and no `INSERT` line names it. The existing round-trip tests now cover it by construction
+too, since `users` and `employees` always have rows — but a test that covers something by
+accident is what let this through in the first place, so the property is stated explicitly.
+
+---
+
+### 15e. Every login scanned the tenant's rows — **found and fixed 2026-09-23**
+
+Risk #12 read *"Unindexable login scans"* and cited one line. It was right, and it
+understated the shape: **three of the four identifier lookups had a composite index
+sitting right there that the query could not reach.**
+
+`AuthIdentifierResolver` wrapped the column in a SQL function on every path —
+`LOWER(email)`, `LOWER(username)`, `LOWER(employee_code)`, and a six-deep `REPLACE()`
+chain over `phone`. A predicate on a *function of* a column cannot use an index on that
+column, so each lookup fell back to the only index it could use, `tenant_id`, and then
+examined every row belonging to that tenant.
+
+**Measured, not reasoned** — `EXPLAIN QUERY PLAN` on SQLite 3.45.1, against the real
+schema (`users_tenant_id_email_unique`, `users_tenant_id_username_unique`,
+`users_tenant_id_index` present):
+
+| Lookup | Before | After |
+|---|---|---|
+| email | `SEARCH users USING INDEX users_tenant_id_index (tenant_id=?)` | `SEARCH users USING INDEX users_tenant_id_email_normalized_index (tenant_id=? AND email_normalized=?)` |
+| username | `SEARCH users USING INDEX users_tenant_id_index (tenant_id=?)` | `… (tenant_id=? AND username_normalized=?)` |
+| phone | `SEARCH users USING INDEX users_tenant_id_index (tenant_id=?)` | `… (tenant_id=? AND phone_normalized=?)` |
+
+**State the magnitude honestly: this was never a full table scan.** `tenant_id` is
+indexed, so the engine narrowed to one tenant and scanned that. §13d's G0-J benchmark had
+already measured the cost on MariaDB 10.4.32 against the real schema, and those numbers —
+not the plan dump above — are the reason this was worth doing (ms per lookup):
+
+| n (employees) | email | email if indexed | username | username if indexed | phone |
+|---|---|---|---|---|---|
+| 500 | 3.0 | 1.6 | 3.2 | 1.6 | 3.8 |
+| 5,000 | 3.7 | 1.4 | 10.3 | 1.2 | 13.1 |
+| 20,000 | 11.6 | 1.3 | 39.8 | 1.4 | 52.0 |
+
+Flat against tenant size once indexed; linear in the tenant's rows before — and on the
+phone path, linear in the tenant's **employees** as well, with six nested `REPLACE()`
+calls evaluated per row. On an endpoint that requires no authentication to reach, against
+a MariaDB instance shared with other Ethio Telecom accounts.
+
+**§13d is where this was measured, and it is also where it was deliberately not fixed.**
+Its reasoning was sound and its conclusion is now obsolete, so it is worth being exact
+about which part changed. §13d established that `LOWER(column)` is redundant on MariaDB —
+the columns are `utf8mb4_unicode_ci`, so a bare `=` already matches case-insensitively —
+but that dropping it outright **breaks SQLite**, where `TEXT` compares case-sensitively
+and the primary test suite runs. It concluded that a driver-identical fix meant *"a
+driver-conditional column collation"*, priced that as a schema change, and left it.
+
+A generated column is the third option it did not consider: it is a schema change, but
+the *same* schema change on both engines. The normalisation moves from the predicate into
+the column, so `LOWER()` still runs — once per write, on the engine's own terms — and the
+comparison the query makes is a plain equality that an index can serve. Nothing becomes
+driver-conditional.
+
+**Fixed** by `2026_09_23_000003_index_login_identifier_lookups.php`: five VIRTUAL
+generated columns — `users.{email,username,phone}_normalized`,
+`employees.{employee_code,phone}_normalized` — each carrying the expression the query
+used to apply, plus a plain `(tenant_id, …)` index on each. The resolver now compares a
+plain column to a value normalised in PHP.
+
+Four constraints, each load-bearing:
+
+- **The expressions are copied character for character.** This must not change which
+  identifier matches which user. `LoginIdentifierTest` is untouched and still green,
+  which is the evidence for that claim; `LoginIdentifierIndexTest` covers the part a
+  response cannot show.
+- **VIRTUAL, not STORED**, and **no `->after()`** — the two traps
+  `2026_09_23_000002_add_unique_index_to_device_serial_number.php` and
+  `2026_09_17_000002_add_catalog_columns_to_plans.php` already record. SQLite refuses a
+  stored generated column in `ALTER TABLE`; `after()` diverges column order between the
+  engines and Scramble builds the OpenAPI component from column order.
+- **Plain indexes, never unique.** On SQLite the existing `unique(tenant_id, email)`
+  compares BINARY, so `Bob@x` and `bob@x` are two legal rows today and a unique index on
+  `email_normalized` could fail on existing data. Uniqueness is a behaviour change; this
+  is not.
+- **The columns are `$hidden` on both models**, like `national_id_hash`. `devices.serial_number_active`
+  is precedent that Scramble does not publish generated columns
+  (it appears nowhere in `generated.ts`), so this is hygiene rather than the fix for a
+  known leak — a derived column is not part of the resource.
+
+**Two normalisation asymmetries were preserved deliberately**, and are recorded rather
+than fixed because both are *matching semantics* and changing them inside a performance
+migration would be exactly the silent behaviour change this section exists to avoid:
+
+1. The phone input is normalised in PHP with `preg_replace('/\D+/', '')`, which strips
+   **every** non-digit; the column strips six specific characters. A number stored as
+   `091/234-5678` has never matched and still does not.
+2. `LOWER()` is ASCII-only on SQLite and collation-aware on MariaDB, while the input side
+   uses `mb_strtolower()`. A non-ASCII identifier already behaves differently per driver.
+
+**What this does not cover, stated rather than implied.**
+
+- `LoginRequest::authenticate()`'s super-admin lookup carried the same `LOWER(email)`
+  wrapper and runs on *every* login attempt in the system. It is changed here too, for
+  consistency and because it is one line, but it was never the expensive one: it also
+  states `tenant_id IS NULL`, which is selective down to the handful of platform admins.
+- `App\Services\Identity\IdentityResolver` still wraps four columns —
+  `employee_code`, `badge_number`, `email`, `name` — in `LOWER()` inside `orWhereRaw`.
+  That is a different subsystem (device identity matching), it is not on the login path,
+  and two of those columns have no index to defeat in the first place. Out of scope here;
+  recorded so the next reader knows the pattern was not swept from the codebase.
+- **An indexed VIRTUAL generated column is now a hosting requirement, and the host's
+  MariaDB version has never been read.** Verified on **MariaDB 10.11** — both CI database
+  jobs run that image, and §11h's unique index on `devices.serial_number_active` has been
+  green on it. Not verified anywhere else. Older MariaDB releases restricted indexes on
+  virtual columns under InnoDB; the exact threshold is **not established here**, and this
+  section does not invent one. §11h created the dependency first, on a table an install
+  may legitimately leave empty; this change makes it unavoidable, because `users` and
+  `employees` exist on every install and the migration adds the indexes at deploy time.
+  **Read the host's `SELECT VERSION()` and run the migration against it before deploy** —
+  it belongs in G0-E alongside the PHP extensions, and nothing in
+  `deployment/GATE-0-RESULT.md` records a database version today.
+- **The §13d benchmark was not re-run.** `composer install` cannot authenticate to
+  github.com from this environment, so neither the suite nor
+  `api/scripts/login-path-benchmark.php` could be executed locally; CI is the only gate
+  this change passed through. §13d's own instruction — re-run the benchmark before and
+  after, and expect every "current" column to collapse onto its "if plain `=`" column —
+  **is still outstanding**, and is the evidence that would close the loop on the table
+  above. The plan dumps in this section are measured; the *improvement* on MariaDB is
+  inferred from §13d's `EXPLAIN` (`type=const … rows=1` for the plain-equality form)
+  rather than timed.
+
+**One thing found while reading the path, not fixed, and not a defect in the resolver.**
+`AuthIdentifierResolver` drops `SoftDeletingScope` along with the tenant scope, so it can
+return a soft-deleted row. For **users** that is safe, by two lines in another class:
+`UserController::destroy()` sets `status = 'inactive'` before `delete()`, and
+`LoginController` refuses a non-active account with 403. Measured 2026-09-23 — it is the
+only site in `app/` that deletes a `User`.
+
+For **employees** it is an open question and an owner decision:
+`EmployeeController::destroy()` soft-deletes the employee and leaves the linked `User`
+untouched and active, with no observer or model hook in between. An offboarded employee
+therefore keeps their login — **by email as much as by employee number**, which is why
+this is not a resolver defect and not something to patch here. Whether deleting an
+employee should deactivate their account is a product decision about offboarding; it is
+listed in §16.
+
+---
+
 ### 15d. Dunning: one gap fixed, one is an owner decision — **2026-09-15**
 
 Third and fourth findings from the billing tests §12 flagged as missing.
@@ -1925,6 +2126,7 @@ Verified against a pre-upgrade baseline captured deliberately first, so a failur
 5. ~~Upgrade `next`~~ — **done** (`ae52e08`), verified, both criticals cleared.
 6. ~~Merge `docs/phase-0-baseline` into `main`~~ — done (`2b47bdf`).
 7. **Does a generated invoice count as `sent`?** (§15d, risk 18.) Nothing transitions `draft` → `sent`, so no invoice ever enters dunning and no non-paying tenant is ever suspended. Either `generateMonthlyInvoice()` should create them as `sent`, or there is a send step that was never built. This is a billing-process decision and is the last thing blocking the dunning chain from working at all.
+8. **Should deleting an employee deactivate their login?** (§15e.) `EmployeeController::destroy()` soft-deletes the employee and leaves the linked `User` active — no observer, no model hook, nothing in between. An offboarded employee keeps their account and can still log in, **by email as much as by employee number**, so this is not a tenancy or identifier-resolution bug and was deliberately not patched alongside §15e. It is an offboarding-policy decision with a real argument on each side: deleting a record that was created in error should probably not lock someone out, and a user may hold an account without being staff. Recommendation: deactivate, with an explicit reactivation path, since an HCM product that leaves ex-employees able to sign in is the more surprising default.
 
 ---
 

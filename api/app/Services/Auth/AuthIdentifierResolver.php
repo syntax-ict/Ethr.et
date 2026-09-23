@@ -19,7 +19,32 @@ use Illuminate\Support\Collection;
  *  - an identifier that resolves to more than one user returns null (deny)
  *    rather than guessing, so a value can never authenticate the wrong person;
  *  - the caller still verifies the password, so a hit here is not by itself
- *    authentication.
+ *    authentication;
+ *  - `withoutGlobalScopes()` drops `SoftDeletingScope` along with the tenant
+ *    scope, so a soft-deleted user *can* be returned from here. Nothing about
+ *    that is safe in this class. It is safe because `UserController::destroy()`
+ *    sets `status = 'inactive'` before it calls `delete()`, and
+ *    `LoginController` refuses a non-active account with 403 — two lines in
+ *    another class, in the right order, pinned by `UserManagementTest`'s
+ *    *"deactivates a user but never yourself"*. Measured 2026-09-23: that is
+ *    the only site in `app/` which deletes a `User`. A second one that skipped
+ *    the deactivation would silently restore logins to deleted accounts, and
+ *    nothing here would stop it.
+ *
+ *    Deleting an *employee* is a different question and not this class's:
+ *    `EmployeeController::destroy()` soft-deletes the employee and leaves the
+ *    linked `User` active, so an offboarded employee keeps their login — by
+ *    email as much as by employee number. `BASELINE.md` §15e records it as an
+ *    owner decision rather than a defect.
+ *
+ * Every lookup here is a plain equality against an indexed, normalised column
+ * — `email_normalized`, `username_normalized`, `phone_normalized`,
+ * `employee_code_normalized` — added by
+ * `2026_09_23_000003_index_login_identifier_lookups.php`. **Do not reintroduce
+ * a `LOWER()` or `REPLACE()` wrapper around a column here.** A predicate on a
+ * function of a column cannot use an index on that column, which is what made
+ * every login scan all of the tenant's rows until 2026-09-23 (`BASELINE.md`
+ * §15e). Normalise the *input* in PHP, as the methods below do.
  */
 final class AuthIdentifierResolver
 {
@@ -83,7 +108,7 @@ final class AuthIdentifierResolver
         return $this->single(
             User::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
-                ->whereRaw('LOWER(email) = ?', [mb_strtolower($value)])
+                ->where('email_normalized', mb_strtolower($value))
                 ->get()
         );
     }
@@ -96,15 +121,18 @@ final class AuthIdentifierResolver
             return null;
         }
 
-        $stripped = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), '(', ''), ')', ''), '.', '')";
-
         // Prefer a phone recorded on the user account; fall back to the linked
         // employee record's phone.
+        //
+        // The `whereNotNull('phone')` these two queries used to carry is gone
+        // because it can no longer do anything: a NULL phone generates a NULL
+        // `phone_normalized`, and `= $digits` never matches NULL. `$digits` is
+        // non-empty by the guard above, so a blank or punctuation-only phone
+        // normalises to '' and is excluded the same way.
         $user = $this->single(
             User::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
-                ->whereNotNull('phone')
-                ->whereRaw("{$stripped} = ?", [$digits])
+                ->where('phone_normalized', $digits)
                 ->get()
         );
 
@@ -114,8 +142,7 @@ final class AuthIdentifierResolver
 
         $employeeIds = Employee::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->whereNotNull('phone')
-            ->whereRaw("{$stripped} = ?", [$digits])
+            ->where('phone_normalized', $digits)
             ->pluck('id');
 
         if ($employeeIds->count() !== 1) {
@@ -135,7 +162,7 @@ final class AuthIdentifierResolver
         return $this->single(
             User::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
-                ->whereRaw('LOWER(username) = ?', [mb_strtolower($value)])
+                ->where('username_normalized', mb_strtolower($value))
                 ->get()
         );
     }
@@ -144,7 +171,7 @@ final class AuthIdentifierResolver
     {
         $employeeIds = Employee::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->whereRaw('LOWER(employee_code) = ?', [mb_strtolower($value)])
+            ->where('employee_code_normalized', mb_strtolower($value))
             ->pluck('id');
 
         if ($employeeIds->count() !== 1) {
