@@ -1455,6 +1455,14 @@ default, which is a better starting point for G0-B than what preceded it.
 
 ### Blockers, recorded rather than resolved
 
+> **This table stops at B-4 and is not the governing one.** The live register is
+> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) → *Blockers*, which carries
+> **B-1 … B-7**: B-5 (no route to get a schema into the database) and B-6 (the DNS cutover
+> already happened and the rollback target may not serve) were added there on 2026-09-19,
+> and **B-7** (Hosting Settings → *Save* hangs — owner report 2026-09-23, undiagnosed, not
+> a gate) on 2026-09-23. Kept as written because it is a dated entry; read the governing
+> register for the current set.
+
 | # | Blocker | Effect |
 | --- | --- | --- |
 | **B-1** | SSH **Forbidden** | The capability probe has no shell route; its fallback (Scheduled Tasks) depends on **G0-D** — ~~unverified~~ **answered FAIL 2026-09-18, the section does not exist**, so the fallback is not merely unproven, it is absent |
