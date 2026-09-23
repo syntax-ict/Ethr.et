@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Employee\Concerns;
 
 use App\Models\Employee;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
@@ -33,7 +34,7 @@ use Illuminate\Validation\Validator;
  * `withValidator()` hook is invisible to Scramble, so `rules()` stays byte
  * -identical and the contract cannot move.
  *
- * @mixin \Illuminate\Foundation\Http\FormRequest
+ * @mixin FormRequest
  */
 trait ValidatesSupervisorTenancy
 {
