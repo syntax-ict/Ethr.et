@@ -1805,6 +1805,13 @@ sentence was not.
 leaving them to recollection — SQLite's refusal, MariaDB's acceptance on the default
 connection, and MariaDB's refusal under `STRICT_ALL_TABLES`.
 
+**All three are measured, including the mechanism.** When this section was first written
+`sql_mode` was a *hypothesis* for why MariaDB accepted what SQLite refused. The test
+settled it on MariaDB 10.11 in CI: the same statement is accepted on the connection as
+configured and rejected once the session is put in `STRICT_ALL_TABLES`. Recorded that way
+round — hypothesis, then measurement — because the entire subject of §15f and this section
+is what happens when the two are confused.
+
 **The fixture gap, which is the part that generalises.** The round-trip tests in
 `BackupRestoreRehearsalTest` created a tenant and an employee and nothing else, so no
 `devices` row ever reached a dump there and `serial_number_active` was never exercised.

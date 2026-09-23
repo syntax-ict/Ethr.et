@@ -406,7 +406,8 @@ class DatabaseDumper
                     continue;
                 }
 
-                [, $table, $columnList] = $matches;
+                $table = $matches[1];
+                $columnList = $matches[2];
 
                 if (($lastSeen[$table] ?? null) === $columnList) {
                     continue;
@@ -416,14 +417,14 @@ class DatabaseDumper
                 $generated[$table] ??= $this->generatedColumns($table);
 
                 $named = array_map(
-                    static fn (string $column): string => trim($column, " `\""),
+                    static fn (string $column): string => trim($column, ' `"'),
                     explode(',', $columnList),
                 );
 
                 $hits = array_values(array_intersect($named, $generated[$table]));
 
                 if ($hits !== []) {
-                    $offences[$table] = array_values(array_unique([...($offences[$table] ?? []), ...$hits]));
+                    $offences[$table] = array_values(array_unique(array_merge($offences[$table] ?? [], $hits)));
                 }
             }
         } finally {

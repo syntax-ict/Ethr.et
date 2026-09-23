@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\AuditLog;
+use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Tenant;
@@ -149,7 +150,7 @@ function tablesWithGeneratedColumns(): array
  * assertion below has a single thing to check, and so adding a table here is
  * the obvious fix when it fails.
  *
- * @return array{tenant: \App\Models\Tenant, employee: Employee, user: User, device: Device}
+ * @return array{tenant: Tenant, employee: Employee, user: User, device: Device}
  */
 function generatedColumnFixture(): array
 {
@@ -170,8 +171,12 @@ function generatedColumnFixture(): array
         'phone' => '0911 55 66 77',
     ]);
 
+    // `devices.branch_id` is `foreignId()->constrained()` and NOT NULL, and
+    // DeviceFactory does not supply one — DemoTenantSeeder passes the HQ branch
+    // it has already created. A device therefore needs a branch to exist.
     $device = Device::factory()->create([
         'tenant_id' => $tenant->id,
+        'branch_id' => Branch::factory()->create(['tenant_id' => $tenant->id])->id,
         'serial_number' => 'SN-RESTORE-1',
     ]);
 
