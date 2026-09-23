@@ -542,10 +542,20 @@ fi
 # missing is worse than one that does not run: it is the same class of green lie
 # this repository keeps finding.
 #
-# No threshold. The first backend coverage figure for this project does not exist
-# yet, and picking a number before measuring one would be inventing it. This
-# prints what it measured, like `performance` does, so the output is a baseline
-# to compare against rather than a pass/fail nobody reads.
+# --min=85, set 2026-09-23 against a measured baseline of 86.7%.
+#
+# There was deliberately no threshold when this gate was added: the number did
+# not exist, and picking a floor before measuring one would have been inventing
+# it. 86.7% was then measured twice -- on the PR and again on main -- so the
+# floor rests on a reading rather than on a preference.
+#
+# 85 leaves 1.7 points of headroom. That is a ratchet against regression, not a
+# target: it fails when coverage DROPS, and says nothing about whether 86.7% is
+# enough. Raising it is a decision for whoever has a reason, and the honest way
+# to raise it is to measure again first.
+#
+# It still prints what it measured, like `performance` does, so the output stays
+# a baseline to compare against and not merely a pass/fail.
 coverage_gate() {
     if ! have_php; then
         no_php_msg
@@ -565,7 +575,7 @@ coverage_gate() {
 
     # phpunit.xml already declares <source><include>app</include></source>, so
     # the report covers application code and not vendor/.
-    (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest --coverage)
+    (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest --coverage --min=85)
 }
 
 if [[ "$SCOPE" == "coverage" ]]; then
