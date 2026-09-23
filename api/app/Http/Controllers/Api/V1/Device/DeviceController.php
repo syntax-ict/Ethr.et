@@ -534,10 +534,29 @@ class DeviceController extends Controller
             return null;
         }
 
-        $device = Device::withoutGlobalScope('tenant')
+        // Two rows, not one: an ambiguous serial must authenticate nobody.
+        //
+        // `->first()` returned an undefined row when two tenants held the same
+        // serial — BASELINE.md §11d site 1. The unique index added alongside
+        // this makes that unrepresentable for live devices, but the index is a
+        // schema fact and this is the code that would act on a violation of it,
+        // so it does not assume the index is present: an older database, a
+        // migration not yet run, or a future change that drops it all leave
+        // this path reachable. Ambiguity resolves to nothing, which is the same
+        // fail-closed default `BelongsToTenant` and `webhookIpAllowed()` take.
+        $candidates = Device::withoutGlobalScope('tenant')
             ->where('serial_number', $serialNumber)
             ->where('adapter_type', $adapterType)
-            ->first();
+            ->limit(2)
+            ->get();
+
+        if ($candidates->count() > 1) {
+            $this->logWebhookRejection($adapterType, $serialNumber, $request->ip(), 'serial_ambiguous');
+
+            return null;
+        }
+
+        $device = $candidates->first();
 
         if (! $device) {
             return null;

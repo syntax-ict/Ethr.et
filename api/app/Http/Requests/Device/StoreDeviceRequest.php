@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Device;
 
+use App\Http\Requests\Device\Concerns\ValidatesSerialUniqueness;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDeviceRequest extends FormRequest
 {
+    // serial_number uniqueness is a withValidator() hook, not a rule: rules()
+    // feeds the generated API contract. See the trait.
+    use ValidatesSerialUniqueness;
+
     public function authorize(): bool
     {
         return true;

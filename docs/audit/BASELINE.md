@@ -1032,7 +1032,7 @@ The 39, read one at a time:
 
 #### The five that are safe for reasons nothing enforces
 
-**1. `DeviceController.php:537` — keyed on a non-secret with no unique index.** *[Still no index; the fail-closed allowlist this rests on is now pinned by tests — §11e.]*
+**1. `DeviceController.php:537` — keyed on a non-secret with no unique index.** *[Superseded 2026-09-23: live devices now carry a unique `(serial_number, adapter_type)` index, built on a generated column so soft deletes do not burn serials, and the lookup rejects ambiguity outright — §11h.]*
 `->where('serial_number', $serialNumber)->first()`. The 2026-08-23 migration's own comment
 calls serials *"printed on the hardware, enumerable"*, and **`serial_number` carries no
 unique index** (`0001_01_01_000004:53` is a plain nullable string), so two tenants can hold
@@ -1201,7 +1201,11 @@ genuinely non-existent id, or it leaks what the scope was added to hide.
 A third flag, recorded so it is not re-derived: a unique index on `devices.serial_number`
 would **reject existing duplicate rows at migration time** and change what device
 registration accepts. It is a behaviour change, it needs a production data audit first, and
-that audit is not runnable from here.
+that audit is not runnable from here. *[Authorised and done on 2026-09-23 — §11h. The
+audit still is not runnable here, so the migration refuses to run against duplicates and
+names them instead. §11h also records two things this paragraph did not anticipate: a plain
+index would have burned serials permanently because devices soft-delete with no restore
+route, and a tenant-scoped index would not have closed the site at all.]*
 
 #### What this pass does not claim
 
@@ -1487,6 +1491,113 @@ counted as deriving from a tenant-owned key and are unchanged.
 
 The new tests were **not run locally**; `composer install` fails here with `Could not
 authenticate against github.com` (`AuthHelper.php:132`). CI is the verification.
+
+---
+### 11h. Site 1 closed — the last of §11d's five — **2026-09-23**
+
+`DeviceController::resolveWebhookDevice()` selects a device by
+`(serial_number, adapter_type)` with the tenant scope dropped, then `->first()`.
+Nothing made that pair unique, so with two tenants holding the same serial the
+row returned was undefined. §11e deliberately did **not** add an index, pinning
+the fail-closed IP allowlist instead and recording the index as an owner
+decision because it rejects existing rows at migration time. The owner
+authorised it.
+
+Two things turned up that the §11e plan had not, and both changed the shape of
+the work.
+
+#### The index cannot simply be added
+
+`Device` soft-deletes, `DeviceController::destroy()` soft-deletes, and **there is
+no restore route**. A plain unique index counts soft-deleted rows, so deleting a
+device would burn its serial permanently with no way to re-register it through
+the API — a worse and more likely regression than the ambiguity being fixed.
+MariaDB has no partial indexes, so `WHERE deleted_at IS NULL` is not available.
+
+The index is therefore built on a generated column that goes NULL once the row
+is deleted:
+
+```php
+$table->string('serial_number_active')
+    ->nullable()
+    ->virtualAs('CASE WHEN deleted_at IS NULL THEN serial_number ELSE NULL END');
+$table->unique(['serial_number_active', 'adapter_type'], 'devices_live_serial_unique');
+```
+
+NULLs repeat freely in a unique index on both drivers, so any number of deleted
+rows may share a serial while live ones may not. The column is VIRTUAL rather
+than STORED because SQLite permits adding a virtual generated column with
+`ALTER TABLE` and refuses a stored one, and the suite runs on SQLite while
+production runs on MariaDB. **There was no precedent for a generated column in
+this repository**, and none of it could be executed locally, so CI was the first
+thing to run it.
+
+#### A tenant-scoped index would not have worked
+
+The obvious shape — `(tenant_id, serial_number, adapter_type)` — is the one that
+leaves the defect in place. The bypassed lookup does **not** state `tenant_id`;
+two *different* tenants holding the same serial is precisely the case it cannot
+tell apart. Only global uniqueness makes that `->first()` sound.
+
+That has a cost, stated rather than buried: registering a serial another tenant
+already holds now fails, which tells the caller that serial exists somewhere on
+the platform. It is a cross-tenant existence oracle of the kind §11f went to
+some trouble to avoid in `supervisor_id` validation. The difference is that here
+it is inherent — any global uniqueness constraint is observable — and the
+exposure is narrow: an authenticated operator, registering hardware they
+physically hold, learns existence and nothing else. The message names no tenant,
+no device and no owner.
+
+#### Two layers, because the index alone would be weaker than it looks
+
+The query was also changed to treat ambiguity as a rejection:
+
+```php
+$candidates = Device::withoutGlobalScope('tenant')->…->limit(2)->get();
+
+if ($candidates->count() > 1) { … return null; }
+```
+
+The index is a schema fact; this is the code that would act on a violation of
+it. An older database, an unrun migration, or a future change that drops the
+index all leave this path reachable, and the guard costs one query shape. An
+ambiguous serial now authenticates nobody, which is the same fail-closed default
+`BelongsToTenant` and `webhookIpAllowed()` already take.
+
+Testing the guard requires dropping the index inside the test, because the index
+covers `UPDATE` as well as `INSERT` and there is no way to forge a duplicate
+while it exists. That is written into the test rather than worked around.
+
+#### The inventory moved, and the honest answer to its own question
+
+`ValidatesSerialUniqueness` — the hook that turns a constraint violation into a
+422 rather than a 500 — queries across tenants, so the pin went **156/54 →
+157/55**. The inventory test asks one question of every new bypass: does the
+query state `tenant_id` itself, or derive from a key already tenant-owned?
+
+**Neither.** It is cross-tenant on purpose, for the same reason the index is
+global. Recorded as such in `tenant-scope-bypasses.php` rather than dressed up:
+it reads existence only, returns no row, reads no field, and names nothing.
+
+The hook is a `withValidator()` hook and not a `Rule::unique(...)`, and `rules()`
+is byte-identical in both device requests — verified by diffing the extracted
+method. §11g cost a red contract gate learning that Scramble publishes from
+array literals generally, and that lesson is now applied rather than relearned.
+
+#### What this pass does not claim
+
+It does not claim production has no duplicate serials. That audit is not
+runnable from here, so the migration refuses to run against them and prints the
+offending device `public_id`s and owning `tenant_id`s to act on. **If it fails on
+deploy, that is the audit reporting, not the migration breaking.**
+
+The generated column is the first in this repository and was verified only by
+CI, on both SQLite and MariaDB. The `down()` path drops the index and the column
+but was never executed against MariaDB.
+
+With this, all five of §11d's "safe for reasons nothing enforces" sites are
+closed: §11e took three, §11f the `supervisor_id` rule and its six siblings,
+§11g the bare `::find()` sites, and §11h the device serial.
 
 ---
 

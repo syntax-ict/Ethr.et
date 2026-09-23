@@ -29,17 +29,17 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
 
-### 4. Tenant isolation is fail-closed, and bypassed in 156 places
+### 4. Tenant isolation is fail-closed, and bypassed in 157 places
 
 `BelongsToTenant` adds a global scope that applies `whereRaw('0 = 1')` when no tenant is resolved — absence of context yields *no* rows, not *all* rows. That design is why this product is safe by default.
 
-There are **156** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 54 files, counted 2026-09-22 with PHP's tokeniser against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly.
+There are **157** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 55 files, counted 2026-09-23 with PHP's tokeniser against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. It was 156/54 from 2026-09-22 until §11h added one: a deliberately cross-tenant device-serial uniqueness check, which states no `tenant_id` because uniqueness there is global by design.
 
 **This figure read 161/55 for four days, and overcounted by exactly five.** Counting was `preg_match_all` over raw file text, which cannot tell a call from the same words in a comment — and five matches were comments, every one in a file whose docblock explains why its bypass is safe. `Http/Middleware/EnsurePlatformContext.php` has left the inventory entirely: its only match was always a docblock.
 
 **The five that entered between 2026-09-16 and 2026-09-18 were still real.** The inflation is a *constant* +5, present since before the first pin, not something that arrived with those five. Measured against the pin commit (`21746a9`) with the tokeniser: **151 real calls + 5 comments = the 156 first recorded**; today it is **156 real + 5 comments = 161**. So the table below stands unchanged, and the count genuinely rose by five real bypasses.
 
-Worth knowing because it is a trap: the figure first pinned (156) equals the real figure now (156). They are different quantities that happen to coincide, and reading the match as "nothing really changed" gets both wrong. Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
+Worth knowing because it is a trap: the figure first pinned (156) equalled the real figure for a day (156 on 2026-09-22, now 157). They were different quantities that happened to coincide, and reading the match as "nothing really changed" got both wrong. Most are legitimate: platform-admin surfaces, pre-authentication lookups, global reference data, and queued jobs that run with no HTTP tenant context. **Every one must re-apply a tenant predicate**, directly or by deriving from a key that is itself tenant-owned. One was measurably wrong and shipped — see `tests/Feature/Security/TenantImportIsolationTest.php` — so assume the next one can be too.
 
 `TenantScopeBypassInventoryTest` now pins that inventory per file and fails when a count moves, so **a new bypass cannot enter unnoticed**. Be clear about what that buys: it makes adding one a deliberate act, which is exactly what was missing when the shipped defect went in. It does **not** audit the ones that already exist — a count cannot.
 
@@ -90,10 +90,11 @@ with the loudest mechanism the site allows:
 - `OrganizationProvisioner::query()` takes the **tenant id as a required argument** and
   applies the predicate itself. Both callers already passed it one line later, so the SQL
   is unchanged; a third caller can no longer forget.
-- `devices.serial_number` keeps **no** unique index — the right one would be tenant-scoped,
-  and the bypassed query does not state `tenant_id`, so it would not make the lookup safe.
-  What holds that site is `Device::webhookIpAllowed()` being fail-closed, and that is now
-  pinned directly, along with the two-tenants-one-serial case, in
+- `devices.serial_number` kept **no** unique index at the time, and the reasoning here was
+  half right: a tenant-scoped index would indeed not make the lookup safe, because the
+  bypassed query does not state `tenant_id`. What it missed is that a **global** one does.
+  *(Superseded 2026-09-23 — §11h. See below.)* `Device::webhookIpAllowed()` being
+  fail-closed is still what held the site until then, pinned in
   `tests/Feature/Security/DeviceWebhookTenantScopeTest.php`.
 
 **The fourth was an authorised behaviour change** (2026-09-23, §11f), and it covers **all
@@ -152,9 +153,28 @@ from `unserialize()` without running the constructor, so a required `readonly in
 make every job already queued at deploy time fail permanently. The null branch is
 transitional: once a drain has passed, it can be made required and the branches deleted.
 
-**One remains open, and it is the owner's call**: a unique index on
-`devices.serial_number` would reject existing duplicate rows at migration time, which needs
-a production data audit first.
+**The last was closed on 2026-09-23 (§11h), and all five of §11d's fragile sites are now
+enforced.** Live devices carry a unique `(serial_number, adapter_type)` index. Three things
+about it are load-bearing:
+
+- **It is global, not tenant-scoped.** The bypassed lookup does not state `tenant_id`, so
+  two *different* tenants holding one serial is exactly the case it cannot tell apart. Only
+  global uniqueness makes that `->first()` sound. The cost is stated rather than hidden:
+  registering a serial another tenant holds now fails, which reveals that serial exists
+  somewhere. Inherent to any global constraint, and narrow — an authenticated operator
+  registering hardware they hold learns existence and nothing else.
+- **It is built on a generated column**, `serial_number_active`, which goes NULL once
+  `deleted_at` is set. `destroy()` soft-deletes and there is **no restore route**, so a
+  plain index would burn a serial permanently. MariaDB has no partial indexes; this is the
+  workaround. The column is VIRTUAL because SQLite can add a virtual generated column with
+  `ALTER TABLE` and refuses a stored one.
+- **The query does not rely on the index.** `resolveWebhookDevice()` takes two candidates
+  and rejects when it finds more than one, so an older database or a dropped index does not
+  silently restore the coin flip.
+
+`ValidatesSerialUniqueness` turns a constraint violation into a 422 instead of a 500. It
+queries cross-tenant on purpose and states no `tenant_id` — which is why the inventory
+moved to 157/55 and the entry says so plainly.
 
 When it fails, the message tells you the question to answer: does the new query state `tenant_id` itself, or derive from a key already tenant-owned? If yes, update `tests/Feature/Security/tenant-scope-bypasses.php`. If no, you have found the next one.
 

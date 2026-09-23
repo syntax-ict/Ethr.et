@@ -9,4 +9,5 @@ return [
     'sync_complete' => 'Device sync completed successfully.',
     'webhook_received' => 'Webhook event received and processed.',
     'token_regenerated' => 'Device webhook token regenerated.',
+    'serial_in_use' => 'This serial number is already registered for this device type.',
 ];
