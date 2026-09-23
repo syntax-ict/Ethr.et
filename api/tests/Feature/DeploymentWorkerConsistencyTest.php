@@ -152,16 +152,25 @@ it('drains exactly the queues the application dispatches onto', function () {
 });
 
 it('keeps the unfixed worker stacks marked as broken', function () {
-    // docker-compose.prod.yml and .lowmem.yml still invoke Horizon. They are NOT
-    // fixed, deliberately: they partition work three ways over `attendance`,
-    // `devices`, `sync`, `notifications` and `payroll`, and three of those queues
-    // do not exist — the application dispatches onto default, attendance,
-    // notifications and exports only. Even with Horizon present that topology
-    // leaves `default` and `exports` undrained. Choosing the replacement is a
-    // deployment-architecture decision for the owner.
+    // The contract is conditional and has always been: a stack that invokes
+    // Horizon must carry the banner saying it is broken. What must not happen is
+    // the banner being removed while the breakage stays, which would return
+    // these files to looking runnable.
     //
-    // What must not happen is the banner being removed while the breakage stays,
-    // which would return these files to looking runnable.
+    // **Corrected 2026-09-23.** This comment opened "docker-compose.prod.yml and
+    // .lowmem.yml still invoke Horizon. They are NOT fixed, deliberately" — which
+    // stopped being true on 2026-09-22, when both were fixed and joined
+    // ETHR_WORKER_ASSETS. This file's own header records that transition 100
+    // lines above; only this comment was left behind, asserting the opposite of
+    // the file it lives in.
+    //
+    // The code was stale in a quieter way. Both assets take the early branch
+    // now, and that branch was a bare `continue`, so from 2026-09-22 this test
+    // performed **no assertion at all** — vacuously green, guarding nothing.
+    // PHPUnit marked it risky, and "Tests: 1 risky, 1890 passed" in every run
+    // was the only thing reporting it. The assertion below is now unconditional:
+    // one per asset, phrased as the implication, so the test always asserts and
+    // the re-introduction case still fails.
     foreach (['docker-compose.prod.yml', 'docker-compose.lowmem.yml'] as $asset) {
         $contents = ethrDeploymentAsset($asset);
 
@@ -175,11 +184,6 @@ it('keeps the unfixed worker stacks marked as broken', function () {
             static fn (string $line): bool => ! str_starts_with(ltrim($line), '#')
         ));
 
-        if (! str_contains($executable, 'artisan horizon')) {
-            // Fixed since this test was written — nothing left to mark.
-            continue;
-        }
-
         // `str_contains(...)->toBeTrue($message)` rather than
         // `toContain($needle, $message)`: Pest's toContain is VARIADIC, so a
         // trailing string is a SECOND NEEDLE TO FIND, not a failure message.
@@ -189,7 +193,15 @@ it('keeps the unfixed worker stacks marked as broken', function () {
         // but no longer carries the banner…", which is this assertion hunting
         // for its own error text in a compose file. The banner was present the
         // whole time. toBeTrue() takes a real message; toContain() does not.
-        expect(str_contains($contents, 'BROKEN AS OF 2026-09-19'))->toBeTrue(
+        //
+        // Written as the implication in one boolean so it is asserted whether or
+        // not the stack invokes Horizon: a fixed asset satisfies it vacuously
+        // but still records an assertion, which is what stops this test going
+        // silent again.
+        expect(
+            ! str_contains($executable, 'artisan horizon')
+            || str_contains($contents, 'BROKEN AS OF 2026-09-19')
+        )->toBeTrue(
             "$asset still invokes `artisan horizon` but no longer carries the banner "
             .'saying so. Either fix the stack or keep the warning: a compose file that '
             .'reads as runnable and starts no worker is how this went unnoticed once.'
