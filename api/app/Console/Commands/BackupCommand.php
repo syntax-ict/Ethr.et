@@ -11,7 +11,7 @@ use Throwable;
 /**
  * Runs from Plesk Scheduled Tasks as a PHP CLI job — no shell, no mysqldump.
  *
- *   php /home/<user>/ethr/api/artisan ethr:backup --off-host --keep=7
+ *   php /home/<user>/ethr/api/artisan ethr:backup --off-host --keep=2
  *
  * That constraint is the whole design. scripts/backup.sh, the only backup this
  * project had, is `docker compose exec mariadb mysqldump` — meaningless on the
@@ -21,7 +21,7 @@ class BackupCommand extends Command
 {
     protected $signature = 'ethr:backup
         {--label= : Suffix for the backup directory name}
-        {--keep=7 : How many backups to retain locally}
+        {--keep= : How many backups to retain locally; defaults to config backup.keep}
         {--off-host : Also copy an archive to the configured off-host disk}
         {--disk=s3 : Which disk to copy to}';
 
@@ -59,7 +59,14 @@ class BackupCommand extends Command
                 $this->warn('  off-host  NOT COPIED — this backup only exists on the host it protects.');
             }
 
-            $removed = $backups->prune((int) $this->option('keep'));
+            // Falls back to config rather than to a signature default, so
+            // BACKUP_KEEP reaches this. It did not until 2026-09-23: the
+            // signature said `--keep=7`, which is never null, so config
+            // backup.keep and the BACKUP_KEEP env var were dead. An operator
+            // lowering retention on a 5 GB plan got 7 anyway, silently.
+            $keep = $this->option('keep') ?? config('backup.keep', 2);
+
+            $removed = $backups->prune((int) $keep);
             if ($removed !== []) {
                 $this->line('  pruned    '.implode(', ', $removed));
             }
