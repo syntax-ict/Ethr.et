@@ -57,21 +57,50 @@ itself one of the still-open facts).
 ~/ethr/                    Laravel app — NOT web-accessible
   api/
     app/ config/ routes/ database/ vendor/ storage/ bootstrap/ .env
-~/httpdocs/                 document root
+<DOCROOT>/                  document root — **`ethr.et/`** on this account
   index.php                 copy of api/public/index.php, 3 lines repointed
   .htaccess                 docs/deployment/shared-hosting/.htaccess
   .well-known/               leave alone — ACME
   (frontend build output, IF B5 says no Node.js — see step 5)
 ```
 
+### Deploy path — corrected 2026-09-24
+
+**The document root on this account is `ethr.et/`, not `httpdocs/`.** Owner-confirmed;
+`../GATE-0-RESULT.md` → *Document root — RESOLVED*. Every instruction in this file that
+writes to `~/httpdocs/` therefore writes to a directory that **is not served**: the deploy
+completes, reports success, and the site does not change. A silent no-op, which is harder to
+notice than an error. **Read `<DOCROOT>` below as the real document root**, and substitute it
+wherever `~/httpdocs/` still appears in the older prose.
+
+**The safety property is unchanged and still holds**, for a reason worth stating precisely:
+`~/ethr/api/` is a **sibling** of the document root, not a descendant, so `.env`, `storage/`,
+`vendor/` and `.git` are unreachable over HTTP. That is a property of *where the root points*,
+not of any `.htaccess` — and it fails the moment the root is pointed at `~/` or at `~/ethr/`.
+`~/ethr/` and `~/ethr.et/` differ by one character; read that field back before saving it.
+
+**One value must be read before step 5.** Whether the served directory is `~/ethr.et/` or
+`~/httpdocs/ethr.et/` sets the `__DIR__` prefix in the relocated `index.php`:
+
+| Root's depth below home | `__DIR__` prefix in `index.php` |
+|---|---|
+| one level (`~/ethr.et/`) | `__DIR__.'/../ethr/api/…'` |
+| two levels (`~/httpdocs/ethr.et/`) | `__DIR__.'/../../ethr/api/…'` |
+
+Take it from File Manager's breadcrumb. A wrong prefix is a fatal `require` on the first
+request — loud and immediate, not silent, so this is a five-minute error rather than a
+dangerous one.
+
 **Nothing else from `api/public/` is copied here.** An earlier version of this layout
 listed `favicon.ico` and `robots.txt` as copied from `api/public/`; both are wrong, and
 `robots.txt` is wrong in the silent direction. Step 4a says why and what replaces them.
 
-Chosen because it is **already verified possible on this account**: the Plesk File
+Chosen because it is **already verified possible on this account**. ~~The Plesk File
 Manager listing showed the home directory sits one level above `httpdocs`
-(`docs/B1-B5_GATE_REPORT.md`), so `.env`, `storage/`, and the whole application are
-unreachable over HTTP by construction — not by an `.htaccess` rule that could be
+(`docs/B1-B5_GATE_REPORT.md`)~~ — *corrected 2026-09-24: that sentence names the wrong
+directory, since the served root is `ethr.et/`. The property that actually holds is that the
+application sits in a directory which is **not the document root and not beneath it**.* So
+`.env`, `storage/`, and the whole application are unreachable over HTTP by construction — not by an `.htaccess` rule that could be
 misconfigured or bypassed by a document-root change. If Plesk turns out to allow a
 custom document root pointed straight at `~/ethr/api/public`, that is marginally
 cleaner and this layout still works unmodified — do not switch to it speculatively.

@@ -429,7 +429,7 @@ reason the conclusion survives.*
 |---|---|---|
 | **B-1** | SSH **Forbidden** — **downgraded to OPTIONAL 2026-09-22** by [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md); its absence is a constraint to design around, not a blocker to wait on | The probe has no shell route. Its repo-defined fallback — *Scheduled Tasks as a one-off PHP CLI task* — depended on G0-D, **which was answered FAIL on 2026-09-18**: there is no Scheduled Tasks section, so the fallback does not exist either. |
 | **B-2** | No directive fields on Apache & nginx Settings | G0-A cannot be run as written. See the amended consequence below. |
-| **B-3** | `httpdocs/ethr.et/` — a Plesk-provisioned vhost skeleton created 2026-09-17 23:48, document root **inside** `httpdocs/` | **REASSESSED 2026-09-24 — it may be the live document root.** The canary uploaded per the runbook now shows at `ethr.et/ethr-canary`, which fits a vhost provisioned with a `<domain>/` root rather than `httpdocs/`. **Do not remove it until a fetch resolves the root** — see *Panel readings — 2026-09-24*. Original entry: purpose unknown; possible collision with the live `ethr.et` vhost carrying the certificate; inverts the `~/ethr` layout. Identify what was created in the panel before removing it — deleting a vhost is not deleting a folder. |
+| **B-3** | ~~`httpdocs/ethr.et/` — an unidentified Plesk-provisioned vhost skeleton~~ **IDENTIFIED 2026-09-24 — it is the live document root.** | **DO NOT REMOVE IT.** Owner-confirmed: the served root is `ethr.et/`. Deleting it takes the site down and breaks ACME renewal. The blocker is closed as identified, not as removed — `PANEL-SESSION-RUNBOOK.md` Part 2, which says to remove it once unambiguous, is **withdrawn for this directory**. Superseded reasoning follows. ~~REASSESSED 2026-09-24 — it may be the live document root.~~ The canary uploaded per the runbook now shows at `ethr.et/ethr-canary`, which fits a vhost provisioned with a `<domain>/` root rather than `httpdocs/`. **Do not remove it until a fetch resolves the root** — see *Panel readings — 2026-09-24*. Original entry: purpose unknown; possible collision with the live `ethr.et` vhost carrying the certificate; inverts the `~/ethr` layout. Identify what was created in the panel before removing it — deleting a vhost is not deleting a folder. |
 | **B-4** | ~~No route to run `artisan`~~ **Route defined 2026-09-22** | `key:generate`, `migrate`, `db:seed`, `ethr:create-admin` now have a non-shell route in the deployment contract: **Plesk Git *additional deployment actions***, which execute as the subscription user on deploy. The field is confirmed present (owner-read 2026-09-18); nothing has been entered or run. This covers **one-off install work only** — deployment actions fire on deploy and cannot drive anything recurring, so the scheduler and queue worker still need **G0-D**. See [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md). |
 | **B-5** | No route to get a schema into the database | Both paths need something this account does not offer: the existing-data path runs `mysql < dump.sql` **on the shared host**, and the fresh path is B-4. Distinct from B-4 because the remedy differs — B-4 needs something that runs `artisan`; B-5 needs that **or** a database import UI, which is the still-open half of manual queue #1. |
 | **B-6** | The DNS cutover already happened and the rollback target may not serve | Not a gate — a safety property that stopped holding. `ROLLBACK_RUNBOOK.md` Scenario A calls "before DNS cutover" *the current state*; `ethr.et` resolves to `213.55.96.154` (the Plesk host), measured twice on 2026-09-17. Whether the VPS still serves, and whether it still holds tenant data and its `APP_KEY`, is unanswered. |
@@ -511,7 +511,40 @@ the IP, and the certificate. **Web scripting listing FastCGI/CGI/SSI with no PHP
 that page is new**, and it does not answer G0-E: the handler list says PHP can run, not which
 version. PHP 8.3.33 remains a separate reading against the version row only.
 
-### The document root is now AMBIGUOUS, and it was previously recorded as CONFIRMED
+### Document root — **RESOLVED `ethr.et/` (owner-confirmed 2026-09-24)**
+
+**Candidate B. A and C are excluded.** The served directory is `ethr.et/`, which is why the
+canary uploaded per the runbook appears at `ethr.et/ethr-canary`. The reasoning that
+produced the three candidates is kept below, superseded, because two of its consequences
+survive the answer and one does not.
+
+**The security question is answered NO.** `~/ethr/api/` is a **sibling** of the document
+root, not a descendant, so `.env`, `storage/`, `vendor/`, `storage/app/` and the `.git` tree
+are not reachable over HTTP. **`APP_KEY` and the database password are not exposed.** The
+exposure table below describes candidate C, which did not happen, and is retained only so
+the reasoning can be checked.
+
+**§0's safety property holds — for a different reason than it states.**
+`shared-hosting/DEPLOYMENT.md` justifies the layout by "the home directory sits one level
+above `httpdocs`". That sentence is about the wrong directory. The property that actually
+holds is narrower and worth stating exactly: **the application lives in a directory that is
+not the document root and not beneath it.** It would fail the moment the served root were
+changed to `~/` or to `~/ethr/`, which no `.htaccess` in any other directory could prevent.
+
+**The deploy-path defect is real, not hypothetical.** Every instruction that writes to
+`~/httpdocs/` writes to a directory that is not served. See *Deploy path — corrected* in
+`shared-hosting/DEPLOYMENT.md`.
+
+**One sub-question is still open, and it is load-bearing.** Whether the served directory is
+`~/ethr.et/` or `~/httpdocs/ethr.et/` has not been read. It sets the `__DIR__` prefix in the
+relocated `index.php` — `'/../ethr/api/…'` if the root is one level below home,
+`'/../../ethr/api/…'` if two. A wrong prefix is a fatal `require` on every request, loud and
+immediate rather than silent. **Read the full path from File Manager's breadcrumb before
+step 5.**
+
+---
+
+### ~~The document root is now AMBIGUOUS~~ **SUPERSEDED — resolved above. Retained for the reasoning.**
 
 This register has said since 2026-09-17 that the document root is `httpdocs`, reasoning that
 Plesk displays the field relative to the webspace root and that
