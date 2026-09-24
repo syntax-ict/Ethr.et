@@ -326,5 +326,6 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | Security reporting | [`SECURITY.md`](SECURITY.md) |
 | Documentation index | [`docs/README.md`](docs/README.md) |
 | Deployment target status | [`docs/deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) |
+| Deploying to Plesk shared hosting | [`docs/deployment/PLESK-HOSTING-GUIDE.md`](docs/deployment/PLESK-HOSTING-GUIDE.md) |
 
 Production target is Ethio Telecom Linux shared hosting under Plesk. The VPS and Docker production assets are kept only until that cutover is verified.

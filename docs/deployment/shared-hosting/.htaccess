@@ -1,7 +1,7 @@
 # ETHR — Document root .htaccess for Ethio Telecom shared hosting (Plesk)
 #
 # Goes at <DOCROOT>/.htaccess. Companion to the repointed <DOCROOT>/index.php.
-# <DOCROOT> is the served directory: `ethr.et/` on this account, owner-confirmed
+# <DOCROOT> is the served directory: `httpdocs/`, Plesk's default and the target chosen
 # 2026-09-24. It is NOT httpdocs/ -- see DEPLOYMENT.md "Deploy path -- corrected".
 # (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing
 # and security work nginx did on the VPS (infrastructure/nginx-common.conf),
@@ -10,7 +10,7 @@
 # Layout this assumes:
 #   ~/ethr/              Laravel app — NOT web-accessible (not the document
 #                        root and not beneath it)
-#   <DOCROOT>/           document root — `ethr.et/` on this account
+#   <DOCROOT>/           document root — `httpdocs/` (Plesk default)
 #     index.php           copy of api/public/index.php, require paths repointed
 #     .htaccess           this file
 #     .well-known/        leave alone — ACME HTTP-01 challenge path
