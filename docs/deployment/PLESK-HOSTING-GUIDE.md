@@ -105,24 +105,38 @@ repository pins two versions for two jobs:
 
 The host never runs the gates.
 
-### A4. Document root — *Websites & Domains → Hosting Settings* · **LIVE CHANGE**
+### A4. Document root — **DO NOTHING. Do not change this field.**
 
-**Target: `httpdocs`** — Plesk's stock default. Measured 2026-09-24 it is `ethr.et/`.
+**Corrected 2026-09-24, same day this guide was written.** This section previously read
+*"Target: `httpdocs` — LIVE CHANGE"* and told you to move the document root. **Do not do
+that.** The instruction was wrong and following it ranged from pointless to dangerous.
 
-Do this one alone, and in this order:
+**The document root is already `httpdocs/`.** Twelve HTTP requests against the live host
+measured it: every directory under the document root answers **403** (`/css/`, `/cgi-bin/`,
+`/.well-known/acme-challenge/`), every home-directory entry answers **404** (`/logs/`,
+`/usr/`, `/var/`, `/ethr/`), and `/favicon.ico` answers **200** while `/httpdocs/favicon.ico`
+answers 404. A document root at the home directory would invert every row. See
+[`GATE-0-RESULT.md`](GATE-0-RESULT.md) → *Account evidence — 2026-09-24*.
 
-1. **Confirm `httpdocs/.well-known/acme-challenge/` exists.** ACME serves from the document
-   root. The certificate is live to 2026-12-15 and renews itself until it silently cannot —
-   and you would find out in about eleven weeks.
-2. **Look inside `httpdocs/` first.** Whatever is there becomes the site when you save.
-3. **Read the field back character by character.** `httpdocs`, `ethr.et`, `ethr` —
-   the third is the Laravel application. Pointing the document root at it publishes `.env`,
-   `storage/` and the whole `.git` tree in one action, with no error at any step.
+So `Document root: /` is Plesk showing the path **relative to the webspace root**, which is
+normal and correct. There is nothing to move.
 
-**Afterwards, `httpdocs/ethr.et/` becomes an ordinary subdirectory** served at
-`https://ethr.et/ethr.et/`. That is blocker **B-3**. Leave it for now — the move and the
-cleanup are separate actions, and doing both at once means a failure cannot be attributed
-to either.
+> **Why this was worth a correction and not a quiet edit.** Editing that field is **B-7's
+> Trap 1**. At best it is a no-op. At worst — if the value ever resolves to the home
+> directory — it web-serves `~/ethr/api/.env`, publishing `APP_KEY` and the database
+> password, and breaks certificate renewal at the same time. This guide told you to open
+> that field and type in it. **The safest action on a field that is already correct is to
+> leave it shut.**
+
+**How the earlier `ethr.et/` reading happened**, because the reasoning is worth keeping: the
+canary uploaded per the runbook appeared at `ethr.et/ethr-canary` in File Manager, and that
+was read as locating the document root. But `/ethr.et/` returns **404** where real
+document-root directories return 403 — the canary went into a directory that **is not
+served**. *File Manager shows where a file went; it does not show what Apache serves.* The
+canary must be re-uploaded under `httpdocs/` before G0-B.1–B.5 can be fetched at all.
+
+**Nothing else in this guide changes.** `<DOCROOT>` already meant `httpdocs/` everywhere,
+and that was right — it was only the claim that it needed *moving there* that was wrong.
 
 ### A5. Git deployment — *Git* · optional, and **set the path before the first deploy**
 

@@ -78,11 +78,11 @@ subscription's main domain. Every operational step below already says `<DOCROOT>
 section is the only place the value is set, and changing the target changed one line rather
 than fourteen.
 
-**This is a target, not a reading.** The document root *as measured on 2026-09-24* is
-`ethr.et/` — see the superseded block below, which is kept because it is what the account
-actually does today. The owner has chosen to move it to the Plesk default. **Nothing in this
-repository performs that move**; it is a panel action, and it is the one step here that
-changes the live site.
+**This is a reading, and it needs no action.** Twelve HTTP requests on 2026-09-24 measured
+the served directory as `httpdocs/` — see `../GATE-0-RESULT.md` → *Account evidence*. The
+block below, which called `httpdocs/` a *target* the owner had chosen to *move* to, was
+wrong on both counts: it was already the root, and **editing that field is B-7's Trap 1.**
+**Do not change the Document root field.**
 
 **Before you save that field, three things, in this order.**
 

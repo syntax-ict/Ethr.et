@@ -577,7 +577,24 @@ the IP, and the certificate. **Web scripting listing FastCGI/CGI/SSI with no PHP
 that page is new**, and it does not answer G0-E: the handler list says PHP can run, not which
 version. PHP 8.3.33 remains a separate reading against the version row only.
 
-### Document root — **RESOLVED `ethr.et/` (owner-confirmed 2026-09-24)**, **TARGET CHANGED to `httpdocs/` the same day**
+### Document root — ~~**RESOLVED `ethr.et/`**~~ **CORRECTED to `httpdocs/` — measured over HTTP 2026-09-24**
+
+> **This section's conclusion was wrong and is superseded by measurement, not by opinion.**
+> It recorded `ethr.et/` on a verbal confirmation. Twelve HTTP requests the same day
+> measured `httpdocs/` — see *Account evidence — 2026-09-24* above. Every directory under
+> the document root answers 403; every home-directory entry answers 404.
+>
+> **How the wrong reading happened, because it is the reusable part:** the canary landed at
+> `ethr.et/ethr-canary` in File Manager and that was read as locating the root. But
+> `/ethr.et/` returns **404** where real document-root directories return 403 — the canary
+> went into a directory that is **not served**. *File Manager shows where a file went; it
+> does not show what Apache serves.* **The canary must be re-uploaded under `httpdocs/`
+> before G0-B.1–B.5 can be fetched at all** — the existing one is unreachable.
+>
+> **The `TARGET CHANGED to httpdocs/` note that stood here is withdrawn entirely.** There
+> was never anything to move, and the instruction it produced told the owner to edit the
+> *Document root* field — **B-7's Trap 1**, which at worst web-serves `~/ethr/api/.env` and
+> breaks certificate renewal. The reasoning below is retained; its conclusion is not.
 
 > **The owner has chosen to move the document root to Plesk's stock default, `httpdocs/`.**
 > That is a decision about where the site *will* be served from, not a new measurement. The
