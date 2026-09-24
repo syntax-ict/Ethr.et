@@ -941,6 +941,54 @@ a class and was wrong about one of them. §12i then read one file for a route ke
 about which key. Both were cheap to check and neither was checked. The rule this file keeps
 re-deriving: **a grep that returns nothing is evidence about the grep, not about the code.**
 
+### 12k. The fail-without-fix claim, and why it stays reasoned **[decided 2026-09-24]**
+
+§12j's tests were verified to **pass with the fix** (CI run #425, seven of seven on
+`f3a41f4`). That they **fail without it** was never demonstrated, and this section records
+the attempt, the decision not to force it, and the change that makes the gap matter less.
+
+**The attempt.** The suite cannot run in this environment. `api/vendor` existed as an empty
+skeleton — 63 package directories holding no files, no `installed.json`. Three install modes
+were tried and all three end at `Could not authenticate against github.com`:
+
+| Mode | Result |
+|---|---|
+| `composer install --prefer-dist` | `AuthHelper.php:132` — auth failure, exit 100, 0 packages |
+| `COMPOSER_AUTH` built from `$GITHUB_TOKEN` | rejected earlier: the variable's literal value is `proxy-injected`, a placeholder |
+| `composer install --prefer-source` | same auth failure; the proxy's `gitConfigInjection` covers `git` but not composer's GitHub fetches |
+
+`/root/.config/composer/auth.json` is an empty skeleton with `github-oauth` present and zero
+hosts. **What it would need: a real GitHub token with `public_repo`**, as
+`github-oauth."github.com"` in that file or in `COMPOSER_AUTH`.
+
+**The decision: do not obtain the evidence from CI.** `gates.yml` triggers on
+`push: branches: [main]` and `pull_request` — a pushed branch runs nothing. Demonstrating the
+failure would require **opening a pull request that reverts an authorisation check**, which
+stays in the repository's history permanently, plus a branch that cannot be deleted from this
+environment (`git push --delete` fails at the transport layer; the GitHub MCP has no
+delete-branch tool, which is why nine branches are already stranded). A permanent
+"reverts the attendance fix" PR costs the audit trail more than the confirmation is worth.
+**The claim stays reasoned, and is labelled as such wherever it appears.**
+
+**What did change, because re-reading the tests against "fails for the right reason" found a
+real weakness.** Both denial tests asserted only a 403. **An unseeded permission also produces
+a 403** — so if `attendance.view` were somehow not granted, the test would pass *and would
+have passed with the fix reverted*. A green test proving nothing, which is the exact failure
+mode this file exists to catch, and it was sitting in the file written to prove a fix.
+
+The premise was pinned by a *separate* test (`attendance.view` is granted to every role). That
+is not enough: if that test fails, the two denial tests still report green.
+
+Each denial test now reads an **in-scope record first and asserts 200**, in the same test,
+before asserting the out-of-scope 403. The control proves the ability is held and the endpoint
+works, so the denial can only be `orgScope()`/`canAccessEmployee()`. A setup failure now fails
+the control rather than passing the assertion.
+
+**This does not make the tests fail-without-fix — it makes them unable to pass for the wrong
+reason.** The remaining claim is narrow and structural: with the fix reverted, `show()`
+authorises on `attendance.view` alone, the control proves that ability is held, so the
+out-of-scope read returns 200 and `assertForbidden()` fails. That is an argument, not a run.
+
 ---
 
 ## 13. Known blockers
