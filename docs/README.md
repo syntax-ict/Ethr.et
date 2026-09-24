@@ -80,6 +80,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | Document | What it is |
 |---|---|
 | [`deployment/PLESK-HOSTING-GUIDE.md`](deployment/PLESK-HOSTING-GUIDE.md) | **Start here if you have the panel open.** The owner's end-to-end guide: what to configure, in what order, and the one step that has no route |
+| [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) | When the VPS assets come out, and the five that must **not** — two are load-bearing for the Plesk target |
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Hosting verification — all rows `NOT VERIFIED` |
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
 | [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md) | **The deployment contract.** PRIMARY: Plesk UI, Git deployment, Laravel integration, Scheduled Tasks, database. OPTIONAL: SSH. NEVER REQUIRED: Docker, systemd, Supervisor, root, VPS-only services. Records which PRIMARY elements are observed on the account and which are not |

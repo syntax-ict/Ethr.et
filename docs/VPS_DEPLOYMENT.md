@@ -26,6 +26,11 @@
 >
 > **Retire it when:** the Plesk cutover is verified, the rollback rehearsal has
 > been performed, and the observation period in master plan §60 has passed.
+>
+> **The inventory that condition governs is in
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md)** — including the five
+> assets that look like VPS files and must not be removed, two of which the *Plesk* target
+> depends on. This file goes last of all of them.
 
 The concrete, copy-pasteable procedure for this one server. `docs/DEPLOYMENT.md`
 is the reference manual — it explains *why* each piece is shaped the way it is.
