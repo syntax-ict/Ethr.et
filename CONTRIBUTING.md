@@ -142,9 +142,77 @@ pass `--no-verify` to. `ETHR_PREPUSH_SCOPE=all git push` if you want everything.
 ### On CI
 
 `.github/workflows/` calls `gates.sh` rather than restating the gate list, so
-there is one definition of "does this pass". **It has never run** — nothing has
-been pushed to the remote yet — so treat it as configuration that has not been
-tested. The hook is the part that works today.
+there is one definition of "does this pass".
+
+*(This section used to end "**It has never run** — nothing has been pushed to the
+remote yet". That stopped being true long ago and is corrected rather than
+deleted, because the reason it was written is worth keeping: for the first 50
+pushes the workflows really did fail before any gate executed, and
+`docs/audit/BASELINE.md` records the five structural causes. Run #66 was the
+first fully green one. As of run #431 the seven jobs pass on every push to
+`main`.)*
+
+The seven jobs, named as GitHub reports them — these strings are what a required
+status check must match exactly:
+
+```
+Documentation integrity
+API contract (OpenAPI drift)
+Backup restore rehearsal on MariaDB
+Frontend (i18n, Prettier, ESLint, tsc, Vitest)
+Backend (Pint, PHPStan, Pest)
+Backend coverage (PCOV)
+Backend suite on MySQL
+```
+
+`security.yml` is a separate workflow and is **not** one of them. It triggers on
+a schedule and on pull requests touching `composer.json`, `composer.lock`,
+`package.json` or `package-lock.json` — so on most pull requests it never starts.
+
+### Branch protection on `main`
+
+**Intended configuration, recorded here so it is reviewable rather than living
+only in the repository settings UI.** Nothing in the repository enforces it; it
+is applied under *Settings → Branches*, or *Settings → Rules → Rulesets*.
+
+| Setting | Value |
+|---|---|
+| Branch name pattern | `main` |
+| Require a pull request before merging | on |
+| — Required approvals | **0** |
+| Require status checks to pass | on, with the seven jobs listed above |
+| — Require branches to be up to date first | on |
+| Block force pushes | on |
+| Restrict deletions | on — **targeting `main` only** |
+| Do not allow bypassing the above settings | off |
+
+Four of those are counter-intuitive enough to state the reason:
+
+- **Required approvals is 0, deliberately.** GitHub does not let anyone approve
+  their own pull request. On a repository with a single maintainer, requiring one
+  approval makes every pull request permanently unmergeable by the only person
+  who can merge it. Zero still forces the pull-request flow and still requires the
+  checks; it only declines to demand a second human who does not exist. Raise it
+  the day there is a second reviewer.
+- **Do not require `security.yml`.** It does not run on most pull requests (see
+  above), and a required check that never starts blocks the pull request forever.
+  This is the same reason `CLAUDE.md` gives for keeping `security` out of the full
+  sweep: a gate that is permanently red, or permanently pending, stops being read.
+- **Scope *Restrict deletions* to `main`.** A ruleset targeting all branches with
+  that option on also blocks ordinary branch cleanup, which is a slow thing to
+  diagnose — the failure surfaces as an HTTP 403 on the ref update while ordinary
+  pushes keep working, and `git push` then prints a misleading
+  `Everything up-to-date` before exiting 1.
+- **Bypass stays off.** With it on, administrators are bound too, which on a
+  solo repository removes the only escape hatch when a check is stuck. Off, the
+  rules apply to normal work and can still be overridden deliberately.
+
+**Why this is worth doing at all:** until it is applied the gates are advisory.
+Seven green jobs block nothing, `main` accepts a direct push, and a force-push
+over it is permitted. The greens are real; the enforcement is not. That gap is
+the same shape as the one `BASELINE.md` documents at length — a control that is
+documented and believed in, but not actually in the path of the thing it is meant
+to stop.
 
 ### Do not run `vendor/bin/pest` directly over a Docker bind mount
 
