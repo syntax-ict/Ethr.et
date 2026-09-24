@@ -38,6 +38,75 @@ particular prints "SQLite" while the documented stack is MariaDB on port 3307,
 and it starts neither the worker nor Reverb. Prefer Docker Compose unless you
 know why you want otherwise.
 
+### `composer install` needs a GitHub token
+
+Every one of the 163 `dist` URLs in `api/composer.lock` points at
+`api.github.com`, and `api/composer.json` declares no custom `repositories` —
+so a cold install (empty Composer cache) makes well over a hundred API calls.
+Unauthenticated, GitHub allows **60 per hour per IP**. The install gets partway,
+starts receiving 403s, and Composer stops to prompt for a token — which under
+`--no-interaction`, in a hook, or in a script is simply a failure.
+
+Store a token once, globally:
+
+```bash
+composer config --global --auth github-oauth.github.com <your-token>
+```
+
+That writes to `COMPOSER_HOME/auth.json`, outside the repository. A per-project
+`api/auth.json` works too and is already gitignored, but the global file keeps
+the credential out of the working tree entirely. **Never commit either one.**
+
+**The scope required is none.** Every dependency is a public package from
+Packagist, and this repository is public — the token is doing nothing but
+lifting a rate limit. A classic PAT with *no* boxes checked, or a fine-grained
+token with read-only access to public repositories, is sufficient and grants
+nothing else. A `repo`-scoped token would hand every dependency's install
+script a credential to your private repositories for no benefit.
+
+Verify it without printing it:
+
+```bash
+composer diagnose | grep 'github.com oauth'
+# Checking github.com oauth access: OK  expires on <date>
+```
+
+That line reports the expiry as well. An expired token fails exactly the way a
+missing one does, so check here first when a previously working `composer
+install` starts rate-limiting.
+
+CI does not need one: the `Install PHP dependencies` step in
+`.github/workflows/gates.yml` passes no token and the runs are green. This is a
+workstation prerequisite, not a pipeline secret.
+
+### `composer install` also needs `BROADCAST_CONNECTION` set
+
+On a machine with no `api/.env` — a fresh clone — `composer install` fails
+*after* downloading everything, in the `package:discover` post-autoload-dump
+script:
+
+```
+Failed to create broadcaster for connection "reverb" with error:
+Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type string, null given
+```
+
+`config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is
+unset and `routes/channels.php` calls `Broadcast::channel()` at load time. This
+is the same defect that blocked CI for fifty runs; the workflow fixes it with a
+job-level `BROADCAST_CONNECTION: "null"`. Locally, do the equivalent before the
+first install:
+
+```bash
+cd api
+cp .env.example .env         # ships BROADCAST_CONNECTION=reverb — change it to null
+php artisan key:generate     # encrypted casts on Employee.tin refuse to boot without APP_KEY
+composer install
+```
+
+Without the `key:generate` the suite dies with `MissingAppKeyException` rather
+than failing a test, which reads like a broken suite instead of an unconfigured
+one.
+
 ## Quality gates
 
 One entry point, for people and for CI alike:
