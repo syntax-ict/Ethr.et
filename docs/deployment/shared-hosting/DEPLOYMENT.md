@@ -18,12 +18,19 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 >   `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no documented
 >   non-shell route. Both are one support request; see the blocker register.
 >
-> - **Step 4 copies the wrong environment file.** `cp .env.production.example .env` (line
->   133) copies a `docker-compose.prod.yml` artifact that selects redis for cache, queue and
+> - ~~**Step 4 copies the wrong environment file.**~~ **FIXED 2026-09-24 in step 4 itself.**
+>   It copied a `docker-compose.prod.yml` artifact selecting redis for cache, queue and
 >   session, minio for storage and reverb for broadcasting, with `REDIS_HOST=redis` and
 >   `MINIO_ENDPOINT=http://minio:9000` — Docker service names that resolve to nothing here.
->   **Copy [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example)
->   instead**; it carries the identical key set with each conversion marked and explained.
+>   Step 4 now copies
+>   [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example), which
+>   carries the identical key set with each conversion marked and explained.
+>
+>   **This entry is the interesting part of the defect, not the fix.** The wrong filename
+>   was flagged *here*, at the top of the very file that then went on to give the wrong
+>   instruction, and flagged again in `../PLESK-SETUP.md` §2 — and the body was left saying
+>   it anyway, for as long as both notes existed. A warning above a runbook does not correct
+>   the runbook; readers follow the commands.
 >
 > What *has* been corrected here is factual only — the account username (`ethret`, not
 > `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
@@ -307,7 +314,9 @@ until the file is actually here.
 ### The three files
 
 ```bash
-ssh ethret@213.55.96.154
+# Requires shell access, which this account does not have — B-1, see step 4.
+# Over File Manager this is an upload and a copy, not a shell session; the
+# commands below say what must end up where.
 
 # 1. The front controller.
 cp ~/ethr/api/public/index.php <DOCROOT>/index.php
