@@ -70,8 +70,10 @@ itself one of the still-open facts).
 `../GATE-0-RESULT.md` → *Document root — RESOLVED*. Every instruction in this file that
 writes to `~/httpdocs/` therefore writes to a directory that **is not served**: the deploy
 completes, reports success, and the site does not change. A silent no-op, which is harder to
-notice than an error. **Read `<DOCROOT>` below as the real document root**, and substitute it
-wherever `~/httpdocs/` still appears in the older prose.
+notice than an error. **`<DOCROOT>` throughout this file means the real document root** —
+`ethr.et/` on this account. Every operational step below was rewritten to say `<DOCROOT>` on
+2026-09-24; the only remaining mentions of `httpdocs` are in this section, where the contrast
+is the point, and in the struck sentence under §0 that named it wrongly.
 
 **The safety property is unchanged and still holds**, for a reason worth stating precisely:
 `~/ethr/api/` is a **sibling** of the document root, not a descendant, so `.env`, `storage/`,
