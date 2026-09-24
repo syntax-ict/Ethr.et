@@ -207,7 +207,7 @@ jobs:
       # product actually needs is still Next 16's floor of Node 20.9+ — the
       # hosting question is gate B5 in the shared-hosting compatibility doc and
       # remains unanswered.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -227,7 +227,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
 
@@ -402,7 +402,7 @@ jobs:
           coverage: none
           ini-values: memory_limit=-1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
