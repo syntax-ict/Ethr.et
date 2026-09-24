@@ -231,7 +231,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # No install step: docs-link-check.js uses only Node built-ins, which is
+      # No install step: docs-link-check.cjs uses only Node built-ins, which is
       # deliberate so this can run on its own in seconds.
       - name: Check markdown links
         run: ./scripts/gates.sh docs

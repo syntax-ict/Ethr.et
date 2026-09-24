@@ -132,4 +132,4 @@ Phase 1 fixed the ones that were *navigation*: the root `README.md`'s live link,
 
 What remains are citations inside *narrative* — `ENTERPRISE_ROADMAP.md`'s evidence column, recording what the author had read at the time. Editing those would falsify the record rather than correct it, so they stay. **If you follow an evidence citation in the roadmap and it names one of those files, it does not exist.** `audit/BASELINE.md` is the current equivalent.
 
-`scripts/docs-link-check.js` now enforces the difference: every relative *link* must resolve. It does not see backticked prose references, which is the gap described in D-002.
+`scripts/docs-link-check.cjs` now enforces the difference: every relative *link* must resolve. It does not see backticked prose references, which is the gap described in D-002.
