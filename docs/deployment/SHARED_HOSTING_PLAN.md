@@ -960,3 +960,67 @@ exists in code or in the panel, and not one has ever been executed on this accou
 
 ---
 
+### 5.10 The document root, and what of this plan is actually web-readable
+
+Prompted by a panel read on 2026-09-24 reporting *Document root: `/`* and taking it
+literally — *the whole home directory is web-served, so `logs`, `usr`, `var` and `ethr` are
+exposed*. **That reading is measurably false**, and
+[`GATE-0-RESULT.md`](GATE-0-RESULT.md) → *Account evidence — 2026-09-24* carries the twelve
+requests that disprove it. The document root is `httpdocs`. Summarised here because this
+section's layout depends on it and nothing in it said so.
+
+**Nothing this plan places is web-readable, and that is measured, not assumed.**
+
+| Planned location | Holds | Reachable over HTTP? |
+|---|---|---|
+| `~/ethr/` | the repository, the application | **No** — `/ethr/` returns 404 |
+| `~/ethr/api/.env` | **`APP_KEY`, `DB_PASSWORD`** | **No** — below `~/ethr/` |
+| `~/ethr/api/storage/backups/` | `ethr:backup` archives — `config/backup.php:16`, `storage_path('backups')` | **No** |
+| `~/ethr/api/storage/app/private/` | uploads; `FILESYSTEM_DISK=local` (`.env.shared-hosting.example:123`) | **No** |
+| `~/httpdocs/` | the Next.js static export, `.htaccess`, the front controller | **Yes — by design** |
+| `~/httpdocs/storage` → `storage/app/public` | step #12's `storage:link` | **Yes — by design**, and only the `public` disk |
+
+So **no planned location exposes `APP_KEY` or the database password.** The layout, not the
+`.htaccess` deny rules, is what provides that: those rules are defence in depth, and
+**G0-B.5 is precisely the case where they fail silently** — if nginx serves static files
+directly, Apache rewrite rules never run. Never let the deny rules be the reason a secret
+is safe.
+
+#### Three ways this plan could still expose one
+
+Each is a configuration mistake, not the current state. Ordered by how close each has come.
+
+1. **A wrong Plesk Git deployment path — and this has already happened once.**
+   §5.5 step 5 sets the deployment path to `/ethr/` **before the first deploy**. If it is
+   left at its default or pointed at `/httpdocs/`, the whole repository lands *inside* the
+   document root, `.env` included.
+   `GATE-0-RESULT.md` records the precedent plainly: a previous upload "copied the entire
+   repository into `httpdocs/`, so the probe became web-executable". That time there was no
+   `.env` and no `vendor/`, so nothing leaked. A real deploy has both.
+   **This is the highest-consequence single field in the deployment.**
+
+2. **"Correcting" the *Document root* field.** It reads `/`, which is correct — Plesk
+   displays it relative to the webspace root. Setting it to anything resolving to the home
+   directory web-serves `~/ethr/api/.env` and breaks ACME renewal. See `GATE-0-RESULT.md`
+   → **B-7**, *Trap 1*. **B-7 also records that *Save* hangs**, so the form has not been
+   writing — for this field that is currently a safety property.
+
+3. **Repointing `BACKUP_PATH` under the public disk.** `config/backup.php:16` reads
+   `env('BACKUP_PATH', storage_path('backups'))`. The default is safe. Setting it to
+   anything under `storage/app/public/` publishes every archive — each of which contains a
+   full `database.sql` — through the `storage:link` symlink in row #12. Nothing currently
+   sets it; **leave it unset.**
+
+#### What this does not settle
+
+**No gate moves.** The document root was already `CONFIRMED httpdocs` in `GATE-0-RESULT.md`
+and remains so; this is corroboration of a standing conclusion, gathered because the
+original ACME evidence was recorded as no longer re-observable.
+
+It does not touch **G0-A** (routing), **G0-B** (`.htaccess`, and B.5 in particular),
+**G0-D** (no Scheduled Tasks), or **G0-E** (extensions and limits). It does not identify
+**B-3**. And it says nothing about whether `~/ethr/` is *writable* — only that it is not
+served. Every row in the table above describes a directory that, on this account, **does
+not yet exist**.
+
+---

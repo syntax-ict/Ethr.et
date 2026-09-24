@@ -490,6 +490,72 @@ architectural frontend deployment change rather than a few route edits. The high
 
 ---
 
+## Account evidence — 2026-09-24
+
+Six panel readings, owner-read and reported the same day. **No gate moves on these.** They
+are panel readings, not probe or canary output, and five of the six restate rows this
+register already carries. They are recorded because a second independent read of a
+contested field is worth having, and because one of them was very nearly acted on.
+
+| Read | Value | Effect on this register |
+|---|---|---|
+| **Document root** | `/` | **No change** — same field, same value as 2026-09-17. Re-verified over HTTP below. The document root is `httpdocs`. |
+| **Web scripting** | FastCGI, CGI, SSI listed; **no PHP version shown in that section** | **G0-E does not move.** It stays `8.3.33`. |
+| **SSH access** | **Forbidden** | **No change** — already **B-1**, read the same way 2026-09-17. A second independent confirmation. |
+| **IP address** | `213.55.96.154` | **No change** — matches `B1-B5_GATE_REPORT.md` and the address `ethr.et` resolved to on 2026-09-17 (**B-6**). |
+| **Certificate** | Let's Encrypt on `ethr.et` | **No change** — the live, renewing certificate the document-root argument depends on. |
+| **Preferred domain** | `www.ethr.et`, via **301** | **Corroborates D-5**, which already rests on this redirect being measured. `.env.shared-hosting.example:33` already sets `APP_URL=https://www.ethr.et` for it. |
+
+### The document root is `httpdocs`. The `/` in that field is not the home directory.
+
+This was already this register's conclusion. The evidence it rested on — an ACME challenge
+observed inside `httpdocs/` — was recorded as **no longer re-observable**, which left the
+conclusion resting on a single historical observation.
+
+**It is re-observable now, in a different and stronger form.** Twelve requests against the
+live host, 2026-09-24:
+
+| Path | Result | Reading |
+|---|---|---|
+| `/favicon.ico` | **200**, 113 459 B, `image/vnd.microsoft.icon` | `httpdocs/favicon.ico` is at the web root |
+| `/httpdocs/favicon.ico` | **404** | there is no `httpdocs/` *below* the web root |
+| `/css/` | **403** | exists, autoindex off — a recorded member of `httpdocs/` |
+| `/cgi-bin/` | **403** | same |
+| `/.well-known/acme-challenge/` | **403** | same — the path the certificate renews through |
+| `/logs/` | **404** | home-directory level — **not served** |
+| `/usr/`, `/var/` | **404** | chroot skeleton — **not served** |
+| `/ethr/` | **404** | the planned application directory — **not served** |
+| `/httpdocs/`, `/production.ethr.et/` | **404** | home-directory level — **not served** |
+
+Every directory that exists under the document root answers **403** (present, listing
+denied). Every home-directory entry answers **404**. A document root at the home directory
+would invert every row of that table.
+
+So `Document root: /` is Plesk displaying the path **relative to the webspace root**,
+exactly as concluded on 2026-09-17. The literal reading — *"the whole home directory is
+web-served, so `logs`, `usr`, `var` and `ethr` are exposed"* — is measurably false.
+
+> **This is Trap 1 under B-7, and it was live.** The reading that prompted these
+> measurements was the literal one. Acting on it means "correcting" the *Document root*
+> field to `httpdocs` — which is a no-op at best, and which, if the field were ever set to
+> something resolving to the home directory, would web-serve `~/ethr/api/.env` and break
+> certificate renewal. **Do not change that field.** B-7 records that *Save* hangs and the
+> form has not been writing; for this field that is currently a safety property, not a
+> fault.
+
+### This does not explain B-3
+
+**B-3** is `httpdocs/ethr.et/` — a vhost skeleton whose document root sits *inside*
+`httpdocs/`. Reading the main domain's document root as `/` neither creates that nor
+accounts for it: they are different objects at different levels, and the reading is in any
+case false. **B-3 is unchanged and still unidentified.**
+
+One new observation narrows it without closing it: `https://www.ethr.et/ethr.et/` returns
+**404**, where every directory that does exist under the document root returns **403**.
+That is consistent with `httpdocs/ethr.et/` no longer being present. It is not
+identification — a domain object of its own would answer on its own name, not under this
+one, and this register's own rule holds: **deleting a vhost is not deleting a folder**, and
+a 404 is not a panel reading. Identification still needs the panel (manual queue #5).
 ## Panel readings — 2026-09-24 **[MEASURED]**
 
 Read from the Plesk panel by the owner on 2026-09-24. Recorded verbatim. **No gate status
