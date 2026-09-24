@@ -941,7 +941,7 @@ a class and was wrong about one of them. §12i then read one file for a route ke
 about which key. Both were cheap to check and neither was checked. The rule this file keeps
 re-deriving: **a grep that returns nothing is evidence about the grep, not about the code.**
 
-### 12k. The fail-without-fix claim — reasoned here, run by the owner **[decided 2026-09-24; owner report 2026-09-24]**
+### 12k. The fail-without-fix claim — **VERIFIED IN CI 2026-09-24**
 
 §12j's tests were verified to **pass with the fix** (CI run #425, seven of seven on
 `f3a41f4`). That they **fail without it** was never demonstrated, and this section records
@@ -968,7 +968,7 @@ stays in the repository's history permanently, plus a branch that cannot be dele
 environment (`git push --delete` fails at the transport layer; the GitHub MCP has no
 delete-branch tool, which is why nine branches are already stranded). A permanent
 "reverts the attendance fix" PR costs the audit trail more than the confirmation is worth.
-**The claim stays reasoned, and is labelled as such wherever it appears.** *(An owner run on 2026-09-24 corroborates it; see the subsection at the end of this section for why that is graded as a report rather than a measurement.)*
+~~**The claim stays reasoned, and is labelled as such wherever it appears.**~~ **Superseded 2026-09-24 — it is now measured.** The decision below not to buy the evidence from CI was correct *as a reading of the options then available*, and wrong about there being no other option: a `workflow_dispatch` workflow reverts the fix inside a runner and never writes to the repository, which is neither a pull request nor a branch. See the verification at the end of this section.
 
 **What did change, because re-reading the tests against "fails for the right reason" found a
 real weakness.** Both denial tests asserted only a 403. **An unseeded permission also produces
@@ -1025,6 +1025,54 @@ each test, and that `attendance.view is granted to every role` passes.
 was wrong about a member; §12i read one file for a route key and got the key wrong. Both are
 recorded above. Writing "verified" over a two-number summary would be the third instance, in
 the section that exists to document the first two.
+
+#### Measured — CI run 36010809626, 2026-09-24
+
+**Run:** <https://github.com/syntax-ict/Ethr.et/actions/runs/36010809626> ·
+workflow `.github/workflows/verify-without-fix.yml` (#95) ·
+`fix_sha=f3a41f439db5b09d9e484a1ebc9bc28ac57835c8` (#87) · `filter=attendance`
+
+**Without the fix — `Tests: 2 failed, 126 passed (326 assertions)`:**
+
+| Test | Result |
+|---|---|
+| an employee **can still read their own** attendance record | ✅ pass — control |
+| a supervisor **can still read** the timeline of a direct report | ✅ pass — control |
+| attendance.view is granted to every role | ✅ pass — premise |
+| an employee **cannot** read a colleague's attendance record | ❌ **fail** |
+| a supervisor **cannot** read the timeline of a non-report | ❌ **fail** |
+
+Both failures, verbatim:
+
+```
+Expected response status code [403] but received 200.
+Failed asserting that 200 is identical to 403.
+  at tests/Feature/Security/AttendanceOrgScopeTest.php:57      (and :109)
+```
+
+**Both fail on the *second* request of their test**, which is the distinction that
+mattered. The trace shows line 54 (`assertOk()` on the in-scope read) passing and line
+57 (`assertForbidden()` on the out-of-scope read) failing; likewise 106 and 109. So the
+out-of-scope record was **returned with 200**, and the failure is the missing org-scope
+check rather than a setup problem — the exact ambiguity §12j's controls were added to
+remove, now demonstrated rather than argued.
+
+**With the fix restored — `Tests: 128 passed (326 assertions)`.** All five pass.
+
+**Scope of the revert.** `git status --short` after restoring printed **nothing**, so the
+patch touched only paths under `app/`; and `git diff f3a41f4^ f3a41f4 -- api/app/` is
+2 files, 12 insertions, 1 deletion — the two controllers. *(The run's own `DIFF STAT`
+line sits earlier in the log than the retrievable tail, so that pairing is how the scope
+was established, not by reading the printed line.)*
+
+**Why this was possible after §12k said it was not.** The earlier reasoning held that
+getting CI evidence meant opening a pull request that reverts an authorisation check,
+permanently in the history. That was true of the options then considered and false in
+general: `workflow_dispatch` with `permissions: contents: read` reverts inside the
+runner's working tree for one step and restores it before the step ends. Nothing reverted
+is committed, pushed, or visible outside the run. **The constraint was real; the conclusion
+that no route existed was not.**
+
 
 ---
 
