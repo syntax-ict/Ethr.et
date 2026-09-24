@@ -194,31 +194,30 @@ Keep the deploy key **read-only**. Already done.
 
 ---
 
-## 5a. Document root — moving it to the Plesk default
+## 5a. Document root — **already correct; do not edit the field**
 
 ### Repository
 
 Nothing to change. `shared-hosting/DEPLOYMENT.md` refers to the served directory as
-`<DOCROOT>` throughout and sets its value in exactly one place, so the repository follows
-the root rather than asserting it.
+`<DOCROOT>` throughout and sets its value in one place, so the repository follows the root
+rather than asserting it.
 
 ### Plesk — *Websites & Domains → Hosting Settings*
 
-**Target: `httpdocs`.** Measured 2026-09-24 the root is `ethr.et/`; the owner has chosen
-Plesk's default. **This is the one action in this document that changes the live site**, so
-it is the one to do deliberately and alone.
+**The document root is already `httpdocs/`.** Measured over HTTP on 2026-09-24 — twelve
+requests, recorded in [`GATE-0-RESULT.md`](GATE-0-RESULT.md) → *Account evidence*. Every
+directory under the root answers 403; every home-directory entry answers 404. `Document
+root: /` is Plesk showing the path relative to the webspace root.
 
-1. **Confirm `httpdocs/.well-known/acme-challenge/` exists** — ACME serves from the document
-   root, and the certificate renews itself until it silently cannot.
-2. **Look in `httpdocs/` first.** Whatever is there becomes the site the moment you save.
-3. **Read the field back character by character.** `httpdocs`, `ethr.et`, `ethr` — the third
-   is the Laravel application, and pointing the root at it publishes `.env`, `storage/` and
-   `.git` in one action with no error at any step.
+> **Corrected 2026-09-24.** This section previously said the root was `ethr.et/` and told
+> you to move it to `httpdocs`. Both halves were wrong: it was already `httpdocs`, and
+> editing that field is **B-7's Trap 1** — a no-op at best, and a value resolving to the
+> home directory would web-serve `~/ethr/api/.env` and break certificate renewal. **Leave
+> the field alone.**
 
-**`httpdocs/ethr.et/` becomes an ordinary subdirectory** once the root moves, served at
-`https://ethr.et/ethr.et/`. That is blocker **B-3**. Leave it in place for now — moving the
-root and cleaning up are separate actions, and doing both together means a failure cannot be
-attributed to either.
+**B-3 is unchanged.** `httpdocs/ethr.et/` is still unidentified. `/ethr.et/` returning 404
+where existing directories return 403 is consistent with it being gone, but a 404 is not a
+panel reading and deleting a vhost is not deleting a folder.
 
 ---
 
@@ -279,7 +278,7 @@ start, loudly, which is the good kind.
 2. Copy `.env.shared-hosting.example` → `~/ethr/api/.env`, fill `APP_KEY`, `DB_*`, `MAIL_*`
 3. Create the database and user
 4. Reconfigure Git deployment when you are ready — path **`/ethr/`**, set before the first deploy (it was removed 2026-09-18)
-5. **Move the document root to `httpdocs`** (§5a) — **live change**, do it alone, check ACME first
+5. **Document root — do nothing.** It is already `httpdocs`, measured over HTTP 2026-09-24. Editing that field is B-7's Trap 1 (§5a)
 6. **Set the Node.js startup file to `server.js`** (§5b), then answer the Application-URL question
 7. Send the support request — cron, SSH, `TRIGGER`
 
