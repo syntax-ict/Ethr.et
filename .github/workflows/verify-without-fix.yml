@@ -62,7 +62,7 @@ jobs:
           extensions: gd, pdo, pdo_mysql, pdo_sqlite, mbstring, zip
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: composer-${{ hashFiles('api/composer.lock') }}
