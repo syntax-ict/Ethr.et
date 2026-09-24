@@ -32,14 +32,28 @@ test('an employee cannot read a colleague\'s attendance record', function () {
         $tenant,
     );
 
-    $record = AttendanceRecord::factory()->create([
+    $mine = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $me->id,
+    ]);
+
+    $theirs = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $colleague->id,
     ]);
 
     test()->actingAs($user);
 
-    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/{$record->public_id}")
+    // Control, in THIS test rather than a neighbouring one. Without it a 403 is
+    // ambiguous: an unseeded permission denies too, and that denial would pass
+    // this assertion with the fix reverted -- a green test proving nothing.
+    // Reading their own record first proves the ability is held and the endpoint
+    // works, so the 403 below can only be the orgScope()/canAccessEmployee()
+    // check. See BASELINE.md §12k.
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/{$mine->public_id}")
+        ->assertOk();
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/{$theirs->public_id}")
         ->assertForbidden();
 });
 
@@ -70,6 +84,10 @@ test('a supervisor cannot read the attendance timeline of someone who is not the
     $tenant = createTenant();
 
     $boss = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $report = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'supervisor_id' => $boss->id,
+    ]);
     $stranger = Employee::factory()->create([
         'tenant_id' => $tenant->id,
         'supervisor_id' => null,
@@ -81,6 +99,11 @@ test('a supervisor cannot read the attendance timeline of someone who is not the
     );
 
     test()->actingAs($user);
+
+    // Same control as above, same reason: an unseeded employee.view would deny
+    // the stranger for a reason that has nothing to do with org scope.
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$report->public_id}/attendance/timeline")
+        ->assertOk();
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$stranger->public_id}/attendance/timeline")
         ->assertForbidden();
