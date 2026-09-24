@@ -941,7 +941,7 @@ a class and was wrong about one of them. §12i then read one file for a route ke
 about which key. Both were cheap to check and neither was checked. The rule this file keeps
 re-deriving: **a grep that returns nothing is evidence about the grep, not about the code.**
 
-### 12k. The fail-without-fix claim, and why it stays reasoned **[decided 2026-09-24]**
+### 12k. The fail-without-fix claim — reasoned here, run by the owner **[decided 2026-09-24; owner report 2026-09-24]**
 
 §12j's tests were verified to **pass with the fix** (CI run #425, seven of seven on
 `f3a41f4`). That they **fail without it** was never demonstrated, and this section records
@@ -968,7 +968,7 @@ stays in the repository's history permanently, plus a branch that cannot be dele
 environment (`git push --delete` fails at the transport layer; the GitHub MCP has no
 delete-branch tool, which is why nine branches are already stranded). A permanent
 "reverts the attendance fix" PR costs the audit trail more than the confirmation is worth.
-**The claim stays reasoned, and is labelled as such wherever it appears.**
+**The claim stays reasoned, and is labelled as such wherever it appears.** *(An owner run on 2026-09-24 corroborates it; see the subsection at the end of this section for why that is graded as a report rather than a measurement.)*
 
 **What did change, because re-reading the tests against "fails for the right reason" found a
 real weakness.** Both denial tests asserted only a 403. **An unseeded permission also produces
@@ -988,6 +988,43 @@ the control rather than passing the assertion.
 reason.** The remaining claim is narrow and structural: with the fix reverted, `show()`
 authorises on `attendance.view` alone, the control proves that ability is held, so the
 out-of-scope read returns 200 and `assertForbidden()` fails. That is an argument, not a run.
+
+#### The owner ran it — graded as an owner report, not a measurement
+
+**2026-09-24, against `main` at `9a8e74a`.** Million ran the check locally, where composer
+*can* authenticate, using:
+
+```bash
+cd api && composer install
+FIX=f3a41f4                                     # PR #87 — the commit that scoped both reads
+git diff $FIX^ $FIX -- app/ | git apply -R      # reverts the two controllers, keeps the tests
+vendor/bin/pest --filter=AttendanceOrgScope     # without the fix
+git checkout -- app/
+vendor/bin/pest --filter=AttendanceOrgScope     # with the fix restored
+```
+
+**Reported: 5 passed, 2 failed.** Consistent with the predicted shape — without the fix, the
+three positives (two controls plus the grant premise) pass and the two denials fail; with the
+fix restored, all five pass.
+
+**Graded `ASSUMED, owner report`, the same grade this file gives blocker B-7, and for the same
+reason: the counts are testimony, not captured output.** A tally of 5/2 does not distinguish
+the result we want from the one that would matter. Two failures look identical whether
+
+- the **denials** failed because the out-of-scope read returned **200** — the evidence, or
+- the **controls** failed on a setup problem while the denials passed for the wrong reason —
+  which would mean the tests are still vacuous and the fix unproven.
+
+Only the per-assertion failure text separates those, and it was not recorded here. **So the
+in-repo status is unchanged: reasoned, corroborated by an owner run, not measured in this
+repository.** Upgrading it to verified needs the run output — specifically that both denials
+fail with `Expected response status code [403] but received 200` on the *second* request of
+each test, and that `attendance.view is granted to every role` passes.
+
+**This section is deliberately not claiming more than it has.** §12h reasoned about a class and
+was wrong about a member; §12i read one file for a route key and got the key wrong. Both are
+recorded above. Writing "verified" over a two-number summary would be the third instance, in
+the section that exists to document the first two.
 
 ---
 
