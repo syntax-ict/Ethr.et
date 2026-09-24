@@ -70,8 +70,10 @@ itself one of the still-open facts).
 `../GATE-0-RESULT.md` → *Document root — RESOLVED*. Every instruction in this file that
 writes to `~/httpdocs/` therefore writes to a directory that **is not served**: the deploy
 completes, reports success, and the site does not change. A silent no-op, which is harder to
-notice than an error. **Read `<DOCROOT>` below as the real document root**, and substitute it
-wherever `~/httpdocs/` still appears in the older prose.
+notice than an error. **`<DOCROOT>` throughout this file means the real document root** —
+`ethr.et/` on this account. Every operational step below was rewritten to say `<DOCROOT>` on
+2026-09-24; the only remaining mentions of `httpdocs` are in this section, where the contrast
+is the point, and in the struck sentence under §0 that named it wrongly.
 
 **The safety property is unchanged and still holds**, for a reason worth stating precisely:
 `~/ethr/api/` is a **sibling** of the document root, not a descendant, so `.env`, `storage/`,
@@ -211,7 +213,7 @@ nothing writes to.
 ## 4a. Assemble the document root
 
 Steps 1–4 put the application in `~/ethr/api/`, which is **not web-accessible** — that
-is the whole point of the layout in §0. Nothing has yet been placed in `~/httpdocs/`,
+is the whole point of the layout in §0. Nothing has yet been placed in `<DOCROOT>/`,
 so at this point the site still serves Plesk's placeholder page. This step builds the
 document root, and it is the step G0-B is a gate on: every rule in `.htaccess` is inert
 until the file is actually here.
@@ -222,11 +224,11 @@ until the file is actually here.
 ssh ethret@213.55.96.154
 
 # 1. The front controller.
-cp ~/ethr/api/public/index.php ~/httpdocs/index.php
+cp ~/ethr/api/public/index.php <DOCROOT>/index.php
 
 # 2. The rules under test by G0-B.
 #    (upload docs/deployment/shared-hosting/.htaccess from the repo first)
-#    -> ~/httpdocs/.htaccess
+#    -> <DOCROOT>/.htaccess
 
 # 3. Nothing else. Do not copy the rest of api/public/ — see "What is
 #    deliberately not copied" below.
@@ -235,8 +237,9 @@ cp ~/ethr/api/public/index.php ~/httpdocs/index.php
 ### Repoint `index.php` — **three** lines, not two
 
 `api/public/index.php` resolves everything relative to its own directory, one level
-below the application root. Moved to `~/httpdocs/`, `__DIR__.'/..'` is `~`, so all three
-`require` paths must name `ethr/api` explicitly:
+below the application root. Moved into the document root, `__DIR__.'/..'` no longer resolves
+to the application, so all three `require` paths must name `ethr/api` explicitly — **with the
+prefix set by the root's depth below home, per the table in *Deploy path — corrected*:**
 
 | Line | From | To |
 | --- | --- | --- |
@@ -253,7 +256,7 @@ serves — a silent failure during exactly the window you would rely on it.
 Verify all three at once before going further:
 
 ```bash
-php -l ~/httpdocs/index.php
+php -l <DOCROOT>/index.php
 curl -si https://www.ethr.et/api/v1/ping | head -1     # expect 200, not 500
 ```
 
@@ -262,7 +265,7 @@ will name it.
 
 ### `public_path()` no longer points at the document root
 
-With the app at `~/ethr/api` and the front controller at `~/httpdocs`, Laravel's
+With the app at `~/ethr/api` and the front controller at `<DOCROOT>`, Laravel's
 `public_path()` resolves to `~/ethr/api/public` — a directory nothing serves. This is
 harmless **in this codebase** and was checked rather than assumed: the only reference is
 `config/filesystems.php:88`'s `links` array, which is consumed solely by
@@ -292,7 +295,7 @@ question before this table can go stale again.
 | `favicon.ico` | Laravel's default icon shadows the frontend's, which ships its own under `src/public/`. Cosmetic, not silent — but the same shadowing mechanism. | Leave it. |
 
 The general rule, worth stating once rather than per file: **a real file in
-`~/httpdocs/` wins over the rewrite**, so anything copied into the document root is a
+`<DOCROOT>/` wins over the rewrite**, so anything copied into the document root is a
 permanent override of whatever the application would otherwise have produced at that
 path. Copy only what §0 lists.
 
@@ -346,8 +349,8 @@ keeping one authoritative for each is what stops them drifting.
 Two caveats, neither of which this repository can close:
 
 - **B5 = yes is gated on G0-A, not just G0-B.** §5's Node branch puts the Node app in
-  its own document root, separate from `~/httpdocs`. For one domain to serve both
-  `/api/*` from `~/httpdocs/index.php` and `/` from the Node app, something has to split
+  its own document root, separate from `<DOCROOT>`. For one domain to serve both
+  `/api/*` from `<DOCROOT>/index.php` and `/` from the Node app, something has to split
   the traffic. That split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
   `NOT VERIFIED`. There are exactly two shapes it can take, written out here so that
   when G0-A answers this is a lookup rather than a design session:
@@ -355,7 +358,7 @@ Two caveats, neither of which this repository can close:
   | | **A1 — nginx splits the traffic** | **A2 — the frontend goes cross-origin** |
   | --- | --- | --- |
   | Selected when | G0-A **PASS** — *Additional nginx directives* accepts a `location` block | G0-A **FAIL** — the field is absent, read-only, or rejects the probe |
-  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `~/httpdocs/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
+  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `<DOCROOT>/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
   | Frontend change | **None.** `src/src/api/client.ts:14`'s relative `baseURL: "/api/v1"` keeps working, and so does the service worker's same-origin API cache (`src/public/sw.js:59`). | `baseURL` becomes absolute; CORS with credentials; `SameSite=None; Secure` cookies; Sanctum stateful-domain config; a widened CSP `connect-src`; **and the service worker's API cache silently stops working**, because it intercepts same-origin only. |
   | Cost | ~1 day | ~1–2 weeks **plus an auth-security review** — the cookie and CORS changes are exactly the surface where a mistake is both easy and serious |
 
@@ -385,7 +388,7 @@ npm run build   # produces .next/standalone
 
 Upload `.next/standalone`, `.next/static` (into `standalone/.next/static`), and
 `public/` to wherever Plesk's Node.js integration expects the app (its own document
-root, separate from `~/httpdocs` — Plesk's Node.js apps are not served through
+root, separate from `<DOCROOT>` — Plesk's Node.js apps are not served through
 `.htaccess`). Configure the Node.js app's entry point as `server.js` (the standalone
 build's own entry) and its port per Plesk's assignment.
 
@@ -415,7 +418,7 @@ risks doing frontend work that turns out to be unnecessary. When B5 resolves neg
 4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
    (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
    already a client component that fetches by id, so this only satisfies the exporter.
-5. `npm run build`, upload the exported `out/` directory into `~/httpdocs/`, alongside
+5. `npm run build`, upload the exported `out/` directory into `<DOCROOT>/`, alongside
    `index.php`. Uncomment BRANCH B's two rewrite rules in `.htaccess`.
 
 **Cost of this branch, stated plainly:** marketing pages (`/`, `/features`, `/pricing`,

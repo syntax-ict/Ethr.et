@@ -1,7 +1,7 @@
 # Plesk setup — what the repository handles, and what you configure
 
 **Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · app at `~/ethr/` ·
-document root `~/httpdocs/`
+document root `ethr.et/` (owner-confirmed 2026-09-24; **not** `httpdocs/`)
 
 This document exists to keep one distinction sharp: **leaving something for you to
 configure in Plesk does not mean the repository is unprepared for it.** Each section below
@@ -95,7 +95,7 @@ degrades the feature instead of breaking the write.
 ### Plesk
 
 Place the filled copy at `~/ethr/api/.env` — **inside `~/ethr/`, never under
-`~/httpdocs/`**. Set `APP_KEY`, `DB_*` and `MAIL_*`. Everything else has a working default.
+the document root**. Set `APP_KEY`, `DB_*` and `MAIL_*`. Everything else has a working default.
 
 ---
 
@@ -156,11 +156,19 @@ reconfigured later). There is no deployment configured, so nothing can deploy an
 which neutralises the worst setting found in this engagement rather than merely warning
 about it.
 
-**When you reconfigure it, the deployment path is `/ethr/`, not `/httpdocs/`.** The removed
-configuration pointed at `/httpdocs/`, and deploying `main` there publishes the entire
-repository at the web root — which already happened once. Plesk's deployment path is
-relative to the webspace root, so `/ethr/` resolves to `~/ethr/` and yields `~/ethr/api/`,
-which is what the runbook expects.
+**When you reconfigure it, the deployment path is `/ethr/` — and the directory to keep it
+out of is the document root, which on this account is `ethr.et/`, not `httpdocs/`.**
+*(Corrected 2026-09-24: this said "not `/httpdocs/`", which named the wrong directory once
+the root was resolved. The historical fact is unchanged — the removed configuration pointed
+at `/httpdocs/` and that is where the repository was published — but the directory to avoid
+**today** is the served one.)* Deploying `main` into the document root publishes the entire
+repository at the web root, **including `.git/` and `.env` if it is ever committed** — which
+already happened once. Plesk's deployment path is relative to the webspace root, so `/ethr/`
+resolves to `~/ethr/` and yields `~/ethr/api/`, which is what the runbook expects.
+
+**The near-miss is worth naming, because Plesk makes it easy.** The safe target is `/ethr/`
+and the document root is `ethr.et/` — one character apart, and Plesk is liable to offer the
+domain directory as the default deployment path. Read the field back before saving.
 
 Set the path **before** the first deploy, not after: Plesk runs deployment actions *after*
 the files are written, so no action can guard the target.
@@ -183,7 +191,7 @@ Keep the deploy key **read-only**. Already done.
 
 | | Repository | Plesk |
 |---|---|---|
-| **SSL** | `SESSION_SECURE_COOKIE=true`, `APP_URL` https | Certificate is live to 2026-12-15 and renewed on its own. **Do not delete `~/httpdocs/.well-known/`** |
+| **SSL** | `SESSION_SECURE_COOKIE=true`, `APP_URL` https | Certificate is live to 2026-12-15 and renewed on its own. **Do not delete `<DOCROOT>/.well-known/`** — on this account that is `ethr.et/.well-known/` |
 | **Wildcard TLS** | per-tenant subdomains assumed | **Blocked** — the zone is on `ns1`/`ns2.telecom.net.et`, so Plesk cannot do DNS-01 |
 | **Mail** | `MAIL_MAILER=smtp`, all values from env | Provide SMTP host and credentials. Outbound 587/465 is **G0-H, NOT VERIFIED** |
 | **Storage** | `FILESYSTEM_DISK=local` → `api/storage/app`, outside the document root | Nothing to configure. Watch quota in *Statistics* |
