@@ -98,30 +98,21 @@ wrong on both counts: it was already the root, and **editing that field is B-7's
    one action, with no error at any step. `httpdocs`, `ethr`, `ethr.et` — three plausible
    values, one of which is a total credential disclosure.
 
-**After the move, `httpdocs/ethr.et/` stops being the document root** and becomes an ordinary
-subdirectory served at `https://ethr.et/ethr.et/`. It is recorded as blocker **B-3**. Do not
-delete it as part of this change — the move and the cleanup are separate actions, and doing
-both at once means a failure cannot be attributed to either.
+**`httpdocs/ethr.et/` is blocker B-3 and is unrelated to this.** It is a subdirectory served
+at `https://ethr.et/ethr.et/`, still unidentified. Do not delete it on a guess — deleting a
+vhost is not deleting a folder.
 
-**The depth question this section used to leave open is closed by the same decision.**
-`httpdocs/` sits one level below home, so the `__DIR__` prefix is `'/../ethr/api/…'`. The
-table below is retained because it is what makes that derivation checkable.
+**The depth question is settled.** `httpdocs/` sits one level below home, so the `__DIR__`
+prefix is `'/../ethr/api/…'`. The table below is what makes that derivation checkable.
 
-<details>
-<summary><strong>Superseded — the 2026-09-24 reading, kept because it is the current state</strong></summary>
-
-**The document root on this account is `ethr.et/`, not `httpdocs/`.** Owner-confirmed;
-`../GATE-0-RESULT.md` → *Document root — RESOLVED*. Every instruction in this file that
-writes to `~/httpdocs/` therefore writes to a directory that **is not served**: the deploy
-completes, reports success, and the site does not change. A silent no-op, which is harder to
-notice than an error.
-
-**This reading is not wrong and has not been retracted.** It describes the account as it
-stands. It is superseded only in the sense that the target changed — and until the panel
-field is actually saved, *this* is the directory a deploy must write to. **Deploying to
-`httpdocs/` before the root is moved is the same silent no-op in the other direction.**
-
-</details>
+> **Corrected 2026-09-24 — a superseded block stood here and every word of it was wrong.**
+> It said the root was `ethr.et/`, that it was *"not wrong and has not been retracted"*, and
+> that deploying to `httpdocs/` *"before the root is moved"* would be a silent no-op.
+> **There was never a move, and `httpdocs/` was always the served directory** — twelve HTTP
+> requests measured it (`../GATE-0-RESULT.md` → *Account evidence — 2026-09-24*).
+> PR #104 struck this section's heading and its instruction but left the block itself
+> standing, so the file contradicted its own correction for one commit. Deploying to
+> `httpdocs/` is simply correct.
 
 **The safety property is unchanged and still holds**, for a reason worth stating precisely:
 `~/ethr/api/` is a **sibling** of the document root, not a descendant, so `.env`, `storage/`,

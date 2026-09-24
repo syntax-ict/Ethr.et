@@ -167,8 +167,8 @@ runbook expects.
 > **The directory to avoid has changed twice in one day, which is the reason to state the
 > rule and not the name.** It was `/httpdocs/` (where the removed configuration pointed, and
 > where the repository was in fact published); then `ethr.et/`, once the served root was
-> resolved on 2026-09-24; and it becomes `httpdocs/` again once the root is moved to Plesk's
-> default. **The rule that held through all three: never deploy the repository into the
+> briefly believed to be `ethr.et/` on 2026-09-24; and measured back to `httpdocs/` the same
+> day, where it had been all along — no move ever happened. **The rule that held through all three: never deploy the repository into the
 > served directory.** If you are reading this while the move is half-done, the answer is
 > "both" — keep it out of `ethr.et/` and out of `httpdocs/` until you know which one is live.
 
