@@ -221,7 +221,36 @@ panel reading and deleting a vhost is not deleting a folder.
 
 ---
 
-## 5b. Node.js — the chosen frontend branch
+## 5b. Node.js — chosen by the owner, **foreclosed by the plan**
+
+> ### The plan forecloses this branch, and says why — read before enabling anything
+>
+> **`SHARED_HOSTING_PLAN.md` §5.1 states it outright:**
+>
+> > **#8 / G0-A path routing** — *"Consequence: §3A's **B (Node on Plesk)** is foreclosed, and
+> > **A (static export)** is the only frontend path."*
+> > **#7 / G0-G Node runtime — MOOT** — *"the panel offers a startable Node app MEASURED
+> > (2026-09-22) — but with #8 denied there is nothing to split `/api/*` from `/`, so the
+> > runtime being present buys nothing."*
+>
+> **The runtime being available is not the question. Routing is.** A Node application and a
+> PHP front controller both want `/`. Splitting them needs the *Additional nginx directives*
+> field — **G0-A** — and neither directive textarea appears on *Apache & nginx Settings*,
+> read twice. That is `NOT VERIFIED` with **strong evidence of FAIL**, and §5 adopts denial
+> as its working assumption.
+>
+> **This is the "who serves `/`" question raised in PR #100, and the plan had already
+> answered it.** It was recorded there as unverified; §5.1 shows the analysis was done.
+>
+> **What that means practically.** The Node branch is viable *only* if G0-A turns out to
+> work — a single panel reading nobody has taken since. Under the plan's working assumption
+> it does not, and **static export (§3A Option A, ≈8 days, 6–11 realistic) is the only
+> frontend path**. Do not enable the Node application expecting it to serve the product until
+> G0-A is answered; enabling it to *answer* the routing question is fine and cheap.
+>
+> **Nothing here reverses the owner's choice** — it states the dependency that choice has,
+> which was not on the table when it was made.
+
 
 ### Repository
 
