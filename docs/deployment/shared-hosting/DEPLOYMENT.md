@@ -18,12 +18,19 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 >   `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no documented
 >   non-shell route. Both are one support request; see the blocker register.
 >
-> - **Step 4 copies the wrong environment file.** `cp .env.production.example .env` (line
->   133) copies a `docker-compose.prod.yml` artifact that selects redis for cache, queue and
+> - ~~**Step 4 copies the wrong environment file.**~~ **FIXED 2026-09-24 in step 4 itself.**
+>   It copied a `docker-compose.prod.yml` artifact selecting redis for cache, queue and
 >   session, minio for storage and reverb for broadcasting, with `REDIS_HOST=redis` and
 >   `MINIO_ENDPOINT=http://minio:9000` — Docker service names that resolve to nothing here.
->   **Copy [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example)
->   instead**; it carries the identical key set with each conversion marked and explained.
+>   Step 4 now copies
+>   [`api/.env.shared-hosting.example`](../../../api/.env.shared-hosting.example), which
+>   carries the identical key set with each conversion marked and explained.
+>
+>   **This entry is the interesting part of the defect, not the fix.** The wrong filename
+>   was flagged *here*, at the top of the very file that then went on to give the wrong
+>   instruction, and flagged again in `../PLESK-SETUP.md` §2 — and the body was left saying
+>   it anyway, for as long as both notes existed. A warning above a runbook does not correct
+>   the runbook; readers follow the commands.
 >
 > What *has* been corrected here is factual only — the account username (`ethret`, not
 > `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
@@ -57,21 +64,108 @@ itself one of the still-open facts).
 ~/ethr/                    Laravel app — NOT web-accessible
   api/
     app/ config/ routes/ database/ vendor/ storage/ bootstrap/ .env
-~/httpdocs/                 document root
+<DOCROOT>/                  document root — **`httpdocs/`**, Plesk's stock default
   index.php                 copy of api/public/index.php, 3 lines repointed
   .htaccess                 docs/deployment/shared-hosting/.htaccess
   .well-known/               leave alone — ACME
   (frontend build output, IF B5 says no Node.js — see step 5)
 ```
 
+### Deploy path — target is Plesk's default, owner decision 2026-09-24
+
+**`<DOCROOT>` throughout this file means `httpdocs/`** — Plesk's stock document root for a
+subscription's main domain. Every operational step below already says `<DOCROOT>`, so this
+section is the only place the value is set, and changing the target changed one line rather
+than fourteen.
+
+**This is a target, not a reading.** The document root *as measured on 2026-09-24* is
+`ethr.et/` — see the superseded block below, which is kept because it is what the account
+actually does today. The owner has chosen to move it to the Plesk default. **Nothing in this
+repository performs that move**; it is a panel action, and it is the one step here that
+changes the live site.
+
+**Before you save that field, three things, in this order.**
+
+1. **Confirm `httpdocs/.well-known/` exists and holds `acme-challenge/`.** The certificate
+   is live to 2026-12-15 and renews itself, and ACME can only be served from the document
+   root. `docs/B1-B5_GATE_REPORT.md` recorded `.well-known/` inside `httpdocs/` on
+   2026-09-17, which is evidence and not a guarantee eight days on. If it is missing, the
+   renewal fails silently in about eleven weeks — the slowest possible way to find out.
+2. **Know what stops being served.** Whatever `ethr.et/` currently serves goes dark the
+   moment the field is saved. Read `httpdocs/` first and know what is in it.
+3. **Read the field back character by character.** `~/ethr/` is the Laravel application.
+   Pointing the document root at it publishes `.env`, `storage/` and the whole `.git` tree in
+   one action, with no error at any step. `httpdocs`, `ethr`, `ethr.et` — three plausible
+   values, one of which is a total credential disclosure.
+
+**After the move, `httpdocs/ethr.et/` stops being the document root** and becomes an ordinary
+subdirectory served at `https://ethr.et/ethr.et/`. It is recorded as blocker **B-3**. Do not
+delete it as part of this change — the move and the cleanup are separate actions, and doing
+both at once means a failure cannot be attributed to either.
+
+**The depth question this section used to leave open is closed by the same decision.**
+`httpdocs/` sits one level below home, so the `__DIR__` prefix is `'/../ethr/api/…'`. The
+table below is retained because it is what makes that derivation checkable.
+
+<details>
+<summary><strong>Superseded — the 2026-09-24 reading, kept because it is the current state</strong></summary>
+
+**The document root on this account is `ethr.et/`, not `httpdocs/`.** Owner-confirmed;
+`../GATE-0-RESULT.md` → *Document root — RESOLVED*. Every instruction in this file that
+writes to `~/httpdocs/` therefore writes to a directory that **is not served**: the deploy
+completes, reports success, and the site does not change. A silent no-op, which is harder to
+notice than an error.
+
+**This reading is not wrong and has not been retracted.** It describes the account as it
+stands. It is superseded only in the sense that the target changed — and until the panel
+field is actually saved, *this* is the directory a deploy must write to. **Deploying to
+`httpdocs/` before the root is moved is the same silent no-op in the other direction.**
+
+</details>
+
+**The safety property is unchanged and still holds**, for a reason worth stating precisely:
+`~/ethr/api/` is a **sibling** of the document root, not a descendant, so `.env`, `storage/`,
+`vendor/` and `.git` are unreachable over HTTP. That is a property of *where the root points*,
+not of any `.htaccess` — and it fails the moment the root is pointed at `~/` or at `~/ethr/`.
+**Moving the root to `httpdocs/` preserves it**: `~/ethr/` is a sibling of `~/httpdocs/` just
+as it was of `~/ethr.et/`. What the move does *not* do is make the property automatic — it
+still holds only because the root points somewhere that is neither `~/ethr/` nor an ancestor
+of it, and `~/ethr/`, `~/ethr.et/` and `httpdocs` are three values one typo apart.
+
+**The `__DIR__` prefix follows from the root's depth, and on the Plesk default it is settled.**
+`httpdocs/` is one level below home, so the prefix is `'/../ethr/api/…'`:
+
+| Root's depth below home | `__DIR__` prefix in `index.php` |
+|---|---|
+| **one level — `~/httpdocs/` (the target), or `~/ethr.et/`** | **`__DIR__.'/../ethr/api/…'`** |
+| two levels (`~/httpdocs/ethr.et/`) | `__DIR__.'/../../ethr/api/…'` |
+
+**Confirm it from File Manager's breadcrumb anyway**, because the derivation is only as good
+as the assumption that the root ended up where the field said. A wrong prefix is a fatal
+`require` on the first request — loud and immediate, not silent, so this is a five-minute
+error rather than a dangerous one. That is also why this is checked *after* the root moves
+and not before: the cheap failure is allowed to be the one that catches a wrong assumption.
+
 **Nothing else from `api/public/` is copied here.** An earlier version of this layout
 listed `favicon.ico` and `robots.txt` as copied from `api/public/`; both are wrong, and
 `robots.txt` is wrong in the silent direction. Step 4a says why and what replaces them.
 
-Chosen because it is **already verified possible on this account**: the Plesk File
-Manager listing showed the home directory sits one level above `httpdocs`
-(`docs/B1-B5_GATE_REPORT.md`), so `.env`, `storage/`, and the whole application are
-unreachable over HTTP by construction — not by an `.htaccess` rule that could be
+Chosen because it is **already verified possible on this account**. The Plesk File Manager
+listing showed the home directory sits one level above `httpdocs`
+(`docs/B1-B5_GATE_REPORT.md`).
+
+> **This sentence was struck on 2026-09-24 and is restored on the same day, which is worth
+> a line rather than a silent revert.** It was struck because the served root had just been
+> resolved to `ethr.et/`, making a claim about `httpdocs`'s depth irrelevant to where the
+> site actually is. The owner's decision to move the root to the Plesk default makes it
+> load-bearing again. **Both edits were right when made**; what changed underneath them is
+> the target, not the evidence. The general property is the one to hold onto, because it
+> survives the next such change: **the application sits in a directory which is not the
+> document root and not beneath it.** The `httpdocs` depth claim is one instance of that,
+> not a replacement for it.
+
+So
+`.env`, `storage/`, and the whole application are unreachable over HTTP by construction — not by an `.htaccess` rule that could be
 misconfigured or bypassed by a document-root change. If Plesk turns out to allow a
 custom document root pointed straight at `~/ethr/api/public`, that is marginally
 cleaner and this layout still works unmodified — do not switch to it speculatively.
@@ -143,11 +237,29 @@ it can do (it is how the hosting-check probe script would be run too).
 
 ## 4. Configure and migrate
 
+> ### This step has no route on this account. Read before following it.
+>
+> **`ssh` is Forbidden (B-1)** and **Scheduled Tasks offers no command-type task
+> (G0-D, read 2026-09-18)**, so there is no way to execute `php artisan` here. The Node.js
+> extension's *Run Node.js commands* runs Node, not PHP. That makes this step — not the
+> upload, not the document root — the thing that blocks installation, because
+> `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no runner.
+>
+> **The commands below are correct and are kept as the specification.** What is missing is a
+> way to run them. Do not improvise one on the production account: a web-reachable script
+> that calls `Artisan::call()` is the obvious workaround and it is a remote code execution
+> surface on the installation path, which is the worst place to put one. If it is taken, it
+> is a deliberate design with a token guard, a deletion step and its own review — not an
+> improvisation at deploy time.
+>
+> **This is the cron and SSH half of the support request** —
+> [`../ETHIO-TELECOM-SUPPORT-REQUEST.md`](../ETHIO-TELECOM-SUPPORT-REQUEST.md).
+
 ```bash
-ssh ethret@213.55.96.154
+# Requires shell access, which this account does not have. See the box above.
 cd ~/ethr/api
 
-cp .env.production.example .env
+cp .env.shared-hosting.example .env
 nano .env   # apply every change in ../ENVIRONMENT.md, plus the DB credentials from step 2
 
 php artisan key:generate --show
@@ -157,6 +269,18 @@ php artisan migrate --force
 php artisan db:seed --class=ProductionSeeder --force
 php artisan ethr:create-admin
 ```
+
+> **Corrected 2026-09-24 — this said `cp .env.production.example .env`.**
+> `PLESK-SETUP.md` §2 has recorded since it was written that doing so *"produces an
+> application that cannot boot"*: that template is a `docker-compose.prod.yml` artifact and
+> selects `redis` for cache, queue and session, `minio` for storage, `reverb` for
+> broadcasting and `DB_HOST=mariadb` — Docker service names that resolve to nothing on this
+> host. **The defect was documented in one file and left live in the other**, which is the
+> documented-but-not-done pattern this repository criticises elsewhere. The shared-hosting
+> template carries the identical key set with every conversion marked `# [shared-hosting]`.
+>
+> The `ssh` line was removed from the block for the same reason: it named a route that does
+> not exist, and a runbook whose first line is impossible teaches readers to skim.
 
 **If you imported existing data first**, `migrate --force` can abort on a data condition
 rather than a privilege one: `2026_09_23_000002` makes live device
@@ -182,7 +306,7 @@ nothing writes to.
 ## 4a. Assemble the document root
 
 Steps 1–4 put the application in `~/ethr/api/`, which is **not web-accessible** — that
-is the whole point of the layout in §0. Nothing has yet been placed in `~/httpdocs/`,
+is the whole point of the layout in §0. Nothing has yet been placed in `<DOCROOT>/`,
 so at this point the site still serves Plesk's placeholder page. This step builds the
 document root, and it is the step G0-B is a gate on: every rule in `.htaccess` is inert
 until the file is actually here.
@@ -190,14 +314,16 @@ until the file is actually here.
 ### The three files
 
 ```bash
-ssh ethret@213.55.96.154
+# Requires shell access, which this account does not have — B-1, see step 4.
+# Over File Manager this is an upload and a copy, not a shell session; the
+# commands below say what must end up where.
 
 # 1. The front controller.
-cp ~/ethr/api/public/index.php ~/httpdocs/index.php
+cp ~/ethr/api/public/index.php <DOCROOT>/index.php
 
 # 2. The rules under test by G0-B.
 #    (upload docs/deployment/shared-hosting/.htaccess from the repo first)
-#    -> ~/httpdocs/.htaccess
+#    -> <DOCROOT>/.htaccess
 
 # 3. Nothing else. Do not copy the rest of api/public/ — see "What is
 #    deliberately not copied" below.
@@ -206,8 +332,9 @@ cp ~/ethr/api/public/index.php ~/httpdocs/index.php
 ### Repoint `index.php` — **three** lines, not two
 
 `api/public/index.php` resolves everything relative to its own directory, one level
-below the application root. Moved to `~/httpdocs/`, `__DIR__.'/..'` is `~`, so all three
-`require` paths must name `ethr/api` explicitly:
+below the application root. Moved into the document root, `__DIR__.'/..'` no longer resolves
+to the application, so all three `require` paths must name `ethr/api` explicitly — **with the
+prefix set by the root's depth below home, per the table in *Deploy path — corrected*:**
 
 | Line | From | To |
 | --- | --- | --- |
@@ -224,7 +351,7 @@ serves — a silent failure during exactly the window you would rely on it.
 Verify all three at once before going further:
 
 ```bash
-php -l ~/httpdocs/index.php
+php -l <DOCROOT>/index.php
 curl -si https://www.ethr.et/api/v1/ping | head -1     # expect 200, not 500
 ```
 
@@ -233,7 +360,7 @@ will name it.
 
 ### `public_path()` no longer points at the document root
 
-With the app at `~/ethr/api` and the front controller at `~/httpdocs`, Laravel's
+With the app at `~/ethr/api` and the front controller at `<DOCROOT>`, Laravel's
 `public_path()` resolves to `~/ethr/api/public` — a directory nothing serves. This is
 harmless **in this codebase** and was checked rather than assumed: the only reference is
 `config/filesystems.php:88`'s `links` array, which is consumed solely by
@@ -263,7 +390,7 @@ question before this table can go stale again.
 | `favicon.ico` | Laravel's default icon shadows the frontend's, which ships its own under `src/public/`. Cosmetic, not silent — but the same shadowing mechanism. | Leave it. |
 
 The general rule, worth stating once rather than per file: **a real file in
-`~/httpdocs/` wins over the rewrite**, so anything copied into the document root is a
+`<DOCROOT>/` wins over the rewrite**, so anything copied into the document root is a
 permanent override of whatever the application would otherwise have produced at that
 path. Copy only what §0 lists.
 
@@ -317,8 +444,8 @@ keeping one authoritative for each is what stops them drifting.
 Two caveats, neither of which this repository can close:
 
 - **B5 = yes is gated on G0-A, not just G0-B.** §5's Node branch puts the Node app in
-  its own document root, separate from `~/httpdocs`. For one domain to serve both
-  `/api/*` from `~/httpdocs/index.php` and `/` from the Node app, something has to split
+  its own document root, separate from `<DOCROOT>`. For one domain to serve both
+  `/api/*` from `<DOCROOT>/index.php` and `/` from the Node app, something has to split
   the traffic. That split is `docs/deployment/GATE-0-RESULT.md` G0-A, and it is
   `NOT VERIFIED`. There are exactly two shapes it can take, written out here so that
   when G0-A answers this is a lookup rather than a design session:
@@ -326,7 +453,7 @@ Two caveats, neither of which this repository can close:
   | | **A1 — nginx splits the traffic** | **A2 — the frontend goes cross-origin** |
   | --- | --- | --- |
   | Selected when | G0-A **PASS** — *Additional nginx directives* accepts a `location` block | G0-A **FAIL** — the field is absent, read-only, or rejects the probe |
-  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `~/httpdocs/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
+  | Shape | One domain. A `location ^~ /api/` (and `/sanctum/`) directive proxies to the PHP vhost; everything else reaches the Node app. `<DOCROOT>/` keeps `index.php` and `.htaccess` exactly as step 4a builds them. | Two origins. The Node app serves `www.ethr.et`; Laravel moves to a hostname of its own, and the frontend calls it absolutely. |
   | Frontend change | **None.** `src/src/api/client.ts:14`'s relative `baseURL: "/api/v1"` keeps working, and so does the service worker's same-origin API cache (`src/public/sw.js:59`). | `baseURL` becomes absolute; CORS with credentials; `SameSite=None; Secure` cookies; Sanctum stateful-domain config; a widened CSP `connect-src`; **and the service worker's API cache silently stops working**, because it intercepts same-origin only. |
   | Cost | ~1 day | ~1–2 weeks **plus an auth-security review** — the cookie and CORS changes are exactly the surface where a mistake is both easy and serious |
 
@@ -344,21 +471,60 @@ each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 
-**Branch on B5.**
+**Node.js is the chosen branch — owner decision 2026-09-24.** The static-export branch is
+retained below as the fallback, not deleted: it is what this step reverts to if the routing
+question in *One thing must be verified* comes back wrong.
 
-### If Node.js is available (B5 = yes)
+### The two Node versions, and why neither moves
+
+This repository pins **two different Node versions for two different jobs**, and reading
+them as one number is how the host's 22.23.2 gets mistaken for a blocker.
+
+| Job | Version | Declared in | Account's 22.23.2 |
+|---|---|---|---|
+| CI build, gates, test suite | **24** | `.nvmrc` | does **not** satisfy — and **is not relaxed to fit the host** |
+| Frontend application runtime | **22** | `docker/frontend/Dockerfile` (`FROM node:22-alpine`, which both builds and runs `server.js`) | **satisfies exactly** |
+
+**The host never runs the gates**, so the 24 pin is not a hosting requirement and nothing
+here asks you to weaken it. The host runs a built artifact, and 22 is the runtime the
+repository already ships against.
+
+**Build the deployable artifact on Node 22, matching the host's major version** — the same
+thing `docker/frontend/Dockerfile` does. Building on 24 and running on 22 would usually work
+and is not worth the risk: `npm ci` compiles any native dependency against the build
+platform, and a 24-built binary is not guaranteed to load on 22. That failure appears at
+first request, not at build time.
 
 ```bash
 cd src
-npm ci
+npm ci          # on Node 22
 npm run build   # produces .next/standalone
 ```
 
-Upload `.next/standalone`, `.next/static` (into `standalone/.next/static`), and
-`public/` to wherever Plesk's Node.js integration expects the app (its own document
-root, separate from `~/httpdocs` — Plesk's Node.js apps are not served through
-`.htaccess`). Configure the Node.js app's entry point as `server.js` (the standalone
-build's own entry) and its port per Plesk's assignment.
+Upload `.next/standalone`, `.next/static` (into `standalone/.next/static`), and `public/` to
+the Node.js application root. Set the entry point to **`server.js`** — the standalone build's
+own entry. **The panel read `app.js` on 2026-09-22**; that is Plesk's default and it is wrong
+for this app. A mismatched entry point fails at start, loudly.
+
+**You can build on the host if you prefer**, but only through one route: the Node.js
+extension's *Run Node.js commands*, read in the panel on 2026-09-22. There is no other —
+SSH is Forbidden (**B-1**) and Scheduled Tasks offers no command-type task (**G0-D**, read
+2026-09-18). Off-host is still the recommendation, because `npm ci` on a shared account is
+the step most likely to hit a memory or time limit, and **G0-J**'s CPU and memory rows are
+`NOT VERIFIED`.
+
+### One thing must be verified before this branch is committed to
+
+**Who serves `/` — Node or PHP?** The panel read *Application URL* `http://ethr.et` and
+*Document Root* `/ethr` on 2026-09-22. If Plesk mounts the Node application at the domain
+root, requests for `/api/v1/...` may never reach `index.php` in `<DOCROOT>`, and the
+same-origin arrangement this whole layout depends on does not exist.
+
+**This is not answered here, and must not be guessed from Plesk's general documentation.**
+It is a panel-and-fetch question: enable the application, then fetch one API route and one
+frontend route and see which process answers. Until it is answered, treat the Node branch as
+*chosen* but not *verified* — and note that the static-export branch below has no such
+question, because there is only one server.
 
 `middleware.ts` and the `headers()`-reading `(auth)/layout.tsx` need **zero code
 changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
@@ -366,7 +532,7 @@ changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the 
 before deploying it (leave BRANCH A as a comment for documentation, per that file's own
 instructions).
 
-### If Node.js is not available (B5 = no)
+### Fallback — static export (B5 = no, or the routing question above comes back wrong)
 
 Requires the code changes named in `docs/SHARED_HOSTING_AUDIT.md` §E and
 `docs/MIGRATION_STATE.md` D6 — **not yet made**, because making them before knowing B5
@@ -386,7 +552,7 @@ risks doing frontend work that turns out to be unnecessary. When B5 resolves neg
 4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
    (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
    already a client component that fetches by id, so this only satisfies the exporter.
-5. `npm run build`, upload the exported `out/` directory into `~/httpdocs/`, alongside
+5. `npm run build`, upload the exported `out/` directory into `<DOCROOT>/`, alongside
    `index.php`. Uncomment BRANCH B's two rewrite rules in `.htaccess`.
 
 **Cost of this branch, stated plainly:** marketing pages (`/`, `/features`, `/pricing`,

@@ -1,7 +1,8 @@
 # Plesk setup — what the repository handles, and what you configure
 
 **Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · app at `~/ethr/` ·
-document root `~/httpdocs/`
+document root **`httpdocs/`** — Plesk's default, target chosen 2026-09-24.
+Measured today it is still `ethr.et/`; moving it is a panel action, see §5
 
 This document exists to keep one distinction sharp: **leaving something for you to
 configure in Plesk does not mean the repository is unprepared for it.** Each section below
@@ -95,7 +96,7 @@ degrades the feature instead of breaking the write.
 ### Plesk
 
 Place the filled copy at `~/ethr/api/.env` — **inside `~/ethr/`, never under
-`~/httpdocs/`**. Set `APP_KEY`, `DB_*` and `MAIL_*`. Everything else has a working default.
+the document root**. Set `APP_KEY`, `DB_*` and `MAIL_*`. Everything else has a working default.
 
 ---
 
@@ -156,11 +157,25 @@ reconfigured later). There is no deployment configured, so nothing can deploy an
 which neutralises the worst setting found in this engagement rather than merely warning
 about it.
 
-**When you reconfigure it, the deployment path is `/ethr/`, not `/httpdocs/`.** The removed
-configuration pointed at `/httpdocs/`, and deploying `main` there publishes the entire
-repository at the web root — which already happened once. Plesk's deployment path is
-relative to the webspace root, so `/ethr/` resolves to `~/ethr/` and yields `~/ethr/api/`,
-which is what the runbook expects.
+**When you reconfigure it, the deployment path is `/ethr/` — and the directory to keep it
+out of is whatever the document root currently is.** Deploying `main` into the document root
+publishes the entire repository at the web root, **including `.git/` and `.env` if it is ever
+committed** — which already happened once. Plesk's deployment path is relative to the
+webspace root, so `/ethr/` resolves to `~/ethr/` and yields `~/ethr/api/`, which is what the
+runbook expects.
+
+> **The directory to avoid has changed twice in one day, which is the reason to state the
+> rule and not the name.** It was `/httpdocs/` (where the removed configuration pointed, and
+> where the repository was in fact published); then `ethr.et/`, once the served root was
+> resolved on 2026-09-24; and it becomes `httpdocs/` again once the root is moved to Plesk's
+> default. **The rule that held through all three: never deploy the repository into the
+> served directory.** If you are reading this while the move is half-done, the answer is
+> "both" — keep it out of `ethr.et/` and out of `httpdocs/` until you know which one is live.
+
+**The near-miss is worth naming, because Plesk makes it easy.** The safe target is `/ethr/`,
+and every candidate document root — `ethr.et/`, `httpdocs/` — is a directory Plesk is liable
+to offer as the *default* deployment path. `/ethr/` and `ethr.et/` are one character apart.
+Read the field back before saving.
 
 Set the path **before** the first deploy, not after: Plesk runs deployment actions *after*
 the files are written, so no action can guard the target.
@@ -179,11 +194,70 @@ Keep the deploy key **read-only**. Already done.
 
 ---
 
+## 5a. Document root — moving it to the Plesk default
+
+### Repository
+
+Nothing to change. `shared-hosting/DEPLOYMENT.md` refers to the served directory as
+`<DOCROOT>` throughout and sets its value in exactly one place, so the repository follows
+the root rather than asserting it.
+
+### Plesk — *Websites & Domains → Hosting Settings*
+
+**Target: `httpdocs`.** Measured 2026-09-24 the root is `ethr.et/`; the owner has chosen
+Plesk's default. **This is the one action in this document that changes the live site**, so
+it is the one to do deliberately and alone.
+
+1. **Confirm `httpdocs/.well-known/acme-challenge/` exists** — ACME serves from the document
+   root, and the certificate renews itself until it silently cannot.
+2. **Look in `httpdocs/` first.** Whatever is there becomes the site the moment you save.
+3. **Read the field back character by character.** `httpdocs`, `ethr.et`, `ethr` — the third
+   is the Laravel application, and pointing the root at it publishes `.env`, `storage/` and
+   `.git` in one action with no error at any step.
+
+**`httpdocs/ethr.et/` becomes an ordinary subdirectory** once the root moves, served at
+`https://ethr.et/ethr.et/`. That is blocker **B-3**. Leave it in place for now — moving the
+root and cleaning up are separate actions, and doing both together means a failure cannot be
+attributed to either.
+
+---
+
+## 5b. Node.js — the chosen frontend branch
+
+### Repository
+
+`src/next.config.ts` sets `output: "standalone"`, so the build produces its own server. Two
+Node versions are in play and **neither moves to fit the host**:
+
+| Job | Version | Declared in | Account's 22.23.2 |
+|---|---|---|---|
+| CI build, gates, test suite | **24** | `.nvmrc` | does not satisfy — **not relaxed** |
+| Frontend application runtime | **22** | `docker/frontend/Dockerfile` | **satisfies exactly** |
+
+The host never runs the gates, so 22.23.2 is not a blocker for this branch. Build the
+artifact on Node 22 to match the runtime.
+
+### Plesk — *Node.js*
+
+Read 2026-09-22: version **22.23.2**, npm, *Enable Node.js* and *Run Node.js commands* both
+offered. Set **Application Startup File to `server.js`** — the panel read `app.js`, which is
+Plesk's default and wrong for a Next standalone build. A mismatched entry point fails at
+start, loudly, which is the good kind.
+
+> **One thing is unverified and it decides the branch.** *Application URL* read
+> `http://ethr.et` — the domain root. If Plesk mounts the Node application there, requests
+> for `/api/v1/...` may never reach `index.php`, and the same-origin arrangement this layout
+> depends on does not exist. **Do not infer the answer from Plesk's documentation.** Enable
+> the app, fetch one API route and one frontend route, and see which process replies. The
+> static-export fallback in `DEPLOYMENT.md` step 5 has no such question.
+
+---
+
 ## 6. SSL, mail, storage
 
 | | Repository | Plesk |
 |---|---|---|
-| **SSL** | `SESSION_SECURE_COOKIE=true`, `APP_URL` https | Certificate is live to 2026-12-15 and renewed on its own. **Do not delete `~/httpdocs/.well-known/`** |
+| **SSL** | `SESSION_SECURE_COOKIE=true`, `APP_URL` https | Certificate is live to 2026-12-15 and renewed on its own. **Do not delete `<DOCROOT>/.well-known/`.** ACME is served from the document root, so moving the root moves this requirement with it: **confirm `httpdocs/.well-known/acme-challenge/` exists before saving the new root**, or renewal fails silently in ~11 weeks |
 | **Wildcard TLS** | per-tenant subdomains assumed | **Blocked** — the zone is on `ns1`/`ns2.telecom.net.et`, so Plesk cannot do DNS-01 |
 | **Mail** | `MAIL_MAILER=smtp`, all values from env | Provide SMTP host and credentials. Outbound 587/465 is **G0-H, NOT VERIFIED** |
 | **Storage** | `FILESYSTEM_DISK=local` → `api/storage/app`, outside the document root | Nothing to configure. Watch quota in *Statistics* |
@@ -205,7 +279,9 @@ Keep the deploy key **read-only**. Already done.
 2. Copy `.env.shared-hosting.example` → `~/ethr/api/.env`, fill `APP_KEY`, `DB_*`, `MAIL_*`
 3. Create the database and user
 4. Reconfigure Git deployment when you are ready — path **`/ethr/`**, set before the first deploy (it was removed 2026-09-18)
-5. Send the support request — cron, SSH, `TRIGGER`
+5. **Move the document root to `httpdocs`** (§5a) — **live change**, do it alone, check ACME first
+6. **Set the Node.js startup file to `server.js`** (§5b), then answer the Application-URL question
+7. Send the support request — cron, SSH, `TRIGGER`
 
 **Blocked on the provider**
 

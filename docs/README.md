@@ -79,7 +79,8 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 
 | Document | What it is |
 |---|---|
-| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | **Start here.** Hosting verification — all rows `NOT VERIFIED` |
+| [`deployment/PLESK-HOSTING-GUIDE.md`](deployment/PLESK-HOSTING-GUIDE.md) | **Start here if you have the panel open.** The owner's end-to-end guide: what to configure, in what order, and the one step that has no route |
+| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Hosting verification — all rows `NOT VERIFIED` |
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
 | [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md) | **The deployment contract.** PRIMARY: Plesk UI, Git deployment, Laravel integration, Scheduled Tasks, database. OPTIONAL: SSH. NEVER REQUIRED: Docker, systemd, Supervisor, root, VPS-only services. Records which PRIMARY elements are observed on the account and which are not |
 | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) | **Ready to send.** One ticket, **four** asks, ranked by criticality 2026-09-22 — cron, what the higher plans provide, `TRIGGER`, then SSH. Ask 1 is the only one that can move G0-D; ask 2 may resolve G0-A, G0-D and G0-G at once; ask 3 unblocks G0-F; ask 4 is a convenience the deployment contract forbids depending on |

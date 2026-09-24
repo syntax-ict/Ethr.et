@@ -54,13 +54,13 @@ distinguishes "the rules are in place" from "the rules are ignored and nothing s
 
 - [ ] `curl -s https://www.ethr.et/robots.txt` contains **both** `Disallow: /admin` and
       a `Sitemap:` line. If it reads `User-agent: * / Disallow:` with nothing else, the
-      backend's `api/public/robots.txt` was copied into `~/httpdocs/` — remove it and
+      backend's `api/public/robots.txt` was copied into the document root — remove it and
       redeploy the frontend. This is the silent one: the site is fully functional either
       way, and nothing logs the difference.
 - [ ] `curl -si https://www.ethr.et/sitemap.xml | head -1` → 200, and the body is XML
       with `<urlset`, not an HTML 404 page
 - [ ] `curl -si https://www.ethr.et/api/v1/ping | head -1` → 200 — proves the three
-      repointed `require` paths in `~/httpdocs/index.php` all resolve (step 4a)
+      repointed `require` paths in `<DOCROOT>/index.php` all resolve (step 4a)
 - [ ] `php artisan down` on the server, then `curl -si https://www.ethr.et/ | head -1`
       → 503; `php artisan up` afterwards. A 200 here means line 9 of `index.php` was not
       repointed, and maintenance mode is inert. Do this **before** cutover, never after.
@@ -103,7 +103,7 @@ distinguishes "the rules are in place" from "the rules are ignored and nothing s
 ## Security
 
 - [ ] `curl https://www.ethr.et/.env` → 404 or 403, never the file contents (moot under
-      the recommended layout since `.env` is outside `httpdocs` entirely — check anyway,
+      the recommended layout since `.env` is outside the document root entirely — check anyway,
       in case the document root ever changes)
 - [ ] `curl https://www.ethr.et/.git/config` → same
 - [ ] `GET /api/docs` (Scramble) is refused outside local — confirm `APP_ENV=production`

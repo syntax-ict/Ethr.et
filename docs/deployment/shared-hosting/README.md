@@ -10,7 +10,7 @@ later — see each file's own "branch on B5/B3" sections.
 | --- | --- |
 | `DEPLOYMENT.md` | The runbook — step by step, upload to DNS cutover |
 | `ENVIRONMENT.md` | Every `.env` change against the VPS template, with the reasoning |
-| `.htaccess` | The actual document-root file — copy to `~/httpdocs/.htaccess` (`DEPLOYMENT.md` step 4a assembles the whole document root, and says what must *not* be copied into it) |
+| `.htaccess` | The actual document-root file — copy to `<DOCROOT>/.htaccess` (`httpdocs/` — Plesk's default, the 2026-09-24 target) (`DEPLOYMENT.md` step 4a assembles the whole document root, and says what must *not* be copied into it) |
 | `deploy-checklist.md` | Pre-cutover checklist — run once, before pointing DNS here |
 | `health-check.md` | What to check post-deploy, and on an ongoing basis |
 | `rollback.md` | Short pointer — the real plan is `docs/ROLLBACK_RUNBOOK.md` |
