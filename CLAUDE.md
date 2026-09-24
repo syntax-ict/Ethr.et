@@ -207,6 +207,35 @@ When it fails, the message tells you the question to answer: does the new query 
 
 Raw SQL (`whereRaw`, `selectRaw`, `DB::raw`) carries no scope at all. Say `tenant_id` yourself.
 
+
+### Running the gates locally needs a GitHub token
+
+`composer install` is **163 packages**, every one a public Packagist package whose `dist`
+URL points at `api.github.com`, and `api/composer.json` declares no custom `repositories`.
+Unauthenticated, GitHub allows **60 requests per hour per IP**, so a cold install gets
+partway and then takes 403s until composer stops at `AuthHelper.php:132` with
+`Could not authenticate against github.com` — **0 of 163 installed**, no `vendor/bin/pest`,
+no local gate.
+
+**The fix is a token with no scopes at all.** Everything being fetched is public and this
+repository is public; the token only lifts a rate limit.
+
+```bash
+composer config --global --auth github-oauth.github.com <token>   # writes COMPOSER_HOME/auth.json
+composer diagnose | grep 'github.com oauth'                       # → "OK  expires on <date>"
+```
+
+A classic PAT with **no boxes checked**, or a fine-grained token with read-only access to
+public repositories, is sufficient. **Do not use a `repo`-scoped token** — it would hand
+every one of those 163 packages' install scripts a credential to your private repositories
+for no benefit. Never commit `auth.json` or `.env`; both are outside the working tree or
+gitignored, and `CONTRIBUTING.md` carries the longer version of this.
+
+**In an agent sandbox the token must be set in the environment's own settings**, not on the
+operator's machine and not as a shell export — each command starts a fresh shell, so an
+export does not survive, and the container is a different machine from the operator's.
+Until it is, `Pint`, `PHPStan` and `Pest` cannot run there and **CI is the only gate**.
+
 ---
 
 ## Quality gates
@@ -251,6 +280,13 @@ returned nothing in production and passed every test. CI runs it on every push.
 
 1. **No shell script had its executable bit.** Every `scripts/*.sh` was mode `100644`, so `./scripts/gates.sh` exited **126** (Permission denied) on a Linux runner. Git on Windows does not track the bit unless `core.filemode` is set, so it was never committed. Fixed with `git update-index --chmod=+x`.
 2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed with a workflow-level `BROADCAST_CONNECTION: "null"`.
+
+   **Locally the same defect needs `.env` to exist *before* `composer install`, not after.**
+   `package:discover` runs as a post-autoload-dump script *during* the install, so copying
+   `.env.example` afterwards is too late — the install has already exited 1. The order is
+   `cp api/.env.example api/.env` (setting `BROADCAST_CONNECTION=null`, since `.env.example`
+   ships `reverb`), then `composer install`, then `php artisan key:generate`. `key:generate`
+   comes last because it needs a `vendor/` that does not exist until the install completes.
 
 3. **`phpstan_gate` required Docker.** It delegated unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no `et-api-1`. A CI runner has native PHP and no container, so **PHPStan could never have passed in CI regardless of the code**. Now native-first with the container as fallback, the same shape `pest_gate` already had.
 
