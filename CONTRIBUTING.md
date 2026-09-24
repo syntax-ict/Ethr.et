@@ -171,9 +171,10 @@ a schedule and on pull requests touching `composer.json`, `composer.lock`,
 
 ### Branch protection on `main`
 
-**Intended configuration, recorded here so it is reviewable rather than living
-only in the repository settings UI.** Nothing in the repository enforces it; it
-is applied under *Settings → Branches*, or *Settings → Rules → Rulesets*.
+**Applied 2026-09-24 and verified enforcing.** Recorded here so it is reviewable
+rather than living only in the repository settings UI. Nothing in this repository
+*applies* it — it is set under *Settings → Branches*, or *Settings → Rules →
+Rulesets* — but it is live, and the verification is below.
 
 | Setting | Value |
 |---|---|
@@ -207,12 +208,46 @@ Four of those are counter-intuitive enough to state the reason:
   solo repository removes the only escape hatch when a check is stuck. Off, the
   rules apply to normal work and can still be overridden deliberately.
 
-**Why this is worth doing at all:** until it is applied the gates are advisory.
-Seven green jobs block nothing, `main` accepts a direct push, and a force-push
-over it is permitted. The greens are real; the enforcement is not. That gap is
-the same shape as the one `BASELINE.md` documents at length — a control that is
-documented and believed in, but not actually in the path of the thing it is meant
-to stop.
+**Why it was worth doing:** before it was applied the gates were advisory. Seven
+green jobs blocked nothing, `main` accepted a direct push, and a force-push over
+it was permitted. The greens were real; the enforcement was not — the same shape
+as the gap `BASELINE.md` documents at length, a control that is documented and
+believed in but not actually in the path of the thing it is meant to stop. It is
+now in that path.
+
+#### Verifying it — and the flag that will lie to you
+
+**Do not check `protected` on the branches API.** For a **ruleset**, that field
+reads **`false`** on a branch that is fully protected. Measured 2026-09-24:
+`GET /repos/{owner}/{repo}/branches` reported `"protected": false` for `main`
+while a direct push to it was being rejected. The field reflects *classic* branch
+protection rules; rulesets are a separate system and are not surfaced through it.
+Reading `false` there and concluding "unprotected" is wrong, and it was concluded
+here before the push was tried.
+
+The authoritative check is to attempt the thing protection forbids:
+
+```bash
+git commit --allow-empty -m "protection probe" && git push origin main
+```
+
+```
+! [remote rejected] main -> main (protected branch hook declined)
+```
+
+That rejection is the verification. If the push is *accepted* instead, the empty
+commit lands on `main` and the protection is not enforcing — check the ruleset's
+**Enforcement status** first, since *Evaluate* logs what would have been blocked
+without blocking anything and is indistinguishable from no protection in every
+other way.
+
+Two notes for anyone automating this. A CI or agent environment may refuse the
+probe itself: pushing straight to `main` is a pull-request bypass, and a sandbox
+can decline it before GitHub ever sees it, which leaves the question unanswerable
+from inside that sandbox. And protection does **not** cover branch deletion of
+*other* branches — if `git push origin --delete <branch>` returns HTTP 403 while
+ordinary pushes succeed, that is a credential or egress limitation, not this
+ruleset; the two were confusable enough here to be worth separating.
 
 ### Do not run `vendor/bin/pest` directly over a Docker bind mount
 
