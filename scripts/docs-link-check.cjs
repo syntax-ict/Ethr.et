@@ -23,7 +23,20 @@
  * Teaching this script to resolve them would make that move safe and is the
  * natural next step if the reorganization is ever taken up.
  *
- *   node scripts/docs-link-check.js
+ *   node scripts/docs-link-check.cjs
+ *
+ * ## Why .cjs and not .js
+ *
+ * This file uses require(). The repository root has no package.json, so Node
+ * resolves module type by walking UP from the script — past the repo, into the
+ * user home directory and beyond. A package.json anywhere on that path with
+ * "type": "module" makes Node parse this as ESM, and it dies on the first
+ * require() with "ReferenceError: require is not defined in ES module scope".
+ *
+ * Measured 2026-09-24: C:\Users\<user>\package.json carried "type": "module",
+ * and the docs gate failed on a working tree with no documentation error in it.
+ * CI never saw it because a runner home has no package.json. The .cjs extension
+ * pins CommonJS regardless of what sits above the repository.
  */
 
 const fs = require("fs");

@@ -42,12 +42,6 @@ declare(strict_types=1);
  * without that decision being made explicitly.
  */
 
-require __DIR__.'/../vendor/autoload.php';
-
-$app = require __DIR__.'/../bootstrap/app.php';
-$kernel = $app->make(Kernel::class);
-$kernel->bootstrap();
-
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
@@ -56,6 +50,12 @@ use App\Services\CurrentTenant;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+
+require __DIR__.'/../vendor/autoload.php';
+
+$app = require __DIR__.'/../bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
+$kernel->bootstrap();
 
 $dbName = DB::connection()->getDatabaseName();
 if (! str_contains($dbName, 'bench')) {

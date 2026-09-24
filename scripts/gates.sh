@@ -159,7 +159,7 @@ api_types_gate() { bash "$REPO_ROOT/scripts/api-types-check.sh"; }
 # ENTERPRISE_ROADMAP.md as a sibling when it lives one directory up, and twenty
 # cited audit files that are not in the tree and never were. All of it sat in a
 # header whose only job was to route readers to current status.
-docs_gate() { (cd "$REPO_ROOT" && node scripts/docs-link-check.js); }
+docs_gate() { (cd "$REPO_ROOT" && node scripts/docs-link-check.cjs); }
 
 # composer.json and composer.lock agree, and the manifest is well-formed.
 # --no-check-publish because this is a private application, not a package:

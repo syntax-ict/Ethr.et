@@ -79,7 +79,7 @@ CI does not need one: the `Install PHP dependencies` step in
 `.github/workflows/gates.yml` passes no token and the runs are green. This is a
 workstation prerequisite, not a pipeline secret.
 
-### `composer install` also needs `BROADCAST_CONNECTION` set
+### Create `api/.env` *before* the first `composer install`
 
 On a machine with no `api/.env` — a fresh clone — `composer install` fails
 *after* downloading everything, in the `package:discover` post-autoload-dump
@@ -91,14 +91,20 @@ Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type string, nu
 ```
 
 `config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is
-unset and `routes/channels.php` calls `Broadcast::channel()` at load time. This
-is the same defect that blocked CI for fifty runs; the workflow fixes it with a
-job-level `BROADCAST_CONNECTION: "null"`. Locally, do the equivalent before the
-first install:
+unset, and `routes/channels.php` calls `Broadcast::channel()` at load time. With
+no `.env` at all, `REVERB_APP_KEY` is null too, so Pusher's constructor rejects
+it. This is the same defect that blocked CI for fifty runs, where the workflow
+fixes it with a job-level `BROADCAST_CONNECTION: "null"`.
+
+**Locally the fix is ordering, not a value.** `.env.example` ships
+`REVERB_APP_KEY=ethr-reverb-key`, so once the file exists the broadcaster
+constructs and `package:discover` succeeds with `BROADCAST_CONNECTION` left at
+`reverb` — measured 2026-09-24, `php artisan package:discover` in 5–7 s under
+either setting. Copy the file first and the failure never occurs:
 
 ```bash
 cd api
-cp .env.example .env         # ships BROADCAST_CONNECTION=reverb — change it to null
+cp .env.example .env
 php artisan key:generate     # encrypted casts on Employee.tin refuse to boot without APP_KEY
 composer install
 ```
@@ -106,6 +112,18 @@ composer install
 Without the `key:generate` the suite dies with `MissingAppKeyException` rather
 than failing a test, which reads like a broken suite instead of an unconfigured
 one.
+
+You may still want `BROADCAST_CONNECTION=null` — it is what the shared-hosting
+deployment uses, and it stops a broadcast throwing when no Reverb server is
+running. It is just not what makes `composer install` work.
+
+> **`composer install` and `composer dump-autoload` are slow here, not hung.**
+> `composer.json` sets `"optimize-autoloader": 1`, so every dump builds a full
+> classmap over the whole `vendor/` tree — 15,025 files, 183 MB. Measured
+> 2026-09-24 on a Windows temp path: **589 s** for `composer dump-autoload`
+> alone, exit 0. `composer install` runs the same dump as its final phase, so
+> the download finishes quickly and the classmap scan is what you are watching.
+> Give it ten minutes before concluding anything is stuck.
 
 ## Quality gates
 
