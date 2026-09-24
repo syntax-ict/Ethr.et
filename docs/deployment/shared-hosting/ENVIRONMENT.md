@@ -138,7 +138,7 @@ SENTRY_AUTH_TOKEN=
 ## New — not present in the VPS template at all
 
 ```
-# storage/ and bootstrap/cache/ live at ~/ethr, one level above the ~/httpdocs
+# storage/ and bootstrap/cache/ live at ~/ethr, outside the document root
 # document root — see docs/deployment/shared-hosting/DEPLOYMENT.md "Layout" for why.
 # Laravel resolves these relative to the app's own base path regardless of
 # where the document root points, so no variable is actually required for
