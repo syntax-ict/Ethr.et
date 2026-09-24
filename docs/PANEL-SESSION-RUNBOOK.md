@@ -96,7 +96,15 @@ anything** and report it; removing it would take the site down and break renewal
 **Copy back:** the entry's name, its type, its document root as displayed, and whether a
 certificate is attached. A screenshot of the domain list is ideal.
 
-> **⚠ CHANGES THE LIVE SITE — removal only, and only if the above is unambiguous.**
+> ### ⚠ WITHDRAWN 2026-09-24 — do not remove this directory
+>
+> **`ethr.et/` is the live document root**, owner-confirmed. The canary uploaded in Part 3
+> landed inside it, which is what settled it. Removing it takes the site down and breaks
+> ACME renewal. B-3 is closed as **identified**, not as removed, and the removal instruction
+> below is withdrawn. Read Part 2 as a read-only step: confirm the entry, record it, change
+> nothing.
+>
+> ~~**⚠ CHANGES THE LIVE SITE — removal only, and only if the above is unambiguous.**~~
 > **Deleting a vhost is not deleting a folder.** If and only if the entry is clearly a
 > stray skeleton — no certificate, not the live site — remove it *through the panel's domain
 > removal*, not by deleting the directory in File Manager. Deleting the directory leaves the
