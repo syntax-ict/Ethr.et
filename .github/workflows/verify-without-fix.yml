@@ -1,0 +1,94 @@
+# Reverts a fix inside the runner only, runs Pest, restores it, runs Pest again.
+#
+# Nothing reverted is ever committed or pushed: the revert lives in the runner's
+# working tree for the length of one step. workflow_dispatch only, and
+# `contents: read`, so it cannot write to the repository and does not run on the
+# push/pull_request paths the quality gates use.
+#
+# Four things differ from a generic version of this workflow, all forced by this
+# repository and all load-bearing:
+#
+#   1. Every PHP step sets `working-directory: api`. The Laravel application is
+#      under api/, not at the repository root -- there is no composer.json, no
+#      artisan and no app/ at the root, so a generic version fails at the first
+#      `composer install`. CLAUDE.md opens with this inversion for a reason.
+#   2. BROADCAST_CONNECTION is set at workflow level. `composer install` runs
+#      package:discover before .env exists; config/broadcasting.php defaults to
+#      `reverb` when the variable is unset, and routes/channels.php calls
+#      Broadcast::channel() at load time, so the install dies *after* downloading
+#      everything. This is the same defect that blocked CI for fifty runs, and
+#      gates.yml carries the identical line.
+#   3. The cache key hashes api/composer.lock, and the artifact path is
+#      api/verify.log -- both follow from 1.
+#   4. The revert is scoped to `-- app/` *relative to api/*, so it touches the
+#      two controllers and never the test file. Reverting the whole commit would
+#      also delete AttendanceOrgScopeTest.php, leaving nothing to run; and the
+#      test on main is newer than the fix commit anyway (PR #88 added the
+#      in-test controls), which is exactly why the tests come from the checkout
+#      and only app/ is reverted.
+name: Verify tests fail without fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      fix_sha:
+        description: "Commit whose app/ changes to revert"
+        required: true
+      filter:
+        description: "Pest --filter"
+        default: "attendance"
+
+permissions:
+  contents: read
+
+env:
+  BROADCAST_CONNECTION: "null"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FIX: ${{ inputs.fix_sha }}
+      FILTER: ${{ inputs.filter }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: gd, pdo, pdo_mysql, pdo_sqlite, mbstring, zip
+          coverage: none
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ hashFiles('api/composer.lock') }}
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+        working-directory: api
+
+      - run: cp .env.example .env && php artisan key:generate
+        working-directory: api
+
+      - name: Revert fix in runner only, test, restore, test
+        working-directory: api
+        run: |
+          {
+            echo "=== HEAD $(git rev-parse --short HEAD)   FIX $FIX ==="
+            git log -1 --format='%h %s' "$FIX"
+            git diff "$FIX^" "$FIX" -- app/ | git apply -R
+            echo "=== DIFF STAT (fix reverted) ==="; git diff --stat
+            echo "=== PEST WITHOUT FIX ==="; php vendor/bin/pest --filter="$FILTER" --colors=never || true
+            git checkout -- app/
+            echo "=== PEST WITH FIX ==="; php vendor/bin/pest --filter="$FILTER" --colors=never || true
+            echo "=== GIT STATUS ==="; git status --short; echo "(end status)"
+          } 2>&1 | tee verify.log
+          { echo '```'; cat verify.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verify-log
+          path: api/verify.log
