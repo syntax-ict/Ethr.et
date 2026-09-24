@@ -230,11 +230,29 @@ it can do (it is how the hosting-check probe script would be run too).
 
 ## 4. Configure and migrate
 
+> ### This step has no route on this account. Read before following it.
+>
+> **`ssh` is Forbidden (B-1)** and **Scheduled Tasks offers no command-type task
+> (G0-D, read 2026-09-18)**, so there is no way to execute `php artisan` here. The Node.js
+> extension's *Run Node.js commands* runs Node, not PHP. That makes this step — not the
+> upload, not the document root — the thing that blocks installation, because
+> `key:generate`, `migrate`, `db:seed` and `ethr:create-admin` have no runner.
+>
+> **The commands below are correct and are kept as the specification.** What is missing is a
+> way to run them. Do not improvise one on the production account: a web-reachable script
+> that calls `Artisan::call()` is the obvious workaround and it is a remote code execution
+> surface on the installation path, which is the worst place to put one. If it is taken, it
+> is a deliberate design with a token guard, a deletion step and its own review — not an
+> improvisation at deploy time.
+>
+> **This is the cron and SSH half of the support request** —
+> [`../ETHIO-TELECOM-SUPPORT-REQUEST.md`](../ETHIO-TELECOM-SUPPORT-REQUEST.md).
+
 ```bash
-ssh ethret@213.55.96.154
+# Requires shell access, which this account does not have. See the box above.
 cd ~/ethr/api
 
-cp .env.production.example .env
+cp .env.shared-hosting.example .env
 nano .env   # apply every change in ../ENVIRONMENT.md, plus the DB credentials from step 2
 
 php artisan key:generate --show
@@ -244,6 +262,18 @@ php artisan migrate --force
 php artisan db:seed --class=ProductionSeeder --force
 php artisan ethr:create-admin
 ```
+
+> **Corrected 2026-09-24 — this said `cp .env.production.example .env`.**
+> `PLESK-SETUP.md` §2 has recorded since it was written that doing so *"produces an
+> application that cannot boot"*: that template is a `docker-compose.prod.yml` artifact and
+> selects `redis` for cache, queue and session, `minio` for storage, `reverb` for
+> broadcasting and `DB_HOST=mariadb` — Docker service names that resolve to nothing on this
+> host. **The defect was documented in one file and left live in the other**, which is the
+> documented-but-not-done pattern this repository criticises elsewhere. The shared-hosting
+> template carries the identical key set with every conversion marked `# [shared-hosting]`.
+>
+> The `ssh` line was removed from the block for the same reason: it named a route that does
+> not exist, and a runbook whose first line is impossible teaches readers to skim.
 
 **If you imported existing data first**, `migrate --force` can abort on a data condition
 rather than a privilege one: `2026_09_23_000002` makes live device
