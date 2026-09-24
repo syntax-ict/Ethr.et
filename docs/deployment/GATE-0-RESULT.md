@@ -511,7 +511,28 @@ the IP, and the certificate. **Web scripting listing FastCGI/CGI/SSI with no PHP
 that page is new**, and it does not answer G0-E: the handler list says PHP can run, not which
 version. PHP 8.3.33 remains a separate reading against the version row only.
 
-### Document root — **RESOLVED `ethr.et/` (owner-confirmed 2026-09-24)**
+### Document root — **RESOLVED `ethr.et/` (owner-confirmed 2026-09-24)**, **TARGET CHANGED to `httpdocs/` the same day**
+
+> **The owner has chosen to move the document root to Plesk's stock default, `httpdocs/`.**
+> That is a decision about where the site *will* be served from, not a new measurement. The
+> reading below stands unchanged and still describes the account: **today the served
+> directory is `ethr.et/`.**
+>
+> **No gate status moves on a decision.** G0-B.1–B.5 stay `NOT VERIFIED`; a canary fetched
+> against the old root would not score them, and one has still never been fetched.
+>
+> **Three consequences of the move, recorded because each is a way to lose something:**
+>
+> - **ACME.** The certificate renews from the document root. `httpdocs/.well-known/` was
+>   observed on 2026-09-17 — evidence, not a guarantee eight days later. Confirm it before
+>   saving the field, or renewal fails silently around 2026-12-15.
+> - **B-3 changes character rather than closing.** `httpdocs/ethr.et/` stops being the live
+>   document root and becomes a subdirectory at `https://ethr.et/ethr.et/`. It is still not
+>   to be deleted as part of this change.
+> - **The `__DIR__` sub-question is answered by derivation, not by reading.** `httpdocs/` is
+>   one level below home, so the prefix is `'/../ethr/api/…'`. Confirm from File Manager's
+>   breadcrumb anyway — a wrong prefix is a loud failure, which makes it the cheap check.
+
 
 **Candidate B. A and C are excluded.** The served directory is `ethr.et/`, which is why the
 canary uploaded per the runbook appears at `ethr.et/ethr-canary`. The reasoning that
