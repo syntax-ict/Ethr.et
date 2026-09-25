@@ -24,11 +24,11 @@ on:
       - ".github/workflows/security.yml"
   workflow_dispatch:
 
-# Same reason as gates.yml: without it, `composer install` dies in
-# package:discover building a Reverb broadcaster with no key, and this workflow
-# never reaches the audit. The quoted "null" is deliberate — see gates.yml.
-env:
-  BROADCAST_CONNECTION: "null"
+# A workflow-level `BROADCAST_CONNECTION: "null"` stood here for the same reason
+# gates.yml carried one: `composer install` died in package:discover building a
+# Reverb broadcaster with no key, and this workflow never reached the audit.
+# config/broadcasting.php now defaults to `null`, so the override is redundant —
+# see the longer note in gates.yml. Removed 2026-09-25.
 
 jobs:
   audit:

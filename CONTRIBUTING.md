@@ -90,11 +90,16 @@ Failed to create broadcaster for connection "reverb" with error:
 Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type string, null given
 ```
 
-`config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is
-unset, and `routes/channels.php` calls `Broadcast::channel()` at load time. With
-no `.env` at all, `REVERB_APP_KEY` is null too, so Pusher's constructor rejects
-it. This is the same defect that blocked CI for fifty runs, where the workflow
-fixes it with a job-level `BROADCAST_CONNECTION: "null"`.
+**Closed 2026-09-25 — kept because the error message is still searchable.**
+`config/broadcasting.php` *used to* default to `reverb` when `BROADCAST_CONNECTION`
+was unset, and `routes/channels.php` calls `Broadcast::channel()` at load time. With
+no `.env` at all, `REVERB_APP_KEY` is null too, so Pusher's constructor rejected
+it. This was the same defect that blocked CI for fifty runs, where the workflows
+worked around it with a `BROADCAST_CONNECTION: "null"` override.
+
+The default is now `null`, the three workflow overrides are removed, and
+`BroadcastConnectionConfigTest` pins the unset case. If you see the message above
+on a current checkout, the default has regressed — that test should be red.
 
 **Locally the fix is ordering, not a value.** `.env.example` ships
 `REVERB_APP_KEY=ethr-reverb-key`, so once the file exists the broadcaster

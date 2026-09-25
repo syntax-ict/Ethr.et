@@ -34,28 +34,27 @@ concurrency:
   group: gates-${{ github.ref }}
   cancel-in-progress: true
 
-# Without this, `composer install` itself fails — before any gate runs.
+# There was a workflow-level `BROADCAST_CONNECTION: "null"` here, removed
+# 2026-09-25 together with the defect it worked around.
 #
-# config/broadcasting.php defaults to `reverb` when BROADCAST_CONNECTION is
-# unset, and a runner has no .env. `routes/channels.php` calls
-# Broadcast::channel() at load time, so `package:discover` (a post-autoload-dump
-# script) builds the Reverb broadcaster, Pusher gets a null auth key, and the
-# whole composer step exits 1:
+# config/broadcasting.php used to default to `reverb`. A runner has no .env, and
+# routes/channels.php calls Broadcast::channel() at load time, so
+# `package:discover` — a post-autoload-dump script, running *inside*
+# `composer install` — built a Reverb broadcaster, Pusher got a null auth key,
+# and the composer step exited 1 before any gate ran:
 #
 #   Failed to create broadcaster for connection "reverb" with error:
 #   Pusher\Pusher::__construct(): Argument #1 ($auth_key) must be of type
 #   string, null given
 #
-# The quoted "null" is load-bearing. Laravel's env() parses the string "null"
-# into PHP null, and broadcasting.php's `?? 'null'` then selects the null
-# driver — that idiom exists for exactly this. Unquoted, YAML would make it a
-# genuine null and the variable would not be set at all.
+# That is cause 2 of the five structural failures that kept CI red for fifty
+# runs. The default is now `null`, so the no-.env path selects the null driver
+# on its own and this override is redundant. Removing it rather than leaving it
+# is deliberate: kept, it would silently mask a regression of the default, and
+# its comment would assert a `reverb` default that no longer exists.
 #
-# CI does not run Reverb, so nothing is being masked here. phpunit.xml already
-# forces the same value for the suites; this covers the composer step that runs
-# before them.
-env:
-  BROADCAST_CONNECTION: "null"
+# Nothing that runs is affected either way — docker-compose.yml, .env.example,
+# .env.shared-hosting.example and phpunit.xml all set the value explicitly.
 
 jobs:
   backend:

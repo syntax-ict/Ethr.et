@@ -813,9 +813,14 @@ sibling of `httpdocs` and outside the document root. Nothing has to be restructu
 ### Ordering that must not be got wrong
 
 `.env` **before** Composer, not after. `composer install` runs `package:discover`,
-`config/broadcasting.php` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, and
-`routes/channels.php` calls `Broadcast::channel()` at load time — so Composer exits 1 with
-a null Pusher key if no `.env` exists yet. This is the same defect that was CI cause 2.
+`config/broadcasting.php` defaulted to `reverb` when `BROADCAST_CONNECTION` was unset, and
+`routes/channels.php` calls `Broadcast::channel()` at load time — so Composer exited 1 with
+a null Pusher key if no `.env` existed yet. This was CI cause 2.
+
+**That specific failure is closed (2026-09-25): the default is now `null`.** The ordering
+rule stands anyway, and for a reason independent of broadcasting — `.env` carries
+`APP_KEY`, `DB_*` and the shared-hosting conversions, and several later steps read them.
+Do not relax the order on the strength of one closed cause.
 `DEPLOYMENT.md` step 1 already warns about it; under the Git route the hazard is larger,
 because the Plesk Composer extension is a button that can be pressed at any moment.
 
@@ -2493,7 +2498,11 @@ D-8 says `BROADCAST_CONNECTION=log`; the template says `null`. Kept, for four re
   `disabled`, so both report identically
 - `config/broadcasting.php:25` coalesces to `'null'` as its own fallback — it is the
   config's stated intent
-- CI already sets `BROADCAST_CONNECTION: "null"`, so it is a tested value; `log` is not
+- `null` is a tested value; `log` is not. *(2026-09-25: this read "CI already sets
+  `BROADCAST_CONNECTION: \"null\"`". CI no longer sets it — the config default became `null`
+  and the three workflow overrides were removed. The reason survives the correction:
+  `BroadcastConnectionConfigTest` exercises the literal-"null" case **and** the unset case,
+  which is a stronger pin than a workflow variable ever was.)*
 - `log` writes a line per broadcast against a **fixed shared-hosting disk quota**, and when
   that quota fills every write path fails, including the database's
 
