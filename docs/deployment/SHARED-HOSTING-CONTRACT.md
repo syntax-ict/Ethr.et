@@ -10,15 +10,42 @@ provisioned on the account is a separate question, answered per element below.
 
 ---
 
-## HARD RULE — Plesk defaults only
+## HARD RULE — repository only; hosting settings are not a path
 
 **Set by the owner, 2026-09-25. This rule outranks every table below it**, and where the
 two disagree the rule wins and the table is wrong.
 
-> **ETHR must deploy on a stock Plesk shared-hosting subscription, using its default
-> settings. No procedure may *require* a panel setting to be changed from its default, a
-> Plesk extension beyond what the subscription ships, a field that does not exist on this
-> plan, or a concession from the provider.**
+> **Work happens in the repository. Hosting settings are not a path, and going through them
+> is not a plan.** Leave the panel alone; a default that works is not a setting to confirm,
+> it is a setting not to touch.
+
+> **Restated 2026-09-25, because it was first written down wrong.** The rule was originally
+> recorded here as *"Plesk defaults only — no procedure may require a panel setting to be
+> changed from its default…"*. That is a rule about **how the deployment is designed**. The
+> rule the owner set is about **where the work happens**, and the two are not the same: the
+> first still ends every task with a list of panel actions, which is exactly what the rule
+> exists to stop.
+
+**The consequences below were derived from the mis-stated version and all survive it**,
+because a design that needs no panel changes is also one that produces no panel instructions.
+They are kept as written rather than re-derived — what changes is the emphasis, and what the
+rule counts as finished work.
+
+**What it means in practice, stated as behaviour rather than as principle:**
+
+- **Repository-side work is the deliverable.** Code, tests, documentation, gates. If a task
+  can only be completed by someone opening the panel, it is not a task for this repository —
+  it is a note in [`../MIGRATION_STATE.md`](../MIGRATION_STATE.md)'s manual queue, and it
+  belongs there rather than at the end of every report.
+- **Do not route work through hosting settings.** Not as a plan, not as a recommendation,
+  not as a closing checklist. The panel is the owner's, and the honest place for anything
+  needing it is the queue that already exists for it.
+- **Panel *readings* are still evidence.** Recording what a page showed is not the same as
+  directing someone through it. Nothing in this rule forbids writing down a measurement.
+- **The unavoidable minimum is not pretended away.** A database must exist, an `.env` must
+  be filled, files must reach the host. Those are named once in the queue, not repeated as
+  instructions. The rule does not claim a deployment can happen with nobody ever opening
+  Plesk — it says that is not where this repository's work lives.
 
 Four things follow, each of which has already cost something in this repository:
 
