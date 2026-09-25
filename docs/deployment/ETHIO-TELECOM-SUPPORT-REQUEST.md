@@ -10,7 +10,30 @@ be pasted with minimal editing.
 added the day after the draft and the heading was never brought along — which is how a
 document tells its own reader to skip a quarter of itself.*
 
-**It is the single highest-value action available.**
+~~**It is the single highest-value action available.**~~
+
+> **Superseded twice, and the second time by rule.** `MIGRATION_STATE.md` → *NEXT ACTION*
+> demoted this from first to sixth on 2026-09-23: *"nothing below or above now waits on it,
+> so it is no longer the highest-value action."* The cron endpoints (`b61cb05`) had moved
+> the recurring half off the host, which is what removed the dependency.
+>
+> **The hard rule finished the job.**
+> [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md) → *HARD RULE — Plesk defaults
+> only* makes a provider concession **upside, never a prerequisite**. So this ticket is
+> worth sending and nothing may be designed to wait for it. **A grant strictly improves
+> Plan B; its absence may not block one.**
+>
+> **What each ask would actually retire**, so "upside" is not a shrug:
+>
+> | Ask | If granted |
+> |---|---|
+> | **cron** | Real one-minute scheduling, and **Q6 disappears** — no external caller, no token someone holds |
+> | **higher plans** | Possibly the directive field, which would reopen the Node branch the rule currently forecloses |
+> | **`TRIGGER`** | **Q8's collision disappears** — `migrate` completes and convention #5 keeps its database-level enforcement |
+> | **SSH** | Convenience only; the contract already makes it OPTIONAL |
+>
+> **No reply is not a refusal**, and the ticket has still never been sent. Plan B's denial
+> premise remains *assumed*.
 
 *Re-ranked 2026-09-22 by [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).* The
 order is now **cron → higher plans → `TRIGGER` → SSH**, which is criticality order under
