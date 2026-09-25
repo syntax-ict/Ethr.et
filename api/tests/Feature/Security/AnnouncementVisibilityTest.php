@@ -70,15 +70,26 @@ test('the hidden-announcement response is identical to a missing one', function 
         'published_by' => $user->id,
     ]);
 
+    $absentId = (string) Str::ulid();
+
     $hidden = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/announcements/{$draft->public_id}");
-    $missing = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/announcements/".Str::ulid());
+    $missing = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/announcements/{$absentId}");
 
     $hidden->assertNotFound();
     $missing->assertNotFound();
 
-    // A distinguishable body would confirm that this public id names a real
-    // announcement, which is exactly what withholding the draft is for.
-    expect($hidden->json())->toBe($missing->json());
+    // Each body echoes the id that was asked for, and the two requests cannot
+    // ask for the same one — so the comparison is of everything *except* that
+    // id. The id is not information the response disclosed: the caller supplied
+    // it. Anything else differing between the two would be, which is exactly
+    // what withholding the draft is for.
+    $withoutId = fn (?array $body, string $id): array => (array) json_decode(
+        str_replace($id, '{id}', (string) json_encode($body)),
+        true,
+    );
+
+    expect($withoutId($hidden->json(), $draft->public_id))
+        ->toBe($withoutId($missing->json(), $absentId));
 });
 
 test('a manager can read a draft announcement', function () {
