@@ -333,11 +333,30 @@ These are hard constraints on every slice. No exceptions.
 > Eleven entities, including every "Never delete" row that carries the financial
 > and audit requirements, are unenforced.
 >
-> Stated plainly because the gap is the point: **this table is a convention, not a
-> control.** Either build the rule, widen the test to all fifteen rows, or stop
-> claiming enforcement — but a documented control nobody runs is worse than an
-> admitted gap, because it stops people looking. (That sentence is this
-> repository's own, from the PR template. It applied here.)
+> **Partly closed 2026-09-25 — the second option was taken.** `SoftDeletePolicyTest`
+> now also reflects over **every row's model** and pins whether it carries
+> `SoftDeletes`, so the table and the code cannot drift apart silently. Measured
+> when written: **every row already matched**. The value is not that it found a
+> defect — it is that changing one is now a deliberate act.
+>
+> **Be exact about what that buys, because a green run is easy to over-read.** It
+> asserts model *configuration*, not behaviour: absence of `SoftDeletes` on a
+> "Never delete" row means a `delete()` would be permanent, **not** that nothing
+> calls one. Proving that needs the route surface, which is a different test and is
+> not written. The four HTTP tests still cover four rows behaviourally.
+>
+> **One row is still unpinned and says so in the test file:** *Notifications — hard
+> delete after 90 days*. There is no Eloquent model for it — `app/Models/` has
+> `NotificationPreference` but nothing mapping the `notifications` table, which
+> Laravel serves through `DatabaseNotification`. That row needs the 90-day sweep
+> tested, not a trait check.
+>
+> The original note read *"this table is a convention, not a control"*, and offered
+> three ways out: build the PHPStan rule, widen the test, or stop claiming
+> enforcement. It is kept in spirit because the reasoning still holds — **a
+> documented control nobody runs is worse than an admitted gap, because it stops
+> people looking.** That is why the two limits above are stated rather than left for
+> someone to discover.
 
 ---
 
