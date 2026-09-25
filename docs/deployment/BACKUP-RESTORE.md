@@ -31,7 +31,27 @@ php artisan ethr:restore <name>             # the half that makes it a backup
 php artisan ethr:restore <name> --force     # non-interactive
 ```
 
-Both run as plain PHP CLI, which is the entire design constraint: they must work from **Plesk → Scheduled Tasks** with no shell and no `mysqldump`.
+Both run as plain PHP CLI with no shell and no `mysqldump` — that half of the constraint is
+right and is why `DatabaseDumper` reads through PDO.
+
+> **Corrected 2026-09-25 — this said they "must work from *Plesk → Scheduled Tasks*", and
+> this file contradicts that 120 lines further down.** The *Route on this account* table
+> states it plainly: there is **no Scheduled Tasks section** (G0-D FAIL), and `ethr:backup`
+> reaches the host through `schedule:run` driven by `POST /api/v1/cron/schedule`. Naming
+> Scheduled Tasks as the design constraint is also forbidden by the
+> [hard rule](SHARED-HOSTING-CONTRACT.md) — it is a capability this plan does not have.
+>
+> **The real constraint is tighter than the old sentence, not looser.** The cron endpoints
+> run under the **web SAPI**, not CLI, so a backup must complete within that SAPI's
+> `max_execution_time` and `memory_limit` — values which `MIGRATION_STATE.md` records as
+> *different from the CLI ones a probe would report*, and which are **unmeasured** (G0-E,
+> G0-J). A `mysqldump`-free PDO dump is portable, which is the property that matters; it is
+> also slower, which is the property that collides with a request timeout.
+>
+> The go-live checklist already carries the right action — *"Time a backup against
+> production-sized data; confirm it fits `max_execution_time`"*. What it did not say is
+> **which** `max_execution_time`: the web one, because under Plan B there is no CLI path in
+> normal operation.
 
 ### Why not `mysqldump`
 
