@@ -24,4 +24,7 @@ return [
     'loan_not_active' => 'Only an active loan can be modified.',
     'cost_sharing_already_active' => 'This employee already has an active cost-sharing obligation.',
     'cost_sharing_invalid_transition' => 'That cost-sharing status change is not allowed.',
+    'run_failed_subject' => 'Payroll run FAILED: :period',
+    'run_failed_body' => 'The payroll run for :period could not be completed and has been marked as failed. No payslips were issued. Reason: :reason',
+    'run_failed_next_step' => 'This run will not be retried automatically. Review the cause, then submit the run again.',
 ];
