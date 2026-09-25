@@ -12,6 +12,7 @@ use App\Jobs\NotifyAnnouncementAudienceJob;
 use App\Models\Announcement;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -32,8 +33,34 @@ class AnnouncementController extends Controller
         );
     }
 
-    public function show(Announcement $announcement): AnnouncementResource
+    public function show(Request $request, Announcement $announcement): AnnouncementResource
     {
+        // `index()` lists only published, unexpired announcements. Route-model
+        // binding applies neither scope, so this action used to hand back any
+        // announcement in the tenant to anyone holding its public id — including
+        // a draft created with `publish_now: false`, which is the one state that
+        // means "not visible yet". The rule is re-run through the same two
+        // scopes rather than restated from the loaded model, so the list and the
+        // single-read cannot come to disagree about what "published" means.
+        $visible = Announcement::query()
+            ->published()
+            ->notExpired()
+            ->whereKey($announcement->getKey())
+            ->exists();
+
+        // Managers keep access. `store()` can create a draft and `update()`
+        // edits one, so a drafting UI has to be able to read it back.
+        $canManage = $request->user()?->hasPermission('announcement.manage') ?? false;
+
+        if (! $visible && ! $canManage) {
+            // The same exception route-model binding raises for an id that
+            // resolves to nothing, constructed the same way, so the two produce
+            // a byte-identical body. A draft is not a forbidden resource — it is
+            // one that does not exist yet from this caller's side — and a
+            // distinguishable response would confirm it across that line.
+            throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement->public_id]);
+        }
+
         return new AnnouncementResource($announcement);
     }
 
