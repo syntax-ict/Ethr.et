@@ -7,10 +7,12 @@ namespace App\Providers;
 use App\Contracts\SmsSender;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
+use App\Events\DeviceSyncFailed;
 use App\Events\PayrollProcessed;
 use App\Events\TenantCreated;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
+use App\Listeners\NotifyDeviceSyncFailed;
 use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\ProvisionTenant;
 use App\Models\AttendanceRecord;
@@ -138,6 +140,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
+        Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
         Event::listen(AttendanceRecorded::class, [InvalidateDashboardCache::class, 'handleAttendance']);
         Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
