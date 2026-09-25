@@ -774,8 +774,10 @@ retire: GitHub Actions, at a cadence the schedule can tolerate, is the honest ch
 #### 5.3b The install commands
 
 Plesk Git *additional deployment actions* execute shell commands as the subscription user on
-deploy. Under denial this carries `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`
-and `storage:link`, and it is **the only route**. It is **MEASURED as present** and has
+deploy. Under denial this carries `key:generate`, `migrate`, `db:seed` and
+`ethr:create-admin`, and it is **the only route**. ~~and `storage:link`~~ — *removed
+2026-09-24; see the correction under §5.5 step 7. Running it would publish a directory no
+code writes to.* It is **MEASURED as present** and has
 **never been executed** — nothing has been entered, saved or run.
 
 Two consequences worth naming rather than discovering:
@@ -788,8 +790,8 @@ Two consequences worth naming rather than discovering:
 **That proof is now step 6a of §5.5** *(added 2026-09-23)*. It was named here and taken
 nowhere: the path went *deliver code → install dependencies → the full one-off install*,
 so consequence 1 — **Plan B ends here** — would have been discovered while running
-`key:generate`, `migrate`, `db:seed`, `ethr:create-admin` and `storage:link` together,
-rather than by a deploy that does nothing but print a version string.
+`key:generate`, `migrate`, `db:seed` and `ethr:create-admin` together, rather than by a
+deploy that does nothing but print a version string.
 
 #### 5.3c Measurement — both instruments already run without a concession
 
@@ -883,7 +885,7 @@ Every step names the mechanism and whether anyone has ever done it here.
 | 5 | **Deliver code** | Plesk Git, deployment path `/ethr/` **set before the first deploy** | Never configured |
 | 6 | **Install dependencies** | Plesk Composer | Never run |
 | **6a** | **Smoke-test the deployment-actions field before trusting it** — put `php -v` in it, deploy, read the output | Plesk Git *additional deployment actions* | **Never run.** Costs one deploy and prints a version string. It is the cheapest possible test of §5.3b's single point of failure, and it is worth taking **before** step 7 rather than during it: if the field does not execute, Plan B ends, and that is better learned from a one-line deploy than from a half-completed `migrate` |
-| 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`, `storage:link` | Never run. **Single point of failure** (§5.3b), and step 6a is what de-risks it |
+| 7 | **One-off install** | Deployment actions: `key:generate`, `migrate`, `db:seed`, `ethr:create-admin`. **Not `storage:link`** — see below | Never run. **Single point of failure** (§5.3b), and step 6a is what de-risks it |
 | 8 | **Assemble the document root** | `index.php` + `.htaccess` + exported `out/` | Written, never applied |
 | 9 | **Configure the environment** | Plesk env vars from `api/.env.shared-hosting.example` — **not** `.env.production.example`, which selects redis/minio/reverb | Template exists |
 | 10 | **Set `CRON_TOKEN`** | ≥32 chars, Plesk env | — |
@@ -891,6 +893,35 @@ Every step names the mechanism and whether anyone has ever done it here.
 | 12 | **Lower backup retention** | `--keep`, per §5.4 | Not done |
 | 13 | **Certificates** | Per-hostname Let's Encrypt for `ethr.et`, `www`, `app` | Proven for named hosts |
 | 14 | **Verify** | `deploy-checklist.md`, `/api/v1/health`, `ethr:queue:check` | — |
+
+> #### Correction 2026-09-24 — `storage:link` is removed from step 7, and from this plan
+>
+> **This document required `storage:link` in seven places.
+> [`shared-hosting/DEPLOYMENT.md`](shared-hosting/DEPLOYMENT.md) §4 forbids it outright**
+> — *"Do not add this step; it would create a broken symlink"* — and the two had contradicted
+> each other for as long as both existed. An operator following the deploy path would have
+> run a command the runbook for that same deploy tells them not to.
+>
+> **Settled from the code, which is this repository's stated source of truth.** There are
+> **zero** `Storage::disk('public')` calls in `api/app/` — measured 2026-09-24. The `public`
+> disk is defined in `config/filesystems.php:41` and never written to by anything. Every
+> file URL in the product is a signed `temporaryUrl()` (`FileStorageService`), which works on
+> the `local` disk and needs no symlink. So there is nothing under `storage/app/public` to
+> serve, and `storage:link` would publish an empty directory.
+>
+> **The reason this is worth more than a consistency fix: not running it removes an exposure
+> path.** §5.10 listed `~/httpdocs/storage → storage/app/public` as web-readable *"by
+> design"*, and mistake 3 — a repointed `BACKUP_PATH` publishing archives that each contain a
+> full `database.sql` — **needed that symlink to reach the web**. With step 7 no longer
+> creating it, mistake 3 requires two independent errors instead of one, and the row
+> describing a web-readable directory inside the document root describes something that will
+> not exist.
+>
+> **`storage:link` was never load-bearing here.** It is in this plan because it is in a
+> default Laravel deployment, not because anything in ETHR needs it. That is the shape worth
+> remembering: a step inherited from the framework's defaults, carried through a
+> hosting-specific plan, contradicted by the runbook, and opening a hole in the document root
+> for a feature the product does not use.
 
 **What this path does *not* include, and cannot:** tenant subdomains. Steps 1–14 deliver a
 working single-hostname deployment. `{tenant}.ethr.et` needs step 13 to issue a wildcard,
@@ -978,7 +1009,7 @@ section's layout depends on it and nothing in it said so.
 | `~/ethr/api/storage/backups/` | `ethr:backup` archives — `config/backup.php:16`, `storage_path('backups')` | **No** |
 | `~/ethr/api/storage/app/private/` | uploads; `FILESYSTEM_DISK=local` (`.env.shared-hosting.example:123`) | **No** |
 | `~/httpdocs/` | the Next.js static export, `.htaccess`, the front controller | **Yes — by design** |
-| `~/httpdocs/storage` → `storage/app/public` | step #12's `storage:link` | **Yes — by design**, and only the `public` disk |
+| ~~`~/httpdocs/storage` → `storage/app/public`~~ | ~~step #12's `storage:link`~~ | **Will not exist** — `storage:link` is not run; see §5.5 step 7. Removing it removes this row and mistake 3's mechanism |
 
 So **no planned location exposes `APP_KEY` or the database password.** The layout, not the
 `.htaccess` deny rules, is what provides that: those rules are defence in depth, and
@@ -1008,8 +1039,10 @@ Each is a configuration mistake, not the current state. Ordered by how close eac
 3. **Repointing `BACKUP_PATH` under the public disk.** `config/backup.php:16` reads
    `env('BACKUP_PATH', storage_path('backups'))`. The default is safe. Setting it to
    anything under `storage/app/public/` publishes every archive — each of which contains a
-   full `database.sql` — through the `storage:link` symlink in row #12. Nothing currently
-   sets it; **leave it unset.**
+   full `database.sql` — *if* a `storage:link` symlink exists. **It will not**, now that
+   step 7 no longer runs it, so this mistake needs two errors rather than one. Nothing
+   currently sets `BACKUP_PATH`; **leave it unset** regardless — defence in depth is the
+   point, and a later deploy could reintroduce the symlink.
 
 #### What this does not settle
 
