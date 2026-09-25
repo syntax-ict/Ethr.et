@@ -238,6 +238,44 @@ operator's machine and not as a shell export — each command starts a fresh she
 export does not survive, and the container is a different machine from the operator's.
 Until it is, `Pint`, `PHPStan` and `Pest` cannot run there and **CI is the only gate**.
 
+#### In a Claude Code cloud sandbox, a token does not help — measured 2026-09-25
+
+Everything above is true of an ordinary machine. It is **not** the cause in the cloud
+sandbox, and an agent that reads the section above will spend its time chasing a credential
+that cannot work. What was measured there:
+
+| Check | Result |
+|---|---|
+| `GET api.github.com/rate_limit` | **15000/hour, 43 used** — rate limiting is not the cause |
+| `GET api.github.com/repos/phpstan/phpstan/zipball/<ref>` | **403** |
+| `GET codeload.github.com/...` | **403** |
+| `git clone https://github.com/<any public repo>` | **works** |
+
+The 403 body says it outright: *"GitHub access to this repository is not enabled for this
+session."* The sandbox's egress proxy scopes GitHub **per repository**, and only the
+repositories attached to the session are in scope. Composer's `dist` URLs point at
+`api.github.com/repos/<vendor>/<pkg>/zipball/...` — 163 different repositories, none of them
+this one. **No token changes that**, because it is not an authentication failure; composer
+merely reports it as one, at the same `AuthHelper.php:132` the rate-limit case reaches.
+
+`--prefer-source` gets **162 of the 163** through, because anonymous `git clone` of a public
+repository *is* served. Exactly one package cannot take that route:
+
+```
+$ python3 -c "import json;d=json.load(open('api/composer.lock'));
+  print([p for k in ('packages','packages-dev') for p in d[k] if p['name']=='phpstan/phpstan'][0]['source'])"
+None
+```
+
+`phpstan/phpstan` ships with **`"source": null` in `composer.lock`** — there is no source
+install path at all, so it can only arrive as an API zipball, and one blocked package fails
+the whole install. That is why `vendor/bin/` stays empty even after every other package has
+synced.
+
+**So in this sandbox `CI is the only gate` still holds, but for a different reason,** and
+the distinction matters when deciding whether to keep trying: the rate-limit case is fixed
+by a credential the operator can supply, and this one is not.
+
 ---
 
 ## Quality gates
