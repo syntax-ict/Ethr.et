@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\AttendanceSource;
 use App\Events\DeviceOffline;
+use App\Events\DeviceSyncFailed;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
 use App\Services\Attendance\AttendanceEngine;
@@ -20,6 +21,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PullDeviceEventsJob implements ShouldQueue
 {
@@ -143,7 +145,7 @@ class PullDeviceEventsJob implements ShouldQueue
                 'processed' => $processed,
                 'failed' => $failed,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->device->update(['status' => 'error']);
 
             $syncLog->update([
@@ -160,6 +162,34 @@ class PullDeviceEventsJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * All retries are spent and the sync never completed.
+     *
+     * `handle()` sets the device to `error` and rethrows on every attempt, so
+     * the status is already right by the time this runs — what was missing was
+     * telling anyone. `docs/CLAUDE.md`'s queue-recovery table claimed this path
+     * "triggers DeviceOffline, notifies admin"; in fact `DeviceOffline` fires
+     * only from the SUCCESS path, when the adapter reports the device
+     * unreachable. So an unreachable device notified an admin and a device
+     * whose sync threw twice notified nobody — an asymmetry the table itself
+     * flagged as needing a decision rather than a doc edit.
+     *
+     * The decision taken: notify, but with `DeviceSyncFailed` rather than
+     * `DeviceOffline`. `offline` and `error` are different states, the model
+     * distinguishes them, and an admin needs to know which one they have — a
+     * device that is off is someone else's problem to power on, and a device
+     * that is erroring is ours. Collapsing them would throw that away to reuse
+     * an event.
+     *
+     * Dispatched rather than notified inline so the admin lookup stays in a
+     * listener beside `NotifyDeviceOffline`, where the tenant-scope bypass such
+     * a lookup needs is already justified and pinned.
+     */
+    public function failed(Throwable $e): void
+    {
+        DeviceSyncFailed::dispatch($this->device, $e->getMessage());
     }
 
     /**
@@ -223,7 +253,7 @@ class PullDeviceEventsJob implements ShouldQueue
                     occurredAt: $event['timestamp'],
                 ));
                 $processed++;
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $failed++;
                 Log::warning('Device event processing failed', [
                     'device_id' => $this->device->id,

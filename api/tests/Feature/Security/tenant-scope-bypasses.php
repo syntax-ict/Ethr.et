@@ -94,6 +94,7 @@ return [
     'Jobs/RunScheduledReportsJob.php' => 1,
     'Jobs/ScanMissingPunchesJob.php' => 1,
     'Listeners/NotifyDeviceOffline.php' => 1,
+    'Listeners/NotifyDeviceSyncFailed.php' => 1,
     'Listeners/NotifyPayrollProcessed.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,

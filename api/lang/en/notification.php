@@ -42,4 +42,8 @@ return [
 
     // Approval routing
     'review_request' => 'Review Request',
+    'device_offline_subject' => 'A biometric device has gone offline',
+    'device_sync_failed_subject' => 'Biometric device sync failed: :name',
+    'device_sync_failed_body' => 'Sync for device ":name" failed after every retry and no attendance events are being collected from it. The device reported: :reason',
+    'device_action' => 'View device status',
 ];

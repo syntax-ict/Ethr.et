@@ -281,7 +281,7 @@ These are hard constraints on every slice. No exceptions.
 
 | # | Convention | Detail |
 |---|---|---|
-| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, **and by CI, which calls that same script** *(corrected 2026-09-22: this said "not by CI, which does not exist yet"; CI has been green since run #66 on 2026-09-16)*. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; **157 sites across 55 files** do, and `tests/Feature/Security/TenantScopeBypassInventoryTest.php` **pins that inventory per file and fails when a count moves** *(corrected 2026-09-22: this said "~147 sites do, nothing enforces it" — the count was stale and the enforcement exists. First re-measured as 161/55, then **corrected to 156/54 the same day**: that count came from `preg_match_all` over raw text, which counted five docblock mentions of `withoutGlobalScopes()` as bypasses. The overcount is a constant +5 predating the first pin — measured against pin commit `21746a9`, the originally-recorded 156 was 151 real plus those same 5 comments — so the five bypasses added between 09-16 and 09-18 were real. Counting is now tokenised, so a comment cannot trip a security gate)*. Note what the pin does and does not buy: it makes adding a bypass a deliberate act. It does not audit the ones already there. |
+| 1 | Tenant isolation | `tenant_id` on all scoped tables. `BelongsToTenant` trait with a **fail-closed** global scope (no tenant context applies `whereRaw('0 = 1')`, so absence yields no rows rather than all rows). `TenantIsolationTest` validates every model — run by `./scripts/gates.sh`, **and by CI, which calls that same script** *(corrected 2026-09-22: this said "not by CI, which does not exist yet"; CI has been green since run #66 on 2026-09-16)*. Every `withoutGlobalScope` bypass must re-apply a tenant predicate; **158 sites across 56 files** do, and `tests/Feature/Security/TenantScopeBypassInventoryTest.php` **pins that inventory per file and fails when a count moves** *(corrected 2026-09-22: this said "~147 sites do, nothing enforces it" — the count was stale and the enforcement exists. First re-measured as 161/55, then **corrected to 156/54 the same day**: that count came from `preg_match_all` over raw text, which counted five docblock mentions of `withoutGlobalScopes()` as bypasses. The overcount is a constant +5 predating the first pin — measured against pin commit `21746a9`, the originally-recorded 156 was 151 real plus those same 5 comments — so the five bypasses added between 09-16 and 09-18 were real. Counting is now tokenised, so a comment cannot trip a security gate)*. Note what the pin does and does not buy: it makes adding a bypass a deliberate act. It does not audit the ones already there. |
 | 2 | UTC storage | Store all timestamps in UTC. Display in EAT (Africa/Addis_Ababa, UTC+3). Ethiopia does not observe DST — the +3 offset is constant. |
 | 3 | Integer currency | ETB stored as `BIGINT` minor units (cents). Never use `FLOAT` or `DECIMAL`. Format: `X,XXX.XX ETB`. Use `formatETB(cents)` helper everywhere. |
 | 4 | ULID public IDs | `BIGINT` auto-increment PK (internal). `CHAR(26)` ULID `public_id` (API-facing). Never expose numeric PK in any API response. |
@@ -1026,7 +1026,7 @@ All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIso
 | `exports` | **`RunScheduledReportsJob` now implements both halves** (2026-09-25): a schedule whose run throws gets `scheduled_reports.last_error` written with the reason, and its recipients get `ScheduledReportFailedNotification`. `failed()` logs the sweep dying, which is a different event — see below. **`RunDashboardDigestsJob` closed the same day**, with the identical defect and the identical fix | *"Mark export as `failed`, notify requesting user"* — was **unimplemented**, and `RunScheduledReportsJob`'s own docblock cited this row as if it were in force |
 | `default` | Log to `failed_jobs`, surfaced by `AdminDashboardController` with retry/dismiss and counted by `SystemHealthService` | *(unchanged — accurate, and verified)* |
 | ~~`payroll`~~ → `default` | `ProcessPayrollJob::failed()` sets the run to `failed`, writes `Log::error` and an `AuditLog` `payroll.failed` record — so a crashed run stops being indistinguishable from a running one. **No tenant admin is notified**; there is no notification on this path at all | *"Mark payroll run as `failed` with error details, **notify tenant admin**"* — half true; also not a real queue |
-| ~~`devices`~~ → `default` | **`PullDeviceEventsJob` has no `failed()`.** Its `handle()` catch sets the device to `error`, writes a failed `DeviceSyncLog`, logs and rethrows. `DeviceOffline` is dispatched from the *success* path — when the adapter reports the device unreachable and it was previously online — so on an exception no event fires and no admin is notified | *"Trigger `DeviceOffline` event, notify admin"* — describes the wrong path; also not a real queue |
+| ~~`devices`~~ → `default` | **Closed 2026-09-25.** `PullDeviceEventsJob::failed()` now dispatches **`DeviceSyncFailed`** — deliberately not `DeviceOffline` — and `NotifyDeviceSyncFailed` tells the tenant's admins, with the reason. `handle()` is unchanged: it still sets the device to `error`, writes a failed `DeviceSyncLog`, logs and rethrows | *"Trigger `DeviceOffline` event, notify admin"* — described the wrong path, since `DeviceOffline` fires only from the SUCCESS path when the adapter reports the device unreachable; also not a real queue |
 | `sync` | **Not queued** — offline sync is synchronous, see below | *(unchanged — accurate)* |
 
 **What the `exports` closure actually fixed, and what it did not.** The defect was not
@@ -1075,14 +1075,35 @@ whether the *engine* was the only reachable seam. It was not — it was just the
 obvious one. **`RunDashboardDigestsJob` used that seam from the start**, so
 `ExecutiveDashboardService` and `AlertEvaluator` are both still `final`.
 
-**The `devices` row is the one worth a decision rather than a doc edit.** `offline`
-(the reachability check says down) and `error` (the sync machinery threw) are
-genuinely different states and the model distinguishes them, so firing
-`DeviceOffline` from `failed()` might well be wrong. What is *not* defensible is
-the current asymmetry: a device that is unreachable politely notifies an admin,
-and a device whose sync throws for two attempts notifies nobody. Either add a
-`failed()` that notifies, or change this row to say admins are not told — but the
-two should not disagree.
+**The `devices` row needed a decision rather than a doc edit, and the decision was
+taken on 2026-09-25: notify, with a different event.**
+
+The reasoning it was left open for still holds and is why `DeviceOffline` was not
+reused. `offline` (the adapter's reachability check says down) and `error` (our sync
+machinery threw) are genuinely different states, the model distinguishes them, and an
+admin needs to know which one they have — a device that is off is someone else's problem
+to power on, and a device that is erroring is ours. Collapsing the two to reuse an event
+would have thrown that away.
+
+What was not defensible was the asymmetry: an unreachable device politely notified an
+admin, and a device whose sync threw for two attempts notified nobody. `DeviceSyncFailed`
++ `NotifyDeviceSyncFailed` close it, mirroring `DeviceOffline`'s shape exactly, including
+the tenant-scope bypass its queued admin lookup needs — which is why the inventory moved
+from 157/55 to **158/56**.
+
+Two differences from `DeviceOffline` are deliberate. The new event is **not**
+`ShouldBroadcast`: broadcasting is deployed on neither target (`log` on the VPS, `null` on
+shared hosting), so implementing it would add a live-update path nothing carries. And the
+notification **does** include the failure reason, unlike the scheduled-report and digest
+failure notices which omit it — the audience is the difference, since this one goes to
+`tenant_admin` and `hr_admin` users of the device's own tenant, who are already entitled
+to the device's configuration.
+
+**A pre-existing defect in the same area was fixed alongside it.**
+`DeviceOfflineNotification` called `__('notification.device_offline_subject')` and **that
+key existed in neither `lang/en` nor `lang/am`**, so every offline alert went out with the
+literal string `notification.device_offline_subject` as its email subject. An en/am parity
+gate cannot catch a key missing from both.
 
 All failed jobs visible in Super Admin dashboard with retry/dismiss actions.
 
