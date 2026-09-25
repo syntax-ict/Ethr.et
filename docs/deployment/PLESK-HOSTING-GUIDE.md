@@ -87,7 +87,19 @@ ask 3 of the support request. Tracked as **G0-F**.
 Server version and charset are **G0-I, NOT VERIFIED**. Below MariaDB 10.2.7 / MySQL 5.7.9,
 `migrate` fails on the first migrations.
 
-### A3. Node.js — *Node.js* · **the plan forecloses this branch; see the box**
+### A3. Node.js — **do not enable it.** Forbidden by the hard rule
+
+> **[`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md) → *HARD RULE — Plesk defaults only*
+> (owner, 2026-09-25) forbids requiring a Plesk extension, and forbids requiring the
+> *Additional nginx directives* field that a Node app would need to split `/api/*` from `/`.**
+> Both rules bite this branch independently.
+>
+> **This closes the question PR #100 left open and PR #107 narrowed.** #107 recorded the
+> plan's foreclosure but left an escape hatch — *viable if G0-A turns out to work*. The
+> rule removes it: even if that field appeared tomorrow, requiring it is forbidden.
+> **Static export is the frontend path.**
+>
+> The panel readings below are kept as measurements, not as instructions.
 
 > ### The plan forecloses this branch, and says why — read before enabling anything
 >
@@ -118,7 +130,7 @@ Server version and charset are **G0-I, NOT VERIFIED**. Below MariaDB 10.2.7 / My
 > which was not on the table when it was made.
 
 
-Set **Application Startup File** to **`server.js`**.
+~~Set **Application Startup File** to **`server.js`**.~~ **Do not.** Kept only because it records a real mismatch: the panel's default `app.js` is wrong for a Next standalone build, so if this branch were ever unforbidden it would fail at start. That is evidence about the panel, not a step to take.
 
 The panel read `app.js` on 2026-09-22. That is Plesk's default and it is wrong for this
 app: `src/next.config.ts` sets `output: "standalone"`, whose entry point is `server.js`. A

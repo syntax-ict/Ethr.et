@@ -10,6 +10,55 @@ provisioned on the account is a separate question, answered per element below.
 
 ---
 
+## HARD RULE — Plesk defaults only
+
+**Set by the owner, 2026-09-25. This rule outranks every table below it**, and where the
+two disagree the rule wins and the table is wrong.
+
+> **ETHR must deploy on a stock Plesk shared-hosting subscription, using its default
+> settings. No procedure may *require* a panel setting to be changed from its default, a
+> Plesk extension beyond what the subscription ships, a field that does not exist on this
+> plan, or a concession from the provider.**
+
+Four things follow, each of which has already cost something in this repository:
+
+1. **Where a default is already correct, leave it alone.** The document root is the worked
+   example: it reads `/` in *Hosting Settings*, which is Plesk showing it relative to the
+   webspace root, and the served directory is `httpdocs/`. That is already right.
+   "Correcting" that field is **B-7's Trap 1** — at best a no-op, and a value resolving to
+   the home directory web-serves `~/ethr/api/.env`. A guide in this repository told the
+   owner to edit it; PR #104 withdrew that. **The rule generalises the lesson: a default
+   that works is not a setting to confirm, it is a setting not to touch.**
+2. **A Plesk extension is not a default.** The *Node.js* extension is the case in point.
+3. **A field that is absent is not a default to configure — it is a dependency to remove.**
+   Neither directive textarea appears on *Apache & nginx Settings*, read twice (**G0-A**).
+4. **A provider concession is upside, never a prerequisite.** Cron, SSH, higher plans and
+   the `TRIGGER` grant may each improve this deployment. **Nothing may be designed to
+   require one.** The support request stays worth sending; nothing may wait on it.
+
+### What the rule forbids, with the evidence
+
+| Forbidden as a requirement | Why | Evidence |
+|---|---|---|
+| **Changing the *Document root* field** | The default is already correct, and editing it is the highest-consequence field in the deployment | Twelve HTTP requests, 2026-09-24 — `GATE-0-RESULT.md` → *Account evidence* |
+| **Plesk *Node.js* application** | An extension, and it needs directive support to split `/api/*` from `/` — which rule 3 forbids | Panel 2026-09-22; `SHARED_HOSTING_PLAN.md` §5.1 rows #7 and #8 |
+| **Additional nginx / Apache directives** | The field does not exist on this plan | *Apache & nginx Settings*, read twice — **G0-A** |
+| **Plesk Laravel integration** | Never observed in an otherwise complete dashboard listing; an extension either way | The evidence table below |
+| **SSH, cron grant, `TRIGGER`, a higher plan** | Provider concessions | **B-1**, **G0-D**, **G0-F** |
+
+### The consequence worth stating once
+
+**Static export is the only frontend path**, and that is now settled by rule rather than
+pending a reading. `SHARED_HOSTING_PLAN.md` §3A Option A, costed at ≈8 days (6–11
+realistic). Option B (Node on Plesk) is forbidden by rules 2 and 3 together; the plan had
+already foreclosed it on routing grounds (§5.1 #8), and this rule removes the "unless G0-A
+turns out to work" escape hatch that PR #107 left open.
+
+**Nothing about the frontend *code* changes today.** Step 4 of §5.5 stays gated on the
+canary, by the plan's own rule: *"the whole estimate void if step 1 returns B.1 FAIL."*
+
+---
+
 ## The contract
 
 ### PRIMARY — the deployment path ETHR is built for
@@ -18,8 +67,9 @@ provisioned on the account is a separate question, answered per element below.
 |---|---|
 | **Plesk UI** | All account configuration: PHP version and limits, environment variables, SSL, mail |
 | **Plesk Git deployment** | Getting code onto the host, and — via *additional deployment actions* — the one-off install commands |
-| **Plesk Laravel integration** | Framework-aware operations where the panel offers them |
-| **Plesk Scheduled Tasks** | The scheduler (`schedule:run`) and the queue worker (`queue:work`) — two recurring commands, not one |
+| ~~**Plesk Laravel integration**~~ | **Removed 2026-09-25 by the hard rule** — an extension, and never observed in an otherwise complete dashboard listing |
+| ~~**Plesk Scheduled Tasks**~~ | **Moved to OPTIONAL 2026-09-25.** Measured ABSENT on this subscription (**G0-D**), so it cannot be a PRIMARY dependency under the hard rule |
+| **An external cron caller** | The scheduler and the queue worker, driven over HTTP: `POST /api/v1/cron/schedule` and `POST /api/v1/cron/queue`, built `b61cb05`. **Both, not one** — eleven of the fourteen scheduled entries only enqueue |
 | **Plesk database** | MySQL/MariaDB provisioning, and schema import where a SQL console exists |
 
 ### OPTIONAL — used when available, never assumed
@@ -27,6 +77,7 @@ provisioned on the account is a separate question, answered per element below.
 | Element | Status under this contract |
 |---|---|
 | **SSH / shell** | A convenience. Every procedure must have a non-SSH route. Its absence may slow an operation; it may not block one. |
+| **Plesk Scheduled Tasks** | Preferable where offered — no token to hold, no request timeout, no public surface — and **absent here**. The external caller above is the route that does not depend on it. |
 
 ### NEVER REQUIRED — must not appear in any shared-hosting procedure
 
@@ -36,6 +87,12 @@ provisioned on the account is a separate question, answered per element below.
 - **root** / any privilege above the subscription user
 - **VPS-only services** — Redis, Horizon, Reverb, MinIO and anything else that needs a
   long-running daemon the panel cannot start
+- **Plesk extensions beyond what the subscription ships** — the *Node.js* application in
+  particular *(added 2026-09-25 by the hard rule)*
+- **Additional nginx / Apache directives** — the field does not exist on this plan
+  *(added 2026-09-25 by the hard rule)*
+- **Any change to the *Document root* field** — the default is already correct
+  *(added 2026-09-25 by the hard rule)*
 
 These remain in the repository for the VPS fallback (Option A) and are correct there.
 They are simply not part of this contract, and a shared-hosting runbook that reaches for
@@ -86,7 +143,20 @@ recurring. The scheduler and the queue worker need Scheduled Tasks, and eleven o
 fourteen entries in `api/routes/console.php` do nothing but enqueue — so without a worker
 runner the asynchronous half of the product is inert regardless of how the code arrived.
 
-That is why **G0-D remains the one blocker this contract cannot design around.**
+~~That is why **G0-D remains the one blocker this contract cannot design around.**~~
+
+> **Corrected 2026-09-25 — that sentence was false when written, and stayed for three
+> days.** This contract is dated 2026-09-22; the cron endpoints were merged the same day
+> (`b61cb05`) and `SHARED_HOSTING_PLAN.md` §5.1 records rows #9 and #10 as
+> **RESOLVED — degraded** because of them. The recurring half no longer needs the *host* to
+> run a command — it needs *something* to call two URLs, and that something can be anywhere.
+> G0-D is still **FAIL** and still costs real cadence, but it is designed around, not
+> undesignable.
+>
+> **What it leaves is not nothing.** The queue drains at the caller's interval rather than
+> Plesk's minute, the token is a credential someone holds, and **which caller** is open
+> question **Q6** — the owner's, per `SHARED_HOSTING_PLAN.md` §5.3a. Under the hard rule
+> above, the one answer that is *forbidden* is "wait for a cron grant".
 
 ---
 
