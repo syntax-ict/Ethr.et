@@ -3,11 +3,23 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\Device;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\Grade;
+use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\MigrationStagingRow;
+use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
+use App\Models\Position;
 use App\Models\Shift;
+use App\Models\WebhookDelivery;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -104,7 +116,7 @@ test('every model in the soft delete policy table matches its row', function (st
     expect(class_exists($model))->toBeTrue();
 
     $usesSoftDeletes = in_array(
-        Illuminate\Database\Eloquent\SoftDeletes::class,
+        SoftDeletes::class,
         class_uses_recursive($model),
         true,
     );
@@ -112,27 +124,27 @@ test('every model in the soft delete policy table matches its row', function (st
     expect($usesSoftDeletes)->toBe($expectsSoftDeletes);
 })->with([
     // "Soft delete" rows — legal retention, historical reference.
-    'Employees'          => [App\Models\Employee::class, true],
-    'Leave Requests'     => [App\Models\LeaveRequest::class, true],
-    'Departments'        => [App\Models\Department::class, true],
-    'Branches'           => [App\Models\Branch::class, true],
-    'Positions'          => [App\Models\Position::class, true],
-    'Grades'             => [App\Models\Grade::class, true],
-    'Documents'          => [App\Models\EmployeeDocument::class, true],
-    'Shifts'             => [App\Models\Shift::class, true],
-    'Devices'            => [App\Models\Device::class, true],
+    'Employees'          => [Employee::class, true],
+    'Leave Requests'     => [LeaveRequest::class, true],
+    'Departments'        => [Department::class, true],
+    'Branches'           => [Branch::class, true],
+    'Positions'          => [Position::class, true],
+    'Grades'             => [Grade::class, true],
+    'Documents'          => [EmployeeDocument::class, true],
+    'Shifts'             => [Shift::class, true],
+    'Devices'            => [Device::class, true],
 
     // "Never delete" rows — audit and financial requirements. No SoftDeletes,
     // so a delete would be permanent rather than recoverable; the protection is
     // that nothing calls one.
-    'Attendance Records' => [App\Models\AttendanceRecord::class, false],
-    'Payroll Entries'    => [App\Models\PayrollEntry::class, false],
-    'Payroll Runs'       => [App\Models\PayrollRun::class, false],
-    'Audit Logs'         => [App\Models\AuditLog::class, false],
+    'Attendance Records' => [AttendanceRecord::class, false],
+    'Payroll Entries'    => [PayrollEntry::class, false],
+    'Payroll Runs'       => [PayrollRun::class, false],
+    'Audit Logs'         => [AuditLog::class, false],
 
     // "Hard delete after N days" rows — storage management sweeps.
-    'Webhook Deliveries' => [App\Models\WebhookDelivery::class, false],
-    'Import staging'     => [App\Models\MigrationStagingRow::class, false],
+    'Webhook Deliveries' => [WebhookDelivery::class, false],
+    'Import staging'     => [MigrationStagingRow::class, false],
 ]);
 
 // The fifteenth row, "Notifications — hard delete after 90 days", is absent from
