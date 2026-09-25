@@ -21,7 +21,9 @@ Over a Docker Desktop Windows bind mount, PHP's recursive directory scan returns
 
 Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercount. If you run the suite directly, check the collection count against `find api/tests -name '*Test.php'` before believing the result.
 
-**A native PHP run on a local disk does not have this problem** — measured 140/140 classes collected, 1673 tests passing. The trap is the bind mount, not PHP.
+**A native PHP run on a local disk does not have this problem** — measured **2026-08-21: 140/140 classes collected, 1673 tests passing**. The trap is the bind mount, not PHP.
+
+**Do not compare a collection count against that 140.** It is a dated measurement, and the suite has grown: `find api/tests -name '*Test.php'` returns **178** as of 2026-09-25. The instruction above is to compare collection against *`find`'s current output*, not against a number written down a month earlier — a reader who compares against 140 today sees a 38-class surplus and concludes something is wrong when nothing is. The ratio is what matters, not the figure.
 
 ### 3. Four processes, not two
 
