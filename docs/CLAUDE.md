@@ -1008,11 +1008,51 @@ All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIso
 |---|---|---|
 | `attendance` | Log to `failed_jobs`, `Queue::failing` alert. `ScanMissingPunchesJob` has a `failed()`; `ScanAttendanceAnomaliesJob` does not | *(unchanged — accurate)* |
 | `notifications` | Log to `failed_jobs` via the hook. **They do retry** — `NotifyExpiringTrialsJob` and `NotifyAnnouncementAudienceJob` both set `$tries = 2`, and neither defines `failed()` | *"Log failure, **do not retry** (notification is stale)"* — the retry claim is false |
-| `exports` | Log to `failed_jobs` via the hook, and nothing else. **Neither `RunScheduledReportsJob` nor `RunDashboardDigestsJob` defines `failed()`**, so no row is marked failed and nobody is told | *"Mark export as `failed`, notify requesting user"* — **unimplemented.** `RunScheduledReportsJob`'s own docblock cites this row as if it were in force |
+| `exports` | **`RunScheduledReportsJob` now implements both halves** (2026-09-25): a schedule whose run throws gets `scheduled_reports.last_error` written with the reason, and its recipients get `ScheduledReportFailedNotification`. `failed()` logs the sweep dying, which is a different event — see below. **`RunDashboardDigestsJob` still defines no `failed()`** | *"Mark export as `failed`, notify requesting user"* — was **unimplemented**, and `RunScheduledReportsJob`'s own docblock cited this row as if it were in force |
 | `default` | Log to `failed_jobs`, surfaced by `AdminDashboardController` with retry/dismiss and counted by `SystemHealthService` | *(unchanged — accurate, and verified)* |
 | ~~`payroll`~~ → `default` | `ProcessPayrollJob::failed()` sets the run to `failed`, writes `Log::error` and an `AuditLog` `payroll.failed` record — so a crashed run stops being indistinguishable from a running one. **No tenant admin is notified**; there is no notification on this path at all | *"Mark payroll run as `failed` with error details, **notify tenant admin**"* — half true; also not a real queue |
 | ~~`devices`~~ → `default` | **`PullDeviceEventsJob` has no `failed()`.** Its `handle()` catch sets the device to `error`, writes a failed `DeviceSyncLog`, logs and rethrows. `DeviceOffline` is dispatched from the *success* path — when the adapter reports the device unreachable and it was previously online — so on an exception no event fires and no admin is notified | *"Trigger `DeviceOffline` event, notify admin"* — describes the wrong path; also not a real queue |
 | `sync` | **Not queued** — offline sync is synchronous, see below | *(unchanged — accurate)* |
+
+**What the `exports` closure actually fixed, and what it did not.** The defect was not
+the missing `failed()` — it was that `handle()`'s per-schedule catch wrote `last_run_at`
+and `next_run_at` with *exactly* the values the success path writes. Advancing the clock is
+correct and must stay, or a permanently broken report definition is retried on every
+scheduler tick forever; what was wrong is that it advanced **silently**, so a schedule that
+had delivered nothing was indistinguishable from one that had delivered. The failure
+existed only in a log line.
+
+Three things are worth stating plainly, because each is a limit someone could otherwise
+over-read:
+
+- **"Mark export as `failed`" had nothing to mark.** There is no export-run entity —
+  `ScheduledReport` is a schedule, not a record of a run. The single nullable
+  `last_error` column is the mark: NULL means the last run succeeded, non-NULL means it
+  failed and carries why. It is cleared on the next success, because it describes the
+  *last* run and that is the only question its name can answer.
+- **`last_error` is not exposed through the API yet.** `ReportController::scheduledList()`
+  returns `last_run_at` and not `last_error`, so the reason is in the database and not yet
+  on any screen. Adding it is a one-line change to that response array and a regenerated
+  `src/src/api/generated.ts` — which is why it is not in the same slice: the contract gate
+  needs Scramble, and the sandbox that wrote this could not run it. The failure
+  *notification* deliberately carries no reason at all: recipients are free-text addresses
+  on the schedule rather than authenticated users, and an exception message can carry
+  column names or a connection string.
+- **`failed()` there is a different event and says so.** It fires when the whole sweep dies
+  — the database went away, the 600s timeout expired — meaning an unknown number of
+  schedules were never examined. It marks no row: the failure belongs to the run, not to
+  any one schedule, and writing `last_error` across every active schedule would blame
+  definitions that are fine. It writes no `AuditLog` either, unlike
+  `ProcessPayrollJob::failed()`, because that job knows its one tenant and this one sweeps
+  every tenant with `withoutGlobalScopes()`.
+
+**`ReportEngine` stopped being `final` in the same change**, recorded here because a
+removed class modifier is easy to mistake for drift. `RunScheduledReportsJob::handle()`
+takes it as a method parameter, neither Mockery nor PHPUnit can double a final class, and
+`generate()`'s `match` is total (`default => []`) — so there was no input that made the
+real engine throw and the entire catch branch was untestable. Inducing a genuine database
+error instead would need DDL inside the test transaction, which SQLite tolerates and
+MariaDB does not, and CI runs the suite on both.
 
 **The `devices` row is the one worth a decision rather than a doc edit.** `offline`
 (the reachability check says down) and `error` (the sync machinery threw) are
