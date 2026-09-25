@@ -14,7 +14,29 @@
 >
 > Run the canary early, and treat `curl -i https://<host>/.env` returning **403** as a necessary condition before anything is deployed.
 >
-> **If it fails, the answer is already written.** [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) translates the silently-failing half into Plesk's *Additional nginx directives* panel, and explains why it stops short of translating the routing rules. Unverified against any live host — it is a prepared answer, not a measurement.
+> ~~**If it fails, the answer is already written.**~~ **WITHDRAWN 2026-09-25 by the hard rule.**
+> [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) translates the
+> silently-failing half into Plesk's *Additional nginx directives* panel — **a field the
+> [hard rule](SHARED-HOSTING-CONTRACT.md) forbids requiring, and which does not exist on this
+> plan anyway** (G0-A, read twice). It is no longer a fallback. It is retained for the case
+> where that field is ever offered, which is upside, not a plan.
+>
+> **What that leaves, stated exactly, because "no fallback" is too blunt:**
+>
+> | Gate | Rule-compliant remedy if `.htaccess` is ignored |
+> |---|---|
+> | **G0-B.1** — SPA rewrite | **None.** Static export then has no mechanism to serve entity routes at all, and `SHARED_HOSTING_PLAN.md` §3A's ≈8-day estimate should be discarded rather than treated as optimistic |
+> | **G0-B.2** — headers on **API responses** | **Already covered, and not by the web server.** `App\Http\Middleware\SecurityHeaders` sends CSP, HSTS, Referrer-Policy, Permissions-Policy, X-Frame-Options, X-Content-Type-Options and X-XSS-Protection from PHP. Registered at `bootstrap/app.php:38`, prepended to the **api** group. Verified 2026-09-25 |
+> | **G0-B.2** — headers on **static assets and HTML** | **None.** The static export is served by the web server with no PHP in the path, so the middleware never runs for it |
+> | **G0-B.3** — deny `/.env`, `/.git` | **None** — and least severe of the four, because the layout already puts them outside the document root. The deny rules are the second line, not the first |
+>
+> **So the canary is now a single point of failure for two of the four**, where before it had
+> a prepared answer for three. That is a real cost of the rule and it is the rule's to own:
+> the alternative was a plan that depended on a field nobody has seen.
+>
+> **The api/static split is the thing to notice.** It is not a coincidence that the one
+> covered row is the one served by PHP. Anything the application renders can carry its own
+> headers; anything the web server hands over directly cannot.
 
 **Target:** Ethio Telecom Linux shared hosting (Plesk) · account `ethret` · `213.55.96.154`
 **Prepared:** 2026-09-15
@@ -1118,8 +1140,8 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | Gate | If it fails |
 |---|---|
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
-| **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §1, then verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
-| **G0-B.3** | Paste [`shared-hosting/nginx-directives.conf`](shared-hosting/nginx-directives.conf) §2 and do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
+| **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. ~~Paste `nginx-directives.conf` §1~~ — **forbidden by the hard rule**; that field does not exist here. Verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. **Expect the API response to pass regardless**: `SecurityHeaders` middleware sends them from PHP (`bootstrap/app.php:38`, api group). A pass there says nothing about the other two, which is the whole point of testing three. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
+| **G0-B.3** | ~~Paste `nginx-directives.conf` §2~~ — **forbidden by the hard rule.** Do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
 | **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It would also reduce this repository's *use* of Node to build-only — ~~and so **G0-G to build-only Node**~~ **withdrawn 2026-09-22**: the panel shows a startable Node application (startup file, application mode, application URL), so G0-G is not a build-only gate whatever Branch is chosen; choosing Branch B would leave that capability unused, not absent. Cross-origin remains the cost only if Branch A is chosen anyway. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap — **but only if the provider counts a wildcard host-by-host.** That counting rule is an **OPEN QUESTION**, asked in the higher-plans ask of the support request; the published number is not by itself the tenant ceiling. Settle it before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. **Built and merged 2026-09-22 (`b61cb05`)** — `POST /api/v1/cron/schedule` and `/cron/queue`. There is no longer a cost to estimate; what remains is choosing a driver, and it need not be this host. **The gate still reads FAIL** — it measures the host, and the host is unchanged — so the No-Go → Option A decision it fired is untouched. |
