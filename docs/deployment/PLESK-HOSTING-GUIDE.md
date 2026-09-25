@@ -89,7 +89,7 @@ Server version and charset are **G0-I, NOT VERIFIED**. Below MariaDB 10.2.7 / My
 
 ### A3. Node.js — **do not enable it.** Forbidden by the hard rule
 
-> **[`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md) → *HARD RULE — Plesk defaults only*
+> **[`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md) → *HARD RULE — repository only*
 > (owner, 2026-09-25) forbids requiring a Plesk extension, and forbids requiring the
 > *Additional nginx directives* field that a Node app would need to split `/api/*` from `/`.**
 > Both rules bite this branch independently.
