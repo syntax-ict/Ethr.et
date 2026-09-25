@@ -920,20 +920,54 @@ type(scope): short description
 
 ## Deployment Compatibility
 
-Target environments:
-- Ubuntu Server 22.04+
-- Docker Engine 24+
-- Docker Compose v2
-- Nginx reverse proxy
-- Let's Encrypt TLS
-- Redis 7+
-- MariaDB 10.11+
-- Supervisor (process management)
-- PHP-FPM 8.2
-- Node.js 20 LTS
+> **This list described the VPS target, and three of its rows were measurably
+> wrong — corrected 2026-09-25.** It is kept in the right-hand column because the
+> VPS stack is still the rollback path and `docker-compose.prod.yml` still ships;
+> what changed is which column an agent should design against.
+>
+> The production target is **Ethio Telecom shared hosting under Plesk**. The VPS
+> assets are retained only until that cutover is verified — see
+> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) and
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md), which defines
+> the trigger and records that it **has not fired**.
 
-No cloud-provider-specific services. Must run on:
-- Ethiopian VPS / hosting providers
+| Production target (shared hosting) | VPS target (rollback path) |
+|---|---|
+| Plesk on Linux; no root, **no shell** (SSH Forbidden) | Ubuntu Server 22.04+ |
+| — *no container runtime* | Docker Engine 24+ / Compose v2 |
+| nginx proxying to Apache; `.htaccess` **is** processed | Nginx reverse proxy |
+| Certificate managed by Plesk | Let's Encrypt TLS |
+| **No Redis** — `CACHE_STORE`/`SESSION_DRIVER`/`QUEUE_CONNECTION=database` | Redis 7+ |
+| MariaDB 10.11+ | MariaDB 10.11+ |
+| — *no Supervisor*; no long-running process of any kind | Supervisor (process management) |
+| **PHP 8.3.33** (panel reading); `composer.json` requires `^8.2` | PHP-FPM 8.2 |
+| **Node 24** for CI and the gates (`.nvmrc`) | Node.js 20 LTS |
+
+Three corrections worth stating rather than silently applying:
+
+- **`Node.js 20 LTS` was the dangerous one.** Node 20 went end-of-life on
+  2026-04-30, and pinning it is **cause 5** of the five structural failures that
+  kept CI red for fifty runs (root `CLAUDE.md`). `.nvmrc` says **24**, and every
+  workflow reads it through `node-version-file` — verified 2026-09-25 across all
+  four `setup-node` steps. Do not restate that number anywhere else.
+
+  **There is a second declaration, and it is deliberate, not drift:**
+  `docker/frontend/Dockerfile` is `FROM node:22-alpine` and both builds and runs
+  `server.js`. `.nvmrc` governs CI and the gates; the Dockerfile governs the
+  frontend **app runtime**, and the Plesk Node branch cites it as the reason the
+  account's Node 22.23.2 is acceptable (`deployment/VPS-DECOMMISSION.md` §2).
+  `src/package.json` declares no `engines` field, so those two files are the whole
+  story. Satisfying the runtime pin does **not** satisfy the CI pin — do not
+  relax 24 to fit a host.
+- **`Redis 7+` was never load-bearing.** `grep` over `api/app/` finds **zero**
+  calls — measured 2026-09-25, matching `audit/BASELINE.md` §6. The coupling was
+  configuration-only, and every config default is now `database` or `local`.
+- **`PHP-FPM 8.2`** is the CI matrix and the `composer.json` floor, not the
+  deployment target's version.
+
+No cloud-provider-specific services, on either target. Must run on:
+- Ethiopian shared hosting under Plesk — **the production target**
+- Ethiopian VPS / hosting providers — the rollback path
 - Local data centers
 - Private servers
 - International cloud (AWS, DO, Hetzner) as optional upgrade
