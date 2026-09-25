@@ -87,7 +87,36 @@ ask 3 of the support request. Tracked as **G0-F**.
 Server version and charset are **G0-I, NOT VERIFIED**. Below MariaDB 10.2.7 / MySQL 5.7.9,
 `migrate` fails on the first migrations.
 
-### A3. Node.js — *Node.js*
+### A3. Node.js — *Node.js* · **the plan forecloses this branch; see the box**
+
+> ### The plan forecloses this branch, and says why — read before enabling anything
+>
+> **`SHARED_HOSTING_PLAN.md` §5.1 states it outright:**
+>
+> > **#8 / G0-A path routing** — *"Consequence: §3A's **B (Node on Plesk)** is foreclosed, and
+> > **A (static export)** is the only frontend path."*
+> > **#7 / G0-G Node runtime — MOOT** — *"the panel offers a startable Node app MEASURED
+> > (2026-09-22) — but with #8 denied there is nothing to split `/api/*` from `/`, so the
+> > runtime being present buys nothing."*
+>
+> **The runtime being available is not the question. Routing is.** A Node application and a
+> PHP front controller both want `/`. Splitting them needs the *Additional nginx directives*
+> field — **G0-A** — and neither directive textarea appears on *Apache & nginx Settings*,
+> read twice. That is `NOT VERIFIED` with **strong evidence of FAIL**, and §5 adopts denial
+> as its working assumption.
+>
+> **This is the "who serves `/`" question raised in PR #100, and the plan had already
+> answered it.** It was recorded there as unverified; §5.1 shows the analysis was done.
+>
+> **What that means practically.** The Node branch is viable *only* if G0-A turns out to
+> work — a single panel reading nobody has taken since. Under the plan's working assumption
+> it does not, and **static export (§3A Option A, ≈8 days, 6–11 realistic) is the only
+> frontend path**. Do not enable the Node application expecting it to serve the product until
+> G0-A is answered; enabling it to *answer* the routing question is fine and cheap.
+>
+> **Nothing here reverses the owner's choice** — it states the dependency that choice has,
+> which was not on the table when it was made.
+
 
 Set **Application Startup File** to **`server.js`**.
 
@@ -261,7 +290,7 @@ Three of these are yours; none of them can be answered from the repository.
 | | What | Why it matters |
 |---|---|---|
 | **1** | **Send the support request** — cron, SSH, `TRIGGER` | Unblocks installation (Part C) and `migrate` (G0-F) |
-| **2** | **Who serves `/` — Node or PHP?** | The panel read *Application URL* `http://ethr.et`. If Plesk mounts the Node app at the domain root, `/api/v1/...` may never reach `index.php` and the same-origin layout does not exist. **Enable the app, fetch one API route and one frontend route, see which answers.** Do not infer it from Plesk's documentation. The static-export fallback in `DEPLOYMENT.md` step 5 has no such question |
+| **2** | **G0-A — is there an *Additional nginx directives* field at all?** | **This supersedes the "who serves `/`" question, which the plan had already answered.** `SHARED_HOSTING_PLAN.md` §5.1 forecloses the Node branch: without directive support there is nothing to split `/api/*` from `/`, so a startable Node runtime *"buys nothing"*. One panel reading settles it. If absent — the standing strong evidence — **static export is the only frontend path** and the Node branch is dead, not deferred |
 | **3** | **Q6 — pick the cron caller** | Part D is otherwise ready |
 | **4** | **G0-B.1–B.5** — the canary has never been fetched | Whether `.htaccess` is honoured at all. A canary exists in `ethr.et/ethr-canary`; if the root moves first it must be re-uploaded |
 
