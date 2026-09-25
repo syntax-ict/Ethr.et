@@ -1,11 +1,20 @@
 # ETHR — Document root .htaccess for Ethio Telecom shared hosting (Plesk)
 #
 # Goes at <DOCROOT>/.htaccess. Companion to the repointed <DOCROOT>/index.php.
-# <DOCROOT> is the served directory: `httpdocs/`, Plesk's default and the target chosen
-# 2026-09-24. It is NOT httpdocs/ -- see DEPLOYMENT.md "Deploy path -- corrected".
-# (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing
-# and security work nginx did on the VPS (infrastructure/nginx-common.conf),
-# translated to what Apache/Plesk actually offers on shared hosting.
+# <DOCROOT> is the served directory: `httpdocs/`, Plesk's default and the target
+# confirmed by measurement on 2026-09-24. See DEPLOYMENT.md "Deploy path".
+#
+# (Corrected 2026-09-25. These two lines used to end "It is NOT httpdocs/",
+# left over from when the target was believed to be `ethr.et/` — so the file
+# named httpdocs/ as the target and denied it in the next sentence. A
+# deployment file that contradicts itself about the document root is the one
+# place that mistake is expensive: the wrong answer web-serves ~/ethr/api/.env.)
+#
+# (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing and
+# security work nginx did on the VPS, rewritten for what Apache/Plesk actually
+# offers on shared hosting. `infrastructure/nginx-common.conf` is where that
+# work came from historically; it is NOT a file this one must be kept in sync
+# with. See the response-headers section for why that distinction is load-bearing.
 #
 # Layout this assumes:
 #   ~/ethr/              Laravel app — NOT web-accessible (not the document
@@ -123,9 +132,34 @@
 </IfModule>
 
 # ── Response headers ─────────────────────────────────────────────────────
-# Mirrors infrastructure/nginx-common.conf's security headers. Kept
-# byte-identical in content (not just intent) so a security scan run against
-# this deployment matches the one already run against the VPS.
+#
+# THIS BLOCK IS THE AUTHORITY for shared hosting. Nothing else needs to agree
+# with it, and nothing else is checked against it.
+#
+# It used to say: "Mirrors infrastructure/nginx-common.conf's security headers.
+# Kept byte-identical in content (not just intent) so a security scan run
+# against this deployment matches the one already run against the VPS."
+#
+# **That was false when written, and measurably so — 2026-09-25.** The two CSPs
+# differ in six places, and this file's own comment three lines below already
+# explained two of them, so the claim contradicted its own neighbour:
+#
+#   img-src          nginx: 'self' data: blob:        here: + https:
+#   font-src         nginx: 'self'                    here: + data:
+#   connect-src      nginx: 'self' wss:               here: no wss:
+#   frame-ancestors  nginx: absent                    here: 'none'
+#   base-uri         nginx: absent                    here: 'self'
+#   form-action      nginx: absent                    here: 'self'
+#
+# Every difference is deliberate and this file is the STRICTER of the two: it
+# adds the three clickjacking/injection directives nginx never carried, and
+# drops `wss:` because Reverb is not deployed here. So the sync obligation was
+# not merely unmet — meeting it would have LOOSENED this deployment.
+#
+# The practical consequence, and the reason this is spelled out rather than
+# quietly corrected: a VPS security scan does not transfer here. Scan this
+# deployment. And `infrastructure/nginx-common.conf` can be deleted without
+# touching this file, which is what the sync claim was preventing.
 <IfModule mod_headers.c>
     Header always set X-Frame-Options "DENY"
     Header always set X-Content-Type-Options "nosniff"
@@ -151,13 +185,21 @@
 </IfModule>
 
 # ── PHP execution time for the payroll/import routes ─────────────────────
-# nginx gave /api/v1/payroll and /api/v1/employees/import 120s
-# (infrastructure/nginx-common.conf's `@payroll_php` block); everything else
-# got 30s. Apache/PHP-FPM here has one execution-time budget for the whole
-# vhost — set it to the higher figure and rely on Horizon's `payroll` queue
-# timeout (1800s, config/horizon.php) no longer applying (jobs run under cron
-# now — see DEPLOYMENT.md "Queue and scheduler"), not on a route-specific
-# override this layer cannot express.
+# 120s, because Apache/PHP-FPM here has ONE execution-time budget for the whole
+# vhost and the payroll and import routes are the ones that need the most. This
+# layer cannot express a route-specific override, so the highest figure wins.
+#
+# (Historically: nginx gave /api/v1/payroll and /api/v1/employees/import 120s
+# and everything else 30s. That is where the number comes from; it is not a
+# constraint this file inherits.)
+#
+# (Corrected 2026-09-25. This ended "and rely on Horizon's `payroll` queue
+# timeout (1800s, config/horizon.php) no longer applying". **There is no
+# Horizon.** It was removed in cdf85d1: `laravel/horizon` appears zero times in
+# api/composer.lock and api/config/horizon.php does not exist — both measured
+# today. There is also no `payroll` queue; QueueHealth::QUEUES is default,
+# attendance, notifications, exports. The sentence reasoned about a timeout in
+# a config file that has not existed for weeks.)
 <IfModule mod_php.c>
     php_value max_execution_time 120
 </IfModule>

@@ -61,10 +61,15 @@ the distance is not a formality — the installation step has no route at all. S
 Read this section before the removable list, because it is the part that is easy to get
 wrong and expensive to get wrong.
 
+*(One row below is struck through: `infrastructure/nginx-common.conf` was freed on
+2026-09-25 and is now removable. It is kept in the table rather than deleted from it,
+because the reason it was thought load-bearing is worth reading before something else is
+assumed to be.)*
+
 | Asset | Why it stays |
 |---|---|
 | **`docker/frontend/Dockerfile`** | **It is the only declaration of the frontend runtime version** — `FROM node:22-alpine`, which both builds and runs `server.js`. The Plesk **Node.js branch depends on it**: `PLESK-HOSTING-GUIDE.md` §5b and `shared-hosting/DEPLOYMENT.md` step 5 both cite it as the reason the account's Node 22.23.2 is correct. Cited by **8 documents**. Deleting it removes the new target's version pin, not the old target's. |
-| **`infrastructure/nginx-common.conf`** | **It is the source of the shared-hosting security headers.** `shared-hosting/.htaccess` and `shared-hosting/nginx-directives.conf` are translations of it and say so. Delete it and the deployment headers lose their origin — and the two translations lose the thing they must be kept in sync with. |
+| ~~`infrastructure/nginx-common.conf`~~ | **NO LONGER LOAD-BEARING — freed 2026-09-25, and it is now removable.** This read: *"It is the source of the shared-hosting security headers... the two translations lose the thing they must be kept in sync with."* The sync obligation was **never met**: the `.htaccess` and nginx CSPs differ in six places, measured today, and the shared-hosting pair is the *stricter* one — it adds `frame-ancestors`, `base-uri` and `form-action`, which nginx never carried, and drops `wss:` because Reverb is not deployed. Honouring the obligation would have **loosened** the deployment. Both files now declare the shared-hosting headers as their own authority and name this file only as provenance, so it can be deleted without touching either. |
 | **`docker-compose.yml`** | Local development. `CLAUDE.md` names it as *the* way to run the four processes; `scripts/gates.sh` falls back to `docker exec` against its container in five places. |
 | **`docker-compose.test.yml`** | Testing. |
 | **`docker/php/*`** (`Dockerfile`, `php.ini`, `www.conf`) | The development container `gates.sh` execs into. `php.prod.ini` and `www.prod.conf` are the production halves and belong in the removable list. |
@@ -192,8 +197,12 @@ change answer two unrelated questions.
 
 1. **Confirm all three trigger clauses**, not just the cutover. The rehearsal is the one that
    makes this reversible-to-irreversible step safe.
-2. **Relocate `infrastructure/nginx-common.conf`'s content first**, or keep the file. Nothing
-   else in the removable list has a dependency that must move ahead of it.
+2. ~~**Relocate `infrastructure/nginx-common.conf`'s content first**, or keep the file.~~
+   **Done 2026-09-25 — nothing to relocate.** The shared-hosting files were not
+   translations needing a source; they had already diverged, deliberately and in the safe
+   direction. They now say so and stand alone. This step is closed, and the file moves from
+   §2 to the removable set. Nothing else in the removable list has a dependency that must
+   move ahead of it.
 3. **Remove the §3 assets and update the documents that cite them in the same change.** 13
    documents cite `docker-compose.prod.yml` alone; a removal that leaves them pointing at
    nothing trades a stale asset for a stale document, which is the worse of the two because
