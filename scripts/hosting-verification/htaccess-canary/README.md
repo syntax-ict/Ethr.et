@@ -12,13 +12,20 @@ This directory is the opposite trade: **it is web-reachable and discloses nothin
 |---|---|
 | `RUN-SHEET.md` | **Offline checklist** — browser and Plesk File Manager only, no shell. Stays in the repository like this file; not uploaded |
 | `.htaccess` | The rules under test — rewrite, headers, deny, `Authorization` forwarding |
-| `canary.php` | Reports what arrived, prints the **five** `curl` checks to run |
-| `secret.txt.probe` | Bait. Must return **403**. Contains nothing confidential |
+| `canary.php` | Reports what arrived, prints the **eight** `curl` fetches to run |
+| `secret.env.probe` | **Bait for the deployment's own deny mechanism** (`RewriteRule ... [F,L]`), added 2026-09-25. Must return **403**. This is the one whose result predicts production. Contains nothing confidential |
+| `secret.txt.probe` | Bait for `<FilesMatch>` + `Require all denied` — an authorization grant the deployment does **not** use. Must return **403**. **Run both; they can legitimately disagree**, because `AllowOverride` can grant `FileInfo` while withholding `Limit`. Contains nothing confidential |
 | `shadow.txt` | Bait for G0-B.5. Exists on disk *and* is rewritten, so the response says which layer won. Contains nothing confidential |
 | `shadow.js` | **The same bait with a static extension, and the one that counts.** Added 2026-09-18 after measurement: Plesk's "serve static files directly by nginx" block always covers js/css/images but only *sometimes* covers `.txt`, so `shadow.txt` alone reports "the rewrite won" on a host that is shadowing every asset the deployment ships. **Run both; they can legitimately disagree.** Contains nothing confidential |
 
+*Counts corrected again 2026-09-25 — six files, eight fetches.* `secret.env.probe` was
+added because the canary had been testing `<FilesMatch>`/`Require all denied` while the
+deployment denies with `RewriteRule ... [F,L]`, and G0-B.2 gained a second fetch because
+this directory was setting two of the deployment's seven headers while claiming a scan of
+it "reflects what the deployment would set". Both are measured, not inferred.
+
 *Counts corrected 2026-09-19.* This file said "four" files and, ten lines apart, both
-"three" and "four" curl checks. It is five and five: `shadow.js` was added on 2026-09-18
+"three" and "four" curl checks. It was five and five: `shadow.js` was added on 2026-09-18
 as the second G0-B.5 bait and the counts here were never brought along. Six fetches in
 total.
 
@@ -64,7 +71,7 @@ correct, not a failure: only `/REWRITE_OK` answers B.1 — see step 3. This step
 baseline reading (server software, SAPI) and a check that the directory is reachable at
 all.
 
-### 3 · Run the six fetches
+### 3 · Run the eight fetches
 
 `canary.php` prints these too, but without `--resolve` — it builds them from the hostname
 in the request it receives, so it cannot add the flag for you. Use these instead:
@@ -76,10 +83,16 @@ U="https://www.ethr.et/ethr-canary"
 # G0-B.1  mod_rewrite
 curl $R -s "$U/REWRITE_OK" | grep -E "G0-B.1|PASS"
 
-# G0-B.2  mod_headers
+# G0-B.2  mod_headers — RUN BOTH. The marker alone proves only that the two
+#         SHORTEST headers survived; CSP is the one an intermediary mangles.
 curl $R -sI "$U/canary.php" | grep -i x-ethr-canary
+curl $R -sI "$U/canary.php" | grep -ci content-security-policy   # expect 1
 
 # G0-B.3  deny rules        <-- the deployment blocker
+#         RUN BOTH. secret.env.probe uses RewriteRule [F,L], which is what the
+#         deployment's .htaccess actually uses; the .txt bait uses
+#         <FilesMatch>/Require, which it does not. They can disagree.
+curl $R -s -o /dev/null -w '%{http_code}\n' "$U/secret.env.probe"
 curl $R -s -o /dev/null -w '%{http_code}\n' "$U/secret.txt.probe"
 
 # G0-B.4  Authorization forwarded
@@ -145,8 +158,8 @@ a plausible wrong answer is worse than an error.
 A 404 after a successful upload means the request is **not served from the directory you
 uploaded into**. That is a document-root/vhost fact, not a `.htaccess` fact.
 
-**None of the five checks is meaningful until it is fixed**, and each would misreport:
-a 404 on `secret.txt.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads as
+**None of the checks is meaningful until it is fixed**, and each would misreport:
+a 404 on either `secret.*.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads as
 "`mod_rewrite` off", and both conclusions would be wrong. Do not record a G0-B failure.
 
 1. Record it against the `document root editable` row in `GATE-0-RESULT.md`, not a G0-B row.
@@ -154,7 +167,7 @@ a 404 on `secret.txt.probe` reads as "not a pass", a 404 on `REWRITE_OK` reads a
    be `httpdocs`.
 3. Establish which vhost answered: compare `www.ethr.et` against a name known to hit the
    server default (`zzq7x.ethr.et`). Same page → the `ethr.et` vhost is not serving you.
-4. Re-upload all **five** files (`.htaccess`, `canary.php`, `secret.txt.probe`, `shadow.txt`, `shadow.js`) into the confirmed document root.
+4. Re-upload all **six** files (`.htaccess`, `canary.php`, `secret.env.probe`, `secret.txt.probe`, `shadow.txt`, `shadow.js`) into the confirmed document root.
 5. Re-open `canary.php`. Only once it loads do G0-B.1 – G0-B.5 mean anything — and then
    fetch `/REWRITE_OK` for B.1, which opening `canary.php` never answers.
 

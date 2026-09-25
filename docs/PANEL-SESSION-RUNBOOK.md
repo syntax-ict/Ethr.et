@@ -132,12 +132,15 @@ What this section adds is only the framing and the sequencing.
 
 **Location:** Plesk → **Files** (File Manager) → `httpdocs` → create `ethr-canary`.
 
-**Upload all five files** from `scripts/hosting-verification/htaccess-canary/` in the
+**Upload all six files** from `scripts/hosting-verification/htaccess-canary/` in the
 repository:
 
 ```
-.htaccess   canary.php   secret.txt.probe   shadow.txt   shadow.js
+.htaccess   canary.php   secret.env.probe   secret.txt.probe   shadow.txt   shadow.js
 ```
+
+`secret.env.probe` joined the set on 2026-09-25. **A run without it silently skips the
+only deny test that matches the deployment**, and still prints a G0-B.3 verdict.
 
 `README.md` stays in the repository — it explains the baits and there is no reason to
 publish it.
@@ -147,18 +150,25 @@ publish it.
 > confirm afterwards that it is actually there. **If `.htaccess` is missing, every result in
 > this part is a false FAIL** — the canary would be measuring a directory with no rules in it.
 
-**Then: six fetches, five gates.** The run sheet numbers them; the summary of what each is
+**Then: eight fetches, five gates.** The run sheet numbers them; the summary of what each is
 for, so you know when one has gone wrong:
 
 | Fetch | Gate | What it answers |
 |---|---|---|
-| 1 of 6 | — | baseline; `G0-B.1` deliberately reads `[ ???? ]` here |
-| 2 of 6 | **G0-B.1** | `mod_rewrite` — **only** `/ethr-canary/REWRITE_OK` answers this |
-| 3 of 6 | **G0-B.3** | deny rules — **the deployment blocker** |
-| 4 of 6 | **G0-B.5 (a)** | `shadow.txt` — the weaker bait |
-| 5 of 6 | **G0-B.5 (b)** | `shadow.js` — **the authoritative bait** |
-| 6 of 6 | **G0-B.2** | `mod_headers` — needs DevTools |
+| 1 of 8 | — | baseline; `G0-B.1` deliberately reads `[ ???? ]` here |
+| 2 of 8 | **G0-B.1** | `mod_rewrite` — **only** `/ethr-canary/REWRITE_OK` answers this |
+| 3 of 8 | **G0-B.3 (a)** | `secret.txt.probe` — `<FilesMatch>`/`Require`, the weaker bait |
+| 4 of 8 | **G0-B.3 (b)** | `secret.env.probe` — `RewriteRule [F,L]`, **the deployment's own mechanism and the deployment blocker** |
+| 5 of 8 | **G0-B.5 (a)** | `shadow.txt` — the weaker bait |
+| 6 of 8 | **G0-B.5 (b)** | `shadow.js` — **the authoritative bait** |
+| 7 of 8 | **G0-B.2 (a)** | `mod_headers` marker — needs DevTools |
+| 8 of 8 | **G0-B.2 (b)** | **does `content-security-policy` survive?** Same panel, same reload |
 | bonus | **G0-B.4** | `Authorization` reaches PHP — DevTools console |
+
+**Three gates now produce two answers each** (B.2, B.3, B.5), so five gates means **seven
+numbers**. Each pair tests a genuinely different capability and can legitimately disagree;
+record both halves. Collapsing a disagreeing pair into one verdict throws away precisely
+what the second fetch was added to find.
 
 **Three traps the run sheet spells out, repeated here because each silently voids a gate:**
 

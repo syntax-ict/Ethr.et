@@ -2920,11 +2920,12 @@ unverified workaround; the other is an owner decision. Both are below.
 ### In priority order
 
 1. **Run the canary. It is now the critical path, not one item among several.**
-   `scripts/hosting-verification/htaccess-canary/` — five files, six fetches, no shell, no
-   cron, no ticket. **Without a shell, work through
+   `scripts/hosting-verification/htaccess-canary/` — six files, eight fetches, no shell, no
+   cron, no ticket. *(Was five and six until 2026-09-25: G0-B.2 and G0-B.3 each gained a
+   second fetch, because each was measuring something the deployment does not do.)* **Without a shell, work through
    [`../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md)**,
-   which is the same six fetches with browser DevTools steps for the two that need request
-   or response headers.
+   which is the same eight fetches with browser DevTools steps for the ones that need
+   request or response headers.
 
    It is first because G0-A's denial forecloses the Node branch, which makes **static
    export the only frontend path**, and static export is bounded *only if `.htaccess` is
