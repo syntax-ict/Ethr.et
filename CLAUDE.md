@@ -329,5 +329,6 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | Documentation index | [`docs/README.md`](docs/README.md) |
 | Deployment target status | [`docs/deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) |
 | Deploying to Plesk shared hosting | [`docs/deployment/PLESK-HOSTING-GUIDE.md`](docs/deployment/PLESK-HOSTING-GUIDE.md) |
+| **Hard rule — Plesk defaults only** | [`docs/deployment/SHARED-HOSTING-CONTRACT.md`](docs/deployment/SHARED-HOSTING-CONTRACT.md) — outranks every deployment doc |
 
 Production target is Ethio Telecom Linux shared hosting under Plesk. The VPS and Docker production assets are kept only until that cutover is verified.

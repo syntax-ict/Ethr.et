@@ -221,7 +221,12 @@ panel reading and deleting a vhost is not deleting a folder.
 
 ---
 
-## 5b. Node.js — chosen by the owner, **foreclosed by the plan**
+## 5b. Node.js — **forbidden by the hard rule.** Do not enable it
+
+> **Superseded 2026-09-25.** This section read *"chosen by the owner, foreclosed by the
+> plan"*. The hard rule in [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md)
+> settles it: a Plesk extension may not be a requirement, and neither may the directive
+> field it would need. The readings below stay as evidence.
 
 > ### The plan forecloses this branch, and says why — read before enabling anything
 >
@@ -268,7 +273,7 @@ artifact on Node 22 to match the runtime.
 ### Plesk — *Node.js*
 
 Read 2026-09-22: version **22.23.2**, npm, *Enable Node.js* and *Run Node.js commands* both
-offered. Set **Application Startup File to `server.js`** — the panel read `app.js`, which is
+offered. ~~Set **Application Startup File to `server.js`**~~ — **do not**; recorded because the panel read `app.js`, which is
 Plesk's default and wrong for a Next standalone build. A mismatched entry point fails at
 start, loudly, which is the good kind.
 
@@ -308,7 +313,7 @@ start, loudly, which is the good kind.
 3. Create the database and user
 4. Reconfigure Git deployment when you are ready — path **`/ethr/`**, set before the first deploy (it was removed 2026-09-18)
 5. **Document root — do nothing.** It is already `httpdocs`, measured over HTTP 2026-09-24. Editing that field is B-7's Trap 1 (§5a)
-6. **Set the Node.js startup file to `server.js`** (§5b), then answer the Application-URL question
+6. ~~**Set the Node.js startup file to `server.js`**~~ — **removed 2026-09-25.** The hard rule forbids requiring the Node.js extension; there is nothing to configure (§5b)
 7. Send the support request — cron, SSH, `TRIGGER`
 
 **Blocked on the provider**
