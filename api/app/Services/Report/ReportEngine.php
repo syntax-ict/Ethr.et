@@ -10,27 +10,7 @@ use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
 use Carbon\Carbon;
 
-/**
- * NOT `final`, deliberately — removed 2026-09-25.
- *
- * `RunScheduledReportsJob::handle()` takes this class as a method parameter and
- * wraps each schedule's run in a catch, because one tenant's broken report
- * definition must not stop every other tenant's reports for the day. That catch
- * now also records the failure on the schedule and notifies its recipients, and
- * `final` made the whole branch untestable: neither Mockery nor PHPUnit can
- * double a final class, and `generate()`'s `match` is total (`default => []`),
- * so there is no input that makes the real engine throw.
- *
- * The alternatives were worse. Inducing a genuine database error means DDL
- * inside the test transaction, which SQLite tolerates and MariaDB does not —
- * and CI runs the suite on both. Shipping the branch untested would break this
- * repository's own rule that a feature and its tests land in the same slice.
- *
- * Nothing subclasses it. `final` here was habit, not a constraint anything
- * depended on, and it was costing a test of an error path rather than buying
- * anything.
- */
-class ReportEngine
+final class ReportEngine
 {
     private const SOURCES = [
         'employees' => [

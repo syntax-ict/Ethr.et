@@ -345,11 +345,26 @@ These are hard constraints on every slice. No exceptions.
 > calls one. Proving that needs the route surface, which is a different test and is
 > not written. The four HTTP tests still cover four rows behaviourally.
 >
-> **One row is still unpinned and says so in the test file:** *Notifications — hard
-> delete after 90 days*. There is no Eloquent model for it — `app/Models/` has
-> `NotificationPreference` but nothing mapping the `notifications` table, which
-> Laravel serves through `DatabaseNotification`. That row needs the 90-day sweep
-> tested, not a trait check.
+> **That row is now pinned — 2026-09-25, and behaviourally rather than by trait.**
+> `tests/Feature/DataRetentionSweepTest.php` drives `CleanupExpiredDataJob` and
+> asserts the 90-day cut, **including the boundary**: the job compares with `<`,
+> so a notification exactly 90 days old survives, and a test that only checked
+> 91 and 1 would pass just as happily against `<=` — which deletes a day early,
+> silently, and is noticed only by whoever needed the record.
+>
+> It still has no Eloquent model (`app/Models/` has `NotificationPreference` and
+> nothing mapping the `notifications` table, which Laravel serves through
+> `DatabaseNotification`), so `SoftDeletePolicyTest`'s reflection cannot reach
+> it. That is why this row needed a different kind of test rather than a
+> widened one.
+>
+> **Webhook Deliveries — hard delete after 30 days** was equally unasserted and
+> is covered by the same file, same boundary treatment. Of the three retention
+> rows `CleanupExpiredDataJob` implements, only *Import staging* had a test
+> (`MigrationWorkspaceTest`). The clock is frozen in those tests deliberately:
+> the job calls `now()` after the test does, so on a live clock the boundary row
+> is fractionally too old and gets deleted — an intermittent red for a reason
+> that is not the code's.
 >
 > The original note read *"this table is a convention, not a control"*, and offered
 > three ways out: build the PHPStan rule, widen the test, or stop claiming
@@ -1008,7 +1023,7 @@ All other models MUST have `tenant_id` and use `BelongsToTenant`. The `TenantIso
 |---|---|---|
 | `attendance` | Log to `failed_jobs`, `Queue::failing` alert. `ScanMissingPunchesJob` has a `failed()`; `ScanAttendanceAnomaliesJob` does not | *(unchanged — accurate)* |
 | `notifications` | Log to `failed_jobs` via the hook. **They do retry** — `NotifyExpiringTrialsJob` and `NotifyAnnouncementAudienceJob` both set `$tries = 2`, and neither defines `failed()` | *"Log failure, **do not retry** (notification is stale)"* — the retry claim is false |
-| `exports` | **`RunScheduledReportsJob` now implements both halves** (2026-09-25): a schedule whose run throws gets `scheduled_reports.last_error` written with the reason, and its recipients get `ScheduledReportFailedNotification`. `failed()` logs the sweep dying, which is a different event — see below. **`RunDashboardDigestsJob` still defines no `failed()`** | *"Mark export as `failed`, notify requesting user"* — was **unimplemented**, and `RunScheduledReportsJob`'s own docblock cited this row as if it were in force |
+| `exports` | **`RunScheduledReportsJob` now implements both halves** (2026-09-25): a schedule whose run throws gets `scheduled_reports.last_error` written with the reason, and its recipients get `ScheduledReportFailedNotification`. `failed()` logs the sweep dying, which is a different event — see below. **`RunDashboardDigestsJob` closed the same day**, with the identical defect and the identical fix | *"Mark export as `failed`, notify requesting user"* — was **unimplemented**, and `RunScheduledReportsJob`'s own docblock cited this row as if it were in force |
 | `default` | Log to `failed_jobs`, surfaced by `AdminDashboardController` with retry/dismiss and counted by `SystemHealthService` | *(unchanged — accurate, and verified)* |
 | ~~`payroll`~~ → `default` | `ProcessPayrollJob::failed()` sets the run to `failed`, writes `Log::error` and an `AuditLog` `payroll.failed` record — so a crashed run stops being indistinguishable from a running one. **No tenant admin is notified**; there is no notification on this path at all | *"Mark payroll run as `failed` with error details, **notify tenant admin**"* — half true; also not a real queue |
 | ~~`devices`~~ → `default` | **`PullDeviceEventsJob` has no `failed()`.** Its `handle()` catch sets the device to `error`, writes a failed `DeviceSyncLog`, logs and rethrows. `DeviceOffline` is dispatched from the *success* path — when the adapter reports the device unreachable and it was previously online — so on an exception no event fires and no admin is notified | *"Trigger `DeviceOffline` event, notify admin"* — describes the wrong path; also not a real queue |
@@ -1046,13 +1061,19 @@ over-read:
   `ProcessPayrollJob::failed()`, because that job knows its one tenant and this one sweeps
   every tenant with `withoutGlobalScopes()`.
 
-**`ReportEngine` stopped being `final` in the same change**, recorded here because a
-removed class modifier is easy to mistake for drift. `RunScheduledReportsJob::handle()`
-takes it as a method parameter, neither Mockery nor PHPUnit can double a final class, and
-`generate()`'s `match` is total (`default => []`) — so there was no input that made the
-real engine throw and the entire catch branch was untestable. Inducing a genuine database
-error instead would need DDL inside the test transaction, which SQLite tolerates and
-MariaDB does not, and CI runs the suite on both.
+**`ReportEngine` is `final` again — that removal was unnecessary, and reverting it is the
+correction.** The claim above was that the catch branch could not be tested without
+doubling the engine. It was wrong: `run()` calls `$currentTenant->set($tenant)` *before* it
+touches any service, and **`CurrentTenant` was never final**. Doubling that reaches the
+same catch, leaves every analytics service sealed, and needed no production change at all.
+
+The reasoning that produced the mistake is worth keeping, because it was nearly right: a
+final class genuinely cannot be doubled, `generate()`'s `match` genuinely is total
+(`default => []`), and inducing a real database error genuinely would need DDL inside the
+test transaction, which SQLite tolerates and MariaDB does not. What it skipped was asking
+whether the *engine* was the only reachable seam. It was not — it was just the most
+obvious one. **`RunDashboardDigestsJob` used that seam from the start**, so
+`ExecutiveDashboardService` and `AlertEvaluator` are both still `final`.
 
 **The `devices` row is the one worth a decision rather than a doc edit.** `offline`
 (the reachability check says down) and `error` (the sync machinery threw) are

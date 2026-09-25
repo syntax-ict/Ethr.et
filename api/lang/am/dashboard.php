@@ -17,6 +17,8 @@ return [
     'upcoming_holidays' => 'መጪ በዓላት',
     'no_data' => 'ለተመረጠው ጊዜ ምንም ውሂብ አልተገኘም።',
     'digest_subject' => 'የ:frequency ዳሽቦርድ ማጠቃለያዎ',
+    'digest_failed_subject' => 'የ:frequency ዳሽቦርድ ማጠቃለያዎ አልተሳካም',
+    'digest_failed_body' => 'ማጠቃለያው ሊዘጋጅ ስላልቻለ ምንም አሃዞች አልተላኩም። ቀጣዩ ሩጫው እንደተለመደው ተይዟል። ተደጋግሞ ካልተሳካ አስተዳዳሪን ያነጋግሩ።',
     'digest_greeting' => 'ይህ የ:frequency ማጠቃለያዎ እስከ :date ድረስ ነው።',
     'digest_headcount' => 'የሰራተኛ ብዛት፦ :active ንቁ / :total ጠቅላላ',
     'digest_attendance' => 'የዛሬ የመገኘት ምጣኔ፦ :rate%',
