@@ -31,11 +31,11 @@ Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercou
 
 The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers predate the Docker setup. `RUN_ALL.ps1` prints "SQLite" while the documented stack is MariaDB, and starts neither the worker nor Reverb.
 
-### 4. Tenant isolation is fail-closed, and bypassed in 158 places
+### 4. Tenant isolation is fail-closed, and bypassed in 159 places
 
 `BelongsToTenant` adds a global scope that applies `whereRaw('0 = 1')` when no tenant is resolved — absence of context yields *no* rows, not *all* rows. That design is why this product is safe by default.
 
-There are **158** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 56 files, counted with PHP's tokeniser against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. It was 157/55 from 2026-09-23 until 2026-09-25, when `Listeners/NotifyDeviceSyncFailed.php` added one: a queued admin lookup that re-applies `tenant_id` derived from the device, mirroring `NotifyDeviceOffline` beside it. It was 156/54 from 2026-09-22 until §11h added one: a deliberately cross-tenant device-serial uniqueness check, which states no `tenant_id` because uniqueness there is global by design.
+There are **159** `withoutGlobalScope` / `withoutGlobalScopes` call sites across 57 files, counted with PHP's tokeniser against `tests/Feature/Security/tenant-scope-bypasses.php` and matching it exactly. Two entered on 2026-09-25, both queued listeners whose admin lookup re-applies `tenant_id` derived from a tenant-owned row: `Listeners/NotifyPayrollRunFailed.php` (159th) and `Listeners/NotifyDeviceSyncFailed.php`, the latter being the one that took it from 157/55: a queued admin lookup that re-applies `tenant_id` derived from the device, mirroring `NotifyDeviceOffline` beside it. It was 156/54 from 2026-09-22 until §11h added one: a deliberately cross-tenant device-serial uniqueness check, which states no `tenant_id` because uniqueness there is global by design.
 
 **This figure read 161/55 for four days, and overcounted by exactly five.** Counting was `preg_match_all` over raw file text, which cannot tell a call from the same words in a comment — and five matches were comments, every one in a file whose docblock explains why its bypass is safe. `Http/Middleware/EnsurePlatformContext.php` has left the inventory entirely: its only match was always a docblock.
 
@@ -194,9 +194,9 @@ other one, which is why 50 fell by one and not two.
 the five `if` blocks are deleted, and each lookup states the predicate on its own chain.
 **The figure is now 113 of 157 prove their own safety, 44 do not** — the ceiling §11i named
 as reachable by deletion. *(That pair is the 2026-09-23 reading and is left as measured.
-`NotifyDeviceSyncFailed` joined the inventory on 2026-09-25, making it **114 of 158**: it
-states `tenant_id` on its own chain, derived from the device, so it enters the self-proving
-class and the 44 is unchanged. Re-measuring the whole set is a separate pass, and quietly
+`NotifyDeviceSyncFailed` and `NotifyPayrollRunFailed` joined the inventory on 2026-09-25,
+making it **115 of 159**: each states `tenant_id` on its own chain, derived from a
+tenant-owned row, so both enter the self-proving class and the 44 is unchanged. Re-measuring the whole set is a separate pass, and quietly
 incrementing a figure nobody re-derived is how these drift.)* The remaining 44 are gates, pre-authentication secrets, global
 models and sweeps, where a predicate is impossible or contrary to the feature; closing any
 of those would be a behaviour change, not a tightened signature.

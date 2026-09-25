@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Events\PayrollProcessed;
+use App\Events\PayrollRunFailed;
 use App\Models\AuditLog;
 use App\Models\PayrollRun;
 use App\Services\Payroll\PayrollEngine;
@@ -164,5 +165,15 @@ class ProcessPayrollJob implements ShouldQueue
             'period' => $run->period_label,
             'error' => $e->getMessage(),
         ]);
+
+        // Dispatched last, and only inside this block, so it fires exactly when
+        // this call is the one that marked the run `failed`. The early return
+        // above means a run already failed or completed does not notify twice.
+        //
+        // An event rather than an inline send: the admin lookup needs a
+        // tenant-scope bypass, which belongs in a listener beside the other
+        // three rather than in a job's failure handler, and a notification
+        // transport that throws here must not cost the AuditLog written above.
+        PayrollRunFailed::dispatch($run, $e->getMessage());
     }
 }

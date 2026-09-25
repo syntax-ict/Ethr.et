@@ -3,11 +3,18 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Events\PayrollRunFailed;
 use App\Jobs\ProcessPayrollJob;
+use App\Listeners\NotifyPayrollRunFailed;
 use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use App\Models\User;
+use App\Notifications\PayrollRunFailedNotification;
+use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollEngine;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 
 /**
@@ -167,4 +174,103 @@ it('leaves a finished run alone when failed() fires late', function () {
     // A completed run must not be flipped to failed by a late signal from a
     // worker that already lost its lease.
     expect($run->refresh()->status)->toBe('completed');
+});
+
+/**
+ * A crashed payroll run told nobody.
+ *
+ * `ProcessPayrollJob::failed()` marked the run `failed`, wrote a `Log::error`
+ * and an `AuditLog` `payroll.failed` record — so a crashed run stopped being
+ * indistinguishable from a running one, which was the important half. But
+ * docs/CLAUDE.md's queue-recovery table specifies "mark payroll run as failed
+ * with error details, **notify tenant admin**", and there was no notification
+ * on this path at all.
+ *
+ * It matters more here than on any other queue. `$tries = 1` is deliberate: a
+ * failed run must be inspected and re-submitted by a human rather than silently
+ * retried. The design already assumed someone finds out, and the only way they
+ * found out was opening the dashboard — for a monthly run, potentially days.
+ */
+describe('a failed run reaches the people who can act on it', function () {
+    it('notifies finance and tenant admins, with the reason', function () {
+        Notification::fake();
+
+        $tenant = createTenant();
+        $financeAdmin = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::FINANCE_ADMIN->value,
+        ]);
+        $tenantAdmin = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::TENANT_ADMIN->value,
+        ]);
+        $run = PayrollRun::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'processing',
+            'period_label' => 'March 2026',
+        ]);
+
+        (new NotifyPayrollRunFailed)->handle(
+            new PayrollRunFailed($run, 'tax table missing for 2026'),
+        );
+
+        foreach ([$financeAdmin, $tenantAdmin] as $admin) {
+            Notification::assertSentTo($admin, PayrollRunFailedNotification::class, function ($notification) use ($admin) {
+                $mail = $notification->toMail($admin);
+                $rendered = $mail->subject.' '.implode(' ', $mail->introLines);
+
+                // The reason is included, unlike the scheduled-report and digest
+                // failure notices. The audience decides it: these go to
+                // finance_admin and tenant_admin users of the run's own tenant,
+                // already entitled to the run's detail.
+                expect($rendered)->toContain('tax table missing for 2026');
+                expect($rendered)->toContain('March 2026');
+                expect($mail->subject)->not->toStartWith('payroll.');
+
+                return true;
+            });
+        }
+    });
+
+    it('does not reach another tenant, even from a worker with no tenant resolved', function () {
+        Notification::fake();
+
+        $owner = createTenant();
+        $other = createTenant();
+        $outsider = User::factory()->create([
+            'tenant_id' => $other->id,
+            'role' => UserRole::FINANCE_ADMIN->value,
+        ]);
+        $run = PayrollRun::factory()->create(['tenant_id' => $owner->id, 'status' => 'processing']);
+
+        app(CurrentTenant::class)->forget();
+
+        (new NotifyPayrollRunFailed)->handle(new PayrollRunFailed($run, 'boom'));
+
+        // Dropping the global scope must not widen the query — the explicit
+        // predicate is what keeps the other tenant's finance admin out of it.
+        Notification::assertNotSentTo($outsider, PayrollRunFailedNotification::class);
+    });
+
+    it('fires the event only when this call is the one that marked the run failed', function () {
+        Event::fake([PayrollRunFailed::class]);
+
+        $tenant = createTenant();
+
+        // Already failed, so failed() takes its early return: a job whose
+        // failure handler runs twice, or a run someone else already marked,
+        // must not notify again.
+        $already = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'failed']);
+        (new ProcessPayrollJob($already->id, $tenant->id))->failed(new RuntimeException('boom'));
+        Event::assertNotDispatched(PayrollRunFailed::class);
+
+        $live = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'processing']);
+        (new ProcessPayrollJob($live->id, $tenant->id))->failed(new RuntimeException('tax table missing'));
+
+        Event::assertDispatched(
+            PayrollRunFailed::class,
+            fn (PayrollRunFailed $e) => $e->payrollRun->is($live) && $e->reason === 'tax table missing',
+        );
+        expect($live->refresh()->status)->toBe('failed');
+    });
 });

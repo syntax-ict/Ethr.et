@@ -96,6 +96,7 @@ return [
     'Listeners/NotifyDeviceOffline.php' => 1,
     'Listeners/NotifyDeviceSyncFailed.php' => 1,
     'Listeners/NotifyPayrollProcessed.php' => 1,
+    'Listeners/NotifyPayrollRunFailed.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,
