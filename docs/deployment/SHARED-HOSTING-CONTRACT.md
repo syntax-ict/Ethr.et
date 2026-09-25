@@ -46,6 +46,34 @@ Four things follow, each of which has already cost something in this repository:
 | **Plesk Laravel integration** | Never observed in an otherwise complete dashboard listing; an extension either way | The evidence table below |
 | **SSH, cron grant, `TRIGGER`, a higher plan** | Provider concessions | **B-1**, **G0-D**, **G0-F** |
 
+### The one place this rule collides with something, and it is not mine to resolve
+
+**`migrate` aborts without the `TRIGGER` privilege, deliberately.** The rule forbids
+*requiring* that grant. Both of those are load-bearing, and they point opposite ways.
+
+**Why the abort is not negotiable from the code's side.** `AuditLog`'s `update()` and
+`delete()` overrides are plain instance methods, so **every mass-operation path bypasses
+them** — `DB::table('audit_log')->update()`, `AuditLog::where(...)->delete()`, raw SQL. The
+database trigger is the only thing that stops an audit record being edited, and
+`tests/Feature/AuditLogImmutabilityTest` asserts exactly that by driving the raw query
+builder. An earlier revision downgraded the failure to "log and continue"; it was reverted,
+because it put production in a state the test suite contradicts **while CI stayed green**.
+Convention #5 — immutable audit log — is Non-Negotiable.
+
+**What the rule changes is the shape of the question, not the answer.** Before it, **Q8**
+had three outs: get the grant, accept the downgrade, or don't deploy. **The rule removes the
+first.** Waiting on a concession is exactly what it forbids. So:
+
+| Option | What it costs |
+|---|---|
+| **Accept the downgrade** | Requires building the `AUDIT_LOG_REQUIRE_DB_IMMUTABILITY` flag that `AUDIT_LOG_INTEGRITY_DECISION.md` **deliberately does not build**, and accepting that convention #5 is enforced by instance methods that four code paths walk straight past |
+| **ETHR does not deploy on this account** | The honest other half, and the reason the decision was pre-registered as the owner's rather than an engineering one |
+
+**This is Q8 and it stays the owner's.** It is recorded here because the rule narrowed it and
+somebody reading the rule alone would not see that. Asking Ethio Telecom for the grant is
+still worth doing — under the rule it is upside, and if it arrives this collision
+disappears.
+
 ### The consequence worth stating once
 
 **Static export is the only frontend path**, and that is now settled by rule rather than
