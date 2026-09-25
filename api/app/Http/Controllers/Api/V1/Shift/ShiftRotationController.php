@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Shift;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shift\AssignShiftRotationRequest;
+use App\Http\Requests\Shift\PreviewShiftRotationRequest;
 use App\Http\Requests\Shift\StoreShiftRotationRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftRotationResource;
@@ -20,7 +21,6 @@ use App\Models\ShiftRotationStep;
 use App\Services\Shift\ShiftRotationResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -161,18 +161,12 @@ class ShiftRotationController extends Controller
      * roster view needs, and the only way to see what a cycle actually produces
      * without recomputing the modulo arithmetic client-side.
      */
-    public function preview(Request $request, ShiftRotation $rotation): JsonResponse
+    public function preview(PreviewShiftRotationRequest $request, ShiftRotation $rotation): JsonResponse
     {
         Gate::authorize('view', $rotation);
 
-        $validated = $request->validate([
-            'from' => ['required', 'date'],
-            'to' => ['required', 'date', 'after_or_equal:from'],
-            'anchor_date' => ['nullable', 'date'],
-        ]);
-
-        $from = Carbon::parse($validated['from']);
-        $to = Carbon::parse($validated['to']);
+        $from = Carbon::parse((string) $request->validated('from'));
+        $to = Carbon::parse((string) $request->validated('to'));
 
         // Bounded so a caller cannot ask for a decade and time the request out.
         if ($from->diffInDays($to) > 366) {
@@ -184,7 +178,8 @@ class ShiftRotationController extends Controller
             ], 422)->header('Content-Type', 'application/problem+json');
         }
 
-        $anchor = isset($validated['anchor_date']) ? Carbon::parse($validated['anchor_date']) : $from;
+        $anchorDate = $request->validated('anchor_date');
+        $anchor = $anchorDate !== null ? Carbon::parse((string) $anchorDate) : $from;
 
         $rotation->load('steps.shift');
 

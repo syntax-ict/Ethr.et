@@ -286,7 +286,7 @@ These are hard constraints on every slice. No exceptions.
 | 3 | Integer currency | ETB stored as `BIGINT` minor units (cents). Never use `FLOAT` or `DECIMAL`. Format: `X,XXX.XX ETB`. Use `formatETB(cents)` helper everywhere. |
 | 4 | ULID public IDs | `BIGINT` auto-increment PK (internal). `CHAR(26)` ULID `public_id` (API-facing). Never expose numeric PK in any API response. |
 | 5 | Immutable audit log | Append-only `audit_log` table for all sensitive operations. `AuditLog::record()` helper. Never update or delete audit records. |
-| 6 | FormRequest validation | All validation in dedicated `FormRequest` classes. No inline `$request->validate()`. |
+| 6 | FormRequest validation | All validation in dedicated `FormRequest` classes. No inline `$request->validate()`. **Enforced 2026-09-25** by `tests/Feature/Security/ControllerValidationConventionTest.php`, which tokenises all 105 controllers. It found **one** violation — `ShiftRotationController::preview()`, out of 305 validation sites — now moved to `PreviewShiftRotationRequest`. A lone exception in an otherwise uniform codebase is invisible to review, which sees one file at a time. Be exact about what the gate buys: it asserts no controller validates inline. It does **not** assert every endpoint *has* a FormRequest — a controller that validates nothing passes cleanly — because that needs the route surface, which is a different test and is not written. |
 | 7 | Policy authorization | Every controller action authorized via `Policy` or `Gate`. No unprotected endpoints. Use `$user->hasPermission()` not `$user->role ===`. |
 | 8 | RFC-7807 errors | All API errors return `{ type, title, status, detail, errors? }` as `application/problem+json`. |
 | 9 | i18n keys only | No hardcoded strings. Translation keys for all user-facing text. Ship `en` + `am`. Architecture supports `om`, `ti`, `so`, `sid`. |
@@ -296,6 +296,26 @@ These are hard constraints on every slice. No exceptions.
 | 13 | QueryBoundary pattern | Every data-fetching component must handle all four states: loading (skeleton), empty (CTA), error (retry), success (data). Use `<QueryBoundary>` wrapper. |
 | 14 | Soft delete policy | Follow the entity-level soft delete policy in this document. Never hard-delete employees, attendance, payroll, or audit logs. |
 | 15 | File content verification | After upload, verify file magic bytes match declared content-type. Strip EXIF from images. |
+
+> **Two things learned writing that gate, both worth more than the gate.**
+>
+> **The check is tokenised, and the first draft was wrong.** It matched any
+> `->validate(` and immediately flagged `QrAttendanceController:84` — which is
+> `$this->qrService->validate($token)`, a domain service with a method of that name,
+> in a controller already using a FormRequest correctly. The receiver separates them:
+> `$request->validate(` has a **variable** two tokens back, `$this->qrService->validate(`
+> has a **property name**. Narrowed to that, it catches a request under *any* variable
+> name — which plain `grep '$request->validate('` does not — and leaves services alone.
+> A gate whose first finding is wrong is a gate people route around.
+>
+> **The grep that opened the investigation missed a case the tokeniser caught.** That is
+> the same lesson the tenant-scope inventory records at a different scale: text matching
+> cannot tell code from a comment, a string, or a similarly-named method.
+>
+> The sweep also asserts it scanned **more than 50 files** and that a specific known
+> controller is among them. Without that, a broken directory walk would report the
+> convention as held while checking nothing — which is exactly how `vendor/bin/pest`
+> collected 21 of 132 classes and exited 0 green.
 
 ---
 
