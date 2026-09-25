@@ -1,6 +1,18 @@
 # Retiring the VPS assets — the trigger, and what is *not* removable
 
-**Status: NOT TRIGGERED. Nothing here has been done, and nothing here should be done yet.**
+**Status: NOT TRIGGERED. Nothing here has been done.**
+
+**Directed on 2026-09-25, trigger notwithstanding.** The owner instructed removal — "remove
+all until no vps dependency and the remains shared webhosting" — after the rollback-path
+cost in §1 and the load-bearing set in §2 were put to them. That is their call to make, and
+this line records it rather than the earlier "nothing here should be done yet", which no
+longer describes the instruction in force.
+
+**It was attempted and did not complete.** The deletion step was refused by the agent
+sandbox's permission classifier, so **no file has been removed** and the three trigger
+clauses in §1 remain unmet — the cutover is unverified, the rehearsal unperformed, the
+observation period unstarted. The measurement taken before that step is in §3 below, and it
+found the inventory here materially incomplete. Read it before trying again.
 
 The owner has asked that the VPS files be removed once the migration plan ends
 successfully. This file exists so that instruction is a **defined action with a testable
@@ -8,8 +20,9 @@ trigger and a checked inventory**, rather than a promise someone acts on from me
 day when the details are no longer fresh.
 
 **The headline finding is that "remove the VPS files" is not a clean delete.** Of the
-sixteen assets, **five are load-bearing for the shared-hosting target or for local
-development and CI** — two of them are cited by the very documents that describe the *new*
+sixteen assets *(an undercount — see the 2026-09-25 amendment in §3, which adds
+`api/Dockerfile.prod`, eight scripts and two env templates)*, **five are load-bearing for
+the shared-hosting target or for local development and CI** — two of them are cited by the very documents that describe the *new*
 deployment. Deleting the set wholesale would break the thing the migration is moving *to*.
 
 ---
@@ -77,6 +90,92 @@ Verified as production-VPS-only, 2026-09-24:
 | `infrastructure/nginx.conf`, `infrastructure/supervisor.conf` | VPS-only. **`nginx-common.conf` is not in this list** — see §2 |
 | `infrastructure/certbot-webroot/` | Plesk manages the certificate |
 | `docs/VPS_DEPLOYMENT.md` | The rollback path. **Out last, not first** |
+
+### The §3 list above is incomplete, and its citation count is wrong — measured 2026-09-25
+
+An attempt to execute this removal was made on 2026-09-25 and stopped at the deletion step
+(the sandbox's permission classifier refused it). The measurement taken first is recorded
+here, because **every one of these findings would have been discovered mid-removal**, which
+is the worst moment to discover them.
+
+**1. A test hard-depends on three of the assets, and §3 does not mention it.**
+`api/tests/Feature/DeploymentWorkerConsistencyTest.php` reads files from disk through
+`ETHR_WORKER_ASSETS`:
+
+```php
+const ETHR_WORKER_ASSETS = [
+    'infrastructure/supervisor.conf',
+    'docker-compose.yml',
+    'docker-compose.prod.yml',
+    'docker-compose.lowmem.yml',
+];
+```
+
+Three of those four are on the removal list. Two of its four tests iterate that constant,
+and a **third test exists solely for `docker-compose.prod.yml` and `docker-compose.lowmem.yml`**
+— `it('keeps the unfixed worker stacks marked as broken')`. Deleting the files without
+editing the test turns the **Backend** gate red on the removal commit itself.
+
+The edit is not a deletion of the test. It keeps its purpose against the surviving asset:
+`ETHR_WORKER_ASSETS` becomes `['docker-compose.yml']`, the third test goes with the two
+files it guards, and the header docblock moves to the past tense. The property being
+protected — that the deployment asset starting a worker uses a command that exists and
+drains every queue in `QueueHealth::QUEUES` — still applies to the local stack.
+
+**2. `api/Dockerfile.prod` is missing from §3 entirely.** It exists, it is
+production-VPS-only, and nothing in this document names it.
+
+**3. `docker-compose.prod.yml` is cited by 36 files, not 13.** The 13 in §3 is an
+undercount by a factor of nearly three. Full citation surface across every removal
+candidate: **55 tracked files**.
+
+**4. Four of those citers are application code and tests, not documents** — a category §3
+does not anticipate:
+
+| File | What it says |
+|---|---|
+| `api/config/database.php:186` | comment — the read-replica split's own container |
+| `api/app/Http/Controllers/Api/V1/Cron/CronRunController.php:23` | comment — `infrastructure/supervisor.conf` and the compose workers |
+| `src/src/middleware.ts:26` | comment — nginx refuses `/admin` on non-platform hosts |
+| `api/tests/Feature/document-root-inventory.php:9` | comment — the API vhost's files on the VPS |
+
+All four are **comments**, so nothing breaks at runtime — but each becomes a pointer to a
+file that no longer exists. (`DeploymentWorkerConsistencyTest` is the exception: it is code
+that reads the files, per finding 1.)
+
+**5. Eight VPS-only shell scripts are not in §3**, four of which open with the literal line
+`# Override with COMPOSE_FILE=docker-compose.lowmem.yml on the 4 GB tier`:
+
+`scripts/deploy.sh` · `scripts/rollback.sh` · `scripts/restore.sh` · `scripts/seed.sh` ·
+`scripts/backup.sh` · `scripts/init-storage.sh` (creates the MinIO bucket) ·
+`scripts/prod-build-test.sh` · `scripts/setup-replication.sh` (MariaDB primary→replica)
+
+`scripts/shared-hosting/deploy.sh` and `scripts/shared-hosting/smoke-check.sh` are the
+replacements and stay.
+
+**6. Two `.env.production.example` templates** — at the repository root and at `api/` —
+plus `.dockerignore`, all carry VPS-only values.
+
+**What was verified safe, so the removal is not blocked on it:** every workflow in
+`.github/workflows/` invokes only `./scripts/gates.sh` (backend, mysql, frontend, docs,
+coverage, security) and `./scripts/api-types-check.sh`. `scripts/gates.sh` references
+**none** of the removal candidates — its five `docker exec` fallbacks target
+`docker-compose.yml`, which stays. So the Pest test in finding 1 is the **only** gate at
+risk.
+
+**Revised order of operations**, superseding §4 for the assets above:
+
+1. Edit `DeploymentWorkerConsistencyTest.php` **first**, in the same commit as the
+   deletions — not after. A commit that deletes the files alone is red.
+2. Delete the §3 assets **plus** `api/Dockerfile.prod`.
+3. Repoint or retire the four code comments in finding 4.
+4. Fix every **relative markdown link** to a deleted file; `./scripts/gates.sh docs` is what
+   catches these and is the gate that proves it.
+5. Prose mentions in dated records — `audit/BASELINE.md`, `MIGRATION_STATE.md`, the phase
+   documents — describe measurements taken when those files existed. Annotate; do not
+   rewrite. Rewriting a record to match the present is how a measurement stops being one.
+6. The scripts and env templates of findings 5 and 6 are a **separate change**. They are
+   removable on the same trigger, but bundling them makes one commit answer two questions.
 
 ### Separate question, deliberately not bundled
 
