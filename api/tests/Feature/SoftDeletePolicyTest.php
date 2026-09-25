@@ -124,27 +124,27 @@ test('every model in the soft delete policy table matches its row', function (st
     expect($usesSoftDeletes)->toBe($expectsSoftDeletes);
 })->with([
     // "Soft delete" rows — legal retention, historical reference.
-    'Employees'          => [Employee::class, true],
-    'Leave Requests'     => [LeaveRequest::class, true],
-    'Departments'        => [Department::class, true],
-    'Branches'           => [Branch::class, true],
-    'Positions'          => [Position::class, true],
-    'Grades'             => [Grade::class, true],
-    'Documents'          => [EmployeeDocument::class, true],
-    'Shifts'             => [Shift::class, true],
-    'Devices'            => [Device::class, true],
+    'Employees' => [Employee::class, true],
+    'Leave Requests' => [LeaveRequest::class, true],
+    'Departments' => [Department::class, true],
+    'Branches' => [Branch::class, true],
+    'Positions' => [Position::class, true],
+    'Grades' => [Grade::class, true],
+    'Documents' => [EmployeeDocument::class, true],
+    'Shifts' => [Shift::class, true],
+    'Devices' => [Device::class, true],
 
     // "Never delete" rows — audit and financial requirements. No SoftDeletes,
     // so a delete would be permanent rather than recoverable; the protection is
     // that nothing calls one.
     'Attendance Records' => [AttendanceRecord::class, false],
-    'Payroll Entries'    => [PayrollEntry::class, false],
-    'Payroll Runs'       => [PayrollRun::class, false],
-    'Audit Logs'         => [AuditLog::class, false],
+    'Payroll Entries' => [PayrollEntry::class, false],
+    'Payroll Runs' => [PayrollRun::class, false],
+    'Audit Logs' => [AuditLog::class, false],
 
     // "Hard delete after N days" rows — storage management sweeps.
     'Webhook Deliveries' => [WebhookDelivery::class, false],
-    'Import staging'     => [MigrationStagingRow::class, false],
+    'Import staging' => [MigrationStagingRow::class, false],
 ]);
 
 // The fifteenth row, "Notifications — hard delete after 90 days", is absent from
