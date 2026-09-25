@@ -29,6 +29,7 @@ class DashboardDigest extends Model
         'frequency',
         'recipients',
         'last_run_at',
+        'last_error',
         'next_run_at',
         'is_active',
     ];

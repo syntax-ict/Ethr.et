@@ -131,13 +131,18 @@ test('a failed report records why on the schedule instead of looking like a succ
     Notification::fake();
     [, $schedule] = scheduleReportFixture();
 
-    // Mocked rather than driven through a deliberately broken report config:
-    // this pins the job's behaviour when generation throws, whatever the engine
-    // happens to reject today.
-    $engine = mock(ReportEngine::class);
-    $engine->shouldReceive('generate')->andThrow(new RuntimeException('report engine exploded'));
+    // The failure is injected at `CurrentTenant::set()`, which `run()` calls
+    // before it touches the report engine. What is under test is the CATCH's
+    // behaviour, not any particular cause, so the cheapest injection point that
+    // reaches it is the right one.
+    //
+    // Corrected 2026-09-25: this first doubled ReportEngine, which meant
+    // removing `final` from it. That was unnecessary — CurrentTenant was never
+    // final, and `run()` calls it first. `final` has been restored.
+    $tenantResolver = mock(CurrentTenant::class);
+    $tenantResolver->shouldReceive('set')->andThrow(new RuntimeException('report engine exploded'));
 
-    (new RunScheduledReportsJob)->handle($engine, app(CurrentTenant::class));
+    (new RunScheduledReportsJob)->handle(app(ReportEngine::class), $tenantResolver);
 
     $schedule->refresh();
 
@@ -154,10 +159,10 @@ test('tells the recipients the report did not arrive', function () {
     Notification::fake();
     [, $schedule] = scheduleReportFixture();
 
-    $engine = mock(ReportEngine::class);
-    $engine->shouldReceive('generate')->andThrow(new RuntimeException('report engine exploded'));
+    $tenantResolver = mock(CurrentTenant::class);
+    $tenantResolver->shouldReceive('set')->andThrow(new RuntimeException('report engine exploded'));
 
-    (new RunScheduledReportsJob)->handle($engine, app(CurrentTenant::class));
+    (new RunScheduledReportsJob)->handle(app(ReportEngine::class), $tenantResolver);
 
     Notification::assertSentOnDemand(
         ScheduledReportFailedNotification::class,

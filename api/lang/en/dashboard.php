@@ -17,6 +17,8 @@ return [
     'upcoming_holidays' => 'Upcoming Holidays',
     'no_data' => 'No data available for the selected period.',
     'digest_subject' => 'Your :frequency dashboard digest',
+    'digest_failed_subject' => 'Your :frequency dashboard digest FAILED',
+    'digest_failed_body' => 'The digest could not be generated and no figures were sent. Its next run is still scheduled as normal. If it keeps failing, contact an administrator.',
     'digest_greeting' => 'Here is your :frequency summary as of :date.',
     'digest_headcount' => 'Headcount: :active active / :total total',
     'digest_attendance' => 'Attendance rate today: :rate%',
