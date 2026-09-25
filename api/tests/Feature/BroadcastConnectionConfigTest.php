@@ -84,3 +84,52 @@ it('keeps every disabled value a string, because notifications compare against o
         );
     }
 });
+
+/**
+ * The *unset* case, which is the one that cost fifty CI runs.
+ *
+ * `broadcasting.default` used to read `env('BROADCAST_CONNECTION', 'reverb')`.
+ * A fresh checkout has no `.env`, `routes/channels.php` calls
+ * Broadcast::channel() at load time, and `package:discover` runs inside
+ * `composer install` — so the install itself exited 1 building a Reverb
+ * broadcaster with a null Pusher key, before any gate could run. Three
+ * workflows carried a `BROADCAST_CONNECTION: "null"` override purely to work
+ * around it; the default is now `null` and the overrides are gone, so this test
+ * is the thing that keeps them gone.
+ *
+ * It asserts the property, not the literal: the default must name a connection
+ * that is defined and that needs no running daemon. `log` would pass too.
+ */
+it('falls back to a daemon-free connection when BROADCAST_CONNECTION is unset', function () {
+    $originalServer = $_SERVER['BROADCAST_CONNECTION'] ?? null;
+    $originalEnv = $_ENV['BROADCAST_CONNECTION'] ?? null;
+    $originalPutenv = getenv('BROADCAST_CONNECTION');
+
+    // All three adapters, because Laravel's Env repository reads $_SERVER,
+    // $_ENV and putenv(). Clearing one and leaving another set would make this
+    // test pass for the wrong reason.
+    unset($_SERVER['BROADCAST_CONNECTION'], $_ENV['BROADCAST_CONNECTION']);
+    putenv('BROADCAST_CONNECTION');
+
+    try {
+        $resolved = require config_path('broadcasting.php');
+
+        expect($resolved['default'])->toBeString();
+        expect($resolved['connections'])->toHaveKey($resolved['default']);
+
+        // reverb and pusher both need a server this repository does not run in
+        // CI, on shared hosting, or on a fresh clone. Either of them here
+        // reintroduces the defect.
+        expect($resolved['default'])->not->toBeIn(['reverb', 'pusher']);
+    } finally {
+        if ($originalServer !== null) {
+            $_SERVER['BROADCAST_CONNECTION'] = $originalServer;
+        }
+        if ($originalEnv !== null) {
+            $_ENV['BROADCAST_CONNECTION'] = $originalEnv;
+        }
+        if ($originalPutenv !== false) {
+            putenv('BROADCAST_CONNECTION='.$originalPutenv);
+        }
+    }
+});

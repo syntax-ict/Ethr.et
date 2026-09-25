@@ -273,14 +273,16 @@ Eight use `->withoutOverlapping()`, which is cache-lock backed. The `cache_locks
 | `QUEUE_CONNECTION` | `database` | `redis` (74) |
 | `SESSION_DRIVER` | `database` | `redis` (75) |
 | `FILESYSTEM_DISK` | `local` | `minio` (109) |
-| `BROADCAST_CONNECTION` | `reverb` | `reverb` (95) |
+| `BROADCAST_CONNECTION` | `null` *(was `reverb` until 2026-09-25)* | `reverb` (95) |
 | `DB_CONNECTION` | `sqlite` | `mariadb` (42) |
 | `DB_HOST` | — | `mariadb` (43) |
 | `MAIL_MAILER` | `log` | `smtp` (121) |
 
 "It defaults to database" is true of the code and **false of the shipped templates**. Any non-Docker deployment needs an explicit template.
 
-**Trap:** `BROADCAST_CONNECTION=null` must not be used. Laravel's `env()` converts the string `null` to PHP `null`, returning it *instead of* the default, and `BroadcastManager` then throws `Broadcast connection [] is not defined`. Use `log`, which also satisfies the 12 notification classes guarding on `config('broadcasting.default') === 'reverb'`.
+**Trap — superseded, and the instruction is now the wrong one.** This read: *"`BROADCAST_CONNECTION=null` must not be used. Laravel's `env()` converts the string `null` to PHP `null`, returning it *instead of* the default, and `BroadcastManager` then throws `Broadcast connection [] is not defined`. Use `log`."*
+
+The mechanism is real and still worth knowing. The conclusion is not: `config/broadcasting.php:25` coalesces with `?? 'null'` precisely so the literal `null` resolves to the defined `null` connection, and `BroadcastConnectionConfigTest` pins that. The shared-hosting template deliberately uses `null` over `log` — `log` writes a line per broadcast against a fixed disk quota. Both values satisfy the 12 notification classes guarding on `config('broadcasting.default') === 'reverb'`, because both are strings.
 
 ---
 
@@ -437,8 +439,10 @@ app/Http/Controllers/Api/V1/Auth/PasswordResetController.php:149  PasswordBroker
 
 | Hypothesis | Test | Result |
 |---|---|---|
-| CI has no `.env`, changing Larastan's bootstrap | hid `.env`, re-ran | bootstrap threw (Reverb); **not** CI's case, which sets `BROADCAST_CONNECTION` |
-| …with `BROADCAST_CONNECTION=null`, as CI has | hid `.env`, set the variable, re-ran | `[OK] No errors` |
+| CI has no `.env`, changing Larastan's bootstrap | hid `.env`, re-ran | bootstrap threw (Reverb); **not** CI's case, which set `BROADCAST_CONNECTION` |
+| …with `BROADCAST_CONNECTION=null`, as CI had | hid `.env`, set the variable, re-ran | `[OK] No errors` |
+
+*(2026-09-25: both rows say "as CI has/sets" in the present tense. CI no longer sets the variable — `config/broadcasting.php` now defaults to `null`, so the no-`.env` bootstrap reaches the same state without it. The measurements stand; only the tense was corrected.)*
 | Local `vendor/` drifted from `composer.lock` | compared installed vs lock | identical — larastan v3.10.0, phpstan 2.2.2, framework v12.64.0, php-parser v5.8.0 |
 | Stale PHPStan result cache | `clear-result-cache`, re-ran | `[OK] No errors` |
 

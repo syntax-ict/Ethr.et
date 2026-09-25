@@ -182,8 +182,9 @@ warmed by a prior CI run, and `phpunit`/`pest`/`larastan` in `require-dev` are ~
 >
 > The failure is not obvious from the message. `composer install` runs
 > `package:discover` as a post-autoload-dump script; `config/broadcasting.php`
-> defaults to `reverb` when `BROADCAST_CONNECTION` is unset, `routes/channels.php`
-> calls `Broadcast::channel()` at load time, and Pusher is handed a null key:
+> *used to* default to `reverb` when `BROADCAST_CONNECTION` was unset,
+> `routes/channels.php` calls `Broadcast::channel()` at load time, and Pusher was
+> handed a null key:
 >
 > ```
 > Failed to create broadcaster for connection "reverb" with error:

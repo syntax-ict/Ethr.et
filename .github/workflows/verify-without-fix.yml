@@ -5,19 +5,23 @@
 # `contents: read`, so it cannot write to the repository and does not run on the
 # push/pull_request paths the quality gates use.
 #
-# Four things differ from a generic version of this workflow, all forced by this
-# repository and all load-bearing:
+# Four things differed from a generic version of this workflow, all forced by
+# this repository. Three are still load-bearing; the fourth (2) was closed at
+# source on 2026-09-25 and is kept here because a reader of a generic version
+# would otherwise wonder why it was ever needed:
 #
 #   1. Every PHP step sets `working-directory: api`. The Laravel application is
 #      under api/, not at the repository root -- there is no composer.json, no
 #      artisan and no app/ at the root, so a generic version fails at the first
 #      `composer install`. CLAUDE.md opens with this inversion for a reason.
-#   2. BROADCAST_CONNECTION is set at workflow level. `composer install` runs
-#      package:discover before .env exists; config/broadcasting.php defaults to
-#      `reverb` when the variable is unset, and routes/channels.php calls
-#      Broadcast::channel() at load time, so the install dies *after* downloading
-#      everything. This is the same defect that blocked CI for fifty runs, and
-#      gates.yml carries the identical line.
+#   2. (Closed 2026-09-25 — kept as a record, since it is the one item here that
+#      stopped being true.) A workflow-level BROADCAST_CONNECTION was required:
+#      `composer install` runs package:discover before .env exists;
+#      config/broadcasting.php defaulted to `reverb` when the variable was unset,
+#      and routes/channels.php calls Broadcast::channel() at load time, so the
+#      install died *after* downloading everything. That is the defect that
+#      blocked CI for fifty runs. The default is now `null`, so the override is
+#      gone from here, from gates.yml and from security.yml.
 #   3. The cache key hashes api/composer.lock, and the artifact path is
 #      api/verify.log -- both follow from 1.
 #   4. The revert is scoped to `-- app/` *relative to api/*, so it touches the
@@ -40,9 +44,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  BROADCAST_CONNECTION: "null"
 
 jobs:
   verify:

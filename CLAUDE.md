@@ -281,7 +281,18 @@ returned nothing in production and passed every test. CI runs it on every push.
 **The Actions tab was finally read on 2026-09-16, and every run had failed — 50 of them, since the first push.** Not one gate had ever executed. Five causes, every one structural rather than code:
 
 1. **No shell script had its executable bit.** Every `scripts/*.sh` was mode `100644`, so `./scripts/gates.sh` exited **126** (Permission denied) on a Linux runner. Git on Windows does not track the bit unless `core.filemode` is set, so it was never committed. Fixed with `git update-index --chmod=+x`.
-2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed with a workflow-level `BROADCAST_CONNECTION: "null"`.
+2. **`composer install` died before any gate ran.** `config/broadcasting.php:25` defaults to `reverb` when `BROADCAST_CONNECTION` is unset, a runner has no `.env`, and `routes/channels.php` calls `Broadcast::channel()` at load time — so `package:discover` built a Reverb broadcaster with a null Pusher key and composer exited 1. Fixed at the time with a workflow-level `BROADCAST_CONNECTION: "null"`.
+
+   **Fixed at source on 2026-09-25, and the workaround is gone.** `config/broadcasting.php:25`
+   now defaults to `null`, so a checkout with no `.env` selects the null driver on its own.
+   The override has been removed from all three workflows that carried it — `gates.yml`,
+   `security.yml` and `verify-without-fix.yml`. Nothing that runs changed: `docker-compose.yml:39`,
+   `.env.example`, `.env.shared-hosting.example` and `phpunit.xml` all set the value explicitly,
+   so the default only ever served the no-`.env` path, where `reverb` was the one value
+   guaranteed to fail. `BroadcastConnectionConfigTest` now pins the unset case, which is what
+   keeps the override from being needed again — a workaround left in place would have masked a
+   regression of the default and asserted, in its own comment, a `reverb` default that no
+   longer exists.
 
    **Locally the same defect needs `.env` to exist *before* `composer install`, not after.**
    `package:discover` runs as a post-autoload-dump script *during* the install, so copying
