@@ -1,5 +1,23 @@
 import { MetadataRoute } from "next";
 
+/**
+ * Required for `output: "export"`, and harmless without it.
+ *
+ * A metadata route is dynamic by default, and `next build` under static export
+ * stops with "Page /manifest.webmanifest couldn't be rendered statically because
+ * it used `dynamic`". Measured 2026-09-18 (`7aed9d2`) as the FIRST of three
+ * build-stopping blockers, and the only one that is a directive rather than an
+ * architectural change - `docs/SHARED_HOSTING_AUDIT.md` §E.
+ *
+ * `app/og.png/route.tsx` already carries the same directive for the same reason,
+ * so this is the established pattern here rather than a new one.
+ *
+ * It changes nothing under the shipped `output: "standalone"`: this function
+ * returns a constant object with no request-time input, so forcing it static is
+ * what it already effectively was.
+ */
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "ETHR — Ethiopian Workforce OS",
