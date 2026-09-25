@@ -142,7 +142,13 @@ it('does not notify another tenant of a device sync failure', function () {
     $other = Tenant::factory()->create(['subdomain' => 'other-sync']);
 
     app(CurrentTenant::class)->set($owner);
-    $device = Device::factory()->create(['tenant_id' => $owner->id]);
+    // `devices.branch_id` is NOT NULL and DeviceFactory does not supply one —
+    // every device fixture in this file creates a branch first.
+    $ownerBranch = Branch::factory()->create(['tenant_id' => $owner->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $owner->id,
+        'branch_id' => $ownerBranch->id,
+    ]);
 
     $outsider = User::factory()->create([
         'tenant_id' => $other->id,
@@ -166,7 +172,12 @@ it('carries the reason to the admin, because which kind of failure it is matters
         'tenant_id' => $tenant->id,
         'role' => UserRole::HR_ADMIN->value,
     ]);
-    $device = Device::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Gate Reader 3']);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'name' => 'Gate Reader 3',
+    ]);
 
     app(CurrentTenant::class)->forget();
 
@@ -200,7 +211,11 @@ it('gives the offline alert a real subject line too', function () {
     // side-assertion on its sibling.
     $tenant = Tenant::factory()->create(['subdomain' => 'subject-check']);
     app(CurrentTenant::class)->set($tenant);
-    $device = Device::factory()->create(['tenant_id' => $tenant->id]);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+    ]);
     $admin = User::factory()->create([
         'tenant_id' => $tenant->id,
         'role' => UserRole::TENANT_ADMIN->value,

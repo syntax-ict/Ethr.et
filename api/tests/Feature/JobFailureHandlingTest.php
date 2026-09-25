@@ -10,6 +10,7 @@ use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\PullDeviceEventsJob;
 use App\Jobs\ScanMissingPunchesJob;
+use App\Models\Branch;
 use App\Models\Device;
 use App\Notifications\SystemAlertNotification;
 use Illuminate\Support\Facades\Event;
@@ -70,7 +71,12 @@ test('PullDeviceEventsJob failure alerts the tenant with DeviceSyncFailed, not D
     Event::fake([DeviceSyncFailed::class, DeviceOffline::class]);
 
     $tenant = createTenant();
-    $device = Device::factory()->create(['tenant_id' => $tenant->id]);
+    // `devices.branch_id` is NOT NULL and DeviceFactory does not supply one.
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+    ]);
 
     (new PullDeviceEventsJob($device))->failed(new RuntimeException('TLS handshake failed'));
 
