@@ -57,9 +57,23 @@ function insertNotification(string $id, CarbonInterface $createdAt): void
     ]);
 }
 
-function insertDelivery(int $webhookId, CarbonInterface $createdAt): int
+/**
+ * `tenant_id` is NOT NULL on this table and is easy to miss: the create
+ * migration (`2026_06_28_300002`) does not have it — it was added later by
+ * `2026_07_16_000001_add_tenant_isolation_and_calculation_log`, as a
+ * `foreignId()` with no `->nullable()`. Reading only the create migration and
+ * omitting it is a NOT NULL violation, which is exactly how the first version
+ * of this file failed CI.
+ *
+ * Root CLAUDE.md records the reason the column exists: `WebhookDispatcher` wrote
+ * delivery rows with no `tenant_id`, so a queue worker either violated this
+ * constraint or filed the row against whichever tenant the *previous* job had
+ * left resolved.
+ */
+function insertDelivery(int $tenantId, int $webhookId, CarbonInterface $createdAt): int
 {
     return (int) DB::table('webhook_deliveries')->insertGetId([
+        'tenant_id' => $tenantId,
         'webhook_id' => $webhookId,
         'event' => 'employee.created',
         'payload' => json_encode(['a' => 1]),
@@ -94,9 +108,9 @@ test('prunes webhook deliveries older than 30 days and keeps the boundary row', 
     $tenant = createTenant();
     $webhook = Webhook::factory()->create(['tenant_id' => $tenant->id]);
 
-    $stale = insertDelivery($webhook->id, now()->subDays(31));
-    $boundary = insertDelivery($webhook->id, now()->subDays(30));
-    $fresh = insertDelivery($webhook->id, now()->subDay());
+    $stale = insertDelivery($tenant->id, $webhook->id, now()->subDays(31));
+    $boundary = insertDelivery($tenant->id, $webhook->id, now()->subDays(30));
+    $fresh = insertDelivery($tenant->id, $webhook->id, now()->subDay());
 
     (new CleanupExpiredDataJob)->handle();
 
@@ -120,8 +134,8 @@ test('the sweep is cross-tenant by design, and that is what retention requires',
     $webhookA = Webhook::factory()->create(['tenant_id' => $tenantA->id]);
     $webhookB = Webhook::factory()->create(['tenant_id' => $tenantB->id]);
 
-    $staleA = insertDelivery($webhookA->id, now()->subDays(31));
-    $staleB = insertDelivery($webhookB->id, now()->subDays(31));
+    $staleA = insertDelivery($tenantA->id, $webhookA->id, now()->subDays(31));
+    $staleB = insertDelivery($tenantB->id, $webhookB->id, now()->subDays(31));
 
     (new CleanupExpiredDataJob)->handle();
 
