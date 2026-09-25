@@ -16,10 +16,14 @@
 #                           and Permissions-Policy. Under static hosting those
 #                           vanish with the Node server and must come from here.
 #   3. deny rules         - the deployment blocks .env, .git, composer.json and
-#                           storage/ with exactly this mechanism. If Apache
+#                           storage/ with `RewriteRule ... [F,L]`. If Apache
 #                           ignores .htaccess, APP_KEY and the database password
 #                           become web-readable while the app still appears to
 #                           work. That is the failure mode worth paying for.
+#                           TWO baits are served: secret.env.probe uses the
+#                           deployment's own mod_rewrite [F], secret.txt.probe
+#                           uses <FilesMatch>/Require. They test different
+#                           AllowOverride grants and can disagree.
 #   4. Authorization pass - Sanctum needs the Authorization and X-XSRF-Token
 #                           headers forwarded to PHP. Under CGI/FastCGI they are
 #                           stripped unless restored here.
@@ -61,15 +65,59 @@
 </IfModule>
 
 <IfModule mod_headers.c>
-    # 2. Header proof, plus the real security headers so a scan of this
-    #    directory reflects what the deployment would set.
+    # 2. Header proof.
+    #
+    # This block used to carry three headers under the comment "plus the real
+    # security headers so a scan of this directory reflects what the deployment
+    # would set". **It set two of the deployment's seven** — measured
+    # 2026-09-25 — so a scan of this directory reflected rather less than that,
+    # and canary.php's own G0-B.5 text already says "the seven security
+    # headers" twenty lines further down.
+    #
+    # All seven are now here, byte-identical to
+    # docs/deployment/shared-hosting/.htaccess. The one that matters most is
+    # Content-Security-Policy: it is by far the longest, and an intermediary
+    # that rewrites or drops headers (this account runs Imunify) is far likelier
+    # to mangle it than to touch `X-Frame-Options: DENY`. A canary that proves
+    # only the two short ones can report G0-B.2 PASS on a host that silently
+    # drops the policy the whole frontend depends on.
     Header always set X-Ethr-Canary "headers-ok"
-    Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 </IfModule>
 
-# 3. Deny proof. secret.txt.probe stands in for .env and must return 403.
-#    Two mechanisms, because which one works varies by Apache version.
+# 3. Deny proof. TWO BAITS, TWO MECHANISMS — and they can disagree, the same
+#    way shadow.txt and shadow.js can.
+#
+#    The header of this file used to say the deployment "blocks .env, .git,
+#    composer.json and storage/ with exactly this mechanism". **It does not** —
+#    measured 2026-09-25. docs/deployment/shared-hosting/.htaccess blocks them
+#    with `RewriteRule ^(\.env.*|\.git|composer\.(json|lock)|...)$ - [F,L]`,
+#    a mod_rewrite [F], not with <FilesMatch> and Require all denied. So the
+#    canary was proving an authorization mechanism the deployment never uses.
+#
+#    Both are tested now, because a host can honour one and not the other:
+#    AllowOverride can permit FileInfo (mod_rewrite) while withholding Limit
+#    (authz), and vice versa. secret.env.probe is the one whose result actually
+#    predicts the deployment.
+#
+#    3a. The DEPLOYMENT's mechanism. The filename differs from the real rule's
+#        pattern on purpose — a literal `.env` here would be a dotfile, which
+#        some hosts refuse independently of .htaccess and would answer 403 for
+#        the wrong reason. What is being tested is `RewriteRule ... [F,L]`,
+#        not the pattern.
+<IfModule mod_rewrite.c>
+    RewriteRule ^secret\.env\.probe$ - [F,L]
+</IfModule>
+
+#    3b. The authorization mechanism, kept because it is a genuinely different
+#        capability and its answer is worth having. Two forms, because which
+#        one works varies by Apache version.
 <FilesMatch "^secret\.txt\.probe$">
     <IfModule mod_authz_core.c>
         Require all denied

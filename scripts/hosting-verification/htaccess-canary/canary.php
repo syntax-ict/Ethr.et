@@ -11,7 +11,10 @@
  *
  * DEPLOY
  *   1. Upload this whole directory to httpdocs/ethr-canary/ (.htaccess,
- *      canary.php, secret.txt.probe, shadow.txt, shadow.js — all five).
+ *      canary.php, secret.env.probe, secret.txt.probe, shadow.txt, shadow.js
+ *      — all six). secret.env.probe joined the set on 2026-09-25; a run
+ *      without it silently skips the only deny test that matches the
+ *      deployment.
  *   2. Visit  https://<host>/ethr-canary/canary.php
  *   3. Follow the two manual checks it prints.
  *   4. Save the output, then DELETE THE DIRECTORY.
@@ -105,21 +108,47 @@ echo "           curl -s -H 'Authorization: Bearer probe' {$selfUrl}/canary.php 
 echo "         Sanctum auth and CSRF break silently without this.\n";
 
 echo "\n── Manual, and the one that matters ────────────────────────────────\n\n";
-echo "[ ???? ] G0-B.2  mod_headers honoured\n";
+echo "[ ???? ] G0-B.2  mod_headers honoured   RUN BOTH\n";
 echo "         curl -sI {$selfUrl}/canary.php | grep -i x-ethr-canary\n";
-echo "         Expect: X-Ethr-Canary: headers-ok\n";
-echo "         Nothing back means the CSP, HSTS and X-Frame-Options that\n";
-echo "         next.config.ts currently sets would not be applied in\n";
-echo "         production either.\n\n";
+echo "         Expect: X-Ethr-Canary: headers-ok\n\n";
+echo "         curl -sI {$selfUrl}/canary.php | grep -ci content-security-policy\n";
+echo "         Expect: 1\n\n";
+echo "         THE SECOND ONE IS NOT A FORMALITY. Until 2026-09-25 this\n";
+echo "         directory set two of the deployment's seven headers, so a\n";
+echo "         PASS here proved only that the two shortest survived. All\n";
+echo "         seven are now set, byte-identical to the deployment's.\n";
+echo "         Content-Security-Policy is the long one, and an intermediary\n";
+echo "         that rewrites headers -- this account runs Imunify -- is far\n";
+echo "         likelier to mangle or drop it than to touch X-Frame-Options.\n";
+echo "         A marker header alone cannot tell those two cases apart.\n\n";
+echo "         If the marker comes back but the CSP does not, record G0-B.2\n";
+echo "         as PARTIAL, not PASS, and say which headers survived.\n";
+echo "         Nothing back at all means none of the seven would be applied\n";
+echo "         in production either.\n\n";
 
-echo "[ ???? ] G0-B.3  deny rules enforced   <-- DEPLOYMENT BLOCKER IF THIS FAILS\n";
+echo "[ ???? ] G0-B.3  deny rules enforced   RUN BOTH   <-- DEPLOYMENT BLOCKER\n";
+echo "         curl -s -o /dev/null -w '%{http_code}\\n' {$selfUrl}/secret.env.probe\n";
 echo "         curl -s -o /dev/null -w '%{http_code}\\n' {$selfUrl}/secret.txt.probe\n";
-echo "         Expect: 403\n";
-echo "         A 200 means .htaccess deny rules are ignored on this host, so\n";
-echo "         api/.env, .git/ and composer.json would be web-readable in\n";
-echo "         production while the application still appeared to work.\n";
-echo "         A 404 is NOT a pass — it means the file is missing, so upload\n";
-echo "         secret.txt.probe and try again.\n\n";
+echo "         Expect: 403 from both. Record them separately.\n\n";
+echo "         THEY TEST DIFFERENT MECHANISMS AND CAN DISAGREE.\n";
+echo "           secret.env.probe  RewriteRule ... [F,L]  <- what the\n";
+echo "                             deployment's .htaccess actually uses.\n";
+echo "                             THIS is the one that predicts production.\n";
+echo "           secret.txt.probe  <FilesMatch> + Require all denied  <- an\n";
+echo "                             authorization grant the deployment does\n";
+echo "                             not rely on.\n\n";
+echo "         Until 2026-09-25 only the .txt bait existed, and this file\n";
+echo "         claimed the deployment used 'exactly this mechanism'. It does\n";
+echo "         not. AllowOverride can grant FileInfo (mod_rewrite) while\n";
+echo "         withholding Limit (authz), and the reverse — so one 403 and\n";
+echo "         one 200 is a real outcome, not a mistake.\n\n";
+echo "         A 200 on secret.env.probe means api/.env, .git/ and\n";
+echo "         composer.json would be web-readable in production while the\n";
+echo "         application still appeared to work. There is no panel\n";
+echo "         workaround on this plan — see GATE-0-RESULT.md's coverage\n";
+echo "         table before treating it as recoverable.\n";
+echo "         A 404 is NOT a pass — the file is missing; upload it and\n";
+echo "         try again.\n\n";
 
 echo "[ ???? ] G0-B.5  does a real file shadow the rewrite?  RUN BOTH\n";
 echo "         curl -s {$selfUrl}/shadow.txt | head -1\n";
@@ -148,6 +177,7 @@ echo "         DEPLOYMENT.md step 4a is correct either way — it copies only\n"
 echo "         index.php, which holds under both.\n\n";
 
 echo "$line\n";
-echo "Record all five in docs/deployment/GATE-0-RESULT.md, then DELETE this\n";
+echo "Record all five gates in docs/deployment/GATE-0-RESULT.md -- G0-B.2 and\n";
+echo "G0-B.3 each have TWO results, so that is seven numbers. Then DELETE this\n";
 echo "directory from the server.\n";
 echo "$line\n";
