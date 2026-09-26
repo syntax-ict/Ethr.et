@@ -235,7 +235,36 @@ them leaves references pointing at nothing:
 | Asset | Why it is in scope |
 |---|---|
 | `api/Dockerfile.prod` | The VPS production image. It is what references `php.prod.ini` and `www.prod.conf`, so those two cannot go while it stays |
-| `scripts/deploy.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `seed.sh`, `init-storage.sh`, `prod-build-test.sh`, `setup-replication.sh` | Eight scripts driving `docker-compose.prod.yml`. **Classify each before deleting** — the shared-hosting target replaces backup/restore with `ethr:backup` / `ethr:restore`, but that equivalence is asserted here, not measured |
+| `scripts/deploy.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `seed.sh`, `init-storage.sh`, `prod-build-test.sh`, `setup-replication.sh` | Eight scripts driving `docker-compose.prod.yml`. **Classified 2026-09-26 — all eight are VPS-only.** See §3b.2a |
+| `api/.env.production.example` | The VPS production template. VPS-only. `api/.env.shared-hosting.example` **stays** — only its citation of `prod.yml` changes |
+
+#### 3b.2a The eight scripts, classified — measured, not assumed
+
+This replaces *"classify each before deleting"*. Every one drives Docker Compose, and every
+capability it provides has a shared-hosting replacement that **exists in the tree today**:
+
+| Script | What it does | Shared-hosting replacement | Verified present |
+|---|---|---|---|
+| `deploy.sh` | `docker compose` deploy to the VPS | `scripts/shared-hosting/deploy.sh` | ✅ |
+| `rollback.sh` | Compose rollback | Same script's own path | ✅ |
+| `backup.sh` | `docker compose exec` mysqldump + env copy | `ethr:backup` | ✅ `BackupCommand.php` |
+| `restore.sh` | Compose restore | `ethr:restore` | ✅ same file |
+| `seed.sh` | `docker compose exec artisan db:seed` | Plesk Git deployment actions — **no shell on the account** | ⚠ route exists, never exercised |
+| `init-storage.sh` | Creates the MinIO bucket | None needed — `FILESYSTEM_DISK=local` | ✅ |
+| `prod-build-test.sh` | Builds the VPS production images and boots the stack | None — there is no production image on this target | ✅ n/a |
+| `setup-replication.sh` | MariaDB primary→replica | None — `.env.shared-hosting.example:59` says **"Read replica — NOT APPLICABLE"**, and Bronze provides one database | ✅ |
+
+**Two qualifications, because "a replacement exists" is weaker than it sounds.**
+
+`ethr:backup` / `ethr:restore` exist and are rehearsed in CI against MariaDB, and have
+**never been rehearsed on the Ethio Telecom host** — that is Stage 6 of the migration plan,
+not a thing this classification closes. Deleting `backup.sh` before that rehearsal removes
+the working path in favour of an untested one.
+
+`seed.sh` is the weakest row. Its replacement is *"Plesk Git additional deployment actions"*,
+which is a documented route rather than a measured one, on an account where **SSH is
+Forbidden and there is no Scheduled Tasks section**. Treat this script as the last of the
+eight to go.
 
 ### 3b.3 Code edits required in the same commit
 
