@@ -191,16 +191,39 @@ function authzFormRequestGuard(ReflectionMethod $method): ?string
     return null;
 }
 
+/**
+ * `Class@method` for a route, or null when it is not one of ours.
+ *
+ * An invokable controller is registered as `Route::post('/logout',
+ * LogoutController::class)` and the router reports its action as the bare class
+ * name, with no `@__invoke`. Reading `getActionName()` and requiring an `@`
+ * silently dropped all twelve of them — they vanished from the inventory rather
+ * than failing it, which is the quiet direction for a security sweep to be
+ * wrong in. Both spellings normalise here.
+ */
+function authzActionName(RoutingRoute $route): ?string
+{
+    $action = $route->getActionName();
+
+    if (! str_starts_with($action, 'App\\Http\\Controllers\\Api\\V1\\')) {
+        return null;
+    }
+
+    if (str_contains($action, '@')) {
+        return $action;
+    }
+
+    return class_exists($action) && method_exists($action, '__invoke')
+        ? $action.'@__invoke'
+        : null;
+}
+
 /** @return array<int, RoutingRoute> */
 function authzApiRoutes(): array
 {
     return array_values(array_filter(
         Route::getRoutes()->getRoutes(),
-        function (RoutingRoute $route): bool {
-            $action = $route->getActionName();
-
-            return str_starts_with($action, 'App\\Http\\Controllers\\Api\\V1\\') && str_contains($action, '@');
-        },
+        fn (RoutingRoute $route) => authzActionName($route) !== null,
     ));
 }
 
@@ -210,7 +233,7 @@ function authzUnguardedActions(): array
     $unguarded = ['authenticated' => [], 'public' => []];
 
     foreach (authzApiRoutes() as $route) {
-        $action = $route->getActionName();
+        $action = (string) authzActionName($route);
         [$class, $methodName] = explode('@', $action, 2);
 
         if (! class_exists($class) || ! method_exists($class, $methodName)) {
@@ -277,6 +300,17 @@ test('the inventory reflects the real route surface', function () {
     );
 
     expect(count($authenticated))->toBeGreaterThan(200);
+
+    // Invokable controllers specifically. They are registered by class name
+    // alone, so a resolver that only understands `Class@method` drops them
+    // without failing anything — which is exactly what happened on this test's
+    // first CI run, to all twelve at once.
+    $invokable = array_filter(
+        $routes,
+        fn (RoutingRoute $route) => str_ends_with((string) authzActionName($route), '@__invoke'),
+    );
+
+    expect(count($invokable))->toBeGreaterThan(10);
 
     // And the classifier has to be doing work. If everything came back
     // unguarded, or nothing did, the pin above would still hold across a
