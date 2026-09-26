@@ -3318,3 +3318,34 @@ Needs any Apache with `mod_rewrite`, `mod_headers` and `mod_dir`. Serve the expo
 (`RewriteCond`/`RewriteRule`, plus `Options -Indexes`, `DirectorySlash Off` and
 `ErrorDocument 404 /404.html`), under `AllowOverride All`, then run the matrix in §21d with
 `curl -H 'Host: …'`. Do not trust `httpd -t`; fetch pages.
+
+### 21g. The `/api` and ACME rules — verified the same way, and they hold
+
+§21a–§21f covered BRANCH B. Two rules that sit *above* it had never been tested at all, only
+inferred from Phase 1's header readings: the front-controller rule that sends `/api` and
+`/sanctum` to `index.php`, and the ACME passthrough the certificate renewal depends on.
+
+Same harness, with a stub `index.php` carrying a recognisable marker, `.well-known/acme-challenge/`
+populated, and BRANCH B active so the interaction between the two is exercised rather than
+assumed:
+
+| Request | Result |
+|---|---|
+| `/api/v1/health`, `/api/v1/employees`, `/api` | **reach `index.php`** |
+| `/sanctum/csrf-cookie`, `/sanctum` | **reach `index.php`** |
+| `/apixyz` | **404** — the rule requires `/` or end-of-string after `api`, so it does not over-match |
+| `/.well-known/acme-challenge/testtoken` | **200, serves the token** — not rewritten |
+
+**18 of 18** with the full BRANCH B regression re-run alongside, and no `.htaccess` error in
+the Apache log. This is the first direct measurement that *"serving `/api` needs no proxy
+directive"* — until now that rested on Phase 1 observing PHP-FPM answer `.php` at the document
+root, which is a different claim from this rule doing the routing.
+
+**One limit, stated because the result reads stronger than it is.** `mod_php` would not load
+on this XAMPP build (`VirtualProtect() failed`), so `index.php` was served as text rather than
+executed. That means **routing is verified and execution is not** — the rewrite demonstrably
+lands on `index.php`, and whether PHP then runs it is a separate question already answered on
+the real host, where `canary.php` executes under `fpm-fcgi`.
+
+No defect was found in this round, which is worth recording as much as a defect would be: it
+is the only part of the file that has been measured and needed no change.
