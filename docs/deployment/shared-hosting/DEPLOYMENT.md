@@ -640,10 +640,22 @@ instructions).
    still returns 200 and still server-renders with the real param, verified. So steps 1–3
    remain the decision; step 4 is no longer part of it.
 5. `ETHR_TARGET=shared-hosting npm run build`, upload the exported `out/` directory into
-   `<DOCROOT>/`, alongside `index.php`. Uncomment BRANCH B's rules in `.htaccess` —
-   **there are four groups now, not two — numbered 0 to 3 — and the order is
-   load-bearing**: group 0 is the `/admin` host boundary and it has to precede the
-   fallbacks or it never fires. The file says which and why.
+   `<DOCROOT>/`, alongside `index.php`. Uncomment BRANCH B's directives in
+   `.htaccess` — **four groups, numbered 0 to 3, and the order is load-bearing**:
+   group 0 is the `/admin` host boundary and it has to precede the fallbacks or it
+   never fires. The file says which and why.
+
+   **Uncomment the non-`Rewrite` lines too.** Group 2 needs `Options -Indexes` and
+   `DirectorySlash Off`, and group 3 is a single `ErrorDocument 404 /404.html`.
+   Skipping them because they do not start with `Rewrite` leaves most of the site
+   404ing and every unknown URL answering 200 — both measured, see
+   [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §21.
+
+   **Uncomment only lines that are exactly a directive.** The explanatory comments
+   around them are prose; one of them used to begin with the word `Options`, and a
+   script that matched on the directive name uncommented the sentence. Apache 500s on
+   that, and **`httpd -t` will not warn you — it does not read `.htaccess` at all.**
+   The check that does catch it is fetching a page.
 
    **A real export was built and served under these exact rules and headers on 2026-09-26**
    — see [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20g for what that did and did

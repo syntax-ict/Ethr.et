@@ -3227,3 +3227,94 @@ tenant host, with the API's three server-side controls as the only remaining bou
 properties are pinned by `static-export-route-id.test.tsx` and `static-export-host.test.tsx`
 (both mutation-checked — reverting either fix fails its test), but the `.htaccess` replay and
 the browser run are one-off measurements, not gates.
+
+---
+
+## 21. The `.htaccess` on a real Apache — **measured 2026-09-26**
+
+§19 and §20 verified the shared-hosting rewrite rules by *emulating* them in Node. This pass
+ran them against **Apache 2.4.58**, serving the real 689-file export, with the `.htaccess`
+generated from the repository file by uncommenting BRANCH B exactly as
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 step 5 instructs.
+
+**The emulator passed 13 of 13. The real Apache failed immediately, on most of the site.**
+That gap is the finding; the three defects below are what it was hiding.
+
+### 21a. `DirectorySlash` — most top-level routes were dead
+
+Next emits **both** `admin.html` **and** an `admin/` directory (for `admin/tenants`), and the
+same for `dashboard`, `employees`, `login`, `en`, `am`, `settings`, `shifts` — **20+
+top-level routes**. `mod_dir` answers `/admin` with a **301 to `/admin/`** before the SPA
+group is reached, and `/admin/` then matched `^(.+)$` as `admin/`, looked for `admin/.html`,
+found nothing, and fell through to the 404.
+
+Measured: **`/admin` → 301 → `/admin/` → 404.** Every route with a subdirectory was dead.
+
+Fixed with `DirectorySlash Off` (so `/admin` reaches the group and resolves to `admin.html`)
+and `^(.+?)/?$` (so an explicit `/admin/` resolves too). `Options -Indexes` is required
+alongside, not decorative: with `DirectorySlash` off, a directory request Apache cannot
+otherwise resolve becomes eligible for an index listing.
+
+**The emulator could not have caught this — it did not model `mod_dir`.**
+
+### 21b. The 404 rule served a 404 page with HTTP 200
+
+`RewriteRule ^ /404.html [L]` is an internal substitution, and a substitution does not change
+the status. Measured: every unknown URL returned **200** with the 404 page in the body — a
+soft 404, invisible to monitoring and wrong to any crawler.
+
+Replaced with `ErrorDocument 404 /404.html`, which needs no conditions because it only runs
+once nothing else has matched. Measured after: `/nope` → **404**, body is the 404 page.
+
+### 21c. `httpd -t` does not validate `.htaccess`
+
+While building the harness, a script uncommented the *sentence* "Options -Indexes is
+REQUIRED, not decorative…" because it began with a directive name. That file is invalid and
+Apache 500s on it — and **`httpd -t` reported `Syntax OK`**, because it parses the main
+configuration and never reads `.htaccess`.
+
+Two consequences, both recorded in §5 step 5: uncomment only lines that are *exactly* a
+directive, and **the check that catches a broken `.htaccess` is fetching a page**, not a
+syntax check. The repository's prose was also reworded so no comment line begins with a
+directive name.
+
+### 21d. What passed, after the fixes — 20 of 20
+
+| Host | Path | Result |
+|---|---|---|
+| tenant | `/`, `/en/pricing`, `/en/pricing/` | 200 |
+| tenant | `/dashboard`, `/dashboard/`, `/login`, `/login/forgot` | 200 |
+| tenant | `/employees/<ULID>` | 200, **byte-identical** to `employees/__id__.html` |
+| tenant | `/admin`, `/admin/tenants/<ULID>` | **403** |
+| apex | `/admin` | **403** |
+| admin host | `/admin`, `/admin/`, `/admin/tenants/<ULID>` | 200 |
+| admin host | `/dashboard` | 302 → `/admin/` |
+| tenant | `/nope`, `/_next` | **404** |
+| tenant | `/.env`, `/composer.json`, `/storage/secret.txt` | **403** |
+
+Zero 500s in the error log. All seven security headers delivered on PHP, on static `.js`, and
+on a 403 response, with the CSP untruncated.
+
+### 21e. What this is and is not
+
+**`LOCAL VERIFIED`.** It establishes that the shipped rules are *correct as written* — the
+syntax parses, `[F,L]` yields 403, `mod_headers` delivers the full CSP, the `/admin` ordering
+fires, and the SPA fallback resolves every route shape the export produces.
+
+**It is not `HOST VERIFIED`, and does not close M1.** Three things remain answerable only on
+Ethio Telecom's host: whether its Apache grants the `AllowOverride` classes these rules need
+(`FileInfo` for `mod_rewrite`, `Limit` for `Require all denied`, `Options` for the two new
+directives — **`AllowOverride Options` is a new requirement this pass introduces**), whether
+Imunify or the nginx front end alters headers in transit, and whether `mod_dir` behaves as it
+does here. This harness used `AllowOverride All`, which is the permissive case.
+
+**M1 remains NOT VERIFIED.** G0-B.3(b) and G0-B.2(b) are unchanged.
+
+### 21f. How to reproduce
+
+Needs any Apache with `mod_rewrite`, `mod_headers` and `mod_dir`. Serve the export with a
+`.htaccess` derived from the repository file by uncommenting BRANCH B's directive lines
+(`RewriteCond`/`RewriteRule`, plus `Options -Indexes`, `DirectorySlash Off` and
+`ErrorDocument 404 /404.html`), under `AllowOverride All`, then run the matrix in §21d with
+`curl -H 'Host: …'`. Do not trust `httpd -t`; fetch pages.

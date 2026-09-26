@@ -179,15 +179,47 @@
     #
     # ── 2. Every other route: the export writes <path>.html ──────
     #
+    # MEASURED ON REAL APACHE 2.4.58, 2026-09-26, AND THE FIRST VERSION
+    # OF THIS GROUP WAS BROKEN FOR MOST OF THE SITE.
+    #
+    # Next emits BOTH "admin.html" AND an "admin/" directory (for
+    # admin/tenants), and the same for dashboard, employees, login, en,
+    # am, settings, shifts — 20+ top-level routes. mod_dir then answers
+    # /admin with a 301 to /admin/ before this group is reached, and
+    # /admin/ matched "^(.+)$" as "admin/", looked for "admin/.html",
+    # found nothing and fell through to the 404. Measured: /admin -> 301
+    # -> /admin/ -> 404. Every such route was dead.
+    #
+    # Two lines fix it. DirectorySlash Off stops the 301, so /admin
+    # reaches this group and resolves to admin.html; "^(.+?)/?$" makes
+    # the explicit /admin/ form resolve too, so a typed or pasted
+    # trailing slash is not a 404.
+    #
+    # Disabling indexes is REQUIRED, not decorative: with DirectorySlash
+    # off, a directory request Apache cannot resolve would otherwise be
+    # eligible for an index listing.
+    #
+    # The earlier Node emulation of these rules passed 13/13 and could
+    # not have caught this — it did not model mod_dir. That is the whole
+    # argument for running them against a real Apache.
+    #
+    # Options -Indexes
+    # DirectorySlash Off
+    #
     # RewriteCond %{REQUEST_FILENAME} !-f
     # RewriteCond %{DOCUMENT_ROOT}/$1.html -f
-    # RewriteRule ^(.+)$ /$1.html [L]
+    # RewriteRule ^(.+?)/?$ /$1.html [L]
     #
     # ── 3. Anything with no file behind it ───────────────────────
     #
-    # RewriteCond %{REQUEST_FILENAME} !-f
-    # RewriteCond %{REQUEST_FILENAME} !-d
-    # RewriteRule ^ /404.html [L]
+    # ErrorDocument, not a rewrite. Measured 2026-09-26: the rewrite form
+    # served 404.html with HTTP **200**, because a rewrite is an internal
+    # substitution and does not change the status. Every unknown URL
+    # looked to a crawler — and to any monitoring — like a page that
+    # loaded. ErrorDocument serves the same file with a real 404, and
+    # needs no conditions because it only runs once nothing else matched.
+    #
+    # ErrorDocument 404 /404.html
     #
     # ── Known, measured, and deliberately not worked around ──────
     #
