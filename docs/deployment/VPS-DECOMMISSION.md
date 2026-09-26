@@ -193,6 +193,86 @@ change answer two unrelated questions.
 
 ---
 
+---
+
+## 3b. The executable manifest — measured 2026-09-26
+
+§3 names ten assets. **Deleting exactly those ten breaks fourteen code and script files and
+twenty documents**, and §3 mentions one of them. This section is the list that can actually
+be executed, measured against the tree at `edb7493`.
+
+It changes nothing about the trigger: **still NOT TRIGGERED.** This is the removal made
+ready, not the removal done.
+
+### 3b.1 Citation counts, re-measured
+
+§3 says `docker-compose.prod.yml` is *"cited by 13 documents"*. It is **20**, plus **14**
+code and script files.
+
+| Asset | Docs | Code/scripts |
+|---|---|---|
+| `docker-compose.prod.yml` | **20** | **14** |
+| `infrastructure/nginx.conf` | 13 | 2 |
+| `infrastructure/supervisor.conf` | 11 | 2 |
+| `docker-compose.lowmem.yml` | 9 | 6 |
+| `docs/VPS_DEPLOYMENT.md` | 8 | 1 |
+| `infrastructure/certbot-webroot/` | 5 | 0 |
+| `docker-compose.hostnames.yml` | 4 | **0** |
+| `docker/nginx/default.conf` | 2 | 1 |
+| `docker/php/php.prod.ini` | 2 | 1 |
+| `docker/php/www.prod.conf` | 1 | 1 |
+| `docker/mariadb/{primary,replica,standalone}.cnf` | — | — |
+
+`docker-compose.hostnames.yml` is the only asset with **no code reference at all**. It is
+still not removable on its own: four documents cite it, and pulling one file out of an atomic
+change buys nothing.
+
+### 3b.2 Assets §3 omits entirely
+
+These are VPS-production-only by the same test §3 applies, and deleting §3's list without
+them leaves references pointing at nothing:
+
+| Asset | Why it is in scope |
+|---|---|
+| `api/Dockerfile.prod` | The VPS production image. It is what references `php.prod.ini` and `www.prod.conf`, so those two cannot go while it stays |
+| `scripts/deploy.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `seed.sh`, `init-storage.sh`, `prod-build-test.sh`, `setup-replication.sh` | Eight scripts driving `docker-compose.prod.yml`. **Classify each before deleting** — the shared-hosting target replaces backup/restore with `ethr:backup` / `ethr:restore`, but that equivalence is asserted here, not measured |
+
+### 3b.3 Code edits required in the same commit
+
+Deletion alone turns gates red. Each of these must change in the removal commit:
+
+| File | Edit |
+|---|---|
+| `api/tests/Feature/DeploymentWorkerConsistencyTest.php` | `ETHR_WORKER_ASSETS` names `supervisor.conf`, `docker-compose.yml`, `prod.yml`, `lowmem.yml` — three are being deleted. Two tests iterate it and **a third exists solely for `prod.yml` and `lowmem.yml`**. Reduce the constant to `docker-compose.yml` and delete that third test |
+| `api/tests/Feature/document-root-inventory.php` | Reads `infrastructure/nginx.conf` |
+| `api/tests/Feature/HostingRequirementsConsistencyTest.php` | Reads deployment assets — re-check its list before deleting |
+| `api/tests/bootstrap.php` | Same |
+| `src/src/middleware.ts` | Its docblock cites `infrastructure/nginx.conf` as *"the authoritative control"* for the `/admin` boundary. **That sentence stops being true when the file goes** — and on shared hosting the control is `.htaccess` group 0, which is `LOCAL VERIFIED` only |
+| `api/app/Http/Controllers/Api/V1/Cron/CronRunController.php` | Cites `supervisor.conf` to explain what it replaces |
+| `api/config/database.php` | Cites `prod.yml` for the replication split |
+| `api/config/auth.php` | Cites `docker/nginx/default.conf` |
+| `api/.env.production.example` | VPS-only — classify alongside |
+| `api/.env.shared-hosting.example` | Cites `prod.yml` in a conversion note. **Stays**; the citation is what changes |
+| `scripts/shared-hosting/deploy.sh` | **New-target script citing a VPS asset.** Stays; the reference goes |
+
+### 3b.4 Order
+
+1. Cutover verified — M1, M2, the timer, a restore rehearsal on the host.
+2. Classify the eight `scripts/*.sh` and the two `.env.*.example` files.
+3. One commit: delete the assets, apply every edit in §3b.3, update all citations.
+4. `./scripts/gates.sh` — `docs` for link integrity, `backend` for the test edits.
+
+**Do not split it.** A partial removal leaves the docs gate red and a test reading a file
+that no longer exists.
+
+### 3b.5 The thing to weigh before any of it
+
+`docs/VPS_DEPLOYMENT.md` is *"out last, not first"* for a reason that has not changed: the
+static export has **never served a request on the Ethio Telecom host**, `/admin`'s protection
+rests on `[F,L]` which is **still unmeasured there**, and `AllowOverride Options` is a *new*
+requirement this migration introduced (`audit/BASELINE.md` §21). Until those are answered on
+the host, this list is the only way back.
+
 ## 4. Order of operations
 
 1. **Confirm all three trigger clauses**, not just the cutover. The rehearsal is the one that
