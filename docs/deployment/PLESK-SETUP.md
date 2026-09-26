@@ -1,8 +1,14 @@
 # Plesk setup — what the repository handles, and what you configure
 
-**Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · app at `~/ethr/` ·
-document root **`httpdocs/`** — Plesk's default, target chosen 2026-09-24.
-Measured today it is still `ethr.et/`; moving it is a panel action, see §5
+**Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · app at `<APP_ROOT>` ·
+document root **`<DOCROOT>`** — Plesk's default, target chosen 2026-09-24.
+**Measured 2026-09-17 the served directory was still `ethr.et/`**, not `httpdocs/`; moving it
+is a panel action, see §5
+
+> **Placeholders — HARD RULE 2**, [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* The sentence above keeps its literal directory name deliberately:
+> that is a **measurement** of what the panel showed, and `<DOCROOT>` is the *target*. The whole
+> point of §5 is that the two differ, so templatising the reading would erase the finding.
 
 This document exists to keep one distinction sharp: **leaving something for you to
 configure in Plesk does not mean the repository is unprepared for it.** Each section below

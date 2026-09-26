@@ -2,6 +2,8 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
+import { useHydrated } from "@/lib/hooks/useHydrated";
+
 /**
  * The request's Host header, made available to client components.
  *
@@ -33,12 +35,31 @@ export function HostProvider({
 /**
  * The host as the server saw it, falling back to the browser's own value.
  *
- * The fallback keeps client-only callers (and any tree that forgot the
- * provider) working; it is only reached after hydration, so it cannot
- * reintroduce a mismatch.
+ * The fallback keeps client-only callers (and any tree that forgot the provider)
+ * working, and under `output: "export"` it is not a fallback at all but the only
+ * source: there is no request when the HTML is built, so the provider is handed
+ * `null` and every auth page takes this path.
+ *
+ * **It is gated on `useHydrated()`, and the comment this replaced was wrong.**
+ * That comment said the fallback "is only reached after hydration, so it cannot
+ * reintroduce a mismatch." True while the provider supplies a host — the
+ * `fromServer !== null` line returns first — and false the moment it does not:
+ * `typeof window !== "undefined"` is already true *during* hydration, so the
+ * first client render would produce the real hostname against HTML built with
+ * `null`, which is the very #418 this file exists to remove. Measured 2026-09-26.
+ *
+ * The cost on that target is one render with no host — the login page shows its
+ * generic heading and the organisation field before resolving. That is the
+ * trade `docs/deployment/shared-hosting/DEPLOYMENT.md` §5 step 3 records as
+ * accepted, not a regression: a flash beats a hydration error, and nothing about
+ * *authorization* depends on this value (see `useAuthHostContext` — it decides
+ * which heading and which field to show; the API decides what data exists).
  */
 export function useHost(): string | null {
   const fromServer = useContext(HostContext);
+  const hydrated = useHydrated();
+
   if (fromServer !== null) return fromServer;
-  return typeof window !== "undefined" ? window.location.host : null;
+
+  return hydrated ? window.location.host : null;
 }

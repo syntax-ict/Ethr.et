@@ -6,6 +6,30 @@ Working file for the migration. Updated at the end of each phase.
 
 ## CURRENT PHASE
 
+> # ⚠ THE BLOCK BELOW IS SUPERSEDED — read this first
+>
+> **Moved to the top on 2026-09-25**, because it was at the *bottom* of this file while the
+> paragraph beneath it said the migration was paused and code frozen. A reader who stopped
+> after the first screen concluded the work had halted. **It had not.**
+>
+> **The migration is not paused, and code has not been frozen since at least 2026-09-22.**
+> Measured from `git log` on 2026-09-25:
+>
+> | Landed | What |
+> |---|---|
+> | **2026-09-22** (`b61cb05`) | `CronRunController` — `schedule:run` and `queue:work` over an authenticated HTTP route |
+> | **2026-09-23** (`03cefb8`) | `BACKUP_KEEP` lowered to 2 and made settable at all |
+> | **2026-09-25** (`1edaad4`) | Canary corrected — it was testing two mechanisms the deployment does not use |
+>
+> **Phase 1 host verification completed 2026-09-25** — see
+> [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md). Five host
+> capabilities moved from `NOT VERIFIED` to `VERIFIED`, and **no confirmed technical
+> incompatibility with Bronze was found.**
+>
+> **Read NEXT ACTION at the end of this file** for where the work actually stands.
+
+**The original 2026-08-31 text follows, preserved as the historical record:**
+
 **Hosting migration: PAUSED at hosting verification, since 2026-08-29, at the owner's
 request.** Unchanged as of this update (2026-08-31) — no new hosting-side facts have
 come in. Migration *code* changes (the deployment-target-specific ones — driver swaps,
@@ -2892,6 +2916,59 @@ shared-hosting compatible; the *deployment assets* were not, on any path.
 
 ## NEXT ACTION
 
+> # ⚠ UPDATED 2026-09-25 — item 1 has been executed, and two of its premises no longer hold
+>
+> **The canary was run** — eight fetches, `curl` pinned to `213.55.96.154`. Full evidence:
+> [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md). This banner records
+> only what changes the priority order below; the text beneath it is preserved as written.
+>
+> **What came back:**
+>
+> | Gate | Result |
+> |---|---|
+> | **G0-B.1** `mod_rewrite` | **PASS** — `/REWRITE_OK` → 200, `[ PASS ]` in the report |
+> | **G0-B.2 (a)** `mod_headers` | **PASS** — marker header present |
+> | **G0-B.3 (a)** `<FilesMatch>` deny | **PASS** — 403 on the bait |
+> | **G0-B.4** `Authorization` → PHP | **PASS** |
+> | **G0-B.5** static-file shadowing | **PASS — REWRITE WINS** on `.js`, the favourable answer |
+> | **G0-B.3 (b)** `[F,L]` deny | **NOT ANSWERED** — see below |
+> | **G0-B.2 (b)** CSP survival | **NOT ANSWERED** — see below |
+>
+> **Item 1's own stated purpose is discharged.** It existed to find out *"before the eight days
+> are spent"* whether B.1 fails and leaves static export unbounded. **B.1 passes**, so that
+> outcome is retired.
+>
+> **Two premises in item 1's reasoning are now wrong, and they point opposite ways:**
+>
+> 1. *"G0-A's denial forecloses the Node branch, which makes static export the only frontend
+>    path."* **No.** G0-A asked about a *reverse-proxy directive*, and serving `/api` needs
+>    none — `mod_rewrite` + PHP-FPM + `Authorization` passthrough are all measured working, so
+>    `.htaccess` routes `/api` and `/sanctum` to `index.php` unaided. The Node branch remains
+>    the owner's choice (2026-09-24) and is **not** foreclosed. What survives of G0-A is the
+>    narrower question of **which process owns `/`** once the Node app is enabled.
+> 2. *"Two blockers remain and neither is G0-D: **G0-C** and **G0-F**."* **G0-C splits into four
+>    answers that do not agree**, which is why the compatibility matrix now carries four rows:
+>    wildcard **DNS PASSES**; a valid `*.ethr.et` **certificate already exists** (Let's Encrypt,
+>    2026-09-16 → 2026-12-15 — this *contradicts* the register's *"wildcard blocked, needs
+>    DNS-01"*); but **no wildcard vhost is configured**, so every tenant hostname — including
+>    `admin.ethr.et` — currently serves the **Plesk panel login**. **The owner states wildcard is
+>    enabled on payment of the subscription fee**, which makes this a commercial precondition
+>    rather than a technical blocker. Owner testimony, not panel output: re-measure after
+>    activation.
+>
+> ### Manual queue — host-side items, named once
+>
+> | # | Item | Why it is here |
+> |---|---|---|
+> | M1 | **Re-upload the canary directory and fetch two URLs** — `secret.env.probe` and `canary.php`'s headers | The canary on the host is the **2026-09-18 revision** (`eb239f2`), byte-matched by its three-header response. `secret.env.probe` 404s because it joined in `1edaad4`. **The two baits that are missing are the two added to close a known false-pass.** B.3(b) tests `RewriteRule … [F,L]` — the mechanism the deployment actually uses to block `api/.env` — and a 200 there blocks deployment on **every** branch |
+> | M2 | **Run `ethr-hosting-check.php`** with database credentials | Closes `CREATE TRIGGER` (**G0-F**), the 18 extensions, `memory_limit`, `max_execution_time`, SMTP, DB version and charset — **seven unknowns in one run.** Its `CREATE TRIGGER` test is safe and reversible: scratch table → trigger → `DROP TRIGGER` → `DROP TABLE` |
+> | M3 | **Re-measure the wildcard after subscription activation** | Two commands, in `audit/BRONZE-BLOCKER-RESOLUTION.md` §5, with what a real PASS looks like — both the status *and* the served certificate, since DNS and the certificate already pass and either alone would be a false positive |
+> | M4 | **Enable the Plesk Node app, then fetch one API route and one frontend route** | Settles who owns `/`. `deployment/shared-hosting/DEPLOYMENT.md` §5 says this *"must not be guessed from Plesk's general documentation"* |
+> | M5 | **Delete the canary directory from the document root** | `RUN-SHEET.md` §9. It discloses nothing by design, but it is a loose end and its `.htaccess` is not the one the deployment wants |
+>
+> **M1 is the cheapest and the highest-value**: one upload, two fetches, and it closes the only
+> outstanding result that could block deployment on every branch.
+
 **Rewritten 2026-09-23 for Plan B.** The 2026-09-19 text below the line is kept because its
 corrections are still right; what it got wrong is the *shape* of the wait. It said the
 workstream was blocked on Ethio Telecom and ranked **sending the support request** first.
@@ -3011,6 +3088,32 @@ gated rows are 0.5 + 0.5 + 1.0 = 2.0.)* And the failure case is **larger** than 
 rows, not equal to them: if item 1 comes back negative on **B.1**, the **whole ≈8-day
 estimate is void** — with no rewrite there is no mechanism to serve entity routes at all, so
 there is nothing left to re-cost. Do not start it before item 1.
+
+> **Updated 2026-09-26 — the gate opened and part of the task is done.** *"Do not start it
+> before item 1"* was conditional on **G0-B.1**, and Phase 1 answered B.1 **PASS**:
+> `mod_rewrite` is honoured and a rewrite wins over a real static file. So the precondition
+> this paragraph names is met, and the `≈8-day estimate is void` branch did not fire.
+>
+> **What was done:** the entity-route defect — `DEPLOYMENT.md` §5 step 4, *"does not work as
+> written"* since 2026-09-18 — is closed. Four server-component wrappers, one sentinel shell
+> per route, the id read from `usePathname()`, and a **rewritten BRANCH B rule set**, because
+> the one that shipped would have 404'd every page on the site rather than only entity routes.
+> Measured against the pinned Next 16.3.5; see [`audit/BASELINE.md`](audit/BASELINE.md) §19.
+>
+> ~~**What was deliberately not done:** `next.config.ts` is untouched and `output` is still
+> `"standalone"`. Steps 1–3 — the `output` switch, deleting `middleware.ts`, the
+> `(auth)/layout.tsx` `headers()` read — are the branch decision and are unchanged.~~
+> **Superseded later the same day — steps 1–3 were done.** `next.config.ts` now selects
+> `output` from `ETHR_TARGET`; `standalone` is still the **default**, so the sentence's
+> intent survives even though its wording does not. `middleware.ts` was **not** deleted —
+> Next exports with it present and disables it. See [`audit/BASELINE.md`](audit/BASELINE.md)
+> §20. The refactor is correct under both modes and was verified not to regress the current
+> one.
+>
+> **Do not re-read the remaining estimate as ≈8 days minus what was spent.** §3A's rows are
+> not separable that way, and the two gated line items this paragraph counts were about the
+> rewrite mechanism, which is now measured rather than assumed. Re-cost it against §5 steps
+> 1–3 if a number is needed.
 
 Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
 Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —

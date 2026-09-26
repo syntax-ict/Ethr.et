@@ -1,7 +1,19 @@
 # ETHR — Shared Hosting Deployment Runbook
 
-Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethiotelecom.et`
-(`213.55.96.154`).
+Target: Ethio Telecom Linux Bronze (Plesk), account `<ACCOUNT_USER>` @ `<PANEL_HOST>`
+(`<ACCOUNT_IP>`), serving `<APP_DOMAIN>`.
+
+> **Placeholders — HARD RULE 2**, [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25; this line previously named the account, host and IP literally.*
+> This runbook is a **procedure**, so account-specific values are placeholders throughout:
+> `<APP_DOMAIN>`, `<PANEL_HOST>`, `<ACCOUNT_IP>`, `<ACCOUNT_USER>`, `<DOCROOT>`, `<APP_ROOT>`,
+> `<DB_NAME>`, `<DB_USER>`. **Fill them from the panel before running anything.** The real
+> values are not recorded in this repository — the one place they are named is
+> [`../../MIGRATION_STATE.md`](../../MIGRATION_STATE.md)'s manual queue.
+>
+> Evidence documents cited below — `GATE-0-RESULT.md`, `B1-B5_GATE_REPORT.md`,
+> `audit/BRONZE-BLOCKER-RESOLUTION.md` — keep their literals on purpose. A measurement without
+> its actual values is not a measurement.
 
 > **STATUS BANNER — added 2026-09-18. Read before running anything below.**
 >
@@ -31,6 +43,11 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 >   instruction, and flagged again in `../PLESK-SETUP.md` §2 — and the body was left saying
 >   it anyway, for as long as both notes existed. A warning above a runbook does not correct
 >   the runbook; readers follow the commands.
+>
+> *(The username below is the one literal HARD RULE 2 deliberately leaves in this file: it is a
+> **history** row recording a typo that was fixed, and the literal is the content. Replacing it
+> with `<ACCOUNT_USER>` would erase what the sentence says. Do not "complete" the conversion
+> here.)*
 >
 > What *has* been corrected here is factual only — the account username (`ethret`, not
 > `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
@@ -216,9 +233,9 @@ support *before* step 4, not after a failed deploy.
 # Everything except node_modules/vendor/tests — those are rebuilt or excluded below.
 rsync -avz --exclude='.git' --exclude='node_modules' --exclude='vendor' \
   --exclude='.env*' --exclude='tests' \
-  ./api/ ethret@213.55.96.154:~/ethr/api/
+  ./api/ <ACCOUNT_USER>@<ACCOUNT_IP>:<APP_ROOT>/api/
 
-rsync -avz api/vendor/ ethret@213.55.96.154:~/ethr/api/vendor/
+rsync -avz api/vendor/ <ACCOUNT_USER>@<ACCOUNT_IP>:<APP_ROOT>/api/vendor/
 ```
 
 If SSH shell access turns out to be disabled for this account despite port 22 being
@@ -463,6 +480,33 @@ each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 
+> # ⚠ PRECEDENCE CONFLICT — read before building either branch
+>
+> **This section says Node. [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md)
+> says static export, and it outranks this document by its own terms.** Recorded 2026-09-25;
+> **not resolved here, because it is not this runbook's to resolve.**
+>
+> | | |
+> |---|---|
+> | **Contract, rule 2** | *"A Plesk extension is not a default. The Node.js extension is the case in point."* Hard rule restated **2026-09-25** — the latest date of the three |
+> | **Contract, rule 3** | *"A field that is absent is not a default to configure — it is a dependency to remove"* (G0-A). Contract set **2026-09-22** |
+> | **This section** | *"Node.js is the chosen branch — owner decision **2026-09-24**"* |
+>
+> **The owner decision falls between the contract's setting and its restatement**, which is
+> exactly why this cannot be settled by reading dates.
+>
+> **What Phase 1 does and does not change.** It retired the *routing* argument against Node —
+> serving `/api` needs no proxy directive, `mod_rewrite` and `Authorization` passthrough are
+> measured working. **It did nothing to rule 2**, and G0-G's panel reading confirms Node.js
+> here *is* an extension, which is what rule 2 excludes. An earlier draft of
+> `../../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md` concluded "the Node branch is not
+> foreclosed" from the routing half alone; **that was corrected, and the correction is why this
+> banner exists.**
+>
+> **Until the owner says otherwise, treat static export as the path** and read the fallback
+> section below as the primary one. **Do not enable the Plesk Node application on the strength
+> of this section alone.**
+
 **Node.js is the chosen branch — owner decision 2026-09-24.** The static-export branch is
 retained below as the fallback, not deleted: it is what this step reverts to if the routing
 question in *One thing must be verified* comes back wrong.
@@ -526,26 +570,86 @@ instructions).
 
 ### Fallback — static export (B5 = no, or the routing question above comes back wrong)
 
-Requires the code changes named in `docs/SHARED_HOSTING_AUDIT.md` §E and
-`docs/MIGRATION_STATE.md` D6 — **not yet made**, because making them before knowing B5
-risks doing frontend work that turns out to be unnecessary. When B5 resolves negative:
+> **Steps 1–3 are DONE — 2026-09-26.** They are kept struck rather than deleted because
+> two of the three were prescribed wrongly, and a reader who follows them as written will
+> undo work. Full measurements in [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20.
+>
+> **Build it with `ETHR_TARGET=shared-hosting npm run build`.** Without that variable the
+> build is `standalone`, which is the VPS rollback path and stays the default until
+> `VPS-DECOMMISSION.md` is triggered.
 
-1. `next.config.ts`: add `output: "export"`, remove `rewrites()` (nothing to proxy to
-   locally once nginx/nginx-dev is gone — the SPA already calls the relative
-   `/api/v1/...`), move the CSP block into `.htaccess`'s `mod_headers` section (already
-   present in this package, currently duplicated from the VPS nginx config — keep it in
-   sync if this branch is taken).
-2. Delete `middleware.ts`; its host-based `/admin` rule is reimplemented in
-   `docs/deployment/shared-hosting/.htaccess`'s commented BRANCH B block — uncomment it.
-3. `(auth)/layout.tsx`: replace the `headers()` read with a client-side
-   `window.location.host` read. Accepts a first-paint flash on the tenant login page
-   (React hydration error #418's original cause) in exchange for removing the last SSR
-   dependency — documented trade-off, not an oversight.
-4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
-   (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
-   already a client component that fetches by id, so this only satisfies the exporter.
-5. `npm run build`, upload the exported `out/` directory into `<DOCROOT>/`, alongside
-   `index.php`. Uncomment BRANCH B's two rewrite rules in `.htaccess`.
+1. ~~`next.config.ts`: add `output: "export"`, remove `rewrites()`, move the CSP into
+   `.htaccess`.~~ **DONE, as a switch rather than a flip.** `src/lib/build-target.ts` reads
+   `ETHR_TARGET`; `output` follows it. An unconditional flip emits no `server.js`, which is
+   what `docker/frontend/Dockerfile` runs — it would have deleted the rollback path before
+   the cutover that triggers its removal. `headers` and `rewrites` are deleted from the
+   config object on that target, because Next warns while the key is merely present whatever
+   it returns.
+
+   **The CSP was already in `.htaccess` and it was wrong.** `script-src 'self'` blocks the
+   three un-nonced inline scripts this build emits: measured, 3 violations and React error
+   #412 per page, and **nothing hydrates while the HTML still renders**. It now carries
+   `'unsafe-inline'`, and deliberately not `'unsafe-eval'` — measured unnecessary, so that
+   policy is tighter than the VPS's.
+2. ~~Delete `middleware.ts`.~~ **NOT DONE, and it should not be.** Measured: Next 16.3.5
+   builds a static export with the file present and simply disables it, saying so —
+   *"Statically exporting a Next.js application via `next export` disables API routes and
+   middleware."* Deleting it would cost the VPS path and local development a working control
+   for no gain. Its `/admin` host rule **is** reimplemented in the `.htaccess` BRANCH B
+   block, which still has to be uncommented at deploy time.
+
+   **That block did not work as ordered.** It sat *after* the SPA fallback, which ends in
+   `[L]`, so `/admin` on a tenant host measured **200, not 403** — a deny rule placed after
+   a catch-all is not a deny rule. It has been moved above the fallbacks and is now group 0.
+3. ~~`(auth)/layout.tsx`: replace the `headers()` read with a client-side read.~~ **DONE,
+   but narrowed to the export target only.** Replacing it outright would have given the VPS
+   rollback path this target's first-paint flash for nothing. That one line is why the seven
+   `(auth)` routes were the only dynamic routes in the application; they now export as
+   static HTML.
+
+   The client-side half it hands off to **was already unsafe** and is fixed in the same
+   pass: `useHost()` read `window.location.host` during the first render, which is exactly
+   the hydration error #418 this step's parenthesis names. It now waits for hydration.
+4. ~~Add `generateStaticParams` returning `[]` to the four dynamic routes.~~ **DONE
+   2026-09-26 — nothing to do here any more, and the step as written was wrong in three
+   ways.** It is kept struck rather than deleted because the reasoning matters:
+
+   > **What it said:** add `generateStaticParams` returning `[]` to `employees/[id]`,
+   > `payroll/[id]`, `devices/[id]` and `admin/tenants/[id]`, *"each is already a client
+   > component that fetches by id, so this only satisfies the exporter."*
+   >
+   > **What was measured 2026-09-18 (`7aed9d2`):** all four are `"use client"` and Next
+   > rejects the combination; each needs a server-component wrapper first, and `[]` still
+   > 404s every real id because those ids are tenant data.
+   >
+   > **What was measured 2026-09-26** ([`../../audit/BASELINE.md`](../../audit/BASELINE.md) §19):
+   > both of the above are correct, and there was a **third** defect nobody had named — the
+   > generic BRANCH B rewrite in `.htaccess` would have 404'd *every page on the site*,
+   > entity routes or not, because it rewrote to `$1/index.html` and this exporter writes
+   > `features.html`. All three are now closed.
+
+   The routes are exportable as they stand. Each `page.tsx` is a server component that
+   returns `staticExportIdParams()` — **one** sentinel id, not `[]` — and renders the client
+   component beside it; `src/src/lib/hooks/useRouteId.ts` reads the real id back out of the
+   URL, because on a shell served for another id `useParams()` returns the **sentinel** and
+   only `usePathname()` has the truth. That asymmetry is the trap: trusting `useParams()`
+   gives you an application that renders *"not found"* on every entity page and looks like a
+   data problem.
+
+   **This landed under `output: "standalone"` and changed nothing there** — an arbitrary ULID
+   still returns 200 and still server-renders with the real param, verified. So steps 1–3
+   remain the decision; step 4 is no longer part of it.
+5. `ETHR_TARGET=shared-hosting npm run build`, upload the exported `out/` directory into
+   `<DOCROOT>/`, alongside `index.php`. Uncomment BRANCH B's rules in `.htaccess` —
+   **there are four groups now, not two — numbered 0 to 3 — and the order is
+   load-bearing**: group 0 is the `/admin` host boundary and it has to precede the
+   fallbacks or it never fires. The file says which and why.
+
+   **A real export was built and served under these exact rules and headers on 2026-09-26**
+   — see [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20g for what that did and did
+   not establish. It is `LOCAL VERIFIED` only: that Apache honours `[F,L]` at all is still
+   **M1**, and if it does not, `/admin` is served from every tenant host with the API's
+   `EnsurePlatformContext`, `admin.manage` and `RequirePlatformMfa` as the whole boundary.
 
 **Cost of this branch, stated plainly:** marketing pages (`/`, `/features`, `/pricing`,
 `/faq`, `/contact`) lose server-side rendering — an SEO consideration worth flagging to
@@ -661,10 +765,10 @@ Then work through `docs/deployment/shared-hosting/deploy-checklist.md` and
 `ethr.et` currently resolves to a dormant Hetzner VPS with every port closed (verified
 — see `docs/B1-B5_GATE_REPORT.md`), so **there is no live traffic to protect**; this is
 not a blue-green cutover with real risk of dropped requests. Repoint the `A`/`AAAA`
-records for `ethr.et`/`www` (and the wildcard, once the vhost from step "wildcard
-subdomain" below exists) to `213.55.96.154` when steps 1–7 are verified.
+records for `<APP_DOMAIN>`/`www` (and the wildcard, once the vhost from step "wildcard
+subdomain" below exists) to `<ACCOUNT_IP>` when steps 1–7 are verified.
 
-**Before cutover:** create the wildcard subdomain in Plesk (`* .ethr.et` → same
+**Before cutover:** create the wildcard subdomain in Plesk (`*.<APP_DOMAIN>` → same
 document root as `www`) — confirmed accepted by the panel but deliberately not yet
 created (owner's choice, `docs/B1-B5_GATE_REPORT.md`). Tenant subdomains resolve to
 nothing until this exists.

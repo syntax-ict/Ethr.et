@@ -4,6 +4,9 @@ vendor/
 
 # Build output
 .next/
+# `ETHR_TARGET=shared-hosting next build` writes here instead of .next/standalone.
+# 689 files on the last run; nothing was ignoring them.
+src/out/
 api/public/build/
 src/tsconfig.tsbuildinfo
 

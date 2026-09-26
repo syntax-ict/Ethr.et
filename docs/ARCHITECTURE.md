@@ -1,5 +1,23 @@
 # ETHR — System Architecture (v2.0)
 
+> **Read this first. Last substantive revision: 2026-08-28** — before Horizon was removed
+> (`cdf85d1`), before the queue topology changed, and before the shared-hosting target was
+> chosen. **It was the stalest document in the repository** when the 2026-09-25 audit measured
+> it, and the corrections applied that day are marked inline where they land.
+>
+> **Two standing cautions:**
+>
+> - **This describes the VPS/Docker deployment.** For Ethio Telecom Plesk shared hosting —
+>   the production target — the authority is
+>   [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md), not
+>   this file. There is no Reverb, no Redis, no MinIO and no Supervisor on that target.
+> - **Where this file and code disagree, the code wins.** Named sources of truth:
+>   `QueueHealth::QUEUES` for queue names, `composer.lock` for what is installed,
+>   `docker-compose.prod.yml` for the container topology.
+>
+> Measured state lives in [`audit/BASELINE.md`](audit/BASELINE.md); the reconciliation that
+> produced these corrections is [`audit/CODE-VS-DOCUMENTATION.md`](audit/CODE-VS-DOCUMENTATION.md).
+
 ## System Overview
 
 ```
@@ -19,7 +37,7 @@
                       [MariaDB]
                          |
                     [Queue Workers]
-                    (Horizon/Supervisor)
+                    (queue:work/Supervisor)
                          |
                   [Failed Job Recovery]
 ```
@@ -1106,17 +1124,31 @@ avoids.
 | `MissingPunchDetected` | Notify employee + supervisor |
 | `AnnouncementPublished` | Notify target audience via Reverb + in-app |
 
-### Queue Architecture (Horizon)
+### Queue Architecture
 
-| Queue | Purpose | Workers | Retry | On Final Failure |
-|---|---|---|---|---|
-| `default` | General tasks | 2 | 3 | Log to failed_jobs, surface in admin dashboard |
-| `attendance` | Attendance scans, anomaly/missing-punch jobs | 4 | 5 | Log to failed_jobs + `Queue::failing` alert |
-| `payroll` | Payroll calculations | 2 | 1 | Mark run as failed, notify tenant_admin |
-| `notifications` | Email, SMS, push | 3 | 3 | Log failure, do not retry (stale) |
-| `exports` | PDF, Excel, bank files | 2 | 2 | Mark export as failed, notify user |
-| `devices` | Biometric device polling | 2 | 5 | Trigger DeviceOffline event |
-| `sync` | ~~Offline data sync~~ — **not queued**, see below | — | — | n/a |
+> **Corrected 2026-09-25 (Phase 2 documentation reconciliation).** This table listed **seven**
+> queues under a "(Horizon)" heading. **There are four**, and Horizon was removed in `cdf85d1`
+> — no package, no lockfile entry, and **no `api/config/horizon.php`**. `payroll`, `devices`
+> and `sync` **do not exist**: nothing dispatches to them and no worker drains them. A worker
+> started against the old list would silently drain three empty queues.
+>
+> **`App\Services\Observability\QueueHealth::QUEUES` is the source of truth**, and membership
+> is the correctness property — a queue missing from it is a queue nothing drains.
+> `infrastructure/supervisor.conf`, both compose files and `CronRunController::queue` all match
+> it or read from it.
+
+| Queue | Purpose | On Final Failure |
+|---|---|---|
+| `default` | General tasks, leave accrual, billing, cleanup, payroll (`ProcessPayrollJob`) | Log to failed_jobs, surface in admin dashboard |
+| `attendance` | Attendance scans, anomaly and missing-punch jobs, device event pulls | Log to failed_jobs + `Queue::failing` alert |
+| `notifications` | Email, SMS, in-app, approval reminders, announcement fan-out | Log failure |
+| `exports` | Scheduled reports, dashboard digests, PDF/Excel/bank files | Mark export as failed, notify user |
+
+Order is meaningful — workers drain left to right, so `attendance` (someone is standing at a
+device) precedes `exports` (someone is waiting for an email). Retry policy is set per job
+rather than per queue: `--tries=3 --backoff=10` on the worker, overridden on the classes that
+need it — `ProcessPayrollJob` declares `tries = 1` deliberately, because a re-run would append
+a second set of entries.
 
 Failed jobs surface in Super Admin dashboard with retry/dismiss actions
 (`SystemHealthService::failedJobsCount()`), and every queue routes through the
@@ -1232,10 +1264,9 @@ Client → POST /api/v1/files/presign { filename, content_type }
 services:
   nginx:                 Reverse proxy, SSL termination, rate limiting, security headers
   api:                   Laravel PHP-FPM (8.2)
-  frontend:              Next.js (SSR, Node 20 LTS)
-  worker-realtime:       Horizon — attendance, devices, sync
-  worker-notifications:  Horizon — notifications, mail, sms, default
-  worker-heavy:          Horizon — payroll, exports
+  frontend:              Next.js (SSR, Node 22)
+  worker-realtime:       queue:work — attendance, notifications, default (4 replicas)
+  worker-exports:        queue:work — exports (2 replicas)
   scheduler:             Laravel scheduler (cron, 1-min intervals) — singleton
   reverb:                WebSocket server (Reverb)
   mariadb:               Database (10.11, persistent volume)
@@ -1245,13 +1276,13 @@ services:
   minio:                 File storage (persistent volume)
 ```
 
-Queue work is split across three containers rather than one, so a 30-minute
-payroll run cannot starve latency-sensitive check-ins and so the three workloads
-get independent memory limits. Redis is split for a related reason:
-`maxmemory-policy` is instance-wide, so one instance serving both cache and
-queue has no correct setting. See `docs/DEPLOYMENT.md` → "Docker Compose
-Services" for the full reasoning and the naming contract with
-`api/config/horizon.php`.
+Queue work is split across **two** containers rather than one — **by latency, not by queue
+name** — so a long export cannot starve latency-sensitive check-ins, and the two workloads get
+independent memory limits. Redis is split for a related reason: `maxmemory-policy` is
+instance-wide, so one instance serving both cache and queue has no correct setting. See
+[`DEPLOYMENT.md`](DEPLOYMENT.md) → *Two worker containers, not three* for the sizing
+arithmetic, which **does not follow the old per-supervisor formula**: a plain `queue:work` is
+one process per container, so concurrency comes from `replicas`.
 
 ### Nginx Routing
 
@@ -1273,7 +1304,7 @@ admin.ethr.et       → frontend (super admin)
 | Redis | `PING` | 10s |
 | MinIO | `GET /minio/health/live` | 30s |
 | Reverb | WebSocket ping | 30s |
-| Queue | Horizon dashboard + queue depth check | 60s |
+| Queue | `ethr:queue:check` — scheduler heartbeat + per-queue starvation | 60s |
 
 ---
 

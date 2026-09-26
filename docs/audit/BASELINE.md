@@ -206,7 +206,9 @@ Horizon: see §3a. Removal is a package change plus one line in `bootstrap/provi
 
 ## 7. Queue architecture
 
-**15 job classes.** Declared timeouts **[verified]**:
+**16 job classes**, all of them `ShouldQueue` **[re-measured 2026-09-25]**. *(Read **15** until
+then — accurate when written; a sixteenth has since landed. The timeout table below was not
+re-derived and still lists 15.)* Declared timeouts **[verified]**:
 
 | Job | Timeout |
 |---|---|
@@ -246,7 +248,18 @@ This is a live correctness defect on any host using `QUEUE_CONNECTION=database`,
 
 ## 8. Scheduled tasks
 
-**12 entries** in `api/routes/console.php` **[verified]**: `devices:sync` every 5 min; missing-punch scan 15:30; anomaly scan 15:45; leave accrual monthly 1st 00:30; carry-forward yearly 1 Jan; expiring-trial notices 05:00; scheduled reports hourly; dashboard digests hourly; approval reminders 06:00; invoice generation monthly 1st 03:00; overdue invoices 04:00; cleanup 02:00.
+**14 entries** in `api/routes/console.php` **[re-measured 2026-09-25: 6 `Schedule::call`, 6
+`Schedule::job`, 2 `Schedule::command`]**: `devices:sync` every 5 min; missing-punch scan 15:30;
+anomaly scan 15:45; leave accrual monthly 1st 00:30; carry-forward yearly 1 Jan; expiring-trial
+notices 05:00; scheduled reports hourly; dashboard digests hourly; approval reminders 06:00;
+invoice generation monthly 1st 03:00; overdue invoices 04:00; cleanup 02:00; **`ethr:backup`
+daily 01:00**; **the minute scheduler heartbeat** (`QueueHealth::beat()`).
+
+> *Read **12** until 2026-09-25.* The two missing were the backup and the heartbeat — and the
+> heartbeat is the one that makes the other thirteen observable, since it is what lets
+> `ethr:queue:check` and `/api/v1/health` tell **quiet** from **dead**. `CronRunController`'s
+> own docblock already said *"fourteen entries"*, so the two in-repo sources disagreed; 14 is
+> the measurement.
 
 Eight use `->withoutOverlapping()`, which is cache-lock backed. The `cache_locks` table exists, and `CACHE_STORE=database` locking was live-verified against real MariaDB **[documented-done]**, commit `7e31519`.
 
@@ -257,7 +270,7 @@ Eight use `->withoutOverlapping()`, which is cache-lock backed. The `cache_locks
 **[verified]**
 
 - `api/app/Services/FileStorageService.php:64` resolves `config('filesystems.default')` — previously the literal `'minio'`, fixed in `80cac67`. **Storage backend is now a pure config switch**; preserve that property, it is the escape hatch if local disk proves too small.
-- `api/app/Services/Admin/SystemHealthService.php:66` **still hardcodes `Storage::disk('minio')`** — missed by `80cac67`. It sits inside `try/catch`, so it degrades to "unhealthy" rather than 500: the admin health page will show storage permanently red on any non-MinIO deployment. That page is the first thing an operator checks.
+- ~~`api/app/Services/Admin/SystemHealthService.php:66` **still hardcodes `Storage::disk('minio')`** — missed by `80cac67`.~~ **FIXED — re-measured 2026-09-25.** It now reads `Storage::disk(config('filesystems.default'))` at **`:95`**. The original finding is struck rather than deleted because it was correct when written and the consequence it named was real: the call sits inside `try/catch`, so it degraded to "unhealthy" rather than 500, and the admin health page — *the first thing an operator checks* — would have shown storage permanently red on any non-MinIO deployment. **Leaving it listed as broken would have misdirected the first hour of a shared-hosting deployment**, which is why this line was corrected rather than left to age.
 - `api/public/storage` is a symlink to the Docker-absolute `/var/www/api/storage/app/public`. **It is not tracked in git** (`git ls-files` returns nothing), so it will not ship broken — but `storage:link` must run on the host.
 - No writes outside `storage/` and `bootstrap/cache`. No `exec`, `shell_exec`, `proc_open`, `symlink` or `putenv` anywhere in `app/`.
 
@@ -2805,3 +2818,412 @@ CHROME_PATH=/path/to/chrome LHCI_BASE_URL=http://localhost:3000 \
 The gate refuses rather than skips when nothing is serving. A Lighthouse run that
 silently measures nothing is worse than no run, because the report still renders
 and still looks like evidence — which is precisely how defect 1 above survived.
+
+---
+
+## 19. Static export — **measured 2026-09-26**
+
+Closes the *"does not work as written"* annotation on
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 step 4, open since 2026-09-18 (`7aed9d2`) and promoted to the critical path on
+2026-09-25 once the Node branch was correctly re-read as foreclosed by
+`SHARED-HOSTING-CONTRACT.md` rule 2.
+
+Measured against the pinned versions — **Next 16.3.5, React 19.2.7** — in an isolated
+four-route probe served by an emulation of the BRANCH B rule set, then re-checked against
+the real application's build. Everything below is an observation, not an inference.
+
+### 19a. What step 4 actually got wrong — three things, not one
+
+| # | The step said | Measured |
+|---|---|---|
+| 1 | Add `generateStaticParams` to the four dynamic routes | Rejected: all four are `"use client"`. **Confirmed** — a server-component wrapper is required, and one works |
+| 2 | Return `[]` | Emits **no file** for the route, so every real id 404s. `[]` is a valid answer to *"which pages exist"* and the answer it gives is *none* |
+| 3 | *(not mentioned)* | **The generic BRANCH B rewrite was also wrong, and it would have 404'd every page on the site** — see §19c |
+
+The third was not in the annotation and is the one that would have cost the most, because
+it fails on `/features` and `/pricing`, not only on entity routes — so it would have
+presented as *"the static export does not work at all"* rather than as a routing bug.
+
+### 19b. The sentinel, and the one finding that decides the design
+
+Ids are tenant data — `char('public_id', 26)` ULIDs created after the build — so there is no
+set of values to enumerate. The mechanism is therefore **one shell per route, built under a
+sentinel id**, handed to every id by the web server, with the real id read back out of the
+URL.
+
+Which leaves the question of where the client gets the id from. Measured on a shell served
+for a *different* id — `/employees/real-42` answered by `employees/__id__.html`:
+
+| Source | Returns | Usable |
+|---|---|---|
+| The `params` prop the server resolved | `__id__` | **No** — it is the build's id |
+| `useParams()` | `__id__` | **No** — params come from the prerendered payload, not from the URL |
+| `usePathname()` | `/employees/real-42` | **Yes** |
+
+`useParams()` returning the sentinel is the finding worth carrying: it is the API whose name
+suggests it is the right one, and it silently reports the placeholder. A first version that
+trusted it would have made every entity page fetch `/employees/__id__` and render *"not
+found"* — a failure that looks like missing data rather than like a routing defect.
+
+**Deriving the id during the first client render raises React hydration error #418**, because
+the shell's HTML was rendered for the sentinel and a first render that already knows the real
+id disagrees with it. `src/src/lib/hooks/useRouteId.ts` uses `useSyncExternalStore` with a
+`getServerSnapshot` for exactly this: it hydrates against the sentinel, then re-renders with
+the real id, and no mismatch is possible. Measured — the error appears with the naive version
+and is absent with this one.
+
+### 19c. How the exporter names files
+
+| Route | File emitted |
+|---|---|
+| `/` | `out/index.html` |
+| `/features` | `out/features.html` |
+| `/employees/[id]` | `out/employees/__id__.html` plus `out/employees/__id__.txt` |
+
+**Not `out/features/index.html`.** The `/index.html` form is what `trailingSlash: true`
+produces, and `next.config.ts` does not set it. The BRANCH B rule that shipped tested
+`%{REQUEST_FILENAME}/index.html` and rewrote to `$1/index.html`, which matches nothing this
+exporter writes. Rewritten in
+[`../deployment/shared-hosting/.htaccess`](../deployment/shared-hosting/.htaccess).
+
+### 19d. Verified over HTTP, in a browser
+
+Against the emulated rule set, with `employees` and the nested `admin/tenants` both present:
+
+| Case | Result |
+|---|---|
+| Deep link to an entity route | 200, real id resolved |
+| Deep link to a **nested** entity route (`/admin/tenants/<id>`) | 200, real id resolved |
+| Client-side `Link` navigation to an entity route | real id resolved |
+| Browser back, then forward | real id resolved |
+| A route with no file behind it | 404 |
+| Hydration and page errors | **none** |
+
+### 19e. One cost, measured and deliberately not worked around
+
+A client-side navigation to an entity route also prefetches the page's segment-cache file
+under `/employees/<id>/`, and **that 404s**: Next asks for it with dots where the exporter
+wrote it with slashes. Navigation is unaffected — Next falls back to the full RSC payload,
+which the `.txt` rule serves.
+
+The cost is one failed request per navigation. Closing it would mean hardcoding a
+Next-internal filename per route in `.htaccess`, which breaks silently on the next Next
+upgrade; the 404 is the cheaper failure because it is visible. **Do not close it by pointing
+the 404 fallback at an entity shell** — that turns every genuine 404 into a page that looks
+like it loaded.
+
+### 19f. What this does *not* change
+
+`output` is still `"standalone"`. Nothing here flips the branch — steps 1–3 of §5's fallback
+(the `output` switch, deleting `middleware.ts`, the `(auth)/layout.tsx` `headers()` read)
+remain undone, and `middleware.ts` is still what enforces the `/admin` host boundary.
+
+> **True of this pass, and superseded by §20 later the same day.** Steps 1–3 were then done:
+> `output` follows `ETHR_TARGET` with `standalone` as the default, `middleware.ts` was kept
+> rather than deleted, and the `/admin` boundary moved to `.htaccess` at the routing layer.
+> Read §20 before acting on this paragraph.
+
+The refactor is correct under **both** modes, which is why it can land before that decision.
+Verified against the real application on `standalone`:
+
+- `next build` exits 0 and prerenders `/employees/__id__`, `/payroll/__id__`,
+  `/devices/__id__` and `/admin/tenants/__id__` as SSG.
+- `next start` serves an **arbitrary** ULID at each of those routes with **200**, and the
+  SSR'd HTML carries the **real** id — `dynamicParams` defaults to `true`, so an id outside
+  `generateStaticParams` is still server-rendered on demand and `useRouteId` returns the
+  param untouched. **No regression to the deployment that exists today.**
+- 86 Vitest files / 591 tests pass, `tsc --noEmit` clean, ESLint 0 errors,
+  `prettier --check src/` clean.
+
+### 19g. What is still a decision, not a measurement
+
+The sentinel serves an entity route to anyone who requests one, and the **authorisation**
+boundary is unchanged — `AuthGuard` and the API's tenant scope both still apply, and the
+shell carries no tenant data: it is the loading skeleton, verified in the emitted HTML.
+What changes is that a wrong id now reaches the client shell and fails at the API instead of
+failing at the web server. That is the same behaviour `standalone` already has.
+
+**Still open, and outside this pass:** `middleware.ts`'s `/admin` host rule has no
+replacement under a static export other than the commented BRANCH B block, which has never
+been run. That is tracked as its own MEDIUM risk in
+[`../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md`](../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md)
+§7 and is not closed here.
+
+### 19h. How to reproduce
+
+```bash
+cd src && npx next build            # the four [id] routes should prerender as SSG
+npx next start -p 3000
+curl -o /dev/null -w '%{http_code}\n' localhost:3000/employees/01J8ZQ9K0000000000000000AA
+node node_modules/vitest/vitest.mjs run src/test/static-export-route-id.test.tsx
+```
+
+The export-mode half cannot be reproduced from this repository yet, because `output: "export"`
+also requires steps 1–3. It was measured in a standalone probe built on the same pinned
+versions; the rule set it verified is the one now in
+[`../deployment/shared-hosting/.htaccess`](../deployment/shared-hosting/.htaccess), and the
+id-resolution half is pinned by `src/src/test/static-export-route-id.test.tsx`.
+
+### 19i. Verification pass — **2026-09-26, and it found a defect in §19's own work**
+
+§19 was written from the measurements above and then verified against the shipped files. The
+verification is recorded separately from the implementation because **it did not agree with
+it**, and the disagreement is the useful part.
+
+**Two regex escapes were lost writing the rules into `.htaccess`.** The rules that shipped
+read `(__next..*)` and `[^/]+.txt$` where the measured ones were `(__next\..*)` and
+`[^/]+\.txt$`. An unescaped `.` matches any character, so `/employees/<ULID>Xtxt` would have
+been rewritten to the RSC payload instead of the document. Fixed, and the fix is the reason
+for the check below.
+
+**How it was caught, and what that does not buy.** The rules were not retyped into a
+checker — the checker parsed the `RewriteCond`/`RewriteRule` lines **out of the shipped
+`.htaccess`** and replayed them, with `-f` and `-d` modelled, against the exact `out/`
+listing a real export produced. **12 of 12 cases route as measured**, including the two
+negative cases the lost escapes had made wrong.
+
+> **That checker is not in the repository and is not a gate.** It was a one-off script, so
+> what is recorded here is a *measurement*, not a control: nothing stops the same escape
+> being lost again, and `gates.sh` does not read `.htaccess` at all. Wiring it in is a
+> reasonable follow-up and is deliberately not done here — it would be a new gate, which is
+> outside closing this blocker. **Until then, treat the rules as verified-once rather than
+> pinned**, and re-run the replay by hand if they are edited.
+
+> **The first version of that checker was itself wrong**, and reported `/` as a 404. It
+> ignored the `!-f` / `!-d` conditions. `REQUEST_FILENAME` for `/` is the document root — a
+> **directory** — so the fallback's `!-d` fails, the rule does not fire, and `mod_dir` serves
+> `DirectoryIndex index.html`. Three layers of "measured" in a row each had a defect the next
+> one found; none of them were in the application code.
+
+**The `.html` naming is now confirmed from the real application, not only from the probe.**
+`next build` writes `.next/server/app/am/features.html`, `admin/tenants.html`, `admin.html` —
+flat, every one. The **only** `index.html` in the whole tree is the root. So the rewrite that
+shipped (`$1/index.html`) would have matched the apex and nothing else, which is §19c's claim
+evidenced against ETHR itself rather than a four-route probe.
+
+**All four shells exist in the real build**, each with `.html`, `.rsc`, `.meta` and
+`.segments`, and `prerender-manifest.json` lists all four under `routes` with the four
+`[id]` routes under `dynamicRoutes` — which is what makes an unlisted id server-render
+rather than 404.
+
+**The shells carry no tenant data.** Stripped of markup, all four render the same thing: the
+product name and `በመጫን ላይ...` — the loading state. The sentinel does not appear in visible
+text.
+
+**Authorization and tenant isolation were re-checked rather than assumed:**
+
+| Check | Result |
+|---|---|
+| Files changed under `api/` | **0** — the tenant scope, the policies and route-model binding are untouched |
+| `useParams()` called anywhere in the frontend | **Never** — it appears only in explanatory comments |
+| `usePathname()` read for an id | Only in `src/src/lib/hooks/useRouteId.ts` |
+| Authorization lines added/removed/changed in the diff | **None** — no `AuthGuard`, `RoleGate` or `minRole` line appears in it |
+| The gate in front of these routes | `(dashboard)/layout.tsx` → `DashboardShell` → `AuthGuard`, unchanged; the new `page.tsx` files are its children |
+| Where a foreign id fails | `EmployeeController::show(Employee $employee)` — route-model binding resolves through `BelongsToTenant`'s global scope, so another tenant's `public_id` 404s **before** `authorize('view', …)` runs |
+
+The routing change cannot weaken any of that, because routing never decides what data comes
+back — it decides which shell is served, and the shell is a skeleton.
+
+**A regression test was added for the one property nothing covered.** The existing tests
+exercise the resolved *value*; none exercised *when* it resolves, which is the half that
+raises hydration error #418. `useRouteId under a real hydration` renders the shell with
+`renderToString` on the sentinel path, hydrates it on a real id, and asserts the exported
+HTML is the loading state, that the real id appears after hydration, and that nothing
+matching `/hydrat|did not match|418/` reached `console.error`.
+
+**It was mutation-checked, because a test that cannot fail is not evidence.** Replacing the
+hook's body with the naive `return routeIdFromPathname(pathname)` — the version that looks
+like a simplification — **fails it**. The hook was restored and the suite re-run.
+
+### 19j. Unknown 3b — **CLOSED**
+
+**Cause.** `output: "export"` builds one HTML file per value `generateStaticParams()` returns.
+ETHR's ids are ULIDs created after the build, so there is nothing to enumerate; `[]` emitted
+no file and 404'd every id, and the four routes were `"use client"`, which Next refuses
+`generateStaticParams` on. Separately, the rewrite meant to serve the result targeted
+`$1/index.html`, which this exporter never writes.
+
+**Solution.** One server-component `page.tsx` per route returning a single **sentinel** id;
+the existing screen moved beside it as a client component; `useRouteId` reading the real id
+from `usePathname()` after hydration — never from `useParams()`, which on such a shell
+returns the sentinel; and a BRANCH B rule set rewritten to the artifacts the exporter
+actually produces.
+
+**Scope.** `next.config.ts` is untouched and `output` is still `"standalone"`. Steps 1–3 of
+`shared-hosting/DEPLOYMENT.md` §5 — the `output` switch, `middleware.ts`, the
+`(auth)/layout.tsx` `headers()` read — are unchanged and remain the branch decision.
+
+> **That was the scope of *this* pass. §20, later the same day, did steps 1–3** —
+> `next.config.ts` is no longer untouched. `standalone` remains the default, so nothing
+> about 3b's conclusions changes; the sentence above is a record, not the current state.
+
+---
+
+## 20. The rest of the frontend conversion — **measured 2026-09-26**
+
+§19 closed unknown 3b, the entity-route half. This is the other three items
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 names — the `output` switch, `middleware.ts`, and the `(auth)/layout.tsx` `headers()` read
+— plus the `/admin` boundary that had no tested replacement.
+
+**Everything below is `LOCAL VERIFIED`.** A real `output: "export"` build, served by an
+emulator that reads its rewrite rules *and* its response headers out of the shipped
+`.htaccess`, driven in a real browser. **Nothing here is `HOST VERIFIED`** — no request has
+been made to the Ethio Telecom account in this pass, and the two findings below that matter
+most both depend on Apache behaving as modelled, which is M1's job to confirm.
+
+### 20a. Three defects found, none of them in the item being worked on
+
+| Found in | Defect | Consequence if shipped |
+|---|---|---|
+| `.htaccess` rule order | The `/admin` host deny sat **after** the SPA fallback, which ends with `[L]` | **`/admin` on a tenant host returned 200, not 403** — measured. The replacement for middleware's boundary never fired |
+| `.htaccess` CSP | `script-src 'self'` | **The application never hydrates.** 3 blocked inline scripts and React error #412 on every page, while the HTML still renders |
+| `host-provider.tsx` | `useHost()`'s browser fallback was read during the first render | Hydration error #418 on every auth page under export — the exact error that file exists to remove |
+
+None was in `output`, `middleware.ts` or the `headers()` read. The work the audit named was
+comparatively mechanical; what it did not name was where the failures were.
+
+### 20b. `output` — a switch, not a flip
+
+`src/lib/build-target.ts` reads `ETHR_TARGET`; `next.config.ts` selects `export` for
+`shared-hosting` and `standalone` otherwise.
+
+**It is not flipped unconditionally, deliberately.** `VPS-DECOMMISSION.md` is `NOT TRIGGERED`
+and `VPS_DEPLOYMENT.md` is the rollback path. `next build` under `export` emits **no
+`server.js`**, which is precisely what `docker/frontend/Dockerfile` runs — so flipping it
+would delete the rollback before there is anything to roll back *to*, against the migration
+plan's own rule that nothing irreversible happens before a verified cutover. The switch also
+makes the export build runnable in CI, which is what turns "verified once by hand" into
+something a gate can check.
+
+`headers` and `rewrites` are **deleted** from the config on the export target rather than
+made to return nothing: Next warns while the key is merely present, whatever it returns, and
+a build that always prints two warnings is a build whose warnings stop being read.
+
+### 20c. `middleware.ts` — kept, because the measurement says it can be
+
+**Next 16.3.5 builds a static export with `middleware.ts` present.** It does not reject it;
+it says so and moves on: *"Statically exporting a Next.js application via `next export`
+disables API routes and middleware."* §5 step 2's instruction to delete the file is therefore
+**not required**, and deleting it would cost the VPS rollback path and local development a
+working control for nothing.
+
+| Responsibility | Required? | Can static hosting replace it? | Safe replacement | Evidence |
+|---|---|---|---|---|
+| **Locale negotiation** on the seven unprefixed public routes | No — it is an optimisation | n/a | `(root)/locale-redirect.tsx` does the same negotiation in the browser, with a `<noscript>` fallback | Its own docblock: *"middleware does not run under `output: "export"` … so correctness cannot depend on it."* Measured: `/` → `/en` in the browser on the real export |
+| **`/admin` refused off the platform host** | **Yes** | **Yes, at the same layer** — this is routing, not authorization | `.htaccess` `RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$` → `RewriteRule ^admin(/|$) - [F,L]` | Measured after reordering: tenant host **403**, apex **403**, admin host **200** |
+| **Tenant routes on the platform host → `/admin`** | No — a convenience for stale bookmarks | Yes | Same block's `[L,R=302]` rule | Measured: `admin.ethr.et/dashboard` → **302** |
+| **Authentication** | — | — | **Middleware never did this.** It reads no cookie and no token | Read in full; there is no auth logic in the file |
+| **Headers** | — | — | Never did this either; `next.config.ts` did, and `.htaccess` does now | — |
+| **Route filtering / API exclusions / static assets** | No | n/a | Its `matcher` excludes `api`, `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest` — all of which Apache serves directly | — |
+
+**One thing the export ships that is worth knowing:**
+`out/_next/static/*/_clientMiddlewareManifest.js` contains `__MIDDLEWARE_MATCHERS` covering
+almost every route. It is inert — measured: client-side navigation between static pages works
+and every route renders — but it is a file describing a control that cannot run, and anyone
+auditing the output will find it.
+
+### 20d. `headers()` — narrowed, not replaced
+
+`(auth)/layout.tsx` reads `headers().get("host")` so the login page knows which organisation
+it is for on the first render. **That one line is why `/login`, its four sub-pages,
+`/register` and `/impersonate/claim` are the only dynamic routes in the whole application** —
+measured; every other route was already static.
+
+Under export there is no request, and `next build` stops: *"Route /login with
+`dynamic = "error"` couldn't be rendered statically because it used `headers()`"*. The read
+is now skipped on that target only. All seven routes export as static HTML.
+
+**§5 step 3 said to *replace* the read with a client-side `window.location.host`.** That
+would have given the VPS rollback path the export target's first-paint flash for no benefit.
+Keeping the read where there is a server to read from is strictly narrower and costs nothing.
+
+**The client half was already wrong, and that is the find worth carrying.** `useHost()` fell
+back to `typeof window !== "undefined" ? window.location.host : null`, with a comment
+asserting the fallback *"is only reached after hydration, so it cannot reintroduce a
+mismatch."* True while the provider supplies a host — the `fromServer !== null` line returns
+first — and **false the moment it does not**, which is exactly the export case:
+`typeof window !== "undefined"` is already true *during* hydration. It now goes through
+`useHydrated()`, the same primitive `useRouteId` uses, extracted so the two cannot drift.
+
+Cost on that target: one render with no host, so the login page shows its generic heading
+before resolving. That is §5 step 3's accepted trade. **Nothing about authorization depends
+on this value** — it decides which heading and whether to show the organisation field; the
+API decides what data exists.
+
+### 20e. `/admin` — where the boundary actually is
+
+Traced end to end, because "the UI hides the route" is not security:
+
+| Layer | Control | Under static export |
+|---|---|---|
+| Web server | `.htaccess` host rule → **403** | **Present.** Reordered so it fires; `LOCAL VERIFIED`, `[F,L]` itself is **M1** |
+| Frontend routing | `middleware.ts` redirect | **Gone** — middleware does not run. Replaced by the row above |
+| Frontend session | `AuthGuard` → `/login` | **Unchanged.** Measured on the real export: an unauthenticated request to `/employees/<ULID>` ends at `/login` |
+| Frontend role | `RoleGate minRole="super_admin"` | **Unchanged**, on all five admin screens |
+| **API context** | **`EnsurePlatformContext` → 404 whenever a tenant resolves** | **Unchanged.** Server-side, untouched by this migration |
+| **API authorization** | **`Gate::authorize('admin.manage')` on every action** | **Unchanged** |
+| **API step-up** | **`RequirePlatformMfa` on the route group** | **Unchanged** |
+
+**The bottom three are the boundary.** The console's data lives behind `/api/v1/admin`, and
+`EnsurePlatformContext` is explicit about why it exists: the nginx rule *"deliberately does
+not match"* the admin API, so a future admin endpoint added without a gate still cannot be
+called from a tenant host. Losing middleware removes a **routing** control and replaces it
+with an equivalent one a layer lower. It removes no authorization.
+
+**Measured on the real export**, with the shipped rules:
+
+| Host | Path | Result |
+|---|---|---|
+| `habru.ethr.et` | `/admin`, `/admin/tenants` | **403** |
+| `ethr.et` (apex) | `/admin` | **403** |
+| `admin.ethr.et` | `/admin`, `/admin/tenants` | **200** |
+| `admin.ethr.et` | `/dashboard` | **302 → `/admin/`** |
+| `habru.ethr.et` | `/dashboard`, `/employees/<ULID>` | **200** |
+| `admin.ethr.et` | `/robots.txt` | **200** — the `!-f` condition added with the reorder |
+
+### 20f. The CSP, and the one directive that decides whether anything works
+
+Served under the CSP as it stood, on a real export:
+
+| `script-src` | Result |
+|---|---|
+| `'self'` | **3 CSP violations per page, React error #412, nothing hydrates.** `/employees/<id>` sits on the loading skeleton forever; `/` never negotiates a language |
+| `'self' 'unsafe-inline'` | **0 violations, 0 hydration errors**, every route renders and navigates |
+
+The build emits three inline `<script>` blocks — ~13 KB, the theme bootstrap plus the RSC
+payload — and **Next does not nonce them**. A nonce needs a server to mint one per response,
+which is the thing this target does not have.
+
+**`'unsafe-eval'` is not needed** — zero violations without it, though `next.config.ts` grants
+it on the Node targets. The shared-hosting policy is therefore *tighter* than the VPS's, and
+should stay that way.
+
+`connect-src 'self'` is correct while the SPA calls only same-origin `/api/v1/...`. **A Sentry
+DSN would need its origin added**, as `next.config.ts` does for the Node targets; none is
+configured for this target today.
+
+### 20g. What was verified, and what was not
+
+**`LOCAL VERIFIED`** — export build exit 0 (689 files); all four entity shells and all seven
+auth routes emitted; `/admin` boundary as tabulated in §20e; 0 CSP violations and 0 hydration
+errors on `/login`, an entity route and `/`; client locale negotiation `/` → `/en`;
+client-side navigation between static pages; `AuthGuard` redirecting an unauthenticated
+visitor away from an entity route; the served entity HTML **byte-identical** to
+`out/employees/__id__.html`; and the `standalone` target unchanged — exit 0, `server.js`
+emitted, arbitrary ULID 200 with the real id, `/login` still reading the host server-side,
+`/` still 307ing through middleware.
+
+Gates: `tsc` 0, ESLint 0 errors, `prettier --check src/` clean, i18n OK, **594 Vitest tests /
+87 files**, docs link integrity clean.
+
+**`HOST VERIFIED`: nothing.** Specifically still unproven on the real host: that `[F,L]`
+denies rather than being ignored (**M1** — and if it is ignored, `/admin` is served from every
+tenant host, with the API's three server-side controls as the only remaining boundary); that
+`mod_headers` applies the CSP at all; and that Apache's rule evaluation matches the emulator's.
+
+**Not covered by any automated test:** browser behaviour of the export. The hydration
+properties are pinned by `static-export-route-id.test.tsx` and `static-export-host.test.tsx`
+(both mutation-checked — reverting either fix fails its test), but the `.htaccess` replay and
+the browser run are one-off measurements, not gates.

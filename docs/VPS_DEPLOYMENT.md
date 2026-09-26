@@ -397,8 +397,13 @@ curl -s https://nosuchtenant.ethr.et/api/v1/health   # expect tenant-not-found
 # Security headers
 curl -sI https://ethr.et/ | grep -iE 'strict-transport|x-frame|content-security'
 
-# All six Horizon supervisors present
-docker compose -f docker-compose.prod.yml exec worker-realtime php artisan horizon:supervisors
+# Scheduler alive and no queue starving. Corrected 2026-09-25: this was
+# `horizon:supervisors`, asserting "all six supervisors present" — Horizon was removed in
+# cdf85d1, so the command does not exist and there are no supervisors. The prod stack now
+# runs two `queue:work` containers; check the process table per container, not a registry.
+docker compose -f docker-compose.prod.yml exec api php artisan ethr:queue:check
+docker compose -f docker-compose.prod.yml exec worker-realtime pgrep -af 'queue:wor[k]'
+docker compose -f docker-compose.prod.yml exec worker-exports  pgrep -af 'queue:wor[k]'
 
 # The browser bundle must carry the REAL Reverb key, not the "ethr-key"
 # fallback. This is the one check that catches silently-dead real-time features.

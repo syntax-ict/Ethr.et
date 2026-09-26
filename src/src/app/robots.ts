@@ -14,6 +14,22 @@ import { SITE_URL } from "@/lib/site-url";
  * names route prefixes that are already discoverable from the login page rather
  * than anything sensitive.
  */
+/**
+ * Required for `output: "export"`, and harmless without it.
+ *
+ * Same directive and same reason as `app/manifest.ts` — a metadata route is
+ * dynamic by default, and `next build` under static export stops with
+ * "export const dynamic = \"force-static\" ... not configured on route
+ * '/robots.txt'". Measured 2026-09-26; `manifest.ts` was found in 2026-09-18's
+ * pass and this one was not, because that build stopped at the first blocker and
+ * never reached this route.
+ *
+ * It changes nothing under `output: "standalone"`: the function below reads
+ * `SITE_URL` and returns a constant, with no request-time input, so forcing it
+ * static is what it already effectively was.
+ */
+export const dynamic = "force-static";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [

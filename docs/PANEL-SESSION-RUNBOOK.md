@@ -5,8 +5,13 @@ Ordered to minimise navigation, not by gate number: the subscription page first 
 questions read off one screen, then domains, then File Manager, then the database, then the
 decisions that need no panel at all.
 
-**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `ethret` ·
-`213.55.96.154` · `ethr.et`
+**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `<ACCOUNT_USER>` ·
+`<ACCOUNT_IP>` · `<APP_DOMAIN>`
+
+> **Placeholders — HARD RULE 2**,
+> [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* Fill these from the panel before the session; they are not recorded
+> in this repository.
 
 **Who:** the owner. None of this can be run from the repository — no SSH (B-1), and the
 egress proxy in the agent environment returns 403 for `ethr.et`, so a result cannot even be
@@ -177,9 +182,11 @@ what the second fetch was added to find.
   only one that counts for that row.
 - **Score G0-B.5 from `shadow.js`, not `shadow.txt`.** The two can legitimately disagree.
   `.js`, `.css` and `.woff2` are what the deployment actually ships; `.txt` never is.
-- **Pin the fetches to the Plesk host.** DNS already points at `213.55.96.154`, but pinning
-  removes the doubt: `curl --resolve www.ethr.et:443:213.55.96.154 …`, or the run sheet's
-  browser equivalent.
+- **Pin the fetches to the Plesk host.** DNS already resolves there, but pinning removes the
+  doubt: `curl --resolve www.<APP_DOMAIN>:443:<ACCOUNT_IP> …`, or the run sheet's browser
+  equivalent. *(Phase 1 used exactly this form on 2026-09-25 — see
+  [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md), where the
+  addresses appear literally because that document is evidence.)*
 
 **The single most important line:** `curl -i https://www.ethr.et/.env` — or the browser
 equivalent — must return **403**. [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md)

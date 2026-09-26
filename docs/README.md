@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 39 top-level documents plus `phases/`, `audit/` and `deployment/`. There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 39 top-level documents plus `phases/`, `audit/`, `migration/` and `deployment/`. There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -13,11 +13,13 @@ Several documents in this tree describe things that are not true of the code. Th
 | | |
 |---|---|
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The measured state, every claim tagged `[verified]` / `NOT VERIFIED` / `NOT MEASURED`. §12b lists the known documentation contradictions. |
-| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, all still `NOT VERIFIED`. Nothing has touched the real host. |
+| [`audit/CODE-VS-DOCUMENTATION.md`](audit/CODE-VS-DOCUMENTATION.md) | **Where prose and code disagree, and which way.** Each row cites the executable evidence; closed rows say what was corrected. |
+| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, graded panel-read vs probe-measured. **No longer all `NOT VERIFIED`** — see the row below. |
+| [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md) | **Phase 1, 2026-09-25 — the first evidence taken against the real host.** Five capabilities moved to `VERIFIED`; eight discrepancies against existing documents recorded without rewriting them. |
 
 Three standing caveats:
 
-- **CI is configured but has never run.** Phase 1 corrected four documents that asserted a pipeline which did not exist; Phase 2 built one. It still has not executed — nothing has been pushed — so it is untested configuration. The pre-push hook (`git config core.hooksPath .githooks`) is the part that works today.
+- **CI runs, and its history is the point.** *(Corrected 2026-09-25 — this said "CI is configured but has never run … nothing has been pushed".)* The Actions tab was read on 2026-09-16 and **every run had failed — 50 of them, since the first push**, for five structural reasons, none of them code. **Run #66 (`1cf9083`, 2026-09-16) is the first fully green run.** The root [`CLAUDE.md`](../CLAUDE.md) carries the five causes and the lesson: *read the Actions tab rather than reasoning about it.* The pre-push hook (`git config core.hooksPath .githooks`) runs `gates.sh quick` locally.
 - **`phases/` is not maintained.** The checkboxes badly under-report what is built. Specifications, not progress trackers.
 - **"Migration" means three different things here.** See the naming note at the bottom.
 
@@ -81,12 +83,12 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 |---|---|
 | [`deployment/PLESK-HOSTING-GUIDE.md`](deployment/PLESK-HOSTING-GUIDE.md) | **Start here if you have the panel open.** The owner's end-to-end guide: what to configure, in what order, and the one step that has no route |
 | [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) | When the VPS assets come out, and the five that must **not** — two are load-bearing for the Plesk target |
-| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Hosting verification — all rows `NOT VERIFIED` |
+| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Hosting verification — the authoritative capability register. *(Corrected 2026-09-25: this said "all rows `NOT VERIFIED`". Phase 1 verified five and re-graded PHP from panel-read to measured; the register itself is unmodified, with the new readings in [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md).)* |
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |
 | [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md) | **The deployment contract.** PRIMARY: Plesk UI, Git deployment, Laravel integration, Scheduled Tasks, database. OPTIONAL: SSH. NEVER REQUIRED: Docker, systemd, Supervisor, root, VPS-only services. Records which PRIMARY elements are observed on the account and which are not |
 | [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md) | **Ready to send.** One ticket, **four** asks, ranked by criticality 2026-09-22 — cron, what the higher plans provide, `TRIGGER`, then SSH. Ask 1 is the only one that can move G0-D; ask 2 may resolve G0-A, G0-D and G0-G at once; ask 3 unblocks G0-F; ask 4 is a convenience the deployment contract forbids depending on |
 | [`external/ETHIO_TELECOM_SMS_REQUEST.md`](external/ETHIO_TELECOM_SMS_REQUEST.md) | **Drafted, unsent — a DIFFERENT Ethio Telecom desk from the row above.** Applies to the SMS/VAS (A2P) business unit for bulk-SMS service, sender ID `ETHR` and API credentials. Deliberately separate from the hosting ticket: that one goes to hosting support, and folding an SMS ask into it would route it to people who cannot answer and dilute the cron ask. Unblocks roadmap 7.2 |
-| [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, checklists. Procedures frozen until Gate 0 reports; facts corrected 2026-09-18 |
+| [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, cron caller, checklists. **Its `.htaccess` mechanisms were verified working on the host 2026-09-25** — `mod_rewrite`, `mod_headers`, `<FilesMatch>` deny, `Authorization` passthrough, and `.htaccess` reaching static assets. Two baits remain unfetched because the **canary deployed on the host is the 2026-09-18 revision**, predating the two added in `1edaad4` |
 | [`HOSTING_VERIFICATION_CHECKLIST.md`](HOSTING_VERIFICATION_CHECKLIST.md) | ~60 capability rows. **Most are `NOT VERIFIED`, and the reason is sharper than "nobody looked": nobody has run the probe.** *(Corrected 2026-09-23: this said the probe "has no route to run" because SSH is Forbidden and G0-D is FAIL. It has a web-execution mode — 403 by default, unlocked by `ETHR_PROBE_WEB_TOKEN` in the uploaded copy — so the route exists and the containment question in `MIGRATION_STATE.md` NEXT ACTION item 2 is what gates using it.)* The rows a panel read can answer are answered (`W3`, `W6`, `N1`–`N3`) |
 | [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) | Plan tiers and platform constraints |
 | [`SHARED_HOSTING_AUDIT.md`](SHARED_HOSTING_AUDIT.md) · [`SHARED_HOSTING_MIGRATION_PLAN.md`](SHARED_HOSTING_MIGRATION_PLAN.md) | What must change, and in what order |
@@ -103,8 +105,25 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | Document | What it is |
 |---|---|
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
-| [`audit/BASELINE.md`](audit/BASELINE.md) | Phase 0 forensic baseline |
+| [`audit/BASELINE.md`](audit/BASELINE.md) | The forensic baseline — §1–§18 of measured state. The deepest reference in this tree |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
+
+### The Bronze/Plesk migration audit — Phases 0–2, 2026-09-25
+
+Seven documents produced by a read-only forensic audit and one host-verification pass. They
+**defer to `BASELINE.md` and `GATE-0-RESULT.md` rather than restating them** — a second copy of
+a measured figure is how figures drift.
+
+| Document | What it is |
+|---|---|
+| [`migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md`](migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md) | **Start here for the migration.** KEEP / MODIFY / REPLACE / REMOVE / UNKNOWN, a 7-stage sequence, and the Bronze risk register. Its headline: *most of this migration is already built* |
+| [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md) | **Phase 1 host verification** — the only document here containing measurements taken against the live host |
+| [`audit/BRONZE-COMPATIBILITY-MATRIX.md`](audit/BRONZE-COMPATIBILITY-MATRIX.md) | Every published Bronze constraint against the implementation that has to live inside it. Rows marked **[P1]** carry live readings |
+| [`audit/REPOSITORY-INVENTORY.md`](audit/REPOSITORY-INVENTORY.md) | What this repository actually is — and which parts are production runtime vs build tooling vs optional infrastructure |
+| [`audit/VPS-SHARED-HOSTING-MATRIX.md`](audit/VPS-SHARED-HOSTING-MATRIX.md) | Component by component. **A filename containing "docker" or "redis" is not evidence of a production dependency** |
+| [`audit/CODE-VS-DOCUMENTATION.md`](audit/CODE-VS-DOCUMENTATION.md) | The reconciliation table. Executable evidence outranks prose |
+| [`audit/TENANT-ISOLATION-AUDIT.md`](audit/TENANT-ISOLATION-AUDIT.md) | The isolation mechanism end to end — including the surfaces the global scope does not cover: cache keys, file paths, broadcast channels, sessions |
+| [`audit/MIGRATION-DOCUMENT-INVENTORY.md`](audit/MIGRATION-DOCUMENT-INVENTORY.md) | Which migration document to trust: CURRENT / HISTORICAL / PROPOSED / OBSOLETE / CONTRADICTORY |
 
 ## End-user guides
 
@@ -112,7 +131,19 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 
 ---
 
-## Two naming problems, stated rather than fixed
+## Three naming problems, stated rather than fixed
+
+**"Phase N" means two unrelated sequences**, and they are both live *(added 2026-09-25)*:
+
+| Usage | Sequence |
+|---|---|
+| This file's own caveats; `phases/PHASE_00.md`–`PHASE_09.md` | The **documentation and build** phases, 2026 H1 |
+| `SHARED_HOSTING_AUDIT.md` *(Phase 0+1)*, `ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md` *(Phase 2)*, `SHARED_HOSTING_MIGRATION_PLAN.md` *(Phase 3)* | The **2026-08-29 hosting** sequence — superseded, see `audit/MIGRATION-DOCUMENT-INVENTORY.md` |
+| `audit/REPOSITORY-INVENTORY.md` *(Phase 0)*, `audit/BRONZE-BLOCKER-RESOLUTION.md` *(Phase 1)* | The **2026-09-25 Bronze** sequence — current |
+
+So *"Phase 1 corrected four documents"* and *"Phase 1 host verification"* are different events a
+month apart. **Cite the date or the document, not the number** — the number alone is ambiguous
+in this tree.
 
 **"Migration" means three unrelated things** in adjacent filenames:
 
@@ -124,7 +155,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 
 Renaming them would be tidier. It would also invalidate roughly 150 backticked prose references across 37 files, which is the kind of change that looks harmless and silently leaves half the tree pointing at the wrong thing. Recorded here instead; see `decisions/DECISIONS.md` D-002.
 
-**Casing is inconsistent** — the three end-user guides are lowercase, everything else is `SCREAMING_SNAKE`. Same reasoning.
+**Casing is inconsistent** — the three end-user guides are lowercase, everything else is `SCREAMING_SNAKE`. Same reasoning. *(The 2026-09-25 audit documents use `KEBAB-CASE`, a third convention, for the same reason: renaming to match would break the citations that already point at them.)*
 
 ## Documents cited but never present
 
