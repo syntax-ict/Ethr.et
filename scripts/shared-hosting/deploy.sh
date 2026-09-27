@@ -122,11 +122,67 @@ else
 fi
 
 step "3. Package"
-run tar -czf "$ARTIFACT_DIR/api.tar.gz" -C "$REPO_ROOT" api
+# EXCLUSIONS ADDED 2026-09-27, and the first one is a credential leak rather than
+# a tidiness matter. `tar -C "$REPO_ROOT" api` archives the whole directory, and on
+# any machine that can run the gates `api/.env` exists — so the release tarball
+# contained APP_KEY, the database password and the mail credentials, ready to be
+# copied to a host or attached to a ticket. The artifact directory is gitignored
+# now, which stops it being committed; it does not stop it being built.
+#
+# The deployed `.env` is assembled on the host from
+# `api/.env.shared-hosting.example`, never shipped from a developer machine — see
+# DEPLOYMENT.md §4. So excluding it is not a loss of function.
+#
+# The `*.example` templates are KEPT deliberately: they are what the operator copies
+# on the host, every credential value in them is empty (verified 2026-09-27), and they
+# are tracked in git anyway. An earlier draft used `--exclude='api/.env.*'`, which took
+# them out too and left the rsync path with no template.
+#
+# NOTE THE ABSENT `./`. Patterns are `api/.env`, not `./api/.env`, because with
+# `-C <root> api` the members are archived as `api/...`. The `./` form matches NOTHING
+# and was measured doing exactly that on 2026-09-27 — the archive still contained
+# APP_KEY while the flags looked right. That is why the verification below exists and
+# why it is not optional.
+#
+# `.git` is excluded for the same class of reason: it carries the full history,
+# which includes a dev APP_KEY committed before 090ca50 removed it.
+# --force-local: GNU tar reads `F:/ethr.et/...` as host `F`, path `/ethr.et/...`, and
+# fails with "Cannot connect to F: resolve failed". Measured 2026-09-27 — this script
+# could not package anything on Windows, which is this repository's primary development
+# platform. Harmless on Linux and CI, where no path has a drive letter.
+run tar -czf "$ARTIFACT_DIR/api.tar.gz" \
+    --force-local \
+    --exclude='api/.env' \
+    --exclude='api/.env.local' \
+    --exclude='api/.env.production' \
+    --exclude='api/.env.backup' \
+    --exclude='api/.env.save' \
+    --exclude='api/.git' \
+    --exclude='api/storage/logs/*' \
+    --exclude='api/storage/framework/cache/*' \
+    --exclude='api/storage/framework/sessions/*' \
+    --exclude='api/storage/framework/views/*' \
+    --exclude='api/.phpunit.result.cache' \
+    -C "$REPO_ROOT" api
+
+# Prove the exclusion held rather than trusting the flags. A tar exclusion that
+# silently fails to match (a leading-./ mismatch is the classic) would put the
+# credentials back without any visible change.
+if [ "$DRY_RUN" = false ]; then
+  if tar -tzf "$ARTIFACT_DIR/api.tar.gz" --force-local | grep -qE '(^|/)\.env$|(^|/)\.env\.(local|production|shared-hosting)$'; then
+    echo "  REFUSING: api.tar.gz contains an .env file." >&2
+    echo "            It would carry APP_KEY and the database password to wherever this" >&2
+    echo "            archive goes. Fix the --exclude patterns; do not ship this." >&2
+    tar -tzf "$ARTIFACT_DIR/api.tar.gz" --force-local | grep -E '(^|/)\.env' >&2 || true
+    rm -f "$ARTIFACT_DIR/api.tar.gz"
+    exit 1
+  fi
+  info "verified: api.tar.gz carries no .env"
+fi
 if [ "$FRONTEND_MODE" = "export" ]; then
-  run tar -czf "$ARTIFACT_DIR/frontend.tar.gz" -C "$REPO_ROOT/src" out
+  run tar -czf "$ARTIFACT_DIR/frontend.tar.gz" --force-local -C "$REPO_ROOT/src" out
 else
-  run tar -czf "$ARTIFACT_DIR/frontend.tar.gz" -C "$REPO_ROOT/src" .next
+  run tar -czf "$ARTIFACT_DIR/frontend.tar.gz" --force-local -C "$REPO_ROOT/src" .next
 fi
 
 [ "$BUILD_ONLY" = true ] && { step "Done (--build-only)"; exit 0; }
