@@ -89,3 +89,12 @@ docker-compose.override.yml
 
 # Claude Code local dev-server wiring (machine-specific, not team config)
 .claude/launch.json
+
+# A local production REHEARSAL: XAMPP Apache + MariaDB serving the Bronze layout
+# (docroot assembly, rendered .htaccess, static export) against an isolated copy of
+# api/ with its own .env. Created by scripts/local-production/up.sh.
+#
+# Ignored because it is a build output containing a generated APP_KEY, a database
+# password and a CRON_TOKEN. Nothing in it is evidence about the Ethio Telecom host —
+# it is my Apache, my MariaDB and my grants. Delete the directory to undo.
+.local-production/
