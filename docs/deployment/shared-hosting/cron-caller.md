@@ -60,6 +60,35 @@ into a procedure.
 > - refuses to run at all if either secret is unset, or if the token is under 32
 >   characters — rather than calling nothing and exiting 0
 >
+> ### ⚠ The `schedule:` trigger does not fire from a non-default branch
+>
+> **Measured 2026-09-27.** `cron.yml` currently exists only on `migration/bronze-plesk`.
+> GitHub indexes scheduled workflows from the **default branch**, so:
+>
+> ```
+> $ gh workflow list --all
+> Quality gates · Security audit · Verify tests fail without fix · Dependabot Updates
+> ```
+>
+> *ETHR scheduler* is **absent** — and `gh run list --workflow=cron.yml` returns
+> `HTTP 404: workflow cron.yml not found on the default branch`.
+>
+> **What this means in practice, and it is a trap:**
+>
+> | | |
+> |---|---|
+> | `workflow_dispatch` (manual) | **Works now**, from this branch |
+> | `schedule:` (every 5 min) | **Does not run at all** until the workflow is on `main` |
+>
+> So an operator can add the two secrets, dispatch the workflow by hand, see a green
+> run and two `"status":"ok"` responses — and conclude the scheduler is live when
+> nothing will fire on its own. **A green manual dispatch is evidence that the wiring
+> works, not that the schedule runs.**
+>
+> This is recorded rather than worked around. Merging to `main` is gated by the cutover
+> decision, so the honest position is that the scheduler is **manual-only** until then,
+> and `QueueHealth::beat()` / `ethr:queue:check` are what would notice if anyone forgot.
+>
 > ### Cadence, stated as the limitation it is
 >
 > **Every 5 minutes**, which is GitHub's floor for `schedule:` — finer intervals are
