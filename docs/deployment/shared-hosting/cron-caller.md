@@ -7,10 +7,89 @@ was missing: [`../SHARED_HOSTING_PLAN.md`](../SHARED_HOSTING_PLAN.md) §5.3a lay
 step 11 says *"point an external caller at both cron endpoints"* — but nothing joined them
 into a procedure.
 
-**Which caller is not decided here.** That is question **Q6**, and it is the owner's: §5.3a
+> # ✅ Q6 DECIDED, 2026-09-27 — **GitHub Actions scheduled workflows.**
+>
+> The caller is **[`.github/workflows/cron.yml`](../../../.github/workflows/cron.yml)**,
+> committed in this repository. It is not a new cron architecture: it calls the two
+> endpoints that already existed, with the token mechanism that already existed, and
+> changes nothing in the application.
+>
+> Plesk Scheduled Tasks were **not** chosen because the subscription does not offer
+> them — **G0-D is FAILED**, no Scheduled Tasks / Task Scheduler / Cron Jobs section
+> exists (owner-read 2026-09-18), and Dev Tools has no Terminal.
+>
+> **The two values an operator must supply** — nothing else, and neither belongs in
+> this repository:
+>
+> | GitHub | Holds |
+> |---|---|
+> | `secrets.ETHR_CRON_TOKEN` (environment `production`) | the same value as the host's `CRON_TOKEN` |
+> | `secrets.ETHR_CRON_BASE_URL` (same environment) | `https://<APP_DOMAIN>` — no trailing slash, no path |
+>
+> ### Secret-name mapping, stated once
+>
+> | Layer | Name |
+> |---|---|
+> | GitHub secret | `ETHR_CRON_TOKEN` |
+> | Host `.env` | **`CRON_TOKEN`** ← the application's established name, unchanged |
+> | HTTP header | `X-Cron-Token` |
+>
+> All three hold one value. **`CRON_TOKEN` is not renamed to suit the caller.**
+>
+> **`SCHEDULER_HTTP_TOKEN` is a dead name and must not be reintroduced.** It was a
+> placeholder in `ENVIRONMENT.md` and `DEPLOYMENT.md` §6 for an endpoint that had not
+> been built; the endpoint shipped on 2026-09-22 reading `CRON_TOKEN`, and nothing in
+> the application has ever read `SCHEDULER_HTTP_TOKEN`. Setting it does nothing.
+> `CronCallerWorkflowTest` fails if it appears as a live variable in the workflow.
+>
+> ### What the workflow does, and the one line that matters most
+>
+> - calls **both** `/cron/schedule` and `/cron/queue`, in that order — the scheduler
+>   enqueues, the worker drains, and a caller wired to only the first fills the `jobs`
+>   table while reporting success
+> - **treats HTTP 200 with `"status":"failed"` as a failure.** `runExclusively()`
+>   returns 200 when artisan exits non-zero, so a status-code-only check would report
+>   green through a scheduler that fails every five minutes. This is the single most
+>   important behaviour in the file
+> - treats **409 as benign** — that is the application's own `Cache::lock` refusing a
+>   duplicate execution, which is what it is for
+> - sends the token as a **header**, never in the URL, and never runs `set -x`
+> - `concurrency: ethr-scheduler` with **`cancel-in-progress: false`** — the opposite of
+>   `gates.yml`, because cancelling a live `queue:work` strands reserved jobs until
+>   `retry_after` (1200s)
+> - refuses to run at all if either secret is unset, or if the token is under 32
+>   characters — rather than calling nothing and exiting 0
+>
+> ### Cadence, stated as the limitation it is
+>
+> **Every 5 minutes**, which is GitHub's floor for `schedule:` — finer intervals are
+> silently rounded up. Two caveats that are properties of the platform and not of ETHR:
+>
+> - **Delivery is best-effort.** Scheduled runs can be delayed or dropped under load.
+>   Laravel's scheduler is idempotent about *"was this due since last checked"*, so a
+>   missed tick delays work rather than losing it — but anything needing minute
+>   accuracy does not get it here.
+> - **GitHub disables scheduled workflows after 60 days of repository inactivity.** On a
+>   repository that goes quiet, the scheduler stops **silently**. `QueueHealth::beat()`
+>   and `ethr:queue:check` are what notice; §5 below is how to watch them.
+>
+> ### How the decision table was verified
+>
+> The response handling was exercised by extracting the `run` block and stubbing `curl`
+> — 10 cases, all passing: 200/ok, 200/failed, 409, 404, 429, curl-failure, an
+> unexpected 5xx, an unrecognised 200 body, an empty token and a short token. Reproduce
+> it by parsing `.github/workflows/cron.yml`, writing `.jobs.tick.steps[0].run` to a
+> file, and running it with a shell function named `curl` that echoes a canned status
+> code. **Nothing was called on the host.**
+>
+> `CronCallerWorkflowTest` pins the properties above and is mutation-checked against
+> the two defects that matter: dropping the failed-status check, and calling only the
+> scheduler.
+
+~~**Which caller is not decided here.** That is question **Q6**, and it is the owner's: §5.3a
 sets out four candidates with their trade-offs, and its recommendation is explicitly *"not
-the obvious one"*. Everything below is caller-independent except §3, which says what each
-candidate needs and stops there.
+the obvious one"*.~~ **Decided — see the banner above.** §5.3a's comparison is kept as the
+reasoning that produced the choice. Everything below is caller-independent except §3.
 
 ---
 
@@ -58,14 +137,20 @@ same judgement applies here.
 **Until it is set, the routes 404 and the caller cannot tell that from a broken deploy.**
 See §4.
 
-## 3 · Configure the caller — the part that depends on Q6
+## 3 · Configure the caller — **Q6 answered: GitHub Actions**
 
-**Not decided. §5.3a's table is the comparison; the choice is the owner's.** What each
-candidate needs, and nothing more:
+**Decided 2026-09-27.** The workflow is committed; the operator's whole job is to create
+the GitHub `production` environment and add the two secrets named in the banner above.
+Then run the workflow once by hand — *Actions → ETHR scheduler → Run workflow* — rather
+than waiting for a tick, and check §4.
+
+The comparison below is kept as the reasoning, with the chosen row marked. **Do not
+configure two callers**: both would be refused by the application's lock, so the second
+produces nothing but 409s and noise.
 
 | Caller | Where the token goes | What to set |
 |---|---|---|
-| **GitHub Actions** | repository or environment **secret** | a `schedule:` workflow POSTing both URLs. Its documented minimum is **5 minutes** and delivery is best-effort *(ASSUMED — §5.3a marks every cadence claim there ASSUMED, and this repository measures none of them)* |
+| ✅ **GitHub Actions — CHOSEN** | environment **secret** (`production`) | Already written: `.github/workflows/cron.yml`. **5-minute floor**, best-effort delivery, and it is **disabled after 60 days of repository inactivity** — the platform limitations are in the banner above, and they are properties of GitHub rather than of ETHR |
 | **The VPS already in hand** | a file readable only by the cron user | two `crontab` lines. **Choosing this re-opens Option A** — §5.3a's recommendation explains why that is a strategic decision, not an operational one |
 | **A third-party cron service** | that service's dashboard | two jobs. A stranger then holds a bearer credential — §5.3a states the blast radius |
 | **A laptop** | locally | not a production answer; named in `config/cron.php` for completeness |
