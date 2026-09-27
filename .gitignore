@@ -10,6 +10,15 @@ src/out/
 api/public/build/
 src/tsconfig.tsbuildinfo
 
+# scripts/shared-hosting/deploy.sh packages the release here (ARTIFACT_DIR).
+# Not ignored until 2026-09-27, and it matters more than a stray directory: the
+# `api.tar.gz` it writes is `tar -C <root> api`, so on any machine where
+# `api/.env` exists the tarball contains APP_KEY and the database password. An
+# untracked-but-committable archive of the production secrets is not a thing to
+# leave to `git add -A`. (The `.prod-test-tmp/` entry that used to sit here went
+# with prod-build-test.sh in 3db9904 — same class of entry, same reason.)
+.deploy-artifacts/
+
 # Environment
 .env
 .env.local
