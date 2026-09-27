@@ -355,6 +355,14 @@ if ($isCli) {
     foreach (array_slice($argv, 1) as $arg) {
         if (preg_match('/^--([a-z-]+)=(.*)$/', $arg, $m)) {
             $opt[$m[1]] = $m[2];
+
+            continue;
+        }
+
+        // Bare flags (`--json`) as well as `--key=value`, so the reporting switch
+        // below does not have to be spelled `--json=1` to be recognised.
+        if (preg_match('/^--([a-z-]+)$/', $arg, $m)) {
+            $opt[$m[1]] = '1';
         }
     }
 } else {
@@ -550,6 +558,68 @@ if (isset($pdo) && $pdo instanceof PDO) {
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
+
+/**
+ * `--json` — machine-readable output, so probe results are INGESTED rather than
+ * transcribed.
+ *
+ * Added 2026-09-27. The human-readable report below is still the default and is
+ * unchanged; this exists because the probe runs **once**, on a host nobody has
+ * shell access to, and its findings then have to reach `GATE-0-RESULT.md` and the
+ * cutover register. Retyping them is where a `UNSUPPORTED` becomes a `VERIFIED` —
+ * and this repository has already recorded a 404 being read as a pass once.
+ *
+ * Feed it to `scripts/hosting-verification/validate-host-evidence.php`, which
+ * refuses the specific mistakes on record.
+ *
+ * The database password is NEVER included: `$opt` is not serialised, only
+ * `$results`, and nothing writes a credential into a `record()` detail.
+ */
+if (! empty($opt['json'])) {
+    $flat = [];
+
+    foreach ($results as $section => $rows) {
+        foreach ($rows as $r) {
+            $flat[] = [
+                'section' => $section,
+                'id' => $r['id'],
+                'item' => $r['item'],
+                'status' => $r['status'],
+                'detail' => $r['detail'],
+            ];
+        }
+    }
+
+    $counts = ['VERIFIED' => 0, 'UNSUPPORTED' => 0, 'UNKNOWN' => 0, 'other' => 0];
+
+    foreach ($flat as $r) {
+        $key = array_key_exists($r['status'], $counts) ? $r['status'] : 'other';
+        $counts[$key]++;
+    }
+
+    echo json_encode([
+        'probe' => 'ethr-hosting-check',
+        'generated_at' => date('c'),
+        'host' => $_SERVER['HTTP_HOST'] ?? php_uname('n'),
+        'php_version' => PHP_VERSION,
+        'php_sapi' => PHP_SAPI,
+        // The SAPI matters when reading limits: the CLI values are not the web
+        // values, and the probe says so in its own Limits section.
+        'counts' => $counts,
+        'results' => $flat,
+        'reminder' => 'DELETE THIS FILE FROM THE SERVER NOW.',
+        'cannot_answer' => [
+            'cron type and interval',
+            'wildcard DNS / TLS / vhost binding',
+            'reverse-proxy directives',
+            'document-root configuration',
+            'plan quotas',
+            '.htaccess being honoured (use htaccess-canary/)',
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+
+    exit($counts['UNSUPPORTED'] > 0 ? 1 : 0);
+}
 
 $line = str_repeat('=', 78);
 echo "$line\nETHR SHARED-HOSTING CAPABILITY PROBE\n";

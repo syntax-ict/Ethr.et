@@ -13,6 +13,7 @@
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #   ./scripts/gates.sh export      the Bronze shared-hosting static export build
+#   ./scripts/gates.sh evidence    host-evidence file: what is outstanding, or validate it
 #
 # The API-contract gate needs both halves, so it only runs in a full sweep.
 #
@@ -462,6 +463,22 @@ export_gate() {
     (cd "$WEB_DIR" && node scripts/build-shared-hosting.mjs)
 }
 
+# The host-evidence file.
+#
+# With no file it prints which mandatory gates are outstanding and what closes each
+# — which is its normal mode today and the reason it is useful before any host
+# session rather than only after one. With a file it validates the RECORD: it
+# refuses a 404 filed as a pass, a gate silently omitted, a host gate whose method
+# is CI, a composite gate that stopped at its first green, and a file claiming
+# cutover_ready it has not earned.
+#
+# It cannot tell whether a reading was true. Nothing local can. What it stops is a
+# measurement being written down as something it was not, which is the failure this
+# repository keeps recording.
+evidence_gate() {
+    php "$REPO_ROOT/scripts/hosting-verification/validate-host-evidence.php"
+}
+
 # `quick` is the pre-push scope: every gate that does not run a test suite.
 # Seconds rather than ten minutes, which is the difference between a hook people
 # keep and a hook people learn to pass --no-verify to. The suites run in CI, and
@@ -505,6 +522,15 @@ fi
 # Out of `quick` deliberately: the pre-push hook has to stay in seconds.
 if [[ "$SCOPE" == "all" || "$SCOPE" == "export" ]]; then
     run_gate "Static export (Bronze)" export_gate
+fi
+
+# Reachable by name, and NOT in `all`. Its normal output today is "here is what the
+# host still owes you", which is information rather than a pass/fail — putting that
+# in the blocking sweep would print eleven outstanding gates on every run and teach
+# people to scroll past it. The Pest suite covers the validator's logic, so `all`
+# does exercise the rules; this scope is for reading the state.
+if [[ "$SCOPE" == "evidence" ]]; then
+    run_gate "Host evidence (record check)" evidence_gate
 fi
 
 # Needs both halves of the stack, so it only runs in a full sweep.

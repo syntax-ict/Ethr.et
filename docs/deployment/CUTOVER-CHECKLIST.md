@@ -6,6 +6,18 @@
 live on the Ethio Telecom Bronze account. **Cutover stays BLOCKED until every
 mandatory gate below reads `PASS`.**
 
+> **Recording the evidence.** The host session's findings go in
+> `docs/deployment/host-evidence/HOST-EVIDENCE.json` — copied from
+> [the template](host-evidence/HOST-EVIDENCE.template.json), and deliberately absent
+> until a session has happened, because a filled evidence file in a commit that did
+> not involve the host is fabricated evidence. `./scripts/gates.sh evidence`
+> validates the *record*: it
+> refuses a 404 filed as a pass, a gate silently omitted, a host gate closed by CI, a
+> composite gate that stopped at its first green, and a file claiming `cutover_ready`
+> it has not earned. With no file yet it prints what is outstanding, which is its mode
+> today. It cannot tell whether a reading was true — nothing local can. See
+> [`host-evidence/README.md`](host-evidence/README.md) for the ordered session.
+
 Five states, and they are not interchangeable:
 
 | State | Means |
@@ -41,6 +53,7 @@ Five states, and they are not interchangeable:
 | **M3** | Wildcard vhost + certificate + routing | 🔶 **HOST ACTION REQUIRED** | DNS **VERIFIED**; a valid `*.ethr.et` certificate **exists** (LE, 2026-09-16 → **2026-12-15**); **no vhost** — every tenant host 303s to the Plesk login | All four: wildcard DNS, vhost routing, the **served** certificate, and a tenant subdomain reaching the application. DNS alone is not it, and the certificate existing is not it | Owner (payment) → Plesk owner |
 | **G0-H** | SMTP 587/465 + mailbox send cap | 🔶 **HOST ACTION REQUIRED** | None | M2 for the ports; panel for the cap. Nothing in the code respects a send cap, and two jobs fan out | Plesk owner |
 | **G0-I** | MySQL version, `DB_CONNECTION`, charset | 🔶 **HOST ACTION REQUIRED** | None | M2, probes `DB1`/`DB1b`/`DB1c`/`DB10`. The `devices` VIRTUAL generated column needs 5.7.6+ / 10.2.1+ | Plesk owner |
+| **G0-J** | CPU + database performance / hosting limits | 🔶 **HOST ACTION REQUIRED** | None. **Added as its own row 2026-09-27** — it was previously reachable only through M2's *"closes … most of G0-J"*, which is not a row, so nothing reported it outstanding. Same gap G0-B.6 had | The probe's Performance section (`P1`–`P6`). Then the product question behind the number: payroll runs inside the 50-second `queue:work` window against a budget of *500 employees < 30s* measured on **dedicated** hardware, and `ProcessPayrollJob` has `tries = 1`, so a crossed boundary is a **failed run**, not a retried one | Plesk owner |
 | **Quotas** | 5 GB disk · 50 GB bandwidth | 🔶 **HOST ACTION REQUIRED** | Published figures only. Nothing measured, nothing capped in code | Read the panel. Then check the deployment's own footprint against it — see §*Quota arithmetic* below | Plesk owner |
 | **Secrets** | Secret / artifact audit | ✅ **PASS**, with one rotation requirement | Audited 2026-09-27: no `.env` tracked (`src/.env.production` is `NEXT_PUBLIC_*` only, deliberately tracked); no key literal in the tree; every example env has **empty** credential values; no workflow prints a secret; release archive no longer carries `api/.env` — **verified by test, after the first patch silently failed** | Done, **except**: see *Rotation* below. It is not a blocker but it must not be forgotten | — |
 
