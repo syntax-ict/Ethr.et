@@ -41,7 +41,7 @@ that contract rather than the order the asks happened to be written in:
 
 | # | Ask | Why here |
 |---|---|---|
-| **1** | Scheduled Tasks (cron) | **The only blocker.** It is the contract's PRIMARY path for the scheduler and queue worker, and nothing else in the contract can drive recurring work |
+| **1** | Scheduled Tasks (cron) | ~~**The only blocker.**~~ **Reworded 2026-09-27 — that phrase contradicted the banner above it.** It is the contract's PRIMARY path for the scheduler and queue worker, and it is the *only* route that keeps recurring work on this host. It is **not a blocker**, because `b61cb05` moved the recurring half behind two HTTP endpoints that anything can call. What it removes if granted is the **external caller** (**Q6**) and the token somebody has to hold — real value, not a dependency |
 | **2** | What the higher plans provide | The commercial route to ask 1, and it may deliver the Laravel extension and custom directives with it — one reply can resolve several gates |
 | **3** | Database privilege `TRIGGER` | Independent of the others; aborts the database migration by design if refused |
 | **4** | SSH | **Now a fallback, not an equal alternative.** SSH would supply `crontab` and so could solve ask 1's problem — but the contract says ETHR must not *require* it, so building the scheduler on it would violate the contract we just set. Asked for as a convenience, ranked last deliberately |
@@ -234,3 +234,22 @@ at all.
   (**G0-A**), but unlike the three above it has a documented workaround — static export
   keeps the frontend same-origin without any directives. Asking for everything at once
   weakens the asks that have no workaround.
+- **`AllowOverride Options` for the document root.** *Added to this list 2026-09-27, and it
+  is the one item here that is genuinely undecided rather than deliberately excluded.*
+
+  The deployment's `.htaccess` acquired two directives on 2026-09-26 — `Options -Indexes`
+  and `DirectorySlash Off` — which need an `AllowOverride` class the previous rules did not.
+  Without `DirectorySlash Off`, `mod_dir` 301s `/admin` to `/admin/` before the SPA rules
+  are reached and **20+ top-level routes are dead**; measured on Apache 2.4.58,
+  `audit/BASELINE.md` §21a.
+
+  **It is not asked for, because nobody knows yet whether it is missing.** The Apache
+  harness that found the defect ran under `AllowOverride All` — the permissive case — so
+  what is established is that the rules are correct, not that this host permits them. That
+  is the new gate **G0-B.6**, and it is answered by deploying and fetching a page, not by a
+  ticket.
+
+  **Asking now would violate the principle this section is built on:** request capabilities
+  known to be required, not capabilities that might be. If G0-B.6 comes back FAIL, this
+  becomes ask 5 and it has no workaround — MariaDB-style, there is no second mechanism for
+  `DirectorySlash`. Re-read this bullet at that point.
