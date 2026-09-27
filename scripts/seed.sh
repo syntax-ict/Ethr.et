@@ -1,13 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-# Override with COMPOSE_FILE=docker-compose.lowmem.yml on the 4 GB tier —
-# see that file's header for what it changes vs. this default.
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-
-echo "=== ETHR Demo Seed ==="
+# REPOINTED 2026-09-27 — this defaulted to `docker-compose.prod.yml`, removed in
+# `3db9904`, so the script failed at its first call.
+#
+# Unlike `backup.sh` and `restore.sh`, which are retired beside it, this one is
+# genuinely repointable: the only service it touches is `api`, and the local
+# development stack has one. So it keeps working, as a LOCAL DEVELOPMENT utility.
+#
+# It is NOT a deployment step and never was a rollback path. On Bronze/Plesk there
+# is no Docker and no shell: demo data would go in through Plesk Git's *additional
+# deployment actions*, which is a documented route nobody has exercised
+# (`docs/deployment/VPS-DECOMMISSION.md` §3b.2a marks this row ⚠ for exactly that
+# reason).
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
 cd "$(dirname "$0")/.."
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+  echo "ERROR: compose file not found: $COMPOSE_FILE" >&2
+  echo "       The VPS production stack was removed in 3db9904; the local stack is" >&2
+  echo "       docker-compose.yml. Override with COMPOSE_FILE=... if you need another." >&2
+  exit 66
+fi
+
+echo "=== ETHR Demo Seed (local development) ==="
 
 echo ">> Running demo tenant seeder..."
 # DemoTenantSeeder calls fake() (DemoTenantSeeder.php:136), and fakerphp/faker is

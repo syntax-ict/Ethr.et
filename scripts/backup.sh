@@ -1,6 +1,69 @@
 #!/bin/bash
 set -euo pipefail
 
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │ RETIRED 2026-09-27. This script cannot run, and it is not a backup path. │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# It drove the VPS production Docker stack, which was removed in `3db9904` on
+# 2026-09-27 — `docker-compose.prod.yml` no longer exists in this repository.
+#
+# IT WAS HELD FOR A REASON THAT WAS NOT TRUE. `docs/deployment/VPS-DECOMMISSION.md`
+# kept this file and `restore.sh` on the grounds that deleting them "removes a
+# working path in favour of an untested one". The 2026-09-27 forensic audit
+# measured that claim and it is false: with `prod.yml` gone this script fails at
+# its first `docker compose` call, so what was being preserved was the appearance
+# of a fallback rather than a fallback. A safety net nobody has pulled is still a
+# net; one whose rope is cut is worse than none, because it stops people looking
+# for a real one.
+#
+# It refuses to run rather than being deleted, because deletion is not this
+# change's call to make — §"Five of the eight scripts are gone" commits these
+# three to go out after the Stage 6 host restore rehearsal, and that rehearsal
+# has not happened.
+#
+# WHAT TO USE INSTEAD:
+#
+#   Production (Bronze/Plesk)   php artisan ethr:backup      — host-neutral,
+#                               php artisan ethr:restore       rehearsed in CI
+#                                                              against MariaDB
+#                                                              since 2026-09-23,
+#                                                              and NEVER on the
+#                                                              Ethio Telecom host.
+#                                                              That rehearsal is
+#                                                              Stage 6 and is
+#                                                              still outstanding.
+#
+#   Local development           php artisan ethr:backup inside the dev stack:
+#                               docker compose exec api php artisan ethr:backup
+#
+# Repointing this script at `docker-compose.yml` was considered and rejected: it
+# stops three services that the dev stack does not have (`worker-realtime`,
+# `worker-notifications`, `worker-heavy` — the dev stack has one `worker`) and
+# reads a container named `ethr-minio`, which does not exist either, since
+# `docker-compose.yml` sets no `container_name`. Making it work would be a
+# rewrite against a different topology, not a repoint, and `ethr:backup` already
+# covers the capability on both targets.
+#
+# The original body is kept below, unreachable, as the record of what the VPS
+# backup actually did.
+
+cat >&2 <<'RETIRED'
+scripts/backup.sh is RETIRED and does nothing.
+
+  It drove docker-compose.prod.yml, removed in 3db9904 (2026-09-27).
+  It is NOT a VPS rollback path — there is no longer anything to roll back to.
+
+Use instead:
+  production        php artisan ethr:backup   /   php artisan ethr:restore
+  local dev         docker compose exec api php artisan ethr:backup
+
+See docs/deployment/BACKUP-RESTORE.md and docs/deployment/VPS-DECOMMISSION.md.
+RETIRED
+exit 64
+
+# ─── unreachable below this line: the VPS implementation, kept as a record ───
+
 # Every artefact this script writes contains production secrets: the SQL dump
 # holds the full dataset, and the env copy holds the DB root password, Redis
 # password, MinIO keys, SMTP credentials and the Reverb app secret. Default
