@@ -206,11 +206,34 @@ for ($i = 0; $i < count($argvRest); $i++) {
     }
 
     if ($arg === '-h' || $arg === '--help') {
-        // Print the usage block from this file's own docblock rather than a
-        // second copy of it that can disagree.
-        $self = (string) file_get_contents(__FILE__);
-        preg_match('/ \* Usage:\n(.*?)\n \*\n/s', $self, $usage);
-        fwrite(STDOUT, str_replace(' *   ', '  ', $usage[1] ?? '')."\n");
+        // Explicit, not scraped. This used to lift the usage block out of this
+        // file's own docblock with a regex, to avoid a second copy that could
+        // disagree — and then the docblock was restructured on 2026-09-27 and
+        // `--help` silently printed a blank line. A help text that can vanish
+        // without failing anything is worse than a duplicate that can drift,
+        // because nothing tells you which you have.
+        fwrite(STDOUT, <<<'USAGE'
+            Render the deployable <DOCROOT>/.htaccess from the repository template.
+
+              php scripts/shared-hosting/render-htaccess.php --target=static-export
+              php scripts/shared-hosting/render-htaccess.php --target=static-export -o <DOCROOT>/.htaccess
+
+            Options:
+              --target=static-export   The production path (owner decision 2026-09-27).
+                                       Aliases: static, export, apache.
+              --target=node            Refused. The Plesk Node application is not the
+                                       production path.
+              --branch=b               Same as --target=static-export. Kept because the
+                                       runbook and BASELINE §21 say "BRANCH B".
+              --branch=a               Refused — BRANCH A is the NODE branch. If you were
+                                       told to "use branch A" meaning the static export,
+                                       the letter is wrong; use --target=static-export.
+              -o, --output=PATH        Write here instead of stdout.
+              -h, --help               This text.
+
+            Exit codes: 0 rendered · 2 usage error · 3 template defect.
+
+            USAGE);
         exit(0);
     }
 
