@@ -72,7 +72,7 @@ supersession banner.
 
 | Document | Last touched | Class | Disposition |
 |---|---|---|---|
-| [`../VPS_DEPLOYMENT.md`](../VPS_DEPLOYMENT.md) | 2026-09-24 | **CURRENT for a target being retired** | **Keep until cutover is verified.** VPS-DECOMMISSION §3 lists it *"Out last, not first"* because it is the rollback path |
+| ~~`../VPS_DEPLOYMENT.md`~~ | 2026-09-24 | **REMOVED 2026-09-26** | Deleted with the VPS stack at the owner's direction. §3 said *"out last, not first"* because it was the rollback path; it went before a verified cutover, so that path no longer exists |
 | [`../DEPLOYMENT.md`](../DEPLOYMENT.md) | 2026-09-25 | **CURRENT** *(was PARTLY OBSOLETE)* | Phase 2 corrected the service table, the worker-sizing section, the deploy description and three diagnostic snippets — all of which prescribed `horizon`, a package that is not installed. Its *Draining the queue before an upgrade* section was always **CURRENT and load-bearing** and is untouched — the root `CLAUDE.md` cites it as a deploy precondition |
 | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | 2026-09-25 *(prior substantive revision **2026-08-28**)* | **CURRENT with a standing caution** *(was PARTLY OBSOLETE — the most stale document in the set)* | Phase 2 corrected the diagram, service list, queue table and health-check row, and added a header banner: it describes the **VPS/Docker** deployment, not the Plesk target, and where it disagrees with code the code wins. The body still predates the shared-hosting decision — the banner says so rather than pretending a one-day edit re-verified 58 KB |
 | [`../TCO_COMPARISON.md`](../TCO_COMPARISON.md) | 2026-09-22 | **PROPOSED / decision input** | Cost comparison, not a record of state |

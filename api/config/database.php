@@ -183,7 +183,7 @@ return [
         // for one of them: `allkeys-lru` lets cache pressure evict queued
         // payroll jobs (no TTL, so nothing protects them), while `noeviction`
         // makes a full cache start failing writes. Production gives each its
-        // own container with its own policy — docker-compose.prod.yml,
+        // own container with its own policy — the VPS compose stack,
         // `redis-cache` and `redis-data`.
         //
         // Note what does NOT move with it: 'lock_connection' below stays on

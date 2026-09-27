@@ -78,8 +78,11 @@ services:
     # into a crashloop. The root CLAUDE.md warns "without the queue worker no job
     # ever runs" -- and the worker it tells you to start was this one.
     #
-    # Queue order and --max-time: see infrastructure/supervisor.conf, which
-    # carries the reasoning. The list must match QueueHealth::QUEUES.
+    # Queue order and --max-time: the reasoning lived in
+    # infrastructure/supervisor.conf, deleted with the VPS stack on 2026-09-26.
+    # Order is priority, highest first; --max-time bounds a worker's lifetime so
+    # a leaked connection or a cached config cannot outlive it. The list must
+    # match QueueHealth::QUEUES, which DeploymentWorkerConsistencyTest pins.
     command: php artisan queue:work --queue=attendance,notifications,default,exports --tries=3 --backoff=10 --max-time=3600
     volumes:
       - ./api:/var/www/api

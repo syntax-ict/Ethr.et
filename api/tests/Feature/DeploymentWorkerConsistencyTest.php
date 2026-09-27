@@ -36,23 +36,23 @@ use App\Services\Observability\QueueHealth;
  * `toBe`, `toMatch`, `toBeTrue` and `toBeFalse` all take a genuine message.
  */
 /**
- * Every asset that starts a queue worker. `docker-compose.prod.yml` and
- * `docker-compose.lowmem.yml` joined this list on 2026-09-22, when they were
- * fixed: until then they invoked `artisan horizon` and were pinned only by the
- * banner assertion below.
+ * Every asset that starts a queue worker.
  *
- * Why they were fixed then and not earlier: they are the VPS production path,
- * and the VPS was what this project was migrating AWAY from — so a broken
- * worker there was recorded rather than repaired. The pre-registered rule in
- * docs/SHARED_HOSTING_MIGRATION_PLAN.md then fired on G0-D and returned
- * No-Go -> Option A, and Option A is "stay on the VPS". That made these two
- * files the live production path, which is what changed.
+ * One entry since the VPS decommission (2026-09-26). It held four:
+ * `infrastructure/supervisor.conf`, `docker-compose.prod.yml` and
+ * `docker-compose.lowmem.yml` were the VPS production path and are gone, along
+ * with the third test in this file, which existed solely to keep those last two
+ * marked as broken.
+ *
+ * `docker-compose.yml` is local development and stays. **It is now the only
+ * asset this file checks**, so the union-of-queues assertion below is a weaker
+ * guard than it was: on shared hosting the worker is
+ * `POST /api/v1/cron/queue` -> `queue:work`, which is a route, not a file, and
+ * nothing here reads it. `QueueHealth::QUEUES` is pinned by the last test and is
+ * what actually protects the queue list now.
  */
 const ETHR_WORKER_ASSETS = [
-    'infrastructure/supervisor.conf',
     'docker-compose.yml',
-    'docker-compose.prod.yml',
-    'docker-compose.lowmem.yml',
 ];
 
 function ethrDeploymentAsset(string $relative): string
@@ -63,7 +63,7 @@ function ethrDeploymentAsset(string $relative): string
 /**
  * The UNION of every `--queue=a,b,c` list in an asset, as a sorted set.
  *
- * A union rather than a single match because `docker-compose.prod.yml` splits
+ * A union rather than a single match because the VPS compose stack split
  * the work across two services (2026-09-22): `attendance,notifications,default`
  * on one and `exports` on the other. The correctness property is that every
  * dispatched queue is drained by SOMETHING in the file — not that one command
@@ -147,64 +147,6 @@ it('drains exactly the queues the application dispatches onto', function () {
             "$asset drains a different set of queues than the application dispatches "
             .'onto. QueueHealth::QUEUES is the authoritative list; add the queue in both '
             .'places or in neither.'
-        );
-    }
-});
-
-it('keeps the unfixed worker stacks marked as broken', function () {
-    // The contract is conditional and has always been: a stack that invokes
-    // Horizon must carry the banner saying it is broken. What must not happen is
-    // the banner being removed while the breakage stays, which would return
-    // these files to looking runnable.
-    //
-    // **Corrected 2026-09-23.** This comment opened "docker-compose.prod.yml and
-    // .lowmem.yml still invoke Horizon. They are NOT fixed, deliberately" — which
-    // stopped being true on 2026-09-22, when both were fixed and joined
-    // ETHR_WORKER_ASSETS. This file's own header records that transition 100
-    // lines above; only this comment was left behind, asserting the opposite of
-    // the file it lives in.
-    //
-    // The code was stale in a quieter way. Both assets take the early branch
-    // now, and that branch was a bare `continue`, so from 2026-09-22 this test
-    // performed **no assertion at all** — vacuously green, guarding nothing.
-    // PHPUnit marked it risky, and "Tests: 1 risky, 1890 passed" in every run
-    // was the only thing reporting it. The assertion below is now unconditional:
-    // one per asset, phrased as the implication, so the test always asserts and
-    // the re-introduction case still fails.
-    foreach (['docker-compose.prod.yml', 'docker-compose.lowmem.yml'] as $asset) {
-        $contents = ethrDeploymentAsset($asset);
-
-        // Strip comments first, exactly as the first test does. Both files now
-        // explain in prose WHY they used to run `artisan horizon`, so a
-        // whole-file str_contains() sees the phrase in a comment and demands a
-        // BROKEN banner for a stack that is no longer broken. Measured
-        // 2026-09-22: that is precisely what it did when these were fixed.
-        $executable = implode("\n", array_filter(
-            explode("\n", $contents),
-            static fn (string $line): bool => ! str_starts_with(ltrim($line), '#')
-        ));
-
-        // `str_contains(...)->toBeTrue($message)` rather than
-        // `toContain($needle, $message)`: Pest's toContain is VARIADIC, so a
-        // trailing string is a SECOND NEEDLE TO FIND, not a failure message.
-        // HostingRequirementsConsistencyTest carries the same warning, and this
-        // file still shipped the bug — CI run #289 failed with
-        // "To contain: docker-compose.prod.yml still invokes `artisan horizon`
-        // but no longer carries the banner…", which is this assertion hunting
-        // for its own error text in a compose file. The banner was present the
-        // whole time. toBeTrue() takes a real message; toContain() does not.
-        //
-        // Written as the implication in one boolean so it is asserted whether or
-        // not the stack invokes Horizon: a fixed asset satisfies it vacuously
-        // but still records an assertion, which is what stops this test going
-        // silent again.
-        expect(
-            ! str_contains($executable, 'artisan horizon')
-            || str_contains($contents, 'BROKEN AS OF 2026-09-19')
-        )->toBeTrue(
-            "$asset still invokes `artisan horizon` but no longer carries the banner "
-            .'saying so. Either fix the stack or keep the warning: a compose file that '
-            .'reads as runnable and starts no worker is how this went unnoticed once.'
         );
     }
 });

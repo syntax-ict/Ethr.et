@@ -2624,6 +2624,13 @@ on the word "docker".
 
 ### Definitely VPS-only
 
+> **Every row below has been removed from the repository — 2026-09-26 and 2026-09-27.**
+> The classification was right; the files are gone. See
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) for the
+> 22-path manifest, what was deliberately **held** (`scripts/{backup,restore,seed}.sh`,
+> pending the Stage 6 host rehearsal) and what `docker/nginx/default.conf` turned out
+> to be. This table is kept as the reasoning, not as an inventory.
+
 | Artifact | Note |
 | --- | --- |
 | `infrastructure/nginx.conf` | **The second trap.** VPS-only as *configuration*, but it is the live evidence base for the current document-root and public-routing architecture: it roots three server blocks at `api/public`, which is *why* `api/public/robots.txt` exists and why copying it into the merged shared-hosting document root is wrong. Cited by `DEPLOYMENT.md` step 4a and by `api/tests/Feature/document-root-inventory.php`. Do not remove it without first relocating that evidence, or those two artifacts lose their justification. |

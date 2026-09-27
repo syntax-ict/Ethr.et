@@ -96,7 +96,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`DATABASE_MIGRATION_PLAN.md`](DATABASE_MIGRATION_PLAN.md) | Moving the **schema and data** to the target MySQL/MariaDB |
 | [`TCO_COMPARISON.md`](TCO_COMPARISON.md) | Cost comparison — opens by questioning the migration's own premise |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Reference manual: *why* each piece is shaped as it is |
-| [`VPS_DEPLOYMENT.md`](VPS_DEPLOYMENT.md) | **Deprecated, deliberately kept** — the rollback path until cutover is verified |
+| ~~`VPS_DEPLOYMENT.md`~~ | **Removed 2026-09-26** with the rest of the VPS stack, at the owner's direction and before a verified cutover. There is no rollback path now; the way back is `git revert`. See [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) |
 | [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) · [`ROLLBACK_RUNBOOK.md`](ROLLBACK_RUNBOOK.md) | Go-live and rollback |
 | [`LOCAL_SETUP.md`](LOCAL_SETUP.md) | Development environment |
 

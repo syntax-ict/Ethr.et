@@ -162,7 +162,7 @@ the install.
 | `docker-compose.prod.yml` | VPS production — adds `worker-realtime`, `worker-exports`, `mariadb-replica`, `redis-cache` | VPS/Docker |
 | `docker-compose.lowmem.yml`, `.test.yml`, `.hostnames.yml` | Variants | VPS/Docker |
 | `docker/`, `api/Dockerfile.prod` | Image build inputs (`php:8.2-fpm-alpine`, `node:22-alpine`, MariaDB cnf, nginx conf, php.ini) | VPS/Docker |
-| `infrastructure/nginx.conf`, `nginx-common.conf` | VPS web server; also the authoritative `/admin` host guard | VPS |
+| ~~`infrastructure/nginx.conf`, `nginx-common.conf`~~ | VPS web server; also the authoritative `/admin` host guard. **`infrastructure/` no longer exists — removed 2026-09-26/27**; on the shared-hosting target the `/admin` control is `.htaccess` group 0 | VPS |
 | `infrastructure/supervisor.conf` | VPS process supervision — `ethr-queue`, `ethr-scheduler`, `ethr-reverb` | VPS |
 | `infrastructure/certbot-webroot/` | ACME | VPS |
 | `scripts/gates.sh` plus 9 sibling scripts | Quality gates; **CI calls `gates.sh` rather than restating it** | Both |

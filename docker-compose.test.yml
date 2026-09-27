@@ -28,8 +28,9 @@ services:
       # `^` as the delimiter and fatal with "No ending delimiter '^' found" —
       # a 500 on every browser request that carries an Origin header (i.e. the
       # login POST). Measured here: login returned 500 and the whole E2E suite
-      # died in globalSetup. docker-compose.hostnames.yml carries the same
-      # malformed pattern and has the same defect.
+      # died in globalSetup. docker-compose.hostnames.yml carried the same
+      # malformed pattern and the same defect; it went with the VPS stack on
+      # 2026-09-26, so this is the only copy of the pattern left.
       - CORS_ALLOWED_ORIGINS_PATTERNS=#^http://[a-z0-9-]+\.ethr\.test(:[0-9]+)?$$#
 
   # Queue worker and scheduler resolve tenants too; they need the same view of

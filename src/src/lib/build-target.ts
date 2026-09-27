@@ -6,15 +6,17 @@
  * | Target | `output` | Runtime |
  * |---|---|---|
  * | Ethio Telecom Bronze under Plesk — **the production target** | `export` | none; Apache serves files |
- * | The VPS / Docker stack — **the rollback path** | `standalone` | Node runs `server.js` |
+ * | Local development and CI | `standalone` | Node runs `server.js` |
  *
- * **Default is `standalone`, deliberately.** `docs/deployment/VPS-DECOMMISSION.md`
- * is `NOT TRIGGERED` and `docs/VPS_DEPLOYMENT.md` is the rollback path until a
- * cutover is verified, so flipping `output` unconditionally would delete the
- * rollback before there is anything to roll back *to* — `next build` under
- * `export` emits no `server.js`, which is exactly what
- * `docker/frontend/Dockerfile` runs. The migration plan's own sequencing rule is
- * that nothing irreversible happens before the cutover is verified.
+ * **Default is `standalone`, and it is now the only Node target left.** It used
+ * to be the VPS rollback path; the VPS was decommissioned on 2026-09-26 at the
+ * owner's direction, before a verified cutover, so there is no longer anything to
+ * roll back *to*.
+ *
+ * The switch is kept because the two builds are genuinely different — `export`
+ * emits no `server.js`, which is what `docker/frontend/Dockerfile` runs — and
+ * because local development and CI still build `standalone`. Changing this
+ * default now would change what every developer and every gate builds.
  *
  * Opt in with `ETHR_TARGET=shared-hosting`. That also makes the static-export
  * build runnable in CI, which is what turns "verified once by hand" into

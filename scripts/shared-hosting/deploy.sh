@@ -2,7 +2,8 @@
 #
 # Deploy ETHR to Ethio Telecom Plesk shared hosting (Linux Gold).
 #
-# NOT scripts/deploy.sh — that one drives docker-compose.prod.yml on the VPS
+# The only deploy script now. scripts/deploy.sh drove the VPS compose stack and
+# went with it on 2026-09-26
 # and is untouched by this file. This one assumes the shared-hosting contract:
 # no Docker, no systemd, no Supervisor, no root, no long-running daemon.
 #

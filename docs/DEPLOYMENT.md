@@ -1,5 +1,26 @@
 # ETHR — Deployment Guide (v2.0)
 
+> **The stack this guide deploys no longer exists in the repository — removed 2026-09-26.**
+>
+> `docker-compose.prod.yml`, `api/Dockerfile.prod`, `infrastructure/nginx.conf`,
+> `infrastructure/supervisor.conf`, `docker/php/{php.prod.ini,www.prod.conf}`,
+> `docker/mariadb/*.cnf`, both `.env.production.example` templates and
+> `scripts/{deploy,rollback,init-storage,prod-build-test,setup-replication}.sh`
+> were deleted with the VPS stack — see
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md). **Every
+> `docker compose -f docker-compose.prod.yml` and `./scripts/deploy.sh` command
+> below now refers to a file that is not there.** The way back is `git revert` of
+> the removal commit.
+>
+> **What survives and is still authoritative:** *Draining the queue before an
+> upgrade* — the root `CLAUDE.md` cites it as a deploy precondition, and it is
+> about job serialization, not about Docker. The readiness checklist, the tax
+> schedule and the environment-variable *reasoning* are target-independent too.
+>
+> **The live procedure is
+> [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md).**
+> This file is kept as the record of how the VPS was run, not as instructions.
+
 ## Pre-Deployment Readiness Checklist
 
 Read this before the Quick Start below. These are gaps a full
@@ -94,6 +115,7 @@ cd /opt/ethr
 #    credentials and the NEXT_PUBLIC_* frontend BUILD args).
 #    api/.env.production is injected into api, worker-*, scheduler and reverb.
 #    Both are gitignored; the .example files are the committed templates.
+# BOTH TEMPLATES WERE DELETED 2026-09-26 — see the banner at the top of this file.
 cp .env.production.example .env
 cp api/.env.production.example api/.env.production
 
@@ -278,6 +300,9 @@ from `.env.production.example` rather than left as a trap.
 ---
 
 ## Environment Variables
+
+**Both templates were deleted on 2026-09-26** with the VPS stack. The table is the
+record of which file fed which container; neither `.example` is in the tree.
 
 Two files, both gitignored, each with a committed template:
 

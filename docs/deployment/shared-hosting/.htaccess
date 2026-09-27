@@ -13,8 +13,10 @@
 # (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing and
 # security work nginx did on the VPS, rewritten for what Apache/Plesk actually
 # offers on shared hosting. `infrastructure/nginx-common.conf` is where that
-# work came from historically; it is NOT a file this one must be kept in sync
-# with. See the response-headers section for why that distinction is load-bearing.
+# work came from historically; it was NOT a file this one had to be kept in sync
+# with, and it was deleted on 2026-09-27. See the response-headers section for
+# why that distinction was load-bearing — the nginx column of the CSP table
+# there is now a record rather than a live comparison.
 #
 # Layout this assumes:
 #   ~/ethr/              Laravel app — NOT web-accessible (not the document
@@ -281,8 +283,9 @@
 #
 # The practical consequence, and the reason this is spelled out rather than
 # quietly corrected: a VPS security scan does not transfer here. Scan this
-# deployment. And `infrastructure/nginx-common.conf` can be deleted without
-# touching this file, which is what the sync claim was preventing.
+# deployment. And `infrastructure/nginx-common.conf` was deleted on 2026-09-27
+# without touching this file — which is exactly what the sync claim had been
+# preventing.
 <IfModule mod_headers.c>
     Header always set X-Frame-Options "DENY"
     Header always set X-Content-Type-Options "nosniff"

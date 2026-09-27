@@ -23,10 +23,20 @@ import { PUBLIC_ROUTES } from "@/lib/site-url";
  * permission check rather than a structural one, so a single admin screen added
  * without a gate would have been reachable from a tenant host.
  *
- * Nginx refuses `/admin` on non-platform hosts too (infrastructure/nginx.conf).
- * That is the authoritative control; this exists so the same rule holds in
- * development and in any deployment fronted by something other than that nginx,
- * and so the user gets a redirect rather than a bare 404.
+ * **There is no longer an nginx in front of this.** Until the VPS decommission
+ * (2026-09-26) `infrastructure/nginx.conf` refused `/admin` on non-platform hosts
+ * and was the authoritative control, with this file existing so the same rule held
+ * in development. That file is gone.
+ *
+ * On shared hosting the equivalent is `docs/deployment/shared-hosting/.htaccess`
+ * group 0, and it is **LOCAL VERIFIED only** — measured on Apache 2.4.58 here,
+ * never on the Ethio Telecom host, where `[F,L]` is still unmeasured (M1). Under
+ * `output: "export"` this middleware does not run at all.
+ *
+ * So treat this as the development control and nothing more. What actually
+ * protects the console's data is server-side and unchanged: `EnsurePlatformContext`
+ * returns 404 whenever a tenant resolves, `Gate::authorize('admin.manage')` is on
+ * every action, and `RequirePlatformMfa` is on the route group.
  *
  * Inert without NEXT_PUBLIC_ROOT_DOMAIN. On `localhost` there are no subdomains
  * to read, so enforcing a hostname model would simply lock development out —

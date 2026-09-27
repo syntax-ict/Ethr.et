@@ -48,11 +48,14 @@ ARG NEXT_PUBLIC_REVERB_SCHEME
 ARG NEXT_PUBLIC_REVERB_APP_KEY
 # The tenant selector. Empty in single-host dev (localhost), so hostContext()
 # falls back to "unknown" and the login stays in dev mode. Set per environment
-# (docker-compose.prod.yml passes it) it becomes authoritative: the apex,
-# admin.<root> and {tenant}.<root> are told apart, which is the whole basis of
-# the hostname-aware login and the /admin host guard in middleware.ts. Without
-# this line the build arg the prod compose passes is silently dropped and that
-# entire system is inert once deployed.
+# it becomes authoritative: the apex, admin.<root> and {tenant}.<root> are told
+# apart, which is the whole basis of the hostname-aware login and the /admin
+# host guard in middleware.ts. Without this line the build arg is silently
+# dropped and that entire system is inert once deployed.
+#
+# docker-compose.prod.yml used to pass it; it went with the VPS stack on
+# 2026-09-26. On the shared-hosting target the value is baked in at
+# `next build` time — see docs/deployment/shared-hosting/ENVIRONMENT.md.
 ARG NEXT_PUBLIC_ROOT_DOMAIN
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}
