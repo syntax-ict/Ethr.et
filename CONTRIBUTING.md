@@ -140,13 +140,32 @@ One entry point, for people and for CI alike:
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ```
 
-Two more scopes exist:
+More scopes exist:
 
 ```bash
 ./scripts/gates.sh quick      # everything except the test suites — for the hook
 ./scripts/gates.sh docs       # markdown links resolve
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
+./scripts/gates.sh export     # the Bronze shared-hosting production build
 ```
+
+**`export` is the one to know about if you touch the frontend or `.htaccess`.** It
+runs `ETHR_TARGET=shared-hosting next build` and then asserts the artifact is really
+a static export — the four `__id__` shells, `404.html`, the `_next` bundle, and no
+`server.js`. It is part of `./scripts/gates.sh`, unlike `security` and
+`performance`, because it goes red only when you break the production artifact rather
+than when a third party publishes an advisory.
+
+It exists because until 2026-09-27 **no gate ran `next build` at all**, for either
+target, so the artifact the deployment target actually serves had been verified once
+by hand on one machine. Its first run found that six real routes —
+`/employees/new`, `/employees/import`, `/payroll/{cost-sharing,loans,payslips}` and
+`/devices/dashboard` — were being served the entity-detail shell. See
+`docs/audit/BASELINE.md` §22.
+
+Use `npm run build:shared-hosting` from `src/` for the same thing directly. Do **not**
+write `ETHR_TARGET=shared-hosting npm run build` in a Windows shell: neither cmd.exe
+nor PowerShell accepts that prefix, so you silently get a `standalone` build.
 
 ### Enable the pre-push hook
 
