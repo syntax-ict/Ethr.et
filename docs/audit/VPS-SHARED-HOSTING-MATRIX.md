@@ -51,7 +51,7 @@ Four classes are used:
 | **SMTP** | **A** — password reset is dead without it | | | ✅ | ⚠️ | `api/.env.shared-hosting.example` marks `MAIL_HOST`/`USERNAME`/`PASSWORD` **REQUIRED**. **G0-H: outbound 587/465 NOT VERIFIED**; mailbox send cap unknown. Bronze provides 5 mailboxes |
 | **Sentry** | **C** | | | ✅ | | `sentry/sentry-laravel`; `@sentry/nextjs`. No-ops without a DSN — `bootstrap/app.php` comment states this |
 | **Wildcard subdomain vhost** | **A** — the tenant selector | | | ✅ | ⚠️ | `ResolveTenant::resolveFromSubdomain()` is *"the only selector honoured in production"*. **G0-C PARTIAL**: wildcard DNS PASS; wildcard TLS blocked, needs DNS-01. Bronze publishes **5 subdomains**, which is not a wildcard |
-| **`symlink()` for `public/storage`** | **A** where `FILESYSTEM_DISK=local` | | | ✅ | ⚠️ | `api/public/storage` is untracked in git; `storage:link` must run on the host. Probe `ST5` **NOT VERIFIED** |
+| ~~**`symlink()` for `public/storage`**~~ | **D — not used** | | | ✅ | | **Corrected 2026-09-27.** This read *"**A** where `FILESYSTEM_DISK=local` … `storage:link` must run on the host"*. It does not: ETHR serves every file through a signed `temporaryUrl()` against a disk with `'serve' => true` (`FileStorageService`), so nothing is ever read from `public/storage` and the symlink would be broken by construction. `shared-hosting/DEPLOYMENT.md:308` states *"No `storage:link` step"*. Probe `ST5` is informational, not a dependency |
 | **`RUN_ALL.ps1` and siblings** | **D — stale dev launchers** | | | | | Predate Docker; `RUN_ALL.ps1` prints "SQLite" against a MariaDB stack and starts neither worker nor Reverb |
 
 ---

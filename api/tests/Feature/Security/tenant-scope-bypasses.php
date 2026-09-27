@@ -8,8 +8,17 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 157 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 159 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (Corrected 2026-09-27: this said **157**, which was the figure before
+ * `NotifyPayrollRunFailed` and `NotifyDeviceSyncFailed` joined the inventory on
+ * 2026-09-25. The data below has summed to **159 across 57 files** since then, and
+ * the root `CLAUDE.md` has said 159/57 throughout — so the docblock disagreed with
+ * the array it introduces, in a file whose entire purpose is to be the one place
+ * this number lives. `CODE-VS-DOCUMENTATION.md` had flagged it as deliberately
+ * deferred because it sits in `api/`, outside that pass's write scope. Verified by
+ * summing the array, not by grep.)
  *
  * What it does is make adding a bypass a deliberate act. `BelongsToTenant` is
  * fail-closed — no tenant context yields no rows — and that is the property the

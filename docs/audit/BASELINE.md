@@ -3349,3 +3349,134 @@ the real host, where `canary.php` executes under `fpm-fcgi`.
 
 No defect was found in this round, which is worth recording as much as a defect would be: it
 is the only part of the file that has been measured and needed no change.
+
+---
+
+## 22. Gating the deployment artifacts — **measured 2026-09-27**
+
+§19–§21 verified the static export and its Apache rules by building and serving them **once,
+by hand, on one Windows machine**. This section is what happened when those measurements were
+turned into gates, and the headline is that the first run of the first gate found a defect
+on the mandated production path.
+
+### 22a. No gate built the frontend, for either target
+
+`gates.sh frontend` runs i18n, Prettier, ESLint, `tsc --noEmit` and Vitest. **None of them
+invokes `next build`.** `grep -rn ETHR_TARGET .github/workflows/` returned nothing.
+
+So the artifact Apache serves had no automated coverage at all, while
+`src/src/lib/build-target.ts` asserted the opposite in its own docblock:
+
+> *"That also makes the static-export build runnable in CI, which is what turns 'verified
+> once by hand' into something a gate can check."*
+
+Nothing checked it. Two gates now do:
+
+| Gate | Runs | Catches |
+|---|---|---|
+| `./scripts/gates.sh export` → `npm run build:shared-hosting` | `next build` with `ETHR_TARGET=shared-hosting`, then `src/scripts/verify-static-export.mjs` | a build that silently produced a server target, a missing `404.html`, a missing entity shell, a prerendered ULID, a truncated export |
+| `SharedHostingHtaccessTest` (in the `backend` suite) | renders `.htaccess` through `scripts/shared-hosting/render-htaccess.php` and asserts the result | a dropped deny rule, the `/admin` deny ordered after a catch-all, a `RewriteRule` 404 instead of `ErrorDocument`, a missing CSP directive, prose promoted to a directive |
+
+Both are in `all`, unlike `security` and `performance`. The distinction `gates.sh` already
+draws is the right one: those two go red when a third party publishes an advisory or a
+machine is loaded — reasons that are not your change — and a permanently red gate stops being
+read. These go red only when the production artifact is broken.
+
+### 22b. The export gate's first run: six routes were serving the wrong page
+
+**`.htaccess` group 1's entity-shell rule matched static sibling routes.** It read:
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(employees|payroll|devices|admin/tenants)/[^/]+$ /$1/__id__.html [L]
+```
+
+For `/employees/new`, `REQUEST_FILENAME` is `<DOCROOT>/employees/new`. The exporter writes
+`employees/new.html`, so that path is **not** a file, `!-f` passed, and the rule served the
+employee-**detail** shell for the "Add employee" page. `useRouteId` then read `new` out of the
+URL and fetched employee `new`.
+
+Six routes, all of them real pages:
+
+| Route | Was served |
+|---|---|
+| `/employees/new` | the employee detail shell |
+| `/employees/import` | the employee detail shell |
+| `/payroll/cost-sharing` | the payroll-run detail shell |
+| `/payroll/loans` | the payroll-run detail shell |
+| `/payroll/payslips` | the payroll-run detail shell |
+| `/devices/dashboard` | the device detail shell |
+
+**Why §21d's 20-of-20 matrix missed it.** That matrix fetched `/employees/<ULID>` and never a
+static sibling under a dynamic prefix. It is the same shape as the emulator passing 13/13 in
+§21 while real Apache failed on most of the site: the test set did not contain the case.
+Twenty of twenty is a count, not a coverage claim.
+
+**The fix mirrors group 2's own proven form** — ask whether the real `.html` exists before
+falling back to the shell:
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
+RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]
+```
+
+An `-f` test rather than an exclusion list, deliberately: a new static sibling then needs no
+rule change and cannot be forgotten. RewriteRule patterns are matched before the conditions
+are evaluated, which is what makes `$2` available in the condition — group 2 has relied on
+exactly that since 2026-09-26.
+
+Rules 1 and 2 of that group were **already safe** and were not changed: their target filename
+equals the request path (`…/__next.*`, `….txt`), so `!-f` alone rejects a sibling correctly.
+Only the `.html` rule differed from its request by an extension.
+
+**Found by the assertion that was too strict.** `verify-static-export.mjs`'s first draft
+asserted that no HTML under those prefixes may be anything but the sentinel, which flagged all
+six siblings. That draft was wrong — they are legitimate routes — but it is what surfaced the
+`.htaccess` defect. The assertion now matches the ULID shape, which is the property actually
+worth holding, plus a check that every static sibling directory has its `.html` beside it.
+
+### 22c. The `.htaccess` is generated now, not hand-edited
+
+§21c records a script that uncommented the sentence *"ErrorDocument, not a rewrite. Measured
+2026-09-26: …"* because it matched on directive names, and Apache 500'd the vhost while
+`httpd -t` reported "Syntax OK" — it does not read `.htaccess` at all.
+
+**Three lines inside BRANCH B begin with a real Apache directive name:**
+
+| Line | Text | Directive it looks like |
+|---|---|---|
+| prose | `Ordering is therefore load-bearing here, not stylistic.` | `Order` (mod_access_compat) |
+| prose | `Order matters. ^…/[^/]+$ also matches …` | `Order` |
+| prose | `ErrorDocument, not a rewrite. Measured 2026-09-26: …` | `ErrorDocument` |
+
+No regex over directive names can separate those from configuration. So the template stops
+asking: the 20 lines that are directives carry a **`#@ ` sentinel**, and
+`render-htaccess.php` strips exactly that prefix and nothing else. Prose cannot be promoted,
+because prose does not carry the sentinel.
+
+The renderer also refuses to emit an artifact missing any of nine required directives, so a
+botched render fails at render time rather than at the first request on the host.
+
+**Mutation-checked, 2026-09-27.** Each of the three recorded defects was reintroduced and the
+suite caught all three. Two of them trip the renderer's own floor check first, which masks the
+targeted assertion — noted rather than fixed, because failing earlier is the better behaviour.
+The `/admin` ordering defect is caught by the test alone, since order is not in the floor
+list: moving the deny below the fallback failed exactly one test, with the message naming the
+200-instead-of-403 measurement.
+
+### 22d. What none of this establishes
+
+**`HOST VERIFIED`: still nothing.** These are gates over generated text and a local build.
+Specifically unchanged:
+
+- **M1** — whether Ethio Telecom's Apache honours `[F,L]` at all. `<FilesMatch>` is proven
+  and the deployment does not use it.
+- **G0-B.6** — `AllowOverride Options`, a requirement the 2026-09-26 rules introduced. The
+  harness used `AllowOverride All`.
+- Whether `mod_dir` there behaves as it does here.
+- Whether PHP **executes** the routed `index.php`. §21g measured routing with `mod_php`
+  unloaded, so the rewrite demonstrably lands on the file and execution is a separate claim.
+
+A green `static-export` job means the artifact is correct as written. That is what §21e calls
+`LOCAL VERIFIED`, and it is still all this is.
