@@ -24,6 +24,15 @@ name: Quality gates
 # `pull_request` covers every branch that matters; `push` covers main after a
 # merge. A branch with no PR gets no run, which is the intended trade —
 # `workflow_dispatch` is there for the exception.
+#
+# DO NOT ADD `migration/bronze-plesk` TO THE `push` LIST. The 2026-09-27 forensic
+# audit found that none of that branch's seven commits had ever been evaluated by
+# Actions, and the cause was not this trigger: the branch had no remote
+# counterpart and no PR, so there was nothing for `pull_request` to fire on. The
+# fix is the PR, and it is the reason the branch was pushed. Naming the branch
+# here instead would reintroduce exactly the double-run defect the paragraphs
+# above document, and would still not have covered the branch before it was
+# pushed.
 on:
   push:
     branches: [main]
@@ -218,6 +227,90 @@ jobs:
 
       - name: Run frontend gates
         run: ./scripts/gates.sh frontend
+
+  static-export:
+    name: Static export (Bronze shared hosting)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # A SEPARATE JOB, not a step on `frontend`, for two reasons. It runs in
+    # parallel so it adds no wall-clock to the existing gate, and when it fails
+    # the job name says which artifact broke — "Frontend" going red tells you
+    # nothing about whether the deployment target still builds.
+    #
+    # WHY IT EXISTS AT ALL. Until 2026-09-27 nothing in CI ran `next build`, for
+    # either target. The Bronze production artifact — `output: "export"`, the one
+    # Apache serves — had been verified exactly once, by hand, on one Windows
+    # machine (docs/audit/BASELINE.md §20g), while src/lib/build-target.ts claimed
+    # the ETHR_TARGET switch made it "runnable in CI, which is what turns
+    # 'verified once by hand' into something a gate can check". Nothing did.
+    #
+    # It earned the job on its first run: it found that `.htaccess` group 1 served
+    # the entity-detail shell for six static sibling routes (/employees/new,
+    # /employees/import, /payroll/{cost-sharing,loans,payslips},
+    # /devices/dashboard), because the rule's only guard was `!-f` and the
+    # exporter writes `new.html` while the request is for `new`. The 20-of-20
+    # Apache matrix in §21d missed it because it never fetched a static sibling
+    # under a dynamic prefix.
+    #
+    # This is a BUILD-ARTIFACT gate. It is not host verification: whether Ethio
+    # Telecom's Apache honours `[F,L]` is M1 and still open.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src
+        run: npm ci
+
+      # gates.sh export -> npm run build:shared-hosting -> next build + verify.
+      # The env var is set by the build script rather than here, so a developer
+      # on any platform runs the identical thing; see that script's header for
+      # why `ETHR_TARGET=... npm run build` cannot be the documented form.
+      - name: Build and verify the shared-hosting artifact
+        run: ./scripts/gates.sh export
+
+      # Uploaded so a human can inspect what the host would actually serve
+      # without rebuilding it. Short retention: it is a build output, not a
+      # release, and it is ~690 files.
+      - name: Upload the export for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bronze-static-export
+          path: src/out
+          retention-days: 7
+          if-no-files-found: warn
+
+  htaccess-rules:
+    name: Deployment rules (.htaccess render + validate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # The rendered .htaccess is validated inside the Pest suite
+    # (SharedHostingHtaccessTest), so the `backend` job already covers it. This
+    # job exists for the case where the backend suite cannot run — it needs only
+    # PHP and no vendor/ — because the deployment rules are the one artifact
+    # whose failure is silent on the host: a dropped deny rule leaves APP_KEY
+    # web-readable while the application works normally.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      # The renderer refuses to emit an artifact missing any required directive,
+      # so this is a real check and not a smoke test. Output discarded: the
+      # assertions are the point, and the file belongs in <DOCROOT>, not here.
+      - name: Render the BRANCH B deployment rules
+        run: php scripts/shared-hosting/render-htaccess.php --branch=b > /dev/null
 
   docs:
     name: Documentation integrity

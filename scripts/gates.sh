@@ -12,6 +12,7 @@
 #   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
+#   ./scripts/gates.sh export      the Bronze shared-hosting static export build
 #
 # The API-contract gate needs both halves, so it only runs in a full sweep.
 #
@@ -441,6 +442,26 @@ lighthouse_gate() {
     )
 }
 
+# The Bronze shared-hosting production artifact.
+#
+# This is the build the deployment target actually serves, and until 2026-09-27 no
+# gate ran it. `frontend` above runs i18n, Prettier, ESLint, tsc and Vitest — none
+# of which invoke `next build` — so `output: "export"` was verified exactly once,
+# by hand, on one Windows machine (docs/audit/BASELINE.md §20g), while
+# src/lib/build-target.ts claimed the ETHR_TARGET switch made it "runnable in CI,
+# which is what turns 'verified once by hand' into something a gate can check".
+#
+# It found a defect on its first run: .htaccess group 1 served the entity-detail
+# shell for six static sibling routes (/employees/new, /payroll/payslips and four
+# more), because its only guard was `!-f` and the exporter writes `new.html` while
+# the request is for `new`. §21d's 20-of-20 matrix never fetched one.
+#
+# `npm run build:shared-hosting` sets ETHR_TARGET itself and then runs the
+# verifier, so a wrong-target build cannot pass quietly.
+export_gate() {
+    (cd "$WEB_DIR" && node scripts/build-shared-hosting.mjs)
+}
+
 # `quick` is the pre-push scope: every gate that does not run a test suite.
 # Seconds rather than ten minutes, which is the difference between a hook people
 # keep and a hook people learn to pass --no-verify to. The suites run in CI, and
@@ -472,6 +493,18 @@ fi
 
 if [[ "$SCOPE" == "all" || "$SCOPE" == "docs" ]]; then
     run_gate "Docs (link integrity)" docs_gate
+fi
+
+# IN `all`, unlike `security` and `performance`, and the distinction is the one
+# this script already draws: those two go red when a third party publishes an
+# advisory or a machine is loaded — reasons that are not your change — and a gate
+# that is permanently red stops being read. This one goes red only when the
+# production artifact is broken. It costs a couple of minutes; a silently wrong
+# frontend on the deployment target costs more.
+#
+# Out of `quick` deliberately: the pre-push hook has to stay in seconds.
+if [[ "$SCOPE" == "all" || "$SCOPE" == "export" ]]; then
+    run_gate "Static export (Bronze)" export_gate
 fi
 
 # Needs both halves of the stack, so it only runs in a full sweep.

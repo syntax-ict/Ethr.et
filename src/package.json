@@ -21,7 +21,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "generate:api": "node scripts/generate-api.mjs"
+    "generate:api": "node scripts/generate-api.mjs",
+    "build:shared-hosting": "node scripts/build-shared-hosting.mjs",
+    "verify:static-export": "node scripts/verify-static-export.mjs"
   },
   "type": "module",
   "dependencies": {
