@@ -14,7 +14,8 @@ Several documents in this tree describe things that are not true of the code. Th
 |---|---|
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The measured state, every claim tagged `[verified]` / `NOT VERIFIED` / `NOT MEASURED`. §12b lists the known documentation contradictions. |
 | [`audit/CODE-VS-DOCUMENTATION.md`](audit/CODE-VS-DOCUMENTATION.md) | **Where prose and code disagree, and which way.** Each row cites the executable evidence; closed rows say what was corrected. |
-| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, graded panel-read vs probe-measured. **No longer all `NOT VERIFIED`** — see the row below. |
+| [`deployment/CUTOVER-CHECKLIST.md`](deployment/CUTOVER-CHECKLIST.md) | **Can ETHR go live? The single register that decides.** `CUTOVER READY = NO` as of 2026-09-27. Five explicit states per gate, and it states in terms that a green CI run moves none of them. |
+| [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Every hosting capability, graded panel-read vs probe-measured. **No longer all `NOT VERIFIED`** — see the row below. **Read the *Gate status reconciliation* section at the end for current status**; the tables above it are dated and were deliberately left unmodified. |
 | [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md) | **Phase 1, 2026-09-25 — the first evidence taken against the real host.** Five capabilities moved to `VERIFIED`; eight discrepancies against existing documents recorded without rewriting them. |
 
 Three standing caveats:

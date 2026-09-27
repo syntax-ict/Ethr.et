@@ -380,7 +380,10 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | Measured state of the codebase | [`docs/audit/BASELINE.md`](docs/audit/BASELINE.md) |
 | Security reporting | [`SECURITY.md`](SECURITY.md) |
 | Documentation index | [`docs/README.md`](docs/README.md) |
-| Deployment target status | [`docs/deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) |
+| **Can we go live? — read this first** | [`docs/deployment/CUTOVER-CHECKLIST.md`](docs/deployment/CUTOVER-CHECKLIST.md) — the one register that decides. **`CUTOVER READY = NO` as of 2026-09-27.** Every gate carries one of `PASS` / `FAIL` / `HOST ACTION REQUIRED` / `OWNER DECISION` / `BLOCKED`, and **a green CI run moves none of them** |
+| Deployment target status | [`docs/deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) — read its *Gate status reconciliation* section at the end for current status; the tables above it are dated |
+| Production frontend mode | **Static export served by Apache/Plesk — owner decision 2026-09-27.** No Plesk Node application. [`docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md). Render the deployed rules with `render-htaccess.php --target=static-export` — **not `--branch=a`**, which is the Node branch |
+| Scheduler | **GitHub Actions — owner decision 2026-09-27.** [`.github/workflows/cron.yml`](.github/workflows/cron.yml), documented in [`docs/deployment/shared-hosting/cron-caller.md`](docs/deployment/shared-hosting/cron-caller.md). Chosen because **G0-D is FAILED** — the account has no Scheduled Tasks section |
 | Deploying to Plesk shared hosting | [`docs/deployment/PLESK-HOSTING-GUIDE.md`](docs/deployment/PLESK-HOSTING-GUIDE.md) |
 | **Hard rule — repository only** | [`docs/deployment/SHARED-HOSTING-CONTRACT.md`](docs/deployment/SHARED-HOSTING-CONTRACT.md) — work happens here, not in hosting settings. Outranks every deployment doc |
 
