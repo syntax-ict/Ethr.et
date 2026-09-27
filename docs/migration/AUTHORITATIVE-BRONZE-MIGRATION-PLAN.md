@@ -139,6 +139,12 @@ scheduling decision, neither of which is a code change.**
 
 ## 3. REPLACE — the mechanism cannot run on Bronze; the feature survives
 
+> **Read the *Current mechanism* column as past tense, from 2026-09-27.** Every asset it
+> names — `supervisor.conf`, the production compose stack, the nginx vhost, the certbot
+> webroot — was removed in `3db9904`. The column is kept because it says *what is being
+> replaced*, which is the only way the *Bronze replacement* column is legible; it is no
+> longer a description of anything in this tree. The **Status** column is still current.
+
 | Feature | Current mechanism | Bronze replacement | Status |
 |---|---|---|---|
 | **Queue execution** | `supervisor.conf` `[program:ethr-queue]`, a `--max-time=3600` daemon | `POST /api/v1/cron/queue` → `queue:work --stop-when-empty --max-time=50`, under a `Cache::lock`, 409 on overlap | **Built.** Needs a timer to call it |
@@ -182,15 +188,42 @@ being unavailable.
 
 ## 4. REMOVE — only what is proven unnecessary
 
+> # ⚠ THIS SECTION IS SUPERSEDED BY EVENTS — updated 2026-09-27
+>
+> **The removal has happened.** `3db9904` (2026-09-27) deleted **22 VPS production
+> paths**, at the owner's explicit and repeated direction, **before a verified
+> cutover**. The trigger this section defers to never fired.
+>
+> The text below is kept because its reasoning is what makes the current state
+> legible, and because point 2 — the load-bearing set — is *still correct and still
+> load-bearing*. Point 1 is now false and is struck.
+>
+> | | |
+> |---|---|
+> | Gone | `docker-compose.{prod,lowmem,hostnames}.yml` · `api/Dockerfile.prod` · both `.env.production.example` · `docker/php/{php.prod.ini,www.prod.conf}` · `docker/mariadb/*.cnf` · all of `infrastructure/` · `docs/VPS_DEPLOYMENT.md` · `scripts/{deploy,rollback,init-storage,prod-build-test,setup-replication}.sh` |
+> | Kept, deliberately | `docker-compose.yml` · `docker-compose.test.yml` · `docker/php/{Dockerfile,php.ini,www.conf}` · `docker/nginx/default.conf` · `docker/frontend/Dockerfile` — development, CI and new-target, exactly as point 2 says |
+> | Retired but present | `scripts/{backup,restore}.sh` — they **refuse to run**; see the risk row in §7 |
+> | Repointed | `scripts/seed.sh` — now targets the local dev stack |
+>
+> **There is no repository-level VPS rollback path.** The only way back to those files
+> is `git revert 3db9904` — one commit, verified 2026-09-27 as the sole commit
+> containing any of the deletions — and it restores files, not a running VPS.
+>
+> **This is an accepted risk already incurred, not an open decision.** Stage 7 below
+> is therefore not "pending"; it is **executed early**, and §7's risk row says what
+> that cost.
+
 **This section defers entirely to
 [`../deployment/VPS-DECOMMISSION.md`](../deployment/VPS-DECOMMISSION.md), which is a more
 careful analysis than this plan should duplicate.** Three points from it that this audit
 independently confirms:
 
-1. **Nothing is removable yet.** That document's status is **NOT TRIGGERED**, and
+1. ~~**Nothing is removable yet.** That document's status is **NOT TRIGGERED**, and
    `docs/VPS_DEPLOYMENT.md` is the rollback path — *"Out last, not first."* The owner
    directed removal on 2026-09-25; the trigger is a **verified cutover**, which has not
-   happened.
+   happened.~~ **— FALSE SINCE `3db9904`.** The removal was executed on 2026-09-27 with
+   the trigger unmet, at the owner's direction. `VPS_DEPLOYMENT.md` went **first**, not
+   last. See the banner above.
 2. **The load-bearing set is real and easy to get wrong.** `docker/frontend/Dockerfile`,
    `docker-compose.yml`, `docker-compose.test.yml` and `docker/php/{Dockerfile,php.ini,www.conf}`
    were swept up by the phrase *"VPS files"* because of where they live. The distinction that
@@ -204,9 +237,23 @@ independently confirms:
 documentation change of the same size as the deletion**, and `./scripts/gates.sh docs`
 checks markdown link integrity — so a partial removal turns a gate red.
 
-**Removable with no further evidence needed:** nothing. **Removable once cutover is
+~~**Removable with no further evidence needed:** nothing. **Removable once cutover is
 verified:** the §3 list in `VPS-DECOMMISSION.md`, with its citations updated in the same
-change.
+change.~~
+
+> **Executed 2026-09-27 without the cutover** (`3db9904`). Two notes worth keeping,
+> because both predictions in the struck paragraph were tested:
+>
+> - **The citation warning was right, and the docs gate was not enough.** Link
+>   integrity stayed **green** through the whole removal — 391 links across 88 files —
+>   because every reference to a deleted asset was **prose or a code comment**, not a
+>   relative markdown link. Two were wrong *instructions* rather than stale asides.
+>   `api/tests/Feature/ScriptComposeFileReferencesTest.php` now covers the executable
+>   half of that class, which link-checking structurally cannot.
+> - **What is still removable on the old condition:** `scripts/{backup,restore,seed}.sh`
+>   were held back. `backup.sh` and `restore.sh` are now **retired** — they refuse to run
+>   — and come out after the **Stage 6 host restore rehearsal**. `seed.sh` was repointed
+>   at the local development stack and stays as a development utility.
 
 ---
 
@@ -325,8 +372,23 @@ since 2026-09-23 and **never on this host**, and `BASELINE.md` §15f/§15g recor
 carried a defect while every test of it was green *and the first written account of the defect
 was itself wrong in two places*.
 
-**Stage 7 — Only now, VPS decommission**, per `VPS-DECOMMISSION.md`, with the 19 document
-citations updated in the same change.
+~~**Stage 7 — Only now, VPS decommission**, per `VPS-DECOMMISSION.md`, with the 19 document
+citations updated in the same change.~~
+
+**Stage 7 — DONE EARLY, 2026-09-27, out of sequence and at the owner's direction**
+(`3db9904`). The ordering rule this stage existed to enforce — *nothing irreversible
+before the cutover is verified* — was not followed. Stages 1b, 1, 3 and 6 are all still
+open, so the sequence above now runs **without** the rollback option it was written to
+preserve.
+
+**What that changes about the rest of this plan:** nothing in stages 1–6 becomes
+unnecessary, and one of them gets sharper. **Stage 6's restore rehearsal on the host is
+now the only recovery evidence this project will ever have** — it was previously a
+belt-and-braces check beside a VPS you could fall back to. Treat it as blocking rather
+than as verification, and do it *before* cutover, not after.
+
+The three held scripts are the residue: `backup.sh` and `restore.sh` are retired and
+refuse to run, and they leave the tree after that rehearsal.
 
 ---
 
@@ -352,7 +414,8 @@ citations updated in the same change.
 | **A deployment that copies `api/.env.example` selects three drivers the host cannot provide** | `.env.example:44`–`46`, `:52`, `:63` | **MEDIUM** | Make `api/.env.shared-hosting.example` the only path named in Bronze documentation |
 | **`FILESYSTEM_DISK=local` puts every tenant's documents under one account**, separated only by `FileStorageService`'s prefix | `FileStorageService::upload()` | **MEDIUM** | Accept, and treat any new storage writer that bypasses the service as an isolation defect |
 | **Bandwidth (50 GB) is unmeasured and uncapped** | Only mitigation is one-year immutable asset caching in `.htaccess` | **LOW** | Read panel statistics after week one |
-| **VPS removal executed before cutover is verified** | `VPS-DECOMMISSION.md` status **NOT TRIGGERED**; `VPS_DEPLOYMENT.md` is the rollback path; its own §3 list is annotated as incomplete after a removal attempt stopped at the deletion step | **LOW while untriggered, CRITICAL if triggered early** | Removal happens in stage 7, never before |
+| **VPS removal executed before cutover is verified** — **THIS HAS HAPPENED** | `3db9904`, 2026-09-27: 22 paths, at the owner's explicit and repeated direction, against the advice in `VPS-DECOMMISSION.md` §3b.5. `docs/VPS_DEPLOYMENT.md` — the rollback path, *"out last, not first"* — went out first. Verified 2026-09-27: it is the **sole** commit containing any of the deletions | **CRITICAL — the "if triggered early" branch fired.** This row read *"LOW while untriggered"* until 2026-09-27 and that reading is no longer available | **None available repository-side.** Accepted risk, already incurred. The residual actions are: (a) treat **Stage 6's host restore rehearsal as blocking**, since it is now the only recovery evidence there will be; (b) do not delete `scripts/{backup,restore}.sh` before it; (c) if the VPS files are ever wanted back, `git revert 3db9904` — which restores files, not a host |
+| **The rollback that no longer exists may still be assumed to exist** | Three authority documents described the VPS assets as present after they were deleted — `SHARED-HOSTING-CONTRACT.md` (*"the compose files stay as they are"*), this plan's §4 (*"Nothing is removable yet"*) and `REPOSITORY-INVENTORY.md` §5. The contract *"outranks every deployment doc"*, so the documented reading order led to the wrong conclusion | **MEDIUM** — corrected 2026-09-27, but the class recurs: `3db9904` touched `REPOSITORY-INVENTORY.md` by two lines and the contract and this plan not at all | When an asset is removed, grep the authority set for it. The docs gate cannot help — it checks relative links, and every one of these was prose |
 
 ---
 

@@ -247,7 +247,7 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 > |---|---|
 > | Cache / Queue — Redis 7+ | **Not used in production.** `SHARED_HOSTING_AUDIT.md` §B removed Redis for the shared-hosting target; the queue runs on the `database` driver. Coupling is configuration-only — `audit/BASELINE.md` §6 found no application code calling Redis. |
 > | Horizon | **Removed entirely**, not merely undeployed — `cdf85d1`. It is absent from `composer.json` and `composer.lock`, and the lockfile carries zero hard `ext-pcntl`/`ext-posix` requires (re-verified 2026-09-18). The old reason given here — that it *would* abort `composer install --no-dev` — described a dependency that no longer exists; `BASELINE.md` §15 row 6 had recorded the resolution while §3a still read as live. |
-> | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=log` in production. |
+> | Real-time — Reverb | **Not deployed.** `BROADCAST_CONNECTION=null` in production. *(Corrected 2026-09-27: this said `log`. On the Bronze target `log` is forbidden, not merely imprecise — it writes a line per broadcast against a fixed 5 GB quota shared with the database and every uploaded document, and a full quota fails writes while reads keep succeeding. `config/broadcasting.php:40` defaults to `null`, `api/.env.shared-hosting.example:105` sets `null`, and `BroadcastConnectionConfigTest` pins the unset case. Several HISTORICAL documents still say `log` and are left as written — they record what was decided in August, and `MIGRATION_STATE.md:2519` already discusses the discrepancy.)* |
 > | File Storage — MinIO | **Not deployed** for the shared-hosting target; the `local` disk serves documents through signed `temporaryUrl()` routes. |
 >
 > `Infrastructure` likewise still says "Ethiopian VPS"; the production target is
@@ -956,15 +956,30 @@ type(scope): short description
 ## Deployment Compatibility
 
 > **This list described the VPS target, and three of its rows were measurably
-> wrong — corrected 2026-09-25.** It is kept in the right-hand column because the
-> VPS stack is still the rollback path and `docker-compose.prod.yml` still ships;
-> what changed is which column an agent should design against.
+> wrong — corrected 2026-09-25.** What changed is which column an agent should
+> design against.
 >
-> The production target is **Ethio Telecom shared hosting under Plesk**. The VPS
-> assets are retained only until that cutover is verified — see
-> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) and
-> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md), which defines
-> the trigger and records that it **has not fired**.
+> **The right-hand column no longer describes anything in this repository —
+> updated 2026-09-27.** It used to end *"the VPS stack is still the rollback path
+> and `docker-compose.prod.yml` still ships"*. Neither half holds: `3db9904`
+> removed 22 VPS production paths — the whole production compose stack, all of
+> `infrastructure/`, `api/Dockerfile.prod` and `docs/VPS_DEPLOYMENT.md` — at the
+> owner's direction and **before a verified cutover**, so the trigger
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) defines never
+> fired and **there is no repository-level rollback path**. The column is kept as
+> the specification of the target ETHR was built for, and as the contrast that makes
+> the left column legible; read it as history.
+>
+> **Design against the left column. Only the left column.** What survives of the
+> Docker setup is local development and CI — `docker-compose.yml`,
+> `docker-compose.test.yml`, `docker/php/*`, `docker/nginx/default.conf`,
+> `docker/frontend/Dockerfile` — and none of it is a deployment target.
+>
+> The production target is **Ethio Telecom shared hosting under Plesk**. See
+> [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) for what has actually
+> been measured on the account, and
+> [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md),
+> which outranks every deployment document.
 
 | Production target (shared hosting) | VPS target (rollback path) |
 |---|---|

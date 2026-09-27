@@ -146,7 +146,7 @@ migration has to build.
 | `src/src/api/generated.ts` generation | `src/scripts/generate-api.mjs` reads the backend OpenAPI document; `openapi-typescript` emits types |
 | Vite (`api/package.json`) | Builds the Laravel-side Blade assets only. **Not the SPA build** — that is Next.js |
 | `php artisan key:generate` | Mandatory: `Employee.tin` and `national_id` use the `encrypted` cast, and the encrypter refuses to boot without `APP_KEY` |
-| `php artisan storage:link` | `api/public/storage` is **not tracked in git**, so it must be created on the host |
+| ~~`php artisan storage:link`~~ | **NOT REQUIRED — corrected 2026-09-27.** This read *"`api/public/storage` is not tracked in git, so it must be created on the host"*. The first half is true and the conclusion does not follow: ETHR never serves anything through `public/storage`. Every file URL in the product is a signed `temporaryUrl()` against a disk with `'serve' => true` (`FileStorageService`), so the symlink would point at a `storage/app/public` that nothing writes to. `shared-hosting/DEPLOYMENT.md:308` states *"No `storage:link` step"* and `SHARED_HOSTING_PLAN.md` §"Correction 2026-09-24" removed it from **seven** places. `scripts/shared-hosting/deploy.sh` still printed it until 2026-09-27 and no longer does. Probe **ST5** (`symlink()` available) is therefore informational, not a gate |
 
 **Ordering trap, already recorded in the root `CLAUDE.md`:** `.env` must exist *before*
 `composer install`, because `package:discover` runs as a post-autoload-dump script during
@@ -158,15 +158,24 @@ the install.
 
 | Path | Target | Class |
 |---|---|---|
+> **§5 RE-MEASURED 2026-09-27 against the tree, and nine of its rows were describing
+> files that no longer exist.** This section was written 2026-09-25 and `3db9904` touched
+> it by two lines. Removed rows are struck and kept — the classification is the record of
+> *why* each was safe or unsafe to delete, which is the part worth preserving. **Class
+> column unchanged; only presence changed.**
+
 | `docker-compose.yml` | Local development — 9 services: nginx, api, worker, scheduler, frontend, reverb, mariadb, redis, minio | VPS/Docker |
-| `docker-compose.prod.yml` | VPS production — adds `worker-realtime`, `worker-exports`, `mariadb-replica`, `redis-cache` | VPS/Docker |
-| `docker-compose.lowmem.yml`, `.test.yml`, `.hostnames.yml` | Variants | VPS/Docker |
-| `docker/`, `api/Dockerfile.prod` | Image build inputs (`php:8.2-fpm-alpine`, `node:22-alpine`, MariaDB cnf, nginx conf, php.ini) | VPS/Docker |
-| ~~`infrastructure/nginx.conf`, `nginx-common.conf`~~ | VPS web server; also the authoritative `/admin` host guard. **`infrastructure/` no longer exists — removed 2026-09-26/27**; on the shared-hosting target the `/admin` control is `.htaccess` group 0 | VPS |
-| `infrastructure/supervisor.conf` | VPS process supervision — `ethr-queue`, `ethr-scheduler`, `ethr-reverb` | VPS |
-| `infrastructure/certbot-webroot/` | ACME | VPS |
-| `scripts/gates.sh` plus 9 sibling scripts | Quality gates; **CI calls `gates.sh` rather than restating it** | Both |
-| `scripts/backup.sh`, `restore.sh`, `rollback.sh`, `deploy.sh`, `prod-build-test.sh` | **Docker-only** — `docker compose exec -T mariadb mysqldump` | VPS/Docker |
+| ~~`docker-compose.prod.yml`~~ | VPS production — added `worker-realtime`, `worker-exports`, `mariadb-replica`, `redis-cache`. **REMOVED `3db9904`** | VPS/Docker |
+| ~~`docker-compose.lowmem.yml`~~, `.test.yml`, ~~`.hostnames.yml`~~ | Variants. **`lowmem` and `hostnames` REMOVED `3db9904`**; `docker-compose.test.yml` **stays** — it is the testing stack | VPS/Docker |
+| `docker/`, ~~`api/Dockerfile.prod`~~ | Image build inputs. `docker/` **stays** (`docker/php/{Dockerfile,php.ini,www.conf}`, `docker/nginx/default.conf`, `docker/frontend/Dockerfile` — development, CI and the frontend runtime pin). **`api/Dockerfile.prod` REMOVED `3db9904`**, and with it `docker/php/php.prod.ini`, `docker/php/www.prod.conf` and `docker/mariadb/*.cnf` | VPS/Docker |
+| ~~`infrastructure/nginx.conf`, `nginx-common.conf`~~ | VPS web server; also the authoritative `/admin` host guard. **`infrastructure/` no longer exists — removed in `3db9904`**; on the shared-hosting target the `/admin` control is `.htaccess` group 0, which is `LOCAL VERIFIED` only and gated on **M1** | VPS |
+| ~~`infrastructure/supervisor.conf`~~ | VPS process supervision — `ethr-queue`, `ethr-scheduler`, `ethr-reverb`. **REMOVED `3db9904`.** Its replacement is `CronRunController` driven by an external caller, which is **Q6, unchosen** | VPS |
+| ~~`infrastructure/certbot-webroot/`~~ | ACME. **REMOVED `3db9904`**; Plesk issues the certificate and `.htaccess` carries the challenge passthrough (measured, `BASELINE.md` §21g) | VPS |
+| `scripts/gates.sh` plus sibling scripts | Quality gates; **CI calls `gates.sh` rather than restating it** | Both |
+| ~~`scripts/rollback.sh`, `deploy.sh`, `prod-build-test.sh`~~ | **Docker-only. REMOVED `3db9904`**, together with `init-storage.sh` and `setup-replication.sh` | VPS/Docker |
+| `scripts/backup.sh`, `scripts/restore.sh` | **RETIRED 2026-09-27 — present but refusing to run.** They drove `docker-compose.prod.yml`. `VPS-DECOMMISSION.md` held them as *"a working path"*; with `prod.yml` gone they were not one, so they now `exit 64` with a message naming `ethr:backup`/`ethr:restore`. They leave the tree after the **Stage 6 host restore rehearsal** | VPS/Docker |
+| `scripts/seed.sh` | **REPOINTED 2026-09-27** from `docker-compose.prod.yml` to `docker-compose.yml`. Genuinely convertible where the other two were not: the only service it touches is `api`, and the dev stack has one. A **local development** utility, never a deployment step | Development |
+| `scripts/shared-hosting/render-htaccess.php` | **NEW 2026-09-27.** Renders the deployable `<DOCROOT>/.htaccess` from the template by stripping a `#@ ` sentinel. Replaces a hand-edit that had produced three measured defects, including an Apache 500 from an uncommented English sentence (`BASELINE.md` §21c) | Bronze |
 | `ethr:backup` / `ethr:restore` artisan commands | **Host-neutral backup path**, rehearsed in CI on MariaDB | Both |
 | `scripts/shared-hosting/deploy.sh`, `smoke-check.sh` | Shared hosting | Bronze |
 | `scripts/hosting-verification/ethr-hosting-check.php` (29.6 KB) | Capability probe; has a web-execution route | Bronze |

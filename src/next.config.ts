@@ -26,9 +26,19 @@ const nextConfig: NextConfig = {
   /**
    * `export` for Bronze shared hosting, `standalone` everywhere else.
    *
-   * See `src/lib/build-target.ts` for why this is a switch rather than a flip:
-   * the Docker/VPS stack is still the documented rollback path and it runs the
-   * `server.js` that `export` does not emit.
+   * See `src/lib/build-target.ts` for why this is a switch rather than a flip.
+   *
+   * That file and this comment disagreed for a day and this is the half that was
+   * wrong: it read "the Docker/VPS stack is still the documented rollback path and
+   * it runs the `server.js` that `export` does not emit". The VPS was
+   * decommissioned in `3db9904` (2026-09-27), before a verified cutover, so there
+   * is nothing to roll back *to* — `build-target.ts` was updated in that same
+   * commit and this was not.
+   *
+   * The switch stays, for the reason that survived: `standalone` is what local
+   * development and CI build, and `docker/frontend/Dockerfile` still runs the
+   * `server.js` only that target emits. Changing the default would change what
+   * every developer and every gate builds.
    *
    * Two things stop working under `export`, both by design rather than
    * oversight, and both already have a replacement in

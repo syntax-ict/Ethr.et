@@ -261,7 +261,18 @@ unfilled, which is visible.
 - **Any change to the *Document root* field** — the default is already correct
   *(added 2026-09-25 by the hard rule)*
 
-These remain in the repository for the VPS fallback (Option A) and are correct there.
+~~These remain in the repository for the VPS fallback (Option A) and are correct there.~~
+
+> **Corrected 2026-09-27.** The **production** ones no longer remain: Supervisor, the
+> VPS nginx vhost, the certbot webroot and the production compose stack were removed in
+> `3db9904`. What remains is the **development and CI** set — `docker-compose.yml`,
+> `docker-compose.test.yml`, `docker/php/*`, `docker/nginx/default.conf`,
+> `docker/frontend/Dockerfile` — plus `laravel/reverb` and the `minio` disk, which are
+> the local development broadcasting and storage backends and are selected only by
+> `.env.example`. None of that is required by, or contradicts, this contract.
+>
+> The list above stands unchanged as a statement of what a shared-hosting procedure may
+> never require. Only the sentence about where those things still live was wrong.
 They are simply not part of this contract, and a shared-hosting runbook that reaches for
 one of them is wrong by definition rather than by circumstance.
 
@@ -332,7 +343,54 @@ runner the asynchronous half of the product is inert regardless of how the code 
 - **The pre-registered decision.** `shared-hosting/SHARED_HOSTING_MIGRATION_PLAN.md` §4's
   rule fired on G0-D and returned **No-Go → Option A**. Making SSH optional does not
   reverse it, because SSH was never what fired it.
+
+  > **Annotated 2026-09-27, because the target of that "Option A" no longer exists in
+  > this repository.** In `SHARED_HOSTING_MIGRATION_PLAN.md` **Option A means *stay on
+  > the VPS*** — a different Option A from `deployment/SHARED_HOSTING_PLAN.md` §3A, where
+  > A is *static export*; both documents carry an explicit naming warning about the
+  > collision, and neither set is renamed.
+  >
+  > `3db9904` removed the VPS production assets, so the branch that rule pointed at has
+  > no repository artifacts behind it any more. **The decision is not thereby reversed** —
+  > a gate fired it, the gate has not moved, and re-taking it is the owner's. What changed
+  > is that acting on it would now require restoring files (`git revert 3db9904`) and
+  > rebuilding a host, rather than following a runbook that ships. Recorded here rather
+  > than resolved.
 - **Gate statuses.** G0-A stays `NOT VERIFIED`, G0-D stays `FAIL`, G0-G stays `PARTIAL`.
   A contract states intent; only output moves a gate.
-- **The VPS assets.** `infrastructure/supervisor.conf` and the compose files stay as they
-  are. They belong to Option A and are not measured against this contract.
+- ~~**The VPS assets.** `infrastructure/supervisor.conf` and the compose files stay as they
+  are. They belong to Option A and are not measured against this contract.~~
+
+  > **FALSE SINCE 2026-09-27. Corrected here 2026-09-27.** `infrastructure/` no longer
+  > exists and `docker-compose.prod.yml` is gone. Twenty-two VPS production paths were
+  > removed in **`3db9904`**, at the owner's explicit and repeated direction, **before a
+  > verified cutover** — see [`VPS-DECOMMISSION.md`](VPS-DECOMMISSION.md), whose header
+  > records the instruction and the cost.
+  >
+  > **This bullet mattered more than an ordinary stale line.** This document says it
+  > *"outranks every deployment doc"*, so a reader following the documented authority
+  > order arrived here and concluded the rollback path was intact. It was not.
+  >
+  > **What is true now:**
+  >
+  > - **There is no repository-level VPS rollback path.** `docs/VPS_DEPLOYMENT.md` went
+  >   with the stack. The only way back to those files is `git revert 3db9904` — a single
+  >   commit, verified 2026-09-27 as the sole commit containing any of the deletions — and
+  >   that restores *files*, not a running VPS.
+  > - **This is an accepted risk that has already been incurred**, not a decision still
+  >   open. It is recorded rather than argued: the owner was shown the rollback-path cost
+  >   and directed the removal anyway.
+  > - **What survives is `ethr:backup` / `ethr:restore`**, and it is *not* a rollback path
+  >   either — it is a backup path, rehearsed in CI against MariaDB and **never on the
+  >   Ethio Telecom host**. Do not let the two be conflated: restoring a database dump is
+  >   not reverting a cutover.
+  > - `scripts/{backup,restore}.sh` are still present and **retired** — they refuse to run.
+  >   They were held on the grounds that they were "a working path"; with `prod.yml` gone
+  >   they never were. They come out after the Stage 6 host rehearsal.
+  >
+  > What the original bullet got *right* and still holds: **the local-development and CI
+  > assets are not measured against this contract.** `docker-compose.yml`,
+  > `docker-compose.test.yml`, `docker/php/*`, `docker/nginx/default.conf` and
+  > `docker/frontend/Dockerfile` all remain, deliberately, and none of them is a VPS
+  > production asset. That distinction — *production-VPS-only* versus *development, CI, or
+  > new-target* — is what the removal was careful about and is why the tree still builds.

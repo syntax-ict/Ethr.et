@@ -22,11 +22,11 @@ why this inventory is possible at all.
 | Document | Size | Last touched | Class | Why |
 |---|---:|---|---|---|
 | [`../deployment/SHARED-HOSTING-CONTRACT.md`](../deployment/SHARED-HOSTING-CONTRACT.md) | 14.7 KB | 2026-09-25 | **CURRENT — outranks everything below it** | The owner's design constraint. Carries the **HARD RULE** set 2026-09-25: *"Work happens in the repository. Hosting settings are not a path."* It also records that the rule was first written down wrong, and why the mis-stated version's consequences survive the correction |
-| [`../deployment/GATE-0-RESULT.md`](../deployment/GATE-0-RESULT.md) | 87.0 KB | — | **CURRENT** | The host-capability evidence register. Grades panel-read separately from probe-measured, downgrades its own rows when evidence weakens, and has a *"What these readings do not settle"* section. **No other document should re-score these gates** |
+| [`../deployment/GATE-0-RESULT.md`](../deployment/GATE-0-RESULT.md) | — | 2026-09-27 | **CURRENT — read its last section first** | The host-capability evidence register. Grades panel-read separately from probe-measured, downgrades its own rows when evidence weakens, and has a *"What these readings do not settle"* section. **No other document should re-score these gates** — and as of 2026-09-27 it no longer needs one to: a **Gate status reconciliation** section at the end of the file folds in the 2026-09-25 host readings that the plan deliberately left unapplied, using one fixed vocabulary (`VERIFIED` · `FAILED` · `NOT VERIFIED` · `HOSTING ACTION REQUIRED` · `OWNER DECISION REQUIRED`) and adding **G0-B.6** (`AllowOverride Options`), a requirement the 2026-09-26 rules introduced with no row to hold it. **The tables above that section are dated and were left untouched; where they disagree, the reconciliation is current** |
 | [`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md) | 39.9 KB | — | **CURRENT** | The executable procedure: release preparation, database creation, upload, document-root assembly (§4a), frontend (§5 with a static-export fallback branch), cron (§6 with a branch for URL-fetch-only), the disk-full failure mode (§6a), verification, DNS cutover |
 | [`BASELINE.md`](BASELINE.md) | 213.8 KB | — | **CURRENT, with three stale figures** | The measured state of the codebase, §1–§18. Three rows are out of date — see [`CODE-VS-DOCUMENTATION.md`](CODE-VS-DOCUMENTATION.md) §A |
 | [`../MIGRATION_STATE.md`](../MIGRATION_STATE.md) | 190.3 KB | 2026-09-25 | **CURRENT with a CONTRADICTORY header** | Actively maintained, but its *CURRENT PHASE* block still reads *"PAUSED … since 2026-08-29 … Migration code changes remain FROZEN"*, dated 2026-08-31, while shared-hosting code landed on 2026-09-22, -23 and -25. The document flags its own four-facts table as superseded; the supersession needs to move to the top |
-| [`../deployment/VPS-DECOMMISSION.md`](../deployment/VPS-DECOMMISSION.md) | 13.0 KB | 2026-09-25 | **CURRENT — PROPOSED action, NOT TRIGGERED** | The removal analysis. §2 *"What must NOT be removed, and why"* is the load-bearing part and is correct: `docker/frontend/Dockerfile` is the **only declaration of the frontend runtime version** and the Plesk Node branch depends on it; `docker-compose.yml` and `docker/php/*` are what `gates.sh` execs into. §3's own list is annotated as incomplete, measured 2026-09-25 |
+| [`../deployment/VPS-DECOMMISSION.md`](../deployment/VPS-DECOMMISSION.md) | — | 2026-09-27 | **CURRENT — EXECUTED, not proposed** *(was "PROPOSED action, NOT TRIGGERED")* | **Reclassified 2026-09-27.** The removal happened in `3db9904`: 22 paths, at the owner's direction, **before a verified cutover**, so the trigger this document defines never fired. Its header records that plainly. §2 *"What must NOT be removed, and why"* is still the load-bearing part and is still correct — `docker/frontend/Dockerfile` remains the **only declaration of the frontend runtime version**, and `docker-compose.yml` / `docker/php/*` are what `gates.sh` execs into; all of them survive. **There is no repository-level VPS rollback path.** `scripts/{backup,restore}.sh` are retired-but-present pending the Stage 6 host rehearsal |
 | [`../deployment/PLESK-HOSTING-GUIDE.md`](../deployment/PLESK-HOSTING-GUIDE.md) | 16.2 KB | 2026-09-25 | **CURRENT** | The owner-facing entry point. *"nothing here needs a shell, because this account does not have one"* |
 | [`../deployment/PLESK-SETUP.md`](../deployment/PLESK-SETUP.md) | 16.1 KB | 2026-09-25 | **CURRENT** | Keeps the distinction between *the repository is unprepared* and *this is yours to configure* |
 | [`../PANEL-SESSION-RUNBOOK.md`](../PANEL-SESSION-RUNBOOK.md) | 15.5 KB | 2026-09-25 | **CURRENT** | One panel session, ordered. The practical counterpart to the hard rule |
@@ -95,6 +95,19 @@ supersession banner.
 **Adds** the six documents in `docs/audit/` and one in `docs/migration/` that this phase was
 asked for — a cross-cutting inventory, a code-vs-documentation reconciliation, two matrices,
 this inventory, a tenant-isolation audit, and one authoritative plan.
+
+> **Added 2026-09-27, from the forensic remediation:**
+>
+> | Document | Class | Why |
+> |---|---|---|
+> | [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md) | **CURRENT — OWNER DECISION REQUIRED** | Static export vs the Plesk Node application. Two owner instructions conflict and repository evidence cannot settle it; `shared-hosting/DEPLOYMENT.md` §5 has carried a `PRECEDENCE CONFLICT` banner about it since 2026-09-25. **Nothing may treat it as answered** |
+> | [`../../AGENTS.md`](../../AGENTS.md) (repo root) | **CURRENT — pointer only** | Agent tooling looks for `AGENTS.md` at the root; there was only `docs/AGENTS.md`, itself a stub. A pointer cannot drift, which is the lesson `docs/AGENTS.md` records |
+>
+> **Also worth knowing for this inventory's purposes:** `deployment/GATE-0-RESULT.md` and
+> `deployment/shared-hosting/DEPLOYMENT.md` §6 both changed materially on 2026-09-27 — the
+> first gained the reconciliation section, the second had its cron branch corrected from
+> *"Not built"* (it was built on 2026-09-22). `audit/BASELINE.md` gained **§22**, which
+> records the two new CI gates and the six-route `.htaccess` defect the first of them found.
 
 **Deliberately does not** re-score a single G0 gate, re-derive the tenant-scope bypass count
 with a regex, restate `BASELINE.md`'s §1–§18, or reproduce
