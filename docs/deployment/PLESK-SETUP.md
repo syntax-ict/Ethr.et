@@ -283,12 +283,23 @@ offered. ~~Set **Application Startup File to `server.js`**~~ — **do not**; rec
 Plesk's default and wrong for a Next standalone build. A mismatched entry point fails at
 start, loudly, which is the good kind.
 
-> **One thing is unverified and it decides the branch.** *Application URL* read
-> `http://ethr.et` — the domain root. If Plesk mounts the Node application there, requests
-> for `/api/v1/...` may never reach `index.php`, and the same-origin arrangement this layout
-> depends on does not exist. **Do not infer the answer from Plesk's documentation.** Enable
-> the app, fetch one API route and one frontend route, and see which process replies. The
-> static-export fallback in `DEPLOYMENT.md` step 5 has no such question.
+> # ✅ SETTLED 2026-09-27 — **DO NOT ENABLE NODE.JS ON THIS ACCOUNT.**
+>
+> The owner decided the **static export** ([`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md)).
+> There is no Node runtime on the host: Apache serves the exported files and `.htaccess`
+> sends `/api` and `/sanctum` to `index.php`. **This section is a panel reading, not an
+> instruction** — nothing in the deployment touches the *Node.js* page.
+>
+> The question below is kept because it is the cost that returns if the decision is ever
+> revisited, and because it was manual-queue item **M4**, now dropped.
+>
+> ~~**One thing is unverified and it decides the branch.**~~ *Application URL* read
+> `http://ethr.et` — the domain root. If Plesk mounted the Node application there, requests
+> for `/api/v1/...` might never reach `index.php`, and the same-origin arrangement this layout
+> depends on would not exist. ~~Enable the app, fetch one API route and one frontend route,
+> and see which process replies.~~ **Do not.** The static export in `DEPLOYMENT.md` §5b — now
+> the production path rather than a fallback — has no such question, because there is only one
+> server.
 
 ---
 

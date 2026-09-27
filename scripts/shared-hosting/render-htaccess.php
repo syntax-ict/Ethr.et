@@ -39,10 +39,29 @@ declare(strict_types=1);
  * and `AllowOverride Options` is a requirement this rule set introduced. This
  * script rendering successfully says nothing about either.
  *
- * Usage:
- *   php scripts/shared-hosting/render-htaccess.php --branch=b
- *   php scripts/shared-hosting/render-htaccess.php --branch=b -o out/.htaccess
- *   php scripts/shared-hosting/render-htaccess.php --branch=a          # refused, see below
+ * THE BRANCH LETTERS ARE A TRAP, AND SOMEONE HAS ALREADY FALLEN INTO IT.
+ *
+ *     BRANCH A = the Plesk Node.js application (Passenger owns `/`)
+ *     BRANCH B = the static export served by Apache   <-- the production path
+ *
+ * They read backwards from what most people guess: "A" sounds like the primary
+ * option and it is the one that is excluded. A 2026-09-27 directive said
+ * "Use Branch A: static-export frontend ... keep --branch=a as the production
+ * path" — the description and the letter contradicted each other, and following
+ * the letter would have selected the Node application, which is the opposite of
+ * what was decided.
+ *
+ * So prefer `--target=`, which names the thing instead of indexing it:
+ *
+ *   php scripts/shared-hosting/render-htaccess.php --target=static-export
+ *   php scripts/shared-hosting/render-htaccess.php --target=static-export -o <DOCROOT>/.htaccess
+ *
+ * `--branch=b` still works, because the runbook, this repository's `.htaccess`
+ * and `docs/audit/BASELINE.md` §21 all say "BRANCH B" and renaming a measured
+ * thing to tidy a label is how a measurement stops being one.
+ *
+ * `--target=node` / `--branch=a` are refused with an error that names the
+ * confusion, rather than silently doing the other thing.
  *
  * Exit codes: 0 rendered · 2 usage error · 3 template defect.
  */
@@ -148,6 +167,25 @@ $argvRest = array_slice($argv, 1);
 for ($i = 0; $i < count($argvRest); $i++) {
     $arg = $argvRest[$i];
 
+    // `--target=` is the spelling to use. `--branch=` is kept working because
+    // the runbook, the .htaccess and BASELINE §21 all say "BRANCH B", but the
+    // letters are a known trap — see the TARGETS docblock below.
+    if (str_starts_with($arg, '--target=')) {
+        $target = strtolower(substr($arg, strlen('--target=')));
+
+        $branch = match ($target) {
+            'static-export', 'static', 'export', 'apache' => 'b',
+            'node', 'nodejs', 'plesk-node', 'passenger' => 'a',
+            default => fail(
+                "unknown --target={$target}. Use --target=static-export (the owner-decided "
+                .'production path) or --target=node.',
+                2
+            ),
+        };
+
+        continue;
+    }
+
     if (str_starts_with($arg, '--branch=')) {
         $branch = strtolower(substr($arg, strlen('--branch=')));
 
@@ -181,16 +219,31 @@ for ($i = 0; $i < count($argvRest); $i++) {
 
 if ($branch === 'a') {
     fail(
-        'BRANCH A (Plesk Node.js application) is not rendered by this script. It is not '
-        ."owner-selected and hard rule 2 of SHARED-HOSTING-CONTRACT.md excludes it; see\n"
-        .'                 docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md. Under BRANCH A the '
-        .'"Everything else" block is deleted rather than enabled, which is a different operation.',
+        "BRANCH A is the PLESK NODE.JS APPLICATION, and it is not the production path.\n"
+        ."\n"
+        ."                 IF YOU WERE TOLD TO \"USE BRANCH A\" MEANING THE STATIC EXPORT, THE\n"
+        ."                 LETTER IS WRONG AND YOU WANT:  --target=static-export\n"
+        ."\n"
+        ."                 In this repository the letters run the other way round:\n"
+        ."                     BRANCH A = Plesk Node.js application  (Passenger owns `/`)\n"
+        ."                     BRANCH B = static export served by Apache  <-- owner-decided\n"
+        ."\n"
+        ."                 The owner decided the STATIC EXPORT on 2026-09-27; see\n"
+        ."                 docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md. The Plesk\n"
+        ."                 Node.js application is an extension, which hard rule 2 of\n"
+        ."                 SHARED-HOSTING-CONTRACT.md excludes.\n"
+        .'                 Separately: under BRANCH A the "Everything else" block is DELETED '
+        .'rather than enabled, so it is not a render at all.',
         2
     );
 }
 
 if ($branch !== 'b') {
-    fail('--branch=b is required (BRANCH B = static export, the documented target)', 2);
+    fail(
+        '--target=static-export is required (equivalently --branch=b). BRANCH B is the static '
+        ."export; BRANCH A is the Plesk Node application and is not the production path.",
+        2
+    );
 }
 
 $templatePath = repoRoot().'/'.TEMPLATE;

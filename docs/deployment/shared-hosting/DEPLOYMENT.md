@@ -480,36 +480,38 @@ each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 
-> # ⚠ PRECEDENCE CONFLICT — read before building either branch
+> # ✅ RESOLVED 2026-09-27 — **STATIC EXPORT. Owner decision.**
 >
-> **This section says Node. [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md)
-> says static export, and it outranks this document by its own terms.** Recorded 2026-09-25;
-> **not resolved here, because it is not this runbook's to resolve.**
+> **The frontend deploys as a static export served by Apache/Plesk. Do not enable the
+> Plesk Node.js application.** Full record, including the owner's reasons:
+> [`../../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md).
 >
-> | | |
-> |---|---|
-> | **Contract, rule 2** | *"A Plesk extension is not a default. The Node.js extension is the case in point."* Hard rule restated **2026-09-25** — the latest date of the three |
-> | **Contract, rule 3** | *"A field that is absent is not a default to configure — it is a dependency to remove"* (G0-A). Contract set **2026-09-22** |
-> | **This section** | *"Node.js is the chosen branch — owner decision **2026-09-24**"* |
+> **Go to *§5b — Static export (THE PRODUCTION PATH)* below.** The Node material in §5a
+> is retained as a documented alternative that was considered and not selected; it is not
+> a step in this deployment.
 >
-> **The owner decision falls between the contract's setting and its restatement**, which is
-> exactly why this cannot be settled by reading dates.
+> **What this replaced.** This section carried a `PRECEDENCE CONFLICT` banner from
+> 2026-09-25 to 2026-09-27, because it said *"Node.js is the chosen branch — owner
+> decision 2026-09-24"* while
+> [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md) hard rule 2 —
+> restated 2026-09-25, the later date — excludes the Plesk Node extension. The owner
+> decision fell *between* the contract's setting and its restatement, so dates could not
+> settle it and this runbook correctly declined to try. The 2026-09-27 decision settles
+> it in the contract's direction, so **rule 2 needed no amendment.**
 >
-> **What Phase 1 does and does not change.** It retired the *routing* argument against Node —
-> serving `/api` needs no proxy directive, `mod_rewrite` and `Authorization` passthrough are
-> measured working. **It did nothing to rule 2**, and G0-G's panel reading confirms Node.js
-> here *is* an extension, which is what rule 2 excludes. An earlier draft of
-> `../../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md` concluded "the Node branch is not
-> foreclosed" from the routing half alone; **that was corrected, and the correction is why this
-> banner exists.**
->
-> **Until the owner says otherwise, treat static export as the path** and read the fallback
-> section below as the primary one. **Do not enable the Plesk Node application on the strength
-> of this section alone.**
+> **One consequence worth carrying forward:** *One thing must be verified* below asked who
+> owns `/` under the Node branch, and that was manual-queue item **M4**. Under static
+> export **the question does not arise** — there is only one server, nothing contends for
+> `/`, and `.htaccess` serves everything. M4 is **dropped, not deferred.**
 
-**Node.js is the chosen branch — owner decision 2026-09-24.** The static-export branch is
-retained below as the fallback, not deleted: it is what this step reverts to if the routing
-question in *One thing must be verified* comes back wrong.
+### 5a. Node.js — considered, NOT SELECTED
+
+**Retained for the record, and as the costing if the decision is ever revisited. Do not
+follow this subsection.** It would require amending hard rule 2, enabling a Plesk
+extension, and answering the who-owns-`/` question first.
+
+~~**Node.js is the chosen branch — owner decision 2026-09-24.**~~ Superseded 2026-09-27.
+The static-export branch below is **the production path**, not a fallback.
 
 ### The two Node versions, and why neither moves
 
@@ -549,7 +551,13 @@ SSH is Forbidden (**B-1**) and Scheduled Tasks offers no command-type task (**G0
 the step most likely to hit a memory or time limit, and **G0-J**'s CPU and memory rows are
 `NOT VERIFIED`.
 
-### One thing must be verified before this branch is committed to
+### ~~One thing must be verified before this branch is committed to~~ — MOOT under static export
+
+> **This question belonged to the Node branch only, and that branch was not selected.**
+> Under static export there is one server: `.htaccess` routes `/api` and `/sanctum` to
+> `index.php` and serves everything else from files, so nothing contends for `/`. This was
+> manual-queue item **M4**; it is **dropped, not deferred**. Kept below because it is the
+> cost that would return if the decision were ever revisited.
 
 **Who serves `/` — Node or PHP?** The panel read *Application URL* `http://ethr.et` and
 *Document Root* `/ethr` on 2026-09-22. If Plesk mounts the Node application at the domain
@@ -568,15 +576,28 @@ changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the 
 before deploying it (leave BRANCH A as a comment for documentation, per that file's own
 instructions).
 
-### Fallback — static export (B5 = no, or the routing question above comes back wrong)
+### 5b. Static export — **THE PRODUCTION PATH** (owner decision, 2026-09-27)
 
-> **Steps 1–3 are DONE — 2026-09-26.** They are kept struck rather than deleted because
-> two of the three were prescribed wrongly, and a reader who follows them as written will
+*Was headed "Fallback — static export (B5 = no, or the routing question above comes back
+wrong)". It is not a fallback and there is no routing question: it is what ships.*
+
+> **Steps 1–4 are DONE — 2026-09-26.** They are kept struck rather than deleted because
+> three of the four were prescribed wrongly, and a reader who follows them as written will
 > undo work. Full measurements in [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20.
 >
-> **Build it with `ETHR_TARGET=shared-hosting npm run build`.** Without that variable the
-> build is `standalone`, which is the VPS rollback path and stays the default until
-> `VPS-DECOMMISSION.md` is triggered.
+> **Build it with `npm run build:shared-hosting`** (from `src/`), which sets
+> `ETHR_TARGET=shared-hosting` itself and then verifies the artifact. Do **not** write
+> `ETHR_TARGET=shared-hosting npm run build` in cmd.exe or PowerShell — neither accepts
+> that prefix, so you silently get a `standalone` build. `./scripts/gates.sh export` runs
+> the same thing, and CI's `static-export` job runs it on every pull request.
+>
+> **What CI measured on 2026-09-27**, on Ubuntu 24.04 / Node 24, identical to the local
+> run: **689 files total, 186 under `_next`, 4 sentinel shells, no `server.js`.** That is
+> the artifact this section deploys.
+>
+> `standalone` remains the *default* build, because it is what local development and the
+> gates use and what `docker/frontend/Dockerfile` runs. It is **not** a rollback path —
+> the VPS was decommissioned in `3db9904`.
 
 1. ~~`next.config.ts`: add `output: "export"`, remove `rewrites()`, move the CSP into
    `.htaccess`.~~ **DONE, as a switch rather than a flip.** `src/lib/build-target.ts` reads
@@ -639,23 +660,42 @@ instructions).
    **This landed under `output: "standalone"` and changed nothing there** — an arbitrary ULID
    still returns 200 and still server-renders with the real param, verified. So steps 1–3
    remain the decision; step 4 is no longer part of it.
-5. `ETHR_TARGET=shared-hosting npm run build`, upload the exported `out/` directory into
-   `<DOCROOT>/`, alongside `index.php`. Uncomment BRANCH B's directives in
-   `.htaccess` — **four groups, numbered 0 to 3, and the order is load-bearing**:
-   group 0 is the `/admin` host boundary and it has to precede the fallbacks or it
-   never fires. The file says which and why.
+5. **Build, render, upload — three commands, and none of them is a hand edit.**
 
-   **Uncomment the non-`Rewrite` lines too.** Group 2 needs `Options -Indexes` and
-   `DirectorySlash Off`, and group 3 is a single `ErrorDocument 404 /404.html`.
-   Skipping them because they do not start with `Rewrite` leaves most of the site
-   404ing and every unknown URL answering 200 — both measured, see
-   [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §21.
+   ```bash
+   cd src && npm run build:shared-hosting          # sets ETHR_TARGET, builds, verifies
+   php scripts/shared-hosting/render-htaccess.php \
+       --target=static-export -o <DOCROOT>/.htaccess
+   # then upload src/out/* into <DOCROOT>/, alongside index.php
+   ```
 
-   **Uncomment only lines that are exactly a directive.** The explanatory comments
-   around them are prose; one of them used to begin with the word `Options`, and a
-   script that matched on the directive name uncommented the sentence. Apache 500s on
-   that, and **`httpd -t` will not warn you — it does not read `.htaccess` at all.**
-   The check that does catch it is fetching a page.
+   **`--target=static-export`, not `--branch=a`.** The branch letters run backwards in
+   this repository — **A is the Plesk Node application, B is the static export** — and a
+   2026-09-27 directive was worded *"use Branch A: static-export"*, which are two
+   different things. The renderer refuses `--branch=a` with an error that says so.
+
+   ~~Uncomment BRANCH B's directives in `.htaccess` — four groups, numbered 0 to 3, and
+   the order is load-bearing.~~ **Superseded 2026-09-27: do not uncomment anything by
+   hand.** The reasoning is kept because it is why the renderer exists:
+
+   > **Uncomment the non-`Rewrite` lines too.** Group 2 needs `Options -Indexes` and
+   > `DirectorySlash Off`, and group 3 is a single `ErrorDocument 404 /404.html`.
+   > Skipping them because they do not start with `Rewrite` leaves most of the site
+   > 404ing and every unknown URL answering 200 — both measured, see
+   > [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §21.
+   >
+   > **Uncomment only lines that are exactly a directive.** The explanatory comments
+   > around them are prose; one of them used to begin with the word `Options`, and a
+   > script that matched on the directive name uncommented the sentence. Apache 500s on
+   > that, and **`httpd -t` will not warn you — it does not read `.htaccess` at all.**
+   > The check that does catch it is fetching a page.
+
+   All three hazards are now structural rather than remembered: the template marks
+   directives with a `#@ ` sentinel, the renderer strips exactly that and nothing else,
+   it refuses to emit an artifact missing any required directive, and
+   `SharedHostingHtaccessTest` asserts the result — including that group 0's `/admin`
+   deny precedes the fallbacks, which is ordering rather than presence. The last one
+   still matters: **a deny rule placed after a catch-all is not a deny rule.**
 
    **A real export was built and served under these exact rules and headers on 2026-09-26**
    — see [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20g for what that did and did
@@ -742,24 +782,41 @@ in the deployed `.env`; it is a secret and never belongs in the repository.
 
 ### 6.3 What is still required, and who owns it
 
-**An external caller, and it is not chosen.** This is open question **Q6** and it
-is the owner's — `deployment/SHARED_HOSTING_PLAN.md` §5.3a sets out four
-candidates with their trade-offs and its recommendation is explicitly *"not the
-obvious one"*. [`cron-caller.md`](cron-caller.md) §3 says what each candidate
-needs.
+**An external caller — chosen 2026-09-27: GitHub Actions scheduled workflows.**
+Q6 is answered. The caller is `.github/workflows/cron.yml`, committed here;
+[`cron-caller.md`](cron-caller.md) is the procedure and carries the secret-name
+mapping, the platform limitations and how the response handling was verified.
 
-Anything that can fetch a URL on a timer works: an uptime monitor, a GitHub
-Actions cron, another host's crontab, a machine someone owns. It **need not be
-this host**, which is the whole point of the design.
+The operator's whole task is two GitHub secrets in the `production` environment:
+
+| Secret | Value |
+|---|---|
+| `ETHR_CRON_TOKEN` | the same string as the host's `CRON_TOKEN` |
+| `ETHR_CRON_BASE_URL` | `https://<APP_DOMAIN>` — no trailing slash, no path |
+
+Then *Actions → ETHR scheduler → Run workflow* once, by hand, rather than waiting
+for a tick.
+
+It **need not be this host**, which was the whole point of the design — and the
+caller being off-host is why G0-D staying FAILED does not block the deployment.
 
 **Status, stated so it cannot be misread:**
 
 | | |
 |---|---|
 | Endpoints implemented and tested | ✅ `CronEndpointTest` |
-| Endpoints ever called on the Ethio Telecom account | ❌ **never** |
-| External caller chosen | ❌ **Q6 — OWNER DECISION REQUIRED** |
-| Scheduler running in production | ❌ and it must not be claimed until measured |
+| External caller chosen | ✅ **GitHub Actions — Q6 decided 2026-09-27** |
+| Caller committed and its logic verified | ✅ `cron.yml`; `CronCallerWorkflowTest`, mutation-checked |
+| **GitHub secrets configured** | ❌ **HOST/OWNER ACTION REQUIRED** — the workflow refuses to run until both exist |
+| **Endpoints ever called on the Ethio Telecom account** | ❌ **never** |
+| **Scheduler observed running in production** | ❌ and it must not be claimed until measured |
+
+**Choosing the caller is not the same as the caller working.** Nothing has called
+these endpoints on the target account, and until a tick is observed the
+asynchronous half must be treated as inert. Two platform caveats belong in that
+judgement: GitHub's schedule floor is 5 minutes with best-effort delivery, and it
+**disables scheduled workflows after 60 days of repository inactivity** — silently.
+That is what `QueueHealth::beat()` and `ethr:queue:check` are for.
 
 **Until a caller is wired and observed, the asynchronous half of ETHR is inert,
 and the failure is silent.** No payroll completion notice, no invoicing, no

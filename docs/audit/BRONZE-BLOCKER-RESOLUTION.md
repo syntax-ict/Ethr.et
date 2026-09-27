@@ -523,7 +523,7 @@ recorded without rewriting any of it (§10).
 | `CREATE TRIGGER`, extensions, limits, SMTP, DB version, performance | Measurement | One `ethr-hosting-check.php` run with DB credentials |
 | G0-D timer availability | Panel reading | Panel |
 | Subdomain quota | Panel reading | Panel |
-| Who serves `/` | Measurement | Enable the Node app, two fetches |
+| ~~Who serves `/`~~ | ~~Measurement~~ | ~~Enable the Node app, two fetches~~ **MOOT 2026-09-27 — do not do this.** C-5 selected the static export, so there is one server and nothing contends for `/`. This was **M4**; it is dropped. See [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md) |
 
 **No application code, dependency, migration or Laravel configuration was changed in Phase 1.**
 

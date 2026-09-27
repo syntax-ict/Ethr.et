@@ -103,6 +103,16 @@ disappears.
 
 ### The consequence worth stating once
 
+> **Confirmed by owner decision, 2026-09-27.** This was settled by *rule* when written;
+> it is now also settled by *choice*. C-5 selected the static export explicitly — see
+> [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md).
+> **Hard rule 2 required no amendment**, because the decision agrees with it; that is
+> worth recording, since choosing Node would have required amending it.
+>
+> `shared-hosting/DEPLOYMENT.md` §5 carried a `PRECEDENCE CONFLICT` banner about this from
+> 2026-09-25 until the decision. It is resolved, and **M4 — "enable the Plesk Node app" —
+> is dropped from the manual queue rather than deferred.**
+
 **Static export is the only frontend path**, and that is now settled by rule rather than
 pending a reading. `SHARED_HOSTING_PLAN.md` §3A Option A, costed at ≈8 days (6–11
 realistic). Option B (Node on Plesk) is forbidden by rules 2 and 3 together; the plan had

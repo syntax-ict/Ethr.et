@@ -1,14 +1,68 @@
-# OWNER DECISION REQUIRED — C-5: the production frontend mode
+# C-5 — the production frontend mode: **DECIDED**
 
-**Status: OPEN. Nothing in this repository may treat it as answered.**
+> # ✅ OWNER DECIDED, 2026-09-27 — **STATIC EXPORT served by Apache/Plesk.**
+>
+> **ETHR production must not depend on a Plesk Node application.**
+>
+> | | |
+> |---|---|
+> | **Frontend** | `ETHR_TARGET=shared-hosting` static export → Apache/Plesk, from `<DOCROOT>` |
+> | **Backend** | PHP/Laravel → Apache/Plesk, same document root, via the `.htaccess` front controller |
+> | **Database** | MySQL-compatible database supplied by Ethio Telecom |
+> | **Node in production** | **None.** No continuously running Node process, no Passenger, no Plesk Node extension |
+>
+> **The owner's stated reasons**, recorded as given: the target is Ethio Telecom
+> shared hosting / Bronze; the static export already passes CI; CI confirms **689
+> exported files, 186 `_next` files, 4 shell documents and no `server.js`**; and
+> the repository must stay deployable on shared hosting with no long-running Node
+> process.
+>
+> This selects **BRANCH B** of `docs/deployment/shared-hosting/.htaccess`. Render
+> it with:
+>
+> ```
+> php scripts/shared-hosting/render-htaccess.php --target=static-export -o <DOCROOT>/.htaccess
+> ```
+>
+> ### ⚠ The branch letters run backwards, and the directive that decided this hit it
+>
+> The instruction was worded *"Use Branch A: static-export frontend served by
+> Apache/Plesk"* and *"keep `render-htaccess.php --branch=a` as the appropriate
+> production path"*. **In this repository the letters are the other way round:**
+>
+> | | |
+> |---|---|
+> | **BRANCH A** | the Plesk Node.js application — the option being **excluded** |
+> | **BRANCH B** | the static export served by Apache — the option being **chosen** |
+>
+> The description was unambiguous and was given four times with reasons, so the
+> **intent** is what has been applied: static export. Following the letter would
+> have selected the Node application — the exact opposite — and would also have
+> failed, because under BRANCH A the *"Everything else"* block is **deleted**
+> rather than enabled, which is not a render at all.
+>
+> **Nothing was renamed to tidy this up.** The runbook, the `.htaccess` and
+> `BASELINE.md` §21 all say "BRANCH B", and those are measurement records;
+> relabelling a measured thing is how a measurement stops being one. What changed
+> instead is the interface: `--target=static-export` names the thing rather than
+> indexing it, `--branch=b` still works, and `--branch=a` / `--target=node` now
+> fail with an error that says *"if you were told to use branch A meaning the
+> static export, the letter is wrong"*. Verified 2026-09-27.
+
 **Raised:** 2026-09-27, from the forensic audit finding **C-5**.
+**Decided:** 2026-09-27 by the owner, as above.
 **Decides:** whether the ETHR frontend is deployed to Ethio Telecom Bronze as a
 **static export** served by Apache, or as a **Plesk Node.js application**.
 
-This file exists because three authoritative sources disagree and **repository
-evidence cannot settle it** — the disagreement is between two owner instructions,
-not between a document and the code. Everything that *could* be resolved by
-inspection has been; what is left is a choice.
+The analysis below is kept as written, because it is why the decision was
+answerable and it records what the choice cost. It was accurate while the question
+was open; **§5 Option A is the option that was taken**, and §6 — *"Until it is
+answered"* — no longer applies except for its last bullet, which still holds.
+
+This file existed because three authoritative sources disagreed and **repository
+evidence could not settle it** — the disagreement was between two owner
+instructions, not between a document and the code. Everything that *could* be
+resolved by inspection was; what was left was a choice, and it has been made.
 
 ---
 
@@ -141,15 +195,33 @@ why the audit classified it as a decision rather than a blocker.
 
 ---
 
-## 6. Until it is answered
+## 6. ~~Until it is answered~~ — what stands now that it is
 
-- **The Plesk Node application must not be enabled** — not on the strength of
-  `DEPLOYMENT.md` §5 alone, which that section now says itself.
-- **Static export must not be described as the owner-selected production mode.**
-  It is the *implemented* mode and the mode the *contract* mandates; those are two
-  true statements, and neither is "the owner chose it".
-- `render-htaccess.php` renders **only** BRANCH B and cites this file when refusing
-  BRANCH A. That is not a vote — it is refusing to make the choice silently.
+- **The Plesk Node application must not be enabled.** Unchanged, and now for a
+  stronger reason than before: it is no longer merely excluded by hard rule 2, it is
+  excluded by the owner's decision. `DEPLOYMENT.md` §5 no longer offers it as a
+  primary path.
+- ~~**Static export must not be described as the owner-selected production mode.**~~
+  **It now is exactly that.** Three statements used to be distinguishable — that the
+  export was *implemented*, that the *contract* mandated it, and that the *owner* had
+  not chosen it. The third has changed, and the documentation says so rather than
+  continuing to hedge.
+- `render-htaccess.php` renders **only** the static export and cites this file when
+  refusing the Node branch. That was a refusal to choose silently; it is now the
+  implementation of a decision, and the refusal message says which.
+
+### 6a. What was propagated when the decision landed (2026-09-27)
+
+Every item §5 Option A listed, plus two the list did not anticipate:
+
+| Where | Change |
+|---|---|
+| `shared-hosting/DEPLOYMENT.md` §5 | `PRECEDENCE CONFLICT` banner replaced with the decision; static export promoted to primary; the Node branch kept as a documented, non-selected alternative |
+| `MIGRATION_STATE.md` **M4** | **dropped**, not deferred — under static export nothing contends for `/`, so the question does not arise |
+| `BRONZE-COMPATIBILITY-MATRIX.md` §1 | *"1 website"* row states the static export |
+| `shared-hosting/.htaccess` | BRANCH A/B headers state the decision and the letter trap |
+| `render-htaccess.php` | `--target=static-export` added *(not anticipated by §5 — it exists because the deciding directive tripped on the branch letters)* |
+| `SHARED-HOSTING-CONTRACT.md` | hard rule 2 **unchanged** — the decision agrees with it, so there was nothing to amend. Recorded because §5 Option **B** would have required amending it and a reader should see that it did not happen |
 
 ---
 

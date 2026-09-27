@@ -100,15 +100,21 @@
     # ── Everything else → frontend ───────────────────────────────────────────
     #
     # ============================================================
-    # BRANCH A — Node.js runtime available (B5 = yes). NOT the current
-    # target, and NOT owner-selected: the Plesk Node.js application is an
-    # extension, which SHARED-HOSTING-CONTRACT.md hard rule 2 excludes, and
-    # DEPLOYMENT.md §5 carries an unresolved precedence conflict about it.
-    # See docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md. Until that
-    # record is answered, `render-htaccess.php --branch=b` is the only
-    # rendering anything in this repository uses.
+    # BRANCH A — Node.js runtime available (B5 = yes). ***NOT SELECTED.***
     #
-    # If BRANCH A is ever chosen: DO NOT USE
+    # The owner decided the STATIC EXPORT on 2026-09-27 — BRANCH B, below. See
+    # docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md. The Plesk Node.js
+    # application is an extension, which SHARED-HOSTING-CONTRACT.md hard rule 2
+    # excludes, and the decision agrees with that rule rather than overriding it.
+    #
+    # MIND THE LETTERS. They read backwards from what most people guess:
+    #     BRANCH A = Plesk Node.js application   <-- this block, NOT selected
+    #     BRANCH B = static export via Apache    <-- selected
+    # A 2026-09-27 directive said "use Branch A: static-export", which are two
+    # different things. `render-htaccess.php --target=static-export` is the
+    # unambiguous spelling and the only one the deployment uses.
+    #
+    # If BRANCH A were ever chosen: DO NOT USE
     # this .htaccess branch; delete this whole "Everything else"
     # block instead and let Plesk's Node.js/Passenger integration
     # own routing for every non-/api, non-/sanctum path. Passenger
@@ -119,12 +125,16 @@
     # ============================================================
     #
     # ============================================================
-    # BRANCH B — no Node.js runtime (B5 = no): static export served
-    # from this same document root. DO NOT UNCOMMENT THESE BY HAND.
-    # Run the renderer:
+    # BRANCH B — static export served from this same document root.
+    # ***THIS IS THE PRODUCTION PATH — owner decision, 2026-09-27.***
     #
-    #   php scripts/shared-hosting/render-htaccess.php --branch=b \
-    #       -o <DOCROOT>/.htaccess
+    # DO NOT UNCOMMENT THESE BY HAND. Run the renderer:
+    #
+    #   php scripts/shared-hosting/render-htaccess.php \
+    #       --target=static-export -o <DOCROOT>/.htaccess
+    #
+    # (`--branch=b` is the same thing and still works. Prefer --target: the
+    # letters are a trap, see the BRANCH A note above.)
     #
     # Every line below that is a directive to be enabled carries the
     # sentinel `#@ ` instead of `# `. The renderer strips exactly that
