@@ -127,13 +127,35 @@ SENTRY_LARAVEL_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
 SENTRY_AUTH_TOKEN=
 
-# B3 — cron. If the panel only offers URL-fetch tasks rather than command
-# execution, the scheduler/queue need an authenticated HTTP endpoint instead
-# of `schedule:run`/`queue:work` — NOT built speculatively (see
-# MIGRATION_STATE.md, "Deliberately not built"). This variable is the shared
-# secret that endpoint would require; leave unset until B3's answer is known.
-# SCHEDULER_HTTP_TOKEN=
+# SUPERSEDED 2026-09-27 — this variable does not exist and never did.
+#
+# It read: "B3 — cron. If the panel only offers URL-fetch tasks rather than
+# command execution, the scheduler/queue need an authenticated HTTP endpoint
+# instead of `schedule:run`/`queue:work` — NOT built speculatively. This
+# variable is the shared secret that endpoint would require; leave unset until
+# B3's answer is known."
+#
+# B3's answer came back FAIL (G0-D: no Scheduled Tasks section on this
+# subscription), the endpoint WAS built on 2026-09-22 (`b61cb05`), and the
+# variable it actually reads is CRON_TOKEN — see the block below and
+# `config/cron.php`. Nothing in the application has ever read
+# SCHEDULER_HTTP_TOKEN; setting it does nothing.
+#
+# Kept as a comment rather than deleted because `shared-hosting/DEPLOYMENT.md`
+# §6 cited this line by name for five days after the endpoint shipped, and that
+# citation is the reason the runbook told operators the cron fallback was
+# unbuilt. A reader who arrives here from an old link needs to land on the
+# correction, not on an absence.
+#
+# SCHEDULER_HTTP_TOKEN=          # DEAD — use CRON_TOKEN
 ```
+
+**The real variable is `CRON_TOKEN`**, minimum 32 characters, enforced at request
+time by `VerifyCronToken` (`config/cron.php:31`). Unset or too short, the cron
+routes return **404** rather than 401 — they are not registered as forbidden, they
+are not registered at all, so an unconfigured deployment does not advertise them.
+`api/.env.shared-hosting.example:256` ships it empty on purpose. See
+[`DEPLOYMENT.md`](DEPLOYMENT.md) §6 and [`cron-caller.md`](cron-caller.md).
 
 ## New — not present in the VPS template at all
 

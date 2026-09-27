@@ -669,9 +669,111 @@ whoever owns that decision, not something to absorb silently.
 
 ## 6. Cron
 
-**Branch on B3.**
+> # ⚠ THIS SECTION WAS REWRITTEN 2026-09-27. Its previous version was wrong in the
+> # two ways that mattered most.
+>
+> It said the URL-fetch branch was **"Not built."** It has been built since
+> **2026-09-22 (`b61cb05`)** — `POST /api/v1/cron/schedule` and
+> `POST /api/v1/cron/queue`, with `CronRunController`, `VerifyCronToken`,
+> `config/cron.php` and `CronEndpointTest`. And it named the token
+> **`SCHEDULER_HTTP_TOKEN`**, which exists nowhere in the application; the
+> variable is **`CRON_TOKEN`**.
+>
+> It also presented the *command-type task* branch as **"expected — most Plesk
+> plans offer this"**, while **G0-D is FAIL on this subscription**: there is no
+> Scheduled Tasks / Task Scheduler / Cron Jobs section at all (owner-read
+> 2026-09-18), and Dev Tools has no Terminal. The branch that was labelled
+> unlikely is the only one available here, and it was the one described as
+> unbuilt.
+>
+> Read [`cron-caller.md`](cron-caller.md) alongside this. It was already correct
+> and is the procedure; this section is the deployment-time summary.
 
-### If command-type tasks are available (expected — most Plesk plans offer this)
+**There is no cron on this account.** That is a measurement, not a caution:
+**G0-D = FAIL**, and SSH is Forbidden (**B-1**), so nothing *on the host* can
+start `schedule:run` or `queue:work`. The application ships the replacement, and
+it needs one thing from outside.
+
+### 6.1 What exists in the application
+
+| | |
+|---|---|
+| `POST /api/v1/cron/schedule` | runs `schedule:run` — the 14 entries in `routes/console.php` |
+| `POST /api/v1/cron/queue` | runs `queue:work --stop-when-empty`, bounded by `CRON_QUEUE_MAX_SECONDS` (default **50s**) |
+| Auth | `CRON_TOKEN`, presented as the `X-Cron-Token` header **or** a `?token=` query parameter |
+| Route group | `throttle:cron` **then** `VerifyCronToken` — *that order is load-bearing* |
+| Overlap | a `Cache::lock` held for `CRON_LOCK_SECONDS` (default 110s); a second caller gets **409**, not a second worker |
+
+**Call BOTH endpoints. Not one.** Eleven of the fourteen `Schedule::` entries do
+nothing but insert rows into `jobs`, and all 16 classes in `app/Jobs` are
+`ShouldQueue`. A caller wired only to `/cron/schedule` leaves every queued job
+unrun **while looking perfectly healthy** — the schedule fires, the rows
+accumulate, nothing processes them.
+
+**The middleware order is not stylistic.** `VerifyCronToken` `abort(404)`s a bad
+token, and middleware runs in the order listed — so with the token check first the
+rate limiter would never see a rejected request. It would throttle only legitimate
+callers and give an attacker unlimited guesses.
+
+### 6.2 Fail-closed behaviour — what a misconfiguration looks like
+
+`VerifyCronToken` returns **404, never 401**, in all three failure cases, so an
+unconfigured deployment does not advertise that these routes exist:
+
+| Condition | Result |
+|---|---|
+| `CRON_TOKEN` unset or empty | **404.** The routes are effectively absent |
+| `CRON_TOKEN` shorter than `cron.min_token_length` (**32**) | **404**, plus `Log::error` *"CRON_TOKEN is shorter than the configured minimum; cron routes disabled."* — the length is logged, never the value |
+| Wrong or missing presented token | **404**, plus `Log::warning` with the IP and path |
+
+Consequence worth stating plainly: **a 404 from these endpoints does not tell you
+whether you got the token wrong or never configured one.** Check the application
+log, not the status code. A short token is worse than no token because it looks
+configured — which is why it is refused rather than accepted.
+
+Generate one with:
+
+```bash
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+```
+
+`api/.env.shared-hosting.example` ships `CRON_TOKEN=` **empty on purpose**. Fill it
+in the deployed `.env`; it is a secret and never belongs in the repository.
+
+### 6.3 What is still required, and who owns it
+
+**An external caller, and it is not chosen.** This is open question **Q6** and it
+is the owner's — `deployment/SHARED_HOSTING_PLAN.md` §5.3a sets out four
+candidates with their trade-offs and its recommendation is explicitly *"not the
+obvious one"*. [`cron-caller.md`](cron-caller.md) §3 says what each candidate
+needs.
+
+Anything that can fetch a URL on a timer works: an uptime monitor, a GitHub
+Actions cron, another host's crontab, a machine someone owns. It **need not be
+this host**, which is the whole point of the design.
+
+**Status, stated so it cannot be misread:**
+
+| | |
+|---|---|
+| Endpoints implemented and tested | ✅ `CronEndpointTest` |
+| Endpoints ever called on the Ethio Telecom account | ❌ **never** |
+| External caller chosen | ❌ **Q6 — OWNER DECISION REQUIRED** |
+| Scheduler running in production | ❌ and it must not be claimed until measured |
+
+**Until a caller is wired and observed, the asynchronous half of ETHR is inert,
+and the failure is silent.** No payroll completion notice, no invoicing, no
+backups, no leave accrual, no digests — with every HTTP request still returning
+200. That is why `QueueHealth::beat()` and `ethr:queue:check` exist, and why they
+are the first thing to check after cutover rather than the last.
+
+### 6.4 If Ethio Telecom ever enables Scheduled Tasks
+
+That is **upside, not a prerequisite** — `SHARED-HOSTING-CONTRACT.md` hard rule 4.
+The ask is in [`../ETHIO-TELECOM-SUPPORT-REQUEST.md`](../ETHIO-TELECOM-SUPPORT-REQUEST.md)
+as ask 1. If it arrives, Q6 disappears along with the token someone has to hold,
+and the two commands below are what to enter. **Nothing may be designed to wait
+for it.**
 
 Plesk → *Scheduled Tasks* → add:
 
@@ -693,15 +795,27 @@ other three. See `ENVIRONMENT.md` "Queue and scheduler" for the measurement. If 
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —
 Laravel's scheduler is idempotent about "was this due since last checked".
 
-### If only URL-fetch tasks are available (B3 = no)
+### ~~If only URL-fetch tasks are available (B3 = no)~~ — superseded by §6.1
 
-**Not built.** This needs an authenticated HTTP endpoint accepting a shared secret
-(`SCHEDULER_HTTP_TOKEN` in `ENVIRONMENT.md`, currently a placeholder) that runs
-`schedule:run` and `queue:work --stop-when-empty --max-time=50` on request, with the
-fetch interval as the trigger. This is real, scoped work — new attack surface on a
-route that can trigger payroll-adjacent jobs — and deliberately **not implemented
-speculatively**; build it only once B3 confirms it's actually needed, sized to the
-panel's actual fetch-interval floor.
+> **This subsection said "Not built." It was built on 2026-09-22 (`b61cb05`), and the
+> sentence stood for five days after that.** It is struck rather than deleted because
+> the reasoning it carried is worth reading: it argued against building
+> speculatively, noted the endpoints would be *"new attack surface on a route that
+> can trigger payroll-adjacent jobs"*, and asked for the work to be *"sized to the
+> panel's actual fetch-interval floor"*.
+>
+> All three concerns were answered in the implementation rather than waved away.
+> The attack surface is why `VerifyCronToken` fails closed with 404 rather than 401,
+> why the throttle runs **before** the token check, and why the token has a 32-char
+> minimum enforced at boot. The interval floor is why `CRON_QUEUE_MAX_SECONDS`
+> defaults to 50 — under a typical 60-second HTTP timeout and under the one-minute
+> tick — and why a `Cache::lock` returns 409 instead of starting a second worker.
+>
+> **What it got wrong was the token name**, `SCHEDULER_HTTP_TOKEN`: the variable is
+> `CRON_TOKEN`. `ENVIRONMENT.md:135` still carries the commented-out placeholder
+> under the old name and is annotated there.
+>
+> The live procedure is **§6.1–§6.3 above** and [`cron-caller.md`](cron-caller.md).
 
 ## 6a. What a full disk actually looks like
 
