@@ -79,6 +79,27 @@ CI does not need one: the `Install PHP dependencies` step in
 `.github/workflows/gates.yml` passes no token and the runs are green. This is a
 workstation prerequisite, not a pipeline secret.
 
+### In an agent sandbox, a token cannot help — use the script
+
+If you are working inside a Claude Code cloud sandbox, stop before you go looking
+for a token. The blocker there is not a rate limit and not authentication: the
+egress proxy scopes GitHub per repository, so composer's `dist` URLs
+(`api.github.com/repos/<vendor>/<pkg>/zipball/...`, 163 different repositories)
+all return 403 no matter what credential you present. Composer reports it as
+`Could not authenticate against github.com`, which is what sends people looking
+for a credential that cannot exist.
+
+```bash
+./scripts/composer-install-sandbox.sh
+```
+
+That installs from source over anonymous git clone, which the proxy does serve,
+and handles the two things that otherwise stop it — `phpstan/phpstan` having no
+`source` in the lock, and composer's 300-second process timeout being shorter
+than a full mirror clone of that repository. It touches no tracked file. The
+measured details, including why the authentication message is a red herring, are
+in the root [`CLAUDE.md`](CLAUDE.md).
+
 ### Create `api/.env` *before* the first `composer install`
 
 On a machine with no `api/.env` — a fresh clone — `composer install` fails
