@@ -334,6 +334,19 @@ capacity concern disappears and §5 becomes a configuration task.
 on Bronze without a persistent Node server.** `output: "standalone"` plus `middleware.ts` plus
 runtime `rewrites()` are three independent hard requirements for a running Node process.
 
+> **That answer was correct on 2026-09-25 and has been acted on rather than left standing.**
+> The finding is what drove the work: the architecture was *changed* so that it does not
+> need a Node server. All three requirements it names are now conditional on the build
+> target — `output` follows `ETHR_TARGET`, `headers`/`rewrites` are deleted from the config
+> on the export target, and `middleware.ts` is **kept but disabled** by Next itself (Next
+> 16.3.5 exports with the file present; measured 2026-09-26). Its `/admin` host rule is
+> reimplemented as `.htaccess` group 0.
+>
+> **C-5, owner decision 2026-09-27: static export. No Node runtime on the host.** So the
+> question this section answered is no longer the question being asked — kept verbatim,
+> because it is the measurement that made the decision possible.
+> See [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md).
+
 **Status: CONDITIONAL**, because Bronze appears able to provide one: G0-G (panel, 2026-09-22)
 read Node **22.23.2**, Application Root `/ethr`, Application Mode `production`, with *Enable
 Node.js* and *Run Node.js commands* offered. Nothing was enabled or started, and this session
