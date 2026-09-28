@@ -127,6 +127,10 @@ Record as two separate facts: the manual dispatch worked, **and** the `schedule:
 trigger does not fire until `cron.yml` is on the default branch. A green dispatch is
 not evidence the schedule runs.
 
+**A scheduled run that says DORMANT is also not a failure** — it means neither secret
+is set, which is the expected state before deployment. A run that says
+*PARTIALLY CONFIGURED* is a real fault: one secret is missing or misnamed.
+
 ### 7 · G0-H, G0-J, Quotas
 
 Probe output plus panel readings. For quotas, record the deployment's footprint

@@ -151,19 +151,46 @@ it('sends the token as a header and never in the URL', function () {
     );
 });
 
-it('refuses to run silently when it is not configured', function () {
-    $workflow = ethrCronWorkflow();
+it('distinguishes not-configured from misconfigured', function () {
+    $live = ethrCronWorkflowLive();
 
-    // An unset secret must fail loudly. The alternative — calling nothing and
-    // exiting 0 — is exactly the silent-inertness this whole design exists to
-    // prevent, and it would be indistinguishable from a working scheduler.
-    expect($workflow)->toContain('ETHR_CRON_TOKEN');
-    expect($workflow)->toContain('ETHR_CRON_BASE_URL');
-    expect($workflow)->toMatch('/if \[ -z "\$\{ETHR_CRON_TOKEN:-\}" \]/');
+    expect(str_contains($live, 'ETHR_CRON_TOKEN'))->toBeTrue();
+    expect(str_contains($live, 'ETHR_CRON_BASE_URL'))->toBeTrue();
+
+    // THREE states, and collapsing the first two is a defect that shipped on
+    // 2026-09-27 and was fixed on 2026-09-28. The original guard exited 1 whenever
+    // either secret was missing — correct for a live deployment, and wrong the moment
+    // this workflow reaches the default branch, where the 5-minute schedule would then
+    // produce ~288 failed runs a day before ETHR is deployed at all. A permanently red
+    // signal stops being read, which is the same reason `security` sits outside
+    // gates.sh's blocking sweep.
+    //
+    //   neither set        dormant: warn, exit 0 — but only on `schedule`
+    //   exactly one set    fail: the typo case, and skipping it would make a broken
+    //                      scheduler look healthy
+    //   both set           run
+    expect($live)->toMatch(
+        '/have_token=0.*have_url=0/s',
+        'the workflow no longer distinguishes "not configured" from "misconfigured".'
+    );
+    expect(str_contains($live, 'DORMANT'))->toBeTrue(
+        'the not-configured path must say so loudly rather than passing quietly.'
+    );
+    expect(str_contains($live, 'PARTIALLY CONFIGURED'))->toBeTrue(
+        'exactly-one-secret must fail with its own message — that is the typo case.'
+    );
+
+    // The dormant skip must be gated on the SCHEDULE event. A human clicking Run
+    // expects it to run, and a silent no-op is the wrong answer to that.
+    expect($live)->toMatch(
+        '/github\.event_name \}\} *" *= *" *schedule|= "schedule"/',
+        'the dormant skip is not gated on the schedule event, so a manual run could '
+        .'silently do nothing.'
+    );
 
     // And the 32-character floor, checked locally so the error names the cause
     // rather than surfacing as an indistinguishable 404.
-    expect($workflow)->toContain('-lt 32');
+    expect(str_contains($live, '-lt 32'))->toBeTrue();
 });
 
 it('serialises its runs without cancelling one mid-drain', function () {

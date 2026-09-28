@@ -100,11 +100,66 @@ jobs:
           # Plesk's fetch-a-URL task cannot set headers — this caller can, so it
           # does.
 
-          if [ -z "${ETHR_CRON_TOKEN:-}" ] || [ -z "${ETHR_CRON_BASE_URL:-}" ]; then
-            echo "::error::ETHR_CRON_TOKEN and ETHR_CRON_BASE_URL must both be set in the"\
-                 "'production' environment. Without them this workflow would call nothing"\
-                 "and report success, which is the failure mode the whole cron design exists"\
-                 "to avoid. See docs/deployment/shared-hosting/cron-caller.md."
+          # THREE states, not two, and conflating the first two is a defect I shipped
+          # on 2026-09-27 and am fixing on 2026-09-28 before it can bite.
+          #
+          # The original guard exited 1 whenever either secret was missing. That is
+          # right for a deployment that is supposed to be live — but the moment this
+          # workflow reaches the DEFAULT BRANCH, the 5-minute schedule starts firing,
+          # and until the owner creates the secrets every single run fails. That is
+          # ~288 failed runs a day, each notifying the repository owner, before ETHR
+          # is even deployed.
+          #
+          # This repository already records where that ends: "a gate that is
+          # permanently red stops being read" (scripts/gates.sh, on why `security` is
+          # outside the sweep). A scheduler whose failures are ignored by the time it
+          # matters is worse than one that is honestly dormant.
+          #
+          #   neither secret set   -> NOT SET UP YET. Skip, exit 0, say so loudly.
+          #                           Unambiguous: nobody half-configures nothing.
+          #   exactly one set      -> MISCONFIGURED. Fail. This is the typo case — a
+          #                           renamed secret, a secret on the repo instead of
+          #                           the environment — and it must not skip, because
+          #                           skipping is how a broken scheduler looks healthy.
+          #   both set             -> run, with every check below applying in full.
+          #
+          # A manual `workflow_dispatch` NEVER skips: someone clicked Run and a silent
+          # no-op would be the wrong answer to that.
+          have_token=0; have_url=0
+          [ -n "${ETHR_CRON_TOKEN:-}" ] && have_token=1
+          [ -n "${ETHR_CRON_BASE_URL:-}" ] && have_url=1
+
+          if [ "$have_token" -eq 0 ] && [ "$have_url" -eq 0 ]; then
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              echo "::warning::ETHR scheduler is DORMANT — neither ETHR_CRON_TOKEN nor"\
+                   "ETHR_CRON_BASE_URL is set, so ETHR is not being driven. This is the"\
+                   "expected state before deployment. Nothing was called."
+              {
+                echo "### ETHR scheduler: DORMANT"
+                echo
+                echo "Neither secret is configured, so nothing was called. **This is not a"
+                echo "failure** — it is the expected state until ETHR is deployed."
+                echo
+                echo "To activate: add \`ETHR_CRON_TOKEN\` and \`ETHR_CRON_BASE_URL\` to the"
+                echo "\`production\` environment, then re-run this workflow manually."
+                echo
+                echo "Until a tick is observed, the asynchronous half of ETHR is inert —"
+                echo "see \`docs/deployment/CUTOVER-CHECKLIST.md\`, gate **Q6-x**."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            echo "::error::Neither ETHR_CRON_TOKEN nor ETHR_CRON_BASE_URL is set, and this"\
+                 "was a manual run. Add both to the 'production' environment first."
+            exit 1
+          fi
+
+          if [ "$have_token" -eq 0 ] || [ "$have_url" -eq 0 ]; then
+            echo "::error::PARTIALLY CONFIGURED, which is worse than not configured."\
+                 "ETHR_CRON_TOKEN is $([ "$have_token" -eq 1 ] && echo set || echo MISSING) and"\
+                 "ETHR_CRON_BASE_URL is $([ "$have_url" -eq 1 ] && echo set || echo MISSING)."\
+                 "Check the names and that they are on the 'production' ENVIRONMENT, not the"\
+                 "repository. See docs/deployment/shared-hosting/cron-caller.md."
             exit 1
           fi
 

@@ -28,6 +28,30 @@ Five states, and they are not interchangeable:
 | **OWNER DECISION** | Needs a choice, not a measurement |
 | **BLOCKED** | Waiting on something else in this table |
 
+> ### Should `migration/bronze-plesk` merge to `main` yet? — **No. Decided 2026-09-28.**
+>
+> It is tempting, because **Q6-x is blocked on exactly that**: GitHub indexes
+> `schedule:` triggers from the default branch, so the scheduler cannot fire while
+> `cron.yml` lives only on this branch. Merging looks like it unblocks a gate.
+>
+> **It does not, and until 2026-09-28 it would have been actively harmful.** The
+> schedule would start firing every 5 minutes against an account where ETHR is not
+> deployed and the secrets do not exist — **~288 failed runs a day**, each notifying
+> the owner, for weeks. This repository already records where that ends: *"a gate that
+> is permanently red stops being read."* The scheduler's failures would be invisible
+> noise by the time they mattered.
+>
+> **The defect that made it harmful is fixed** (`cron.yml`, 2026-09-28): with neither
+> secret set it now reports **DORMANT** and exits 0 on a scheduled run, while exactly
+> one secret set still **fails** — the typo case, which must never skip. So merging is
+> no longer damaging.
+>
+> **It is still not the next step.** Merging publishes a Bronze deployment as `main`'s
+> documented state while eleven host gates are open, and the branch is the honest place
+> for that until they are not. Revisit when **M1 and M2 are answered** — the two
+> cheapest gates — because that is the point at which the scheduler has something real
+> to drive.
+
 > **Repository readiness and host readiness are different things, and this document
 > exists to keep them apart.** CI is green — 10/10 checks, run `36327393387` — and that
 > says the repository builds, tests and packages correctly. **It says nothing about the

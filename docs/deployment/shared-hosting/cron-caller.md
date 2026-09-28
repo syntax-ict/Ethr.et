@@ -57,8 +57,11 @@ into a procedure.
 > - `concurrency: ethr-scheduler` with **`cancel-in-progress: false`** — the opposite of
 >   `gates.yml`, because cancelling a live `queue:work` strands reserved jobs until
 >   `retry_after` (1200s)
-> - refuses to run at all if either secret is unset, or if the token is under 32
->   characters — rather than calling nothing and exiting 0
+> - refuses to run if it is **partially** configured, or if the token is under 32
+>   characters — rather than calling nothing and exiting 0. *(Corrected 2026-09-28: this
+>   read "if either secret is unset". With **neither** set it now reports DORMANT and
+>   exits 0 on a scheduled run — see the three-state table below for why that is not a
+>   softened guard.)*
 >
 > ### ⚠ The `schedule:` trigger does not fire from a non-default branch
 >
@@ -88,6 +91,25 @@ into a procedure.
 > This is recorded rather than worked around. Merging to `main` is gated by the cutover
 > decision, so the honest position is that the scheduler is **manual-only** until then,
 > and `QueueHealth::beat()` / `ethr:queue:check` are what would notice if anyone forgot.
+>
+> **And merging was not merely gated — until 2026-09-28 it would have been harmful.**
+> The guard here exited 1 whenever a secret was missing, so landing on the default
+> branch would have produced a failed run every 5 minutes — ~288 a day, each notifying
+> the owner — before ETHR was deployed or the secrets existed. A permanently red signal
+> stops being read, so the scheduler's real failures would have been invisible by the
+> time they mattered.
+>
+> It now distinguishes three states, and the middle one is the reason the first cannot
+> simply be a silent pass:
+>
+> | Secrets | On `schedule` | On a manual run |
+> |---|---|---|
+> | neither set | **DORMANT** — warns, writes a job summary, exits 0 | **fails**; you clicked Run |
+> | exactly one | **fails** — the typo case, or a secret on the repo instead of the environment | fails |
+> | both set | runs, with every check applying | runs |
+>
+> Verified 2026-09-28 by substituting `github.event_name` and stubbing `curl`: all five
+> combinations behave as tabulated. `CronCallerWorkflowTest` pins them.
 >
 > ### Cadence, stated as the limitation it is
 >
