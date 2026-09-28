@@ -195,13 +195,28 @@
     # bounces its own static files — /robots.txt, /sitemap.xml, /og.png are
     # none of them in the exclusion list below.
     #
-    #@ RewriteCond %{HTTP_HOST} ^admin\.ethr\.et$ [NC]
+    # __ADMIN_HOST__ IS A PLACEHOLDER, substituted by the renderer:
+    #
+    #   render-htaccess.php --target=static-export --admin-host=admin.<APP_DOMAIN>
+    #
+    # It used to be the literal `admin\.ethr\.et`, and that was a latent production
+    # defect rather than a tidiness matter. Deployed to any other domain, the second
+    # predicate below reads "deny /admin unless the host is admin.ethr.et" — so on the
+    # REAL admin host it denies too, and the platform console is unreachable. The first
+    # predicate simply never fires. Both failures are silent: the site works, /admin is
+    # 403, and nothing says why. Found 2026-09-28 while standing the rules up locally,
+    # where the host is localhost and /admin was 403 for exactly this reason.
+    #
+    # The renderer REQUIRES --admin-host and regex-escapes it. There is deliberately no
+    # default: defaulting to a domain is what produced the defect.
+    #
+    #@ RewriteCond %{HTTP_HOST} ^__ADMIN_HOST__$ [NC]
     #@ RewriteCond %{REQUEST_FILENAME} !-f
     #@ RewriteCond %{REQUEST_URI} !^/admin
     #@ RewriteCond %{REQUEST_URI} !^/(login|logout|_next|favicon\.ico|sw\.js|manifest)
     #@ RewriteRule ^ /admin/ [L,R=302]
     #
-    #@ RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]
+    #@ RewriteCond %{HTTP_HOST} !^__ADMIN_HOST__$ [NC]
     #@ RewriteRule ^admin(/|$) - [F,L]
     #
     # What this is and is not. It is a ROUTING control: it decides which

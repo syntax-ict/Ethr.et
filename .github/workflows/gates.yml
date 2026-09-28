@@ -309,8 +309,13 @@ jobs:
       # The renderer refuses to emit an artifact missing any required directive,
       # so this is a real check and not a smoke test. Output discarded: the
       # assertions are the point, and the file belongs in <DOCROOT>, not here.
+      # --admin-host is required and has no default: the platform console's hostname
+      # was a hardcoded literal until 2026-09-28, which denied /admin on the REAL
+      # admin host for any other domain. A throwaway value here — this job checks the
+      # rules' structure, not a deployment.
       - name: Render the BRANCH B deployment rules
-        run: php scripts/shared-hosting/render-htaccess.php --branch=b > /dev/null
+        run: |
+          php scripts/shared-hosting/render-htaccess.php \n            --target=static-export --admin-host=admin.ci.invalid > /dev/null
 
   docs:
     name: Documentation integrity

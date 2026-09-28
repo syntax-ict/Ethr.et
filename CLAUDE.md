@@ -380,6 +380,7 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | Measured state of the codebase | [`docs/audit/BASELINE.md`](docs/audit/BASELINE.md) |
 | Security reporting | [`SECURITY.md`](SECURITY.md) |
 | Documentation index | [`docs/README.md`](docs/README.md) |
+| Run it locally, production-shaped | [`docs/deployment/LOCAL-PRODUCTION-SETUP.md`](docs/deployment/LOCAL-PRODUCTION-SETUP.md) — `scripts/local-production/up.sh`, then http://localhost:8081. Real Apache + MariaDB; 36/36, zero errors. **Closes no host gate** |
 | **Can we go live? — read this first** | [`docs/deployment/CUTOVER-CHECKLIST.md`](docs/deployment/CUTOVER-CHECKLIST.md) — the one register that decides. **`CUTOVER READY = NO` as of 2026-09-27.** Every gate carries one of `PASS` / `FAIL` / `HOST ACTION REQUIRED` / `OWNER DECISION` / `BLOCKED`, and **a green CI run moves none of them** |
 | Deployment target status | [`docs/deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) — read its *Gate status reconciliation* section at the end for current status; the tables above it are dated |
 | Production frontend mode | **Static export served by Apache/Plesk — owner decision 2026-09-27.** No Plesk Node application. [`docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md). Render the deployed rules with `render-htaccess.php --target=static-export` — **not `--branch=a`**, which is the Node branch |

@@ -20,8 +20,8 @@ set -uo pipefail
 
 PORT="${PORT:-8081}"
 BASE="http://localhost:$PORT"
-ADMIN_HOST="${ADMIN_HOST:-admin.ethr.et}"
-TENANT_HOST="${TENANT_HOST:-acme.ethr.et}"
+ADMIN_HOST="${ADMIN_HOST:-admin.localhost:8081}"
+TENANT_HOST="${TENANT_HOST:-acme.localhost:8081}"
 
 pass=0; fail=0
 

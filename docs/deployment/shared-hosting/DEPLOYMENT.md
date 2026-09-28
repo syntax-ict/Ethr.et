@@ -665,9 +665,18 @@ wrong)". It is not a fallback and there is no routing question: it is what ships
    ```bash
    cd src && npm run build:shared-hosting          # sets ETHR_TARGET, builds, verifies
    php scripts/shared-hosting/render-htaccess.php \
-       --target=static-export -o <DOCROOT>/.htaccess
+       --target=static-export --admin-host=admin.<APP_DOMAIN> \
+       -o <DOCROOT>/.htaccess
    # then upload src/out/* into <DOCROOT>/, alongside index.php
    ```
+
+   **`--admin-host` is required and has no default.** It was the literal
+   `admin.ethr.et` until 2026-09-28, and on any other domain that is a silent
+   defect: the deny predicate then reads *"refuse `/admin` unless the host is
+   admin.ethr.et"*, so it refuses on the **real** admin host and the platform
+   console is unreachable while the rest of the site works perfectly. Include the
+   port if requests carry one — the predicate anchors on the whole `Host` header —
+   and the value is regex-escaped for you.
 
    **`--target=static-export`, not `--branch=a`.** The branch letters run backwards in
    this repository — **A is the Plesk Node application, B is the static export** — and a

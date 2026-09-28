@@ -38,6 +38,8 @@ declare(strict_types=1);
  */
 
 /** The BRANCH B artifact, rendered through the real script. */
+const ETHR_TEST_ADMIN_HOST = 'admin.test.invalid';
+
 function ethrRenderedHtaccess(): string
 {
     $root = dirname(base_path());
@@ -46,8 +48,11 @@ function ethrRenderedHtaccess(): string
     expect(is_file($script))->toBeTrue("renderer missing at {$script}");
 
     $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    // --admin-host is REQUIRED since 2026-09-28: the platform console's hostname was
+    // the literal admin.ethr.et, which denied /admin on the real admin host for any
+    // other domain. A fixed test value here, asserted below.
     $process = proc_open(
-        [PHP_BINARY, $script, '--branch=b'],
+        [PHP_BINARY, $script, '--branch=b', '--admin-host='.ETHR_TEST_ADMIN_HOST],
         $descriptors,
         $pipes,
         $root
@@ -167,8 +172,16 @@ it('keeps the /admin host boundary ahead of every catch-all', function () {
         .'Measured 200-instead-of-403 on 2026-09-26; see BASELINE.md §20e.'
     );
 
-    // The host predicate itself: deny on anything that is not the platform host.
-    expect($directives)->toContain('RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]');
+    // The host predicate, with the placeholder substituted and REGEX-ESCAPED. An
+    // unescaped dot matches any character, so admin.test.invalid would also match
+    // adminXtest.invalid — a wider boundary than intended.
+    $escaped = preg_quote(ETHR_TEST_ADMIN_HOST, '/');
+
+    expect($directives)->toContain('RewriteCond %{HTTP_HOST} !^'.$escaped.'$ [NC]');
+    expect($directives)->toContain('RewriteCond %{HTTP_HOST} ^'.$escaped.'$ [NC]');
+
+    // And no placeholder may survive into a deployable artifact.
+    expect($directives)->not->toContain('__ADMIN_HOST__');
 });
 
 it('serves an unknown URL as a real 404 rather than a rewritten 200', function () {
@@ -302,7 +315,16 @@ it('promotes exactly the sentinel lines and no prose', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
     foreach ($sentinels as $sentinel) {
-        expect($directives)->toContain($sentinel);
+        // Apply the same substitution the renderer does, or the two host predicates
+        // never match: the template carries __ADMIN_HOST__ and the output carries the
+        // escaped hostname. Comparing them raw fails on a correct render.
+        $expected = str_replace(
+            '__ADMIN_HOST__',
+            preg_quote(ETHR_TEST_ADMIN_HOST, '/'),
+            $sentinel
+        );
+
+        expect($directives)->toContain($expected);
     }
 
     // And the inverse: no sentinel survives as a comment in the output.
@@ -373,4 +395,29 @@ it('refuses to render BRANCH A, which is not owner-selected', function () {
     expect($status)->toBe(2);
     expect($stderr)->toContain('BRANCH A');
     expect($stderr)->toContain('OWNER-DECISION-C5');
+});
+
+it('requires an admin host rather than defaulting to a domain', function () {
+    $root = dirname(base_path());
+
+    // No default, deliberately. The literal `admin.ethr.et` sat in the rule set until
+    // 2026-09-28; rendered for any other domain the deny predicate reads "refuse
+    // /admin unless the host is admin.ethr.et", so it refuses on the REAL admin host
+    // and the platform console is unreachable — silently, because the rest of the site
+    // is fine. A default would reintroduce exactly that.
+    $process = proc_open(
+        [PHP_BINARY, $root.'/scripts/shared-hosting/render-htaccess.php', '--target=static-export'],
+        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+        $root
+    );
+
+    $stderr = (string) stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $status = proc_close($process);
+
+    expect($status)->toBe(2);
+    expect($stderr)->toContain('--admin-host is required');
+    expect($stderr)->toContain('denies /admin on the real admin host');
 });

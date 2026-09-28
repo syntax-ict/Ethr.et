@@ -161,6 +161,7 @@ if (PHP_SAPI !== 'cli') {
 
 $branch = null;
 $outPath = null;
+$adminHost = null;
 
 $argvRest = array_slice($argv, 1);
 
@@ -182,6 +183,12 @@ for ($i = 0; $i < count($argvRest); $i++) {
                 2
             ),
         };
+
+        continue;
+    }
+
+    if (str_starts_with($arg, '--admin-host=')) {
+        $adminHost = substr($arg, strlen('--admin-host='));
 
         continue;
     }
@@ -215,8 +222,7 @@ for ($i = 0; $i < count($argvRest); $i++) {
         fwrite(STDOUT, <<<'USAGE'
             Render the deployable <DOCROOT>/.htaccess from the repository template.
 
-              php scripts/shared-hosting/render-htaccess.php --target=static-export
-              php scripts/shared-hosting/render-htaccess.php --target=static-export -o <DOCROOT>/.htaccess
+              php scripts/shared-hosting/render-htaccess.php                   --target=static-export --admin-host=admin.<APP_DOMAIN> -o <DOCROOT>/.htaccess
 
             Options:
               --target=static-export   The production path (owner decision 2026-09-27).
@@ -228,6 +234,9 @@ for ($i = 0; $i < count($argvRest); $i++) {
               --branch=a               Refused — BRANCH A is the NODE branch. If you were
                                        told to "use branch A" meaning the static export,
                                        the letter is wrong; use --target=static-export.
+              --admin-host=HOST        REQUIRED. The platform console's hostname, with
+                                       :port if requests carry one. No default: a wrong
+                                       value denies /admin on the real admin host.
               -o, --output=PATH        Write here instead of stdout.
               -h, --help               This text.
 
@@ -285,7 +294,52 @@ if ($enabled === 0) {
     );
 }
 
+// ── the one account-specific value in the rule set ──────────────────────────
+//
+// `__ADMIN_HOST__` is the platform console's hostname. It was the literal
+// `admin.ethr.et` until 2026-09-28, which was a latent production defect: rendered
+// for any other domain, the deny predicate reads "refuse /admin unless the host is
+// admin.ethr.et", so it refuses on the REAL admin host too and the console is
+// unreachable — silently, because the rest of the site is fine.
+//
+// REQUIRED, with no default. Defaulting to a domain is what produced the defect.
+if ($adminHost === null) {
+    fail(
+        "--admin-host is required. It is the platform console's hostname, and the rule set
+"
+        ."                 has no safe default — a wrong one denies /admin on the real admin host,
+"
+        ."                 silently.
+"
+        ."
+"
+        ."                 production:  --admin-host=admin.<APP_DOMAIN>
+"
+        ."                 local:       --admin-host=admin.localhost
+"
+        ."
+"
+        .'                 Include the port if requests carry one (admin.localhost:8081), because '
+        .'the predicate anchors on the whole Host header.',
+        2
+    );
+}
+
+if (trim($adminHost) === '' || preg_match('/\s/', $adminHost) === 1) {
+    fail('--admin-host must be a hostname, optionally with :port. Got: '.var_export($adminHost, true), 2);
+}
+
+// Escaped for a regex: the predicate is `^...$` in a RewriteCond, and an unescaped
+// dot matches any character — so admin.example.com would also match adminXexample.com.
+$rendered = str_replace('__ADMIN_HOST__', preg_quote($adminHost, '/'), $rendered);
+
 $directives = directivesOnly($rendered);
+
+// Nothing may ship with the placeholder still in it.
+if (str_contains($directives, '__ADMIN_HOST__')) {
+    fail('__ADMIN_HOST__ survived into the rendered directives', 3);
+}
+
 $missing = [];
 
 foreach (REQUIRED_IN_BRANCH_B as $needle) {

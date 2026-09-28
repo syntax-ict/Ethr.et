@@ -47,6 +47,13 @@ MYSQL="$XAMPP/mysql/bin/mysql.exe"
 
 # Defaults, and they are the documented ones — api/.env.shared-hosting.example.
 PORT="${PORT:-8081}"
+# The platform console's hostname. Required by the renderer, no default — see its
+# --admin-host note. Deliberately NOT "localhost:$PORT": the single local host would
+# then be the ADMIN host, and every tenant route would 302 to /admin/, making the
+# tenant app unbrowsable. This way localhost:$PORT is a TENANT host — which is what
+# you want to look at — and /admin is correctly denied there, mirroring production.
+# Reach the console with:  curl -H "Host: $ADMIN_HOST" http://localhost:$PORT/admin
+ADMIN_HOST="${ADMIN_HOST:-admin.localhost:8081}"
 DB_NAME="${DB_NAME:-ethr}"
 DB_USER="${DB_USER:-ethr}"
 DB_PASS="${DB_PASS:-ethr_local_rehearsal}"
@@ -230,7 +237,9 @@ PY
 
 # The rendered .htaccess — generated, never hand-edited.
 php "$REPO_ROOT/scripts/shared-hosting/render-htaccess.php" \
-    --target=static-export -o "$DOCROOT/.htaccess" 2>&1 | sed 's/^/  /'
+    --target=static-export --admin-host="$ADMIN_HOST" \
+    -o "$DOCROOT/.htaccess" 2>&1 | sed 's/^/  /'
+info "admin host: $ADMIN_HOST   (localhost:$PORT is a TENANT host)"
 
 info "docroot: $(find "$DOCROOT" -type f | wc -l) files"
 
