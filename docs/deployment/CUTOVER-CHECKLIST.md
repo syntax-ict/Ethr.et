@@ -53,9 +53,10 @@ Five states, and they are not interchangeable:
 > to drive.
 
 > **Repository readiness and host readiness are different things, and this document
-> exists to keep them apart.** CI is green — 10/10 checks, run `36327393387` — and that
-> says the repository builds, tests and packages correctly. **It says nothing about the
-> host.** No gate below may be moved to `PASS` on the strength of a green build.
+> exists to keep them apart.** CI is green — 10/10 checks, run `36432042905` on
+> `8b085dd` — and that says the repository builds, tests and packages correctly. **It
+> says nothing about the host.** No gate below may be moved to `PASS` on the strength
+> of a green build.
 >
 > **A 404 on a probe is `NOT RUN`, never a pass.** That distinction has already cost
 > this project one false reading (G0-B.3(b), 2026-09-25).
