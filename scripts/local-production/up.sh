@@ -355,7 +355,22 @@ if ! netstat -ano 2>/dev/null | grep LISTENING | grep -qE ":${PORT}[[:space:]]";
     die "Apache did not start — see $APACHE_DIR/logs/error.log"
 fi
 
-info "listening on http://localhost:$PORT"
+# LISTENING IS NOT SERVING, and the difference is not theoretical: after this machine
+# slept overnight, the previous httpd kept the socket open while every request timed
+# out (curl exit 28, no status). A port check alone reported that as healthy.
+#
+# So require a real response before claiming success. `|| true` on curl because a
+# failure here must produce this script's diagnosis, not a bare pipefail exit.
+code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://localhost:$PORT/" || true)"
+
+if [ "$code" = "000" ] || [ -z "$code" ]; then
+    tail -20 "$APACHE_DIR/logs/error.log" 2>/dev/null | sed 's/^/  /'
+    die "port $PORT is listening but nothing answers (curl got '$code'). A wedged httpd
+                 holding the socket looks identical to a healthy one from netstat.
+                 Run scripts/local-production/down.sh and try again."
+fi
+
+info "listening on http://localhost:$PORT (GET / -> $code)"
 
 step "Done — now verify, do not assume"
 
