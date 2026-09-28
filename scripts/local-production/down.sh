@@ -74,5 +74,15 @@ for p in "$PORT" "$FCGI_PORT"; do
     fi
 done
 
-[ "$still" -eq 0 ] && echo "  stopped; ports $PORT${FCGI_PORT:+ and $FCGI_PORT} are free"
+if [ "$still" -eq 0 ]; then
+    # taskkill //F is not a clean shutdown, so httpd never removes its own pid file and
+    # the NEXT start logs `AH00098: pid file ... overwritten -- Unclean shutdown of
+    # previous Apache run?` as a [core:warn]. Harmless in itself, and it still matters:
+    # LOCAL-PRODUCTION-SETUP.md §4 and BASELINE.md §23a both claim zero Apache log lines
+    # above notice, so a warning nobody removed makes a documented measurement false
+    # after the first restart. Removing the file is only safe here — after the ports are
+    # confirmed free, i.e. after nothing is running to own it.
+    rm -f "$APACHE_DIR/httpd.pid"
+    echo "  stopped; ports $PORT${FCGI_PORT:+ and $FCGI_PORT} are free"
+fi
 exit 0

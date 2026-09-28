@@ -18,7 +18,10 @@ Then open **http://localhost:8081/**.
 >
 > What it *is*: the Bronze deployment procedure executed end to end, which had never
 > been done anywhere before 2026-09-27. It finds defects in **our** procedure and
-> **our** code — and it has found four.
+> **our** code — and it has found **five**, itemised in `BASELINE.md` §23b. Four were
+> in the harness rather than the product, which is the cost of this kind of tool and
+> is worth paying: one of the five was a hardcoded `admin.ethr.et` that would have
+> made the platform console unreachable in production, silently.
 
 ---
 
