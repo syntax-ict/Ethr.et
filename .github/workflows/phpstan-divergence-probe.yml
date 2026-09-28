@@ -1,0 +1,191 @@
+# PHPStan divergence probe — closes or narrows BASELINE.md §12c.
+#
+# THE QUESTION. CI run #56 (2026-09-16, `49e2ee9`) was the first run in which
+# PHPStan had ever executed, and it reported four errors of one shape:
+# `PasswordBroker::createToken()` / `tokenExists()` / `deleteToken()` called on a
+# value typed to `Illuminate\Contracts\Auth\PasswordBroker`, which declares only
+# `sendResetLink()` and `reset()`. The same PHPStan, same lockfile, same gate
+# function, reports `[OK] No errors` on the maintainer's Windows machine — and
+# still does, re-measured live rather than from memory (§12c, 2026-09-17).
+#
+# The four findings were true on both platforms and were fixed on their merits.
+# What stayed open is the mechanism, and the consequence of not knowing it:
+# **a green local PHPStan does not imply a green CI PHPStan.** For a repository
+# whose first lesson is that a green run can be a lie, that is worth settling.
+#
+# WHY THIS RUNS HERE RATHER THAN LOCALLY. §12c names the next step as a Linux
+# PHP 8.2 build plus the `dumpType()` probe, and records two failed attempts to
+# get one — no `sudo`, no Docker, and an unreliable static binary download. But
+# the environment that produced the divergence is this runner. Probing it here
+# needs no Linux box and has better fidelity than any local substitute.
+#
+# WHAT IT TESTS, and why two conditions. §12c's hypothesis table tested "CI has
+# no .env" and found that hiding `.env` locally did NOT reproduce the errors. It
+# could not test the reverse, which turns out to matter: `gates.yml`'s backend job
+# gained `cp .env.example .env` + `key:generate` ON 2026-09-16, as the fix for
+# cause 4 (156 tests dying on MissingAppKeyException) — the same day run #56
+# produced these errors. So run #56 very likely had NO `.env`, and every CI run
+# since has had one. This probe runs the identical analysis in both shapes.
+#
+# `workflow_dispatch` only, on purpose: it reports a measurement rather than
+# gating anything, and `\PHPStan\dumpType()` is itself emitted as an error, so a
+# scheduled or push trigger would add permanent noise. It always exits 0 — the
+# answer is in the step summary, not in a red X.
+name: PHPStan divergence probe (BASELINE §12c)
+
+on:
+  # `workflow_dispatch` alone would not answer the question from here. GitHub only
+  # offers manual dispatch for workflows that exist on the DEFAULT branch, and
+  # putting this on `main` means merging this branch, which is an owner decision
+  # that `CUTOVER-CHECKLIST.md` reserves — the same constraint `cron.yml` records
+  # for its `schedule:` trigger.
+  #
+  # So it also triggers on a push that changes THIS FILE, on any branch. That is
+  # self-limiting by construction: it runs when the probe is introduced or edited
+  # and stays silent otherwise, which is the behaviour a measurement wants — no
+  # per-commit noise, nothing to remember to disable. It always exits 0, so it
+  # cannot redden a branch either way.
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/phpstan-divergence-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: dumpType probe, with and without .env
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Identical to gates.yml's `backend` job. The whole question is
+      # environment-specific, so any drift here would make the answer worthless.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Record the exact runtime
+        working-directory: api
+        run: |
+          {
+            echo '## Runtime'
+            echo '```'
+            php -r 'echo "php ", PHP_VERSION, " ", PHP_OS, " ", php_uname("m"), "\n";'
+            composer show larastan/larastan phpstan/phpstan laravel/framework nikic/php-parser 2>/dev/null \
+              | grep -E '^(larastan|phpstan|laravel|nikic)' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Never committed. It exists only inside this runner, so it cannot affect
+      # Pint, the baseline, or any gate.
+      - name: Write the probe
+        working-directory: api
+        run: |
+          cat > app/ZZZDivergenceProbe.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App;
+
+          use App\Models\User;
+          use Illuminate\Support\Facades\Password;
+
+          final class ZZZDivergenceProbe
+          {
+              public function probe(): void
+              {
+                  $broker = Password::broker();
+
+                  \PHPStan\dumpType($broker);
+
+                  $broker->createToken(new User);
+              }
+          }
+          PHP
+          echo "probe written:"
+          cat app/ZZZDivergenceProbe.php
+
+      - name: Condition A — WITHOUT .env (run #56's likely shape)
+        working-directory: api
+        run: |
+          rm -f .env
+          php -d memory_limit=-1 vendor/bin/phpstan analyse app/ZZZDivergenceProbe.php \
+            --no-progress --error-format=raw > /tmp/a.txt 2>&1 || true
+          echo "--- condition A output ---"
+          cat /tmp/a.txt
+          {
+            echo '## Condition A — no .env'
+            echo '```'
+            cat /tmp/a.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Condition B — WITH .env (every CI run since 2026-09-16)
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php -d memory_limit=-1 vendor/bin/phpstan clear-result-cache >/dev/null 2>&1 || true
+          php -d memory_limit=-1 vendor/bin/phpstan analyse app/ZZZDivergenceProbe.php \
+            --no-progress --error-format=raw > /tmp/b.txt 2>&1 || true
+          echo "--- condition B output ---"
+          cat /tmp/b.txt
+          {
+            echo '## Condition B — with .env'
+            echo '```'
+            cat /tmp/b.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The reading, computed rather than left to whoever opens the log. "Flagged"
+      # means PHPStan reported the createToken call; that is CI's 2026-09-16
+      # behaviour. "Not flagged" matches this repository's Windows machine.
+      - name: Verdict
+        run: |
+          a_flag=0; b_flag=0
+          grep -q 'createToken' /tmp/a.txt && a_flag=1
+          grep -q 'createToken' /tmp/b.txt && b_flag=1
+
+          echo "A (no .env)  createToken flagged: $a_flag"
+          echo "B (with .env) createToken flagged: $b_flag"
+
+          verdict="UNEXPECTED"
+          if [ "$a_flag" = 1 ] && [ "$b_flag" = 0 ]; then
+            verdict="EXPLAINED — the divergence tracks .env presence, not the OS"
+          elif [ "$a_flag" = 1 ] && [ "$b_flag" = 1 ]; then
+            verdict="OS/BUILD-SPECIFIC — Linux flags it either way; .env is not the variable"
+          elif [ "$a_flag" = 0 ] && [ "$b_flag" = 0 ]; then
+            verdict="NOT REPRODUCIBLE TODAY — Linux now agrees with Windows; something in the dependency set changed since 2026-09-16"
+          else
+            verdict="INVERTED — flagged only WITH .env, which no hypothesis in §12c predicts"
+          fi
+
+          echo "VERDICT: $verdict"
+          {
+            echo '## Verdict'
+            echo ''
+            echo "- A, no \`.env\` — \`createToken\` flagged: **$a_flag**"
+            echo "- B, with \`.env\` — \`createToken\` flagged: **$b_flag**"
+            echo ''
+            echo "**$verdict**"
+            echo ''
+            echo 'Record the result in `docs/audit/BASELINE.md` §12c. A probe nobody writes down is a probe that gets run again.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the probe
+        if: always()
+        working-directory: api
+        run: rm -f app/ZZZDivergenceProbe.php
