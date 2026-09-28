@@ -149,7 +149,7 @@ scheduling decision, neither of which is a code change.**
 |---|---|---|---|
 | **Queue execution** | `supervisor.conf` `[program:ethr-queue]`, a `--max-time=3600` daemon | `POST /api/v1/cron/queue` → `queue:work --stop-when-empty --max-time=50`, under a `Cache::lock`, 409 on overlap | **Built.** Needs a timer to call it |
 | **Scheduler** | `supervisor.conf` `[program:ethr-scheduler]`, a `while true; sleep 60` loop | `POST /api/v1/cron/schedule` → `schedule:run` | **Built.** Needs a timer to call it |
-| **The timer itself** | `cron` / Supervisor | Plesk Scheduled Task if one exists; otherwise any external URL-fetch on a timer | **DECISION REQUIRED.** G0-D = FAIL, strong evidence: no Scheduled Tasks section on the subscription. `shared-hosting/cron-caller.md` has the mechanics |
+| **The timer itself** | `cron` / Supervisor | **GitHub Actions**, `.github/workflows/cron.yml`, every 5 minutes | **DECIDED 2026-09-27 (Q6)** — not a Plesk Scheduled Task, because G0-D = FAIL: no Scheduled Tasks section exists on the subscription (owner-read 2026-09-18). Mechanics in `shared-hosting/cron-caller.md`. **Whether it actually runs is `Q6-x`, and open**: the `schedule:` trigger only fires once the workflow is on the default branch, and a green `workflow_dispatch` is not evidence that the schedule fires |
 | **Process supervision** | Supervisor | Plesk's Node.js application manager for the frontend; nothing for PHP, which is request-scoped | Partly built |
 | **Web server** | nginx | Plesk Apache + `.htaccess` | **Built, unverified** |
 | **TLS** | certbot webroot | Plesk-issued certificates; `.htaccess` already carries an ACME passthrough | **Built** |
@@ -348,11 +348,21 @@ there to fetch.
   be wrong, but it is no longer an architecture question, and **no fallback tenant-selector
   strategy should be designed on spec.**
 
-**Stage 3 — Settle the timer (unknown 1). ● UNCHANGED, and now the top technical blocker.**
-The runner exists; only its trigger is open. If no Plesk Scheduled Task exists, choose the
-external URL-fetch mechanism from `shared-hosting/cron-caller.md`. **Until this is settled
-nothing asynchronous works, and the failure is silent** — which is why `QueueHealth::beat()`
-and `ethr:queue:check` exist and why they should be checked first after cutover.
+**Stage 3 — Settle the timer (unknown 1). ✅ DECIDED 2026-09-27 — Q6. No longer the top
+technical blocker.** This read *"UNCHANGED, and now the top technical blocker… if no Plesk
+Scheduled Task exists, choose the external URL-fetch mechanism"* until 2026-09-28; the
+choice was made and built the day before. It is **GitHub Actions** —
+`.github/workflows/cron.yml`, every 5 minutes, calling both endpoints with `X-Cron-Token`.
+
+**What remains open is `Q6-x`: whether it runs**, which is a different question and a host
+gate. Two secrets must exist in the GitHub `production` environment, and the `schedule:`
+trigger does not fire at all while the workflow is off the default branch — so a green
+`workflow_dispatch` closes nothing on its own.
+
+**Until Q6-x is closed nothing asynchronous runs, and the failure is silent** — which is why
+`QueueHealth::beat()` and `ethr:queue:check` exist and why they are checked first after
+cutover. The caller being off-host sharpens that: there is no cron entry on the account to
+inspect, so the heartbeat is the only signal there is.
 
 **Stage 4 — Documentation reconciliation. ✅ DONE 2026-09-25.** `ARCHITECTURE.md` (staleness
 banner, queue table 7 → 4, service list, diagram, health-check row), `DEPLOYMENT.md` (service
