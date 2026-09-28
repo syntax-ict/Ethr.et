@@ -97,9 +97,11 @@ Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');
 // mute. Add it to this line once the disk is configured; until then the command
 // warns on every run that the backup only exists on the host it protects.
 //
-// On shared hosting this arrives via one Plesk Scheduled Task running
-// `artisan schedule:run` every minute, not via a daemon. See
-// docs/deployment/BACKUP-RESTORE.md.
+// On shared hosting this arrives via an external caller POSTing to
+// /api/v1/cron/schedule on a timer — GitHub Actions, every five minutes — not via
+// a daemon and not via a Plesk Scheduled Task, which G0-D measured as absent.
+// 01:00 is a multiple of five, so the */5 caller reaches it; an entry scheduled at
+// a minute that is not would never run at all. See docs/deployment/BACKUP-RESTORE.md.
 // No --keep here on purpose: the command falls back to config('backup.keep'),
 // so BACKUP_KEEP governs retention per environment. Passing it here would
 // override the env var on every host and re-create the defect where lowering
@@ -110,10 +112,17 @@ Schedule::command('ethr:backup')
     ->withoutOverlapping();
 
 // Scheduler heartbeat — the cheapest entry here and the one that makes the rest
-// observable. Everything asynchronous in ETHR arrives through a single Plesk
-// Scheduled Task running `schedule:run`; if that stops, jobs stop and nothing
-// says so. This records that the scheduler ran, so `ethr:queue:check` and the
-// health endpoint can tell "quiet" from "dead".
+// observable. Everything asynchronous in ETHR arrives through an external caller
+// POSTing to /api/v1/cron/schedule on a timer; if that stops, jobs stop and
+// nothing says so. This records that the scheduler ran, so `ethr:queue:check` and
+// the health endpoint can tell "quiet" from "dead". Because the caller is
+// off-host, there is no cron entry to inspect and this beat is the ONLY signal.
+//
+// `everyMinute()` is correct and is not a cadence claim: it means "beat on every
+// scheduler invocation". With the */5 caller that is a beat every five minutes,
+// against a 900 s staleness threshold — a 3x margin. Do not "fix" this to
+// everyFiveMinutes(): pinning it to the caller's current cadence is what breaks
+// when the cadence changes.
 //
 // Deliberately not ->withoutOverlapping(): that takes a cache lock, and a lock
 // left behind by a killed run would suppress the very signal this exists to

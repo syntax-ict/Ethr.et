@@ -252,13 +252,30 @@ disk actually looks like*.
 
 01:00 UTC (04:00 EAT), deliberately **before** the 02:00 cleanup job, so a backup always exists from before data was pruned rather than after.
 
-On shared hosting this arrives through a single Plesk Scheduled Task running the scheduler every minute:
+On shared hosting this arrives through an **external caller** POSTing to the scheduler
+endpoint on a timer — GitHub Actions, every five minutes:
 
 ```
-* * * * *   cd ~/ethr/api && php artisan schedule:run
+POST /api/v1/cron/schedule     with header  X-Cron-Token: <CRON_TOKEN>
 ```
 
-Whether Plesk offers "Run a command" at all, and at what minimum interval, is **gate G0-D** in `GATE-0-RESULT.md` and is still `NOT VERIFIED`. If only URL-fetch tasks are available, the scheduler has to move behind an authenticated HTTP endpoint — a real design change that is not built.
+**Not through a Plesk Scheduled Task.** This paragraph described one, and offered `G0-D` as
+`NOT VERIFIED`, until 2026-09-28 — all three of its claims were wrong by then:
+
+- **G0-D is `FAIL`, measured**, not unverified: there is no Scheduled Tasks / Task Scheduler /
+  Cron Jobs section on this subscription (owner-read 2026-09-18). Two other passages in *this
+  same file* already said `FAIL`, 85 lines earlier.
+- The "real design change that is not built" **is built** — `CronRunController`, the two
+  endpoints, `VerifyCronToken` behind `throttle:cron`, fail-closed 404 without a token, and a
+  `Cache::lock` returning 409 on overlap. This file cites that controller by line at
+  *Recovering without shell access*.
+- The scheduler entry at 01:00 survives a five-minute caller because `:00` is a multiple of
+  five. An entry scheduled at a minute that is not would **never run** — see
+  `routes/console.php`, which now says so where the times are declared.
+
+Whether the caller is actually running on the account is gate **Q6-x**, and it is open:
+`cron.yml`'s `schedule:` trigger only fires once the workflow is on the default branch, and a
+green `workflow_dispatch` is not evidence that the schedule fires. Record those as two facts.
 
 `--off-host` is deliberately absent from the scheduled line. Off-host credentials may not exist yet, and a scheduled task that fails every night is a scheduled task people mute. Add it once the disk is configured; until then the command warns on **every run** that the backup exists only on the host it protects.
 

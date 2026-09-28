@@ -9,13 +9,17 @@ use Illuminate\Console\Command;
 use Throwable;
 
 /**
- * Runs from Plesk Scheduled Tasks as a PHP CLI job — no shell, no mysqldump.
+ * Runs as a PHP job with no shell and no mysqldump. That constraint is the whole
+ * design: scripts/backup.sh, the only backup this project had, is
+ * `docker compose exec mariadb mysqldump` — meaningless on the target host.
+ *
+ * It reaches the host as a Laravel scheduled entry (`dailyAt('01:00')`, see
+ * routes/console.php) driven by whatever invokes `schedule:run`. On this account
+ * that is an external caller POSTing to /api/v1/cron/schedule, **not** a Plesk
+ * Scheduled Task — G0-D measured that section as absent. The equivalent CLI
+ * invocation, for a host that does offer one:
  *
  *   php /home/<user>/ethr/api/artisan ethr:backup --off-host --keep=2
- *
- * That constraint is the whole design. scripts/backup.sh, the only backup this
- * project had, is `docker compose exec mariadb mysqldump` — meaningless on the
- * target host.
  */
 class BackupCommand extends Command
 {
