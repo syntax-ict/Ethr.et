@@ -437,7 +437,70 @@ $ php -d memory_limit=-1 vendor/bin/pest --compact
 
 This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
 
-### 12c. PHPStan disagrees between this machine and CI, and the reason is unknown **[open]**
+### 12c. PHPStan disagrees between this machine and CI — **CLOSED 2026-09-28: it was never the OS, it is `.env` presence**
+
+> **Read this box first; the investigation below is kept because four of its hypotheses
+> were wrong in instructive ways, but its central framing — "this machine versus CI" —
+> was the wrong axis.**
+>
+> Measured by `.github/workflows/phpstan-divergence-probe.yml`, which runs the
+> `dumpType()` probe on the runner that produced the original errors, in two shapes:
+>
+> | Condition | Dumped type | `createToken()` |
+> |---|---|---|
+> | **A** — no `.env` | `Illuminate\Contracts\Auth\PasswordBroker` | **flagged** |
+> | **B** — with `.env` | `Illuminate\Contracts\Auth\PasswordBroker` — *identical* | **not flagged** |
+>
+> Same runner, same PHP 8.2, same `composer.lock` (larastan v3.10.0, phpstan 2.2.2).
+> Reproduced on both trigger paths (push and `workflow_dispatch`), runs `36412606831`
+> and `36412639271`.
+>
+> **And this Windows machine reproduces condition A exactly** — hide `.env`, clear the
+> result cache, and it reports
+> `Call to an undefined method Illuminate\Contracts\Auth\PasswordBroker::createToken()`.
+> So there is no cross-platform disagreement to explain. **`Windows vs Linux` and
+> `the PHP patch build`, listed above as "still untested", are answered: neither is the
+> variable.**
+>
+> **It is not `APP_KEY` either.** `.env` present with `APP_KEY=` empty: not flagged. The
+> variable is the *file existing*, not any value in it.
+>
+> **Why run #56 and nothing since.** `gates.yml`'s `backend` job gained
+> `cp .env.example .env` + `key:generate` **on 2026-09-16** — the fix for cause 4, 156
+> tests dying on `MissingAppKeyException`. Run #56 was that same day and had no `.env`.
+> Every run since has had one. The fix for a test failure silently changed what static
+> analysis reports, which is why this looked like a platform mystery for twelve days.
+>
+> **The consequence is the opposite of reassuring, and is the reason this section
+> mattered.** The four findings were *true* — `Illuminate\Contracts\Auth\PasswordBroker`
+> genuinely declares only `sendResetLink()` and `reset()`, confirmed by direct
+> reflection. The configuration that **hides** them is the one with `.env`, which is
+> both this machine's shape and CI's shape today. So the gate as configured suppresses a
+> whole class of true positive: **any method called on a facade-returned contract whose
+> real implementation is reached through the container.** Deleting `.env` makes PHPStan
+> stricter, not more broken. Nothing here is a reason to relax the gate; it is a reason
+> to know what the gate does not see.
+>
+> **Mechanism — now strongly supported rather than hypothesised, with one gap stated.**
+> The dumped type is the *interface* in both conditions, so this is not a return-type
+> swap; §12c refuted that on 2026-09-17 and the probe agrees. What changes is whether a
+> *call* on that interface-typed value is accepted. That asymmetry is exactly the
+> signature predicted for `larastan/src/Methods/ManagersMethodsExtension.php`, which
+> grants a manager's methods by resolving the value **through the live container** — it
+> can only do that when the application boots, and the boot needs `.env`. What was
+> **not** done: instrumenting that extension to observe it firing. The prediction and
+> the observation match; the causal link is inferred from that match.
+>
+> **One contradiction left standing rather than tidied away.** The hypothesis table
+> below records *"hid `.env`, set `BROADCAST_CONNECTION=null`, re-ran → `[OK] No
+> errors`"*. Today, hiding `.env` flags the call — on this same machine. Since
+> `config/broadcasting.php` has defaulted to `null` since 2026-09-25, that variable
+> should no longer change anything. Either that measurement was mistaken or something
+> else moved with it; it is **not resolved**, and it is recorded as a discrepancy rather
+> than overwritten, because a measurement that contradicts a later one is evidence about
+> the method, not noise.
+>
+> No PHPStan configuration was changed, and no error was suppressed, to close this.
 
 CI run #56 (2026-09-16, commit `49e2ee9`) was the **first run in which PHPStan had ever executed** — until `phpstan_gate` stopped requiring a Docker container it had never run there at all. It reported exactly four errors, all the same shape:
 

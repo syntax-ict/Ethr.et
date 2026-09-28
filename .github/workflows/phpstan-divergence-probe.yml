@@ -34,17 +34,22 @@
 name: PHPStan divergence probe (BASELINE §12c)
 
 on:
-  # `workflow_dispatch` alone would not answer the question from here. GitHub only
-  # offers manual dispatch for workflows that exist on the DEFAULT branch, and
-  # putting this on `main` means merging this branch, which is an owner decision
-  # that `CUTOVER-CHECKLIST.md` reserves — the same constraint `cron.yml` records
-  # for its `schedule:` trigger.
+  # Both triggers, and the comment here was WRONG when first committed (e4bb71b).
   #
-  # So it also triggers on a push that changes THIS FILE, on any branch. That is
-  # self-limiting by construction: it runs when the probe is introduced or edited
-  # and stays silent otherwise, which is the behaviour a measurement wants — no
-  # per-commit noise, nothing to remember to disable. It always exits 0, so it
-  # cannot redden a branch either way.
+  # It claimed manual dispatch is offered only for workflows on the DEFAULT branch,
+  # and that therefore the push trigger was load-bearing. Then the claim was tested:
+  # `gh workflow run phpstan-divergence-probe.yml --ref migration/bronze-plesk`
+  # **succeeded** and produced run 36412639271. The REST/CLI dispatch path resolves
+  # the workflow on the given ref; the default-branch rule governs the "Run workflow"
+  # BUTTON in the web UI, which is not the only way in. Corrected rather than left,
+  # since that sentence is the kind of plausible-sounding constraint someone later
+  # designs around.
+  #
+  # The push trigger is kept anyway, on its own merits: scoped to this file, it runs
+  # the probe exactly when the probe is introduced or edited and is silent otherwise,
+  # so the measurement happens without anyone having to remember to ask for it, and
+  # without per-commit noise. The job always exits 0, so neither trigger can redden a
+  # branch.
   workflow_dispatch:
   push:
     paths:
