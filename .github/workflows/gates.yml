@@ -315,7 +315,8 @@ jobs:
       # rules' structure, not a deployment.
       - name: Render the BRANCH B deployment rules
         run: |
-          php scripts/shared-hosting/render-htaccess.php \n            --target=static-export --admin-host=admin.ci.invalid > /dev/null
+          php scripts/shared-hosting/render-htaccess.php \
+            --target=static-export --admin-host=admin.ci.invalid > /dev/null
 
   docs:
     name: Documentation integrity
