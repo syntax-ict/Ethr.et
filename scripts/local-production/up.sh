@@ -29,7 +29,15 @@
 #   - `api/.env`            your dev environment, and what the gates run against
 #   - `bootstrap/cache/`    a production `config:cache` there would break the gates
 #   - XAMPP's httpd.conf    this runs a dedicated Apache on its own config/port
-#   - any existing database anything but the `ethr` schema it creates
+#   - your dev database     it uses its OWN schema and user, and REFUSES to run if
+#                           either matches what api/.env connects as
+#
+# That last line is a correction, not a boast. It read "any existing database anything
+# but the `ethr` schema it creates", and on 2026-09-27 that was false in the way that
+# matters: `ethr` already existed with a developer's data, `CREATE DATABASE IF NOT
+# EXISTS` adopted it, and `ALTER USER 'ethr'@...` reset the password `api/.env` uses —
+# breaking every local MariaDB connection until it was restored. See the DB_NAME
+# comment below.
 #
 # Undo: `scripts/local-production/down.sh` then `rm -rf .local-production`.
 
@@ -54,8 +62,30 @@ PORT="${PORT:-8081}"
 # you want to look at — and /admin is correctly denied there, mirroring production.
 # Reach the console with:  curl -H "Host: $ADMIN_HOST" http://localhost:$PORT/admin
 ADMIN_HOST="${ADMIN_HOST:-admin.localhost:8081}"
-DB_NAME="${DB_NAME:-ethr}"
-DB_USER="${DB_USER:-ethr}"
+# A DEDICATED database and user — NOT `ethr`/`ethr`, and this is a correction of a
+# real breakage rather than caution.
+#
+# The first version defaulted to DB_NAME=ethr / DB_USER=ethr "because those are the
+# documented defaults". On this machine both already existed: `ethr` held a developer's
+# own data from 2026-09-18 (2 tenants, 151 employees) and `api/.env` connected as user
+# `ethr` with an EMPTY password. So the script
+#
+#   CREATE DATABASE IF NOT EXISTS ethr   -> ADOPTED the existing schema, and
+#   ALTER USER 'ethr'@... IDENTIFIED BY  -> CHANGED the dev user's password,
+#
+# which broke `gates.sh mysql` and every local MariaDB connection until it was put back.
+# It also ran 5 pending migrations against that database. Nothing was lost, and that was
+# luck rather than design: the header claimed isolation it did not have.
+#
+# `IF NOT EXISTS` is the trap. It makes "create" silently mean "adopt", so a name
+# collision is indistinguishable from a fresh start — and the documented default name is
+# exactly the name most likely to collide.
+#
+# So the rehearsal owns `ethr_local_prod` and the user `ethr_localprod`, which nothing
+# else uses. Override if you want, but do not point it at a database you care about: the
+# rehearsal migrates into it.
+DB_NAME="${DB_NAME:-ethr_local_prod}"
+DB_USER="${DB_USER:-ethr_localprod}"
 DB_PASS="${DB_PASS:-ethr_local_rehearsal}"
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-3306}"
@@ -106,7 +136,27 @@ fi
 mkdir -p "$APP_ROOT/api/storage/framework/"{cache,sessions,views} \
          "$APP_ROOT/api/storage/logs" "$APP_ROOT/api/bootstrap/cache"
 
-step "2. Database ($DB_NAME) — default names from .env.shared-hosting.example"
+step "2. Database ($DB_NAME) — dedicated to the rehearsal"
+
+# Refuse to touch whatever the developer's own api/.env uses. This script ALTERs a
+# user's password and migrates a schema; doing either to the dev environment breaks it,
+# which is exactly what happened on 2026-09-27 before this guard existed.
+if [ -f "$REPO_ROOT/api/.env" ]; then
+    # `|| true` is load-bearing, not defensive noise. Under `set -euo pipefail` a grep
+    # that matches nothing returns 1, pipefail propagates it through `cut`/`tr`, and the
+    # assignment then exits the script — so an api/.env with no DB_DATABASE line killed
+    # up.sh right after the step-2 header with NO message at all. Measured 2026-09-28.
+    # An absent line must mean "no collision possible", not "abort mysteriously".
+    dev_db="$(grep -m1 '^DB_DATABASE=' "$REPO_ROOT/api/.env" | cut -d= -f2- | tr -d '[:space:]' || true)"
+    dev_user="$(grep -m1 '^DB_USERNAME=' "$REPO_ROOT/api/.env" | cut -d= -f2- | tr -d '[:space:]' || true)"
+
+    [ "$DB_NAME" = "$dev_db" ] && die "DB_NAME ($DB_NAME) is the database api/.env uses.
+                 The rehearsal migrates into it and would ALTER its user's password.
+                 Pick another name."
+    [ "$DB_USER" = "$dev_user" ] && die "DB_USER ($DB_USER) is the user api/.env connects as.
+                 This script resets that user's password, which breaks your dev
+                 environment. Pick another user."
+fi
 
 "$MYSQL" -u root -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 

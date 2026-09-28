@@ -34,7 +34,7 @@ breaks silently on a different domain.
 | **PHP** | `mod_cgi` + `Action` → `php-cgi` (`cgi-fcgi`) | **`fpm-fcgi`** — measured on the host |
 | **Document root** | `.local-production/docroot/` | `<DOCROOT>` — `httpdocs/`, the Plesk default. **Never change that field** |
 | **App root** | `.local-production/app/api/` | `<APP_ROOT>` — `~/ethr/`, **above** the document root |
-| **Database** | MariaDB 10.4.32, `ethr` / `ethr` | `<DB_NAME>` / `<DB_USER>`, version **unverified (G0-I)** |
+| **Database** | MariaDB 10.4.32, `ethr_local_prod` / `ethr_localprod` | `<DB_NAME>` / `<DB_USER>`, version **unverified (G0-I)** |
 | **Admin host** | `admin.localhost:8081` | `admin.<APP_DOMAIN>` |
 | **`APP_URL`** | `http://localhost:8081` | `https://<APP_DOMAIN>` |
 | **`APP_KEY`** | generated fresh per setup | generated on the host by `key:generate` — **never the one in git history** |
@@ -66,6 +66,31 @@ php scripts/shared-hosting/render-htaccess.php \
 
 Include the port if requests carry one: the predicate anchors on the whole `Host`
 header. The value is regex-escaped, so a dot cannot match an arbitrary character.
+
+### The database it must not touch
+
+`DB_NAME`/`DB_USER` default to `ethr_local_prod`/`ethr_localprod`, which nothing else
+uses, and **`up.sh` refuses if either matches what `api/.env` holds.** That guard exists
+because the defaults were `ethr`/`ethr` until 2026-09-28 and **broke this repository's
+own dev environment**. Two ways, both silent:
+
+- `CREATE DATABASE IF NOT EXISTS ethr` does not create anything when `ethr` already
+  exists — it **adopts** it. The rehearsal then migrated into the dev schema, applying
+  five pending migrations as a second batch.
+- `ALTER USER 'ethr'@'127.0.0.1' IDENTIFIED BY '<rehearsal password>'` **changed the
+  password `api/.env` authenticates with**, which is empty. Every subsequent dev command
+  failed with `ERROR 1045 (28000) Access denied ... (using password: NO)` — a message that
+  reads like a wrong password, not like something a setup script did.
+
+The data was recovered and the grants restored, and the lesson is in the guard rather
+than in a warning: **"create if not exists" is indistinguishable from "adopt whatever is
+there", and a script that names a resource the developer also names will eventually take
+it over.** So the rehearsal owns its own schema and its own user, and says so out loud in
+step 2 rather than trusting the default.
+
+One consequence worth knowing: two grant hosts are created, `127.0.0.1` **and**
+`localhost`, because MariaDB treats them as different accounts — granting only one
+produces that same misleading 1045 whenever a client resolves to the other.
 
 ---
 
@@ -125,25 +150,35 @@ Not "the pages load". Measured after exercising all 22 routes above:
 | `migrate` | clean; both `audit_log` triggers created |
 | Sibling routes vs the entity shell | **byte-identical to their own files** |
 
-`up.sh` also refuses rather than lying: it fails if the port is taken, if the app user
-cannot connect, if `index.php` does not take at least two rewrites, if the renderer
-omits a required directive, or if the port opens but **nothing answers** — a wedged
-`httpd` holding a socket looks identical to a healthy one from `netstat`, which is how
-this was reported "down" once when it was merely broken.
+`up.sh` also refuses rather than lying: it fails if the port is taken, **if `DB_NAME` or
+`DB_USER` is the one `api/.env` uses**, if the app user cannot connect, if `index.php`
+does not take at least two rewrites, if the renderer omits a required directive, or if
+the port opens but **nothing answers** — a wedged `httpd` holding a socket looks
+identical to a healthy one from `netstat`, which is how this was reported "down" once
+when it was merely broken.
 
 ---
 
 ## 5. Isolation and undo
 
-**Untouched:** `api/.env` (your dev environment, and what the gates run against),
-`api/bootstrap/cache/` (a production `config:cache` there would break `gates.sh`),
-XAMPP's own `httpd.conf`, and every database but `ethr`.
+**Untouched:** `api/.env` (your dev environment, and what the gates run against), the
+database and user it names, `api/bootstrap/cache/` (a production `config:cache` there
+would break `gates.sh`), XAMPP's own `httpd.conf`, and every database but
+`ethr_local_prod`.
 
 ```bash
 scripts/local-production/down.sh      # stops Apache; keeps everything else
 rm -rf .local-production              # ~203 MB, gitignored
-/c/xampp/mysql/bin/mysql.exe -u root -e "DROP DATABASE ethr;"   # if you want it gone
+
+# only if you want the database gone too — this is the rehearsal's own, not your dev one
+MY=/c/xampp/mysql/bin/mysql.exe
+"$MY" -u root -e "DROP DATABASE ethr_local_prod;
+                  DROP USER 'ethr_localprod'@'127.0.0.1';
+                  DROP USER 'ethr_localprod'@'localhost';"
 ```
+
+**Read that name before you run it.** Until 2026-09-28 this block named the plain `ethr`
+database instead — the dev one, with every tenant and employee in it.
 
 `.local-production/` is gitignored because it holds a generated `APP_KEY`, a database
 password and a `CRON_TOKEN`. None of it is evidence about the host.
@@ -158,7 +193,7 @@ All are environment variables on `up.sh`:
 |---|---|---|
 | `PORT` | `8081` | it refuses rather than sharing a busy port |
 | `ADMIN_HOST` | `admin.localhost:8081` | the platform console's host |
-| `DB_NAME` `DB_USER` | `ethr` `ethr` | the documented defaults |
+| `DB_NAME` `DB_USER` | `ethr_local_prod` `ethr_localprod` | dedicated to the rehearsal; it **refuses** either name if `api/.env` uses it |
 | `DB_PASS` | `ethr_local_rehearsal` | local only; never a production value |
 | `DB_HOST` `DB_PORT` | `127.0.0.1` `3306` | both grant hosts are created, so `localhost` also works |
 | `XAMPP` | `/c/xampp` | |

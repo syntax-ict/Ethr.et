@@ -3480,3 +3480,123 @@ Specifically unchanged:
 
 A green `static-export` job means the artifact is correct as written. That is what §21e calls
 `LOCAL VERIFIED`, and it is still all this is.
+
+---
+
+## 23. The Bronze procedure executed end to end — **measured 2026-09-27 / 2026-09-28**
+
+§21 tested the `.htaccess` on a real Apache and §22 gated the artifacts. Neither ran the
+**procedure**: copy the application above the document root, create the database, write the
+environment, migrate, export the frontend, assemble the document root, repoint `index.php`,
+render the rules, start, and serve. `DEPLOYMENT.md` §4a had never been executed anywhere,
+by anyone, in full.
+
+`scripts/local-production/{up,verify,down}.sh` do that on XAMPP. Reproduce with
+`docs/deployment/LOCAL-PRODUCTION-SETUP.md`.
+
+### 23a. What it measures
+
+| | Result |
+|---|---|
+| `verify.sh` — the path matrix | **36 passed, 0 failed** |
+| The 22 documented routes | **200**, every one |
+| `/admin` from a tenant host / from the admin host | **403 / 200** — the boundary works |
+| `/nope` | **404**, not a rewritten 200 |
+| `../app/api/.env` by traversal | **404** — the app root is not web-reachable |
+| `migrate` | clean; **both** `audit_log` triggers created on MariaDB 10.4.32 |
+| Cron: no token / wrong token / correct token | **404 / 404 / 200** — fail-closed |
+| `queue_detail` after driving both endpoints | `healthy`, `problems: []`, 0 failed jobs |
+| Apache `error.log`, anything above notice | **0** |
+| Laravel log | **no file written** — nothing logged an error |
+
+### 23b. Five defects it found, four of them in our own tooling
+
+Stated individually because the pattern matters more than any one of them: **every single
+one was invisible to inspection and visible on the first execution.**
+
+1. **`admin.ethr.et` was a literal in the `.htaccess` template** — a production defect, and
+   the only one here that would have shipped. Rendered for any other domain, the deny
+   predicate reads *"refuse `/admin` unless the host is `admin.ethr.et`"*, so it refuses on
+   the **real** admin host too and the platform console is unreachable — silently, because
+   every tenant route is fine. `--admin-host` is now required, with no default.
+2. **The rehearsal adopted the developer's database and reset its password.** The worst of
+   the five, and the subject of §23c.
+3. **`set -euo pipefail` plus a `grep` that matches nothing exits with no message.**
+   `pipefail` carries grep's 1 through `cut` and `tr`, the assignment fails, and `set -e`
+   exits — so an `api/.env` without a `DB_DATABASE=` line killed `up.sh` immediately after a
+   step header, printing nothing. `|| true` is the fix, and it is invisible on inspection:
+   it looks like defensive noise and is the difference between a guard and a mystery.
+4. **"Listening" is not "serving."** After the machine slept, `httpd` held port 8081 and
+   answered nothing. The readiness check tested the socket, called that healthy, and the
+   rehearsal was reported *down* when it was merely broken. It now fetches `/` and requires
+   a real status.
+5. **`$!` in Git Bash is an MSYS job id, not a Windows pid.** `down.sh` recorded it, handed
+   it to `taskkill`, reported success — and both servers kept running and holding their
+   ports. It now resolves the pid from the LISTENING socket.
+
+A sixth belongs here for symmetry, because it was a defect in the **check**: `verify.sh`
+first compared `head -c 400` of each sibling route against the entity shell. Every Next.js
+export shares that `<head>`, so it reported all six routes as regressions when all six were
+correct. Byte-exact `cmp` against the files on disk replaced it. **Distinguishing "the test
+is wrong" from "the code is wrong" was needed in both directions in the same afternoon** —
+§22b is the case where the code was.
+
+### 23c. The dev-database incident, and the guard that now prevents it
+
+`up.sh` defaulted to `DB_NAME=ethr` / `DB_USER=ethr` because those are what
+`api/.env.example` documents — which is exactly why they were the wrong choice: the
+documented default is the name **most likely to already exist**. On this machine both did.
+
+```
+CREATE DATABASE IF NOT EXISTS ethr   -> created nothing; ADOPTED a schema holding
+                                        2 tenants, 151 employees, 5 users
+ALTER USER 'ethr'@... IDENTIFIED BY  -> CHANGED the password api/.env uses, which is empty
+```
+
+Every local MariaDB command then failed with
+`ERROR 1045 (28000) Access denied ... (using password: NO)` — which reads like a wrong
+password, not like something a setup script did. Five pending migrations were also applied
+to that database as batch 2. **Nothing was lost, and that was luck rather than design**: the
+script's own header claimed an isolation it did not have.
+
+Restored the same day — `ALTER USER` back to an empty password for **both**
+`'ethr'@'localhost'` and `'ethr'@'127.0.0.1'`, then `FLUSH PRIVILEGES`; both grant hosts
+verified connecting, and the data re-counted at 2 / 151 / 5. The five migrations were
+legitimately pending and are left applied.
+
+Three things are now true, and the third is the only one that is enforcement:
+
+- The rehearsal owns `ethr_local_prod` and `ethr_localprod`, which nothing else uses.
+- `up.sh` **refuses** if `DB_NAME` or `DB_USER` matches what `api/.env` holds — read out of
+  that file, not compared against a hardcoded name, so a renamed dev database is still
+  protected.
+- `tests/Feature/LocalProductionRehearsalScriptTest.php` pins all of it, including the
+  `|| true` from defect 3. Each of its five assertions was mutation-checked: the default
+  put back to `ethr`, both `die` guards deleted, `|| true` stripped, `DROP DATABASE ethr`
+  re-added as cleanup advice, and the default drifted away from the documentation — five
+  separate mutations, five reds, then restored byte-exact and green.
+
+**`IF NOT EXISTS` is the trap worth carrying elsewhere.** It makes "create" silently mean
+"adopt", so a name collision is indistinguishable from a fresh start. Any script that
+creates a named resource on a developer's machine has this defect until it refuses.
+
+### 23d. What none of this establishes
+
+**`HOST VERIFIED`: still nothing.** This is `LOCAL VERIFIED` in the §21e sense and no more.
+It is our Apache, our MariaDB and our grants, under `AllowOverride All` — the permissive
+case:
+
+- **G0-B.6** — `AllowOverride Options` is untested by construction here.
+- **M1** — the deny rules are correct *as written*; whether Ethio Telecom's Apache honours
+  `[F,L]` is unmeasured.
+- **G0-F** — `migrate` created both triggers against a `GRANT ALL` user. That says nothing
+  about the grant on the host's account.
+- **G0-I** — MariaDB 10.4.32 here; the host's engine and version are unread.
+- **`fpm-fcgi`** — this is `mod_cgi` + `Action`, one process per request. Request-level
+  behaviour is exercised; process-lifecycle behaviour is not. The host measured
+  `fpm-fcgi`, and PHP execution under it is a separate claim.
+- **M6, M3, M2, G0-H, G0-J, quotas** — untouched.
+
+`CUTOVER-CHECKLIST.md` is unchanged by anything in this section and
+`./scripts/gates.sh evidence` still lists all eleven host gates as outstanding. What this
+section buys is narrower and real: **the procedure runs, and five defects in it are gone.**

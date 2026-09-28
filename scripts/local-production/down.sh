@@ -7,8 +7,11 @@
 #
 #   scripts/local-production/down.sh && rm -rf .local-production
 #
-# The `ethr` database survives that. Drop it by hand if you want it gone:
-#   /c/xampp/mysql/bin/mysql.exe -u root -e "DROP DATABASE ethr;"
+# The rehearsal's database survives that. Drop it by hand if you want it gone — and read
+# the name first: until 2026-09-28 this block named the plain `ethr` database instead,
+# which is the one api/.env uses, with every dev tenant and employee in it.
+#   /c/xampp/mysql/bin/mysql.exe -u root -e "DROP DATABASE ethr_local_prod;
+#       DROP USER 'ethr_localprod'@'127.0.0.1'; DROP USER 'ethr_localprod'@'localhost';"
 #
 # HOW IT FINDS THE PROCESSES, and why not by recorded PID. up.sh backgrounds httpd
 # and php-cgi from Git Bash, where `$!` is an MSYS job pid — NOT the Windows pid that
