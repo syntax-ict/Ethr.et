@@ -83,4 +83,31 @@ describe("PWA assets", () => {
     // icon that happens to exist.
     expect(monochrome[0].src).not.toMatch(/\/icons\/icon-\d+\.png$/);
   });
+
+  it("has exactly one manifest, because the second one was a trap", () => {
+    // There were two. `public/manifest.json` is the live one — `root-shell.tsx`
+    // sets `manifest: "/manifest.json"` and the built HTML carries
+    // `<link rel="manifest" href="/manifest.json">`. `app/manifest.ts` generated
+    // `/manifest.webmanifest`, which nothing referenced.
+    //
+    // It was not inert. In the App Router, Next auto-links a generated manifest
+    // when no explicit one is set — so deleting one line from `root-shell.tsx`
+    // would have silently promoted it, and it declared `theme_color: "#2563eb"`
+    // (stock Tailwind blue, not ETHR Primary `#0F4C75`), no shortcuts, and no
+    // monochrome badge. A dead file that goes live on an unrelated edit is worse
+    // than no file, which is why it was deleted rather than reconciled.
+    expect(
+      existsSync(join(__dirname, "..", "app", "manifest.ts")),
+      "app/manifest.ts is back. Two manifests drift, and the generated one wins " +
+        "automatically if the explicit `manifest:` in root-shell.tsx is ever removed.",
+    ).toBe(false);
+
+    const manifest = JSON.parse(
+      readFileSync(join(PUBLIC_DIR, "manifest.json"), "utf8"),
+    ) as { theme_color?: string };
+
+    // Pinned because the deleted file disagreed on exactly this, and the
+    // disagreement is invisible until someone installs the app.
+    expect(manifest.theme_color?.toUpperCase()).toBe("#0F4C75");
+  });
 });

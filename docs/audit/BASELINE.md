@@ -2846,19 +2846,45 @@ found at all.
    language" — WCAG 2.5.3, and a voice-control user could not say what they could
    see.
 
-### Three findings left open, deliberately — **one closed 2026-09-28, two still open**
+### Three findings left open, deliberately — **all three closed 2026-09-28**
 
-The two that remain are open because each is a *decision* rather than a defect: a
-whole-product repaint, and a PWA question. The third was neither, and is now fixed —
-see the struck-through entry below.
+Two were closed by deciding them; the third turned out not to need a decision at all,
+because it had already been fixed and the entry had outlived the defect.
 
-- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
+- ~~**`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
   below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
   surface is marginally under. Lighthouse flags it intermittently, which is what a
   4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
   repainting the whole product — a Phase 8 decision, not a landing-page one. One
   10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
-  the worst case; nothing else was touched.
+  the worst case; nothing else was touched.~~
+  **CLOSED 2026-09-28 — the finding was stale, not deferred.**
+
+  `globals.css` declares `--text-secondary: #64748b`, which is **4.76:1** on
+  `--surface-primary`. The `#6c7b91` recorded here has not been in the file for some
+  time; the token had already been brought in line with the design system's own
+  `#64748B` (`docs/CLAUDE.md` → Semantic Color Tokens). Every pair measures clear:
+
+  | Pair (light) | Ratio | AA |
+  |---|---|---|
+  | `--text-secondary` on `--surface-primary` | 4.76:1 | pass |
+  | `--text-secondary` on `--surface-secondary` | **4.55:1** | pass, barely |
+  | `--text-primary` on `--surface-primary` | 17.85:1 | pass |
+  | `--text-on-sidebar` on `--surface-sidebar` | 10.9:1 | pass |
+
+  **The reason this became a test rather than a doc edit** is the second row. 4.55
+  is six hundredths over the line: a barely-perceptible change to either token drops
+  it under AA with nothing visible to review against, and Lighthouse reports that
+  band intermittently — which is exactly what a reviewer learns to ignore.
+  `src/src/test/design-token-contrast.test.ts` computes the ratios from
+  `globals.css` on every run. A measurement written in prose goes stale silently;
+  this entry is the proof of that, having outlived its own defect.
+
+  The test reads tokens from a named block, because the file declares these names
+  three times over (light, dark, high-contrast) and a file-wide regex would return
+  whichever came first and silently test the wrong theme. It also asserts
+  `contrast('#000','#fff') === 21` and that the old `#6c7b91` still computes to
+  4.30, so the arithmetic itself is not taken on trust.
 - ~~**`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
   `public/sw.js:110` reference it. Push-notification badges are therefore broken
   app-wide. Not touched: it is service-worker behaviour, not the public site.~~
@@ -2892,9 +2918,39 @@ see the struck-through entry below.
 
   Mutation-checked: deleting the badge from disk, and repointing the monochrome
   entry at the colour icon, each turn the guard red; restored byte-exact.
-- **Two manifests.** `public/manifest.json` is the one linked from every page;
+- ~~**Two manifests.** `public/manifest.json` is the one linked from every page;
   `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
-  Both serve 200. One of them is dead, and deciding which is a PWA question.
+  Both serve 200. One of them is dead, and deciding which is a PWA question.~~
+  **CLOSED 2026-09-28 — `app/manifest.ts` deleted.**
+
+  The evidence settles which is live: `root-shell.tsx:73` sets
+  `manifest: "/manifest.json"`, and the built HTML carries
+  `<link rel="manifest" href="/manifest.json">`. Nothing anywhere references
+  `/manifest.webmanifest`.
+
+  **The dead one was not inert, which is what made it worth deleting rather than
+  leaving.** In the App Router, Next auto-links a generated manifest when no
+  explicit one is set — so removing that single line from `root-shell.tsx`, for any
+  unrelated reason, would have silently promoted `app/manifest.ts`. And the two
+  disagreed on things nobody would look for afterwards:
+
+  | | `public/manifest.json` (live) | `app/manifest.ts` (deleted) |
+  |---|---|---|
+  | `theme_color` | `#0F4C75` — ETHR Primary | `#2563eb` — stock Tailwind blue |
+  | `background_color` | `#ffffff` | `#0f172a` |
+  | shortcuts | 2 | none |
+  | monochrome badge | yes | none |
+
+  A file that is dead until an unrelated edit makes it live, and then serves the
+  wrong brand colour without the notification badge, is worse than no file.
+  Deleting it also retires one of the three build-stopping blockers the static
+  export hit (`SHARED_HOSTING_AUDIT.md` §E, `GATE-0-RESULT.md` G0-A): the
+  `force-static` directive that file needed is moot now there is no metadata route.
+  Those entries are left as written — they record what the export attempt found.
+
+  `pwa-assets.test.ts` now asserts `app/manifest.ts` does not exist and that
+  `theme_color` is `#0F4C75`, so the second manifest cannot return quietly and the
+  colour cannot drift back. Both mutation-checked.
 
 ### The 403s in the report are not a defect
 
