@@ -214,6 +214,23 @@ performance rows and keeps everything before them:
 Do not re-upload and retry more than once on a truncation. A second identical truncation
 is a result, not a flake.
 
+> **Corrected 2026-09-29: there is no partial report, and the table above describes
+> output that cannot occur.** Section order is as stated, but the probe *records* each
+> row into `$results` and prints nothing until the last section has run. Text mode and
+> `json=1` both render at the very end of `ethr-hosting-check.php`. A run cut off by a
+> time limit therefore returns an **empty body or a proxy 5xx**. It never returns
+> "everything before Performance". Nothing noticed, because every run so far completed.
+>
+> **The timing argument above needs a second correction.** On Linux, `max_execution_time`
+> counts the script's own execution. Time blocked on a socket or a database call does not
+> count; PHP's manual notes this is *"not true on Windows where the measured time is
+> real"*. So on the host, the six-second network timeouts barely touch it. What can cut a
+> web run off is a **wall-clock** limit: PHP-FPM's `request_terminate_timeout` or the
+> proxy's read timeout.
+>
+> The last paragraph survives: re-run once, and read a second identical *empty* result as
+> the answer. It means a wall-clock limit is below the probe's runtime.
+
 | Route C answers | Route C defers |
 |---|---|
 | **G0-E** — PHP version, all 18 mandatory extensions, `memory_limit`, `max_execution_time` | **G0-F** — `CREATE TRIGGER` (`DB4`) |

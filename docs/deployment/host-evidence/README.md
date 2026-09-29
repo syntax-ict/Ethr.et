@@ -150,9 +150,12 @@ captured:
 The request log carried the sentinel on exactly the two GET lines. The POST line read
 `POST /<name>.php` and nothing more.
 
-**Not exercised locally:** authentication against a real server. No database was
-listening, so the run stopped at `DB connection · UNSUPPORTED`, which is the failure
-shape described below.
+**The credentials reach a real server.** A later run the same day, with the password fed
+to curl on stdin (`--data-urlencode db-pass@-`), was answered by a local MySQL with
+`[1045] Access denied for user '<user>'@'localhost' (using password: YES)`. The POSTed
+user and a non-empty password both arrived. **Not exercised locally:** a login that
+*succeeds*, and therefore `DB1`–`DB10` over this route. Those rows are the database code
+the CLI route already ran; only the input path is new.
 
 `--json` was added on 2026-09-27 precisely so this is **attached, not retyped**.
 Save it here as `probe-<date>.json` and cite the filename in `M2.result`. The
