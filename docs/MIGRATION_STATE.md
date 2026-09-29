@@ -2965,6 +2965,14 @@ shared-hosting compatible; the *deployment assets* were not, on any path.
 >
 > ### Manual queue — host-side items, named once
 >
+> > **M1 is CLOSED — `PASS`, both parts, measured 2026-09-28.** `secret.env.probe` → **403**;
+> > the CSP arrives untruncated. Evidence:
+> > [`deployment/host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](deployment/host-evidence/session-2026-09-28/M1-EVIDENCE.txt);
+> > reasoning and one corrected scare in [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md)
+> > → *Update — 2026-09-28*. **Do not re-run it.** The M1 row below is left as written, like
+> > the rest of this banner. **M5 is now unblocked** and is the cheapest remaining host item;
+> > **M2 is the highest-value one.**
+>
 > | # | Item | Why it is here |
 > |---|---|---|
 > | M1 | **Re-upload the canary directory and fetch two URLs** — `secret.env.probe` and `canary.php`'s headers. **Step-by-step: [`../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md) §0**, added 2026-09-27 for exactly this item | The canary on the host is the **2026-09-18 revision** (`eb239f2`), byte-matched by its three-header response. `secret.env.probe` 404s because it joined in `1edaad4`. **The two baits that are missing are the two added to close a known false-pass.** B.3(b) tests `RewriteRule … [F,L]` — the mechanism the deployment actually uses to block `api/.env` — and a 200 there blocks deployment on **every** branch. **A 404 is NOT a pass**; record it as `NOT RUN` |

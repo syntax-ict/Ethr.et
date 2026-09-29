@@ -19,11 +19,13 @@ Also worth reading: [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to run and test
 
 Over a Docker Desktop Windows bind mount, PHP's recursive directory scan returns incomplete results. Measured 2026-08-21: `vendor/bin/pest` collected **21 of 132** test classes, ran them, and **exited 0 with a green summary**. It did that for weeks. Larastan has the same problem in the other direction — ~990 phantom errors from migrations it could not see.
 
-Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercount. If you run the suite directly, check the collection count against `find api/tests -name '*Test.php'` before believing the result.
+Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercount. If you run the suite directly, check the collection count against `find api/tests/Unit api/tests/Feature -name '*Test.php'` before believing the result.
+
+**Count only those two directories, and not `api/tests` whole.** `phpunit.xml` declares exactly `tests/Unit` and `tests/Feature` as testsuites; `tests/Performance` sits outside them deliberately (`scripts/gates.sh:356`) and is opt-in via `./scripts/gates.sh performance`. So a healthy native run collects **one fewer class than `find api/tests` reports**, and this line used to name that wider path — following it literally produces an apparent one-class shortfall on a clean suite, which is a false alarm from the very check that exists to catch real shortfalls. Measured 2026-09-28: `find api/tests` **188**, `find api/tests/Unit api/tests/Feature` **187**, collected **187**, 2012 tests passing in 669s. The missing one is `tests/Performance/ResponseTimeTest.php`, every time.
 
 **A native PHP run on a local disk does not have this problem** — measured **2026-08-21: 140/140 classes collected, 1673 tests passing**. The trap is the bind mount, not PHP.
 
-**Do not compare a collection count against that 140.** It is a dated measurement, and the suite has grown: `find api/tests -name '*Test.php'` returns **178** as of 2026-09-25. The instruction above is to compare collection against *`find`'s current output*, not against a number written down a month earlier — a reader who compares against 140 today sees a 38-class surplus and concludes something is wrong when nothing is. The ratio is what matters, not the figure.
+**Do not compare a collection count against that 140.** It is a dated measurement, and the suite has grown: `find api/tests/Unit api/tests/Feature -name '*Test.php'` returns **187** as of 2026-09-28 (it was 178 on 2026-09-25, counted over all of `api/tests`). The instruction above is to compare collection against *`find`'s current output*, not against a number written down a month earlier — a reader who compares against 140 today sees a 38-class surplus and concludes something is wrong when nothing is. The ratio is what matters, not the figure.
 
 ### 3. Four processes, not two
 

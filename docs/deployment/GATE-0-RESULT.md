@@ -1231,9 +1231,9 @@ one of: `VERIFIED` · `FAILED` · `NOT VERIFIED` · `HOSTING ACTION REQUIRED` ·
 |---|---|---|---|---|
 | **G0-B.1** `mod_rewrite` honoured | **VERIFIED** | 2026-09-25 | `GET /REWRITE_OK` → 200; canary prints `[ PASS ] G0-B.1`. Report header: `server software: Apache`, `php sapi: fpm-fcgi` | — |
 | **G0-B.2 (a)** `mod_headers` runs | **VERIFIED** | 2026-09-25 | `X-Ethr-Canary: headers-ok` on `/canary.php` and on a PHP 404 | — |
-| **G0-B.2 (b)** the CSP survives in transit | **HOSTING ACTION REQUIRED** | — | Only 2 of 7 headers returned, because the host runs the **2026-09-18** canary revision (`eb239f2`), which sets exactly those two. **A non-answer, not a failure** | **M1** — re-upload the current canary, re-fetch |
+| **G0-B.2 (b)** the CSP survives in transit | **VERIFIED** | 2026-09-28 | `Content-Security-Policy` present and **untruncated** on `/ethr-canary/canary.php`, byte-identical to the canary's own `.htaccess` (ends `form-action 'self'`). All 8 canary headers returned, so the current revision is what answered — the 2-of-7 reading was the stale 2026-09-18 file, as recorded. [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | — |
 | **G0-B.3 (a)** `<FilesMatch>` + `Require all denied` | **VERIFIED** | 2026-09-25 | `GET /secret.txt.probe` → **403** | — |
-| **G0-B.3 (b)** `RewriteRule … [F,L]` — *the mechanism the deployment actually uses* | **HOSTING ACTION REQUIRED** | — | `GET /secret.env.probe` → **404**, and RUN-SHEET §4a is explicit: *"A 404 is NOT a pass."* The bait joined in `1edaad4` and is absent from the deployed set | **M1.** Highest-value single fetch remaining. A 200 here means `APP_KEY` and the database password are web-readable while the application works normally |
+| **G0-B.3 (b)** `RewriteRule … [F,L]` — *the mechanism the deployment actually uses* | **VERIFIED** | 2026-09-28 | `GET /ethr-canary/secret.env.probe` → **403**. The deny form the deployment actually uses to protect `api/.env`, `.git/` and `composer.json` is honoured on this host. The 2026-09-25 **404** was the bait's absence from the deployed set (`1edaad4`), not a host answer — recorded then as `NOT RUN`, and it stayed that way until a bait existed to answer it. [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | — |
 | **G0-B.4** `Authorization` reaches PHP | **VERIFIED** | 2026-09-25 | `curl -H 'Authorization: Bearer probe'` → `[ PASS ] G0-B.4` | — |
 | **G0-B.5** a real file shadows the rewrite | **VERIFIED — REWRITE WINS** | 2026-09-25 | `GET /shadow.js` returns the canary report, not the bait file; `/shadow.txt` agrees. The favourable outcome: `.htaccess` runs for static assets | — |
 | **G0-B.6** `AllowOverride Options` *(new gate, added 2026-09-26)* | **NOT VERIFIED** | — | `Options -Indexes` and `DirectorySlash Off` entered the rule set on 2026-09-26 and need an `AllowOverride` class the previous rules did not. The Apache harness used `AllowOverride All` — the permissive case. `BASELINE.md` §21e | A host measurement. **This gate did not exist before 2026-09-26 and has no row in the table above** |
@@ -1267,3 +1267,65 @@ one of: `VERIFIED` · `FAILED` · `NOT VERIFIED` · `HOSTING ACTION REQUIRED` ·
   with no gate is how something ships unmeasured.
 - **It leaves the `Results` table above untouched**, including the rows it supersedes.
   Where the two disagree, this section is current and that one is dated.
+
+---
+
+## Update — 2026-09-28 · M1 closed, and a document-root scare that was not one
+
+**M1 is `PASS`, both parts.** Measured against `www.ethr.et` pinned to `213.55.96.154`,
+transcript in [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt).
+`secret.env.probe` → **403**; the CSP arrives untruncated. Two rows above moved from
+`HOSTING ACTION REQUIRED` to `VERIFIED` and nothing else in this register changed:
+`CUTOVER READY` stays **NO** on eleven other gates, and **G0-B.6 is still unmeasured** —
+it needs the deployed rule set, which the canary does not carry.
+
+**The revision was confirmed before anything was believed**, which is the only reason these
+readings count. Eight canary headers came back, not the three the 2026-09-18 file sets. Had
+that check been skipped, the 403 would have been indistinguishable from a 403 produced by
+the older `<FilesMatch>` bait — a pass on the wrong mechanism.
+
+### The reachability scare, recorded because the reasoning was wrong before the data was
+
+The session opened with a report that `https://www.ethr.et/ethr-canary/canary.php` returned
+**404**, alongside 404s on `/index.html`, `/favicon.ico` and `/README.md` — files confirmed
+present in the directory the owner was reading in File Manager. That was analysed at length
+as a vhost, document-root or DNS fault. **Every one of those hypotheses was wrong**, and the
+first pinned request disproved the premise: the canary answers **200**.
+
+What had actually happened is visible in one number. `/ethr-canary/favicon.ico` returns
+**200, 113 459 bytes** — the same byte count this register measured at `/favicon.ico` on
+2026-09-24 — and `/ethr-canary/css/` and `/ethr-canary/cgi-bin/` both return **403**, the
+same two Plesk defaults that answered at `/css/` and `/cgi-bin/` then. **Plesk's default
+files had been moved down into `ethr-canary/` along with the upload**, leaving the served
+root's top level bare. The directory the owner was reading as `httpdocs` was
+`httpdocs/ethr-canary`.
+
+**The document root never moved.** `/.well-known/acme-challenge/` still answers **403** from
+the served root and **404** from inside `ethr-canary/`, which is the same evidence that
+re-confirmed the root on 2026-09-17 and 2026-09-24. **ACME renewal is not at risk** — which
+matters, because the wildcard certificate expires 2026-12-15 and this register records that
+renewal fails *silently*. DNS is also clear: both names resolve to `213.55.96.154`, and the
+pinned and unpinned responses were byte-identical, so no intermediary was involved.
+
+**Three lessons, in the order they cost time:**
+
+- **A reported 404 is a claim about a request, not about a host.** `RUN-SHEET.md` §2 already
+  says to treat one as *"which server answered?"* first. The pinned fetch that settles it is
+  one command, and it was available before any of the analysis.
+- **File Manager shows where a file went; it does not show what Apache serves.** This
+  register learned that on 2026-09-24 and wrote it down. The same trap caught the same
+  question again four days later, from the other direction — last time the files were
+  unreachable and looked fine, this time they were fine and looked unreachable.
+- **The 403-vs-404 signature is weaker than this register assumed.** It reads
+  `/.well-known/` as 404 while `/.well-known/acme-challenge/` is 403, so "403 means present"
+  does not hold uniformly — some paths are answered by an nginx rule rather than by the
+  filesystem. Use it to generate hypotheses, not to settle them.
+
+### One loose end, for M5
+
+`README.md` and `RUN-SHEET.md` were uploaded with the six baits and are **web-readable** at
+`/ethr-canary/`. Neither holds a secret, and both name every bait and describe the strategy —
+`htaccess-canary/README.md` says in terms that they stay in the repository. **M5 removes
+them**, and M5 is now unblocked. Note that deleting that directory also deletes the Plesk
+defaults now sitting inside it; losing them is harmless, since the deployment ships its own
+front controller and favicon and nothing uses `cgi-bin/`.

@@ -91,7 +91,28 @@ php ~/ethr-hosting-check.php --json \
 
 `--json` was added on 2026-09-27 precisely so this is **attached, not retyped**.
 Save it here as `probe-<date>.json` and cite the filename in `M2.result`. The
-password is never included in the output — verified.
+password is never included in the output — **re-verified 2026-09-28** by running the
+probe with a sentinel password and grepping both stdout and stderr: zero
+occurrences in either.
+
+**Count the `Database` rows before believing the run.** Verified 2026-09-28: with
+wrong or unreachable credentials the probe does **not** fail — it records a single
+`DB connection · UNSUPPORTED` row carrying the PDO error, skips `DB1`–`DB10`, and
+finishes normally with a full report. So a run that measured **nothing** about the
+database looks almost exactly like one that measured everything, and **G0-F, G0-I
+and G0-H would all still be unmeasured while `probe.json` sits there looking
+complete.** One `Database` row means the credentials were wrong — re-run before
+leaving the session. Same failure shape as `vendor/bin/pest` collecting 21 of 132
+classes and exiting 0 green.
+
+Two smaller notes from the same check:
+
+- **Do not redirect stderr into the file.** `> ~/probe.json` is correct;
+  `> ~/probe.json 2>&1` is not — the probe shells out, and any warning it prints
+  lands ahead of the `{` and makes the file unparseable.
+- **Exit 1 is meaningful, not noise.** In `--json` mode the probe exits 1 when any
+  check is `UNSUPPORTED` and 0 otherwise, so the status says something about the
+  host rather than about whether the probe ran.
 
 Then **delete the probe from the server.**
 

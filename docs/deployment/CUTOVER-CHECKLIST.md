@@ -53,10 +53,19 @@ Five states, and they are not interchangeable:
 > to drive.
 
 > **Repository readiness and host readiness are different things, and this document
-> exists to keep them apart.** CI is green — 10/10 checks, run `36432042905` on
-> `8b085dd` — and that says the repository builds, tests and packages correctly. **It
-> says nothing about the host.** No gate below may be moved to `PASS` on the strength
-> of a green build.
+> exists to keep them apart.** CI is green — 10/10 checks, runs `36433041528` +
+> `36433041445` on `9941f19`, verified 2026-09-28 by reading each job's conclusion
+> rather than the run's colour — and that says the repository builds, tests and
+> packages correctly. **It says nothing about the host.** No gate below may be moved
+> to `PASS` on the strength of a green build.
+>
+> **This citation lags by one commit and always will.** A commit cannot cite the run
+> that tests it, so the newest citable run is the one on the parent. `9941f19` exists
+> because that lag was read as drift and chased; it is not drift, and re-chasing it
+> costs a commit each time. Update it when you are editing this block anyway, not as
+> an errand of its own. What *is* worth checking is the **head SHA of the run you
+> cite** — `gh run view <id> --json headSha` — because a green run on a different
+> commit is the failure this note is really guarding against.
 >
 > **A 404 on a probe is `NOT RUN`, never a pass.** That distinction has already cost
 > this project one false reading (G0-B.3(b), 2026-09-25).
@@ -70,7 +79,7 @@ Five states, and they are not interchangeable:
 | **C-5** | Production frontend mode | ✅ **PASS** | **Owner decision 2026-09-27: static export served by Apache/Plesk, no Plesk Node application.** Propagated to the runbook, the contract, the matrix, the `.htaccess` and the renderer. Artifact built by CI: 689 files, 186 `_next`, 4 shells, no `server.js` | Done. [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md) | — |
 | **Q6** | External cron caller chosen | ✅ **PASS** (choice) | **Owner decision 2026-09-27: GitHub Actions.** `.github/workflows/cron.yml` committed; logic verified against 10 response cases; `CronCallerWorkflowTest` pins it, mutation-checked | Done as a *decision*. Execution is the row below | — |
 | **Q6-x** | Cron caller **actually running** | 🔶 **HOST ACTION REQUIRED** + **BLOCKED** | None. The endpoints have **never been called** on the account. **And measured 2026-09-27: `cron.yml` is not on the default branch, so its `schedule:` trigger cannot fire at all** — `gh workflow list` shows four workflows and *ETHR scheduler* is not among them, because GitHub indexes scheduled workflows from the default branch only | **Three things, in order.** (1) Add `ETHR_CRON_TOKEN` + `ETHR_CRON_BASE_URL` to the GitHub `production` environment. (2) Run it once via **`workflow_dispatch`** — that *does* work from a non-default branch — and observe 200 with `"status":"ok"` from **both** endpoints. (3) **The scheduled trigger only starts once this workflow reaches `main`.** Until then the scheduler is manual-only. **A green manual dispatch is not evidence that the schedule fires** | Owner |
-| **M1** | `.htaccess` `[F,L]` deny + CSP survival | 🔶 **HOST ACTION REQUIRED** | `secret.env.probe` → **404 = NOT RUN**; only 2 of 7 headers returned, because the host serves the **2026-09-18** canary | [`../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md) **§0** — replace the directory, confirm 7 headers, fetch 2 URLs. **403 = pass, 200 = blocks deployment, 404 = NOT RUN** | Plesk owner |
+| **M1** | `.htaccess` `[F,L]` deny + CSP survival | ✅ **PASS** | **Measured 2026-09-28**, `www.ethr.et` pinned to `213.55.96.154`. Revision confirmed **first**, per RUN-SHEET §0 step 1: **8 canary headers**, not the 3 the stale 2026-09-18 file sets. `GET /ethr-canary/secret.env.probe` → **403**. `Content-Security-Policy` present and **untruncated**, byte-identical to the canary's `.htaccess` — nginx/Imunify does not mangle it. Verbatim transcript: [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | Done — both composite parts. The 2026-09-25 404 was the bait's absence, exactly as recorded | Plesk owner |
 | **M2** | Hosting probe | 🔶 **HOST ACTION REQUIRED** | None. Could not be placed: no shell, no FTP, no panel in that session | Run `ethr-hosting-check.php` with database credentials. Closes G0-E extensions/limits, G0-F, G0-H, G0-I and most of G0-J in one run | Plesk owner |
 | **G0-F** | `CREATE TRIGGER` | 🔶 **HOST ACTION REQUIRED** | Favourable prior only, and the register itself calls that *"an argument about priors, not a measurement"* | Probe `DB4`, **plus** `SHOW TRIGGERS LIKE 'audit_log'` after `migrate`, **plus** one refused `UPDATE`. All three — [`G0-F-CREATE-TRIGGER.md`](G0-F-CREATE-TRIGGER.md) §5. **Owner decision 2026-09-27: request the grant; do not weaken the migration** | Ethio Telecom → Plesk owner |
 | **G0-B.6** | `AllowOverride Options` | 🔶 **HOST ACTION REQUIRED** | None. The Apache harness ran under `AllowOverride All` — the permissive case | Deploy and fetch a page. Without `DirectorySlash Off`, `mod_dir` 301s `/admin` before the SPA rules and **20+ routes are dead**. **No workaround exists** | Plesk owner |
@@ -93,7 +102,7 @@ Five states, and they are not interchangeable:
 | **G0-G** Node.js on the host | ✅ **N/A** by C-5 | No Node runtime on the host at all |
 | **ST5** `symlink()` | **NOT VERIFIED**, not a dependency | ETHR serves files through signed `temporaryUrl()`; there is no `storage:link` step |
 | **M4** who owns `/` | ✅ **DROPPED** | Moot under static export — one server, nothing contends for `/` |
-| **M5** delete the canary | **HOST ACTION** | After M1, not before — M1 needs the directory |
+| **M5** delete the canary | **HOST ACTION** — **now unblocked** | M1 closed 2026-09-28, so the directory is no longer needed. Two things measured 2026-09-28 that change how it is deleted: `README.md` and `RUN-SHEET.md` were uploaded too and are **web-readable** at `/ethr-canary/`, which the canary's own README says they should never be; and Plesk's default `index.html`, `favicon.ico`, `css/` and `cgi-bin/` are **inside** that directory, so deleting it deletes them. Losing them is harmless — the deployment ships its own front controller and favicon, and no CGI is used |
 | **Support request** | **DRAFTED, NOT SENT** | Four asks. Cron and `TRIGGER` are the two that change anything |
 
 ---

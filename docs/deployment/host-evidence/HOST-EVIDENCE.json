@@ -1,0 +1,132 @@
+{
+  "_README": "Copy to HOST-EVIDENCE.json and fill it during the host session. Validate with: php scripts/hosting-verification/validate-host-evidence.php — it refuses a 404 recorded as a PASS, a gate silently omitted, a capability inferred from CI, and a file that claims cutover_ready it has not earned. Leave a gate as HOST ACTION REQUIRED rather than guessing: an honest open gate costs a day, a wrong PASS costs the audit log.",
+  "_states": ["PASS", "FAIL", "HOST ACTION REQUIRED", "OWNER DECISION", "BLOCKED"],
+  "_rules": [
+    "A PASS needs measured_at, method and the VERBATIM result. Paste what the host returned.",
+    "method must name how it was measured on the host. CI, 'inferred', 'assumed' and 'prior' are refused for host gates.",
+    "A 404 is never a PASS. It means the probe or bait was absent — RUN-SHEET.md §4a.",
+    "Composite gates (M1, G0-F, M3) need every named part. One green part is not the gate.",
+    "Do not set cutover_ready true until every gate is PASS."
+  ],
+
+  "session_date": "2026-09-28",
+  "operator": "Plesk owner (File Manager upload); readings taken over HTTPS pinned to 213.55.96.154",
+  "account": "ethret @ lin6.ethiotelecom.et (213.55.96.154), www.ethr.et",
+  "cutover_ready": false,
+
+  "gates": {
+    "C-5": {
+      "state": "PASS",
+      "measured_at": "2026-09-27",
+      "method": "owner decision, recorded in docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md",
+      "result": "Static export served by Apache/Plesk. No Plesk Node application. Artifact built by CI: 689 files, 186 _next, 4 shells, no server.js.",
+      "notes": "Repository gate, not a host gate."
+    },
+    "Q6": {
+      "state": "PASS",
+      "measured_at": "2026-09-27",
+      "method": "owner decision, recorded in docs/deployment/shared-hosting/cron-caller.md",
+      "result": "GitHub Actions scheduled workflow, .github/workflows/cron.yml. Decision table verified against 10 response cases.",
+      "notes": "This records only that the caller was CHOSEN. Q6-x is whether it runs."
+    },
+    "Q6-x": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "Three steps: add ETHR_CRON_TOKEN and ETHR_CRON_BASE_URL to the GitHub 'production' environment; run via workflow_dispatch and paste BOTH endpoint responses; then note that the schedule: trigger only fires once cron.yml is on the default branch. A green manual dispatch is NOT evidence the schedule fires — record those as two separate facts."
+    },
+    "M1": {
+      "state": "PASS",
+      "measured_at": "2026-09-28",
+      "method": "fetches against the live account, www.ethr.et pinned with `curl --resolve www.ethr.et:443:213.55.96.154` per htaccess-canary/RUN-SHEET.md §2; the canary revision was confirmed by header count BEFORE any reading was trusted, per §0 step 1",
+      "result": "GET /ethr-canary/secret.env.probe -> 403. Content-Security-Policy present and untruncated: \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\" — byte-identical to the canary's own .htaccess. 8 canary headers returned, not the 3 the stale 2026-09-18 revision sets. X-Powered-By: PHP/8.3.33; the canary reports Apache + fpm-fcgi behind nginx.",
+      "parts": {
+        "fl_deny": "GET https://www.ethr.et/ethr-canary/secret.env.probe -> HTTP 403. `RewriteRule ... [F,L]` is honoured — the deny form the deployment actually uses for api/.env, .git/ and composer.json.",
+        "csp_survival": "Response headers on /ethr-canary/canary.php carry Content-Security-Policy in full, ending `form-action 'self'`; 8 security headers total, so nginx/Imunify neither strips nor truncates it."
+      },
+      "notes": "Verbatim transcript: host-evidence/session-2026-09-28/M1-EVIDENCE.txt. The 2026-09-25 404 on this bait was its absence from the deployed set (1edaad4) and was recorded then as NOT RUN, which is why this is the first reading of the gate rather than a re-reading. G0-B.1, B.2(a), B.3(a), B.4 and B.5 were re-measured green on the current revision in the same run. G0-B.6 is NOT covered: it needs the deployed rule set, which the canary does not carry."
+    },
+    "M2": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "Run ethr-hosting-check.php on the account WITH database credentials. Use --json and attach the output as host-evidence/probe-<date>.json rather than retyping it. Closes G0-E extensions/limits, and feeds G0-F, G0-H, G0-I and most of G0-J."
+    },
+    "G0-F": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "parts": {
+        "db4": "",
+        "show_triggers": "",
+        "update_refused": ""
+      },
+      "notes": "All three — G0-F-CREATE-TRIGGER.md §5. db4: the probe's CREATE TRIGGER test, or the four-statement check in §4b. show_triggers: SHOW TRIGGERS LIKE 'audit_log' must list audit_log_no_update AND audit_log_no_delete. update_refused: an UPDATE against audit_log must fail with 1644 (45000). A grant is the input; the refused UPDATE is the outcome. Do not close this from SHOW GRANTS alone."
+    },
+    "G0-B.6": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "Deploy the rendered .htaccess and fetch a page. Without DirectorySlash Off, mod_dir 301s /admin before the SPA rules and 20+ routes are dead. Paste the status for /admin AND for /dashboard. The local Apache harness ran under AllowOverride All — the permissive case — so it proves nothing here. No workaround exists if this fails."
+    },
+    "M6": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "The nine steps in M6-RESTORE-REHEARSAL.md. Record: before/after table, row and trigger counts from the census; the audit_log INSERT result VERBATIM (that string is the DEFINER failure's signature); and one real write through the application, not through SQL. A backup file existing does not close this. Neither does the application merely booting."
+    },
+    "M3": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "parts": {
+        "dns": "",
+        "vhost": "",
+        "served_certificate": "",
+        "tenant_routing": ""
+      },
+      "notes": "All four. dns and served_certificate already pass in isolation and NEITHER is the gate — what is absent is vhost binding: a tenant hostname currently 303s to /login.php under the lin6.ethiotelecom.et certificate. tenant_routing: a real tenant subdomain must reach ETHR, not the panel."
+    },
+    "G0-H": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "Ports 587/465 outbound from the probe, plus the mailbox send cap from the panel. Nothing in the code respects a send cap and NotifyAnnouncementAudienceJob / SendApprovalRemindersJob both fan out, so the cap is a real number to know."
+    },
+    "G0-I": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "SELECT VERSION() verbatim, the server charset, and which driver it implies. This DECIDES DB_CONNECTION: a MariaDB banner means mariadb, a MySQL banner means mysql. api/.env.shared-hosting.example ships mariadb and is annotated 'VERIFY against the host'. The devices VIRTUAL generated column needs 5.7.6+ / 10.2.1+."
+    },
+    "G0-J": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "The probe's Performance section (P1–P6). Related but separate: payroll runs inside the 50-second queue:work window against a budget of 500 employees < 30s measured on DEDICATED hardware, so a slow shared CPU is a product question, not just a number."
+    },
+    "Quotas": {
+      "state": "HOST ACTION REQUIRED",
+      "measured_at": "",
+      "method": "",
+      "result": "",
+      "notes": "Disk and bandwidth as the panel reports them, AND the deployment's footprint against them. BACKUP_KEEP=2 with prune-after-create means four copies of the document store at peak. A full quota presents as data corruption, not an outage: writes fail, reads succeed, logs fail first, /api/v1/health still returns 200."
+    },
+    "Secrets": {
+      "state": "PASS",
+      "measured_at": "2026-09-27",
+      "method": "repository audit — git ls-files, git grep, tar listing of the built artifact",
+      "result": "No real .env tracked (src/.env.production is NEXT_PUBLIC_* only, deliberately tracked). No Laravel key literal in the tree. Every env template has empty credential values. No workflow prints a secret. api.tar.gz verified to carry no .env, by a check in deploy.sh after the first exclusion patch silently failed.",
+      "notes": "Outstanding, and NOT a blocker: a dev APP_KEY remains reachable in git history (START_BACKEND.ps1, removed in 090ca50). The production APP_KEY must be generated fresh on the host and must never be that value."
+    }
+  }
+}
