@@ -53,9 +53,9 @@ Five states, and they are not interchangeable:
 > to drive.
 
 > **Repository readiness and host readiness are different things, and this document
-> exists to keep them apart.** CI is green — 10/10 checks, runs `36433041528` +
-> `36433041445` on `9941f19`, verified 2026-09-28 by reading each job's conclusion
-> rather than the run's colour — and that says the repository builds, tests and
+> exists to keep them apart.** CI is green — 10/10 checks, runs `36574943715` +
+> `36574943910` on `080f723`, verified 2026-09-29 by reading each job's conclusion
+> rather than the run's colour, and each run's `headSha` against that commit — and that says the repository builds, tests and
 > packages correctly. **It says nothing about the host.** No gate below may be moved
 > to `PASS` on the strength of a green build.
 >
