@@ -89,6 +89,71 @@ php ~/ethr-hosting-check.php --json \
   > ~/probe.json
 ```
 
+**That command assumes a shell, and this account has none — on Bronze, run the probe
+over the web and send the credentials as a POST body (added 2026-09-29).** SSH is
+Forbidden (Route A), there is no Scheduled Tasks section (Route B — G0-D **FAILED**), and
+Route D went with the Plesk Git repository; [`GATE-0-RESULT.md`](../GATE-0-RESULT.md)
+records **Route C, web-served, as the only live probe route.** Until 2026-09-29 Route C
+had to run *without* credentials, because web mode read them from the query string, and a
+query string lands in an access log this account cannot purge. That left **G0-F and G0-I
+with no route at all.** The probe now reads a POST body first, so they have one:
+
+1. In the copy you upload, set `ETHR_PROBE_WEB_TOKEN` to a random value. Put it in
+   `httpdocs/` under a random filename.
+2. From your own machine, pinned to the host as M1 was. Use Git Bash — in Windows
+   PowerShell 5.1 `curl` is an alias for `Invoke-WebRequest` and these flags will not parse:
+
+   ```bash
+   curl -sS --resolve www.ethr.et:443:213.55.96.154 \
+       https://www.ethr.et/<random-name>.php \
+       --data-urlencode 'token=<that-value>' --data-urlencode 'json=1' \
+       --data-urlencode 'db-host=localhost' --data-urlencode 'db-name=<DB_NAME>' \
+       --data-urlencode 'db-user=<DB_USER>' --data-urlencode 'db-pass=<…>' \
+       -o probe-<date>.json
+   ```
+
+   The password lands in your own shell history, which you can clear. The host's access
+   log is the one you cannot.
+3. **Delete the file from `httpdocs/` in the same sitting.**
+
+Four things about that run, each a way to get a wrong answer:
+
+- **Connect as the application's own database user** — the one `DB_USERNAME` will name.
+  `DB3` is `SHOW GRANTS`, `DB4` creates a trigger, and `DB6` grants to `CURRENT_USER()`:
+  all three measure *the connecting user*, not the server. A throwaway user's `DB4` says
+  nothing about whether `migrate` can create `audit_log`'s triggers, and G0-F is the gate
+  where a wrong `PASS` costs the audit log.
+- **`db-pass` in the query string is refused with 400.** The check runs after the token
+  check, so an unauthenticated request still learns nothing. If you do see that 400, the
+  password is already in the access log. Change it in Plesk before it goes into `.env`.
+- **A 403 that is not exactly `403 Forbidden` (14 bytes) did not come from the probe.**
+  Something in front of PHP refused the POST. Record what it returned.
+- **The web run reads the real web limits**, which is a second reason to prefer it. Under
+  CLI, `memory_limit/-1` and `max_execution_time/0` read as unlimited (a false PASS), and
+  the upload pair reads the php.ini defaults (a false FAIL). The probe's `L!` row flags
+  this, and it is emitted only under CLI. The web run also records `W0 document root` as
+  an absolute path. That corroborates the `httpdocs/` measured over HTTP on 2026-09-24 and
+  gives the literal path behind the `'/../ethr/api/…'` prefix, which was derived rather
+  than read. Capture it.
+
+**Verified 2026-09-29 under a real web SAPI** (`php -S`), with the server's request log
+captured:
+
+| Request | Result |
+|---|---|
+| Shipped copy | 403, 14 bytes |
+| Wrong token, by POST | 403, 14 bytes |
+| `db-pass` in the query string, no token | 403, 14 bytes |
+| `db-pass` in the query string, with a token | 400 |
+| Everything by POST, with `json=1` | 200. Parseable JSON, database section attempted, sentinel password **absent** from the response |
+
+The request log carried the sentinel on exactly the two GET lines. The POST line read
+`POST /<name>.php` and nothing more.
+
+**Not exercised locally:** authentication against a real server. No database was
+listening, so the run stopped at `DB connection · UNSUPPORTED`, which is the failure
+shape described below.
+
 `--json` was added on 2026-09-27 precisely so this is **attached, not retyped**.
 Save it here as `probe-<date>.json` and cite the filename in `M2.result`. The
 password is never included in the output — **re-verified 2026-09-28** by running the
@@ -112,7 +177,8 @@ Two smaller notes from the same check:
   lands ahead of the `{` and makes the file unparseable.
 - **Exit 1 is meaningful, not noise.** In `--json` mode the probe exits 1 when any
   check is `UNSUPPORTED` and 0 otherwise, so the status says something about the
-  host rather than about whether the probe ran.
+  host rather than about whether the probe ran. *CLI only:* over the web the response
+  is 200 either way, and the rows are the only signal.
 
 Then **delete the probe from the server.**
 

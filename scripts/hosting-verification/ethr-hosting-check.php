@@ -51,8 +51,10 @@
  *
  *   php ethr-hosting-check.php --db-host=localhost --db-name=X --db-user=Y --db-pass=Z
  *
- *   Over the web, append the same as query parameters. Prefer SSH: a browser
- *   request puts the password in the access log.
+ *   Over the web, send the same keys (db-host, db-name, db-user, db-pass, and
+ *   token) as a POST body, which the access log does not record. db-pass in the
+ *   query string is refused with 400. Connect as the APPLICATION's own database
+ *   user: DB3, DB4 and DB6 measure the connecting user, not the server.
  */
 
 declare(strict_types=1);
@@ -75,8 +77,16 @@ declare(strict_types=1);
 const ETHR_PROBE_WEB_TOKEN = '';
 
 $isCli = PHP_SAPI === 'cli';
+
+// Web options come from the POST body first, then the query string. A POST body
+// is not written to the access log; a query string is, and on this account the
+// log cannot be purged. Added 2026-09-29 so the database checks — DB4 in
+// particular, which no other live route can reach — can run over the web
+// without leaking the password.
+$webInput = $isCli ? [] : $_POST + $_GET;
+
 if (! $isCli) {
-    $suppliedToken = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+    $suppliedToken = isset($webInput['token']) && is_string($webInput['token']) ? $webInput['token'] : '';
 
     if (ETHR_PROBE_WEB_TOKEN === '' || ! hash_equals(ETHR_PROBE_WEB_TOKEN, $suppliedToken)) {
         http_response_code(403);
@@ -86,6 +96,18 @@ if (! $isCli) {
     }
 
     header('Content-Type: text/plain; charset=utf-8');
+
+    // Refused rather than honoured. The request is already logged by the time PHP
+    // sees it, so this cannot un-leak anything — it makes the unsafe form fail
+    // every time, so nobody relies on it twice. After the token check, so an
+    // unauthenticated request still learns nothing.
+    if (isset($_GET['db-pass'])) {
+        http_response_code(400);
+        echo "400 Bad Request: db-pass arrived in the query string, which the access log records.\n"
+            ."Nothing was measured. Send the credentials as a POST body instead, and change this\n"
+            ."database user's password in Plesk - this request has already logged it.\n";
+        exit;
+    }
 }
 
 $results = [];
@@ -366,7 +388,7 @@ if ($isCli) {
         }
     }
 } else {
-    $opt = array_map('strval', $_GET);
+    $opt = array_map('strval', $webInput);
 }
 
 $dbHost = $opt['db-host'] ?? null;

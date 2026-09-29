@@ -225,6 +225,19 @@ So Route C closes G0-E, G0-H and the storage rows outright, and half of G0-J. **
 G0-I stay open** — and G0-F is the one that aborts `migrate` by design, so it must be
 answered before any deployment, by Route A or B with credentials.
 
+> **Amendment, 2026-09-29 — Route C can now carry credentials, so G0-F and G0-I have a
+> route.** The paragraph above sends them to Route A or B, and neither exists on this
+> account: A is Forbidden, and B is absent (G0-D). The only obstacle was *where* the
+> password travelled. Web mode used to read its options from the query string. It now
+> reads a POST body first, which the access log does not record, and refuses `db-pass` in
+> the query string with 400. So the right-hand column of the table above is now
+> answerable over Route C, **provided the run connects as the application's own database
+> user**, because `DB3`, `DB4` and `DB6` measure the connecting user. Step 3's *"pass no
+> other query parameters"* still holds, because the credentials go in the body. `DB4` is
+> the first of G0-F's three readings; the other two still come after `migrate`. The
+> procedure, and the web-SAPI verification of all five request shapes, are in
+> [`host-evidence/README.md`](host-evidence/README.md) §2.
+
 Answers (all routes): G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
 ### Step 2 — the web-server canary (safe to be web-reachable)
