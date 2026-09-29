@@ -182,7 +182,7 @@ the install.
 | `docs/deployment/shared-hosting/` | `.htaccess`, `nginx-directives.conf`, `cron.txt`, `DEPLOYMENT.md` (39.9 KB), `ENVIRONMENT.md`, `cron-caller.md`, `health-check.md`, `deploy-checklist.md`, `rollback.md` | Bronze |
 | `api/.env.shared-hosting.example` (13.8 KB) | Fully annotated Bronze environment; every Docker service name already replaced | Bronze |
 | `.github/workflows/` | `gates.yml`, `security.yml`, `verify-without-fix.yml` | CI |
-| `RUN_ALL.ps1`, `START_BACKEND.ps1`, `START_FRONTEND.ps1` | Windows dev launchers predating Docker; start neither worker nor Reverb | Legacy |
+| ~~`RUN_ALL.ps1`, `START_BACKEND.ps1`, `START_FRONTEND.ps1`~~ | Windows dev launchers predating Docker; started neither worker nor Reverb | **Removed 2026-09-29** |
 
 ---
 

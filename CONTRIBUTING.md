@@ -32,11 +32,12 @@ as well, for reasons that have nothing to do with the application code; that
 pin is what kept `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` red on every
 CI run until 2026-09-16. `docs/audit/BASELINE.md` §12d has the measurements.
 
-`RUN_ALL.ps1`, `START_BACKEND.ps1` and `START_FRONTEND.ps1` are older
-Windows-only launchers that predate the Docker setup. `RUN_ALL.ps1` in
-particular prints "SQLite" while the documented stack is MariaDB on port 3307,
-and it starts neither the worker nor Reverb. Prefer Docker Compose unless you
-know why you want otherwise.
+The old Windows launchers `RUN_ALL.ps1`, `START_BACKEND.ps1` and
+`START_FRONTEND.ps1` were removed on 2026-09-29. They predated the Docker
+setup, `RUN_ALL.ps1` printed "SQLite" while the documented stack is MariaDB on
+port 3307, and none started the worker or Reverb. Use Docker Compose for
+development, or `scripts/local-production/up.sh` to run the shared-hosting
+shape on XAMPP's Apache and MariaDB.
 
 ### `composer install` needs a GitHub token
 

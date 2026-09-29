@@ -335,6 +335,10 @@ queue worker nor Reverb. They are arguably worse than the VPS files and should b
 fixed on their own merits, **on their own schedule**. Bundling them here would make one
 change answer two unrelated questions.
 
+**Removed 2026-09-29**, on their own merits as this section asked, in a cleanup that
+removed nothing else VPS-related: the remaining Docker files are local-development and CI
+tooling that tests read, not deployment assets.
+
 ---
 
 ---
