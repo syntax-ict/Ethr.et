@@ -575,8 +575,12 @@ if (isset($pdo) && $pdo instanceof PDO) {
         record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN', $e->getMessage());
     }
 } else {
+    // Two different reasons, and the host run of 2026-09-29 printed the wrong one:
+    // credentials WERE passed, the login was refused, and this said they were not.
     record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN',
-        'skipped - no database credentials passed');
+        $dbHost === null || $dbName === null || $dbUser === null
+            ? 'skipped - no database credentials passed'
+            : 'skipped - the database connection failed; see the Database section');
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
