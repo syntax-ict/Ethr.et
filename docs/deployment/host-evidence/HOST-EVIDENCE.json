@@ -49,10 +49,10 @@
     },
     "M2": {
       "state": "HOST ACTION REQUIRED",
-      "measured_at": "",
-      "method": "",
-      "result": "",
-      "notes": "Run ethr-hosting-check.php on the account WITH database credentials. Use --json and attach the output as host-evidence/probe-<date>.json rather than retyping it. Closes G0-E extensions/limits, and feeds G0-F, G0-H, G0-I and most of G0-J."
+      "measured_at": "2026-09-29",
+      "method": "web execution of ethr-hosting-check.php from httpdocs/ under a random filename and a one-time token, credentials in a POST body (host-evidence/README.md §2), fetched with curl --resolve www.ethr.et:443:213.55.96.154; output attached as host-evidence/probe-2026-09-29.json",
+      "result": "PARTIAL — the database section did not run. DB connection UNSUPPORTED: SQLSTATE[HY000] [1045] Access denied for user 'ethr'@'localhost' (using password: YES). Everything else measured under PHP 8.3.35 fpm-fcgi behind Apache: all 18 mandatory extensions VERIFIED; all four limits UNSUPPORTED at stock defaults — memory_limit 128M, max_execution_time 30, upload_max_filesize 2M, post_max_size 8M; document root /data/var/www/vhosts/ethr.et/httpdocs; ST4, ST5, ST6 VERIFIED; disable_functions opcache_get_status.",
+      "notes": "Stays HOST ACTION REQUIRED: this gate is the run WITH working database credentials. Why the login was refused, from the Plesk Databases page the same day: the database server is 10.180.50.142:3306, not localhost, so the probe reached a different MySQL. KNOWN GAP, deferred by the owner 2026-09-29 — CUTOVER-CHECKLIST.md → Known gaps. Re-run with db-host 10.180.50.142 AFTER raising the four limits in Plesk → PHP Settings, so the one re-run also proves the new limits. Run ethr-hosting-check.php on the account WITH database credentials. Use --json and attach the output as host-evidence/probe-<date>.json rather than retyping it. Closes G0-E extensions/limits, and feeds G0-F, G0-H, G0-I and most of G0-J."
     },
     "G0-F": {
       "state": "HOST ACTION REQUIRED",
@@ -95,9 +95,9 @@
     },
     "G0-H": {
       "state": "HOST ACTION REQUIRED",
-      "measured_at": "",
-      "method": "",
-      "result": "",
+      "measured_at": "2026-09-29",
+      "method": "the M2 web probe run of 2026-09-29, rows H6 — see M2.method; output in host-evidence/probe-2026-09-29.json",
+      "result": "PORTS HALF ONLY. H6 outbound HTTPS (443) VERIFIED; H6 outbound SMTP submission (587) VERIFIED; H6 outbound SMTP implicit TLS (465) VERIFIED. The mailbox send cap has not been read from the panel, so the gate stays open.",
       "notes": "Ports 587/465 outbound from the probe, plus the mailbox send cap from the panel. Nothing in the code respects a send cap and NotifyAnnouncementAudienceJob / SendApprovalRemindersJob both fan out, so the cap is a real number to know."
     },
     "G0-I": {
@@ -105,13 +105,13 @@
       "measured_at": "",
       "method": "",
       "result": "",
-      "notes": "SELECT VERSION() verbatim, the server charset, and which driver it implies. This DECIDES DB_CONNECTION: a MariaDB banner means mariadb, a MySQL banner means mysql. api/.env.shared-hosting.example ships mariadb and is annotated 'VERIFY against the host'. The devices VIRTUAL generated column needs 5.7.6+ / 10.2.1+."
+      "notes": "NOT MEASURED YET — but the Plesk Databases page on 2026-09-29 labels the database server 10.180.50.142:3306 as MySQL v8.0.32. That is a panel label, not the DB1 reading this gate needs; if DB1 confirms it, DB_CONNECTION is mysql, NOT the mariadb the template ships. SELECT VERSION() verbatim, the server charset, and which driver it implies. This DECIDES DB_CONNECTION: a MariaDB banner means mariadb, a MySQL banner means mysql. api/.env.shared-hosting.example ships mariadb and is annotated 'VERIFY against the host'. The devices VIRTUAL generated column needs 5.7.6+ / 10.2.1+."
     },
     "G0-J": {
       "state": "HOST ACTION REQUIRED",
-      "measured_at": "",
-      "method": "",
-      "result": "",
+      "measured_at": "2026-09-29",
+      "method": "the M2 web probe run of 2026-09-29, Performance rows — see M2.method; output in host-evidence/probe-2026-09-29.json",
+      "result": "CPU HALF ONLY. P1 3M-iteration loop 56 ms VERIFIED; P2 20k string+hash ops 2 ms VERIFIED; P3 disk 200 x (write+read 4KB) 70 ms VERIFIED. P4–P6 did not run: the database login was refused. Plesk PHP-FPM settings the same day: pm ondemand, pm.max_children 5.",
       "notes": "The probe's Performance section (P1–P6). Related but separate: payroll runs inside the 50-second queue:work window against a budget of 500 employees < 30s measured on DEDICATED hardware, so a slow shared CPU is a product question, not just a number."
     },
     "Quotas": {

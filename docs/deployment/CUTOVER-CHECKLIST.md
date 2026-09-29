@@ -18,6 +18,32 @@ mandatory gate below reads `PASS`.**
 > today. It cannot tell whether a reading was true — nothing local can. See
 > [`host-evidence/README.md`](host-evidence/README.md) for the ordered session.
 
+> ### Known gaps — deferred by the owner on 2026-09-29, in this order
+>
+> The first M2 run happened on 2026-09-29 and measured everything **except the database**:
+> the login was refused because the probe connected to `localhost`, and the Plesk
+> Databases page shows the database server is **`10.180.50.142:3306`**. The owner chose to
+> finish the rest later. Each item below is open until done — none is optional:
+>
+> 1. **Delete the probe.** `httpdocs/p-ec99d920a8478c8a.php` was still live when this was
+>    written. It is token-gated, but it prints `disable_functions` and the filesystem
+>    layout, and `host-evidence/README.md` says to delete it in the same sitting.
+>    `bash .m2-kit/m2.sh gone` must say **GONE**. Upload it again only for step 4.
+> 2. **Plesk → PHP Settings for `ethr.et`:** `memory_limit` **256M**, `max_execution_time`
+>    **120**, `upload_max_filesize` **10M**, `post_max_size` **12M** (above the upload limit,
+>    so a 10 MB file plus its form fields still fits). All four measured at stock defaults —
+>    128M / 30 / 2M / 8M — and all four fail the application's floor.
+> 3. **Plesk → Databases → user `ethr` → Access control:** *Allow local connections only*.
+>    If step 4 is still refused, *any host* for that one run, then narrow it before cutover.
+> 4. **Re-run M2** with database host `10.180.50.142` — `bash .m2-kit/m2.sh run`. After
+>    step 2, so the one run also proves the new limits. Then delete the probe again.
+> 5. **Change the `ethr` database password.** The current one was pasted into an AI chat
+>    transcript on 2026-09-29. Do it before it reaches `.env`; nothing uses it yet.
+>
+> Step 4 is what closes **M2** and supplies the first reading of **G0-F** (`DB4`) and
+> **G0-I** (`DB1`). The panel labels the server *MySQL v8.0.32*; if `DB1` confirms it,
+> `DB_CONNECTION` is `mysql`, not the `mariadb` the template ships.
+
 Five states, and they are not interchangeable:
 
 | State | Means |
@@ -80,14 +106,14 @@ Five states, and they are not interchangeable:
 | **Q6** | External cron caller chosen | ✅ **PASS** (choice) | **Owner decision 2026-09-27: GitHub Actions.** `.github/workflows/cron.yml` committed; logic verified against 10 response cases; `CronCallerWorkflowTest` pins it, mutation-checked | Done as a *decision*. Execution is the row below | — |
 | **Q6-x** | Cron caller **actually running** | 🔶 **HOST ACTION REQUIRED** + **BLOCKED** | None. The endpoints have **never been called** on the account. **And measured 2026-09-27: `cron.yml` is not on the default branch, so its `schedule:` trigger cannot fire at all** — `gh workflow list` shows four workflows and *ETHR scheduler* is not among them, because GitHub indexes scheduled workflows from the default branch only | **Three things, in order.** (1) Add `ETHR_CRON_TOKEN` + `ETHR_CRON_BASE_URL` to the GitHub `production` environment. (2) Run it once via **`workflow_dispatch`** — that *does* work from a non-default branch — and observe 200 with `"status":"ok"` from **both** endpoints. (3) **The scheduled trigger only starts once this workflow reaches `main`.** Until then the scheduler is manual-only. **A green manual dispatch is not evidence that the schedule fires** | Owner |
 | **M1** | `.htaccess` `[F,L]` deny + CSP survival | ✅ **PASS** | **Measured 2026-09-28**, `www.ethr.et` pinned to `213.55.96.154`. Revision confirmed **first**, per RUN-SHEET §0 step 1: **8 canary headers**, not the 3 the stale 2026-09-18 file sets. `GET /ethr-canary/secret.env.probe` → **403**. `Content-Security-Policy` present and **untruncated**, byte-identical to the canary's `.htaccess` — nginx/Imunify does not mangle it. Verbatim transcript: [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | Done — both composite parts. The 2026-09-25 404 was the bait's absence, exactly as recorded | Plesk owner |
-| **M2** | Hosting probe | 🔶 **HOST ACTION REQUIRED** | None. Could not be placed: no shell, no FTP, no panel in that session | Run `ethr-hosting-check.php` with database credentials. Closes G0-E extensions/limits, G0-F, G0-H, G0-I and most of G0-J in one run. **No shell on this account:** run it over the web with the credentials in a POST body, connected as the application's own database user — [`host-evidence/README.md`](host-evidence/README.md) §2 (route added 2026-09-29) | Plesk owner |
+| **M2** | Hosting probe | 🔶 **HOST ACTION REQUIRED** — *known gap, see top* | **Partial, 2026-09-29** — [`probe-2026-09-29.json`](host-evidence/probe-2026-09-29.json). PHP 8.3.35 `fpm-fcgi`; all 18 mandatory extensions ✅; all four PHP limits ❌ at stock defaults; **database login refused** (wrong host — the server is `10.180.50.142`) | Run `ethr-hosting-check.php` with database credentials. Closes G0-E extensions/limits, G0-F, G0-H, G0-I and most of G0-J in one run. **No shell on this account:** run it over the web with the credentials in a POST body, connected as the application's own database user — [`host-evidence/README.md`](host-evidence/README.md) §2 (route added 2026-09-29) | Plesk owner |
 | **G0-F** | `CREATE TRIGGER` | 🔶 **HOST ACTION REQUIRED** | Favourable prior only, and the register itself calls that *"an argument about priors, not a measurement"* | Probe `DB4`, **plus** `SHOW TRIGGERS LIKE 'audit_log'` after `migrate`, **plus** one refused `UPDATE`. All three — [`G0-F-CREATE-TRIGGER.md`](G0-F-CREATE-TRIGGER.md) §5. **Owner decision 2026-09-27: request the grant; do not weaken the migration** | Ethio Telecom → Plesk owner |
 | **G0-B.6** | `AllowOverride Options` | 🔶 **HOST ACTION REQUIRED** | None. The Apache harness ran under `AllowOverride All` — the permissive case | Deploy and fetch a page. Without `DirectorySlash Off`, `mod_dir` 301s `/admin` before the SPA rules and **20+ routes are dead**. **No workaround exists** | Plesk owner |
 | **M6** | Restore rehearsal on the host | 🔶 **HOST ACTION REQUIRED** — **hard blocker** | **NOT PERFORMED.** CI rehearses on MariaDB in a container only | The nine steps in [`M6-RESTORE-REHEARSAL.md`](M6-RESTORE-REHEARSAL.md), ending with a real write through the application. **`3db9904` removed the VPS, so this is the only recovery evidence this deployment will ever have** | Plesk owner |
 | **M3** | Wildcard vhost + certificate + routing | 🔶 **HOST ACTION REQUIRED** | DNS **VERIFIED**; a valid `*.ethr.et` certificate **exists** (LE, 2026-09-16 → **2026-12-15**); **no vhost** — every tenant host 303s to the Plesk login | All four: wildcard DNS, vhost routing, the **served** certificate, and a tenant subdomain reaching the application. DNS alone is not it, and the certificate existing is not it | Owner (payment) → Plesk owner |
-| **G0-H** | SMTP 587/465 + mailbox send cap | 🔶 **HOST ACTION REQUIRED** | None | M2 for the ports; panel for the cap. Nothing in the code respects a send cap, and two jobs fan out | Plesk owner |
-| **G0-I** | MySQL version, `DB_CONNECTION`, charset | 🔶 **HOST ACTION REQUIRED** | None | M2, probes `DB1`/`DB1b`/`DB1c`/`DB10`. The `devices` VIRTUAL generated column needs 5.7.6+ / 10.2.1+ | Plesk owner |
-| **G0-J** | CPU + database performance / hosting limits | 🔶 **HOST ACTION REQUIRED** | None. **Added as its own row 2026-09-27** — it was previously reachable only through M2's *"closes … most of G0-J"*, which is not a row, so nothing reported it outstanding. Same gap G0-B.6 had | The probe's Performance section (`P1`–`P6`). Then the product question behind the number: payroll runs inside the 50-second `queue:work` window against a budget of *500 employees < 30s* measured on **dedicated** hardware, and `ProcessPayrollJob` has `tries = 1`, so a crossed boundary is a **failed run**, not a retried one | Plesk owner |
+| **G0-H** | SMTP 587/465 + mailbox send cap | 🔶 **HOST ACTION REQUIRED** | **Ports half measured 2026-09-29:** outbound 443, 587 and 465 all open. The send cap is unread | M2 for the ports; panel for the cap. Nothing in the code respects a send cap, and two jobs fan out | Plesk owner |
+| **G0-I** | MySQL version, `DB_CONNECTION`, charset | 🔶 **HOST ACTION REQUIRED** | None measured. The panel *labels* the server MySQL v8.0.32 — a label, not `DB1` | M2, probes `DB1`/`DB1b`/`DB1c`/`DB10`. The `devices` VIRTUAL generated column needs 5.7.6+ / 10.2.1+ | Plesk owner |
+| **G0-J** | CPU + database performance / hosting limits | 🔶 **HOST ACTION REQUIRED** | **CPU half measured 2026-09-29:** P1 56 ms, P2 2 ms, P3 70 ms; `pm.max_children` 5. Database half (`P4`–`P6`) did not run. **Added as its own row 2026-09-27** — it was previously reachable only through M2's *"closes … most of G0-J"*, which is not a row, so nothing reported it outstanding. Same gap G0-B.6 had | The probe's Performance section (`P1`–`P6`). Then the product question behind the number: payroll runs inside the 50-second `queue:work` window against a budget of *500 employees < 30s* measured on **dedicated** hardware, and `ProcessPayrollJob` has `tries = 1`, so a crossed boundary is a **failed run**, not a retried one | Plesk owner |
 | **Quotas** | 5 GB disk · 50 GB bandwidth | 🔶 **HOST ACTION REQUIRED** | Published figures only. Nothing measured, nothing capped in code | Read the panel. Then check the deployment's own footprint against it — see §*Quota arithmetic* below | Plesk owner |
 | **Secrets** | Secret / artifact audit | ✅ **PASS**, with one rotation requirement | Audited 2026-09-27: no `.env` tracked (`src/.env.production` is `NEXT_PUBLIC_*` only, deliberately tracked); no key literal in the tree; every example env has **empty** credential values; no workflow prints a secret; release archive no longer carries `api/.env` — **verified by test, after the first patch silently failed** | Done, **except**: see *Rotation* below. It is not a blocker but it must not be forgotten | — |
 
