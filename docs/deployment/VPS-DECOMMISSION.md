@@ -335,9 +335,15 @@ queue worker nor Reverb. They are arguably worse than the VPS files and should b
 fixed on their own merits, **on their own schedule**. Bundling them here would make one
 change answer two unrelated questions.
 
-**Removed 2026-09-29**, on their own merits as this section asked, in a cleanup that
-removed nothing else VPS-related: the remaining Docker files are local-development and CI
-tooling that tests read, not deployment assets.
+**Removed 2026-09-29**, on their own merits as this section asked.
+
+**The Docker development stack followed on 2026-09-30**, by owner decision: `docker-compose.yml`,
+`docker-compose.test.yml`, `docker/*`, both `.dockerignore` files, and the container-only
+scripts (`pest-isolated.sh`, `phpstan-isolated.sh`, `seed.sh`, `api-reload.sh`, `run-e2e.sh`,
+`src/scripts/docker-refresh.mjs`). It was never a deployment asset, but it ran Redis, MinIO and
+nginx — a different system from the shared host — so local development now runs the
+shared-hosting shape on XAMPP (`scripts/local-production/`). `backup.sh` and `restore.sh`
+stay held under the Stage 6 commitment above; only their local-dev hint changed.
 
 ---
 

@@ -17,13 +17,20 @@ this file is about working the repository.
 
 ## Running it locally
 
-Four processes, not two. The README is emphatic about this and it is right:
-without the queue worker no job ever runs, and without Reverb a broadcast throws
-so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
+Local development is the production shape — XAMPP's Apache, PHP and MariaDB,
+no Docker (the Docker stack was removed on 2026-09-30). The full procedure is in
+[`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md); the short form:
 
 ```bash
-docker compose up -d
+scripts/local-production/up.sh        # the Bronze deployment on :8081
+scripts/local-production/verify.sh    # must end "36 passed, 0 failed"
 ```
+
+For hot reload, run `php artisan serve` in `api/` and `npm run dev` in `src/`.
+Queued jobs run only when drained — `php artisan queue:work --stop-when-empty`
+locally, the GitHub Actions cron caller in production. Do not switch to
+`QUEUE_CONNECTION=sync` to avoid that: it hides every bug that only a real
+worker shows.
 
 **Node comes from `.nvmrc`** — currently 24, which `nvm use` / `fnm use` picks
 up from the repository root and which CI reads via `node-version-file`. It is
@@ -33,11 +40,8 @@ pin is what kept `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` red on every
 CI run until 2026-09-16. `docs/audit/BASELINE.md` §12d has the measurements.
 
 The old Windows launchers `RUN_ALL.ps1`, `START_BACKEND.ps1` and
-`START_FRONTEND.ps1` were removed on 2026-09-29. They predated the Docker
-setup, `RUN_ALL.ps1` printed "SQLite" while the documented stack is MariaDB on
-port 3307, and none started the worker or Reverb. Use Docker Compose for
-development, or `scripts/local-production/up.sh` to run the shared-hosting
-shape on XAMPP's Apache and MariaDB.
+`START_FRONTEND.ps1` were removed on 2026-09-29: `RUN_ALL.ps1` printed
+"SQLite" against a MariaDB stack, and none started the worker or Reverb.
 
 ### `composer install` needs a GitHub token
 
@@ -292,19 +296,19 @@ from inside that sandbox. And protection does **not** cover branch deletion of
 ordinary pushes succeed, that is a credential or egress limitation, not this
 ruleset; the two were confusable enough here to be worth separating.
 
-### Do not run `vendor/bin/pest` directly over a Docker bind mount
+### Check the collected test count, not only the colour
 
-This is the trap worth knowing. PHP's recursive directory scan returns
+This is the trap worth knowing. PHP's recursive directory scan returned
 incomplete results over a Docker Desktop Windows bind mount. Measured
 2026-08-21: `pest` collected 21 of 132 test classes, ran them, and **exited 0
 with a green summary** — so the suite reported success while proving almost
-nothing, and did so for weeks.
+nothing, and did so for weeks. Larastan failed the same way (990 phantom errors
+on the mount, 0 off it).
 
-`scripts/pest-isolated.sh` copies `api/` off the mount first and carries a
-collection guard that fails loudly on an undercount. `scripts/gates.sh`
-delegates to it automatically when there is no native PHP. Larastan has the same
-problem for the same reason (990 phantom errors on the mount, 0 off it), hence
-`scripts/phpstan-isolated.sh`.
+The Docker stack, and the `pest-isolated.sh` / `phpstan-isolated.sh` scripts
+that worked around it, were removed on 2026-09-30. `scripts/gates.sh` keeps the
+collection guard, which fails loudly on an undercount: any lossy filesystem
+produces the same silent green, so keep the checkout on a plain local disk.
 
 **A native PHP run on a local disk does not have this problem.** If you have PHP
 8.2+ with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo`, the full suite

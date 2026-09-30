@@ -263,11 +263,11 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 | Forms | React Hook Form + Zod | Server + client validation |
 | Data Fetching | TanStack Query v5 | Optimistic updates per policy |
 | Tables | TanStack Table v8 | Enterprise DataTable foundation |
-| File Storage | MinIO | S3-compatible, self-hosted |
+| File Storage | Local disk (`FILESYSTEM_DISK=local`) | MinIO until 2026-09-30; shared hosting has no object store |
 | Real-time | Reverb (WebSocket) | In-app notifications, device status |
 | Mobile | PWA (v1.0) | Flutter deferred to v2.0 |
 | Testing | Pest (PHP), Vitest (TS), Playwright (E2E) | Contract tests via OpenAPI types |
-| Infrastructure | Docker, Nginx, Supervisor | Ethiopian VPS compatible |
+| Infrastructure | Plesk shared hosting: Apache + PHP-FPM, MariaDB | Docker/Nginx/Supervisor described the VPS target; see *Deployment Compatibility* below |
 | PDF | DomPDF | Payslips, reports |
 | SMS | Interface-based | LogSms (dev), EthioTelecom (prod) |
 
@@ -706,17 +706,15 @@ than a gate, is what caught `prettier --check` failing on 36 files.
 
 Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`.
 
-- [ ] `bash scripts/pest-isolated.sh` — all green. **Not `php artisan test` or a
-      bare `vendor/bin/pest`**: over the Windows bind mount PHP's recursive
-      directory scan silently collects a fraction of the suite (measured
-      2026-08-21: 22 of 132 test classes) and still exits 0 with a green
-      summary. `scripts/gates.sh` now fails on that undercount instead of
-      reporting success; this script runs the suite where collection is whole.
+- [ ] Pest — all green, **through `bash scripts/gates.sh backend`**, which
+      compares the collected class count against `find` and fails on an
+      undercount. A lossy directory scan once collected 22 of 132 test classes
+      and still exited 0 green (measured 2026-08-21, over a Docker Desktop bind
+      mount; the Docker stack and its `pest-isolated.sh` were removed
+      2026-09-30).
 - [ ] `npx vitest run` — all green
-- [ ] `bash scripts/phpstan-isolated.sh` — level 6, zero errors. Not
-      `vendor/bin/phpstan` directly: over the bind mount Larastan sees half the
-      migrations, and the missing tables become ~990 phantom "undefined
-      property" errors that drowned this gate for months.
+- [ ] PHPStan — level 6, zero errors (`gates.sh` runs it natively; the same
+      lossy scan once cost Larastan half the migrations and ~990 phantom errors).
 - [ ] `./vendor/bin/pint --test` — no formatting issues
 - [ ] `npx prettier --check src/` — no formatting issues
 - [ ] `npx tsc --noEmit` — zero type errors
@@ -797,7 +795,9 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 
 **E2E (Playwright — Phase 9):**
 - Critical path flows: signup → onboarding → attendance → payroll
-- Run against Docker staging environment
+- Run against any `BASE_URL` — `php artisan serve` + `npm run dev`, or the
+  shared-hosting rehearsal on `:8081` (`scripts/local-production/`). The
+  Dockerised staging stack was removed on 2026-09-30.
 - Test at 375px and 1280px viewport widths
 
 **Tenant Isolation (run by `./scripts/gates.sh`, and by CI, which calls that same script):**
@@ -874,10 +874,9 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
     /sw.js              Service worker
     /manifest.json      PWA manifest
 
-/docker                 Docker Compose + service configs
 /docs                   Generated API documentation
-/scripts                Build, deploy, seed, backup scripts
-/infrastructure         Nginx, Supervisor, SSL configs
+/scripts                Build, deploy, backup scripts; /scripts/local-production
+                        assembles and serves the shared-hosting shape on XAMPP
 ```
 
 ---
@@ -970,10 +969,11 @@ type(scope): short description
 > the specification of the target ETHR was built for, and as the contrast that makes
 > the left column legible; read it as history.
 >
-> **Design against the left column. Only the left column.** What survives of the
-> Docker setup is local development and CI — `docker-compose.yml`,
-> `docker-compose.test.yml`, `docker/php/*`, `docker/nginx/default.conf`,
-> `docker/frontend/Dockerfile` — and none of it is a deployment target.
+> **Design against the left column. Only the left column.** Nothing of the Docker
+> setup survives: the development stack (`docker-compose.yml`,
+> `docker-compose.test.yml`, `docker/*`) was removed on 2026-09-30 by owner
+> decision, and local development now runs the shared-hosting shape on XAMPP
+> (`scripts/local-production/`, `LOCAL_SETUP.md`). CI never used it.
 >
 > The production target is **Ethio Telecom shared hosting under Plesk**. See
 > [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) for what has actually
@@ -1001,14 +1001,11 @@ Three corrections worth stating rather than silently applying:
   workflow reads it through `node-version-file` — verified 2026-09-25 across all
   four `setup-node` steps. Do not restate that number anywhere else.
 
-  **There is a second declaration, and it is deliberate, not drift:**
-  `docker/frontend/Dockerfile` is `FROM node:22-alpine` and both builds and runs
-  `server.js`. `.nvmrc` governs CI and the gates; the Dockerfile governs the
-  frontend **app runtime**, and the Plesk Node branch cites it as the reason the
-  account's Node 22.23.2 is acceptable (`deployment/VPS-DECOMMISSION.md` §2).
-  `src/package.json` declares no `engines` field, so those two files are the whole
-  story. Satisfying the runtime pin does **not** satisfy the CI pin — do not
-  relax 24 to fit a host.
+  **There used to be a second declaration:** `docker/frontend/Dockerfile` was
+  `FROM node:22-alpine` and governed the frontend app runtime. It went with the
+  Docker stack on 2026-09-30, and the production frontend is a static export
+  with no Node runtime at all (C-5), so `.nvmrc` is now the only Node pin.
+  `src/package.json` declares no `engines` field. Do not relax 24 to fit a host.
 - **`Redis 7+` was never load-bearing.** `grep` over `api/app/` finds **zero**
   calls — measured 2026-09-25, matching `audit/BASELINE.md` §6. The coupling was
   configuration-only, and every config default is now `database` or `local`.

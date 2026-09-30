@@ -17,21 +17,23 @@ Also worth reading: [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to run and test
 
 ### 2. A green test run can be a lie
 
-Over a Docker Desktop Windows bind mount, PHP's recursive directory scan returns incomplete results. Measured 2026-08-21: `vendor/bin/pest` collected **21 of 132** test classes, ran them, and **exited 0 with a green summary**. It did that for weeks. Larastan has the same problem in the other direction — ~990 phantom errors from migrations it could not see.
+Over a Docker Desktop Windows bind mount, PHP's recursive directory scan returned incomplete results. Measured 2026-08-21: `vendor/bin/pest` collected **21 of 132** test classes, ran them, and **exited 0 with a green summary**. It did that for weeks. Larastan had the same problem in the other direction — ~990 phantom errors from migrations it could not see. The Docker stack is gone (2026-09-30), but any lossy filesystem fails the same silent way.
 
-Use `./scripts/gates.sh`, which routes around it and fails loudly on an undercount. If you run the suite directly, check the collection count against `find api/tests/Unit api/tests/Feature -name '*Test.php'` before believing the result.
+Use `./scripts/gates.sh`, which fails loudly on an undercount. If you run the suite directly, check the collection count against `find api/tests/Unit api/tests/Feature -name '*Test.php'` before believing the result.
 
-**Count only those two directories, and not `api/tests` whole.** `phpunit.xml` declares exactly `tests/Unit` and `tests/Feature` as testsuites; `tests/Performance` sits outside them deliberately (`scripts/gates.sh:356`) and is opt-in via `./scripts/gates.sh performance`. So a healthy native run collects **one fewer class than `find api/tests` reports**, and this line used to name that wider path — following it literally produces an apparent one-class shortfall on a clean suite, which is a false alarm from the very check that exists to catch real shortfalls. Measured 2026-09-28: `find api/tests` **188**, `find api/tests/Unit api/tests/Feature` **187**, collected **187**, 2012 tests passing in 669s. The missing one is `tests/Performance/ResponseTimeTest.php`, every time.
+**Count only those two directories, and not `api/tests` whole.** `phpunit.xml` declares exactly `tests/Unit` and `tests/Feature` as testsuites; `tests/Performance` sits outside them deliberately (`scripts/gates.sh:317-320`) and is opt-in via `./scripts/gates.sh performance`. So a healthy native run collects **one fewer class than `find api/tests` reports**, and this line used to name that wider path — following it literally produces an apparent one-class shortfall on a clean suite, which is a false alarm from the very check that exists to catch real shortfalls. Measured 2026-09-28: `find api/tests` **188**, `find api/tests/Unit api/tests/Feature` **187**, collected **187**, 2012 tests passing in 669s. The missing one is `tests/Performance/ResponseTimeTest.php`, every time.
 
 **A native PHP run on a local disk does not have this problem** — measured **2026-08-21: 140/140 classes collected, 1673 tests passing**. The trap is the bind mount, not PHP.
 
 **Do not compare a collection count against that 140.** It is a dated measurement, and the suite has grown: `find api/tests/Unit api/tests/Feature -name '*Test.php'` returns **187** as of 2026-09-28 (it was 178 on 2026-09-25, counted over all of `api/tests`). The instruction above is to compare collection against *`find`'s current output*, not against a number written down a month earlier — a reader who compares against 140 today sees a 38-class surplus and concludes something is wrong when nothing is. The ratio is what matters, not the figure.
 
-### 3. Four processes, not two
+### 3. There is no Docker, and no worker process
 
-`docker compose up -d`. Without the queue worker no job ever runs; without Reverb a broadcast throws, so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
+**Local development is the production shape: XAMPP's Apache, PHP and MariaDB.** `scripts/local-production/up.sh` builds and serves the Bronze deployment on `:8081` and `verify.sh` must end `36 passed, 0 failed`; for hot reload, run `php artisan serve` and `npm run dev` against the same MariaDB. [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md) has both. The Docker development stack — compose files, `docker/`, and the container-only scripts — was **removed on 2026-09-30** by owner decision, because production is shared hosting and a dev stack running Redis, MinIO and nginx tested a different system.
 
-The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers were **removed on 2026-09-29**. They predated the Docker setup, `RUN_ALL.ps1` printed "SQLite" while the documented stack is MariaDB, and none started the worker or Reverb. Use Docker Compose for day-to-day development, and `scripts/local-production/up.sh` to run the shared-hosting shape (XAMPP's Apache + MariaDB, no Docker).
+**Queued jobs run only when something drains the queue.** Production has no worker process: the GitHub Actions caller (`.github/workflows/cron.yml`) hits `POST /api/v1/cron/queue` and `/cron/schedule`. Locally, run `php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty`. Do not paper over it with `QUEUE_CONNECTION=sync`, which hides every bug that only appears on a real worker. `BROADCAST_CONNECTION=null` locally, as in production — with `reverb` selected and no Reverb running, a broadcast throws and a *successful* write returns 500.
+
+The `RUN_ALL.ps1` / `START_BACKEND.ps1` / `START_FRONTEND.ps1` launchers were **removed on 2026-09-29**: they printed "SQLite" against a MariaDB stack and started neither the worker nor Reverb.
 
 ### 4. Tenant isolation is fail-closed, and bypassed in 159 places
 
@@ -345,7 +347,7 @@ returned nothing in production and passed every test. CI runs it on every push.
    ships `reverb`), then `composer install`, then `php artisan key:generate`. `key:generate`
    comes last because it needs a `vendor/` that does not exist until the install completes.
 
-3. **`phpstan_gate` required Docker.** It delegated unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no `et-api-1`. A CI runner has native PHP and no container, so **PHPStan could never have passed in CI regardless of the code**. Now native-first with the container as fallback, the same shape `pest_gate` already had.
+3. **`phpstan_gate` required Docker.** It delegated unconditionally to `scripts/phpstan-isolated.sh`, which exits 1 with "Container et-api-1 is not running" when there is no `et-api-1`. A CI runner has native PHP and no container, so **PHPStan could never have passed in CI regardless of the code**. Now native-first with the container as fallback, the same shape `pest_gate` already had — and native-only since 2026-09-30, when the Docker stack and its fallbacks were removed.
 
 4. **The backend job had no `APP_KEY`.** `Employee.tin` and `national_id` use the `encrypted` cast, and Laravel's encrypter refuses to boot without a key, so **156 tests** died with `MissingAppKeyException`. `Backend suite on MySQL` ran `key:generate` and passed; `Backend` never did and failed. Found only once `gates.sh` began publishing the failing gate's output as an annotation.
 
@@ -390,4 +392,4 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | Deploying to Plesk shared hosting | [`docs/deployment/PLESK-HOSTING-GUIDE.md`](docs/deployment/PLESK-HOSTING-GUIDE.md) |
 | **Hard rule — repository only** | [`docs/deployment/SHARED-HOSTING-CONTRACT.md`](docs/deployment/SHARED-HOSTING-CONTRACT.md) — work happens here, not in hosting settings. Outranks every deployment doc |
 
-Production target is Ethio Telecom Linux shared hosting under Plesk. The VPS and Docker production assets are kept only until that cutover is verified.
+Production target is Ethio Telecom Linux shared hosting under Plesk. The VPS production assets were removed in `3db9904` (2026-09-26/27) and the Docker development stack on 2026-09-30, both before a verified cutover — there is no container path of any kind, and local development runs the shared-hosting shape on XAMPP.
