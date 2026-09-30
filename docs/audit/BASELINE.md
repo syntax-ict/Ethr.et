@@ -86,7 +86,7 @@ Measured inventory **[verified]**:
 | Queued job classes (`api/app/Jobs/*.php`) | **15** |
 | PHP test files (`api/tests/**/*Test.php`) | **141** |
 | Vitest files (`src/src/test/**`) | **70** |
-| Playwright specs (`src/e2e/*.spec.ts`) | **12** |
+| Playwright specs (`src/e2e/*.spec.ts`) | **13** *(was 12; re-counted 2026-09-30. First measured run the same day: the functional suite, 125 tests, all passed on desktop Chromium — `./scripts/gates.sh e2e`)* |
 | Markdown docs (`docs/**/*.md`) | **53** |
 
 > These differ from figures circulating in the repo's own documents (which variously say 67 models, ~92 controllers, 144 tests). The numbers above are from `find`/`ls` in this tree today.

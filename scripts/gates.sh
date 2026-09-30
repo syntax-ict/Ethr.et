@@ -12,6 +12,7 @@
 #   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
+#   ./scripts/gates.sh e2e         Playwright over a running stack (desktop Chromium)
 #   ./scripts/gates.sh export      the Bronze shared-hosting static export build
 #   ./scripts/gates.sh evidence    host-evidence file: what is outstanding, or validate it
 #
@@ -596,6 +597,77 @@ fi
 # reach without a session, which the config's own header explains at length.
 if [[ "$SCOPE" == "lighthouse" ]]; then
     run_gate "Lighthouse CI (public pages)" lighthouse_gate
+fi
+
+# Playwright over a stack that is already running: `php artisan serve` plus
+# `npm run dev`, the shared-hosting rehearsal, or anything else at BASE_URL.
+# Opt-in for the same reason as `mysql` and `lighthouse`: it needs servers, and
+# `all` has to stay runnable on a fresh clone.
+#
+# E2E_REQUIRE_SUPER_ADMIN=1 makes global-setup fail when it cannot sign the super
+# admin in. Without it the admin specs SKIP, which is right for a person reading
+# the warning and wrong for CI, where a skip is a pass nobody reads.
+e2e_gate() {
+    (
+        cd "$WEB_DIR" || return 1
+
+        local base
+        base="${BASE_URL:-http://demo.localhost:3000}"
+
+        # *.localhost is loopback by RFC 6761, and browsers and curl treat it so,
+        # but Node on Windows cannot resolve it (getaddrinfo ENOTFOUND). Connect
+        # to 127.0.0.1 and send the real Host instead, so the probe does not
+        # report "nothing serving" for a stack that is up.
+        if ! node -e '
+            const { get } = require("http");
+            const u = new URL(process.argv[1]);
+            const loop = u.hostname === "localhost" || u.hostname.endsWith(".localhost");
+            const req = get({
+                host: loop ? "127.0.0.1" : u.hostname,
+                port: u.port || 80,
+                path: u.pathname,
+                headers: { Host: u.host },
+            }, (res) => process.exit(res.statusCode < 500 ? 0 : 1));
+            req.on("error", () => process.exit(1));
+            req.setTimeout(5000, () => process.exit(1));
+        ' "$base/login"; then
+            printf '[31mNothing serving at %s.[0m
+' "$base"
+            printf 'The E2E suite drives a running stack, so this gate refuses to pass
+'
+            printf 'without one:
+
+'
+            printf '  (cd api && php artisan serve) & (cd src && npm run dev)
+
+'
+            printf 'Override the origin with BASE_URL (and API_URL). Check what answers on
+'
+            printf 'the port first: a leftover container can hold :3000 with older code.
+'
+            return 1
+        fi
+
+        # The functional suite. Two groups are left out, on evidence from the
+        # first full local run (2026-09-30, 339 tests):
+        #  - "UX audit" sweeps every page x theme x breakpoint and fails on any
+        #    console line. Under `next dev` it trips on dev-server chunk and font
+        #    requests aborted mid-navigation, so it measures the dev server as
+        #    much as the app. Run it deliberately: npm run test:e2e:ux.
+        #  - "PWA & Offline" needs the service worker's production precache,
+        #    which `next dev` does not provide reliably; it flipped between one
+        #    and three failures on identical code.
+        # E2E_ALL=1 runs everything.
+        if [[ -n "${E2E_ALL:-}" ]]; then
+            npx playwright test --project=chromium-desktop
+        else
+            npx playwright test --project=chromium-desktop --grep-invert "UX audit|PWA & Offline"
+        fi
+    )
+}
+
+if [[ "$SCOPE" == "e2e" ]]; then
+    run_gate "Playwright (E2E, desktop Chromium)" e2e_gate
 fi
 
 printf '\n\033[1m━━━ summary ━━━\033[0m\n'
