@@ -21,7 +21,7 @@ The repository is healthy; the problems below are the kind a green gate does not
 | ID | Sev | Finding | Status |
 |---|---|---|---|
 | G1 | **High** | **The scheduler does not exist on the default branch.** `.github/workflows/cron.yml` is on this branch only. GitHub fires `schedule:` triggers from the default branch, so nothing drains the production queue or runs `schedule:run` until PR #133 merges. `main` has three workflows and no `cron.yml` (VERIFIED, `git ls-tree origin/main`). | OWNER — merge is the fix; PR #133 is a draft marked do-not-merge |
-| G2 | Med | 41 of 61 remote branches are stale: their PRs are MERGED. `git branch --merged` reports none because PRs are squash-merged, so ancestry cannot see it (VERIFIED via `gh pr list`). | OWNER — deleting remote branches is outward-facing; command in §7 |
+| G2 | Med | 41 of 61 remote branches are stale: their PRs are MERGED. `git branch --merged` reports none because PRs are squash-merged, so ancestry cannot see it (VERIFIED via `gh pr list`). | FIXED 2026-09-30 — 40 deleted on the owner's explicit instruction (see §9) |
 | G3 | Med | PRs #17 and #21 are CONFLICTING/DIRTY (opened 09-19, 09-22). #18 (docs-only, 09-17) is clean but idle. | OWNER |
 | G4 | Med | Dependabot PRs #8, #10, #12, #13 (09-15) show **9 failing checks each** — they predate the CI repair and were never rebased. #9 has 1 failing, #134 has 3. | OWNER — `@dependabot rebase` |
 | G5 | Low | Issue #120 ("move `laravel/reverb` and `flysystem-aws-s3-v3` to `require-dev`") is still open and is contradicted by the code: both are referenced at runtime (see I9). | OPEN — recorded in I9 |
@@ -121,7 +121,7 @@ gone** — invisible to a link checker that only follows markdown links.
 
 ## 7. Commands left for the owner
 
-These are outward-facing, so they were not run.
+The branch deletion below has since been run (§9). The dependabot rebase was also requested.
 
 ```bash
 # G2 — delete the 41 remote branches whose PRs are merged (each is restorable from its PR page)
@@ -188,7 +188,7 @@ for review; nothing outward-facing (remote branches, PRs, workflows on GitHub) w
 | Item | Decision | Reasoning |
 |---|---|---|
 | **G1 scheduler** | **Do not merge PR #133 yet; merge it at cutover.** | The owner's "draft, do not merge" hold stands, and `CUTOVER READY = NO`. `cron.yml` on `main` would hit an endpoint of a host that is not yet serving the app every five minutes and fail every time. The queue has no work to drain until the host is live. The risk is real only if cutover happens without the merge, so **merging is now line 1 of the cutover procedure** |
-| **G2 stale branches** | **Not done — blocked.** The auto-mode classifier refused the remote deletion as destructive, so it was not retried another way | 40 of 41 were verified safe (branch tip identical to its merged PR's head); `claude/announcement-show-visibility` has commits beyond its merged PR and must be kept. The 40 are listed by the script in §7; run it yourself when ready |
+| **G2 stale branches** | **Done, after the owner asked for it explicitly.** The first attempt was refused by the auto-mode classifier and was not retried another way; the owner then instructed the deletion | 40 of 41 deleted, each verified first: branch tip identical to its merged PR's head. `claude/announcement-show-visibility` has commits beyond its merged PR and was kept. Remote branches: 61 → 20 (`main`, this branch, five `claude/*`, thirteen `dependabot/*`). A first run deleted nothing because the list file had CRLF endings; the second run was sound |
 | **G3 PRs #17, #21** | Leave open | They carry unmerged work and conflict with `main`; closing discards it. The owner should rebase or close them deliberately |
 | **G4 dependabot** | `@dependabot rebase` requested on #8, #9, #10, #12, #13 | Benign and reversible; they predate the CI repair. #134 has 3 real failures and was left for review |
 | **B1 lockout service** | **Keep as is; do not touch the login path before cutover** | Dead, but changing authentication behaviour days before go-live costs more than carrying 132 unused lines. Revisit after cutover: delete, or wire in behind a test |
