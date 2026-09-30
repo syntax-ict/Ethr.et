@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/i18n/useT";
 
 interface SearchInputProps {
   value: string;
@@ -14,9 +15,10 @@ interface SearchInputProps {
 export function SearchInput({
   value,
   onChange,
-  placeholder = "Search...",
+  placeholder,
   debounceMs = 300,
 }: SearchInputProps) {
+  const { t } = useT();
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function SearchInput({
       <Input
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("search_input.placeholder")}
         className="pl-9 pr-8"
       />
       {local && (
@@ -50,7 +52,7 @@ export function SearchInput({
             onChange("");
           }}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground/60 transition-colors hover:text-foreground"
-          aria-label="Clear search"
+          aria-label={t("search_input.clear")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
