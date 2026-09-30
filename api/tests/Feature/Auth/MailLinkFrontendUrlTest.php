@@ -38,9 +38,12 @@ it('links activation mail to the configured frontend url', function () {
 });
 
 it('resolves to the application url, never localhost:3000, outside a local environment', function () {
-    // The suite runs as APP_ENV=testing with no FRONTEND_URL, which is exactly the
-    // production shape: unset, so the value must come from APP_URL.
-    expect(env('FRONTEND_URL'))->toBeNull()
+    // phpunit.xml pins FRONTEND_URL to blank and APP_ENV to testing: the
+    // production shape. It is pinned rather than assumed because CI builds its
+    // .env from .env.example, which sets FRONTEND_URL for local development —
+    // the first version of this test read the ambient value and failed there.
+    expect(env('FRONTEND_URL'))->toBeEmpty()
         ->and(app()->environment('local'))->toBeFalse()
-        ->and(config('app.frontend_url'))->toBe(config('app.url'));
+        ->and(config('app.frontend_url'))->toBe(config('app.url'))
+        ->and(config('app.frontend_url'))->not->toContain('localhost:3000');
 });

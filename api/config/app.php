@@ -66,9 +66,13 @@ return [
     | the only place a localhost default is correct. Anywhere else an unset
     | FRONTEND_URL must fall back to APP_URL, not to a host no user can reach.
     |
+    | `?:` rather than env()'s default argument: a blank `FRONTEND_URL=` line
+    | makes env() return '' instead of the default, which would put links with
+    | no host in every reset email. Blank and absent must mean the same thing.
+    |
     */
 
-    'frontend_url' => env('FRONTEND_URL', env('APP_ENV', 'production') === 'local'
+    'frontend_url' => env('FRONTEND_URL') ?: (env('APP_ENV', 'production') === 'local'
         ? 'http://localhost:3000'
         : env('APP_URL', 'http://localhost')),
 
