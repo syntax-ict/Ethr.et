@@ -207,7 +207,7 @@ describe("useFailedJobs", () => {
           data: [
             {
               uuid: "a1b2c3d4",
-              connection: "redis",
+              connection: "database",
               queue: "payroll",
               payload: '{"job":"ProcessPayroll"}',
               exception: "Timeout after 30s",

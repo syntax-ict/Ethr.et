@@ -18,7 +18,7 @@ final class SystemHealthService
             'services' => [
                 'api' => $this->apiStatus(),
                 'database' => $this->databaseStatus(),
-                'redis' => $this->redisStatus(),
+                'cache' => $this->cacheStatus(),
                 'storage' => $this->storageStatus(),
                 'reverb' => $this->broadcastStatus(),
             ],
@@ -46,7 +46,15 @@ final class SystemHealthService
         }
     }
 
-    private function redisStatus(): array
+    /**
+     * A round trip through the configured cache store.
+     *
+     * This row was labelled `redis` until 2026-09-30, but it never spoke to Redis:
+     * it goes through the Cache facade, which on the shared-hosting target is the
+     * `database` store. The panel therefore reported a "Redis" status on servers
+     * that have no Redis. The label now says what is measured.
+     */
+    private function cacheStatus(): array
     {
         try {
             $start = microtime(true);
@@ -69,7 +77,7 @@ final class SystemHealthService
      * ext-pcntl and ext-posix, which shared hosting does not provide).
      *
      * On the shared-hosting target Reverb is not deployed at all - no shared
-     * tier offers a WebSocket server - so BROADCAST_CONNECTION is `log` and
+     * tier offers a WebSocket server - so BROADCAST_CONNECTION is `null` and
      * "disabled" is the correct, healthy answer rather than a fault.
      */
     private function broadcastStatus(): array

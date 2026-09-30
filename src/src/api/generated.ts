@@ -18639,7 +18639,7 @@ export interface operations {
                                 status: "healthy";
                                 response_ms: number;
                             };
-                            redis: {
+                            cache: {
                                 /** @constant */
                                 status: "unhealthy";
                                 error: string;
