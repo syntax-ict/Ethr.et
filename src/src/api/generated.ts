@@ -7276,8 +7276,8 @@ export interface components {
             auto_sync?: boolean;
             sync_interval_minutes?: number;
             connection_config?: {
-                ip?: string;
-                port?: number;
+                ip?: string | null;
+                port?: number | null;
             };
         };
         /** UpdateEmployeeRequest */

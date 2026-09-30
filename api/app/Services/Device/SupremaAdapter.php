@@ -178,7 +178,11 @@ final class SupremaAdapter implements DeviceAdapter
 
     private function request(Device $device, string $method, string $path, ?array $body = null): Response
     {
-        $config = $device->connection_config;
+        // encrypted:array, but typed as string without a model @property; narrow
+        // it the way GenericHttpAdapter::config() does.
+        $config = $device->getAttribute('connection_config');
+        $config = is_array($config) ? $config : [];
+        DeviceHost::assertAllowed((string) ($config['ip'] ?? ''));
         $port = $config['port'] ?? 443;
         $scheme = $port === 443 ? 'https' : 'http';
         $baseUrl = "{$scheme}://{$config['ip']}:{$port}";

@@ -37,6 +37,7 @@ $phpunitControlledKeys = [
     'DB_URL',
     'FILESYSTEM_DISK',
     'FRONTEND_URL',
+    'DEVICE_ALLOW_PRIVATE_HOSTS',
     'MAIL_MAILER',
     'QUEUE_CONNECTION',
     'SESSION_DRIVER',
