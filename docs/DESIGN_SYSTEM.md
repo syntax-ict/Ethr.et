@@ -96,7 +96,7 @@ inverts wrongly once the status colour lightens in dark mode.
 
 **Rule:** `text-blue-600` or `bg-slate-100` is banned in components. Use the semantic
 utilities above (or `text-[var(--color-interactive-primary)]`). Enforced by
-`src/test/semantic-color-tokens.test.ts`, which fails the suite if any raw Tailwind
+`src/src/test/semantic-color-tokens.test.ts`, which fails the suite if any raw Tailwind
 palette class reappears under `src/`.
 
 ---

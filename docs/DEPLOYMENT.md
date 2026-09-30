@@ -20,6 +20,10 @@
 > **The live procedure is
 > [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md).**
 > This file is kept as the record of how the VPS was run, not as instructions.
+>
+> **2026-09-30:** the Docker *development* stack (compose files, `docker/`, the container-only
+> scripts) was removed as well. Nothing in this repository runs under Docker now; local
+> development is XAMPP — [`LOCAL_SETUP.md`](LOCAL_SETUP.md).
 
 ## Pre-Deployment Readiness Checklist
 
@@ -377,10 +381,10 @@ Set in the root `.env`: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL`,
   signing in on the apex (the session cookie is host-only and would not survive
   the hop), and the SPA stops sending `X-Tenant`, which the API refuses outside
   local/testing anyway. Leave it unset only for single-host local development.
-- `NEXT_PUBLIC_REVERB_APP_KEY` has no default, deliberately: `src/lib/echo.ts`
+- `NEXT_PUBLIC_REVERB_APP_KEY` has no default, deliberately: `src/src/lib/echo.ts`
   falls back to the literal `ethr-key`, so a default here would make an unset
   value look intentional while every handshake fails against the real server key.
-- `NEXT_PUBLIC_WS_URL` is read by nothing — `src/lib/echo.ts` builds the
+- `NEXT_PUBLIC_WS_URL` is read by nothing — `src/src/lib/echo.ts` builds the
   connection from the three `REVERB` variables. It also carried the wrong path:
   Reverb's client path is `/app`, which is what `infrastructure/nginx.conf`
   proxies; `/ws` has no location and 404s.

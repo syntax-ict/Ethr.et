@@ -443,7 +443,8 @@ This is the first measured backend figure in the repository. The seven documents
 > were wrong in instructive ways, but its central framing — "this machine versus CI" —
 > was the wrong axis.**
 >
-> Measured by `.github/workflows/phpstan-divergence-probe.yml`, which runs the
+> Measured by `.github/workflows/phpstan-divergence-probe.yml` (deleted 2026-09-30 — it
+> only re-fired on edits to itself and its result is recorded here), which ran the
 > `dumpType()` probe on the runner that produced the original errors, in two shapes:
 >
 > | Condition | Dumped type | `createToken()` |

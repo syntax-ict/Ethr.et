@@ -210,6 +210,11 @@ wrong and expensive to get wrong.
 because the reason it was thought load-bearing is worth reading before something else is
 assumed to be.)*
 
+> **Superseded 2026-09-30 — every row below has since been removed** (`2eff11f`, `838129e`):
+> the Dockerfile, both compose files, `docker/php/*`, and `gates.sh`'s `docker exec`
+> fallbacks. The frontend runtime version now lives in `.nvmrc`. Read the table as the reasoning
+> that kept them until then, not as a list of what exists.
+
 | Asset | Why it stays |
 |---|---|
 | **`docker/frontend/Dockerfile`** | **It is the only declaration of the frontend runtime version** — `FROM node:22-alpine`, which both builds and runs `server.js`. The Plesk **Node.js branch depends on it**: `PLESK-HOSTING-GUIDE.md` §5b and `shared-hosting/DEPLOYMENT.md` step 5 both cite it as the reason the account's Node 22.23.2 is correct. Cited by **8 documents**. Deleting it removes the new target's version pin, not the old target's. |

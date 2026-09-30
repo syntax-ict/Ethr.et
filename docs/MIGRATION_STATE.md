@@ -1320,7 +1320,7 @@ rewriting first, and the new blocker (`manifest.ts`) needs adding.
 |---|---|
 | **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Code compatible; deployment assets were not.** Verified by CI and by reading the code — but CI never starts a worker and the reading stopped at `app/`. On 2026-09-19 every deployment asset was found to start its queue worker with `artisan horizon`, a command removed in `cdf85d1`. See *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER* below |
 | **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
-| **Frontend** — Branch B (static export) | **Does not build** — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
+| **Frontend** — Branch B (static export) | **Builds (superseded 2026-09-30: the three blockers are closed and `out/` exports; see `docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`).** Was: does not build — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
 
 The backend half of "shared-hosting compatible by default" is done. **The frontend half is
 not, and now has a measured gap rather than an assumed one.**

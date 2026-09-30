@@ -256,15 +256,15 @@ Enterprise-grade, multi-tenant, offline-first HCM SaaS for Ethiopian organizatio
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Backend | Laravel 12, PHP 8.2 | Sanctum, Horizon, Reverb |
+| Backend | Laravel 12, PHP 8.2 | Sanctum; Reverb is installed but off in production (see the banner above) |
 | Database | MariaDB 10.11 | SQLite in-memory for tests |
-| Cache / Queue | Redis 7+ | Horizon for queue dashboard |
+| Cache / Queue / Session | `database` driver | No Redis, no Horizon; the queue is drained over HTTP by the GitHub Actions cron caller |
 | Frontend | Next.js 16, React 19, TypeScript strict | Tailwind CSS 4, shadcn/ui |
 | Forms | React Hook Form + Zod | Server + client validation |
 | Data Fetching | TanStack Query v5 | Optimistic updates per policy |
 | Tables | TanStack Table v8 | Enterprise DataTable foundation |
 | File Storage | Local disk (`FILESYSTEM_DISK=local`) | MinIO until 2026-09-30; shared hosting has no object store |
-| Real-time | Reverb (WebSocket) | In-app notifications, device status |
+| Real-time | Reverb (WebSocket), **opt-in** | Off in production (`BROADCAST_CONNECTION=null`); the client only connects when `NEXT_PUBLIC_REVERB_APP_KEY` is set, else notifications poll |
 | Mobile | PWA (v1.0) | Flutter deferred to v2.0 |
 | Testing | Pest (PHP), Vitest (TS), Playwright (E2E) | Contract tests via OpenAPI types |
 | Infrastructure | Plesk shared hosting: Apache + PHP-FPM, MariaDB | Docker/Nginx/Supervisor described the VPS target; see *Deployment Compatibility* below |
@@ -708,7 +708,7 @@ Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`
 
 - [ ] Pest — all green, **through `bash scripts/gates.sh backend`**, which
       compares the collected class count against `find` and fails on an
-      undercount. A lossy directory scan once collected 22 of 132 test classes
+      undercount. A lossy directory scan once collected 21 of 132 test classes
       and still exited 0 green (measured 2026-08-21, over a Docker Desktop bind
       mount; the Docker stack and its `pest-isolated.sh` were removed
       2026-09-30).
@@ -832,21 +832,22 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
   /routes
     api.php
   /tests
-    /Feature
+    /Feature             HTTP and integration tests; /Feature/Security holds the tenant-isolation pins
     /Unit
-    /Security            TenantIsolationTest, PermissionTest
-    /Performance         ResponseTimeTest
+    /Support             Shared test helpers
+    /Performance         ResponseTimeTest — outside the phpunit testsuites, run with `gates.sh performance`
   /config
   /lang
     /en                  Full coverage (15+ files)
     /am                  Full coverage (15+ files)
 
-/src                    Next.js 16 frontend (the real source is one level down, in src/src)
+/src                    Next.js 16 project root: config, e2e/, public/, scripts/
+  /src                  The real frontend source — every path below is relative to src/src
   /app                  App router pages
     /(auth)              Auth layout pages (login, register, verify)
     /(dashboard)         Dashboard layout pages (all authenticated views)
     /(marketing)         Marketing layout pages (landing, pricing)
-    /(onboarding)        Onboarding layout pages (setup wizard)
+    /(root)              Public site (home, pricing, FAQ, legal) and the locale redirect
     /kiosk               Kiosk mode (standalone layout)
     /offline             Offline fallback page
   /components
@@ -874,7 +875,7 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
     /sw.js              Service worker
     /manifest.json      PWA manifest
 
-/docs                   Generated API documentation
+/docs                   Project documentation; index at docs/README.md (the API contract is generated into src/src/api/generated.ts)
 /scripts                Build, deploy, backup scripts; /scripts/local-production
                         assembles and serves the shared-hosting shape on XAMPP
 ```

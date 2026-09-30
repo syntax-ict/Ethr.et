@@ -157,7 +157,7 @@ Turn it off by dropping the two settings and restarting.
   wall of false positives on the new model.
 - **Check the collected test count, not only the colour.** PHP's recursive directory scan
   once returned incomplete results (over a Docker Desktop bind mount): `pest` collected
-  **22 of 132 test classes** and exited 0 green (measured 2026-08-21). `scripts/gates.sh`
+  **21 of 132 test classes** and exited 0 green (measured 2026-08-21). `scripts/gates.sh`
   compares the collected count against `find` and fails loudly on an undercount. Keep the
   checkout on a plain local disk. The DomPDF payslip tests need `memory_limit=-1`, which
   `gates.sh` passes.

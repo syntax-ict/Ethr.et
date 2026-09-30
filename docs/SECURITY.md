@@ -1,5 +1,12 @@
 # ETHR — Security Policy (v2.0)
 
+> **Reviewed 2026-09-30 against the shared-hosting target.** This page was written for the
+> VPS stack (MinIO, Redis, Nginx) and several controls were still described in those terms.
+> They are corrected below to what the code does today: the `local` disk, the Laravel cache
+> (`database` store in production), and Apache headers rendered by
+> `scripts/shared-hosting/render-htaccess.php`. The vulnerability *reporting* policy is the
+> root [`SECURITY.md`](../SECURITY.md); the OWASP evidence is [`security-audit.md`](security-audit.md).
+
 ## Security Principles
 
 1. **Tenant isolation is the first line of defense.** A single cross-tenant data leak is a company-ending event.
@@ -19,7 +26,7 @@
 | Hostname | `{tenant}.ethr.et` is the only tenant selector honoured in production. `X-Tenant` is accepted in local/testing only; `admin`, `api`, `www`, `app` are reserved and never resolve to a tenant |
 | Request authorization | `EnsureUserBelongsToTenant` rejects a valid token used against another tenant's host (super admins exempt — they operate across tenants by design) |
 | Database queries | `BelongsToTenant` trait adds `WHERE tenant_id = ?` via global scope; degrades to `WHERE 0 = 1` when no tenant is resolved |
-| File storage | Single MinIO bucket, per-tenant **path prefix** `tenants/{public_id}/` applied by `FileStorageService`. Isolation is enforced in application code, not by bucket policy — a path built from unvalidated input would cross it |
+| File storage | The `local` disk (`api/storage/app`, outside the document root), per-tenant **path prefix** `tenants/{public_id}/` applied by `FileStorageService`. Isolation is enforced in application code, not by bucket policy — a path built from unvalidated input would cross it |
 | Cache keys | **No tenant prefix is applied.** Keys are collision-free because they are built from globally-unique surrogate ids (e.g. `custom_role_permissions:{id}`). A key derived from a tenant-local identifier would collide silently |
 | Queue jobs | `tenant_id` serialized with every job, re-resolved on execution |
 | API responses | JsonResource filters by tenant, no cross-tenant data |
@@ -33,10 +40,9 @@
 > Corrected in Phase 1; Phase 2 then added `.github/workflows/gates.yml`, which
 > runs this test via `scripts/gates.sh backend`.
 >
-> It is still not "every commit": the workflow has never executed, because
-> nothing has been pushed to the remote. Restore the original wording once a
-> run exists to point at — not before. A control is a control when it has been
-> observed working.
+> The workflow has since run: run #66 (2026-09-16, `1cf9083`) was the first fully
+> green one, and CI now runs on every push to a PR. A control is a control when it
+> has been observed working, and this one has — see `docs/audit/BASELINE.md` §12.
 
 1. Dynamically discovers all Eloquent models
 2. Asserts non-global models have `tenant_id` column
@@ -67,7 +73,7 @@
 
 The access token lives in an httpOnly cookie rather than a JavaScript variable, which this
 table previously described. The SPA sends **no** `Authorization` header at all
-(`src/api/client.ts` uses `withCredentials`); `AuthenticateFromCookie` promotes the cookie to
+(`src/src/api/client.ts` uses `withCredentials`); `AuthenticateFromCookie` promotes the cookie to
 a bearer token on the way in. This resists XSS better than an in-memory token, at the cost of
 needing CSRF protection — which Sanctum's stateful middleware provides.
 
@@ -114,7 +120,7 @@ All authorization uses `$user->hasPermission('module.action')`. **Never compare 
 1. User → user_roles pivot → role(s)
 2. Role → role_permissions pivot → permission(s)
 3. Union of all permissions from all roles
-4. Cached in Redis: user:{id}:permissions (15-min TTL)
+4. Cached per role through the Laravel cache (`role_permissions:{role}`, 1 h; the `database` store on the target)
 5. Policy calls hasPermission() against cached set
 ```
 
@@ -145,7 +151,7 @@ All authorization uses `$user->hasPermission('module.action')`. **Never compare 
 
 - TLS 1.2+ enforced (HTTP redirects to HTTPS)
 - HSTS header: `max-age=31536000; includeSubDomains`
-- MinIO presigned URLs: HTTPS only, 5-minute expiry
+- Signed download URLs (`FileStorageService::temporaryUrl`, Laravel signed routes on the `local` disk): HTTPS only, 15-minute default expiry
 
 ### What Is Never Stored
 
@@ -178,7 +184,7 @@ Every endpoint has a dedicated FormRequest class. No inline `$request->validate(
 
 1. Client-side: file type and size check before upload
 2. Server presign: validate content-type against whitelist
-3. Server confirm: download file from MinIO temporarily
+3. Server confirm: read the stored file back from the disk
 4. Verify magic bytes match content-type:
    - JPEG: `FF D8 FF`
    - PNG: `89 50 4E 47`
@@ -276,22 +282,30 @@ Before registration AND before every delivery:
 
 ---
 
-## Security Headers (Nginx)
+## Security Headers (Apache)
 
-```nginx
-add_header X-Frame-Options "DENY" always;
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-XSS-Protection "1; mode=block" always;
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' wss:; font-src 'self';" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)" always;
-```
+Two layers set them, and they are not the same policy:
+
+- **API responses** — `api/app/Http/Middleware/SecurityHeaders.php`: `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `X-XSS-Protection`, `Strict-Transport-Security`
+  (`max-age=31536000; includeSubDomains; preload`), a locked-down
+  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, and a `Permissions-Policy` that allows only
+  `camera` and `geolocation` for `self`.
+- **The static frontend** — `docs/deployment/shared-hosting/.htaccess`, rendered by
+  `scripts/shared-hosting/render-htaccess.php` and deployed as the document-root `.htaccess`. It
+  carries the page CSP (which has to allow `'unsafe-inline'` scripts for the export to hydrate;
+  see `scripts/shared-hosting/render-htaccess.php`) and `connect-src 'self'`, which is why the
+  realtime WebSocket is opt-in (`src/src/lib/echo.ts`). `src/next.config.ts` defines the same
+  headers for `next dev`; under `output: 'export'` Next drops its `headers()`.
+
+A previous version of this section showed an Nginx `add_header` block. There is no Nginx on
+the target; do not paste it anywhere.
 
 ### Removed Headers
 
 - `X-Powered-By` (PHP version exposure)
-- `Server` (Nginx version exposure)
+- `Server` (version exposure; Apache `ServerTokens` is host-controlled on shared hosting)
 - Laravel-specific debug headers in production
 
 ---
@@ -341,4 +355,4 @@ add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
 | API key logs | 30 days | Hard delete |
 | Failed syncs | Until resolved + 7 days | Hard delete |
 | Import staging | 7 days | Hard delete |
-| Export files | 30 days | Hard delete from MinIO |
+| Export files | 30 days | Hard delete from the storage disk |

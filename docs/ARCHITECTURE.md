@@ -1,5 +1,9 @@
 # ETHR — System Architecture (v2.0)
 
+> **2026-09-30: the VPS/Docker/Redis/MinIO/Nginx stack this document diagrams no longer exists in
+> the repository** (production is Plesk shared hosting; development is XAMPP). Treat the topology
+> sections as history; the live shape is in `CLAUDE.md` §3 and `deployment/shared-hosting/`.
+>
 > **Read this first. Last substantive revision: 2026-08-28** — before Horizon was removed
 > (`cdf85d1`), before the queue topology changed, and before the shared-hosting target was
 > chosen. **It was the stalest document in the repository** when the 2026-09-25 audit measured
@@ -704,7 +708,7 @@ Every list/paginated endpoint must return a `JsonResource::collection()` over a
 paginator (never a raw `response()->json($paginator)`), so it serializes as
 the standard envelope — see CLAUDE.md's "API Conventions" section for the
 exact single-resource vs. paginated-collection shapes and the matching
-`PaginatedResponse<T>` TypeScript type in `src/api/types.ts`. Returning a raw
+`PaginatedResponse<T>` TypeScript type in `src/src/api/types.ts`. Returning a raw
 paginator instead produces a different, incompatible shape (pagination fields
 top-level instead of nested under `meta`) that silently breaks any frontend
 code written against the standard envelope — this exact bug shipped on the
@@ -713,21 +717,21 @@ admin tenants list and the tenant audit log page before being caught.
 ### Contract Testing (Generated Types + MSW)
 
 `npm run generate:api` exports the Laravel OpenAPI spec (via Scramble) and
-runs it through `openapi-typescript` into `src/api/generated.ts`
+runs it through `openapi-typescript` into `src/src/api/generated.ts`
 (`components["schemas"][...]`, `paths[...]`). Feature-scoped types
-(`src/features/{feature}/types.ts`) should `Pick<>` from these generated
+(`src/src/features/{feature}/types.ts`) should `Pick<>` from these generated
 schemas rather than hand-declaring parallel interfaces — a hand-rolled type
 drifts silently from the real API shape. This exact drift shipped once:
 `features/employees/types.ts` declared `position: { name: string }` while
 the real `PositionResource` field is `title`, so the employee list and
 detail pages always rendered "—" for position in production.
 
-Request mocking in Vitest uses MSW (`src/test/msw/handlers.ts` +
-`src/test/msw/server.ts`, wired into `src/test/setup.ts` with
+Request mocking in Vitest uses MSW (`src/src/test/msw/handlers.ts` +
+`src/src/test/msw/server.ts`, wired into `src/src/test/setup.ts` with
 `onUnhandledRequest: "error"`) rather than mocking `apiClient` directly,
 so tests exercise the real axios request/response pipeline (interceptors,
 error handling) against fixtures typed off the same generated schemas —
-see `src/test/employees-api.test.tsx` for the reference pattern. Prefer this
+see `src/src/test/employees-api.test.tsx` for the reference pattern. Prefer this
 over `vi.mock("@/api/client")` for new feature tests; the existing
 `vi.mock`-based tests (e.g. `notifications-optimistic.test.tsx`) predate
 this convention and don't need to be migrated on sight.
@@ -1002,8 +1006,8 @@ audit:
   that renders fields *outside* a `<form>` element loses this for free.
 - **Unsaved changes warning on navigation (page forms/wizards)** — was
   entirely missing. Added `useUnsavedChangesWarning(hasUnsavedChanges)` in
-  `src/lib/hooks/useUnsavedChangesWarning.ts`, wired into the employee
-  create page (`src/app/(dashboard)/employees/new/page.tsx`) as the
+  `src/src/lib/hooks/useUnsavedChangesWarning.ts`, wired into the employee
+  create page (`src/src/app/(dashboard)/employees/new/page.tsx`) as the
   reference implementation. It only covers browser-level navigation
   (tab close, refresh, external link) via the `beforeunload` event — the
   Next.js App Router has no supported hook for intercepting client-side
@@ -1022,7 +1026,7 @@ audit:
 
 ## DataTable Pattern
 
-`src/components/patterns/DataTable.tsx` is the shared enterprise table used
+`src/src/components/patterns/DataTable.tsx` is the shared enterprise table used
 across list pages (server-side sorting, pagination, column visibility
 persisted per-table to localStorage, row selection with bulk actions,
 progressive column hiding below a breakpoint via `column.meta.hideBelow`,

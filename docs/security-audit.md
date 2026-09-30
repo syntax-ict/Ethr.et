@@ -4,6 +4,11 @@
 
 _Last reviewed: 2026-07-30_
 
+> Evidence for the OWASP mapping only, and **dated**: it predates the move to shared hosting. The
+> current controls are in [`SECURITY.md`](SECURITY.md) (reviewed 2026-09-30); vulnerability
+> reporting is the root [`../SECURITY.md`](../SECURITY.md); measured state is
+> [`audit/BASELINE.md`](audit/BASELINE.md).
+
 This document maps each OWASP Top 10 (2021) category to the concrete controls in
 ETHR and the automated test or code location that proves the control is in place.
 It is the "test evidence" required by the Phase 9 S36 exit criterion.

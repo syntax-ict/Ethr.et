@@ -1,5 +1,10 @@
 # ETHR — Enterprise Production Roadmap
 
+> **Point-in-time record (2026-08/09) — not current.** It cites scripts that no longer exist
+> (`scripts/pest-isolated.sh`, `phpstan-isolated.sh`, `api-reload.sh`, `run-e2e.sh`, removed
+> 2026-09-26/30) and a baseline of "Pest 1542". Live gate state: `scripts/gates.sh`; measured
+> state: `docs/audit/BASELINE.md`.
+
 *Single consolidated roadmap. Supersedes the per-phase checkboxes in `PHASE_*.md`,
 which are stale and must not be trusted (project rule: **the source of truth is the
 code**). Built by auditing the live code against the two standing audits

@@ -2,6 +2,11 @@
 
 **Phase 0 forensic audit, read-only. Classified 2026-09-25 against `6d9fb23`.**
 
+> **Update 2026-09-30:** this classification predates the removal of the Docker development stack. Anywhere
+> below that says `docker/frontend/Dockerfile`, a compose file, or `docker/php/*` *remains* — including the
+> `VPS-DECOMMISSION.md` row — describes 2026-09-25, not now: all of them were removed (`2eff11f`, `838129e`),
+> and the Node pin lives only in `.nvmrc`.
+
 Classification of every migration- or deployment-bearing document in the repository.
 Dates in the *Last touched* column are from `git log`, not from the date printed inside the
 document — several print a creation date and have been revised many times since.

@@ -97,9 +97,15 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`MIGRATION_STATE.md`](MIGRATION_STATE.md) · [`MIGRATION_CHANGELOG.md`](MIGRATION_CHANGELOG.md) | **Hosting** migration state and history |
 | [`DATABASE_MIGRATION_PLAN.md`](DATABASE_MIGRATION_PLAN.md) | Moving the **schema and data** to the target MySQL/MariaDB |
 | [`TCO_COMPARISON.md`](TCO_COMPARISON.md) | Cost comparison — opens by questioning the migration's own premise |
-| [`DEPLOYMENT.md`](DEPLOYMENT.md) | Reference manual: *why* each piece is shaped as it is |
+| [`DEPLOYMENT.md`](DEPLOYMENT.md) | **Historical — the VPS/Docker record.** Only *Draining the queue before an upgrade*, the tax schedule and the env-var reasoning are still authoritative; the live procedure is `deployment/shared-hosting/DEPLOYMENT.md` |
 | ~~`VPS_DEPLOYMENT.md`~~ | **Removed 2026-09-26** with the rest of the VPS stack, at the owner's direction and before a verified cutover. There is no rollback path now; the way back is `git revert`. See [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) |
-| [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) · [`ROLLBACK_RUNBOOK.md`](ROLLBACK_RUNBOOK.md) | Go-live and rollback |
+| [`deployment/CUTOVER-CHECKLIST.md`](deployment/CUTOVER-CHECKLIST.md) | **Can we go live? The one register that decides.** Every gate is `PASS` / `FAIL` / `HOST ACTION REQUIRED` / `OWNER DECISION` / `BLOCKED` |
+| [`deployment/shared-hosting/rollback.md`](deployment/shared-hosting/rollback.md) | **The current rollback procedure** — redeploy an earlier commit for code, `ethr:restore` for data. There is no VPS to fall back to |
+| [`deployment/BACKUP-RESTORE.md`](deployment/BACKUP-RESTORE.md) · [`deployment/M6-RESTORE-REHEARSAL.md`](deployment/M6-RESTORE-REHEARSAL.md) | `ethr:backup` / `ethr:restore`, and the nine-step rehearsal on the real host (**not yet performed**) |
+| [`deployment/shared-hosting/ENVIRONMENT.md`](deployment/shared-hosting/ENVIRONMENT.md) · [`cron-caller.md`](deployment/shared-hosting/cron-caller.md) · [`deploy-checklist.md`](deployment/shared-hosting/deploy-checklist.md) · [`health-check.md`](deployment/shared-hosting/health-check.md) | Env reference, the GitHub Actions scheduler, the pre-cutover pass, and the health endpoint |
+| [`deployment/G0-F-CREATE-TRIGGER.md`](deployment/G0-F-CREATE-TRIGGER.md) · [`deployment/SHARED_HOSTING_PLAN.md`](deployment/SHARED_HOSTING_PLAN.md) · [`PANEL-SESSION-RUNBOOK.md`](PANEL-SESSION-RUNBOOK.md) | The `CREATE TRIGGER` host probe, the original (Gold-tier, disputed) plan, and the single-session panel runbook |
+| [`decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md) | **Decided 2026-09-27: static export served by Apache**, no Plesk Node application |
+| [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) · [`ROLLBACK_RUNBOOK.md`](ROLLBACK_RUNBOOK.md) | **Historical.** The original 24-item brief and the VPS-era rollback plan; both superseded by the two rows above |
 | [`LOCAL_SETUP.md`](LOCAL_SETUP.md) | Development environment |
 
 ## Decisions and audit
@@ -109,6 +115,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`decisions/DECISIONS.md`](decisions/DECISIONS.md) | Decision log — what was chosen, why, and what would reverse it |
 | [`audit/BASELINE.md`](audit/BASELINE.md) | The forensic baseline — §1–§18 of measured state. The deepest reference in this tree |
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
+| [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
 
 ### The Bronze/Plesk migration audit — Phases 0–2, 2026-09-25
 

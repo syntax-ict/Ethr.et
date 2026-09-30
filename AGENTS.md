@@ -43,8 +43,9 @@ outrank the rest, and getting them wrong is expensive:
   the tables above it are dated. **Never convert `NOT VERIFIED` into `VERIFIED` without a
   measurement**, and never treat a 404 on an absent probe as a pass.
 - **[`docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md)**
-  is open. Do not choose the production frontend mode, and do not enable the Plesk Node.js
-  application.
+  was **decided 2026-09-27: static export served by Apache**. Do not enable the Plesk
+  Node.js application, and do not render deployed rules with `--branch=a` (that is the
+  Node branch).
 
 Two standing prohibitions, both with reasons recorded in the tree: **do not soften the
 audit-log trigger migration** to get past a possibly-missing `CREATE TRIGGER` grant, and

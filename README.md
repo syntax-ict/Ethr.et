@@ -33,9 +33,10 @@ with the constraints Ethiopian deployments actually impose:
 | Testing | Pest · Vitest · Playwright |
 | Hosting | Ethio Telecom Plesk **shared hosting**: Apache + PHP-FPM, no shell, no Docker, no long-running processes; the scheduler and queue are driven over HTTP by GitHub Actions (`.github/workflows/cron.yml`) |
 
-Measured 2026-09-15: **102 controllers, 69 models, 55 migrations** under
-`/api/v1`, covered by **1673 backend tests (4966 assertions)** across 141 Pest
-files, plus 70 Vitest files and 12 Playwright specs.
+Measured 2026-09-30 by file count: **105 controller files, 70 models, 67 migrations**
+under `/api/v1`, covered by **189 backend test classes** (2012 tests passed on
+2026-09-28), **91 Vitest files** and **13 Playwright specs** — the last of which no CI
+workflow runs. Reproduce the figures rather than trusting these; they drift.
 
 Reproduce the backend figure rather than trusting this line — it is only true
 on the day it was written:
@@ -98,7 +99,7 @@ Two gotchas worth knowing up front:
 
 - **Check the collected test count, not just the colour.** PHP's recursive
   directory scan was once lossy (over a Docker Desktop bind mount, now removed):
-  `pest` collected 22 of 132 test classes and exited 0 green. `gates.sh`
+  `pest` collected 21 of 132 test classes and exited 0 green. `gates.sh`
   compares the collected class count against `find` and fails loudly on an
   undercount — keep the checkout on a plain local disk.
 - `scripts/api-types-check.sh` needs a running, fully migrated database, because
@@ -118,7 +119,7 @@ immutable audit log, RFC-7807 errors, and the rest) that every change is held to
 | [`DEPLOYMENT.md`](docs/DEPLOYMENT.md) · [`SECURITY.md`](docs/SECURITY.md) | Production deployment and security posture |
 | [`LOCALIZATION.md`](docs/LOCALIZATION.md) · [`DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | i18n and the design system |
 | [`audit/BASELINE.md`](docs/audit/BASELINE.md) | **Measured state of the codebase** — what is verified vs merely documented |
-| [`deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) | Plesk hosting verification — every row still `NOT VERIFIED` |
+| [`deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) | Plesk hosting verification — five capabilities `VERIFIED`, the rest outstanding (see its reconciliation section) |
 | `PHASE_00.md` – `PHASE_09.md` | Original design records — **their checkboxes are not maintained** |
 
 The phase documents are specifications, not progress trackers; their checkboxes

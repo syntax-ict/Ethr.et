@@ -281,6 +281,11 @@ unfilled, which is visible.
 > the local development broadcasting and storage backends and are selected only by
 > `.env.example`. None of that is required by, or contradicts, this contract.
 >
+> **Superseded 2026-09-30.** That remaining set was removed as well (`2eff11f`, `838129e`): the
+> compose files, `docker/`, and the `minio` disk are gone. Nothing in the repository runs under
+> Docker, and local development is XAMPP (`docs/LOCAL_SETUP.md`). The reasoning about what a
+> shared-hosting procedure may assume is unchanged.
+>
 > The list above stands unchanged as a statement of what a shared-hosting procedure may
 > never require. Only the sentence about where those things still live was wrong.
 They are simply not part of this contract, and a shared-hosting runbook that reaches for
@@ -404,3 +409,6 @@ runner the asynchronous half of the product is inert regardless of how the code 
   > `docker/frontend/Dockerfile` all remain, deliberately, and none of them is a VPS
   > production asset. That distinction — *production-VPS-only* versus *development, CI, or
   > new-target* — is what the removal was careful about and is why the tree still builds.
+  >
+  > **Superseded 2026-09-30:** those development assets were removed too; "all remain" above
+  > describes 2026-09-27, not now.
