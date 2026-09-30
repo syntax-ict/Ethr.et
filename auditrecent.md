@@ -36,7 +36,7 @@ The repository is healthy; the problems below are the kind a green gate does not
 | S3 | Med | `printPayslip()` (`payroll/payslips/page.tsx:41-85`) interpolates `employeeName` and every `labels.*` into an HTML string and `document.write()`s it into a same-origin window; CSP allows `'unsafe-inline'`. A name containing markup executes in the app origin (VERIFIED). | FIXED — `escapeHtml` on every interpolated value; unit-tested |
 | S4 | Med | Frontend opens a WebSocket on every logged-in page in production. `src/.env.production` (tracked) sets `NEXT_PUBLIC_REVERB_HOST=ethr.et:443`; `ReverbProvider` mounts unconditionally and calls `initEcho()`, which defaults to `localhost:8080` / key `ethr-key`. The host is Apache with `connect-src 'self'` and `BROADCAST_CONNECTION=null` (VERIFIED). Every page load attempts a handshake that cannot succeed. | FIXED — realtime is opt-in on `NEXT_PUBLIC_REVERB_APP_KEY`; no `localhost`/`ethr-key` defaults; `REVERB_*` removed from `.env.production`; 3 tests |
 | S5 | Med | Device `connection_config` is persisted raw (`DeviceController.php:98,138-139`); `UpdateDeviceRequest` demands `ip`+`port` whenever it is present, so generic/mock devices cannot be updated; no `ExternalUrl`/private-range check on tenant-supplied hosts the server later polls (SSRF, SUSPECTED). | OPEN — needs per-adapter rule design; not safe to guess |
-| S6 | Low | `ScimAuth` resolves the tenant from the API key without `isActive()` (unlike `ResolveTenant`); a suspended tenant's SCIM key may still provision (SUSPECTED, not traced). | OPEN |
+| S6 | Low | `ScimAuth` resolves the tenant from the API key without `isActive()` (unlike `ResolveTenant`); a suspended tenant's SCIM key may still provision. **Traced and confirmed:** the middleware set the tenant from the key with no `isActive()` check, and a null tenant hit a `TypeError`. | FIXED — 403 for an inactive or missing tenant; test added; the baselined `ScimAuth:35` entry is gone |
 | S7 | Low | Public catalogue endpoints (`plans`, `site-content`, `templates`) carry no throttle beyond the shared `api` limiter. | OPEN |
 
 ## 3. Dead and redundant backend code
@@ -75,7 +75,7 @@ container fallback. What is left is documentation-in-config and tests that pin i
 | I6 | Med | `phpunit.xml`/`phpunit.mysql.xml`/`tests/bootstrap.php` pin `PULSE_*`, `TELESCOPE_*`, `NIGHTWATCH_*` for packages that are not installed. | FIXED |
 | I7 | Med | `HorizontalScalingTest` is partly tautological (sets a config value, asserts the value it set); `DeploymentWorkerConsistencyTest:7-34` is an orphaned docblock describing `supervisor.conf`; `InfrastructureAgnosticTest:9-18` claims production sets `FILESYSTEM_DISK=minio` / `CACHE_STORE=redis` (false). | FIXED |
 | I8 | Low | `phpstan-divergence-probe.yml` is obsolete — the divergence was closed in BASELINE §12c (cause: `.env` presence) and the probe only re-fires on edits to itself. | FIXED (deleted; BASELINE holds the result) |
-| I9 | Low | `laravel/reverb` (require), `league/flysystem-aws-s3-v3` and the `s3` disk are referenced at runtime (12 notifications, `BroadcastConnectionConfigTest`, `ethr:backup --off-host`). Moving them to `require-dev` (issue #120) would break the optional paths. No `AWS_*` keys in either example, so off-host backup is undocumented. | OWNER |
+| I9 | Low | `laravel/reverb` and `league/flysystem-aws-s3-v3` are `require`. **Split decision, on evidence:** nothing in `app/ config/ routes/ database/` references a Reverb, Pusher or ReactPHP class, so Reverb moves to `require-dev` (production installs with `--no-dev`); the S3 adapter stays, because `ethr:backup --off-host` uses the `s3` disk at runtime. No `AWS_*` keys in either example, so off-host backup is still undocumented. | FIXED for Reverb — same 114 packages at the same versions, 13 move to `packages-dev` (114 → 101 in production). S3: kept by decision. Issue #120's premise (Docker needs both) lapsed on 2026-09-30 |
 | I10 | Low | `verify-without-fix.yml` pins PHP 8.4 (everything else 8.2) with a default filter specific to one past fix; `gates.yml:546-553` says "no threshold" but `gates.sh` uses `--min=85`; `backend-coverage` re-runs the whole suite. | OPEN |
 | I11 | Low | Stale comments: `CODEOWNERS` "~147 bypass sites" (159), `AppServiceProvider:161-166` (Redis/MinIO/nginx), `SystemHealthService:~105` (MinIO), `next.config.ts:98-100` CSP keeps `127.0.0.1:9000` "local MinIO", `api-types-check.sh` cites a nonexistent audit doc, `backup.sh:38` hints at `docker compose exec`. | FIXED |
 | I12 | Low | `ScriptComposeFileReferencesTest:166-199` forces the two retired scripts `backup.sh`/`restore.sh` to stay. Deleting them is deferred in the docs to the Stage 6 restore rehearsal. | OWNER |
@@ -180,3 +180,20 @@ for review; nothing outward-facing (remote branches, PRs, workflows on GitHub) w
 - **F7:** I listed hardcoded attributes; the real finding is an entire untranslated page.
 - **Line endings:** my first scripted edits wrote CRLF into four LF files and Pint caught it — the gate did its job.
 - **Import order / FQNs / DOM types** in code I wrote failed Pint and PHPStan on the first run and were fixed.
+
+---
+
+## 9. Decisions taken when asked to decide (2026-09-30, after the push)
+
+| Item | Decision | Reasoning |
+|---|---|---|
+| **G1 scheduler** | **Do not merge PR #133 yet; merge it at cutover.** | The owner's "draft, do not merge" hold stands, and `CUTOVER READY = NO`. `cron.yml` on `main` would hit an endpoint of a host that is not yet serving the app every five minutes and fail every time. The queue has no work to drain until the host is live. The risk is real only if cutover happens without the merge, so **merging is now line 1 of the cutover procedure** |
+| **G2 stale branches** | **Not done — blocked.** The auto-mode classifier refused the remote deletion as destructive, so it was not retried another way | 40 of 41 were verified safe (branch tip identical to its merged PR's head); `claude/announcement-show-visibility` has commits beyond its merged PR and must be kept. The 40 are listed by the script in §7; run it yourself when ready |
+| **G3 PRs #17, #21** | Leave open | They carry unmerged work and conflict with `main`; closing discards it. The owner should rebase or close them deliberately |
+| **G4 dependabot** | `@dependabot rebase` requested on #8, #9, #10, #12, #13 | Benign and reversible; they predate the CI repair. #134 has 3 real failures and was left for review |
+| **B1 lockout service** | **Keep as is; do not touch the login path before cutover** | Dead, but changing authentication behaviour days before go-live costs more than carrying 132 unused lines. Revisit after cutover: delete, or wire in behind a test |
+| **B2/B3 test-only methods** | Leave | Deleting them deletes their tests, and nobody has said which behaviour is intended |
+| **I12 retired scripts** | Keep `backup.sh` / `restore.sh` until the Stage 6 host restore rehearsal | The docs already tie their removal to that rehearsal |
+| **F1 E2E in CI** | Defer | Needs a served stack and browsers in CI; a half-configured job that is always red is worse than none |
+| **S5 device SSRF** | Still open | Needs per-adapter rules and a traced path; guessing risks breaking device sync |
+
