@@ -56,6 +56,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | Where the browser app lives, for links in outbound mail (password reset,
+    | account activation). In production the static export is served by the same
+    | Apache vhost as the API, so it is the same origin as APP_URL. Only a local
+    | checkout runs the two apart (API :8000, Next dev server :3000), so that is
+    | the only place a localhost default is correct. Anywhere else an unset
+    | FRONTEND_URL must fall back to APP_URL, not to a host no user can reach.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', env('APP_ENV', 'production') === 'local'
+        ? 'http://localhost:3000'
+        : env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Tenancy Root Domain
     |--------------------------------------------------------------------------
     |
