@@ -4837,12 +4837,6 @@ parameters:
 			path: app/Services/Report/ReportEngine.php
 
 		-
-			message: '#^Call to an undefined method DOMNameSpaceNode\|DOMNode\:\:getAttribute\(\)\.$#'
-			identifier: method.notFound
-			count: 4
-			path: app/Services/Sso/SamlProvider.php
-
-		-
 			message: '#^Parameter \#2 \$haystack of function in_array expects array, string given\.$#'
 			identifier: argument.type
 			count: 1
