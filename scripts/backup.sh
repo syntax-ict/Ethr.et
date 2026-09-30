@@ -34,8 +34,7 @@ set -euo pipefail
 #                                                              Stage 6 and is
 #                                                              still outstanding.
 #
-#   Local development           php artisan ethr:backup inside the dev stack:
-#                               docker compose exec api php artisan ethr:backup
+#   Local development           php artisan ethr:backup   (from api/)
 #
 # Repointing this script at `docker-compose.yml` was considered and rejected: it
 # stops three services that the dev stack does not have (`worker-realtime`,

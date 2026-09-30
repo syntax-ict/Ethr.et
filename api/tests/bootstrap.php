@@ -39,9 +39,6 @@ $phpunitControlledKeys = [
     'MAIL_MAILER',
     'QUEUE_CONNECTION',
     'SESSION_DRIVER',
-    'PULSE_ENABLED',
-    'TELESCOPE_ENABLED',
-    'NIGHTWATCH_ENABLED',
 ];
 
 foreach ($phpunitControlledKeys as $key) {

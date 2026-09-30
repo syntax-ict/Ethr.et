@@ -54,7 +54,7 @@ if ! RUN_EXPORT "$TMP/openapi.json"; then
     echo "    start MariaDB (XAMPP), and check DB_* in api/.env"
     echo "  Confirm the schema is actually populated — an empty or partially"
     echo "  migrated database does NOT fail the export, it silently produces a"
-    echo "  degraded contract. See docs/ETHR_AUDIT_2026-08-14.md."
+    echo "  degraded contract."
     exit 1
 fi
 

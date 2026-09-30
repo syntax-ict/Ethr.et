@@ -5,37 +5,6 @@ declare(strict_types=1);
 use App\Services\Observability\QueueHealth;
 
 /**
- * Every deployment asset in this repository started its queue worker with
- * `php artisan horizon`, and Horizon was removed in cdf85d1.
- *
- * Measured 2026-09-19: `laravel/horizon` appears **zero** times in
- * `api/composer.lock`, there is no `api/config/horizon.php`, and no command in
- * `api/app/` carries that signature. So the command does not exist, and:
- *
- * - `infrastructure/supervisor.conf` ran it as `[program:ethr-horizon]` in the
- *   autostart group. Supervisor retries `startretries=5` times and then gives
- *   up, leaving the VPS with no worker while every other process looks healthy.
- * - `docker-compose.yml`'s `worker` service ran it under
- *   `restart: unless-stopped`, which turns an immediate exit into a crashloop.
- *
- * Both are now `queue:work`. The root `CLAUDE.md` says *"without the queue
- * worker no job ever runs"* — and the worker it told you to start was the
- * broken one, which is why nothing caught this: the failure is in the process
- * that exists to make other failures visible.
- *
- * All 16 jobs in `app/Jobs` implement `ShouldQueue`, as do two listeners, so a
- * missing worker is not a degraded mode — it is the entire asynchronous half of
- * the product.
- *
- * These assertions read files and need no database, network or container.
- *
- * One Pest trap, hit by this file on its first CI run: **`toContain` is
- * variadic.** `toContain($needle, $message)` searches for BOTH strings, so the
- * failure message becomes a second needle and the assertion fails even when the
- * real needle is present. Use `expect(str_contains(...))->toBeTrue($message)`.
- * `toBe`, `toMatch`, `toBeTrue` and `toBeFalse` all take a genuine message.
- */
-/**
  * The one worker ETHR has: `POST /api/v1/cron/queue` -> CronRunController::queue()
  * -> `queue:work`, driven by the GitHub Actions caller (.github/workflows/cron.yml).
  *
@@ -45,6 +14,17 @@ use App\Services\Observability\QueueHealth;
  * removed that day, so the guard now points at the code that actually runs on the
  * host. (Before the VPS decommission of 2026-09-26 it checked four assets:
  * infrastructure/supervisor.conf and three compose files.)
+ *
+ * History worth keeping: every one of those assets once started its worker with
+ * `php artisan horizon` after Horizon had been removed (cdf85d1), so the process
+ * that exists to make other failures visible was itself broken and nothing
+ * noticed. All 16 jobs in `app/Jobs` implement `ShouldQueue`, as do two
+ * listeners, so a missing worker is not a degraded mode.
+ *
+ * One Pest trap, hit by this file on its first CI run: **`toContain` is
+ * variadic.** `toContain($needle, $message)` searches for BOTH strings, so the
+ * failure message becomes a second needle and the assertion fails even when the
+ * real needle is present. Use `expect(str_contains(...))->toBeTrue($message)`.
  */
 function ethrCronController(): string
 {

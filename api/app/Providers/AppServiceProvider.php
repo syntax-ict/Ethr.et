@@ -156,13 +156,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->ip());
         });
 
-        // `/health` has to stay unauthenticated — container and uptime probes
-        // cannot log in — but each call fans a single HTTP request out into
-        // five backend round trips (primary DB, read replica, Redis, queue
-        // depth, MinIO). nginx caps /api/v1/* at 60r/m per IP, but that only
-        // covers traffic that actually arrives through nginx; anything bound
-        // straight to the api container bypasses it. 30/min is well above what
-        // any real probe needs.
+        // `/health` has to stay unauthenticated — uptime probes cannot log in —
+        // but each call fans a single HTTP request out into several backend
+        // round trips (primary DB, read replica, cache, queue depth, storage).
+        // Apache applies no per-IP limit on the shared-hosting target, so this
+        // limiter is the only brake. 30/min is well above what any real probe
+        // needs.
         RateLimiter::for('health', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });

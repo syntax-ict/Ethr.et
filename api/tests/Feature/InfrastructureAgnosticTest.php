@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\Storage;
  * "whatever this deployment is configured to use".
  *
  * That distinction is invisible in an environment whose config happens to match
- * the literal, which is why it survived: production sets FILESYSTEM_DISK=minio
- * and CACHE_STORE=redis, so the two agreed and the bug had no symptom. It only
- * appears on a deployment that configures something else — and then it appears
+ * the literal, which is why it survived: the VPS stack these were written
+ * against set FILESYSTEM_DISK=minio and CACHE_STORE=redis, so the two agreed and
+ * the bug had no symptom. (Production today runs `local` and `database`, which is
+ * the configuration that exposed it.) It only appears on a deployment that
+ * configures something else — and then it appears
  * as file storage silently ignoring FILESYSTEM_DISK, and as the health endpoint
  * reporting a permanently dead cache while the real cache is fine.
  *

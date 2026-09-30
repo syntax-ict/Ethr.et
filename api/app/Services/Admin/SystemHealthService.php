@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Services\Observability\QueueHealth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -97,12 +98,13 @@ final class SystemHealthService
         try {
             // Resolve from configuration, not a hardcoded name. This was the one
             // site 80cac67 missed when it fixed the other four, so on any
-            // non-MinIO deployment the admin health page showed storage
-            // permanently red - and a panel that is always red is a panel people
-            // stop reading, which is worse than no panel at all.
+            // deployment that did not use the VPS's MinIO disk the admin health
+            // page showed storage permanently red - and a panel that is always
+            // red is a panel people stop reading, which is worse than no panel
+            // at all.
             $disk = Storage::disk(config('filesystems.default'));
             $start = microtime(true);
-            // Lightweight check: list root (may throw if MinIO is down)
+            // Lightweight check: list root (throws if the disk is unreachable)
             $disk->directories('/');
             $ms = (int) ((microtime(true) - $start) * 1000);
 
@@ -120,7 +122,7 @@ final class SystemHealthService
         // ignoring the four that do. A bare `queue:work` reads only `default`
         // (DB_QUEUE), so a misconfigured worker starves the other three; this is
         // the panel that has to make that visible.
-        $queues = ['default', 'attendance', 'notifications', 'exports'];
+        $queues = QueueHealth::QUEUES;
         $depths = [];
 
         foreach ($queues as $queue) {

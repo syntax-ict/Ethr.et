@@ -27,7 +27,7 @@ class BackupCommand extends Command
         {--label= : Suffix for the backup directory name}
         {--keep= : How many backups to retain locally; defaults to config backup.keep}
         {--off-host : Also copy an archive to the configured off-host disk}
-        {--disk=s3 : Which disk to copy to}';
+        {--disk= : Which disk to copy to; defaults to config backup.off_host_disk}';
 
     protected $description = 'Back up the database and employee documents';
 
@@ -53,8 +53,9 @@ class BackupCommand extends Command
             $this->line('  path      '.$result['path']);
 
             if ($this->option('off-host')) {
-                $key = $backups->copyOffHost($result['path'], (string) $this->option('disk'));
-                $this->line('  off-host  '.$this->option('disk').':'.$key);
+                $disk = (string) ($this->option('disk') ?: config('backup.off_host_disk'));
+                $key = $backups->copyOffHost($result['path'], $disk);
+                $this->line('  off-host  '.$disk.':'.$key);
             } else {
                 // Warned on every run, not once in a README. A backup that only
                 // ever exists on the machine it protects does not survive the
