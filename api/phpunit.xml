@@ -19,22 +19,22 @@
     </source>
     <!--
         force="true" is required, not cosmetic. Without it PHPUnit leaves any
-        variable that already exists in the real environment alone — and the
-        api container exports DB_CONNECTION=mariadb and the database cache,
-        session and queue drivers (see docker-compose.yml; they were redis until
-        2026-09-30). Running the suite in that container once pointed it at the
-        live MariaDB and the live Redis: every test tried to create its own
+        variable that already exists in the real environment alone. The Docker
+        api container (removed 2026-09-30) exported DB_CONNECTION=mariadb and
+        redis drivers, and running the suite there pointed it at the live
+        MariaDB and the live Redis: every test tried to create its own
         `ethr_test_N` database, which the `ethr` user has no grant for, and the
         shared Redis carried rate-limiter state between runs so requests came
         back 429. That surfaced as ~1200 failures that had nothing to do with
-        the code under test. A shared database cache would do the same, so
-        forcing still makes this file authoritative wherever the suite runs.
+        the code under test. Any shell that exports these variables does the
+        same, so forcing still makes this file authoritative wherever the suite
+        runs.
     -->
     <php>
         <!--
             The whole suite runs in one PHP process, so allocations accumulate
-            across ~1350 tests in a way no single web request ever does. At the
-            256M that docker/php/php.ini sets for PHP-FPM the run dies partway
+            across ~2000 tests in a way no single web request ever does. At the
+            256M the application asks PHP-FPM for, the run dies partway
             through with "Allowed memory size exhausted" — reported as a fatal
             error rather than a test failure, so it reads like a broken suite
             instead of an exhausted one. Raised here rather than in php.ini so

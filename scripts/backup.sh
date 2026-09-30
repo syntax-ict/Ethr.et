@@ -56,7 +56,7 @@ scripts/backup.sh is RETIRED and does nothing.
 
 Use instead:
   production        php artisan ethr:backup   /   php artisan ethr:restore
-  local dev         docker compose exec api php artisan ethr:backup
+  local dev         cd api && php artisan ethr:backup
 
 See docs/deployment/BACKUP-RESTORE.md and docs/deployment/VPS-DECOMMISSION.md.
 RETIRED

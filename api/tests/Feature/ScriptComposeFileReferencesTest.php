@@ -22,11 +22,14 @@ declare(strict_types=1);
  * `./scripts/gates.sh docs` was green throughout. This is the check that would
  * not have been.
  *
- * WHAT IT ASSERTS. Every `docker-compose*.yml` filename appearing in any
- * `scripts/**.sh` names a file that exists — unless the line is a comment, since
- * the retired scripts and several live ones deliberately cite deleted assets to
+ * WHAT IT ASSERTS. Since 2026-09-30, that no reachable line of any
+ * `scripts/**.sh` runs `docker` at all. Until then it asserted the narrower
+ * "every `docker-compose*.yml` a script names exists"; the Docker development
+ * stack was removed that day — production is shared hosting and so is the one
+ * local setup — so any executable docker call is now a reference to a removed
+ * asset. Comments are exempt, since scripts deliberately cite deleted assets to
  * explain what replaced them. Annotated provenance is the habit this repository
- * wants; an executable reference to a missing file is not.
+ * wants; an executable reference to a missing tool is not.
  *
  * No database, no network.
  */
@@ -125,37 +128,37 @@ it('finds the shell scripts it is supposed to be checking', function () {
     expect($names)->toContain('deploy.sh');   // scripts/shared-hosting/deploy.sh
 });
 
-it('never references a compose file that does not exist', function () {
+it('never runs docker, which this repository no longer has', function () {
     $root = dirname(base_path());
     $offences = [];
 
     foreach (ethrShellScripts() as $script) {
         foreach (ethrReachableShellLines($script) as $number => $line) {
-            if (preg_match_all('/docker-compose[A-Za-z0-9._-]*\.yml/', $line, $matches) === 0) {
+            if (preg_match('/\bdocker\b|docker-compose[A-Za-z0-9._-]*\.yml/', $line) !== 1) {
                 continue;
             }
 
-            foreach ($matches[0] as $composeFile) {
-                if (! is_file($root.'/'.$composeFile)) {
-                    $relative = str_replace(str_replace('\\', '/', $root).'/', '', $script);
-                    $offences[] = sprintf(
-                        '%s:%d references %s, which does not exist',
-                        $relative,
-                        $number,
-                        $composeFile
-                    );
-                }
-            }
+            $offences[] = sprintf(
+                '%s:%d runs docker: %s',
+                str_replace(str_replace('\\', '/', $root).'/', '', $script),
+                $number,
+                trim($line)
+            );
         }
     }
 
+    expect(is_file($root.'/docker-compose.yml'))->toBeFalse(
+        'docker-compose.yml is back. The Docker development stack was removed on 2026-09-30; '
+        .'if it is being reinstated deliberately, rewrite this test rather than delete it.'
+    );
+
     expect($offences)->toBe(
         [],
-        "a script is wired to a compose file that was deleted:\n  ".implode("\n  ", $offences)
-        ."\n\nIf the capability moved, point the script at what replaced it or retire the "
-        .'script explicitly. Do not leave an executable reference to a removed asset — that '
-        .'is how VPS-DECOMMISSION.md came to describe backup.sh as "a working path" for a '
-        .'day while it could not run at all.'
+        "a script still runs docker, which was removed on 2026-09-30:\n  ".implode("\n  ", $offences)
+        ."\n\nPoint the script at native PHP / XAMPP (scripts/local-production/) or retire it "
+        .'explicitly. Do not leave an executable reference to a removed tool — that is how '
+        .'VPS-DECOMMISSION.md came to describe backup.sh as "a working path" for a day while '
+        .'it could not run at all.'
     );
 });
 

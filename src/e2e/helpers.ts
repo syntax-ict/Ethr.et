@@ -23,7 +23,9 @@ export const API  = process.env.API_URL  ?? 'http://demo.localhost:8000/api/v1';
  * Defaults to BASE, which is correct for the single-host model (`BASE_URL` of
  * `demo.localhost:3000` with `NEXT_PUBLIC_ROOT_DOMAIN` unset): there the
  * middleware is inert and the console is served from the tenant origin.
- * `docker-compose.test.yml` sets `PLATFORM_BASE_URL` for the subdomain harness.
+ * Set `PLATFORM_BASE_URL` when the console has its own host — against the
+ * local shared-hosting server that is `http://admin.localhost:8081`
+ * (scripts/local-production/).
  */
 export const PLATFORM_BASE = process.env.PLATFORM_BASE_URL ?? BASE;
 
@@ -45,10 +47,10 @@ export const DEMO_TENANT = process.env.DEMO_TENANT ?? 'demo';
  * can sign in from any host — but only the platform host will then serve it a
  * console.
  *
- * The default password is the dev seed's (`DatabaseSeeder`). The Dockerised E2E
- * stack provisions this account with `ethr:create-admin`, whose `min:12` rule
- * the dev default does not satisfy, so `docker-compose.test.yml` overrides both
- * values and `scripts/run-e2e.sh` seeds the matching account.
+ * The default password is the dev seed's (`DatabaseSeeder`). An account made
+ * with `ethr:create-admin` instead must satisfy its `min:12` rule, which the dev
+ * default does not — set SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASS to match it. (The
+ * Dockerised E2E harness did exactly that until it was removed on 2026-09-30.)
  */
 export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL ?? 'superadmin@ethr.et';
 export const SUPER_ADMIN_PASS  = process.env.SUPER_ADMIN_PASS  ?? 'password';

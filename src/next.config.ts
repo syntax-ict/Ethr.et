@@ -35,10 +35,12 @@ const nextConfig: NextConfig = {
    * is nothing to roll back *to* — `build-target.ts` was updated in that same
    * commit and this was not.
    *
-   * The switch stays, for the reason that survived: `standalone` is what local
-   * development and CI build, and `docker/frontend/Dockerfile` still runs the
-   * `server.js` only that target emits. Changing the default would change what
-   * every developer and every gate builds.
+   * The switch stays, for the reason that survived: `standalone` is what a
+   * plain `next build` produces here, locally and in CI's frontend job, and
+   * changing the default would change what every developer and every gate
+   * builds. (It also argued from `docker/frontend/Dockerfile` running the
+   * `server.js` only `standalone` emits; that file went with the Docker
+   * development stack on 2026-09-30.)
    *
    * Two things stop working under `export`, both by design rather than
    * oversight, and both already have a replacement in

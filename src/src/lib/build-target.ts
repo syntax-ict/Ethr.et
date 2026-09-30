@@ -6,17 +6,17 @@
  * | Target | `output` | Runtime |
  * |---|---|---|
  * | Ethio Telecom Bronze under Plesk — **the production target** | `export` | none; Apache serves files |
- * | Local development and CI | `standalone` | Node runs `server.js` |
+ * | Local development and CI | `standalone` | a plain `next build` |
  *
- * **Default is `standalone`, and it is now the only Node target left.** It used
- * to be the VPS rollback path; the VPS was decommissioned on 2026-09-26 at the
- * owner's direction, before a verified cutover, so there is no longer anything to
- * roll back *to*.
+ * **Default is `standalone`.** It used to be the VPS rollback path; the VPS was
+ * decommissioned on 2026-09-26 at the owner's direction, before a verified
+ * cutover, so there is no longer anything to roll back *to*. The Docker
+ * frontend image that ran its `server.js` went on 2026-09-30.
  *
  * The switch is kept because the two builds are genuinely different — `export`
- * emits no `server.js`, which is what `docker/frontend/Dockerfile` runs — and
- * because local development and CI still build `standalone`. Changing this
- * default now would change what every developer and every gate builds.
+ * emits no `server.js` and no server-side features — and because a plain
+ * `next build` here, locally and in CI, still produces `standalone`. Changing
+ * this default would change what every developer and every gate builds.
  *
  * Opt in with `ETHR_TARGET=shared-hosting`. That also makes the static-export
  * build runnable in CI, which is what turns "verified once by hand" into

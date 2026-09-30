@@ -13,7 +13,6 @@
     "test:e2e:a11y": "playwright test accessibility.spec.ts",
     "test:e2e:offline": "playwright test offline.spec.ts",
     "test:e2e:responsive": "playwright test responsive.spec.ts",
-    "docker:refresh": "node scripts/docker-refresh.mjs",
     "test:e2e:theme": "playwright test theme-switching.spec.ts",
     "test:e2e:amharic": "playwright test amharic-layout.spec.ts",
     "test:e2e:ux": "playwright test ux-audit.spec.ts",

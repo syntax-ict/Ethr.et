@@ -170,8 +170,6 @@ docs_gate() { (cd "$REPO_ROOT" && node scripts/docs-link-check.cjs); }
 composer_validate_gate() {
     if have_php; then
         (cd "$API_DIR" && composer validate --no-check-publish --no-interaction)
-    elif container_up; then
-        docker exec "$CONTAINER" sh -c 'cd /var/www/api && composer validate --no-check-publish --no-interaction'
     else
         no_php_msg
         return 1
@@ -235,9 +233,6 @@ run_composer_audit() {
 composer_audit_gate() {
     if have_php; then
         (cd "$API_DIR" && run_composer_audit composer audit --no-interaction)
-    elif container_up; then
-        run_composer_audit docker exec "$CONTAINER" sh -c \
-            'cd /var/www/api && composer audit --no-interaction'
     else
         no_php_msg
         return 1
@@ -261,91 +256,57 @@ Dev-only dependencies (informational, does not fail this gate):
     )
 }
 
-# PHP tooling runs natively where a php binary exists (Linux CI, a WSL2-native
-# checkout) and inside the api container otherwise. On the documented Windows +
-# Docker Desktop setup there is no native php at all — it lives only in the
-# container — so the gates that shelled straight out to `php` died with
-# "env: 'php': No such file or directory" and took the whole sweep with them.
-CONTAINER="${ETHR_API_CONTAINER:-et-api-1}"
-
-have_php()    { command -v php >/dev/null 2>&1; }
-container_up() { docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CONTAINER"; }
+# PHP tooling runs natively, and only natively. Until 2026-09-30 every PHP gate
+# fell back to an `et-api-1` Docker container when no php binary existed; the
+# Docker development stack was removed that day, because production is shared
+# hosting and so is the one local setup now (scripts/local-production/, on
+# XAMPP). CI has always run these natively.
+have_php() { command -v php >/dev/null 2>&1; }
 
 no_php_msg() {
-    printf 'No native php, and container %s is not running.\n' "$CONTAINER"
-    printf 'Start the stack with:  docker compose up -d\n'
+    printf 'No php on PATH. Install PHP 8.2+ natively — on Windows, XAMPP\n'
+    printf '(C:\\xampp\\php) is what scripts/local-production/ already uses.\n'
 }
 
-# Safe to run over the bind mount either way: unlike Larastan and Pest, Pint's
-# file scan is not lossy here — on-mount and off-mount runs were compared and
-# reported the identical 880 files and the identical violations.
 pint_gate() {
     if have_php; then
         (cd "$API_DIR" && ./vendor/bin/pint --test)
-    elif container_up; then
-        docker exec "$CONTAINER" sh -c 'cd /var/www/api && ./vendor/bin/pint --test'
     else
         no_php_msg
         return 1
     fi
 }
 
-# Native PHP first, container only as the fallback — the same shape as
-# pest_gate below, and for the same reason.
-#
-# The isolation exists for one specific defect: Larastan reads the schema by
-# enumerating migration files with RecursiveDirectoryIterator, which returns
-# roughly half of them over a Docker Desktop Windows bind mount. The missing
-# tables become ~990 "Access to an undefined property" errors — noise that is
-# entirely an artefact of where the files live. Measured 2026-08-22: 990 errors
-# on the mount, 0 off it, same config.
-#
-# That is a property of the bind mount, not of PHP: a native run against a local
-# disk sees all 55 migrations. So native is not a compromise, it is the better
-# path wherever it exists.
-#
-# This used to delegate to phpstan-isolated.sh unconditionally, which requires a
-# running `et-api-1` container — so the gate was unpassable in two places at
-# once:
-#
-#   - a CI runner has native PHP and no container, so it exited 1 with
-#     "Container et-api-1 is not running" every time. PHPStan could never have
-#     passed in CI, whatever the code said.
-#   - a developer with native PHP and Docker stopped got the same, on a machine
-#     where PHPStan runs perfectly.
+# History worth keeping: Larastan reads the schema by enumerating migration
+# files with RecursiveDirectoryIterator, which returned roughly half of them over
+# a Docker Desktop Windows bind mount — ~990 phantom errors (measured
+# 2026-08-22). A native run on a local disk sees every migration, which is the
+# only way this gate runs now that the Docker stack is gone (2026-09-30).
 phpstan_gate() {
-    if have_php; then
-        (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/phpstan analyse --no-progress)
-        return $?
+    if ! have_php; then
+        no_php_msg
+        return 1
     fi
 
-    bash "$REPO_ROOT/scripts/phpstan-isolated.sh"
+    (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/phpstan analyse --no-progress)
 }
 
 # memory_limit=-1 is required, not cosmetic: the DomPDF payslip tests exhaust the
 # default limit and take the whole suite down with them.
 #
-# The collection guard in front of it is not optional either. PHP's recursive
-# directory scan returns incomplete results over a Docker Desktop Windows bind
-# mount: measured 2026-08-21, `pest` collected 21 of 132 test classes, ran them,
-# and exited 0 with a green summary — so the gate reported success while proving
-# almost nothing, and did so for weeks. `find` (a native binary) reads the same
-# directory correctly, which is what makes the comparison possible.
+# The collection guard in front of it is not optional either, and it outlives
+# the reason it was written. PHP's recursive directory scan returned incomplete
+# results over a Docker Desktop Windows bind mount: measured 2026-08-21, `pest`
+# collected 21 of 132 test classes, ran them, and exited 0 with a green summary —
+# so the gate reported success while proving almost nothing, for weeks. The
+# Docker stack is gone (2026-09-30), but any lossy filesystem (a network share,
+# a sync folder) fails the same silent way, and `find` (a native binary) still
+# gives the honest count to compare against.
 #
-# Fail loudly on an undercount rather than quietly passing. If this fires,
-# either run the suite off the bind mount (copy `api/` into the container's own
-# filesystem first) or move the checkout to a named volume / WSL2.
+# Fail loudly on an undercount rather than quietly passing. If this fires, move
+# the checkout to a plain local disk.
 pest_gate() {
-    # Without a native php the on-mount run below cannot start, and on this setup
-    # it would fail the collection guard anyway — which is exactly the situation
-    # the comment above says to resolve by running off the mount. That is what
-    # scripts/pest-isolated.sh does, and it carries the same guard, so delegate
-    # rather than reporting a red gate for a solved problem.
     if ! have_php; then
-        if container_up; then
-            bash "$REPO_ROOT/scripts/pest-isolated.sh"
-            return $?
-        fi
         no_php_msg
         return 1
     fi
@@ -559,29 +520,17 @@ fi
 # F-6 was "ResponseTimeTest is not wired into any suite", and running it exactly
 # once by hand closed the measurement without closing the hole.
 #
-# Native-first, for the same reason `pest_gate` and `phpstan_gate` are. This
-# delegated to pest-isolated.sh unconditionally, which requires a running
-# `et-api-1`, so `gates.sh performance` was unrunnable on any machine without
-# Docker — including every CI runner, and including a developer machine with
-# native PHP and Docker stopped. That is the identical defect that left PHPStan
-# unable to pass in CI for fifty runs (see phpstan_gate above), missed here
-# because this scope sits outside the blocking sweep and so nobody ran it.
-#
-# It is why BASELINE §13e read "no performance baseline exists": the gate that
-# was supposed to produce one could not start.
+# Native only. This once delegated unconditionally to a Docker container, so
+# `gates.sh performance` was unrunnable on every CI runner and on any machine
+# with Docker stopped — the same defect that left PHPStan unable to pass in CI
+# for fifty runs, and why BASELINE §13e read "no performance baseline exists".
 performance_gate() {
-    if have_php; then
-        (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest tests/Performance)
-        return $?
+    if ! have_php; then
+        no_php_msg
+        return 1
     fi
 
-    if container_up; then
-        bash "$REPO_ROOT/scripts/pest-isolated.sh" tests/Performance
-        return $?
-    fi
-
-    no_php_msg
-    return 1
+    (cd "$API_DIR" && php -d memory_limit=-1 vendor/bin/pest tests/Performance)
 }
 
 if [[ "$SCOPE" == "performance" ]]; then

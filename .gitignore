@@ -50,11 +50,6 @@ api/.env.production
 .DS_Store
 Thumbs.db
 
-# Docker volumes
-mariadb_data/
-redis_data/
-minio_data/
-
 # Backups. A single backup directory contains the ENTIRE dataset - salary
 # history, bank details, scanned identity documents - plus every audit_log row.
 # Committing one would be a larger disclosure than any credential in this repo.
@@ -84,8 +79,6 @@ src/lighthouse-reports/
 # the first real run of that gate left it staged.
 src/.lighthouseci/
 src/e2e/.auth/
-docker-compose.override.yml
-
 
 # Claude Code local dev-server wiring (machine-specific, not team config)
 .claude/launch.json

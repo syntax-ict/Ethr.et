@@ -9,9 +9,11 @@ require __DIR__.'/../vendor/autoload.php';
  *
  * PHPUnit's `<env force="true">` writes $_ENV and putenv(), but it never
  * touches $_SERVER. Laravel's Env repository reads $_SERVER *first*, so any
- * variable the api service exports in docker-compose.yml — DB_CONNECTION=mariadb,
- * CACHE_STORE=redis, SESSION_DRIVER=redis, QUEUE_CONNECTION=redis, APP_ENV=local —
- * silently beat phpunit.xml no matter what that file says.
+ * variable the environment exports silently beats phpunit.xml no matter what
+ * that file says. It was found through the Docker api service (removed
+ * 2026-09-30), which exported DB_CONNECTION=mariadb, CACHE_STORE=redis,
+ * SESSION_DRIVER=redis, QUEUE_CONNECTION=redis and APP_ENV=local; any shell
+ * exporting the same names reproduces it, which is why the guard stays.
  *
  * The consequences were not subtle: `php artisan test` inside the container ran
  * against the *live* MariaDB, so RefreshDatabase wiped the dev database; the

@@ -24,5 +24,3 @@
 /scripts/                            @syntax-ict
 /.github/                            @syntax-ict
 /.githooks/                          @syntax-ict
-/docker/                             @syntax-ict
-/infrastructure/                     @syntax-ict

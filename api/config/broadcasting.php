@@ -29,8 +29,8 @@ return [
     // cause 2 of the five structural CI failures in the root `CLAUDE.md`, and
     // it forced a workflow-level override that this change removes.
     //
-    // Nothing that actually runs is affected: docker-compose.yml:39,
-    // .env.example and .env.shared-hosting.example all set the value
+    // Nothing that actually runs is affected: .env.example and
+    // .env.shared-hosting.example both set the value
     // explicitly. The default only ever served the no-`.env` path, where
     // `reverb` was the one value guaranteed to fail.
     //

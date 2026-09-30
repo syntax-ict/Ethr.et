@@ -5,11 +5,10 @@ name: Quality gates
 # locally, so there is exactly one definition of "does this pass" and no way for
 # the two to drift.
 #
-# Note for anyone reading this after a confusing local failure: the elaborate
-# pest-isolated.sh / phpstan-isolated.sh workarounds exist because PHP's
-# recursive directory scan returns partial results over a Docker Desktop Windows
-# bind mount. On a Linux runner with native PHP, gates.sh takes the have_php
-# branch and none of that applies.
+# Note for anyone reading this after a confusing local failure: gates.sh runs
+# PHP natively, here and locally alike. The container fallbacks it once carried
+# (pest-isolated.sh / phpstan-isolated.sh, for a lossy Docker Desktop bind
+# mount) went with the Docker development stack on 2026-09-30.
 
 # `push` is the default branch only, deliberately.
 #
@@ -62,7 +61,7 @@ concurrency:
 # is deliberate: kept, it would silently mask a regression of the default, and
 # its comment would assert a `reverb` default that no longer exists.
 #
-# Nothing that runs is affected either way — docker-compose.yml, .env.example,
+# Nothing that runs is affected either way — .env.example,
 # .env.shared-hosting.example and phpunit.xml all set the value explicitly.
 
 jobs:

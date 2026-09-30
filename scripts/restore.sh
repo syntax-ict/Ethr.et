@@ -34,7 +34,7 @@ Use instead:
   production        php artisan ethr:restore      (Stage 6: rehearse on the HOST
                                                    before cutover — CI has only
                                                    ever rehearsed on MariaDB)
-  local dev         docker compose exec api php artisan ethr:restore
+  local dev         cd api && php artisan ethr:restore
 
 See docs/deployment/BACKUP-RESTORE.md and docs/deployment/VPS-DECOMMISSION.md.
 RETIRED

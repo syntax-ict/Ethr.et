@@ -83,7 +83,8 @@ try {
 } catch (err) {
   fail(
     `could not reach ${url} — ${err.message}\n` +
-      `  Start the API (docker compose up -d) or pass --api <url>.\n` +
+      `  Start the API (scripts/local-production/up.sh, then --api http://localhost:8081)\n` +
+      `  or pass --api <url>.\n` +
       `  The committed snapshot is left untouched.`,
   );
 }

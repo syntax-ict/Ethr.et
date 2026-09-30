@@ -36,66 +36,23 @@ use App\Services\Observability\QueueHealth;
  * `toBe`, `toMatch`, `toBeTrue` and `toBeFalse` all take a genuine message.
  */
 /**
- * Every asset that starts a queue worker.
+ * The one worker ETHR has: `POST /api/v1/cron/queue` -> CronRunController::queue()
+ * -> `queue:work`, driven by the GitHub Actions caller (.github/workflows/cron.yml).
  *
- * One entry since the VPS decommission (2026-09-26). It held four:
- * `infrastructure/supervisor.conf`, `docker-compose.prod.yml` and
- * `docker-compose.lowmem.yml` were the VPS production path and are gone, along
- * with the third test in this file, which existed solely to keep those last two
- * marked as broken.
- *
- * `docker-compose.yml` is local development and stays. **It is now the only
- * asset this file checks**, so the union-of-queues assertion below is a weaker
- * guard than it was: on shared hosting the worker is
- * `POST /api/v1/cron/queue` -> `queue:work`, which is a route, not a file, and
- * nothing here reads it. `QueueHealth::QUEUES` is pinned by the last test and is
- * what actually protects the queue list now.
+ * Until 2026-09-30 this file read `docker-compose.yml`'s `worker` service instead,
+ * and its own comment admitted that was the weaker guard: the production worker is
+ * a route, not a file, and nothing read it. The Docker development stack was
+ * removed that day, so the guard now points at the code that actually runs on the
+ * host. (Before the VPS decommission of 2026-09-26 it checked four assets:
+ * infrastructure/supervisor.conf and three compose files.)
  */
-const ETHR_WORKER_ASSETS = [
-    'docker-compose.yml',
-];
-
-function ethrDeploymentAsset(string $relative): string
+function ethrCronController(): string
 {
-    return (string) file_get_contents(dirname(base_path()).'/'.$relative);
+    return (string) file_get_contents(app_path('Http/Controllers/Api/V1/Cron/CronRunController.php'));
 }
 
-/**
- * The UNION of every `--queue=a,b,c` list in an asset, as a sorted set.
- *
- * A union rather than a single match because the VPS compose stack split
- * the work across two services (2026-09-22): `attendance,notifications,default`
- * on one and `exports` on the other. The correctness property is that every
- * dispatched queue is drained by SOMETHING in the file — not that one command
- * line names them all.
- */
-function ethrWorkerQueues(string $contents, string $asset): array
-{
-    // `expect(bool)->toBeTrue($message)` rather than `toBeGreaterThan(0, $message)`:
-    // this file's header records that Pest's `toContain` is VARIADIC, so its
-    // second argument is a second needle rather than a message. `toBeTrue` is
-    // one of the four documented there as taking a genuine message, so it is
-    // used here instead of betting on another expectation's signature.
-    expect(preg_match_all('/--queue=([a-z,]+)/', $contents, $m) > 0)->toBeTrue(
-        "$asset does not pass --queue to any worker. A bare `queue:work` drains "
-        .'only `default`, so three of this application\'s four queues would starve '
-        .'while the worker looked healthy.'
-    );
-
-    $queues = [];
-
-    foreach ($m[1] as $list) {
-        $queues = array_merge($queues, explode(',', $list));
-    }
-
-    $queues = array_values(array_unique($queues));
-    sort($queues);
-
-    return $queues;
-}
-
-it('starts its workers with a command the application actually defines', function () {
-    $lock = ethrDeploymentAsset('api/composer.lock');
+it('starts its worker with a command the application actually defines', function () {
+    $lock = (string) file_get_contents(base_path('composer.lock'));
 
     // Guard the guard: if Horizon is ever reinstalled deliberately, this test
     // should stop asserting its absence rather than silently keep passing for
@@ -106,49 +63,34 @@ it('starts its workers with a command the application actually defines', functio
         .'delete it, because the defect it caught was invocations outliving the package.'
     );
 
-    foreach (ETHR_WORKER_ASSETS as $asset) {
-        $contents = ethrDeploymentAsset($asset);
+    $controller = ethrCronController();
 
-        // Comments may name horizon — they explain what was fixed. An executable
-        // line may not.
-        $executable = implode("\n", array_filter(
-            explode("\n", $contents),
-            static fn (string $line): bool => ! str_starts_with(ltrim($line), '#')
-        ));
+    expect(str_contains($controller, 'horizon'))->toBeFalse(
+        'CronRunController mentions horizon, which is not a defined command.'
+    );
 
-        expect($executable)->not->toMatch(
-            '/artisan horizon/',
-            "$asset invokes `artisan horizon`, which is not a defined command — "
-            .'laravel/horizon is absent from composer.lock. The worker exits immediately '
-            .'and no queued job ever runs.'
-        );
-
-        expect($executable)->toMatch(
-            '/artisan queue:work/',
-            "$asset must start a queue worker. Every job in app/Jobs implements "
-            .'ShouldQueue, so without one the asynchronous half of the product is dead.'
-        );
-    }
+    expect(str_contains($controller, "Artisan::call('queue:work'"))->toBeTrue(
+        'CronRunController must start a queue worker. Every job in app/Jobs implements '
+        .'ShouldQueue, so without one the asynchronous half of the product is dead.'
+    );
 });
 
 it('drains exactly the queues the application dispatches onto', function () {
-    $expected = QueueHealth::QUEUES;
-    sort($expected);
+    $controller = ethrCronController();
 
-    foreach (ETHR_WORKER_ASSETS as $asset) {
-        // Compared as a set: the ORDER on the command line is meaningful to
-        // Laravel (earlier queues drain first, which is why `attendance` leads)
-        // but it is a tuning choice, not a correctness one. Membership is the
-        // correctness question — a queue missing here is a queue that fills
-        // forever, and `QueueHealth` would report it only to whoever opens the
-        // health endpoint.
-        expect(ethrWorkerQueues(ethrDeploymentAsset($asset), $asset))->toBe(
-            $expected,
-            "$asset drains a different set of queues than the application dispatches "
-            .'onto. QueueHealth::QUEUES is the authoritative list; add the queue in both '
-            .'places or in neither.'
-        );
-    }
+    // Built from the constant rather than a literal list, so it cannot drift from
+    // it. A literal here is the defect this file exists to catch: a partial
+    // --queue drains only what it names and starves the rest while looking healthy.
+    expect(str_contains($controller, "'--queue' => implode(',', QueueHealth::QUEUES)"))->toBeTrue(
+        'CronRunController no longer builds --queue from QueueHealth::QUEUES. A worker '
+        .'that names its own queues drifts from the ones the code dispatches onto.'
+    );
+
+    // Shared hosting runs no supervisor: the process must exit, never linger.
+    expect(str_contains($controller, "'--stop-when-empty' => true"))->toBeTrue(
+        'The cron-driven worker must pass --stop-when-empty; a daemon on shared hosting '
+        .'outlives the HTTP request that started it.'
+    );
 });
 
 it('keeps QueueHealth::QUEUES equal to the queues the code dispatches onto', function () {
