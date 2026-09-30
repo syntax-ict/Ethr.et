@@ -15,13 +15,21 @@ export function getEcho(): any {
 export async function initEcho(): Promise<any> {
   if (typeof window === "undefined") return null;
 
+  // Realtime is opt-in, and the app key is the switch. Production is a static
+  // export behind Apache with BROADCAST_CONNECTION=null: there is no Reverb
+  // server, so a default host would open a WebSocket that can never connect on
+  // every dashboard page load. No key means no socket; the notification bell
+  // already falls back to polling. Local development sets the key (see
+  // .env.local.example) and keeps live notifications.
+  const appKey = process.env.NEXT_PUBLIC_REVERB_APP_KEY;
+  if (!appKey) return null;
+
   const reverbHost = process.env.NEXT_PUBLIC_REVERB_HOST ?? "localhost";
   const reverbPort = parseInt(
     process.env.NEXT_PUBLIC_REVERB_PORT ?? "8080",
     10,
   );
   const reverbScheme = process.env.NEXT_PUBLIC_REVERB_SCHEME ?? "http";
-  const appKey = process.env.NEXT_PUBLIC_REVERB_APP_KEY ?? "ethr-key";
 
   try {
     const [{ default: LaravelEcho }, { default: Pusher }] = await Promise.all([

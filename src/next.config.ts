@@ -95,10 +95,10 @@ const nextConfig: NextConfig = {
               // <img src>). Without it the browser blocks the image and the
               // whole feature is inert while appearing to save correctly.
               // Widening img-src is the low-risk direction: images execute
-              // nothing, and the alternative (uploading logos to MinIO) needs
-              // every one of those consumers to resolve a storage key to a URL
-              // first. 127.0.0.1:9000 stays for local MinIO over plain http.
-              "img-src 'self' data: blob: https: http://127.0.0.1:9000",
+              // nothing, and the alternative (uploading logos to object storage)
+              // needs every one of those consumers to resolve a storage key to
+              // a URL first.
+              "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               `connect-src 'self' ws: wss:${sentryOrigin}`,
               "frame-ancestors 'none'",
@@ -109,16 +109,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "9000",
-        pathname: "/ethr/**",
-      },
-    ],
   },
   async rewrites() {
     const backend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";

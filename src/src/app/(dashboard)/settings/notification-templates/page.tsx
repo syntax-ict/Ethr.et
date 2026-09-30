@@ -108,7 +108,7 @@ export default function NotificationTemplatesPage() {
     <RoleGate minRole="tenant_admin">
       <div className="space-y-6">
         <PageHeader
-          title="Notification Templates"
+          title={t("nav.notification_templates")}
           description="Customize the content of notification emails sent to employees and managers"
         />
 

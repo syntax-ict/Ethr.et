@@ -402,7 +402,7 @@ export default function MobileCheckInPage() {
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={photoDataUrl}
-              alt="Selfie preview"
+              alt={t("attendance.mobile_page.selfie_preview_alt")}
               className="mt-3 max-h-48 w-full rounded-lg object-contain bg-muted"
             />
           )}

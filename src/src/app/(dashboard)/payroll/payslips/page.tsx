@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
 import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
+import { escapeHtml } from "@/lib/utils/escape-html";
 
 function formatCents(cents: number): string {
   return (cents / 100).toLocaleString("en-ET", {
@@ -37,11 +38,19 @@ interface PayslipLabels {
 
 function printPayslip(
   entry: PayrollEntry,
-  employeeName: string,
-  labels: PayslipLabels,
+  rawEmployeeName: string,
+  rawLabels: PayslipLabels,
 ) {
   const w = window.open("", "_blank", "width=600,height=800");
   if (!w) return;
+
+  // The window is written with document.write and inherits this origin, so
+  // every interpolated value is escaped: the employee name is editable by HR
+  // and the labels come from translation files.
+  const employeeName = escapeHtml(rawEmployeeName);
+  const labels = Object.fromEntries(
+    Object.entries(rawLabels).map(([key, value]) => [key, escapeHtml(value)]),
+  ) as unknown as PayslipLabels;
 
   const html = `<!DOCTYPE html>
 <html><head><title>${labels.title}</title>

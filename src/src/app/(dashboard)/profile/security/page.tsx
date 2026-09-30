@@ -266,7 +266,7 @@ export default function SecurityPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={setupData.qr_code_url}
-                      alt="MFA QR Code"
+                      alt={t("security_page.mfa_qr_alt")}
                       className="h-48 w-48"
                     />
                   </div>
