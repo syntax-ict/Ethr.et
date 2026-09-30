@@ -46,20 +46,14 @@ services:
   # The e2e run is a self-contained isolated Compose project (see run-e2e.sh:
   # `-p ethr-e2e`, its own volumes). The browser and Lighthouse reach every
   # service over the internal `ethr` network via the nginx alias below, so no
-  # host ports are needed — and publishing the base ports (80/8080/6379/3306/
-  # 9000) would collide with a developer's already-running dev stack. `!reset []`
+  # host ports are needed — and publishing the base ports (80/8080/3306) would
+  # collide with a developer's already-running dev stack. `!reset []`
   # clears the inherited `ports:` instead of appending to it (Compose merges
   # sequences by appending, so a plain override cannot remove a published port).
   mariadb:
     ports: !reset []
     environment:
       MARIADB_DATABASE: ethr_test
-
-  redis:
-    ports: !reset []
-
-  minio:
-    ports: !reset []
 
   reverb:
     ports: !reset []

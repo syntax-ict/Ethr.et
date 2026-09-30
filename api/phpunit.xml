@@ -20,15 +20,15 @@
     <!--
         force="true" is required, not cosmetic. Without it PHPUnit leaves any
         variable that already exists in the real environment alone — and the
-        api container exports DB_CONNECTION=mariadb, CACHE_STORE=redis,
-        SESSION_DRIVER=redis and QUEUE_CONNECTION=redis (see docker-compose.yml).
-        Running the suite in that container therefore pointed it at the live
-        MariaDB and the live Redis: every test tried to create its own
+        api container exports DB_CONNECTION=mariadb and the database cache,
+        session and queue drivers (see docker-compose.yml; they were redis until
+        2026-09-30). Running the suite in that container once pointed it at the
+        live MariaDB and the live Redis: every test tried to create its own
         `ethr_test_N` database, which the `ethr` user has no grant for, and the
         shared Redis carried rate-limiter state between runs so requests came
         back 429. That surfaced as ~1200 failures that had nothing to do with
-        the code under test. Forcing makes this file authoritative wherever the
-        suite runs.
+        the code under test. A shared database cache would do the same, so
+        forcing still makes this file authoritative wherever the suite runs.
     -->
     <php>
         <!--
