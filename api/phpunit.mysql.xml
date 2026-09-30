@@ -90,7 +90,7 @@
         <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value="" force="true"/>
 
-        <env name="FILESYSTEM_DISK" value="minio" force="true"/>
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>

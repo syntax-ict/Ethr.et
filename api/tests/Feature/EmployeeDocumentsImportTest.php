@@ -53,7 +53,7 @@ describe('employee documents', function () {
     });
 
     it('uploads a document', function () {
-        Storage::fake('minio');
+        Storage::fake('local');
 
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -108,7 +108,7 @@ describe('employee documents', function () {
     });
 
     it('deletes a document', function () {
-        Storage::fake('minio');
+        Storage::fake('local');
 
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -149,7 +149,7 @@ describe('employee documents', function () {
     });
 
     it('logs document upload in audit log', function () {
-        Storage::fake('minio');
+        Storage::fake('local');
 
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

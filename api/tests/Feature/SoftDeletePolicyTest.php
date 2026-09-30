@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
 // ── Employee documents ──
 
 test('deleting an employee document soft-deletes it and keeps the underlying file', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -40,7 +40,7 @@ test('deleting an employee document soft-deletes it and keeps the underlying fil
     $upload->assertCreated();
 
     $document = EmployeeDocument::where('employee_id', $employee->id)->first();
-    Storage::disk('minio')->assertExists($document->file_path);
+    Storage::disk('local')->assertExists($document->file_path);
 
     test()->deleteJson("http://{$tenant->subdomain}.ethr.test/api/v1/employees/{$employee->public_id}/documents/{$document->public_id}")
         ->assertNoContent();
@@ -48,7 +48,7 @@ test('deleting an employee document soft-deletes it and keeps the underlying fil
     expect(EmployeeDocument::find($document->id))->toBeNull();
     expect(EmployeeDocument::withTrashed()->find($document->id))->not->toBeNull();
     expect(EmployeeDocument::withTrashed()->find($document->id)->deleted_at)->not->toBeNull();
-    Storage::disk('minio')->assertExists($document->file_path);
+    Storage::disk('local')->assertExists($document->file_path);
 });
 
 // ── Grades ──

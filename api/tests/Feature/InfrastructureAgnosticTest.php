@@ -23,11 +23,30 @@ use Illuminate\Support\Facades\Storage;
  * config at a *different* value and check the code follows it.
  */
 test('file storage resolves the configured disk rather than a hardcoded one', function () {
-    // Deliberately not the suite's own FILESYSTEM_DISK (pinned to `minio` in
+    // Deliberately not the suite's own FILESYSTEM_DISK (pinned to `local` in
     // phpunit.xml). If the service still hardcoded a disk name, it would write
-    // to that one and this fake would see nothing.
+    // to that one and this fake would see nothing. `s3` is the other disk that
+    // exists; `minio`, which this used until 2026-09-30, no longer does.
+    config(['filesystems.default' => 's3']);
+    Storage::fake('s3');
+    Storage::fake('local');
+
+    // Sets CurrentTenant, which the service reads for its tenant path prefix.
+    createTenant();
+
+    $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
+
+    Storage::disk('s3')->assertExists($stored['path']);
+    Storage::disk('local')->assertMissing($stored['path']);
+});
+
+test('file storage follows the disk when the configuration changes', function () {
+    // The mirror of the test above: same call, different configured disk, and
+    // the bytes must land on the other one. A hardcoded literal cannot pass
+    // both.
     config(['filesystems.default' => 'local']);
     Storage::fake('local');
+    Storage::fake('s3');
 
     // Sets CurrentTenant, which the service reads for its tenant path prefix.
     createTenant();
@@ -35,23 +54,7 @@ test('file storage resolves the configured disk rather than a hardcoded one', fu
     $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
 
     Storage::disk('local')->assertExists($stored['path']);
-});
-
-test('file storage follows the disk when the configuration changes', function () {
-    // The mirror of the test above: same call, different configured disk, and
-    // the bytes must land on the other one. A hardcoded literal cannot pass
-    // both.
-    config(['filesystems.default' => 'minio']);
-    Storage::fake('local');
-    Storage::fake('minio');
-
-    // Sets CurrentTenant, which the service reads for its tenant path prefix.
-    createTenant();
-
-    $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
-
-    Storage::disk('minio')->assertExists($stored['path']);
-    Storage::disk('local')->assertMissing($stored['path']);
+    Storage::disk('s3')->assertMissing($stored['path']);
 });
 
 /**

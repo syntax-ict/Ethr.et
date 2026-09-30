@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
  * caller that bypasses FileStorageService.
  */
 beforeEach(function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 });
 
 function tenantContext(string $subdomain): Tenant
@@ -44,7 +44,7 @@ it('writes uploads under the current tenant prefix', function () {
     );
 
     expect($result['path'])->toStartWith("tenants/{$tenant->public_id}/documents/");
-    Storage::disk('minio')->assertExists($result['path']);
+    Storage::disk('local')->assertExists($result['path']);
 });
 
 it('gives two tenants disjoint prefixes for the same directory', function () {
@@ -85,7 +85,7 @@ it('refuses a directory that would climb out of the tenant prefix', function (st
     ))->toThrow(InvalidArgumentException::class);
 
     // Nothing reached the disk on the way to failing.
-    expect(Storage::disk('minio')->allFiles())->toBeEmpty();
+    expect(Storage::disk('local')->allFiles())->toBeEmpty();
 })->with([
     'parent traversal' => 'documents/../..',
     'single parent' => '..',

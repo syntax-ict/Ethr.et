@@ -50,19 +50,20 @@
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <!--
-            Pinned because FileStorageService now resolves the *configured* disk
-            rather than the literal 'minio' it used to hardcode. Eighteen test
-            sites call Storage::fake('minio'), and a fake only replaces the disk
-            it names — so without this the suite's disk would be whatever the
-            surrounding environment's FILESYSTEM_DISK happened to be, and those
-            fakes would stop intercepting the moment it differed.
+            Pinned because FileStorageService resolves the *configured* disk,
+            and the test sites call Storage::fake('local'): a fake only replaces
+            the disk it names, so without this the suite's disk would be whatever
+            the surrounding environment's FILESYSTEM_DISK happened to be, and
+            those fakes would stop intercepting the moment it differed.
 
-            The value is a disk *name*, not a backend: Storage::fake swaps in an
-            in-memory local driver whatever the name is. Pinning it here keeps
-            phpunit.xml authoritative for what the test environment is, which is
-            the same reason every other variable in this block is forced.
+            `local`, as in production. It was `minio` until 2026-09-30, and that
+            broke CI the day MinIO left .env.example: two tests that fake no disk
+            reached a real s3 client with no credentials, and the AWS SDK fell
+            back to the instance-metadata service and threw. With `local` a test
+            that forgets to fake can at worst write under storage/app — never
+            reach a network.
         -->
-        <env name="FILESYSTEM_DISK" value="minio" force="true"/>
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>

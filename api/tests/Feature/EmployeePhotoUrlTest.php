@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
  * URLs — and the 150px thumbnail for list and avatar contexts.
  */
 test('employee detail exposes signed photo urls', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -33,7 +33,7 @@ test('employee detail exposes signed photo urls', function () {
 });
 
 test('an employee without a photo reports null urls rather than a broken link', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
@@ -50,7 +50,7 @@ test('an employee without a photo reports null urls rather than a broken link', 
 });
 
 test('uploading a profile photo generates both thumbnail sizes', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -67,15 +67,15 @@ test('uploading a profile photo generates both thumbnail sizes', function () {
         ->and($stored['variants'])->toHaveKeys(FileStorageService::THUMBNAIL_SIZES);
 
     foreach (FileStorageService::THUMBNAIL_SIZES as $size) {
-        Storage::disk('minio')->assertExists($stored['variants'][$size]);
+        Storage::disk('local')->assertExists($stored['variants'][$size]);
 
-        $thumb = imagecreatefromstring(Storage::disk('minio')->get($stored['variants'][$size]));
+        $thumb = imagecreatefromstring(Storage::disk('local')->get($stored['variants'][$size]));
         expect(max(imagesx($thumb), imagesy($thumb)))->toBeLessThanOrEqual($size);
     }
 });
 
 test('signed urls are reused within the cache window instead of re-signed', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

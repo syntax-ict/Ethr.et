@@ -140,7 +140,7 @@ test('resubmitting the birth date already on record queues nothing', function ()
 // ── Photo ──
 
 test('an employee can upload and remove their own photo', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
     [$tenant, $employee] = selfServiceFixture();
 
     test()->post(
@@ -157,7 +157,7 @@ test('an employee can upload and remove their own photo', function () {
 });
 
 test('a non-image upload is rejected', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
     [$tenant] = selfServiceFixture();
 
     test()->post(
