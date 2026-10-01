@@ -39,33 +39,22 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage, dateRangeRefinement } from "@/lib/forms/rules";
 import { z } from "zod";
-import { apiClient } from "@/api/client";
+import {
+  useAssignShift,
+  useAssignableEmployees,
+  useCreateShift,
+  useDeleteShift,
+  useShiftSchedule,
+  useShifts,
+} from "@/features/shifts/api";
+import { todayIso, toHHMM } from "@/features/shifts/dates";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-
-interface Shift {
-  public_id: string;
-  name: string;
-  start_time: string;
-  end_time: string;
-  grace_minutes: number;
-  is_default: boolean;
-  is_active: boolean;
-  assignments_count?: number;
-}
-
-interface ShiftAssignment {
-  shift: Shift | null;
-  assignable_type: string;
-  effective_from: string | null;
-  effective_to: string | null;
-  created_at: string;
-}
 
 function assignableTypeLabel(
   type: string,
@@ -89,7 +78,9 @@ const shiftSchema = z.object({
   // before it starts (22:00 → 06:00), and the attendance engine already treats
   // an end earlier than the start as crossing midnight. Rejecting it here would
   // make every night shift unenterable.
-  grace_minutes: rules.integer({ min: 0, max: 240 }),
+  // StoreShiftRequest caps grace_minutes at 120; this allowed 240, so 121–240
+  // passed here and came back from the API as a 422.
+  grace_minutes: rules.integer({ min: 0, max: 120 }),
 });
 type ShiftValues = z.infer<typeof shiftSchema>;
 
@@ -106,7 +97,9 @@ type AssignValues = z.infer<typeof assignSchema>;
 
 export default function ShiftsPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  // `shift.delete` is tenant-admin only; HR admins reach this page without it.
+  const canDelete = hasPermission("shift.delete");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
 
@@ -126,88 +119,32 @@ export default function ShiftsPage() {
       shift_public_id: "",
       assignable_type: "employee",
       assignable_public_id: "",
-      effective_from: new Date().toISOString().split("T")[0],
+      effective_from: todayIso(),
       effective_to: "",
     },
   });
 
   const assignableType = assignForm.watch("assignable_type");
 
-  const { data, isLoading } = useQuery<{ data: Shift[] }>({
-    queryKey: ["shifts"],
-    queryFn: async () => (await apiClient.get("/shifts")).data,
+  const { data, isLoading } = useShifts();
+  // "Active schedule": assignments still in force today or starting later.
+  // Unfiltered, this listed every expired assignment too — and only the first
+  // 25, since it asked for no page size.
+  const { data: scheduleData, isLoading: scheduleLoading } = useShiftSchedule({
+    date_from: todayIso(),
   });
-
-  const { data: scheduleData, isLoading: scheduleLoading } = useQuery<{
-    data: ShiftAssignment[];
-  }>({
-    queryKey: ["shifts", "schedule"],
-    queryFn: async () => (await apiClient.get("/shifts/schedule")).data,
-  });
-
-  const { data: employees } = useQuery<{
-    data: { public_id: string; name: string; employee_code: string }[];
-  }>({
-    queryKey: ["employees", "lookup"],
-    queryFn: async () =>
-      (await apiClient.get("/employees", { params: { per_page: 200 } })).data,
-    enabled: assignOpen,
-  });
-
+  const { data: employees } = useAssignableEmployees(
+    assignOpen && assignableType === "employee",
+  );
   const { data: departments } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
 
-  const createShift = useMutation({
-    mutationFn: async (payload: {
-      name: string;
-      start_time: string;
-      end_time: string;
-      grace_minutes: number;
-    }) => {
-      const { data } = await apiClient.post("/shifts", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success(t("shifts_settings_page.created"));
-      setDialogOpen(false);
-      shiftForm.reset();
-    },
-    // Errors land inline in the dialog now, not in a toast over a closed form.
-  });
+  const createShift = useCreateShift();
+  const deleteShift = useDeleteShift();
+  const assignShift = useAssignShift();
 
-  const deleteShift = useMutation({
-    mutationFn: async (publicId: string) => {
-      await apiClient.delete(`/shifts/${publicId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success(t("shifts_settings_page.deleted"));
-    },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail || t("shifts_settings_page.delete_failed"),
-      );
-    },
-  });
-
-  const assignShift = useMutation({
-    mutationFn: async (payload: AssignValues) => {
-      const { data } = await apiClient.post("/shifts/assign", {
-        ...payload,
-        effective_to: payload.effective_to || null,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shifts"] });
-      toast.success(t("shifts_settings_page.assigned"));
-      setAssignOpen(false);
-      assignForm.reset();
-    },
-  });
-
+  // The form hook routes a rejection to inline field errors (422) or the
+  // summary, so these resolve or reject rather than toasting failures.
   async function onCreate(values: ShiftValues) {
     await createShift.mutateAsync({
       name: values.name,
@@ -215,10 +152,33 @@ export default function ShiftsPage() {
       end_time: values.end_time,
       grace_minutes: Number(values.grace_minutes),
     });
+    toast.success(t("shifts_settings_page.created"));
+    setDialogOpen(false);
+    shiftForm.reset();
   }
 
   async function onAssign(values: AssignValues) {
-    await assignShift.mutateAsync(values);
+    await assignShift.mutateAsync({
+      ...values,
+      effective_to: values.effective_to || null,
+    });
+    toast.success(t("shifts_settings_page.assigned"));
+    setAssignOpen(false);
+    assignForm.reset();
+  }
+
+  function remove(publicId: string) {
+    if (!confirm(t("shifts_settings_page.delete_confirm"))) return;
+
+    deleteShift.mutate(publicId, {
+      onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { detail?: string } } };
+        toast.error(
+          e.response?.data?.detail || t("shifts_settings_page.delete_failed"),
+        );
+      },
+    });
   }
 
   function openAssignFor(shiftPublicId: string) {
@@ -320,10 +280,10 @@ export default function ShiftsPage() {
                           )}
                         </span>,
                         <span key="s" className="text-muted-foreground">
-                          {shift.start_time}
+                          {toHHMM(shift.start_time)}
                         </span>,
                         <span key="e" className="text-muted-foreground">
-                          {shift.end_time}
+                          {toHHMM(shift.end_time)}
                         </span>,
                         <span key="g" className="text-muted-foreground">
                           {shift.grace_minutes}m
@@ -342,24 +302,19 @@ export default function ShiftsPage() {
                             <CalendarDays className="mr-1 h-3 w-3" />{" "}
                             {t("shifts_settings_page.assign")}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  t("shifts_settings_page.delete_confirm"),
-                                )
-                              )
-                                deleteShift.mutate(shift.public_id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            <span className="sr-only">
-                              {t("common.delete", "Delete")}
-                            </span>
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => remove(shift.public_id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span className="sr-only">
+                                {t("common.delete", "Delete")}
+                              </span>
+                            </Button>
+                          )}
                         </div>
                       ),
                     }))}
@@ -410,11 +365,15 @@ export default function ShiftsPage() {
                         key: String(i),
                         cells: [
                           <span key="sh" className="font-medium">
-                            {assignment.shift?.name ?? "—"}
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              {assignment.shift?.start_time}–
-                              {assignment.shift?.end_time}
-                            </span>
+                            {assignment.shift?.name ??
+                              assignment.rotation?.name ??
+                              "—"}
+                            {assignment.shift && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {toHHMM(assignment.shift.start_time)}–
+                                {toHHMM(assignment.shift.end_time)}
+                              </span>
+                            )}
                           </span>,
                           <div
                             key="ty"
@@ -600,7 +559,8 @@ export default function ShiftsPage() {
                         <SelectContent>
                           {shifts.map((s) => (
                             <SelectItem key={s.public_id} value={s.public_id}>
-                              {s.name} ({s.start_time}–{s.end_time})
+                              {s.name} ({toHHMM(s.start_time)}–
+                              {toHHMM(s.end_time)})
                             </SelectItem>
                           ))}
                         </SelectContent>
