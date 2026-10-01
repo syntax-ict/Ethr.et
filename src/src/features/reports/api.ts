@@ -1,44 +1,61 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 
-export interface ReportSource {
-  label: string;
-  fields: string[];
-}
+type Schemas = components["schemas"];
+type Ok<Op extends "sources" | "generate" | "savedList" | "scheduledList"> =
+  operations[`report.${Op}`]["responses"][200]["content"]["application/json"];
 
-export type ReportSources = Record<string, ReportSource>;
+// Shapes come from the generated contract. Where Scramble cannot see through
+// an array-cast column or ReportEngine's built-up arrays, a narrow override
+// says so; each was checked against ReportController and ReportEngine.
 
-export interface ReportConfig {
-  source: string;
-  columns?: string[];
-  filters?: Record<string, string>;
-  group_by?: string;
-  sort_by?: string;
-  sort_dir?: "asc" | "desc";
-}
+/** `ReportEngine::SOURCES`, keyed by source, each with its column list. */
+export type ReportSources = Ok<"sources">["sources"];
+export type ReportSourceKey = keyof ReportSources;
 
-export interface ReportResult {
-  source: string;
-  total: number;
+/**
+ * The body of `POST /reports/generate`. Scramble reads the `array` rule on
+ * `filters` as a list; ReportEngine reads it as a field → value map.
+ * `format` belongs to `/reports/export`, which the page does not call.
+ */
+export type ReportConfig = Omit<
+  Schemas["GenerateReportRequest"],
+  "filters" | "format"
+> & { filters?: Record<string, string> };
+
+type GenerateContract = Ok<"generate">;
+
+/**
+ * Rows are the source's column map. `summary` is `[]` when ungrouped, else
+ * per-group row counts plus, when any `*_cents` column is present, per-group
+ * sums — Scramble types both maps as `string`.
+ */
+export type ReportResult = Omit<GenerateContract, "data" | "summary"> & {
   data: Array<Record<string, unknown>>;
-  summary: { grouped_by?: string; groups?: Record<string, number> };
-}
+  summary: {
+    grouped_by?: string | null;
+    groups?: Record<string, number>;
+    group_sums?: Record<string, Record<string, number>>;
+  };
+};
 
-export interface SavedReport {
-  public_id: string;
-  name: string;
+/** `config` is the stored (array-cast) generate body, published as `unknown[]`. */
+export type SavedReport = Omit<Ok<"savedList">["reports"][number], "config"> & {
   config: ReportConfig;
-  created_at: string;
-}
+};
 
-export interface ScheduledReport {
-  public_id: string;
-  report_name: string;
-  frequency: "daily" | "weekly" | "monthly";
+/**
+ * `frequency` and `recipients` are columns ScheduleReportRequest constrains to
+ * its enum and to email strings; Scramble sees `string` and `unknown[]`.
+ */
+export type ScheduledReport = Omit<
+  Ok<"scheduledList">["schedules"][number],
+  "frequency" | "recipients"
+> & {
+  frequency: Schemas["ScheduleReportRequest"]["frequency"];
   recipients: string[];
-  next_run_at: string;
-  last_run_at: string | null;
-}
+};
 
 export function useReportSources() {
   return useQuery<{ sources: ReportSources }>({
@@ -116,11 +133,7 @@ export function useScheduleReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      saved_report_public_id: string;
-      frequency: "daily" | "weekly" | "monthly";
-      recipients: string[];
-    }) => {
+    mutationFn: async (payload: Schemas["ScheduleReportRequest"]) => {
       const { data } = await apiClient.post("/reports/schedule", payload);
       return data;
     },

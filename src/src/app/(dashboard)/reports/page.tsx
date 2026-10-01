@@ -60,6 +60,8 @@ import {
   useScheduleReport,
   useDeleteScheduledReport,
   type ReportConfig,
+  type ReportResult,
+  type ReportSourceKey,
   type ReportSources,
   type SavedReport,
 } from "@/features/reports/api";
@@ -71,7 +73,13 @@ import { cn } from "@/lib/utils";
 import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 
-const prebuilt = [
+const prebuilt: Array<{
+  key: ReportSourceKey;
+  icon: typeof Users;
+  titleKey: string;
+  descKey: string;
+  color: string;
+}> = [
   {
     key: "employees",
     icon: Users,
@@ -159,7 +167,7 @@ function BuilderTab() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
 
-  const sources: ReportSources = sourcesData?.sources ?? {};
+  const sources: Partial<ReportSources> = sourcesData?.sources ?? {};
   const sourceMeta = sources[config.source];
   const availableFields = sourceMeta?.fields ?? [];
   const selectedColumns = config.columns ?? [];
@@ -192,8 +200,9 @@ function BuilderTab() {
     setFilters((p) => p.filter((_, idx) => idx !== i));
   }
 
+  // The Select only offers the keys of `sources`.
   function changeSource(source: string) {
-    setConfig({ source });
+    setConfig({ source: source as ReportSourceKey });
     setFilters([]);
   }
 
@@ -522,20 +531,7 @@ function BuilderTab() {
   );
 }
 
-function PreviewResult({
-  result,
-}: {
-  result: {
-    source: string;
-    total: number;
-    data: Array<Record<string, unknown>>;
-    summary: {
-      grouped_by?: string;
-      groups?: Record<string, number>;
-      group_sums?: Record<string, Record<string, number>>;
-    };
-  };
-}) {
+function PreviewResult({ result }: { result: ReportResult }) {
   const { t } = useT();
   const headers = useMemo(
     () => (result.data.length > 0 ? Object.keys(result.data[0]) : []),
@@ -758,7 +754,7 @@ function QuickTab() {
   const { t } = useT();
   const generate = useGenerateReport();
 
-  function handleGenerate(source: string) {
+  function handleGenerate(source: ReportSourceKey) {
     generate.mutate(
       { source },
       {
@@ -917,7 +913,8 @@ function SavedTab() {
                       </span>
                     )}
                     <span>
-                      · {t("reports_page.saved_lc")} {formatDate(r.created_at)}
+                      · {t("reports_page.saved_lc")}{" "}
+                      {r.created_at ? formatDate(r.created_at) : "—"}
                     </span>
                   </div>
                 </div>
@@ -1167,7 +1164,8 @@ function ScheduledTab() {
                     </span>
                     <span className="flex items-center gap-1">
                       <CalendarClock className="h-3 w-3" />{" "}
-                      {t("reports_page.next")}: {formatDateTime(s.next_run_at)}
+                      {t("reports_page.next")}:{" "}
+                      {s.next_run_at ? formatDateTime(s.next_run_at) : "—"}
                     </span>
                     {s.last_run_at && (
                       <span>
