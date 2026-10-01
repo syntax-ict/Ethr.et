@@ -318,6 +318,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureUserBelongsT
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
             Route::get('/pending', [AttendanceCorrectionController::class, 'pending']);
+            Route::get('/my', [AttendanceCorrectionController::class, 'my']);
             Route::post('/', [AttendanceCorrectionController::class, 'store']);
             Route::get('/{correction}/payroll-impact', [AttendanceCorrectionController::class, 'payrollImpact']);
             Route::put('/{correction}/approve', [AttendanceCorrectionController::class, 'approve']);

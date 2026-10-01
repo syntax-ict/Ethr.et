@@ -73,12 +73,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
 
 		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\UserRole\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 2
-			path: app/Http/Controllers/Api/V1/Attendance/AttendanceCorrectionController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$qr_auto_refresh\.$#'
 			identifier: property.notFound
 			count: 1

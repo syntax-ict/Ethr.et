@@ -492,6 +492,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/attendance/corrections/my": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My corrections */
+        get: operations["attendanceCorrection.my"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/attendance/corrections/{correction}/payroll-impact": {
         parameters: {
             query?: never;
@@ -8974,7 +8991,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9052,7 +9069,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>)[];
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "attendanceCorrection.my": {
+        parameters: {
+            query?: {
+                "filter[status]"?: string;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AttendanceCorrectionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AttendanceCorrectionResource"][];
                         links: {
                             first: string | null;
                             last: string | null;

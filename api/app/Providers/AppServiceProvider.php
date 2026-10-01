@@ -19,6 +19,7 @@ use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
 use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
+use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\DisciplinaryCase;
 use App\Models\Employee;
@@ -32,6 +33,7 @@ use App\Models\RetirementCase;
 use App\Models\ShiftRotation;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
+use App\Policies\AttendanceCorrectionPolicy;
 use App\Policies\AttendanceRecordPolicy;
 use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\EmployeePolicy;
@@ -251,6 +253,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(AttendanceRecord::class, AttendanceRecordPolicy::class);
+        Gate::policy(AttendanceCorrection::class, AttendanceCorrectionPolicy::class);
         Gate::policy(PayrollRun::class, PayrollRunPolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
         Gate::policy(ShiftRotation::class, ShiftRotationPolicy::class);

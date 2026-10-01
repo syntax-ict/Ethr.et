@@ -46,11 +46,13 @@ import {
   useCorrectionPayrollImpact,
   useCorrections,
   useMyAttendance,
+  useMyCorrections,
   usePendingCorrections,
   useRejectCorrection,
   useSubmitCorrection,
   type AttendanceCorrection,
 } from "@/features/attendance/api";
+import type { PaginatedResponse } from "@/api/types";
 import { zonedWallTimeToUtcIso } from "@/features/attendance/time";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -60,18 +62,19 @@ import { toast } from "sonner";
 /**
  * Each tab is gated on the ability its endpoint checks.
  *
- * The first tab used to be "My Requests" and called `GET /attendance/corrections`
- * for everyone — an endpoint that requires correction.viewAll and returns every
- * correction in the tenant. An employee got a 403 rendered as "No correction
- * requests"; an HR admin got the whole tenant labelled as their own. There is
- * no endpoint for a caller's own corrections, so the list is offered only to
- * those who may read all of them.
+ * "My Requests" used to call `GET /attendance/corrections` for everyone — an
+ * endpoint that requires correction.viewAll and returns every correction in
+ * the tenant. An employee got a 403 rendered as "No correction requests"; an
+ * HR admin got the whole tenant labelled as their own. It now reads
+ * `GET /attendance/corrections/my` (correction.viewOwn), which returns only
+ * the caller's own.
  */
 export default function CorrectionsPage() {
   const { t } = useT();
   const { can } = usePermissions();
   const [requestOpen, setRequestOpen] = useState(false);
 
+  const showOwn = can.viewOwnCorrections;
   const showAll = can.viewAllCorrections;
   const showPending = can.reviewCorrections;
 
@@ -88,9 +91,14 @@ export default function CorrectionsPage() {
         }
       />
 
-      {(showAll || showPending) && (
-        <Tabs defaultValue={showPending ? "pending" : "all"}>
+      {(showOwn || showAll || showPending) && (
+        <Tabs defaultValue={showPending ? "pending" : showOwn ? "my" : "all"}>
           <TabsList>
+            {showOwn && (
+              <TabsTrigger value="my">
+                {t("attendance.corrections.my_requests")}
+              </TabsTrigger>
+            )}
             {showPending && (
               <TabsTrigger value="pending">
                 {t("attendance.corrections.pending_reviews")}
@@ -103,6 +111,11 @@ export default function CorrectionsPage() {
             )}
           </TabsList>
 
+          {showOwn && (
+            <TabsContent value="my" className="mt-4">
+              <MyCorrectionsTab />
+            </TabsContent>
+          )}
           {showPending && (
             <TabsContent value="pending" className="mt-4">
               <PendingReviewsTab canDecide={can.approveCorrections} />
@@ -132,13 +145,51 @@ function punchPair(c: AttendanceCorrection) {
   };
 }
 
+// ── MY REQUESTS (correction.viewOwn) ───────────────────────────
+
+function MyCorrectionsTab() {
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useMyCorrections({ page });
+
+  return (
+    <CorrectionsList
+      data={data}
+      isLoading={isLoading}
+      onPageChange={setPage}
+      showEmployee={false}
+    />
+  );
+}
+
 // ── ALL CORRECTIONS (correction.viewAll) ───────────────────────
 
 function AllCorrectionsTab() {
-  const { t } = useT();
-  const { formatTime } = useDateFormatters();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useCorrections({ page });
+
+  return (
+    <CorrectionsList
+      data={data}
+      isLoading={isLoading}
+      onPageChange={setPage}
+      showEmployee
+    />
+  );
+}
+
+function CorrectionsList({
+  data,
+  isLoading,
+  onPageChange,
+  showEmployee,
+}: {
+  data: PaginatedResponse<AttendanceCorrection> | undefined;
+  isLoading: boolean;
+  onPageChange: (page: number) => void;
+  showEmployee: boolean;
+}) {
+  const { t } = useT();
+  const { formatTime } = useDateFormatters();
 
   const corrections = data?.data ?? [];
   const time = (iso: string | null) => (iso ? formatTime(iso) : "—");
@@ -163,6 +214,9 @@ function AllCorrectionsTab() {
     );
   }
 
+  // The caller's own list drops the employee column — every row is theirs.
+  const skip = showEmployee ? 0 : 1;
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -175,7 +229,7 @@ function AllCorrectionsTab() {
             t("attendance.corrections.corrected_out"),
             t("attendance.corrections.reason"),
             t("common.status"),
-          ]}
+          ].slice(skip)}
           colClassName={[
             "",
             "",
@@ -183,7 +237,7 @@ function AllCorrectionsTab() {
             "hidden sm:table-cell",
             "hidden max-w-xs md:table-cell",
             "",
-          ]}
+          ].slice(skip)}
           rows={corrections.map((c) => {
             const p = punchPair(c);
             return {
@@ -208,11 +262,11 @@ function AllCorrectionsTab() {
                   {c.reason}
                 </span>,
                 <StatusBadge key="s" status={c.status} />,
-              ],
+              ].slice(skip),
             };
           })}
         />
-        <PaginationControls meta={data?.meta} onPageChange={setPage} />
+        <PaginationControls meta={data?.meta} onPageChange={onPageChange} />
       </CardContent>
     </Card>
   );

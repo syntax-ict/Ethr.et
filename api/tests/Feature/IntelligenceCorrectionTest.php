@@ -8,10 +8,36 @@ use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Attendance\AttendanceIntelligence;
 use App\Services\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Notification;
+
+/**
+ * A supervisor signed in, and one employee who reports to them.
+ *
+ * The approval tests below used a supervisor with no employee record deciding
+ * for an employee nobody supervised — which passed only because corrections
+ * were not limited to the approver's team (audit N3). The approver now needs
+ * the employee inside their org scope, as `LeaveRequestPolicy::approve` always has.
+ *
+ * @param  array<string, mixed>  $employeeAttributes
+ * @return array{0: User, 1: Employee}
+ */
+function intelligenceCorrectionSupervisorWithReport(Tenant $tenant, array $employeeAttributes = []): array
+{
+    $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'supervisor_id' => $supervisor->id,
+        ...$employeeAttributes,
+    ]);
+
+    return [$user, $employee];
+}
 
 // ── Intelligence: Missing punches ──
 // Late, early-leave and overtime detection live in the attendance engine and
@@ -189,9 +215,7 @@ test('correction requires reason', function () {
 
 test('supervisor can approve correction', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -217,9 +241,7 @@ test('supervisor can approve correction', function () {
 
 test('supervisor can preview payroll impact of a pending correction', function () {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_760_000]);
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant, ['salary_cents' => 1_760_000]);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -292,9 +314,7 @@ test('cannot approve already approved correction', function () {
 
 test('supervisor can reject correction with reason', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -372,9 +392,7 @@ test('approving or rejecting a correction succeeds when the employee notificatio
 
 test('rejection requires reason', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -416,9 +434,7 @@ test('hr admin can list all corrections', function () {
 
 test('supervisor can view pending corrections', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -467,9 +483,7 @@ test('correction submission is audit logged', function () {
 
 test('correction approval is audit logged', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,

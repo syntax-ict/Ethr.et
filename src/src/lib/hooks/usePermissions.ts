@@ -29,6 +29,7 @@ const CAN_ABILITIES = {
   reviewCorrections: "correction.viewPending",
   approveCorrections: "correction.approve",
   viewAllCorrections: "correction.viewAll",
+  viewOwnCorrections: "correction.viewOwn",
   processPayroll: "payroll.process",
   viewPayrollRuns: "payroll.viewAll",
   approveLeave: "leave.approve",

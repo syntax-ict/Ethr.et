@@ -206,6 +206,43 @@ describe("<CorrectionsPage> lists", () => {
     expect(screen.queryByRole("tablist")).toBeNull();
   });
 
+  it("lists an employee's own corrections from the endpoint that serves them", async () => {
+    // "My Requests" had no endpoint: the page could either call the
+    // tenant-wide list (403 for an employee) or offer nothing. It now reads
+    // GET /attendance/corrections/my, gated on correction.viewOwn.
+    let allCalls = 0;
+    let myCalls = 0;
+    server.use(
+      me("employee", [
+        "correction.create",
+        "correction.viewOwn",
+        "attendance.viewOwn",
+      ]),
+      http.get("*/api/v1/attendance/corrections", () => {
+        allCalls++;
+        return HttpResponse.json(page([]));
+      }),
+      http.get("*/api/v1/attendance/corrections/my", () => {
+        myCalls++;
+        return HttpResponse.json(page([{ ...CORRECTION, status: "rejected" }]));
+      }),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByRole("tab", { name: "My Requests" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Badge reader was offline"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2026-09-29")).toBeInTheDocument();
+    // Every row is the caller's own, so the employee column is not shown.
+    expect(screen.queryByText("Abebe Kebede")).toBeNull();
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(myCalls).toBeGreaterThan(0);
+    expect(allCalls).toBe(0);
+  });
+
   it("hides approve and reject from a reviewer who may not decide", async () => {
     server.use(
       me("custom", ["correction.viewPending"]),

@@ -343,7 +343,23 @@ export function useCorrections(params?: {
   });
 }
 
-/** Corrections awaiting a decision (`correction.viewPending`). */
+/** The caller's own corrections, in every state (`correction.viewOwn`). */
+export function useMyCorrections(params?: {
+  page?: number;
+  "filter[status]"?: string;
+}) {
+  return useQuery<PaginatedResponse<AttendanceCorrection>>({
+    queryKey: [...keys.corrections, "my", params],
+    queryFn: async () =>
+      (await apiClient.get("/attendance/corrections/my", { params })).data,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Corrections awaiting a decision (`correction.viewPending`) — limited
+ * server-side to the employees the caller may decide for, never their own.
+ */
 export function usePendingCorrections(params?: { page?: number }) {
   return useQuery<PaginatedResponse<AttendanceCorrection>>({
     queryKey: [...keys.corrections, "pending", params],
