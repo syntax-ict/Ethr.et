@@ -404,7 +404,7 @@ describe('employee bulk update', function () {
 describe('employee export', function () {
     it('exports employees as CSV', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
 
@@ -418,7 +418,7 @@ describe('employee export', function () {
 
     it('exports employees with status filter', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::CONFIRMED]);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::PROBATION, 'probation_end_date' => now()->addMonths(3)]);
@@ -427,6 +427,32 @@ describe('employee export', function () {
 
         $response->assertOk()
             ->assertJsonPath('count', 2);
+    });
+
+    // Audit N12. The two cases above exported as a supervisor with no
+    // reports and counted the whole tenant — which was the defect.
+    it("limits a supervisor's export to their own reports", function () {
+        $tenant = createTenant();
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+        Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+        Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+
+        $response = $this->getJson('/api/v1/employees/export')->assertOk();
+
+        // Their two reports and themselves, as the employee list shows them.
+        expect($response->json('count'))->toBe(3);
+    });
+
+    it('neutralises a spreadsheet formula in an exported cell', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => '=HYPERLINK("http://x.test","click")']);
+
+        $csv = $this->getJson('/api/v1/employees/export')->assertOk()->json('csv');
+
+        expect($csv)->toContain('"\'=HYPERLINK(""http://x.test"",""click"")"')
+            ->and($csv)->not->toContain(',"=HYPERLINK');
     });
 
     it('denies export to employee role', function () {

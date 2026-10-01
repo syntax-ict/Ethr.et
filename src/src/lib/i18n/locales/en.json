@@ -659,7 +659,6 @@
   "audit_logs_page.title": "Audit Log",
   "audit_logs_page.to": "To",
   "audit_logs_page.user": "User",
-  "audit_logs_page.user_hash": "User #",
   "auth.admin_email": "Email Address",
   "auth.admin_name": "Full Name",
   "auth.admin_phone": "Phone (Optional)",

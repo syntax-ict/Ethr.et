@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { components } from "@/api/generated";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import type { operations } from "@/api/generated";
@@ -183,14 +184,8 @@ export async function exitImpersonation(): Promise<ExitImpersonationResult> {
   return (await apiClient.post("/admin/exit-impersonation")).data;
 }
 
-export interface AdminAuditLog {
-  action: string;
-  auditable_type?: string;
-  auditable_id?: number;
-  user_id?: number;
-  ip_address?: string;
-  created_at: string;
-}
+/** Same resource as the tenant audit log — never numeric ids (convention 4). */
+export type AdminAuditLog = components["schemas"]["AuditLogResource"];
 
 export function useTenantBackup() {
   return useMutation({

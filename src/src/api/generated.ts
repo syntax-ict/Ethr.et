@@ -5400,8 +5400,11 @@ export interface components {
         AuditLogResource: {
             action: string;
             auditable_type: string | null;
-            auditable_id: number | null;
-            user_id: number | null;
+            auditable_public_id: string | null;
+            user: {
+                public_id: string;
+                name: string;
+            } | null;
             data: unknown[] | null;
             ip_address: string | null;
             user_agent: string | null;

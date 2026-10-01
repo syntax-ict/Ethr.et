@@ -85,6 +85,7 @@ export function AuditLogExplorer({
     const headers = [
       "Created At",
       "Action",
+      "User",
       "User ID",
       "Entity Type",
       "Entity ID",
@@ -93,9 +94,10 @@ export function AuditLogExplorer({
     const rows = all.map((l) => [
       l.created_at,
       l.action,
-      l.user_id ?? "",
+      l.user?.name ?? "",
+      l.user?.public_id ?? "",
       l.auditable_type ?? "",
-      l.auditable_id ?? "",
+      l.auditable_public_id ?? "",
       l.ip_address ?? "",
     ]);
     saveCsv(
@@ -229,15 +231,21 @@ export function AuditLogExplorer({
                       >
                         {log.action}
                       </Badge>,
-                      <span key="e" className="text-xs text-muted-foreground">
+                      <span
+                        key="e"
+                        className="text-xs text-muted-foreground"
+                        title={log.auditable_public_id ?? undefined}
+                      >
                         {log.auditable_type
-                          ? `${log.auditable_type.split("\\").pop()}#${log.auditable_id}`
+                          ? log.auditable_type.split("\\").pop()
                           : "—"}
                       </span>,
-                      <span key="u" className="text-xs text-muted-foreground">
-                        {log.user_id
-                          ? `${t("audit_logs_page.user_hash")}${log.user_id}`
-                          : "—"}
+                      <span
+                        key="u"
+                        className="text-xs text-muted-foreground"
+                        title={log.user?.public_id ?? undefined}
+                      >
+                        {log.user?.name ?? "—"}
                       </span>,
                       <span
                         key="ip"

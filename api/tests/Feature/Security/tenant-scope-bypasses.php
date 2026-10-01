@@ -8,8 +8,14 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 154 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 157 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-02: **157 across 57 files**. `Support/AuditSubjects` names the actor
+ * and subject of audit rows by public id (audit N12), including in the platform
+ * audit view, which resolves no tenant. Its three lookups — users, their
+ * employees, and the audited models — each drop the tenant scope and state
+ * `tenant_id` in the same statement, taken from the audit row.)
  *
  * (2026-10-01, later: **154 across 56 files**. `DeviceController`'s three
  * identical per-vendor webhook employee lookups became one method, audit B9 —
@@ -147,4 +153,5 @@ return [
     'Services/Report/ReportEngine.php' => 4,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
+    'Support/AuditSubjects.php' => 3,
 ];

@@ -23,8 +23,8 @@ function entry(action: string): AuditLogResource {
   return {
     action,
     auditable_type: "App\\Models\\Employee",
-    auditable_id: 7,
-    user_id: 3,
+    auditable_public_id: "01JEMPLOYEE0000000000000007",
+    user: { public_id: "01JUSER00000000000000000003", name: "Selam Bekele" },
     data: null,
     ip_address: "196.189.0.1",
     user_agent: null,

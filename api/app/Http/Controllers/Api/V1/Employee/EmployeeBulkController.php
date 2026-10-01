@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Support\Csv;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -67,6 +68,11 @@ class EmployeeBulkController extends Controller
         $query = Employee::query()
             ->with(['department', 'branch', 'position']);
 
+        // The same org scope as the employee list. Without it a supervisor —
+        // who holds employee.viewAny to see their team — downloaded every
+        // employee's name, e-mail and phone in the tenant.
+        $request->user()->scopeAccessibleEmployees($query);
+
         if ($request->filled('search')) {
             $query->search($request->input('search'));
         }
@@ -102,9 +108,11 @@ class EmployeeBulkController extends Controller
             ];
         }
 
-        $csv = implode(',', $headers)."\n";
+        // Through Csv::row, like every other export: a name such as
+        // =HYPERLINK(...) is neutralised instead of executing when HR opens it.
+        $csv = Csv::row($headers)."\n";
         foreach ($rows as $row) {
-            $csv .= implode(',', array_map(fn ($v) => '"'.str_replace('"', '""', (string) ($v ?? '')).'"', $row))."\n";
+            $csv .= Csv::row($row)."\n";
         }
 
         return response()->json([
