@@ -126,6 +126,10 @@ export default function AnnouncementsPage() {
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
       toast.success(t("announcements.deleted", "Announcement deleted"));
     },
+    onError: () =>
+      toast.error(
+        t("announcements.delete_failed", "Failed to delete announcement"),
+      ),
   });
 
   const announcements: Announcement[] = data?.data ?? [];
@@ -139,7 +143,7 @@ export default function AnnouncementsPage() {
           "Company-wide announcements and updates",
         )}
         actions={
-          can.manageEmployees && (
+          can.manageAnnouncements && (
             <Button onClick={openNew}>
               <Plus className="mr-2 h-4 w-4" />{" "}
               {t("announcements.new", "New Announcement")}
@@ -190,11 +194,12 @@ export default function AnnouncementsPage() {
                         : t("common.draft", "Draft")}
                     </p>
                   </div>
-                  {can.manageEmployees && (
+                  {can.manageAnnouncements && (
                     <div className="flex gap-1 shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={t("common.edit", "Edit")}
                         onClick={() => openEdit(a)}
                       >
                         <Pencil className="h-4 w-4 text-muted-foreground" />
@@ -202,6 +207,7 @@ export default function AnnouncementsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={t("common.delete", "Delete")}
                         onClick={() => deleteAnnouncement.mutate(a.public_id)}
                       >
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -236,8 +242,11 @@ export default function AnnouncementsPage() {
             className="space-y-4"
           >
             <div>
-              <Label>{t("common.title", "Title")}</Label>
+              <Label htmlFor="announcement-title">
+                {t("common.title", "Title")}
+              </Label>
               <Input
+                id="announcement-title"
                 value={form.title}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, title: e.target.value }))
@@ -247,8 +256,11 @@ export default function AnnouncementsPage() {
               />
             </div>
             <div>
-              <Label>{t("announcements.content", "Content")}</Label>
+              <Label htmlFor="announcement-body">
+                {t("announcements.content", "Content")}
+              </Label>
               <Textarea
+                id="announcement-body"
                 value={form.body}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, body: e.target.value }))
@@ -259,12 +271,14 @@ export default function AnnouncementsPage() {
               />
             </div>
             <div>
-              <Label>{t("announcements.priority", "Priority")}</Label>
+              <Label htmlFor="announcement-priority">
+                {t("announcements.priority", "Priority")}
+              </Label>
               <Select
                 value={form.priority}
                 onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="announcement-priority" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

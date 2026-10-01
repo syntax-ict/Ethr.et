@@ -63,9 +63,10 @@ export function AnnouncementsWidget() {
     );
   }
 
-  const announcements = (data?.data ?? [])
-    .filter((a) => a.status === "published")
-    .slice(0, 3);
+  // No status filter: AnnouncementResource has no `status` field, so filtering
+  // on it dropped every row and this card always said "No announcements".
+  // GET /announcements already returns only published, unexpired ones.
+  const announcements = (data?.data ?? []).slice(0, 3);
 
   return (
     <Card className="transition-shadow duration-300 hover:shadow-md">

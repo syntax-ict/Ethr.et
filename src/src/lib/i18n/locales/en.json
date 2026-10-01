@@ -228,6 +228,7 @@
   "analytics_page.workforce": "Workforce",
   "announcements.content": "Content",
   "announcements.create_failed": "Failed to create announcement",
+  "announcements.delete_failed": "Failed to delete announcement",
   "announcements.deleted": "Announcement deleted",
   "announcements.description": "Company-wide announcements and updates",
   "announcements.edit": "Edit Announcement",

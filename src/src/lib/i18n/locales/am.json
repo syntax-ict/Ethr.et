@@ -228,6 +228,7 @@
   "analytics_page.workforce": "የስራ ሃይል",
   "announcements.content": "ይዘት",
   "announcements.create_failed": "ማስታወቂያ መፍጠር አልተሳካም",
+  "announcements.delete_failed": "ማስታወቂያውን መሰረዝ አልተቻለም",
   "announcements.deleted": "ማስታወቂያ ተሰርዟል",
   "announcements.description": "የድርጅት አቀፍ ማስታወቂያዎች እና ዝማኔዎች",
   "announcements.edit": "ማስታወቂያ ያስተካክሉ",
