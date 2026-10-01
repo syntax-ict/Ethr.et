@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\TenantStatus;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -194,6 +195,30 @@ class Tenant extends Model
     {
         return in_array($this->status, [TenantStatus::TRIAL, TenantStatus::ACTIVE], true)
             && ! $this->isTrialExpired();
+    }
+
+    /**
+     * The query form of isActive(): tenants that are in use, which means active,
+     * or on a trial that has not expired. Per-tenant sweeps select with this.
+     * `where('status', 'active')` skipped every trial tenant, and sign-up puts
+     * every new tenant on a six-month trial. TenantSweepScheduleTest checks
+     * that the two forms agree.
+     *
+     * @param  Builder<Tenant>  $query
+     * @return Builder<Tenant>
+     */
+    public function scopeOperational(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query->where('status', TenantStatus::ACTIVE)
+                ->orWhere(function (Builder $query): void {
+                    $query->where('status', TenantStatus::TRIAL)
+                        ->where(function (Builder $query): void {
+                            $query->whereNull('trial_ends_at')
+                                ->orWhere('trial_ends_at', '>=', now());
+                        });
+                });
+        });
     }
 
     protected static function booted(): void

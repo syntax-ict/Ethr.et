@@ -24,17 +24,21 @@ Artisan::command('inspire', function () {
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 
+// The per-tenant sweeps below select Tenant::operational(): active tenants and
+// unexpired trials, the same set Tenant::isActive() accepts. Not
+// where('status', 'active'), which skipped every tenant on its six-month trial.
+
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
 Schedule::call(function () {
     $yesterday = now()->subDay()->format('Y-m-d');
-    Tenant::where('status', 'active')->each(function (Tenant $tenant) use ($yesterday) {
+    Tenant::operational()->each(function (Tenant $tenant) use ($yesterday) {
         ScanMissingPunchesJob::dispatch($tenant->id, $yesterday)->onQueue('attendance');
     });
 })->dailyAt('15:30')->name('scan-missing-punches')->withoutOverlapping();
 
 // Accrue monthly leave entitlement on the 1st of each month — 00:30 UTC (03:30 EAT)
 Schedule::call(function () {
-    Tenant::where('status', 'active')->each(function (Tenant $tenant) {
+    Tenant::operational()->each(function (Tenant $tenant) {
         AccrueLeaveBalancesJob::dispatch($tenant->id)->onQueue('default');
     });
 })->monthlyOn(1, '00:30')->name('accrue-leave-balances')->withoutOverlapping();
@@ -43,7 +47,7 @@ Schedule::call(function () {
 // Runs before that month's accrual has any effect on the new year's rows.
 Schedule::call(function () {
     $toYear = now()->year;
-    Tenant::where('status', 'active')->each(function (Tenant $tenant) use ($toYear) {
+    Tenant::operational()->each(function (Tenant $tenant) use ($toYear) {
         CarryForwardLeaveBalancesJob::dispatch($tenant->id, $toYear - 1, $toYear)
             ->onQueue('default');
     });
@@ -53,7 +57,7 @@ Schedule::call(function () {
 // missing-punch scan, so both read a settled day.
 Schedule::call(function () {
     $yesterday = now()->subDay()->format('Y-m-d');
-    Tenant::where('status', 'active')->each(function (Tenant $tenant) use ($yesterday) {
+    Tenant::operational()->each(function (Tenant $tenant) use ($yesterday) {
         ScanAttendanceAnomaliesJob::dispatch($tenant->id, $yesterday)->onQueue('attendance');
     });
 })->dailyAt('15:45')->name('scan-attendance-anomalies')->withoutOverlapping();
@@ -74,7 +78,7 @@ Schedule::job(new RunDashboardDigestsJob, 'exports')
 // Remind approvers about requests waiting longer than 48h — 06:00 UTC (09:00 EAT),
 // i.e. the start of the Ethiopian working day rather than overnight.
 Schedule::call(function () {
-    Tenant::where('status', 'active')->each(function (Tenant $tenant) {
+    Tenant::operational()->each(function (Tenant $tenant) {
         SendApprovalRemindersJob::dispatch($tenant->id)->onQueue('notifications');
     });
 })->dailyAt('06:00')->name('send-approval-reminders')->withoutOverlapping();
