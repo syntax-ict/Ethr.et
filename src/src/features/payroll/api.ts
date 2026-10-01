@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { csvAmount, csvFromRows } from "@/lib/utils/csv-export";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,6 +127,18 @@ export function usePayrollRuns(params?: { page?: number }) {
   });
 }
 
+/**
+ * Every run, newest period first — for pickers. `GET /payroll/runs` pages at
+ * 25, so a picker fed the first page loses every run older than two years.
+ */
+export function useAllPayrollRuns() {
+  return useQuery<PayrollRun[]>({
+    queryKey: ["payroll", "runs", "all"],
+    queryFn: () => fetchAllPages<PayrollRun>("/payroll/runs"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function usePayrollRun(publicId: string) {
   return useQuery<PayrollRun>({
     queryKey: ["payroll", "runs", publicId],
@@ -234,24 +249,6 @@ export function useMyPayslips(params?: { page?: number }) {
   });
 }
 
-export function useEmployeePayslips(
-  employeePublicId: string,
-  params?: { page?: number },
-) {
-  return useQuery<PaginatedResponse<PayrollEntry>>({
-    queryKey: ["payroll", "payslips", employeePublicId, params],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/payroll/payslips/${employeePublicId}`,
-        { params },
-      );
-      return data;
-    },
-    enabled: !!employeePublicId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 // ── Loans ─────────────────────────────────────────────────────────────────────
 
 export function useLoans(params?: { page?: number }) {
@@ -262,65 +259,6 @@ export function useLoans(params?: { page?: number }) {
       return data;
     },
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useLoan(publicId: string) {
-  return useQuery<Loan>({
-    queryKey: ["payroll", "loans", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/payroll/loans/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useUpdateLoan() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      publicId,
-      ...payload
-    }: {
-      publicId: string;
-      monthly_deduction_cents?: number;
-      reason?: string | null;
-    }) => {
-      const { data } = await apiClient.put(
-        `/payroll/loans/${publicId}`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "loans"] });
-    },
-  });
-}
-
-export function useCancelLoan() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      publicId,
-      reason,
-    }: {
-      publicId: string;
-      reason: string;
-    }) => {
-      const { data } = await apiClient.put(
-        `/payroll/loans/${publicId}/cancel`,
-        { reason },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "loans"] });
-    },
   });
 }
 
@@ -574,37 +512,43 @@ export function useUpdateOvertimeRates() {
   });
 }
 
-// ── Bank Export ───────────────────────────────────────────────────────────────
+// ── Bank transfer file ────────────────────────────────────────────────────────
 
-export function downloadBankExport(publicId: string) {
-  const url = `/api/v1/payroll/runs/${publicId}/export/bank`;
-  window.open(url, "_blank");
+export type BankTransferExport =
+  operations["payroll.bankExport"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The run's net pay per employee with their primary bank account, from
+ * `GET /payroll/runs/{run}/export/bank` (audit-logged as `payroll.bank_export`).
+ *
+ * The file is built from this JSON rather than downloaded from `/export/bank-csv`:
+ * that CSV has no branch column, and its `csvEscape` quotes delimiters but does
+ * not neutralise formulas, so an employee named `=HYPERLINK(...)` is evaluated
+ * by the spreadsheet a finance officer opens it in. `csvFromRows` does both.
+ */
+export async function fetchBankTransferExport(
+  publicId: string,
+): Promise<BankTransferExport> {
+  return (await apiClient.get(`/payroll/runs/${publicId}/export/bank`)).data;
 }
 
-export async function downloadBankExportCsv(publicId: string) {
-  const { data } = await apiClient.get(
-    `/payroll/runs/${publicId}/export/bank-csv`,
-    { responseType: "blob" },
+export function bankTransferCsv(file: BankTransferExport): string {
+  return csvFromRows(
+    [
+      "Employee Name",
+      "Employee Code",
+      "Bank",
+      "Branch",
+      "Account Number",
+      "Net Amount (ETB)",
+    ],
+    file.rows.map((r) => [
+      r.employee_name,
+      r.employee_code,
+      r.bank_name,
+      r.branch_name,
+      r.account_number,
+      csvAmount(r.net_amount_cents),
+    ]),
   );
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `bank-export-${publicId}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ── Payslip PDF ──────────────────────────────────────────────────────────────
-
-export async function downloadPayslipPdf(entryPublicId: string) {
-  const { data } = await apiClient.get(
-    `/payroll/payslips/${entryPublicId}/pdf`,
-    { responseType: "blob" },
-  );
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `payslip-${entryPublicId}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
