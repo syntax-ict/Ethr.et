@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\DisciplinaryCaseStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\OrgScope;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
+use App\Models\CustomRole;
+use App\Models\Department;
 use App\Models\DisciplinaryCase;
 use App\Models\Employee;
+use App\Models\Permission;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use Illuminate\Support\Facades\DB;
@@ -144,15 +148,12 @@ it('lets a supervisor read the cases of their own direct report', function () {
 });
 
 it('does not let a supervisor read the cases of someone outside their reports', function () {
-    // DisciplinaryCaseController::index (line 27) authorizes viewAny — a bare
-    // permission — and never asks canAccessEmployee($employee), which is how
-    // EmployeePolicy limits a SUPERVISOR to direct reports. So every
-    // supervisor in the tenant can read every disciplinary case, including
-    // their peers' and their own manager's. The seeder comment beside the
-    // grant ("Supervisors read their team's ...") states the intended scope.
-    // Note: DisciplinaryCaseTest "lets a supervisor view cases but not open
-    // one" uses a supervisor with no employee record and currently pins the
-    // unscoped behaviour; it will need the same fix.
+    // index() authorized viewAny — a bare permission — and never asked
+    // canAccessEmployee($employee), which is how EmployeePolicy limits a
+    // SUPERVISOR to direct reports. So every supervisor in the tenant could
+    // read every disciplinary case, including their peers' and their own
+    // manager's, though the seeder grants it for "their team's".
+    // DisciplinaryCasePolicy::view now applies the org scope.
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
     $boss = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -162,14 +163,60 @@ it('does not let a supervisor read the cases of someone outside their reports', 
     actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $boss->id], $tenant);
 
     $this->getJson(disciplinarySecUrl($tenant, $peer))->assertForbidden();
-})->todo(note: 'DEFECT: DisciplinaryCaseController::index (line 27) checks only disciplinary_case.viewAny, never canAccessEmployee(); any supervisor reads any employee\'s disciplinary cases');
+});
+
+it('refuses a supervisor login with no employee record, which reaches no one', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    disciplinarySecOpen($tenant, $employee);
+
+    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+
+    $this->getJson(disciplinarySecUrl($tenant, $employee))->assertForbidden();
+});
+
+it('limits a department-scoped role holding manage to its own department', function () {
+    // The scope applies to acting as well as reading: a custom role with
+    // disciplinary_case.manage and a department scope opens cases in its
+    // department and nowhere else.
+    $tenant = createTenant();
+    $mine = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $theirs = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $head = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id]);
+    $inside = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id]);
+    $outside = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $theirs->id]);
+
+    $role = CustomRole::create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Department HR',
+        'org_scope' => OrgScope::DEPARTMENT->value,
+    ]);
+    $role->permissions()->sync(Permission::whereIn('name', [
+        'disciplinary_case.viewAny', 'disciplinary_case.manage',
+    ])->pluck('id'));
+
+    actingAsUser([
+        'role' => UserRole::EMPLOYEE,
+        'custom_role_id' => $role->id,
+        'employee_id' => $head->id,
+    ], $tenant);
+
+    $payload = ['category' => 'misconduct', 'description' => 'x', 'incident_date' => '2026-08-01'];
+
+    $this->postJson(disciplinarySecUrl($tenant, $inside), $payload)->assertCreated();
+    $this->postJson(disciplinarySecUrl($tenant, $outside), $payload)->assertForbidden();
+    $this->getJson(disciplinarySecUrl($tenant, $outside))->assertForbidden();
+
+    expect(DisciplinaryCase::where('employee_id', $outside->id)->exists())->toBeFalse();
+});
 
 it('does not let an HR admin decide a case brought against themselves', function () {
-    // Leave approval refuses self-approval (LeaveRequestController:263).
-    // Nothing in DisciplinaryCaseController/Service compares the acting user's
-    // employee_id with the case's: an HR admin who is the subject can record
-    // `not_guilty` on their own case, or uphold their own appeal and erase the
-    // sanction.
+    // Leave and correction approval refuse deciding one's own. Nothing in
+    // DisciplinaryCaseController/Service compared the acting user's
+    // employee_id with the case's: an HR admin who was the subject could
+    // record `not_guilty` on their own case, or uphold their own appeal and
+    // erase the sanction. DisciplinaryCasePolicy::decide refuses the subject.
     $tenant = createTenant();
     $hrPerson = Employee::factory()->create(['tenant_id' => $tenant->id]);
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -181,4 +228,40 @@ it('does not let an HR admin decide a case brought against themselves', function
         ->assertForbidden();
 
     expect($case->fresh()->status)->toBe(DisciplinaryCaseStatus::REPORTED);
-})->todo(note: 'DEFECT: DisciplinaryCaseController decide/resolveAppeal/close have no subject-of-the-case guard; an HR admin can decide or uphold the appeal on their own case');
+});
+
+it('does not let the subject add notes to, resolve the appeal on, or close their own case', function () {
+    $tenant = createTenant();
+    $hrPerson = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $case = disciplinarySecOpen($tenant, $hrPerson);
+
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hrPerson->id], $tenant);
+
+    $this->postJson(disciplinarySecUrl($tenant, $hrPerson, "/{$case->public_id}/notes"), ['note' => 'All lies.'])
+        ->assertForbidden();
+    $this->postJson(disciplinarySecUrl($tenant, $hrPerson, "/{$case->public_id}/close"), [])
+        ->assertForbidden();
+
+    DB::table('disciplinary_cases')->where('id', $case->id)->update(['status' => DisciplinaryCaseStatus::APPEALED->value]);
+
+    $this->postJson(disciplinarySecUrl($tenant, $hrPerson, "/{$case->public_id}/appeal-decision"), ['outcome' => 'upheld'])
+        ->assertForbidden();
+
+    expect($case->fresh()->status)->toBe(DisciplinaryCaseStatus::APPEALED);
+});
+
+it('still lets the subject read their own case, and another HR admin decide it', function () {
+    $tenant = createTenant();
+    $hrPerson = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $case = disciplinarySecOpen($tenant, $hrPerson);
+
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hrPerson->id], $tenant);
+    $this->getJson(disciplinarySecUrl($tenant, $hrPerson))->assertOk()->assertJsonCount(1);
+
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $colleague->id], $tenant);
+    $this->postJson(disciplinarySecUrl($tenant, $hrPerson, "/{$case->public_id}/decision"), ['decision' => 'not_guilty'])
+        ->assertOk();
+});

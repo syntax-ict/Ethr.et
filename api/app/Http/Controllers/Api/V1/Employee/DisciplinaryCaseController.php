@@ -25,7 +25,7 @@ class DisciplinaryCaseController extends Controller
 
     public function index(Employee $employee): AnonymousResourceCollection
     {
-        Gate::authorize('viewAny', DisciplinaryCase::class);
+        Gate::authorize('view', [DisciplinaryCase::class, $employee]);
 
         $cases = $employee->disciplinaryCases()
             ->with(['reportedBy.employee', 'decidedBy.employee', 'appealDecidedBy.employee'])
@@ -38,7 +38,7 @@ class DisciplinaryCaseController extends Controller
 
     public function store(StoreDisciplinaryCaseRequest $request, Employee $employee): JsonResponse
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('open', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->open($employee, $request->validated(), $request->user()?->id);
 
@@ -49,7 +49,7 @@ class DisciplinaryCaseController extends Controller
 
     public function addNote(AddDisciplinaryNoteRequest $request, Employee $employee, DisciplinaryCase $disciplinaryCase): DisciplinaryCaseResource
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('decide', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->addNote($disciplinaryCase, $request->validated('note'), $request->user());
 
@@ -58,7 +58,7 @@ class DisciplinaryCaseController extends Controller
 
     public function decide(RecordDisciplinaryDecisionRequest $request, Employee $employee, DisciplinaryCase $disciplinaryCase): DisciplinaryCaseResource
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('decide', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->decide($disciplinaryCase, $request->validated(), $request->user()?->id);
         $case->load(['reportedBy.employee', 'decidedBy.employee']);
@@ -68,7 +68,7 @@ class DisciplinaryCaseController extends Controller
 
     public function appeal(FileDisciplinaryAppealRequest $request, Employee $employee, DisciplinaryCase $disciplinaryCase): DisciplinaryCaseResource
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('open', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->fileAppeal($disciplinaryCase, $request->validated('grounds'));
 
@@ -77,7 +77,7 @@ class DisciplinaryCaseController extends Controller
 
     public function resolveAppeal(ResolveDisciplinaryAppealRequest $request, Employee $employee, DisciplinaryCase $disciplinaryCase): DisciplinaryCaseResource
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('decide', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->resolveAppeal($disciplinaryCase, $request->validated(), $request->user()?->id);
         $case->load(['reportedBy.employee', 'decidedBy.employee', 'appealDecidedBy.employee']);
@@ -87,7 +87,7 @@ class DisciplinaryCaseController extends Controller
 
     public function close(CloseDisciplinaryCaseRequest $request, Employee $employee, DisciplinaryCase $disciplinaryCase): DisciplinaryCaseResource
     {
-        Gate::authorize('manage', DisciplinaryCase::class);
+        Gate::authorize('decide', [DisciplinaryCase::class, $employee]);
 
         $case = $this->cases->close($disciplinaryCase, $request->validated('notes'));
         $case->load(['reportedBy.employee', 'decidedBy.employee', 'appealDecidedBy.employee']);
