@@ -164,6 +164,67 @@ test('tenant admin can update a device', function () {
         ->assertJsonPath('name', 'Updated Name');
 });
 
+// DeviceResource never returns connection_config — it holds device credentials —
+// so the edit form cannot resend them. Replacing the stored config wholesale
+// silently wiped them whenever an operator re-entered only the address.
+test('updating the address keeps stored device credentials that were not resent', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '203.0.113.5', 'port' => 80, 'username' => 'admin', 'password' => 'secret'],
+    ]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}", [
+        'connection_config' => ['ip' => '203.0.113.9', 'port' => 8080],
+    ])->assertOk();
+
+    expect($device->fresh()->connection_config)->toBe([
+        'ip' => '203.0.113.9', 'port' => 8080, 'username' => 'admin', 'password' => 'secret',
+    ]);
+});
+
+test('a connection_config key sent as null clears the stored value', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['ip' => '203.0.113.5', 'port' => 80, 'username' => 'admin', 'password' => 'secret'],
+    ]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}", [
+        'connection_config' => ['ip' => '203.0.113.5', 'port' => 80, 'password' => null],
+    ])->assertOk();
+
+    expect($device->fresh()->connection_config)
+        ->toMatchArray(['username' => 'admin', 'password' => null]);
+});
+
+test('changing the adapter replaces the connection config instead of merging it', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'suprema',
+        'connection_config' => ['ip' => '203.0.113.5', 'port' => 443, 'api_key' => 'suprema-key'],
+    ]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}", [
+        'adapter_type' => 'zkteco',
+        'connection_config' => ['ip' => '203.0.113.7', 'port' => 4370],
+    ])->assertOk();
+
+    expect($device->fresh()->connection_config)->toBe(['ip' => '203.0.113.7', 'port' => 4370]);
+});
+
 test('tenant admin can delete a device', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

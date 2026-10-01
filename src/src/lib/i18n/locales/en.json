@@ -1122,6 +1122,7 @@
   "devices_page.import_history": "Import attendance history",
   "devices_page.import_history_desc": "Backfill past punches. Each is dated when it happened, and duplicates are skipped.",
   "devices_page.ip_address": "IP Address",
+  "devices_page.keep_connection_hint": "Leave the address blank to keep the current connection settings. A username, password or API key changes only if you enter a new one.",
   "devices_page.last_30": "Last 30 days",
   "devices_page.last_90": "Last 90 days",
   "devices_page.manual_only": "Manual only",

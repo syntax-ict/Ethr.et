@@ -135,8 +135,17 @@ class DeviceController extends Controller
         }
 
         // Preserve all adapter-specific config keys (validated() strips unknowns).
+        // The config holds device credentials that DeviceResource never returns,
+        // so an editor cannot resend them: a key absent from the request keeps its
+        // stored value, and a key sent as null clears it. A change of adapter
+        // replaces the config outright — the old adapter's keys mean nothing to
+        // the new one.
         if ($request->has('connection_config')) {
-            $data['connection_config'] = $request->input('connection_config');
+            $incoming = (array) $request->input('connection_config');
+            $sameAdapter = ($data['adapter_type'] ?? $device->adapter_type) === $device->adapter_type;
+            $data['connection_config'] = $sameAdapter
+                ? array_merge($device->connection_config ?? [], $incoming)
+                : $incoming;
         }
 
         $device->update($data);

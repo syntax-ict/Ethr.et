@@ -55,6 +55,12 @@ import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
 } from "@/features/devices/components/device-workforce-dialogs";
+import {
+  buildDevicePayload,
+  EMPTY_DEVICE_FORM,
+  isIpAdapter,
+  type DeviceFormData,
+} from "@/features/devices/payload";
 import { apiClient } from "@/api/client";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
@@ -78,53 +84,12 @@ interface Device {
   updated_at: string;
 }
 
-interface DeviceFormData {
-  name: string;
-  adapter_type: string;
-  serial_number: string;
-  branch_public_id: string;
-  ip: string;
-  port: string;
-  username: string;
-  password: string;
-  api_key: string;
-}
-
-const EMPTY_FORM: DeviceFormData = {
-  name: "",
-  adapter_type: "mock",
-  serial_number: "",
-  branch_public_id: "",
-  ip: "",
-  port: "80",
-  username: "",
-  password: "",
-  api_key: "",
-};
-
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
   zkteco: "ZKTeco",
   suprema: "Suprema",
   mock: "Mock (Simulator)",
 };
-
-function buildPayload(form: DeviceFormData) {
-  const isMock = form.adapter_type === "mock";
-  return {
-    name: form.name,
-    adapter_type: form.adapter_type,
-    serial_number: form.serial_number || null,
-    branch_public_id: form.branch_public_id,
-    connection_config: {
-      ip: isMock ? "127.0.0.1" : form.ip,
-      port: isMock ? 0 : parseInt(form.port, 10) || 80,
-      username: form.username || null,
-      password: form.password || null,
-      api_key: form.api_key || null,
-    },
-  };
-}
 
 export default function DevicesPage() {
   const { t } = useT();
@@ -134,7 +99,7 @@ export default function DevicesPage() {
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
   const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
-  const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_FORM });
+  const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_DEVICE_FORM });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -156,14 +121,17 @@ export default function DevicesPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await apiClient.post("/devices", buildPayload(form));
+      const { data } = await apiClient.post(
+        "/devices",
+        buildDevicePayload(form, "create"),
+      );
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devices"] });
       toast.success(t("devices_page.registered"));
       setCreateOpen(false);
-      setForm({ ...EMPTY_FORM });
+      setForm({ ...EMPTY_DEVICE_FORM });
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { detail?: string } } })
@@ -177,7 +145,7 @@ export default function DevicesPage() {
       if (!editDevice) return;
       const { data } = await apiClient.put(
         `/devices/${editDevice.public_id}`,
-        buildPayload(form),
+        buildDevicePayload(form, "edit"),
       );
       return data;
     },
@@ -290,7 +258,7 @@ export default function DevicesPage() {
               </Button>
               <Button
                 onClick={() => {
-                  setForm({ ...EMPTY_FORM });
+                  setForm({ ...EMPTY_DEVICE_FORM });
                   setCreateOpen(true);
                 }}
               >
@@ -344,7 +312,7 @@ export default function DevicesPage() {
             action={
               <Button
                 onClick={() => {
-                  setForm({ ...EMPTY_FORM });
+                  setForm({ ...EMPTY_DEVICE_FORM });
                   setCreateOpen(true);
                 }}
               >
@@ -380,6 +348,7 @@ export default function DevicesPage() {
           setForm={setForm}
           branches={branches?.data ?? []}
           isMock={isMockAdapter}
+          addressRequired
           onSubmit={(e) => {
             e.preventDefault();
             createMutation.mutate();
@@ -399,6 +368,9 @@ export default function DevicesPage() {
           setForm={setForm}
           branches={branches?.data ?? []}
           isMock={isMockAdapter}
+          // A blank address on edit keeps the stored connection — unless the
+          // adapter changed, when the stored settings belong to another vendor.
+          addressRequired={editDevice?.adapter_type !== form.adapter_type}
           onSubmit={(e) => {
             e.preventDefault();
             updateMutation.mutate();
@@ -678,6 +650,7 @@ function DeviceFormDialog({
   setForm,
   branches,
   isMock,
+  addressRequired = false,
   onSubmit,
   isPending,
   submitLabel,
@@ -689,6 +662,7 @@ function DeviceFormDialog({
   setForm: React.Dispatch<React.SetStateAction<DeviceFormData>>;
   branches: { public_id: string; name: string }[];
   isMock: boolean;
+  addressRequired?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   isPending: boolean;
   submitLabel: string;
@@ -758,11 +732,16 @@ function DeviceFormDialog({
             </div>
           )}
 
-          {!isMock && (
+          {isIpAdapter(form.adapter_type) && (
             <div className="space-y-4 rounded-lg border p-4">
               <p className="text-xs font-medium text-muted-foreground uppercase">
                 {t("devices_page.connection_settings")}
               </p>
+              {!addressRequired && (
+                <p className="text-sm text-muted-foreground">
+                  {t("devices_page.keep_connection_hint")}
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <Label htmlFor="ip-address">
@@ -772,7 +751,7 @@ function DeviceFormDialog({
                     id="ip-address"
                     value={form.ip}
                     onChange={(e) => set("ip", e.target.value)}
-                    required
+                    required={addressRequired}
                     placeholder="192.168.1.100"
                     className="mt-1"
                   />
@@ -783,7 +762,7 @@ function DeviceFormDialog({
                     id="port"
                     value={form.port}
                     onChange={(e) => set("port", e.target.value)}
-                    required
+                    required={addressRequired}
                     type="number"
                     min={1}
                     max={65535}

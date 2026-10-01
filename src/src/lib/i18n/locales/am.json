@@ -1122,6 +1122,7 @@
   "devices_page.import_history": "የመገኘት ታሪክ አስገባ",
   "devices_page.import_history_desc": "ያለፉ ምዝገባዎችን ያስገቡ። እያንዳንዱ በተከሰተበት ጊዜ ይመዘገባል፣ ድግግሞሽ ይዘለላል።",
   "devices_page.ip_address": "የIP አድራሻ",
+  "devices_page.keep_connection_hint": "የአሁኑን የግንኙነት ቅንብሮች ለማቆየት አድራሻውን ባዶ ይተዉት። የተጠቃሚ ስም፣ የይለፍ ቃል ወይም የAPI ቁልፍ የሚቀየረው አዲስ ሲያስገቡ ብቻ ነው።",
   "devices_page.last_30": "ያለፉት 30 ቀናት",
   "devices_page.last_90": "ያለፉት 90 ቀናት",
   "devices_page.manual_only": "በእጅ ብቻ",
