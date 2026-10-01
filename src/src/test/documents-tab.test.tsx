@@ -100,6 +100,17 @@ describe("DocumentsTab list", () => {
     expect(screen.getByText("ID copy")).toBeInTheDocument();
   });
 
+  it("reports a failed load instead of claiming there are no documents", async () => {
+    // Regression: an error fell through to "No documents".
+    server.use(
+      http.get(DOCUMENTS_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText("No documents")).not.toBeInTheDocument();
+  });
+
   it("names the delete control after the document it removes", async () => {
     // Regression: an icon-only button with no accessible name.
     server.use(

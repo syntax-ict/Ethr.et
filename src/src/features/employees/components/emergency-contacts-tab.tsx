@@ -16,6 +16,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -54,7 +55,9 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     defaultValues: { name: "", relationship: "", phone: "" },
   });
 
-  const { data, isLoading } = useEmployeeEmergencyContacts(employeeId);
+  // Through QueryBoundary: "No emergency contacts" after a failed load is a
+  // false statement on the one screen opened in an emergency.
+  const query = useEmployeeEmergencyContacts(employeeId);
   const addContact = useAddEmergencyContact(employeeId);
   const deleteContact = useDeleteEmergencyContact(employeeId);
 
@@ -77,8 +80,6 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     });
   }
 
-  const contacts = data ?? [];
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -90,45 +91,52 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : contacts.length === 0 ? (
-          <EmptyState
-            icon={Heart}
-            title={t("employee.emergency.empty_title", "No emergency contacts")}
-            description={t(
-              "employee.emergency.empty_desc",
-              "Add people to contact in case of emergency",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {contacts.map((c) => (
-              <div
-                key={c.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <Heart className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.relationship} · {c.phone}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(c.public_id)}
-                  aria-label={`${t("common.delete", "Delete")} ${c.name}`}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={Heart}
+              title={t(
+                "employee.emergency.empty_title",
+                "No emergency contacts",
+              )}
+              description={t(
+                "employee.emergency.empty_desc",
+                "Add people to contact in case of emergency",
+              )}
+            />
+          }
+        >
+          {(contacts) => (
+            <div className="space-y-2">
+              {contacts.map((c) => (
+                <div
+                  key={c.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <Heart className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.relationship} · {c.phone}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(c.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${c.name}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

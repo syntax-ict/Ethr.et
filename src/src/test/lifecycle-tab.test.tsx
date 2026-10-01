@@ -75,6 +75,19 @@ describe("<LifecycleTab>", () => {
     expect(screen.getByText("by Hiwot Tadesse")).toBeInTheDocument();
   });
 
+  it("reports a failed load instead of claiming there is no history", async () => {
+    // Regression: an error fell through to "No transitions yet. Employee is
+    // in initial state." — a claim about the employee, made on a 500.
+    server.use(
+      hrAdmin(),
+      http.get(TRANSITIONS_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText(/No transitions yet/)).not.toBeInTheDocument();
+  });
+
   it("posts the chosen status and refreshes the history", async () => {
     let listCalls = 0;
     const bodies: Array<Record<string, unknown>> = [];

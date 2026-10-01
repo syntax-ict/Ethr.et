@@ -54,6 +54,17 @@ describe("<EmergencyContactsTab>", () => {
     expect(screen.queryByText("No emergency contacts")).not.toBeInTheDocument();
   });
 
+  it("reports a failed load instead of claiming there are no contacts", async () => {
+    // Regression: an error fell through to "No emergency contacts".
+    server.use(
+      http.get(CONTACTS_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText("No emergency contacts")).not.toBeInTheDocument();
+  });
+
   it("names the delete control after the contact it removes", async () => {
     // Regression: an icon-only button with no accessible name.
     server.use(

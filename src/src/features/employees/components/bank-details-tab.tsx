@@ -17,6 +17,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -74,7 +75,10 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_BANK,
   });
 
-  const { data, isLoading } = useEmployeeBankDetails(employeeId);
+  // Through QueryBoundary: a failed load used to fall through to the empty
+  // state, telling HR an employee had "No bank accounts" when the request had
+  // been refused (the tab is shown to users without employee.viewFinancial).
+  const query = useEmployeeBankDetails(employeeId);
   const addBank = useAddBankDetail(employeeId);
   const deleteBank = useDeleteBankDetail(employeeId);
 
@@ -97,17 +101,18 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     });
   }
 
-  const banks = data ?? [];
-
   /**
    * `is_primary` is the account `BankExportService` pays salary into, and
    * storing a new primary demotes the old one. It used to be hard-wired to
    * true with no control, so adding a second account — a savings account, a
    * spouse's — silently redirected the next payroll into it. It now defaults
    * on only for the first account and is otherwise the user's explicit choice.
+   * An unknown list (still loading, or failed) is not evidence of "no
+   * accounts", so it defaults off then too.
    */
   function openAdd() {
-    reset({ ...EMPTY_BANK, is_primary: banks.length === 0 });
+    const knownEmpty = query.isSuccess && query.data.length === 0;
+    reset({ ...EMPTY_BANK, is_primary: knownEmpty });
     setAddOpen(true);
   }
 
@@ -122,57 +127,61 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : banks.length === 0 ? (
-          <EmptyState
-            icon={CreditCard}
-            title={t("employee.bank.empty_title", "No bank accounts")}
-            description={t(
-              "employee.bank.empty_desc",
-              "Add bank details for salary deposits",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {banks.map((b) => (
-              <div
-                key={b.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {b.bank_name}{" "}
-                      {b.is_primary && (
-                        <span className="ml-1 text-[10px] text-primary">
-                          {t("employee.bank.primary", "PRIMARY")}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {b.account_number_masked}
-                    </p>
-                    {b.branch_name && (
-                      <p className="text-xs text-muted-foreground">
-                        {b.branch_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(b.public_id)}
-                  aria-label={`${t("common.delete", "Delete")} ${b.bank_name}`}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={CreditCard}
+              title={t("employee.bank.empty_title", "No bank accounts")}
+              description={t(
+                "employee.bank.empty_desc",
+                "Add bank details for salary deposits",
+              )}
+            />
+          }
+        >
+          {(banks) => (
+            <div className="space-y-2">
+              {banks.map((b) => (
+                <div
+                  key={b.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {b.bank_name}{" "}
+                        {b.is_primary && (
+                          <span className="ml-1 text-[10px] text-primary">
+                            {t("employee.bank.primary", "PRIMARY")}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {b.account_number_masked}
+                      </p>
+                      {b.branch_name && (
+                        <p className="text-xs text-muted-foreground">
+                          {b.branch_name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(b.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${b.bank_name}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

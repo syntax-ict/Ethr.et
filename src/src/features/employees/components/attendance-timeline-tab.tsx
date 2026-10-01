@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import {
@@ -43,14 +44,28 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   });
   const [selectedDay, setSelectedDay] = useState<TimelineDay | null>(null);
 
-  const { data, isLoading } = useEmployeeAttendanceTimeline(employeeId, range);
+  const query = useEmployeeAttendanceTimeline(employeeId, range);
+  const { data } = query;
 
-  if (isLoading || !data) {
+  // Until there is data, QueryBoundary decides between the skeleton and an
+  // error with a retry. This used to be `isLoading || !data` → skeleton, so a
+  // failed request (or a range the server rejected) was a skeleton forever,
+  // with the range pickers that could have undone it no longer on screen.
+  if (!data) {
     return (
       <Card>
         <CardContent className="p-6">
-          <Skeleton className="h-8 w-48 mb-4" />
-          <Skeleton className="h-40 w-full" />
+          <QueryBoundary
+            query={query}
+            loading={
+              <>
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-40 w-full" />
+              </>
+            }
+          >
+            {() => null}
+          </QueryBoundary>
         </CardContent>
       </Card>
     );

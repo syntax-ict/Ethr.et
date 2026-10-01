@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
@@ -72,5 +73,25 @@ describe("<AttendanceTimelineTab>", () => {
     await waitFor(() => expect(seen).toHaveLength(1));
     expect(seen[0].get("from")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(seen[0].get("to")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("reports a failed load and retries it, instead of a skeleton forever", async () => {
+    // Regression: `isLoading || !data` rendered the skeleton, and after a
+    // failure `data` never arrives — so the tab looked like it was loading
+    // indefinitely, with no message and no retry.
+    let calls = 0;
+    server.use(
+      http.get(TIMELINE_URL, () => {
+        calls++;
+        return calls === 1
+          ? new HttpResponse(null, { status: 500 })
+          : HttpResponse.json(buildTimeline());
+      }),
+    );
+    const user = userEvent.setup();
+    renderTab();
+
+    await user.click(await screen.findByRole("button", { name: /Try again/ }));
+    expect(await screen.findByText("8.0")).toBeInTheDocument();
   });
 });

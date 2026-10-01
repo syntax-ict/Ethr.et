@@ -56,6 +56,17 @@ describe("<EducationTab>", () => {
     expect(screen.queryByText("No education records")).not.toBeInTheDocument();
   });
 
+  it("reports a failed load instead of claiming there are no records", async () => {
+    // Regression: an error fell through to "No education records".
+    server.use(
+      http.get(EDUCATION_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText("No education records")).not.toBeInTheDocument();
+  });
+
   it("names the delete control after the record it removes", async () => {
     // Regression: an icon-only button with no accessible name.
     server.use(

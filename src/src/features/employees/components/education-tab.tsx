@@ -16,6 +16,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
@@ -115,7 +116,9 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_EDUCATION,
   });
 
-  const { data, isLoading } = useEmployeeEducation(employeeId);
+  // Through QueryBoundary, so a failed load is not reported as "No education
+  // records".
+  const query = useEmployeeEducation(employeeId);
   const addEducation = useAddEducation(employeeId);
   const deleteEducation = useDeleteEducation(employeeId);
 
@@ -148,8 +151,6 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     });
   }
 
-  const records = data ?? [];
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -161,60 +162,67 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : records.length === 0 ? (
-          <EmptyState
-            icon={GraduationCap}
-            title={t("employee.education.empty_title", "No education records")}
-            description={t(
-              "employee.education.empty_desc",
-              "Add educational qualifications",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {records.map((e) => (
-              <div
-                key={e.public_id}
-                className="flex items-start justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-start gap-3">
-                  <GraduationCap className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {e.degree}
-                      {e.field_of_study && ` — ${e.field_of_study}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {e.institution}
-                    </p>
-                    {(e.start_date || e.end_date) && (
-                      <p className="text-xs text-muted-foreground">
-                        {dateToYear(e.start_date) ?? ""} –{" "}
-                        {dateToYear(e.end_date) ??
-                          t("employee.education.present", "Present")}
-                      </p>
-                    )}
-                    {e.grade && (
-                      <p className="text-xs text-muted-foreground">
-                        {t("employee.education.gpa", "GPA")}: {e.grade}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(e.public_id)}
-                  aria-label={`${t("common.delete", "Delete")} ${e.degree}`}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={GraduationCap}
+              title={t(
+                "employee.education.empty_title",
+                "No education records",
+              )}
+              description={t(
+                "employee.education.empty_desc",
+                "Add educational qualifications",
+              )}
+            />
+          }
+        >
+          {(records) => (
+            <div className="space-y-2">
+              {records.map((e) => (
+                <div
+                  key={e.public_id}
+                  className="flex items-start justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-start gap-3">
+                    <GraduationCap className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {e.degree}
+                        {e.field_of_study && ` — ${e.field_of_study}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.institution}
+                      </p>
+                      {(e.start_date || e.end_date) && (
+                        <p className="text-xs text-muted-foreground">
+                          {dateToYear(e.start_date) ?? ""} –{" "}
+                          {dateToYear(e.end_date) ??
+                            t("employee.education.present", "Present")}
+                        </p>
+                      )}
+                      {e.grade && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("employee.education.gpa", "GPA")}: {e.grade}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(e.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${e.degree}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

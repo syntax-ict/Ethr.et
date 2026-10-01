@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -128,7 +129,9 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     return null;
   }
 
-  const { data, isLoading } = useEmployeeDocuments(employeeId);
+  // Through QueryBoundary: a failed load used to fall through to "No
+  // documents", which is a claim about the employee, not about the request.
+  const query = useEmployeeDocuments(employeeId);
   const uploadDoc = useUploadEmployeeDocument(employeeId);
   const deleteDoc = useDeleteEmployeeDocument(employeeId);
 
@@ -165,8 +168,6 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     });
   }
 
-  const docs = data ?? [];
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -178,45 +179,49 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : docs.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={t("employee.documents.empty_title", "No documents")}
-            description={t(
-              "employee.documents.empty_desc",
-              "Upload contracts, IDs, and other documents",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {docs.map((d) => (
-              <div
-                key={d.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{d.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t(`employee.documents.type_${d.type}`, d.type)}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(d.public_id)}
-                  aria-label={`${t("common.delete", "Delete")} ${d.title}`}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={FileText}
+              title={t("employee.documents.empty_title", "No documents")}
+              description={t(
+                "employee.documents.empty_desc",
+                "Upload contracts, IDs, and other documents",
+              )}
+            />
+          }
+        >
+          {(docs) => (
+            <div className="space-y-2">
+              {docs.map((d) => (
+                <div
+                  key={d.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{d.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t(`employee.documents.type_${d.type}`, d.type)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(d.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${d.title}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

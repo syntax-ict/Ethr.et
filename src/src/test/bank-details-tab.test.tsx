@@ -53,6 +53,40 @@ describe("<BankDetailsTab>", () => {
     expect(screen.queryByText("No bank accounts")).not.toBeInTheDocument();
   });
 
+  it("reports a failed load instead of claiming there are no accounts", async () => {
+    // Regression: an error fell through to the empty state. The tab is shown
+    // to every user who can open the employee, but the endpoint needs
+    // employee.viewFinancial, so a supervisor was told "No bank accounts" —
+    // a statement about the employee's payroll, made on a 403.
+    server.use(
+      http.get(BANK_URL, () =>
+        HttpResponse.json({ title: "Forbidden", status: 403 }, { status: 403 }),
+      ),
+    );
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load this")).toBeInTheDocument();
+    expect(screen.queryByText("No bank accounts")).not.toBeInTheDocument();
+  });
+
+  it("does not default a new account to salary when the list failed to load", async () => {
+    // An unknown list is not evidence of "no accounts".
+    server.use(
+      http.get(BANK_URL, () => new HttpResponse(null, { status: 500 })),
+    );
+    const user = userEvent.setup();
+    renderTab();
+    await screen.findByText("Couldn't load this");
+
+    await user.click(screen.getByRole("button", { name: /Add/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByRole("checkbox", {
+        name: "Pay salary into this account",
+      }),
+    ).not.toBeChecked();
+  });
+
   it("shows the masked account number the resource actually returns", async () => {
     // Regression: the row read `account_number`, which BankDetailResource
     // deliberately never sends — it sends `account_number_masked`. The one

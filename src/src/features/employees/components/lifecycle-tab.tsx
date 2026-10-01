@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
@@ -108,7 +109,9 @@ export function LifecycleTab({
 
   const selectedStatus = watch("to_status");
 
-  const { data, isLoading } = useEmployeeTransitions(employeeId);
+  // Through QueryBoundary, so a failed load is not reported as "No
+  // transitions yet. Employee is in initial state."
+  const query = useEmployeeTransitions(employeeId);
   const transitionMut = useTransitionEmployee(employeeId);
 
   // The server enforces the same state machine `ALLOWED_TRANSITIONS` mirrors,
@@ -128,7 +131,6 @@ export function LifecycleTab({
 
   const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
   const isTerminal = allowed.length === 0;
-  const transitions = data ?? [];
 
   return (
     <Card>
@@ -183,87 +185,93 @@ export function LifecycleTab({
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : transitions.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-4">
-              {t(
-                "employee.lifecycle.no_transitions",
-                "No transitions yet. Employee is in initial state.",
-              )}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("employee.lifecycle.history", "History")}
-              </p>
-              <div className="relative space-y-3">
-                {/* Vertical line through the timeline */}
-                <div className="absolute left-[7px] top-3 bottom-3 w-px bg-border" />
-                {transitions
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      new Date(b.effective_date ?? 0).getTime() -
-                      new Date(a.effective_date ?? 0).getTime(),
-                  )
-                  .map((tr) => (
-                    <div
-                      key={tr.public_id}
-                      className="relative flex gap-3 pl-0"
-                    >
-                      <div
-                        className={cn(
-                          "z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-background",
-                          STATUS_DOT_COLOR[tr.to_status ?? ""],
-                        )}
-                      />
-                      <div className="flex-1 min-w-0 rounded-lg border p-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] font-mono"
-                          >
-                            {STATUS_LABEL[tr.from_status ?? ""] ??
-                              tr.from_status}
-                          </Badge>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-[10px] font-mono border-0",
-                              STATUS_DOT_COLOR[tr.to_status ?? ""],
-                              "text-text-inverse",
-                            )}
-                          >
-                            {STATUS_LABEL[tr.to_status ?? ""] ?? tr.to_status}
-                          </Badge>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {tr.effective_date}
-                          </span>
-                        </div>
-                        {tr.reason && (
-                          <p className="mt-2 text-sm text-foreground">
-                            {tr.reason}
-                          </p>
-                        )}
-                        {/* EmployeeSummaryResource over the approving User: a
-                            name, never an email. */}
-                        {tr.approved_by && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            by {tr.approved_by.name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+          <QueryBoundary
+            query={query}
+            loading={
+              <div className="space-y-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
               </div>
-            </div>
-          )}
+            }
+            empty={
+              <p className="text-center text-sm text-muted-foreground py-4">
+                {t(
+                  "employee.lifecycle.no_transitions",
+                  "No transitions yet. Employee is in initial state.",
+                )}
+              </p>
+            }
+          >
+            {(transitions) => (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t("employee.lifecycle.history", "History")}
+                </p>
+                <div className="relative space-y-3">
+                  {/* Vertical line through the timeline */}
+                  <div className="absolute left-[7px] top-3 bottom-3 w-px bg-border" />
+                  {transitions
+                    .slice()
+                    .sort(
+                      (a, b) =>
+                        new Date(b.effective_date ?? 0).getTime() -
+                        new Date(a.effective_date ?? 0).getTime(),
+                    )
+                    .map((tr) => (
+                      <div
+                        key={tr.public_id}
+                        className="relative flex gap-3 pl-0"
+                      >
+                        <div
+                          className={cn(
+                            "z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-background",
+                            STATUS_DOT_COLOR[tr.to_status ?? ""],
+                          )}
+                        />
+                        <div className="flex-1 min-w-0 rounded-lg border p-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-mono"
+                            >
+                              {STATUS_LABEL[tr.from_status ?? ""] ??
+                                tr.from_status}
+                            </Badge>
+                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] font-mono border-0",
+                                STATUS_DOT_COLOR[tr.to_status ?? ""],
+                                "text-text-inverse",
+                              )}
+                            >
+                              {STATUS_LABEL[tr.to_status ?? ""] ?? tr.to_status}
+                            </Badge>
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {tr.effective_date}
+                            </span>
+                          </div>
+                          {tr.reason && (
+                            <p className="mt-2 text-sm text-foreground">
+                              {tr.reason}
+                            </p>
+                          )}
+                          {/* EmployeeSummaryResource over the approving User: a
+                            name, never an email. */}
+                          {tr.approved_by && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              by {tr.approved_by.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </QueryBoundary>
         </div>
       </CardContent>
 
