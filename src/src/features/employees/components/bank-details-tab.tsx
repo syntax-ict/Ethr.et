@@ -28,7 +28,8 @@ interface BankDetail {
   public_id: string;
   bank_name: string;
   branch_name?: string;
-  account_number: string;
+  /** All but the last four digits starred; the full number is never sent. */
+  account_number_masked: string;
   account_holder_name?: string;
   is_primary?: boolean;
 }
@@ -160,7 +161,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                       )}
                     </p>
                     <p className="text-xs text-muted-foreground font-mono">
-                      {b.account_number}
+                      {b.account_number_masked}
                     </p>
                     {b.branch_name && (
                       <p className="text-xs text-muted-foreground">

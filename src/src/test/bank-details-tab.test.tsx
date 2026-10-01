@@ -46,4 +46,14 @@ describe("<BankDetailsTab>", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("No bank accounts")).not.toBeInTheDocument();
   });
+
+  it("shows the masked account number the resource actually returns", async () => {
+    // Regression: the row read `account_number`, which BankDetailResource
+    // deliberately never sends — it sends `account_number_masked`. The one
+    // line that tells HR *which* account salary goes to rendered blank.
+    server.use(http.get(BANK_URL, () => HttpResponse.json([buildBank()])));
+    renderTab();
+
+    expect(await screen.findByText("*********6789")).toBeInTheDocument();
+  });
 });
