@@ -19,66 +19,63 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import {
+  failedApprovals,
+  useBatchApprovals,
+  usePendingApprovals,
+  type BatchApprovalPayload,
+  type BatchApprovalResponse,
+  type PendingApproval,
+} from "@/features/approvals/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-interface PendingItem {
-  type: string;
-  public_id: string;
-  employee_name: string;
-  summary: string;
-  submitted_at: string;
-}
-
 export default function ApprovalsPage() {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
-  const queryClient = useQueryClient();
 
   /** The item awaiting a rejection reason, and the reason being typed. */
-  const [rejecting, setRejecting] = useState<PendingItem | null>(null);
+  const [rejecting, setRejecting] = useState<PendingApproval | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const { data, isLoading } = useQuery<{ items: PendingItem[]; total: number }>(
-    {
-      queryKey: ["approvals", "pending"],
-      queryFn: async () => {
-        const { data } = await apiClient.get("/approvals/pending");
-        return data;
-      },
-    },
-  );
+  const pending = usePendingApprovals();
+  const batchAction = useBatchApprovals();
 
-  const batchAction = useMutation({
-    mutationFn: async (payload: {
-      actions: Array<{
-        type: string;
-        public_id: string;
-        action: string;
-        reason?: string;
-      }>;
-    }) => {
-      const { data } = await apiClient.post("/approvals/batch", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["leave"] });
-      // Approving a profile change writes to the employee record, so the
-      // employee list and the submitter's own profile are both now stale.
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["profile-update-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
+  /**
+   * The batch endpoint answers 200 and reports each item on its own; one that
+   * was already decided by someone else, or that this reviewer may not act on,
+   * comes back as `status: "error"`. The page toasted "Action completed" for
+   * those too, so a refused approval read as done.
+   */
+  function reportOutcome(response: BatchApprovalResponse) {
+    const failed = failedApprovals(response);
+    if (failed.length === 0) {
       toast.success(t("approvals.action_completed", "Action completed"));
-    },
-    onError: () => toast.error(t("approvals.action_failed", "Action failed")),
-  });
+      return;
+    }
+    toast.error(t("approvals.action_failed", "Action failed"), {
+      description: failed
+        .map((f) => f.detail)
+        .filter(Boolean)
+        .join("; "),
+    });
+  }
 
-  function handleApprove(item: PendingItem) {
-    batchAction.mutate({
+  function submit(
+    payload: BatchApprovalPayload,
+    options?: { onSettled?: () => void },
+  ) {
+    batchAction.mutate(payload, {
+      onSuccess: reportOutcome,
+      onError: () => toast.error(t("approvals.action_failed", "Action failed")),
+      onSettled: options?.onSettled,
+    });
+  }
+
+  function handleApprove(item: PendingApproval) {
+    submit({
       actions: [
         { type: item.type, public_id: item.public_id, action: "approve" },
       ],
@@ -96,7 +93,7 @@ export default function ApprovalsPage() {
   function confirmReject() {
     if (!rejecting) return;
 
-    batchAction.mutate(
+    submit(
       {
         actions: [
           {
@@ -116,7 +113,7 @@ export default function ApprovalsPage() {
     );
   }
 
-  const items = data?.items ?? [];
+  const items = pending.data?.items ?? [];
 
   return (
     <RoleGate minRole="supervisor">
@@ -126,74 +123,84 @@ export default function ApprovalsPage() {
           description={`${items.length} ${t("approvals.items_waiting", "item(s) waiting for your review")}`}
         />
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={CheckSquare}
-            title={t("approvals.empty_title", "All caught up!")}
-            description={t(
-              "approvals.empty_desc",
-              "No pending approvals at this time",
-            )}
-          />
-        ) : (
-          <div className="space-y-3">
-            {items.map((item) => (
-              <Card key={item.public_id}>
-                <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <StatusBadge status={item.type} />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {item.employee_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.summary}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {formatDate(item.submitted_at)}
-                      </p>
+        {/* QueryBoundary, so a failed load says so. It used to fall through
+            to the empty state: a reviewer whose queue could not be read was
+            told "All caught up!". */}
+        <QueryBoundary
+          query={pending}
+          loading={
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          }
+          isEmpty={(data) => data.items.length === 0}
+          empty={
+            <EmptyState
+              icon={CheckSquare}
+              title={t("approvals.empty_title", "All caught up!")}
+              description={t(
+                "approvals.empty_desc",
+                "No pending approvals at this time",
+              )}
+            />
+          }
+        >
+          {() => (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <Card key={item.public_id}>
+                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <StatusBadge status={item.type} />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {item.employee_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.summary}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatDate(item.submitted_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-success-on-soft hover:bg-success-soft"
-                      onClick={() => handleApprove(item)}
-                      disabled={batchAction.isPending}
-                    >
-                      {batchAction.isPending ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Check className="mr-1 h-3 w-3" />
-                      )}
-                      {t("common.approve", "Approve")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        setRejectReason("");
-                        setRejecting(item);
-                      }}
-                      disabled={batchAction.isPending}
-                    >
-                      <X className="mr-1 h-3 w-3" aria-hidden="true" />
-                      {t("common.reject", "Reject")}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-success-on-soft hover:bg-success-soft"
+                        onClick={() => handleApprove(item)}
+                        disabled={batchAction.isPending}
+                      >
+                        {batchAction.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Check className="mr-1 h-3 w-3" />
+                        )}
+                        {t("common.approve", "Approve")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setRejectReason("");
+                          setRejecting(item);
+                        }}
+                        disabled={batchAction.isPending}
+                      >
+                        <X className="mr-1 h-3 w-3" aria-hidden="true" />
+                        {t("common.reject", "Reject")}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
 
         <Dialog
           open={rejecting !== null}
@@ -211,7 +218,7 @@ export default function ApprovalsPage() {
                   ? t(
                       "approvals.reject_description",
                       "This will be recorded and shown to :name. Explain why so they know what to do next.",
-                      { name: rejecting.employee_name },
+                      { name: rejecting.employee_name ?? "" },
                     )
                   : ""}
               </DialogDescription>
