@@ -16,6 +16,9 @@ class DirectoryResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        // The storage key is read here only to sign the two URLs below. It is
+        // not returned: it is an internal object path, and every client that
+        // shows a photo uses the URLs.
         $photoPath = $this->photo_path;
 
         return [
@@ -23,7 +26,6 @@ class DirectoryResource extends JsonResource
             'name' => $this->name,
             'phone' => $this->phone,
             'email' => $this->email,
-            'photo_path' => $photoPath,
             'photo_url' => $this->photoUrl($photoPath),
             'photo_thumb_url' => $this->photoThumbUrl($photoPath),
             'department' => $this->whenLoaded('department', fn () => $this->department?->name),

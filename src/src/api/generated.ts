@@ -5569,7 +5569,6 @@ export interface components {
             name: string;
             phone: string | null;
             email: string | null;
-            photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
             department?: string | null;

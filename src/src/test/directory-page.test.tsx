@@ -14,7 +14,6 @@ function person(n: number): DirectoryResource {
     name: `Colleague ${n}`,
     phone: null,
     email: `colleague${n}@example.com`,
-    photo_path: null,
     photo_url: null,
     photo_thumb_url: null,
     department: "Engineering",

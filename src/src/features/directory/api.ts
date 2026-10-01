@@ -4,9 +4,12 @@ import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
 /**
- * The staff directory: every colleague's name, contact details and placement,
- * readable by any signed-in user. `department`, `position` and `branch` are
- * names, not objects — DirectoryResource flattens them.
+ * The staff directory: every current colleague's name, contact details and
+ * placement, readable by any signed-in user. People who have resigned, been
+ * terminated, retired or are suspended are not listed (`EmployeeStatus::current()`
+ * on the API). `department`, `position` and `branch` are names, not objects —
+ * DirectoryResource flattens them. Photos come as signed URLs only; the storage
+ * path is not sent.
  */
 export type DirectoryPerson = components["schemas"]["DirectoryResource"];
 
