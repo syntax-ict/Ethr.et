@@ -139,14 +139,22 @@ G1 (merge #133, or cherry-pick only `cron.yml` to `main`) is the one item in thi
 
 ## 8. Outcome of this pass
 
+> **This section is the 2026-09-30 snapshot, taken before anything was pushed.** It is kept as
+> measured. The status columns in §1–§6 are the live record; where this section and those tables
+> disagree, the tables win. Since this was written, everything was committed and pushed (head
+> `d8a384c` on 2026-10-01, CI green), and Phases 2–4 closed several items the table below still
+> called open — the *Now* column says which.
+
 **Verified on the final tree with `./scripts/gates.sh` (full sweep): all 12 gates passed** — Composer, Pint,
 PHPStan level 6 (zero errors), Pest **2027 passed / 6621 assertions** with the collection guard at
 **189/189 classes**, i18n (3,371 keys, en/am in sync), Prettier, ESLint, tsc, Vitest **91 files passed**,
 docs links, the Bronze static-export build, and the API-contract gate. Baseline before any change was
 2015 tests / 187 classes / 89 Vitest files; 2015 + 15 new − 3 removed tautologies = 2027.
 
-**Nothing was committed or pushed.** All changes are in the working tree of `migration/bronze-plesk`
-for review; nothing outward-facing (remote branches, PRs, workflows on GitHub) was touched.
+**Nothing was committed or pushed** at the time of this pass. All changes were in the working tree of
+`migration/bronze-plesk` for review; nothing outward-facing (remote branches, PRs, workflows on GitHub)
+was touched. *(Superseded the same day: the work was pushed to PR #133 and the remote actions in §9
+were taken.)*
 
 ### Fixed
 
@@ -162,16 +170,16 @@ for review; nothing outward-facing (remote branches, PRs, workflows on GitHub) w
 
 ### Still open — and why
 
-| Item | Why it was not done here |
-|---|---|
-| **G1 scheduler not on `main`** | Merging PR #133 is the fix, and it is a draft marked do-not-merge. **This is the one item that blocks go-live** |
-| G2–G4 remote branches, stale PRs, dependabot rebases | Outward-facing; commands in §7 |
-| F1 E2E in no CI workflow | Needs a served stack and browsers in CI; the largest remaining test gap |
-| F2 parallel API layer (44 pages vs 41 unused hooks), F3 generated types barely used | Per-feature design decisions; too large and too risky to batch |
-| B1 `LoginAttemptService` inert, B2 test-only methods | Whether to wire in or delete is a product decision (lockout behaviour) |
-| S5 device `connection_config` validation / SSRF, S6 SCIM suspended-tenant | Needs per-adapter rules and a traced exploit path; not safe to guess |
-| I9 reverb/S3 packages, I12 retired scripts | Owner decisions (issue #120 is contradicted by the code) |
-| Kiosk page wholly untranslated; `SearchInput` default string | Needs a full string pass with reviewed Amharic |
+| Item | Why it was not done here | Now (2026-10-01) |
+|---|---|---|
+| **G1 scheduler not on `main`** | Merging PR #133 is the fix, and it is a draft marked do-not-merge. **This is the one item that blocks go-live** | Unchanged. Merge is line 1 of the cutover procedure (§9) |
+| G2–G4 remote branches, stale PRs, dependabot rebases | Outward-facing; commands in §7 | G2 done (40 deleted). G3: #21 resolved via #135; #17 and #18 the owner's. G4: rebases requested |
+| F1 E2E in no CI workflow | Needs a served stack and browsers in CI; the largest remaining test gap | **FIXED** (Phase 2) — `gates.sh e2e` + advisory `e2e.yml`, 125/125 in CI |
+| F2 parallel API layer (44 pages vs 41 unused hooks), F3 generated types barely used | Per-feature design decisions; too large and too risky to batch | Open — being taken one feature per commit, devices first |
+| B1 `LoginAttemptService` inert, B2 test-only methods | Whether to wire in or delete is a product decision (lockout behaviour) | Open. B1 deliberately held until after cutover (§9) |
+| S5 device `connection_config` validation / SSRF, S6 SCIM suspended-tenant | Needs per-adapter rules and a traced exploit path; not safe to guess | **Both FIXED** — S6 in this pass, S5 in Phase 2 (see §2) |
+| I9 reverb/S3 packages, I12 retired scripts | Owner decisions (issue #120 is contradicted by the code) | I9: Reverb moved to `require-dev`, S3 kept by decision. I12: kept until the Stage 6 restore rehearsal |
+| Kiosk page wholly untranslated; `SearchInput` default string | Needs a full string pass with reviewed Amharic | **FIXED** (Phase 2, F7). The Amharic still wants a native speaker's review |
 
 ### What I got wrong on the first pass, for the record
 
@@ -194,7 +202,7 @@ for review; nothing outward-facing (remote branches, PRs, workflows on GitHub) w
 | **B1 lockout service** | **Keep as is; do not touch the login path before cutover** | Dead, but changing authentication behaviour days before go-live costs more than carrying 132 unused lines. Revisit after cutover: delete, or wire in behind a test |
 | **B2/B3 test-only methods** | Leave | Deleting them deletes their tests, and nobody has said which behaviour is intended |
 | **I12 retired scripts** | Keep `backup.sh` / `restore.sh` until the Stage 6 host restore rehearsal | The docs already tie their removal to that rehearsal |
-| **F1 E2E in CI** | Defer | Needs a served stack and browsers in CI; a half-configured job that is always red is worse than none |
-| **S5 device SSRF** | Still open | Needs per-adapter rules and a traced path; guessing risks breaking device sync |
+| **F1 E2E in CI** | Defer *(reversed in Phase 2 — FIXED, see §5)* | Needs a served stack and browsers in CI; a half-configured job that is always red is worse than none. Phase 2 answered this by making the job advisory until it has been green on several runs |
+| **S5 device SSRF** | Still open *(closed in Phase 2 — FIXED, see §2)* | Needs per-adapter rules and a traced path; guessing risks breaking device sync. Phase 2 did the tracing and wrote the per-adapter rules |
 | **Dependabot PR #9** (Scramble 0.13.36 → 0.13.45) | **Closed, with evidence** | Regenerating to pass the contract gate would have written a *worse* contract: paginated `data` typed as `string`, paginator `links` collapsed to `unknown`, nullable page URLs losing `| null`. Its advisory failure (`brace-expansion` via `@sentry`) is on `main`'s lockfile and already fixed on this branch (`b8ca0fb`) |
 | **Phase 3 (cutover)** | **Not attempted — host gates marked known gaps, 2026-10-01** | `CUTOVER READY = NO`: 4 of 14 mandatory gates PASS and all 10 outstanding need the Ethio Telecom account. Recorded as owner-deferred known gaps in `CUTOVER-CHECKLIST.md`, with no state changed. Repository side verified ready: local production rehearsal on current code, 36/36. Not verified: whether the M2 probe is still live (the check was refused by agent tooling) |
