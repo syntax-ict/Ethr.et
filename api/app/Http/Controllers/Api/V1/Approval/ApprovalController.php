@@ -61,7 +61,7 @@ class ApprovalController extends Controller
         if (class_exists(AttendanceCorrection::class)) {
             $corrections = AttendanceCorrection::query()
                 ->whereIn('employee_id', $teamIds)
-                ->where('status', 'pending')
+                ->where('status', CorrectionStatus::PENDING)
                 ->with('employee:id,name,public_id')
                 ->orderByDesc('created_at')
                 ->get();

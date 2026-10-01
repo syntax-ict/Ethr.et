@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceSource;
+use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
@@ -129,7 +130,7 @@ final class AttendanceImporter
                 'check_out' => $checkOut,
                 'source' => AttendanceSource::CSV,
                 'confidence_score' => AttendanceSource::CSV->baseConfidence(),
-                'status' => 'present',
+                'status' => AttendanceStatus::PRESENT,
                 'idempotency_key' => $idempotencyKey,
                 'metadata' => ['import_key' => $importKey],
             ]);

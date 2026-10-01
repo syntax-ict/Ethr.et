@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Dashboard;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\LeaveStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
@@ -50,7 +51,7 @@ final class ManagerDashboardService
             ->get();
 
         $present = $records->count();
-        $late = $records->where('status', 'late')->count();
+        $late = $records->where('status', AttendanceStatus::LATE)->count();
 
         return [
             'present' => $present,

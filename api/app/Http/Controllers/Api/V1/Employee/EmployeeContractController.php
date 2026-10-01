@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Employee;
 
+use App\Enums\ContractStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\EndEmployeeContractRequest;
 use App\Http\Requests\Employee\RenewEmployeeContractRequest;
@@ -76,7 +77,7 @@ class EmployeeContractController extends Controller
         $days = min(max((int) $request->query('days', 30), 1), 365);
 
         $contracts = EmployeeContract::query()
-            ->where('status', 'active')
+            ->where('status', ContractStatus::ACTIVE)
             ->whereNotNull('end_date')
             ->whereDate('end_date', '<=', now()->addDays($days))
             ->with('employee:id,public_id,name')
