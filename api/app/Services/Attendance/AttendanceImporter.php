@@ -9,6 +9,8 @@ use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
+use App\Support\Csv;
+use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 
@@ -21,14 +23,13 @@ final class AttendanceImporter
 
     public function preview(UploadedFile $file): array
     {
-        $content = file_get_contents($file->getRealPath());
-        $lines = array_filter(explode("\n", trim($content)));
+        $lines = Csv::lines((string) file_get_contents($file->getRealPath()));
 
         if (count($lines) < 2) {
             return ['rows' => [], 'valid' => 0, 'invalid' => 0, 'errors' => ['File must have a header row and at least one data row.']];
         }
 
-        $header = str_getcsv(array_shift($lines));
+        $header = array_map(trim(...), str_getcsv(array_shift($lines)));
         $required = ['employee_code', 'date', 'check_in_time'];
         $missing = array_diff($required, $header);
 
@@ -41,8 +42,11 @@ final class AttendanceImporter
         $invalid = 0;
 
         foreach ($lines as $i => $line) {
-            $values = str_getcsv($line);
-            $row = array_combine($header, $values + array_fill(0, count($header), ''));
+            // Padded and cut to the header's width: a short row reads its
+            // missing cells as empty, and a trailing comma no longer makes
+            // array_combine() throw.
+            $values = array_map(trim(...), str_getcsv($line) + array_fill(0, count($header), ''));
+            $row = array_combine($header, array_slice($values, 0, count($header)));
 
             $rowErrors = [];
 
@@ -93,6 +97,7 @@ final class AttendanceImporter
     public function commit(string $importKey, array $rows): array
     {
         $tenant = app(CurrentTenant::class)->get();
+        $zone = TenantTime::zone($tenant);
         $created = 0;
         $skipped = 0;
         $errors = [];
@@ -118,14 +123,17 @@ final class AttendanceImporter
                 continue;
             }
 
-            $date = Carbon::parse($row['date']);
-            $checkIn = $date->copy()->setTimeFromTimeString($row['check_in']);
-            $checkOut = ! empty($row['check_out']) ? $date->copy()->setTimeFromTimeString($row['check_out']) : null;
+            // The sheet's times are wall-clock in the tenant's zone; parsed in
+            // the app zone (UTC) every imported punch was three hours late in
+            // Addis Ababa. The `date` column stays the local working day.
+            $date = Carbon::parse($row['date'])->format('Y-m-d');
+            $checkIn = TenantTime::wallClockToUtc($date, $row['check_in'], $zone);
+            $checkOut = ! empty($row['check_out']) ? TenantTime::wallClockToUtc($date, $row['check_out'], $zone) : null;
 
             AttendanceRecord::create([
                 'tenant_id' => $tenant->id,
                 'employee_id' => $employee->id,
-                'date' => $date->format('Y-m-d'),
+                'date' => $date,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
                 'source' => AttendanceSource::CSV,

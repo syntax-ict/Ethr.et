@@ -40,6 +40,28 @@ final class Csv
     }
 
     /**
+     * The non-blank lines of an uploaded CSV, whatever wrote it.
+     *
+     * Excel on Windows saves CRLF and, as "CSV UTF-8", a leading byte-order
+     * mark. Split on "\n" alone, every line kept a trailing "\r" — the last
+     * header became "check_out_time\r", so no row ever had a check-out — and
+     * the BOM glued itself to the first header, so "employee_code" was
+     * reported missing from a file that plainly had it.
+     *
+     * @return list<string>
+     */
+    public static function lines(string $content): array
+    {
+        if (str_starts_with($content, "\xEF\xBB\xBF")) {
+            $content = substr($content, 3);
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $content) ?: [];
+
+        return array_values(array_filter($lines, fn (string $line): bool => trim($line) !== ''));
+    }
+
+    /**
      * @param  array<int|string, mixed>  $cells
      */
     public static function row(array $cells): string
