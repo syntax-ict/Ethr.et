@@ -19,6 +19,7 @@ import {
   X,
   Monitor,
   GitMerge,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,10 +50,13 @@ import {
   useAttendanceList,
   useCheckIn,
   useCheckOut,
+  useEmployeeOptions,
+  useManualAttendance,
+  useMyAttendance,
   type AttendanceFilters,
+  type MyAttendanceFilters,
 } from "@/features/attendance/api";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useCurrentPermissions } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -70,7 +74,16 @@ export default function AttendancePage() {
   const [manualOpen, setManualOpen] = useState(false);
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
-  const { can, isSupervisor } = usePermissions();
+  const { can } = usePermissions();
+  const { data: granted } = useCurrentPermissions();
+
+  // `GET /attendance` requires attendance.viewAll. Everyone else — every
+  // employee, every supervisor — was sent there anyway, got a 403, and saw
+  // "No attendance records — check in to start" directly under the Check In
+  // button they had just pressed. They read their own records instead. Wait for
+  // the permission list so an HR admin does not fire the wrong request first.
+  const viewAll = can.viewAllAttendance;
+  const permissionsKnown = granted !== undefined;
 
   const queryParams: AttendanceFilters = { page, per_page: 25 };
   if (sourceFilter !== "all") queryParams["filter[source]"] = sourceFilter;
@@ -78,11 +91,26 @@ export default function AttendancePage() {
   if (dateFrom) queryParams["filter[date_from]"] = dateFrom;
   if (dateTo) queryParams["filter[date_to]"] = dateTo;
 
-  const { data, isLoading } = useAttendanceList(queryParams);
+  const myParams: MyAttendanceFilters = { page, per_page: 25 };
+  if (dateFrom) myParams.date_from = dateFrom;
+  if (dateTo) myParams.date_to = dateTo;
+
+  const allQuery = useAttendanceList(queryParams, {
+    enabled: permissionsKnown && viewAll,
+  });
+  const myQuery = useMyAttendance(myParams, {
+    enabled: permissionsKnown && !viewAll,
+  });
+  const query = viewAll ? allQuery : myQuery;
+  const { data, isPending, isError, refetch } = query;
   const records = data?.data ?? [];
 
+  // `/attendance/my` reads only the date bounds; source and status would be
+  // silently ignored there, so they are offered only on the full list.
   const hasActiveFilters =
-    sourceFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo;
+    (viewAll && (sourceFilter !== "all" || statusFilter !== "all")) ||
+    dateFrom ||
+    dateTo;
 
   function clearFilters() {
     setSourceFilter("all");
@@ -140,7 +168,9 @@ export default function AttendancePage() {
               <LogOut className="mr-2 h-4 w-4" />{" "}
               {t("common.check_out", "Check Out")}
             </Button>
-            {can.manageEmployees && (
+            {/* ManualAttendanceController checks attendance.manage, not
+                employee.create; the two only coincide on the built-in roles. */}
+            {can.manageAttendance && (
               <Button variant="outline" onClick={() => setManualOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />{" "}
                 {t("attendance.manual_entry", "Manual Entry")}
@@ -150,7 +180,7 @@ export default function AttendancePage() {
         }
       />
 
-      {/* Sub-nav */}
+      {/* Sub-nav — each link gated on the ability its page's API checks. */}
       <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
         <SubNav href="/attendance/scan" icon={QrCode}>
           {t("attendance.scan_qr", "Scan QR")}
@@ -158,7 +188,7 @@ export default function AttendancePage() {
         <SubNav href="/attendance/mobile" icon={Smartphone}>
           {t("attendance.mobile_checkin", "Mobile Check-in")}
         </SubNav>
-        {isSupervisor && (
+        {can.viewTeam && (
           <SubNav href="/attendance/team" icon={UsersRound}>
             {t("attendance.team", "Team")}
           </SubNav>
@@ -171,27 +201,30 @@ export default function AttendancePage() {
             {t("nav.conflicts", "Conflicts")}
           </SubNav>
         )}
-        {can.manageEmployees && (
-          <SubNav href="/kiosk" icon={Monitor}>
-            {t("nav.kiosks", "Kiosk")}
+        {/* The kiosk management page — where a kiosk is registered and its
+            token issued. This linked to /kiosk, the terminal itself, whose
+            setup screen asks for that token; nothing linked here at all. */}
+        {can.manageAttendance && (
+          <SubNav href="/attendance/kiosks" icon={Monitor}>
+            {t("nav.kiosks", "Kiosks")}
           </SubNav>
         )}
-        {can.manageEmployees && (
+        {can.manageAttendance && (
           <SubNav href="/attendance/qr" icon={QrCode}>
             {t("attendance.qr_generator", "QR Generator")}
           </SubNav>
         )}
-        {can.manageEmployees && (
+        {can.manageAttendance && (
           <SubNav href="/attendance/import" icon={FileSpreadsheet}>
             {t("attendance.import_csv", "Import CSV")}
           </SubNav>
         )}
-        {can.manageEmployees && (
+        {can.viewAllAttendance && (
           <SubNav href="/attendance/intelligence" icon={Activity}>
             {t("attendance.intelligence", "Intelligence")}
           </SubNav>
         )}
-        {can.manageEmployees && (
+        {can.viewAllAttendance && (
           <SubNav href="/attendance/overtime" icon={TrendingUp}>
             {t("attendance.overtime", "Overtime")}
           </SubNav>
@@ -257,99 +290,117 @@ export default function AttendancePage() {
                     className="mt-1"
                   />
                 </div>
-                <div>
-                  <Label className="text-xs">
-                    {t("attendance.source", "Source")}
-                  </Label>
-                  <Select
-                    value={sourceFilter}
-                    onValueChange={(v) => {
-                      setSourceFilter(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {t("attendance.all_sources", "All sources")}
-                      </SelectItem>
-                      <SelectItem value="web">
-                        {t("attendance.source_web", "Web")}
-                      </SelectItem>
-                      <SelectItem value="mobile">
-                        {t("attendance.source_mobile", "Mobile")}
-                      </SelectItem>
-                      <SelectItem value="biometric">
-                        {t("attendance.source_biometric", "Biometric")}
-                      </SelectItem>
-                      <SelectItem value="qr">
-                        {t("attendance.source_qr", "QR")}
-                      </SelectItem>
-                      <SelectItem value="kiosk">
-                        {t("attendance.source_kiosk", "Kiosk")}
-                      </SelectItem>
-                      <SelectItem value="manual">
-                        {t("attendance.source_manual", "Manual")}
-                      </SelectItem>
-                      <SelectItem value="csv">
-                        {t("attendance.source_csv", "CSV Import")}
-                      </SelectItem>
-                      <SelectItem value="offline_mobile">
-                        {t("attendance.source_offline", "Offline")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">
-                    {t("common.status", "Status")}
-                  </Label>
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(v) => {
-                      setStatusFilter(v);
-                      setPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        {t("attendance.all_statuses", "All statuses")}
-                      </SelectItem>
-                      <SelectItem value="present">
-                        {t("attendance.status_present", "Present")}
-                      </SelectItem>
-                      <SelectItem value="late">
-                        {t("attendance.status_late", "Late")}
-                      </SelectItem>
-                      <SelectItem value="absent">
-                        {t("attendance.status_absent", "Absent")}
-                      </SelectItem>
-                      <SelectItem value="early_leave">
-                        {t("attendance.status_early_leave", "Early Leave")}
-                      </SelectItem>
-                      <SelectItem value="on_leave">
-                        {t("attendance.status_on_leave", "On Leave")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {viewAll && (
+                  <div>
+                    <Label className="text-xs">
+                      {t("attendance.source", "Source")}
+                    </Label>
+                    <Select
+                      value={sourceFilter}
+                      onValueChange={(v) => {
+                        setSourceFilter(v);
+                        setPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {t("attendance.all_sources", "All sources")}
+                        </SelectItem>
+                        <SelectItem value="web">
+                          {t("attendance.source_web", "Web")}
+                        </SelectItem>
+                        <SelectItem value="mobile">
+                          {t("attendance.source_mobile", "Mobile")}
+                        </SelectItem>
+                        <SelectItem value="biometric">
+                          {t("attendance.source_biometric", "Biometric")}
+                        </SelectItem>
+                        <SelectItem value="qr">
+                          {t("attendance.source_qr", "QR")}
+                        </SelectItem>
+                        <SelectItem value="kiosk">
+                          {t("attendance.source_kiosk", "Kiosk")}
+                        </SelectItem>
+                        <SelectItem value="manual">
+                          {t("attendance.source_manual", "Manual")}
+                        </SelectItem>
+                        <SelectItem value="csv">
+                          {t("attendance.source_csv", "CSV Import")}
+                        </SelectItem>
+                        <SelectItem value="offline_mobile">
+                          {t("attendance.source_offline", "Offline")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {viewAll && (
+                  <div>
+                    <Label className="text-xs">
+                      {t("common.status", "Status")}
+                    </Label>
+                    <Select
+                      value={statusFilter}
+                      onValueChange={(v) => {
+                        setStatusFilter(v);
+                        setPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          {t("attendance.all_statuses", "All statuses")}
+                        </SelectItem>
+                        <SelectItem value="present">
+                          {t("attendance.status_present", "Present")}
+                        </SelectItem>
+                        <SelectItem value="late">
+                          {t("attendance.status_late", "Late")}
+                        </SelectItem>
+                        <SelectItem value="absent">
+                          {t("attendance.status_absent", "Absent")}
+                        </SelectItem>
+                        <SelectItem value="early_leave">
+                          {t("attendance.status_early_leave", "Early Leave")}
+                        </SelectItem>
+                        <SelectItem value="on_leave">
+                          {t("attendance.status_on_leave", "On Leave")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full" />
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title={t("common.load_failed", "Couldn't load this")}
+          description={t(
+            "common.load_failed_hint",
+            "The data may be out of date. Try again.",
+          )}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t("common.retry", "Try again")}
+            </Button>
+          }
+        />
       ) : records.length === 0 ? (
         <EmptyState
           icon={Clock}
@@ -377,9 +428,7 @@ export default function AttendancePage() {
               <SimpleTable
                 caption={t("attendance.title", "Attendance")}
                 headers={[
-                  ...(can.manageEmployees
-                    ? [t("attendance.employee", "Employee")]
-                    : []),
+                  ...(viewAll ? [t("attendance.employee", "Employee")] : []),
                   t("common.date", "Date"),
                   t("attendance.in", "In"),
                   t("attendance.out", "Out"),
@@ -387,7 +436,7 @@ export default function AttendancePage() {
                   t("common.status", "Status"),
                 ]}
                 colClassName={[
-                  ...(can.manageEmployees ? [""] : []),
+                  ...(viewAll ? [""] : []),
                   "",
                   "",
                   "",
@@ -397,9 +446,7 @@ export default function AttendancePage() {
                 rows={records.map((record) => ({
                   key: record.public_id,
                   cells: [
-                    ...(can.manageEmployees
-                      ? [record.employee?.name ?? "—"]
-                      : []),
+                    ...(viewAll ? [record.employee?.name ?? "—"] : []),
                     <span key="date" className="font-medium">
                       {record.date}
                     </span>,
@@ -494,7 +541,6 @@ function ManualEntryDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     employee_public_id: "",
     date: new Date().toISOString().split("T")[0],
@@ -503,41 +549,42 @@ function ManualEntryDialog({
     reason: "",
   });
 
-  const { data: employees } = useQuery({
-    queryKey: ["employees", "lookup"],
-    queryFn: async () =>
-      (await apiClient.get("/employees", { params: { per_page: 100 } })).data,
-    enabled: open,
-  });
+  const { data: employees } = useEmployeeOptions({ enabled: open });
+  const submit = useManualAttendance();
 
-  const submit = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/attendance/manual", {
+  function handleSubmit() {
+    submit.mutate(
+      {
         ...form,
-        idempotency_key: `manual-${Date.now()}-${Math.random()}`,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast.success(t("attendance.manual_recorded", "Manual entry recorded"));
-      onClose();
-      setForm({
-        employee_public_id: "",
-        date: new Date().toISOString().split("T")[0],
-        check_in: "09:00",
-        check_out: "17:00",
-        reason: "",
-      });
-    },
-    onError: (err: unknown) => {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosErr.response?.data?.detail ??
-          t("attendance.manual_failed", "Manual entry failed"),
-      );
-    },
-  });
+        check_out: form.check_out || null,
+        idempotency_key: crypto.randomUUID(),
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            t("attendance.manual_recorded", "Manual entry recorded"),
+          );
+          onClose();
+          setForm({
+            employee_public_id: "",
+            date: new Date().toISOString().split("T")[0],
+            check_in: "09:00",
+            check_out: "17:00",
+            reason: "",
+          });
+        },
+        onError: (err: unknown) => {
+          const axiosErr = err as {
+            response?: { data?: { detail?: string } };
+          };
+          toast.error(
+            axiosErr.response?.data?.detail ??
+              t("attendance.manual_failed", "Manual entry failed"),
+          );
+        },
+      },
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -550,7 +597,7 @@ function ManualEntryDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            submit.mutate();
+            handleSubmit();
           }}
           className="space-y-3"
         >
@@ -573,22 +620,16 @@ function ManualEntryDialog({
                 />
               </SelectTrigger>
               <SelectContent>
-                {employees?.data?.map(
-                  (e: {
-                    public_id: string;
-                    name: string;
-                    employee_code: string;
-                  }) => (
-                    <SelectItem key={e.public_id} value={e.public_id}>
-                      {e.name}{" "}
-                      {e.employee_code && (
-                        <span className="text-muted-foreground">
-                          ({e.employee_code})
-                        </span>
-                      )}
-                    </SelectItem>
-                  ),
-                )}
+                {employees?.map((e) => (
+                  <SelectItem key={e.public_id} value={e.public_id}>
+                    {e.name}{" "}
+                    {e.employee_code && (
+                      <span className="text-muted-foreground">
+                        ({e.employee_code})
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
