@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceSource;
 use App\Enums\EmployeeStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\KioskSession;
 use App\Models\Tenant;
+use App\Services\Attendance\AttendanceEngine;
+use App\Services\Attendance\AttendanceInput;
 use App\Services\CurrentTenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -149,7 +153,7 @@ it('refuses kiosk punches for a suspended tenant', function () {
 });
 
 it('refuses a punch for an employee who has left', function () {
-    // Nothing between KioskCheckInController and AttendanceEngine::record()
+    // FIXED 2026-10-01 (N15). Was: nothing between KioskCheckInController and AttendanceEngine::record()
     // looks at Employee.status, so a terminated employee's code — printed on a
     // badge they may still have — keeps creating attendance records, which
     // feed payroll and overtime.
@@ -164,7 +168,7 @@ it('refuses a punch for an employee who has left', function () {
 
     expect($response->status())->toBeIn([403, 404, 422]);
     expect(AttendanceRecord::where('employee_id', $leaver->id)->exists())->toBeFalse();
-})->todo(note: 'DEFECT: KioskCheckInController (and AttendanceEngine::record) never check Employee.status; a terminated employee\'s code still records attendance');
+});
 
 // ── The admin endpoints ─────────────────────────────────────────────────────
 
@@ -231,7 +235,7 @@ it('answers another tenant\'s branch at registration exactly as it answers a non
     $crossTenant = $this->postJson($base, ['name' => 'X', 'branch_public_id' => $theirBranch->public_id, 'admin_pin' => '1234']);
 
     expect($crossTenant->status())->toBe($nonexistent->status());
-})->todo(note: 'DEFECT: RegisterKioskRequest.php:21 unscoped exists rule -> 422 for a nonexistent branch, 404 for another tenant\'s (existence oracle)');
+});
 
 // ── POST /attendance/kiosk (authenticated) ──────────────────────────────────
 
@@ -253,7 +257,7 @@ it('lets a user with the kiosk permission record a punch for an employee of thei
 });
 
 it('does not let an ordinary employee clock a colleague in', function () {
-    // KioskAttendanceController::store gates on `attendance.checkIn`, which
+    // FIXED 2026-10-01 (N15). Was: KioskAttendanceController::store gated on `attendance.checkIn`, which
     // PermissionSeeder grants to EVERY role (it is how an employee punches
     // themselves in), then records for whatever employee_code the body names.
     // So any logged-in employee can create check-ins and check-outs for any
@@ -272,4 +276,57 @@ it('does not let an ordinary employee clock a colleague in', function () {
 
     expect($response->status())->toBe(403);
     expect(AttendanceRecord::where('employee_id', $colleague->id)->exists())->toBeFalse();
-})->todo(note: 'DEFECT: KioskAttendanceController::store (line 25) gates on attendance.checkIn, granted to every role, and records for any employee_code; any employee can punch colleagues in/out');
+});
+
+it('still lets an employee punch themselves, and HR punch anyone', function () {
+    $tenant = createTenant();
+    $me = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-SELF']);
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-OTHER']);
+    $url = 'http://'.kioskSecurityHost($tenant).'/api/v1/attendance/kiosk';
+
+    actingAsUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $me->id], $tenant);
+    $this->postJson($url, ['employee_code' => 'EMP-SELF', 'type' => 'check_in', 'idempotency_key' => (string) Str::uuid()])
+        ->assertCreated();
+
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $this->postJson($url, ['employee_code' => 'EMP-OTHER', 'type' => 'check_in', 'idempotency_key' => (string) Str::uuid()])
+        ->assertCreated();
+
+    expect(AttendanceRecord::where('employee_id', $colleague->id)->exists())->toBeTrue();
+});
+
+it('still counts a leaver\'s punch from on or before their last day', function () {
+    // A device backlog can deliver the last day's punches after HR has marked
+    // the employee terminated; those happened while they still worked here.
+    ['tenant' => $tenant] = kioskSecuritySetup();
+    $leaver = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'status' => EmployeeStatus::TERMINATED,
+        'termination_date' => '2026-09-30',
+    ]);
+
+    $result = app(AttendanceEngine::class)->record(new AttendanceInput(
+        employeeId: $leaver->id,
+        tenantId: $tenant->id,
+        source: AttendanceSource::BIOMETRIC,
+        type: 'check_in',
+        idempotencyKey: (string) Str::uuid(),
+        occurredAt: '2026-09-30T08:30:00+03:00',
+    ));
+
+    expect($result->record->employee_id)->toBe($leaver->id);
+});
+
+it('answers a punch for a method the tenant turned off with 422, not 500', function () {
+    $tenant = createTenant();
+    $me = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $me->id], $tenant);
+    AttendanceSetting::withoutGlobalScope('tenant')->updateOrCreate(
+        ['tenant_id' => $tenant->id],
+        ['enabled_methods' => ['kiosk']],
+    );
+
+    $this->postJson('http://'.kioskSecurityHost($tenant).'/api/v1/attendance/check-in', [
+        'idempotency_key' => (string) Str::uuid(),
+    ])->assertStatus(422);
+});

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Exceptions\NoOpenCheckIn;
+use App\Exceptions\AttendanceRefused;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -156,10 +156,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $status);
         });
 
-        // A check-out with nothing to close is the caller's mistake, not a
+        // A punch the engine refuses (nothing to close, method off, outside
+        // the geofence, employee has left) is the caller's mistake, not a
         // server fault: 422 from every endpoint, not 500 from the ones that
         // did not catch it.
-        $exceptions->render(function (NoOpenCheckIn $e, Request $request) {
+        $exceptions->render(function (AttendanceRefused $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }

@@ -35,6 +35,18 @@ class KioskAttendanceController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
+        // Punching for someone else is manual attendance and takes the same
+        // ability. This gated on attendance.checkIn alone — granted to every
+        // role, so that people can punch themselves — and then recorded for
+        // whatever employee_code the body named: any employee could clock a
+        // colleague in or out, straight into payroll. The shared kiosk
+        // terminal is unaffected: it authenticates with a kiosk token on the
+        // /kiosk routes, not here.
+        $user = $request->user();
+        if ($employee->id !== $user->employee_id && ! $user->hasPermission('attendance.manage')) {
+            abort(403);
+        }
+
         $result = $this->engine->record(new AttendanceInput(
             employeeId: $employee->id,
             tenantId: $employee->tenant_id,

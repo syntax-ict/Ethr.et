@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
+use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
+use App\Exceptions\AttendanceRefused;
 use App\Exceptions\NoOpenCheckIn;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
@@ -39,10 +41,23 @@ final class AttendanceEngine
             ->first();
 
         if ($settings && ! $settings->isMethodEnabled($input->source->value)) {
-            throw new \RuntimeException(__('attendance.method_disabled'));
+            throw new AttendanceRefused(__('attendance.method_disabled'));
         }
 
         $employee = Employee::findOrFail($input->employeeId);
+
+        // Someone who has left records nothing dated after they left. Nothing
+        // checked this, so a terminated employee's code — on a badge they may
+        // still hold — kept punching into attendance, overtime and payroll.
+        // A punch from their last working day that reaches the server late
+        // (a device backlog) is still dated on or before termination_date
+        // and still counts.
+        if (in_array($employee->status, [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED], true)) {
+            $day = $this->resolveMoment($input)->format('Y-m-d');
+            if ($employee->termination_date === null || $day > $employee->termination_date->format('Y-m-d')) {
+                throw new AttendanceRefused(__('attendance.employee_has_left'));
+            }
+        }
 
         if ($input->type === 'check_out') {
             return $this->processCheckOut($input, $employee);
@@ -79,10 +94,10 @@ final class AttendanceEngine
 
         if ($settings?->geofence_required && $input->source->value === 'mobile') {
             if ($input->latitude === null || $input->longitude === null) {
-                throw new \RuntimeException(__('attendance.geofence_location_required'));
+                throw new AttendanceRefused(__('attendance.geofence_location_required'));
             }
             if ($geofenceVerified === false) {
-                throw new \RuntimeException(__('attendance.outside_geofence'));
+                throw new AttendanceRefused(__('attendance.outside_geofence'));
             }
         }
 
