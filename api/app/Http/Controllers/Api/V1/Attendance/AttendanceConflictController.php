@@ -65,7 +65,9 @@ class AttendanceConflictController extends Controller
 
     public function resolve(ResolveConflictRequest $request, AttendanceConflict $conflict): JsonResponse
     {
-        Gate::authorize('attendance.resolveConflicts');
+        // The permission and the employee inside the caller's org scope — the
+        // same reach index() lists — and never the caller's own conflict.
+        Gate::authorize('resolve', $conflict);
 
         if ($conflict->resolution !== ConflictResolutionStatus::PENDING) {
             return response()->json([

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\AttendanceStatus;
+use App\Enums\ConflictResolutionStatus;
 use App\Enums\ConflictType;
 use App\Enums\UserRole;
 use App\Models\AttendanceConflict;
@@ -62,6 +64,76 @@ test('HR still lists every attendance conflict in the tenant', function () {
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/conflicts")
         ->assertOk()
         ->assertJsonCount(2, 'data');
+});
+
+/**
+ * A custom role scoped to direct reports holding both conflict permissions,
+ * acting as $lead.
+ */
+function conflictScopeLeadRole(Tenant $tenant, Employee $lead): void
+{
+    $role = CustomRole::create(['tenant_id' => $tenant->id, 'name' => 'Shift Lead', 'org_scope' => 'direct_reports']);
+    $role->permissions()->sync(Permission::whereIn('name', [
+        'attendance.viewConflicts', 'attendance.resolveConflicts',
+    ])->pluck('id'));
+    actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $lead->id, 'custom_role_id' => $role->id], $tenant);
+}
+
+function conflictScopeResolveUrl(Tenant $tenant, AttendanceConflict $conflict): string
+{
+    return "http://{$tenant->subdomain}.ethr.test/api/v1/attendance/conflicts/{$conflict->public_id}/resolve";
+}
+
+test('a scoped role cannot resolve a conflict outside its scope, and voids nothing', function () {
+    // resolve() checked attendance.resolveConflicts alone while index() was
+    // already scoped, so the lead could resolve — by public id — a conflict
+    // it was not allowed to list, voiding a stranger's punch.
+    $tenant = createTenant();
+    $lead = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $stranger = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $conflict = conflictScopeConflictFor($tenant, $stranger);
+    conflictScopeLeadRole($tenant, $lead);
+
+    test()->putJson(conflictScopeResolveUrl($tenant, $conflict), ['resolution' => ConflictResolutionStatus::KEEP_A->value])
+        ->assertForbidden();
+
+    expect($conflict->fresh()->resolution)->toBe(ConflictResolutionStatus::PENDING)
+        ->and($conflict->recordB->fresh()->status)->not->toBe(AttendanceStatus::VOIDED);
+});
+
+test('a scoped role resolves a conflict inside its scope', function () {
+    $tenant = createTenant();
+    $lead = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $report = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $lead->id]);
+    $conflict = conflictScopeConflictFor($tenant, $report);
+    conflictScopeLeadRole($tenant, $lead);
+
+    test()->putJson(conflictScopeResolveUrl($tenant, $conflict), ['resolution' => ConflictResolutionStatus::KEEP_A->value])
+        ->assertOk();
+
+    expect($conflict->fresh()->resolution)->toBe(ConflictResolutionStatus::KEEP_A)
+        ->and($conflict->recordB->fresh()->status)->toBe(AttendanceStatus::VOIDED);
+});
+
+test('nobody resolves a conflict on their own attendance, HR included', function () {
+    $tenant = createTenant();
+    $hrPerson = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $conflict = conflictScopeConflictFor($tenant, $hrPerson);
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hrPerson->id], $tenant);
+
+    test()->putJson(conflictScopeResolveUrl($tenant, $conflict), ['resolution' => ConflictResolutionStatus::KEEP_A->value])
+        ->assertForbidden();
+
+    expect($conflict->fresh()->resolution)->toBe(ConflictResolutionStatus::PENDING);
+});
+
+test('HR still resolves any other employee\'s conflict', function () {
+    $tenant = createTenant();
+    $conflict = conflictScopeConflictFor($tenant, Employee::factory()->create(['tenant_id' => $tenant->id]));
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id], $tenant);
+
+    test()->putJson(conflictScopeResolveUrl($tenant, $conflict), ['resolution' => ConflictResolutionStatus::DISMISSED->value])
+        ->assertOk();
 });
 
 test('the kiosk session list honours per_page like its siblings', function () {
