@@ -21,7 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateEmployee } from "@/features/employees/api";
+import {
+  useCreateEmployee,
+  type CreateEmployeePayload,
+} from "@/features/employees/api";
 
 import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { FormField } from "@/components/patterns/FormField";
@@ -49,9 +52,12 @@ export default function NewEmployeePage() {
     marital_status: "single",
     hire_date: "",
     salary_cents: "",
-    department_public_id: "",
-    branch_public_id: "",
-    position_public_id: "",
+    // The API's own field names, so a 422's `errors` keys land on these
+    // controls. They were `*_public_id`, which StoreEmployeeRequest does not
+    // read — the employee was created with no department, branch or position.
+    department_id: "",
+    branch_id: "",
+    position_id: "",
   });
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -76,39 +82,53 @@ export default function NewEmployeePage() {
     e.preventDefault();
     setErrors({});
 
-    createEmployee.mutate(
-      {
-        ...form,
-        salary_cents: parseInt(form.salary_cents) * 100 || 0,
-      },
-      {
-        onSuccess: () => {
-          setHasUnsavedChanges(false);
-          toast.success(t("employee.created", "Employee created successfully"));
-          router.push("/employees");
-        },
-        onError: (err: unknown) => {
-          const fields = fieldErrors(err);
-          setErrors(fields);
+    const payload: CreateEmployeePayload = {
+      name: form.name,
+      email: form.email || null,
+      phone: form.phone || null,
+      employee_code: form.employee_code || null,
+      gender: (form.gender || null) as CreateEmployeePayload["gender"],
+      date_of_birth: form.date_of_birth || null,
+      nationality: form.nationality || null,
+      national_id: form.national_id || null,
+      marital_status: (form.marital_status ||
+        null) as CreateEmployeePayload["marital_status"],
+      hire_date: form.hire_date,
+      // ETB to integer cents, keeping the decimals: `parseInt` turned
+      // 5000.50 into 500000.
+      salary_cents: Math.round((parseFloat(form.salary_cents) || 0) * 100),
+      department_id: form.department_id || null,
+      branch_id: form.branch_id || null,
+      position_id: form.position_id || null,
+    };
 
-          // A validation failure now renders under the offending inputs, so the
-          // toast would be redundant noise; anything else still needs one.
-          toastError(
-            err,
-            t("employee.create_failed", "Failed to create employee"),
-            { skipValidation: true },
-          );
-
-          // Move focus to the first invalid control so keyboard and screen
-          // reader users are not left at the submit button with the errors
-          // scrolled off above them (WCAG 3.3.1).
-          const firstField = Object.keys(fields)[0];
-          if (firstField) {
-            document.getElementById(firstField)?.focus();
-          }
-        },
+    createEmployee.mutate(payload, {
+      onSuccess: () => {
+        setHasUnsavedChanges(false);
+        toast.success(t("employee.created", "Employee created successfully"));
+        router.push("/employees");
       },
-    );
+      onError: (err: unknown) => {
+        const fields = fieldErrors(err);
+        setErrors(fields);
+
+        // A validation failure now renders under the offending inputs, so the
+        // toast would be redundant noise; anything else still needs one.
+        toastError(
+          err,
+          t("employee.create_failed", "Failed to create employee"),
+          { skipValidation: true },
+        );
+
+        // Move focus to the first invalid control so keyboard and screen
+        // reader users are not left at the submit button with the errors
+        // scrolled off above them (WCAG 3.3.1).
+        const firstField = Object.keys(fields)[0];
+        if (firstField) {
+          document.getElementById(firstField)?.focus();
+        }
+      },
+    });
   }
 
   return (
@@ -322,15 +342,15 @@ export default function NewEmployeePage() {
                   trigger with no `id`, so the selects had no accessible name at
                   all. FormField supplies both. */}
               <FormField
-                id="department_public_id"
+                id="department_id"
                 label={t("common.department", "Department")}
-                error={errors.department_public_id}
+                error={errors.department_id}
               >
                 <Select
-                  value={form.department_public_id}
-                  onValueChange={(v) => updateField("department_public_id", v)}
+                  value={form.department_id}
+                  onValueChange={(v) => updateField("department_id", v)}
                 >
-                  <SelectTrigger id="department_public_id">
+                  <SelectTrigger id="department_id">
                     <SelectValue
                       placeholder={t(
                         "employee.select_department",
@@ -351,15 +371,15 @@ export default function NewEmployeePage() {
               </FormField>
 
               <FormField
-                id="branch_public_id"
+                id="branch_id"
                 label={t("common.branch", "Branch")}
-                error={errors.branch_public_id}
+                error={errors.branch_id}
               >
                 <Select
-                  value={form.branch_public_id}
-                  onValueChange={(v) => updateField("branch_public_id", v)}
+                  value={form.branch_id}
+                  onValueChange={(v) => updateField("branch_id", v)}
                 >
-                  <SelectTrigger id="branch_public_id">
+                  <SelectTrigger id="branch_id">
                     <SelectValue
                       placeholder={t("employee.select_branch", "Select branch")}
                     />
@@ -377,15 +397,15 @@ export default function NewEmployeePage() {
               </FormField>
 
               <FormField
-                id="position_public_id"
+                id="position_id"
                 label={t("common.position", "Position")}
-                error={errors.position_public_id}
+                error={errors.position_id}
               >
                 <Select
-                  value={form.position_public_id}
-                  onValueChange={(v) => updateField("position_public_id", v)}
+                  value={form.position_id}
+                  onValueChange={(v) => updateField("position_id", v)}
                 >
-                  <SelectTrigger id="position_public_id">
+                  <SelectTrigger id="position_id">
                     <SelectValue
                       placeholder={t(
                         "employee.select_position",

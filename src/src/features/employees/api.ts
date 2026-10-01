@@ -1,7 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
-import type { Employee, EmployeeFormData } from "./types";
+import type { Employee } from "./types";
+
+/**
+ * The create and update bodies come from the contract. The hand-written
+ * `EmployeeFormData` they replace named the relations `department_public_id`,
+ * `branch_public_id` and `position_public_id`; StoreEmployeeRequest reads
+ * `department_id`, `branch_id` and `position_id`, so `validated()` dropped all
+ * three and every employee created from the form had no department, branch or
+ * position — behind a 201 and a success toast.
+ */
+export type CreateEmployeePayload =
+  components["schemas"]["StoreEmployeeRequest"];
+export type UpdateEmployeePayload =
+  components["schemas"]["UpdateEmployeeRequest"];
 
 export function useEmployees(params?: {
   page?: number;
@@ -35,8 +49,8 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData: EmployeeFormData) => {
-      const { data } = await apiClient.post("/employees", formData);
+    mutationFn: async (payload: CreateEmployeePayload) => {
+      const { data } = await apiClient.post("/employees", payload);
       return data;
     },
     onSuccess: () => {
@@ -49,8 +63,8 @@ export function useUpdateEmployee(publicId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData: Partial<EmployeeFormData>) => {
-      const { data } = await apiClient.put(`/employees/${publicId}`, formData);
+    mutationFn: async (payload: UpdateEmployeePayload) => {
+      const { data } = await apiClient.put(`/employees/${publicId}`, payload);
       return data;
     },
     onSuccess: () => {
