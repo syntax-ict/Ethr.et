@@ -109,6 +109,7 @@ use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\EnsurePlatformContext;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
+use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
 use App\Http\Middleware\RequiresPlanFeature;
@@ -216,7 +217,7 @@ Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
 });
 
 // Authenticated routes
-Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, BlockImpersonatedActions::class])->group(function () {
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, BlockImpersonatedActions::class])->group(function () {
     // Broadcasting (Reverb) private-channel auth. Registered here — inside the
     // api/v1 group — so the httpOnly `access_token` cookie (path=/api) is sent and
     // AuthenticateFromCookie can resolve the user. The framework default lives at

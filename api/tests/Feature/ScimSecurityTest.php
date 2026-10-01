@@ -208,7 +208,7 @@ it('answers a wrongly-typed userName with a SCIM 400, not a 500', function () {
         ->assertStatus(400);
 
     expect(DB::table('users')->where('tenant_id', $tenant->id)->where('email', 'like', '%a@acme.test%')->exists())->toBeFalse();
-})->todo(note: 'DEFECT: ScimUserController::store (lines 59-63) does no input validation; wrongly-typed userName/emails reach the query layer (500 or a junk row) instead of a SCIM 400');
+});
 
 it('rejects a filter it does not understand instead of returning every user', function () {
     // applyFilter() (ScimUserController.php:227-240) returns the unfiltered
@@ -224,7 +224,7 @@ it('rejects a filter it does not understand instead of returning every user', fu
     $this->getJson('/api/v1/scim/v2/Users?filter='.urlencode('name.familyName eq "Nobody"'), scimSecurityHeaders($token))
         ->assertStatus(400)
         ->assertJsonPath('scimType', 'invalidFilter');
-})->todo(note: 'DEFECT: ScimUserController::applyFilter (lines 227-240) silently ignores unsupported filters and returns all users; RFC 7644 requires 400 invalidFilter');
+});
 
 // â”€â”€ Deprovisioning and seats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -247,7 +247,7 @@ it('ends the sessions of a user the IdP deprovisions', function () {
 
     app('auth')->forgetGuards();
     $this->getJson($me, ['Authorization' => "Bearer {$session}"])->assertUnauthorized();
-})->todo(note: 'DEFECT: ScimUserController::destroy/update(active=false) never revoke tokens, and no auth middleware checks users.status; a deprovisioned user keeps API access and can refresh it');
+});
 
 it('does not provision past the tenant\'s plan employee limit', function () {
     // EmployeeController::store and the import commit both call
@@ -264,4 +264,4 @@ it('does not provision past the tenant\'s plan employee limit', function () {
         ->assertForbidden();
 
     expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(1);
-})->todo(note: 'DEFECT: ScimUserController::store (line 79) creates employees without PlanLimitService::assertCanAdd; SCIM bypasses the plan seat cap');
+});

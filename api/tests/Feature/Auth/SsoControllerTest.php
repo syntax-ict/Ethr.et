@@ -191,7 +191,7 @@ it('creates an employee and a login, in this tenant, when auto-provisioning is o
         ->and(ssoControllerTokenCount($user))->toBe(1);
 
     $this->assertDatabaseHas('audit_log', ['action' => 'sso.user_provisioned', 'tenant_id' => $tenant->id]);
-})->todo(note: 'DEFECT: SsoController.php:152 creates the Employee with status \'active\', not an EmployeeStatus case; every auto-provisioned first sign-in is a 500 (ValueError)');
+});
 
 it('falls back to the employee role when the stored default role is not a role', function () {
     $tenant = ssoControllerTenant(['auto_provision' => true, 'default_role' => 'overlord']);
@@ -200,7 +200,7 @@ it('falls back to the employee role when the stored default role is not a role',
     $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertOk();
 
     expect(User::where('email', 'new.hire@acme.test')->firstOrFail()->role)->toBe(UserRole::EMPLOYEE);
-})->todo(note: 'DEFECT: same root cause as above - SsoController.php:152 status \'active\' is not an EmployeeStatus, so auto-provisioning 500s before the role is ever applied');
+});
 
 it('creates nothing when auto-provisioning is off', function () {
     $tenant = ssoControllerTenant(['auto_provision' => false]);
@@ -227,7 +227,7 @@ it('does not auto-provision past the tenant\'s plan employee limit', function ()
     $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
 
     expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(1);
-})->todo(note: 'DEFECT: SsoController::findOrProvisionUser (lines 143-174) creates employees without PlanLimitService::assertCanAdd, bypassing the plan seat cap');
+});
 
 // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Tenant state and configuration ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
@@ -246,7 +246,7 @@ it('refuses to sign anyone in to a suspended tenant, and provisions nothing ther
     ssoControllerProvider(ssoControllerIdentity('new.hire@acme.test'));
     $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
     expect(DB::table('users')->where('email', 'new.hire@acme.test')->exists())->toBeFalse();
-})->todo(note: 'DEFECT: SsoController::callback (line 52) never checks Tenant::isActive(); a suspended tenant\'s users get sessions and auto-provisioning still writes into it');
+});
 
 it('answers 422 at both ends when SSO is not configured', function () {
     $tenant = ssoControllerTenant();

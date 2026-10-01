@@ -13,6 +13,7 @@ return [
     'mfa_disabled' => 'ባለ ሁለት ደረጃ ማረጋገጫ ተሰናክሏል።',
     'token_refreshed' => 'ቶከን በተሳካ ሁኔታ ታድሷል።',
     'unauthorized' => 'ይህን ተግባር ለማከናወን ስልጣን የለዎትም።',
+    'account_inactive' => 'መለያዎ ንቁ አይደለም።',
     'tenant_inactive' => 'የድርጅትዎ መለያ ንቁ አይደለም።',
     'account_suspended' => 'መለያዎ ታግዷል።',
     'impersonation_restricted' => 'ተከራይን በመወከል ላይ ሳሉ ይህን ተግባር ማከናወን አይቻልም።',

@@ -13,6 +13,7 @@ return [
     'mfa_disabled' => 'Two-factor authentication has been disabled.',
     'token_refreshed' => 'Token refreshed successfully.',
     'unauthorized' => 'You are not authorized to perform this action.',
+    'account_inactive' => 'Your account is not active.',
     'tenant_inactive' => 'Your organization account is not active.',
     'account_suspended' => 'Your account has been suspended.',
     'impersonation_restricted' => 'This action is not allowed while impersonating a tenant.',
