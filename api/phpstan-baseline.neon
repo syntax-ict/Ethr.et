@@ -1602,11 +1602,6 @@ parameters:
 			count: 1
 			path: app/Models/User.php
 
-		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Employee\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Models/User.php
 
 		-
 			message: '#^Class App\\Models\\Webhook uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
