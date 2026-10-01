@@ -48,10 +48,17 @@ const MORNING: Shift = {
 
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
+    public_id: "01HZASSIGNMENT000000000001",
     shift: MORNING,
+    rotation: null,
     is_rotation: false,
     anchor_date: null,
     assignable_type: "Employee",
+    assignee: {
+      type: "employee",
+      public_id: "01HZEMPLOYEE0000000000001",
+      name: "Abebe Kebede",
+    },
     effective_from: "2026-09-01",
     effective_to: null,
     created_at: "2026-09-01T06:00:00Z",

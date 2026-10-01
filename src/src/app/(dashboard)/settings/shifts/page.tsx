@@ -356,13 +356,13 @@ export default function ShiftsPage() {
                       t("shifts_settings_page.from"),
                       t("shifts_settings_page.to"),
                     ]}
-                    rows={schedule.map((assignment, i) => {
+                    rows={schedule.map((assignment) => {
                       const TypeIcon =
                         typeIcon[
                           assignment.assignable_type.toLowerCase() as keyof typeof typeIcon
                         ] ?? Users;
                       return {
-                        key: String(i),
+                        key: assignment.public_id,
                         cells: [
                           <span key="sh" className="font-medium">
                             {assignment.shift?.name ??
@@ -380,6 +380,9 @@ export default function ShiftsPage() {
                             className="flex items-center gap-2 text-muted-foreground"
                           >
                             <TypeIcon className="h-3.5 w-3.5" />
+                            <span className="text-foreground">
+                              {assignment.assignee.name ?? "—"}
+                            </span>
                             <Badge
                               variant="outline"
                               className="text-xs capitalize"

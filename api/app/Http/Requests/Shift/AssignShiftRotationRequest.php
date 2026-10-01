@@ -4,19 +4,43 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Shift;
 
+use App\Http\Requests\Shift\Concerns\ValidatesShiftAssignmentTenancy;
+use App\Models\ShiftRotation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AssignShiftRotationRequest extends FormRequest
 {
+    // `rotation_id` and `assignable_id` are checked against the current tenant
+    // by this hook, not by an `exists:` rule: the presence verifier ignores the
+    // tenant scope, so `exists:shift_rotations,public_id` accepted another
+    // tenant's rotation. A line comment, not a class docblock: Scramble
+    // publishes a FormRequest's docblock into the contract.
+    use ValidatesShiftAssignmentTenancy;
+
     public function authorize(): bool
     {
         return true;
     }
 
+    protected function scheduleField(): string
+    {
+        return 'rotation_id';
+    }
+
+    protected function scheduleModel(): string
+    {
+        return ShiftRotation::class;
+    }
+
+    protected function assignableField(): string
+    {
+        return 'assignable_id';
+    }
+
     public function rules(): array
     {
         return [
-            'rotation_id' => ['required', 'string', 'exists:shift_rotations,public_id'],
+            'rotation_id' => ['required', 'string'],
             'assignable_type' => ['required', 'string', 'in:employee,department,branch'],
             'assignable_id' => ['required', 'string'],
             'effective_from' => ['required', 'date'],

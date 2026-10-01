@@ -99,6 +99,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
 use App\Http\Controllers\Api\V1\SiteContentController;
@@ -336,6 +337,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureUserBelongsT
     Route::prefix('shifts')->group(function () {
         Route::post('/assign', [ShiftController::class, 'assign']);
         Route::get('/schedule', [ShiftController::class, 'schedule']);
+        Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
+        Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
     });
 
     // Shift rotations (multi-week / non-weekly repeating patterns).

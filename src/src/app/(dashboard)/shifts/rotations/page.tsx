@@ -172,10 +172,15 @@ export default function ShiftRotationsPage() {
     destroy.mutate(rotation.public_id, {
       onSuccess: () =>
         toast.success(t("rotations_page.deleted", "Rotation deleted")),
-      onError: () =>
+      // A 409 means the rotation still has a current or upcoming assignment;
+      // the API's `detail` says how many, which the generic line cannot.
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          t("rotations_page.delete_failed", "Could not delete rotation"),
-        ),
+          e.response?.data?.detail ??
+            t("rotations_page.delete_failed", "Could not delete rotation"),
+        );
+      },
     });
   }
 

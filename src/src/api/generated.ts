@@ -4686,6 +4686,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shifts/assignments/{assignment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete assignment */
+        delete: operations["shiftAssignment.destroy"];
+        options?: never;
+        head?: never;
+        /** Update assignment */
+        patch: operations["shiftAssignment.update"];
+        trace?: never;
+    };
     "/shift-rotations/assign": {
         parameters: {
             query?: never;
@@ -5833,6 +5851,11 @@ export interface components {
             ended_at?: string | null;
             end_notes?: string | null;
         };
+        /** EndShiftAssignmentRequest */
+        EndShiftAssignmentRequest: {
+            /** Format: date */
+            effective_to: string;
+        };
         /** ExtendTrialRequest */
         ExtendTrialRequest: {
             days: number;
@@ -6607,11 +6630,17 @@ export interface components {
         };
         /** ShiftAssignmentResource */
         ShiftAssignmentResource: {
-            shift?: components["schemas"]["ShiftResource"] | null;
-            rotation?: components["schemas"]["ShiftRotationResource"] | null;
+            public_id: string;
+            shift: components["schemas"]["ShiftResource"] | null;
+            rotation: components["schemas"]["ShiftRotationResource"] | null;
             is_rotation: boolean;
             anchor_date: string | null;
             assignable_type: string;
+            assignee: {
+                type: string | null;
+                public_id: string | null;
+                name: string | null;
+            };
             effective_from: string | null;
             effective_to: string | null;
             /** Format: date-time */
@@ -19819,7 +19848,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19832,6 +19861,7 @@ export interface operations {
             query?: {
                 "filter[date_from]"?: string;
                 "filter[date_to]"?: string;
+                "filter[assignable_type]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -19847,7 +19877,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["ShiftAssignmentResource"] & Record<string, never>)[];
+                        data: components["schemas"]["ShiftAssignmentResource"][];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -19880,6 +19910,78 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "shiftAssignment.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The assignment public id */
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/assignment-in-effect";
+                        /** @constant */
+                        title: "Assignment Already In Effect";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "This assignment has already taken effect, so it is part of the attendance history. End it instead: set its last day.";
+                    };
+                };
+            };
+        };
+    };
+    "shiftAssignment.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The assignment public id */
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndShiftAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `ShiftAssignmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "shiftRotation.assign": {
         parameters: {
             query?: never;
@@ -19899,7 +20001,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftAssignmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftAssignmentResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20105,6 +20207,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rotation-in-use";
+                        /** @constant */
+                        title: "Rotation In Use";
+                        /** @constant */
+                        status: 409;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "shifts.index": {
@@ -20266,6 +20384,22 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/shift-in-use";
+                        /** @constant */
+                        title: "Shift In Use";
+                        /** @constant */
+                        status: 409;
+                        detail: string;
+                    };
+                };
+            };
         };
     };
     "holiday.autoDetect": {

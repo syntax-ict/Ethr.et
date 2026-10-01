@@ -30,12 +30,30 @@ import { RoleGate } from "@/components/shared/role-gate";
 import {
   useAssignShift,
   useAssignableEmployees,
+  useDeleteShiftAssignment,
+  useEndShiftAssignment,
   useShiftSchedule,
   useShifts,
+  type ShiftAssignment,
 } from "@/features/shifts/api";
 import { todayIso, toHHMM } from "@/features/shifts/dates";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+
+/** The API's `detail`, else its first field error, else `fallback`. */
+function apiMessage(err: unknown, fallback: string): string {
+  const e = err as {
+    response?: {
+      data?: { detail?: string; errors?: Record<string, string[]> };
+    };
+  };
+  return (
+    e.response?.data?.detail ??
+    Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
+    fallback
+  );
+}
 
 interface AssignmentForm {
   shift_public_id: string;
@@ -86,6 +104,52 @@ function AssignmentsContent() {
   const { data: branches } = branchesApi.useList();
 
   const assign = useAssignShift();
+  const endAssignment = useEndShiftAssignment();
+  const deleteAssignment = useDeleteShiftAssignment();
+
+  // Ending is `shift.update`, which HR admins hold; deleting is `shift.delete`,
+  // a tenant-admin grant — offered only where the API would allow it.
+  const { hasPermission } = usePermissions();
+  const canEnd = hasPermission("shift.update");
+  const canDelete = hasPermission("shift.delete");
+
+  const [ending, setEnding] = useState<ShiftAssignment | null>(null);
+  const [lastDay, setLastDay] = useState("");
+
+  function openEnd(a: ShiftAssignment) {
+    // Today, unless the assignment has not started yet: a last day before
+    // the first is refused, so the earliest valid choice is its first day.
+    const today = todayIso();
+    const from = a.effective_from ?? today;
+    setLastDay(from > today ? from : today);
+    setEnding(a);
+  }
+
+  function submitEnd() {
+    if (!ending) return;
+    endAssignment.mutate(
+      { publicId: ending.public_id, payload: { effective_to: lastDay } },
+      {
+        onSuccess: () => {
+          setEnding(null);
+          toast.success(t("shift_assignments_page.ended_success"));
+        },
+        onError: (err: unknown) =>
+          toast.error(apiMessage(err, t("shift_assignments_page.end_failed"))),
+      },
+    );
+  }
+
+  function remove(a: ShiftAssignment) {
+    if (!confirm(t("shift_assignments_page.delete_confirm"))) return;
+    deleteAssignment.mutate(a.public_id, {
+      onSuccess: () => toast.success(t("shift_assignments_page.deleted")),
+      // A 409 says the assignment has already taken effect and should be
+      // ended instead; the API's own sentence is the useful one.
+      onError: (err: unknown) =>
+        toast.error(apiMessage(err, t("shift_assignments_page.delete_failed"))),
+    });
+  }
 
   function submit() {
     assign.mutate(
@@ -102,18 +166,8 @@ function AssignmentsContent() {
           setForm(emptyForm());
           toast.success(t("shift_assignments_page.assigned_success"));
         },
-        onError: (err: unknown) => {
-          const e = err as {
-            response?: {
-              data?: { detail?: string; errors?: Record<string, string[]> };
-            };
-          };
-          const msg =
-            e.response?.data?.detail ??
-            Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
-            t("shifts_settings_page.assign_failed");
-          toast.error(msg);
-        },
+        onError: (err: unknown) =>
+          toast.error(apiMessage(err, t("shifts_settings_page.assign_failed"))),
       },
     );
   }
@@ -178,18 +232,24 @@ function AssignmentsContent() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {assignments.map((a, i) => {
+          {assignments.map((a) => {
             const Icon =
               TYPE_ICONS[
                 a.assignable_type?.toLowerCase() as keyof typeof TYPE_ICONS
               ] ?? Users;
+            const today = todayIso();
             // `effective_to` is the last day the assignment applies, so it is
             // active through that whole date. Comparing `new Date(effective_to)`
             // (UTC midnight, 03:00 in Addis) with the current instant marked
             // it expired from 03:00 on its own last day.
-            const isActive = !a.effective_to || a.effective_to >= todayIso();
+            const isActive = !a.effective_to || a.effective_to >= today;
+            // Not started yet: the only kind the API lets anyone delete. One
+            // that has taken effect is history and is ended instead.
+            const isUpcoming = !!a.effective_from && a.effective_from > today;
+            const assigneeName =
+              a.assignee.name ?? t("shift_assignments_page.unknown_assignee");
             return (
-              <Card key={i}>
+              <Card key={a.public_id}>
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <Icon className="h-4 w-4 text-primary" />
@@ -201,6 +261,10 @@ function AssignmentsContent() {
                           a.rotation?.name ??
                           t("shift_assignments_page.unknown_shift")}
                       </p>
+                      <span className="text-sm text-muted-foreground">
+                        {t("shift_assignments_page.for")}
+                      </span>
+                      <p className="font-medium">{assigneeName}</p>
                       <Badge variant="outline" className="text-xs">
                         {TYPE_LABEL[a.assignable_type] ?? a.assignable_type}
                       </Badge>
@@ -208,9 +272,11 @@ function AssignmentsContent() {
                         variant={isActive ? "success" : "secondary"}
                         className="text-xs"
                       >
-                        {isActive
-                          ? t("webhooks_page.active")
-                          : t("shift_assignments_page.expired")}
+                        {!isActive
+                          ? t("shift_assignments_page.expired")
+                          : isUpcoming
+                            ? t("shift_assignments_page.upcoming")
+                            : t("webhooks_page.active")}
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">
@@ -222,6 +288,31 @@ function AssignmentsContent() {
                         : ` (${t("shift_assignments_page.no_end_date")})`}
                     </p>
                   </div>
+                  {isActive && (canEnd || (canDelete && isUpcoming)) && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {canEnd && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`${t("shift_assignments_page.end")} ${assigneeName}`}
+                          onClick={() => openEnd(a)}
+                        >
+                          {t("shift_assignments_page.end")}
+                        </Button>
+                      )}
+                      {canDelete && isUpcoming && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`${t("common.delete")} ${assigneeName}`}
+                          disabled={deleteAssignment.isPending}
+                          onClick={() => remove(a)}
+                        >
+                          {t("common.delete")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -382,6 +473,49 @@ function AssignmentsContent() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {t("shifts_settings_page.assign_shift")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Dialog */}
+      <Dialog
+        open={ending !== null}
+        onOpenChange={(open) => !open && setEnding(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("shift_assignments_page.end_title")}</DialogTitle>
+            <DialogDescription>
+              {t("shift_assignments_page.end_desc")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div>
+            <Label htmlFor="end-last-day">
+              {t("shift_assignments_page.last_day")} *
+            </Label>
+            <DualCalendarDateInput
+              id="end-last-day"
+              value={lastDay}
+              onChange={setLastDay}
+              min={ending?.effective_from ?? undefined}
+              className="mt-1"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnding(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={submitEnd}
+              disabled={!lastDay || endAssignment.isPending}
+            >
+              {endAssignment.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {t("shift_assignments_page.end")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -11,6 +11,8 @@ export type ShiftAssignment = components["schemas"]["ShiftAssignmentResource"];
 export type CreateShiftPayload = components["schemas"]["StoreShiftRequest"];
 export type UpdateShiftPayload = components["schemas"]["UpdateShiftRequest"];
 export type AssignShiftPayload = components["schemas"]["AssignShiftRequest"];
+export type EndShiftAssignmentPayload =
+  components["schemas"]["EndShiftAssignmentRequest"];
 export type AssignableEmployee = components["schemas"]["EmployeeResource"];
 
 const keys = {
@@ -42,7 +44,8 @@ export interface ScheduleFilters {
 
 /**
  * Every shift assignment overlapping the window — fixed shifts and rotations
- * alike (a rotation assignment has `shift: null` and `is_rotation: true`).
+ * alike. `shift` and `rotation` are both always present, one of them null
+ * (`is_rotation` says which), and `assignee` names whom it is for.
  * All pages: the roster draws each one, so a dropped page is a blank day.
  */
 export function useShiftSchedule(filters?: ScheduleFilters) {
@@ -117,4 +120,51 @@ export function useAssignShift() {
     async (payload: AssignShiftPayload): Promise<ShiftAssignment> =>
       (await apiClient.post("/shifts/assign", payload)).data,
   );
+}
+
+/**
+ * Ends an assignment: `effective_to` becomes its last day (inclusive). Needs
+ * `shift.update`. This is how an assignment that has already taken effect is
+ * stopped — the API keeps it as history rather than deleting it.
+ */
+export function useEndShiftAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      publicId: string;
+      payload: EndShiftAssignmentPayload;
+    }): Promise<ShiftAssignment> =>
+      (
+        await apiClient.patch(
+          `/shifts/assignments/${vars.publicId}`,
+          vars.payload,
+        )
+      ).data,
+    onSuccess: () => invalidateAssignments(queryClient),
+  });
+}
+
+/**
+ * Removes an assignment that has not started yet. Needs `shift.delete`; the
+ * API answers 409 for one already in effect, which is ended instead.
+ */
+export function useDeleteShiftAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (publicId: string): Promise<void> => {
+      await apiClient.delete(`/shifts/assignments/${publicId}`);
+    },
+    onSuccess: () => invalidateAssignments(queryClient),
+  });
+}
+
+/**
+ * An assignment change stales the schedule, each shift's `assignments_count`
+ * and each rotation's — a rotation assignment lives in the same table.
+ */
+function invalidateAssignments(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: keys.all });
+  queryClient.invalidateQueries({ queryKey: ["shift-rotations"] });
 }

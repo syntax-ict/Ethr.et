@@ -50,6 +50,7 @@ class Shift extends Model
         ];
     }
 
+    /** @return HasMany<ShiftAssignment, $this> */
     public function assignments(): HasMany
     {
         return $this->hasMany(ShiftAssignment::class);

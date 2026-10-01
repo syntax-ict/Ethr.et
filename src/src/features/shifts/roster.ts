@@ -23,8 +23,10 @@ export interface RosterEntry {
  * Addis — so every shift was drawn on the day after its real one.
  *
  * Rotation assignments carry no shift (`is_rotation`, `shift: null`) and are
- * skipped: the schedule endpoint does not load the rotation, so there is
- * nothing here to draw them from.
+ * skipped. The schedule now names the rotation, but not its resolved days:
+ * which shift a cycle puts someone on for a date is computed server-side
+ * (`useRotationPreview`) so it cannot disagree with attendance matching, and
+ * this function does not recompute it.
  */
 export function buildRoster(
   assignments: ShiftAssignment[],

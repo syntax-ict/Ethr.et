@@ -379,12 +379,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
 		-
-			message: '#^Match expression does not handle remaining value\: mixed$#'
-			identifier: match.unhandled
-			count: 1
-			path: app/Http/Controllers/Api/V1/Shift/ShiftController.php
-
-		-
 			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
 			identifier: greater.alwaysTrue
 			count: 1
@@ -1616,12 +1610,6 @@ parameters:
 
 		-
 			message: '#^Class App\\Models\\Shift uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/Shift.php
-
-		-
-			message: '#^Method App\\Models\\Shift\:\:assignments\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Shift.php

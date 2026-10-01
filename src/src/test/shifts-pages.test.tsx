@@ -54,13 +54,23 @@ function shift(n: number, overrides: Partial<Shift> = {}): Shift {
   };
 }
 
-/** ShiftAssignmentResource: `rotation` is absent unless the relation was loaded. */
+/**
+ * ShiftAssignmentResource: `shift` and `rotation` are both always present, one
+ * of them null; `assignee` names whom it is for.
+ */
 function assignment(overrides: Partial<Assignment> = {}): Assignment {
   return {
+    public_id: "01HZASSIGNMENT000000000001",
     shift: shift(1, { name: "Morning" }),
+    rotation: null,
     is_rotation: false,
     anchor_date: null,
     assignable_type: "Employee",
+    assignee: {
+      type: "employee",
+      public_id: "01HZEMPLOYEE0000000000001",
+      name: "Abebe Kebede",
+    },
     effective_from: "2026-09-01",
     effective_to: null,
     created_at: "2026-09-01T06:00:00Z",
@@ -268,7 +278,9 @@ describe("Shifts page", () => {
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: /Delete/ }));
 
-    // Not "Shift is in use": ShiftController::destroy never refuses for that.
+    // The API's own sentence, not a canned one: a refusal may be 403 (as
+    // here) or 409 while the shift is still assigned, and only `detail`
+    // says which.
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("This action is unauthorized."),
     );
@@ -313,6 +325,183 @@ describe("Shift assignments page", () => {
 
     expect(within(card).getByText("Active")).toBeInTheDocument();
     expect(within(card).queryByText("Expired")).not.toBeInTheDocument();
+  });
+
+  it("says whom each assignment is for, and names a rotation instead of 'Unknown Shift'", async () => {
+    serve({
+      schedule: [
+        assignment(),
+        assignment({
+          public_id: "01HZASSIGNMENT000000000002",
+          shift: null,
+          rotation: rotation({ name: "Ward rota" }),
+          is_rotation: true,
+          anchor_date: "2026-09-01",
+          assignable_type: "Department",
+          assignee: {
+            type: "department",
+            public_id: "01HZDEPT000000000000000001",
+            name: "Nursing",
+          },
+        }),
+      ],
+    });
+    renderPage(<ShiftAssignmentsPage />);
+
+    expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+    expect(screen.getByText("Ward rota")).toBeInTheDocument();
+    expect(screen.getByText("Nursing")).toBeInTheDocument();
+    expect(screen.queryByText("Unknown Shift")).not.toBeInTheDocument();
+  });
+
+  it("ends an assignment on the chosen last day, with shift.update", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T07:00:00Z"));
+    const sent: { id: string; body: unknown }[] = [];
+    serve({ permissions: HR_ADMIN, schedule: [assignment()] });
+    server.use(
+      http.patch(
+        "*/api/v1/shifts/assignments/:id",
+        async ({ params, request }) => {
+          sent.push({ id: String(params.id), body: await request.json() });
+          return HttpResponse.json(assignment({ effective_to: "2026-10-07" }));
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage(<ShiftAssignmentsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "End Abebe Kebede" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "End" }));
+
+    await waitFor(() =>
+      expect(sent).toEqual([
+        {
+          id: "01HZASSIGNMENT000000000001",
+          body: { effective_to: "2026-10-07" },
+        },
+      ]),
+    );
+    expect(toast.success).toHaveBeenCalledWith("Assignment ended");
+  });
+
+  it("offers Delete only for an upcoming assignment, and only with shift.delete", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T07:00:00Z"));
+    const upcoming = assignment({
+      public_id: "01HZASSIGNMENT000000000009",
+      effective_from: "2026-11-01",
+      assignee: {
+        type: "employee",
+        public_id: "01HZEMPLOYEE0000000000009",
+        name: "Selam Tesfaye",
+      },
+    });
+    serve({
+      role: "tenant_admin",
+      permissions: TENANT_ADMIN,
+      schedule: [assignment(), upcoming],
+    });
+    renderPage(<ShiftAssignmentsPage />);
+
+    expect(
+      await screen.findByRole("button", { name: "Delete Selam Tesfaye" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    // Already in effect: history, ended rather than deleted.
+    expect(
+      screen.queryByRole("button", { name: "Delete Abebe Kebede" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "End Abebe Kebede" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer Delete to a role without shift.delete", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T07:00:00Z"));
+    serve({
+      permissions: HR_ADMIN,
+      schedule: [assignment({ effective_from: "2026-11-01" })],
+    });
+    renderPage(<ShiftAssignmentsPage />);
+
+    expect(
+      await screen.findByRole("button", { name: "End Abebe Kebede" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Delete/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no action on an expired assignment, or without shift.update", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T07:00:00Z"));
+    serve({
+      permissions: TENANT_ADMIN,
+      schedule: [assignment({ effective_to: "2026-10-06" })],
+    });
+    const { unmount } = renderPage(<ShiftAssignmentsPage />);
+
+    await screen.findByText("Expired");
+    expect(screen.queryByRole("button", { name: /^End / })).toBeNull();
+    unmount();
+
+    serve({
+      permissions: ["shift.viewAny", "shift.view"],
+      schedule: [assignment()],
+    });
+    renderPage(<ShiftAssignmentsPage />);
+    await screen.findByText("Abebe Kebede");
+    expect(screen.queryByRole("button", { name: /^End / })).toBeNull();
+  });
+
+  it("deletes an upcoming assignment after asking, and reports the API's reason when it refuses", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T07:00:00Z"));
+    let deletes = 0;
+    serve({
+      role: "tenant_admin",
+      permissions: TENANT_ADMIN,
+      schedule: [assignment({ effective_from: "2026-11-01" })],
+    });
+    server.use(
+      http.delete("*/api/v1/shifts/assignments/:id", () => {
+        deletes++;
+        return HttpResponse.json(
+          {
+            type: "https://ethr.et/errors/assignment-in-effect",
+            title: "Assignment Already In Effect",
+            status: 409,
+            detail: "This assignment has already taken effect.",
+          },
+          { status: 409 },
+        );
+      }),
+    );
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    renderPage(<ShiftAssignmentsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Abebe Kebede" }),
+    );
+    expect(confirm).toHaveBeenCalledWith("Delete this upcoming assignment?");
+    expect(deletes).toBe(0);
+
+    confirm.mockReturnValue(true);
+    await user.click(
+      screen.getByRole("button", { name: "Delete Abebe Kebede" }),
+    );
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "This assignment has already taken effect.",
+      ),
+    );
+    expect(deletes).toBe(1);
   });
 });
 
@@ -359,6 +548,39 @@ describe("Shift rotations page", () => {
     expect(
       await screen.findByRole("button", { name: "Delete" }),
     ).toBeInTheDocument();
+  });
+
+  it("reports why the API refuses to delete a rotation still in use", async () => {
+    serve({
+      role: "tenant_admin",
+      permissions: TENANT_ADMIN,
+      rotations: [rotation()],
+    });
+    server.use(
+      http.delete("*/api/v1/shift-rotations/:id", () =>
+        HttpResponse.json(
+          {
+            type: "https://ethr.et/errors/rotation-in-use",
+            title: "Rotation In Use",
+            status: 409,
+            detail:
+              "This rotation cannot be deleted: 2 assignments are current or upcoming.",
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    renderPage(<ShiftRotationsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "This rotation cannot be deleted: 2 assignments are current or upcoming.",
+      ),
+    );
   });
 });
 

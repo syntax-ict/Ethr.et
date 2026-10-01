@@ -163,9 +163,9 @@ export default function ShiftsPage() {
 
     deleteShift.mutate(shift.public_id, {
       onSuccess: () => toast.success(t("shifts_settings_page.deleted")),
-      // Not "in use": the API refuses a delete for permission, never for
-      // assignments (ShiftController::destroy soft-deletes unconditionally),
-      // so that message was wrong for every failure it was shown for.
+      // The API's own sentence, whatever the reason: 403 for permission, or
+      // 409 while the shift has a current or upcoming assignment or is a
+      // rotation step — its `detail` says which, and how many.
       onError: (err: unknown) => {
         const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
