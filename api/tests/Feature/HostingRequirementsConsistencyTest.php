@@ -132,7 +132,6 @@ it('keeps the shared-hosting env template from dropping a key', function () {
         'APP_KEY',
         'APP_LOCALE',
         'APP_NAME',
-        'APP_TIMEZONE',
         'APP_URL',
         'BACKUP_KEEP',
         'BCRYPT_ROUNDS',

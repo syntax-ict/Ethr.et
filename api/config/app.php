@@ -105,6 +105,11 @@ return [
     |
     */
 
+    // Fixed, deliberately, and read from no env key: every timestamp is stored
+    // in UTC and a tenant's local day comes from its own timezone setting
+    // (EthiopianTimezoneTest pins this). The templates used to carry an
+    // APP_TIMEZONE that nothing read — a setting that looked changeable and
+    // was not. Removed 2026-10-01 (audit I4).
     'timezone' => 'UTC',
 
     /*
