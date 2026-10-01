@@ -43,6 +43,7 @@ import {
   type PayrollEntry,
 } from "@/features/payroll/api";
 import { apiClient } from "@/api/client";
+import { csvAmount, csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
@@ -97,23 +98,10 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
     );
   }
 
-  function formatCents(cents: number): string {
-    return (cents / 100).toLocaleString("en-ET", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }
-
-  function downloadCsv(filename: string, content: string) {
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
+  // Every export goes through the shared CSV helpers: amounts as plain
+  // "12345.67" (a grouped "12,345.67" split into two columns when joined
+  // unquoted — the bank transfer file included), cells quoted and
+  // formula-safe.
   function exportPayrollRegister() {
     if (!run?.entries) return;
     const headers = [
@@ -129,22 +117,18 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
     const rows = run.entries.map(
       (e: PayrollEntry & { employee?: { name: string } }) => [
         e.employee?.name ?? "",
-        formatCents(e.basic_salary_cents),
-        formatCents(e.gross_cents),
-        formatCents(e.income_tax_cents),
-        formatCents(e.employee_pension_cents),
-        formatCents(e.employer_pension_cents),
-        formatCents(e.other_deductions_cents),
-        formatCents(e.net_cents),
+        csvAmount(e.basic_salary_cents),
+        csvAmount(e.gross_cents),
+        csvAmount(e.income_tax_cents),
+        csvAmount(e.employee_pension_cents),
+        csvAmount(e.employer_pension_cents),
+        csvAmount(e.other_deductions_cents),
+        csvAmount(e.net_cents),
       ],
     );
-    const csv = [
-      headers.join(","),
-      ...rows.map((r: string[]) => r.join(",")),
-    ].join("\n");
-    downloadCsv(
+    saveCsv(
       `payroll-register-${run.period_label?.replace(/\s/g, "-")}.csv`,
-      csv,
+      csvFromRows(headers, rows),
     );
     toast.success(t("payroll_detail_page.register_downloaded"));
   }
@@ -174,14 +158,13 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           r.bank_name,
           r.branch_name,
           r.account_number,
-          formatCents(r.net_amount_cents),
+          csvAmount(r.net_amount_cents),
         ],
       );
-      const csv = [
-        headers.join(","),
-        ...rows.map((r: string[]) => r.join(",")),
-      ].join("\n");
-      downloadCsv(`bank-transfer-${data.period?.replace(/\s/g, "-")}.csv`, csv);
+      saveCsv(
+        `bank-transfer-${data.period?.replace(/\s/g, "-")}.csv`,
+        csvFromRows(headers, rows),
+      );
       toast.success(t("payroll_detail_page.bank_file_downloaded"));
     } catch {
       toast.error(t("payroll_detail_page.bank_file_failed"));
@@ -197,24 +180,25 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         return;
       }
       const headers = ["Account", "Description", "Debit (ETB)", "Credit (ETB)"];
+      // The API sends account_code/account_name. This read account and
+      // description, which do not exist, so both columns were always empty.
       const rows = entries.map(
         (e: {
-          account: string;
-          description: string;
+          account_code: string;
+          account_name: string;
           debit_cents: number;
           credit_cents: number;
         }) => [
-          e.account,
-          e.description,
-          e.debit_cents ? formatCents(e.debit_cents) : "",
-          e.credit_cents ? formatCents(e.credit_cents) : "",
+          e.account_code,
+          e.account_name,
+          e.debit_cents ? csvAmount(e.debit_cents) : "",
+          e.credit_cents ? csvAmount(e.credit_cents) : "",
         ],
       );
-      const csv = [
-        headers.join(","),
-        ...rows.map((r: string[]) => r.join(",")),
-      ].join("\n");
-      downloadCsv(`journal-${run?.period_label?.replace(/\s/g, "-")}.csv`, csv);
+      saveCsv(
+        `journal-${run?.period_label?.replace(/\s/g, "-")}.csv`,
+        csvFromRows(headers, rows),
+      );
       toast.success(t("payroll_detail_page.journal_downloaded"));
     } catch {
       toast.error(t("payroll_detail_page.journal_failed"));

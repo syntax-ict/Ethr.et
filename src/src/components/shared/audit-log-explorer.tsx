@@ -18,6 +18,7 @@ import { apiClient } from "@/api/client";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
+import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 
 export interface AuditLogEntry {
   action: string;
@@ -101,19 +102,10 @@ export function AuditLogExplorer({
       l.auditable_id ?? "",
       l.ip_address ?? "",
     ]);
-    const csv = [
-      headers.join(","),
-      ...rows.map((r: unknown[]) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${exportPrefix}-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(
+      `${exportPrefix}-${new Date().toISOString().split("T")[0]}.csv`,
+      csvFromRows(headers, rows),
+    );
   }
 
   return (

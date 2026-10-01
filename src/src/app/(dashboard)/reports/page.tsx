@@ -68,6 +68,7 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 
 const prebuilt = [
@@ -222,28 +223,10 @@ function BuilderTab() {
   function downloadCsv() {
     const result = generate.data;
     if (!result?.data?.length) return;
-    const headers = Object.keys(result.data[0]);
-    const csv = [
-      headers.join(","),
-      ...result.data.map((row) =>
-        headers
-          .map((h) => {
-            const v = row[h];
-            const s = v == null ? "" : String(v);
-            return s.includes(",") || s.includes('"') || s.includes("\n")
-              ? `"${s.replace(/"/g, '""')}"`
-              : s;
-          })
-          .join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(
+      `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`,
+      buildCsv(result.data),
+    );
   }
 
   if (sourcesLoading) return <Skeleton className="h-96 w-full" />;
@@ -791,28 +774,10 @@ function QuickTab() {
   function downloadCsv() {
     const result = generate.data;
     if (!result?.data?.length) return;
-    const headers = Object.keys(result.data[0]);
-    const csv = [
-      headers.join(","),
-      ...result.data.map((row) =>
-        headers
-          .map((h) => {
-            const v = row[h];
-            const s = v == null ? "" : String(v);
-            return s.includes(",") || s.includes('"')
-              ? `"${s.replace(/"/g, '""')}"`
-              : s;
-          })
-          .join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${result.source}-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(
+      `${result.source}-${new Date().toISOString().split("T")[0]}.csv`,
+      buildCsv(result.data),
+    );
   }
 
   return (
