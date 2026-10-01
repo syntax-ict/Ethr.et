@@ -553,12 +553,6 @@ parameters:
 			path: app/Models/AlertThreshold.php
 
 		-
-			message: '#^Method App\\Models\\AlertThreshold\:\:findByPublicId\(\) should return static\(App\\Models\\AlertThreshold\)\|null but returns App\\Models\\AlertThreshold\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AlertThreshold.php
-
-		-
 			message: '#^Method App\\Models\\AlertThreshold\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -567,12 +561,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\Announcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Announcement.php
-
-		-
-			message: '#^Method App\\Models\\Announcement\:\:findByPublicId\(\) should return static\(App\\Models\\Announcement\)\|null but returns App\\Models\\Announcement\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Announcement.php
 
@@ -631,22 +619,10 @@ parameters:
 			path: app/Models/ApiKey.php
 
 		-
-			message: '#^Method App\\Models\\ApiKey\:\:findByPublicId\(\) should return static\(App\\Models\\ApiKey\)\|null but returns App\\Models\\ApiKey\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/ApiKey.php
-
-		-
 			message: '#^Method App\\Models\\ApiKey\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/ApiKey.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceConflict\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceConflict\)\|null but returns App\\Models\\AttendanceConflict\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceConflict.php
 
 		-
 			message: '#^Method App\\Models\\AttendanceConflict\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -669,12 +645,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\AttendanceCorrection\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/AttendanceCorrection.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceCorrection\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceCorrection\)\|null but returns App\\Models\\AttendanceCorrection\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/AttendanceCorrection.php
 
@@ -703,12 +673,6 @@ parameters:
 			path: app/Models/AttendanceRecord.php
 
 		-
-			message: '#^Method App\\Models\\AttendanceRecord\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceRecord\)\|null but returns App\\Models\\AttendanceRecord\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
 			message: '#^Method App\\Models\\AttendanceRecord\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -719,12 +683,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceSetting\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceSetting\)\|null but returns App\\Models\\AttendanceSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceSetting.php
 
 		-
 			message: '#^Method App\\Models\\AttendanceSetting\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -781,12 +739,6 @@ parameters:
 			path: app/Models/Branch.php
 
 		-
-			message: '#^Method App\\Models\\Branch\:\:findByPublicId\(\) should return static\(App\\Models\\Branch\)\|null but returns App\\Models\\Branch\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Branch.php
-
-		-
 			message: '#^Method App\\Models\\Branch\:\:kioskSessions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -817,22 +769,10 @@ parameters:
 			path: app/Models/CostCenter.php
 
 		-
-			message: '#^Method App\\Models\\CostCenter\:\:findByPublicId\(\) should return static\(App\\Models\\CostCenter\)\|null but returns App\\Models\\CostCenter\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/CostCenter.php
-
-		-
 			message: '#^Method App\\Models\\CostCenter\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/CostCenter.php
-
-		-
-			message: '#^Method App\\Models\\CustomRole\:\:findByPublicId\(\) should return static\(App\\Models\\CustomRole\)\|null but returns App\\Models\\CustomRole\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/CustomRole.php
 
 		-
 			message: '#^Method App\\Models\\CustomRole\:\:permissions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany does not specify its types\: TRelatedModel, TDeclaringModel, TPivotModel, TAccessor \(2\-4 required\)$#'
@@ -855,12 +795,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\DashboardDigest uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/DashboardDigest.php
-
-		-
-			message: '#^Method App\\Models\\DashboardDigest\:\:findByPublicId\(\) should return static\(App\\Models\\DashboardDigest\)\|null but returns App\\Models\\DashboardDigest\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/DashboardDigest.php
 
@@ -897,12 +831,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Department\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Department.php
-
-		-
-			message: '#^Method App\\Models\\Department\:\:findByPublicId\(\) should return static\(App\\Models\\Department\)\|null but returns App\\Models\\Department\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Department.php
 
@@ -949,12 +877,6 @@ parameters:
 			path: app/Models/Device.php
 
 		-
-			message: '#^Method App\\Models\\Device\:\:findByPublicId\(\) should return static\(App\\Models\\Device\)\|null but returns App\\Models\\Device\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Device.php
-
-		-
 			message: '#^Method App\\Models\\Device\:\:latestSyncLog\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -975,12 +897,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\DeviceSyncLog\:\:device\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/DeviceSyncLog.php
-
-		-
-			message: '#^Method App\\Models\\DeviceSyncLog\:\:findByPublicId\(\) should return static\(App\\Models\\DeviceSyncLog\)\|null but returns App\\Models\\DeviceSyncLog\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/DeviceSyncLog.php
 
@@ -1017,12 +933,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Employee\:\:education\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Employee.php
-
-		-
-			message: '#^Method App\\Models\\Employee\:\:findByPublicId\(\) should return static\(App\\Models\\Employee\)\|null but returns App\\Models\\Employee\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Employee.php
 
@@ -1069,12 +979,6 @@ parameters:
 			path: app/Models/EmployeeBankDetail.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeBankDetail\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeBankDetail\)\|null but returns App\\Models\\EmployeeBankDetail\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeBankDetail.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeBankDetail\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1083,12 +987,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\EmployeeDocument\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeDocument.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeDocument\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeDocument\)\|null but returns App\\Models\\EmployeeDocument\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeDocument.php
 
@@ -1105,12 +1003,6 @@ parameters:
 			path: app/Models/EmployeeEducation.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeEducation\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeEducation\)\|null but returns App\\Models\\EmployeeEducation\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeEducation.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeEducation\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1123,12 +1015,6 @@ parameters:
 			path: app/Models/EmployeeEmergencyContact.php
 
 		-
-			message: '#^Method App\\Models\\EmployeeEmergencyContact\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeEmergencyContact\)\|null but returns App\\Models\\EmployeeEmergencyContact\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EmployeeEmergencyContact.php
-
-		-
 			message: '#^Method App\\Models\\EmployeeEmergencyContact\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1137,12 +1023,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\EmployeeLoan uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeLoan.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeLoan\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeLoan\)\|null but returns App\\Models\\EmployeeLoan\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeLoan.php
 
@@ -1161,12 +1041,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\EmployeeTransition\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/EmployeeTransition.php
-
-		-
-			message: '#^Method App\\Models\\EmployeeTransition\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeTransition\)\|null but returns App\\Models\\EmployeeTransition\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/EmployeeTransition.php
 
@@ -1201,12 +1075,6 @@ parameters:
 			path: app/Models/Grade.php
 
 		-
-			message: '#^Method App\\Models\\Grade\:\:findByPublicId\(\) should return static\(App\\Models\\Grade\)\|null but returns App\\Models\\Grade\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Grade.php
-
-		-
 			message: '#^Method App\\Models\\Grade\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1225,12 +1093,6 @@ parameters:
 			path: app/Models/Holiday.php
 
 		-
-			message: '#^Method App\\Models\\Holiday\:\:findByPublicId\(\) should return static\(App\\Models\\Holiday\)\|null but returns App\\Models\\Holiday\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Holiday.php
-
-		-
 			message: '#^Method App\\Models\\Holiday\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1239,12 +1101,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\Invoice uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Invoice.php
-
-		-
-			message: '#^Method App\\Models\\Invoice\:\:findByPublicId\(\) should return static\(App\\Models\\Invoice\)\|null but returns App\\Models\\Invoice\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Invoice.php
 
@@ -1273,22 +1129,10 @@ parameters:
 			path: app/Models/KioskSession.php
 
 		-
-			message: '#^Method App\\Models\\KioskSession\:\:findByPublicId\(\) should return static\(App\\Models\\KioskSession\)\|null but returns App\\Models\\KioskSession\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/KioskSession.php
-
-		-
 			message: '#^Method App\\Models\\KioskSession\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/KioskSession.php
-
-		-
-			message: '#^Method App\\Models\\Lead\:\:findByPublicId\(\) should return static\(App\\Models\\Lead\)\|null but returns App\\Models\\Lead\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Lead.php
 
 		-
 			message: '#^Class App\\Models\\LeaveBalance uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
@@ -1333,12 +1177,6 @@ parameters:
 			path: app/Models/LeaveRequest.php
 
 		-
-			message: '#^Method App\\Models\\LeaveRequest\:\:findByPublicId\(\) should return static\(App\\Models\\LeaveRequest\)\|null but returns App\\Models\\LeaveRequest\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/LeaveRequest.php
-
-		-
 			message: '#^Method App\\Models\\LeaveRequest\:\:rejectedByUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1353,12 +1191,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\LeaveType uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/LeaveType.php
-
-		-
-			message: '#^Method App\\Models\\LeaveType\:\:findByPublicId\(\) should return static\(App\\Models\\LeaveType\)\|null but returns App\\Models\\LeaveType\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/LeaveType.php
 
@@ -1417,12 +1249,6 @@ parameters:
 			path: app/Models/OnboardingProgress.php
 
 		-
-			message: '#^Method App\\Models\\OrganizationTemplate\:\:findByPublicId\(\) should return static\(App\\Models\\OrganizationTemplate\)\|null but returns App\\Models\\OrganizationTemplate\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/OrganizationTemplate.php
-
-		-
 			message: '#^Class App\\Models\\PayrollEntry uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -1431,12 +1257,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\PayrollEntry\:\:employee\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollEntry.php
-
-		-
-			message: '#^Method App\\Models\\PayrollEntry\:\:findByPublicId\(\) should return static\(App\\Models\\PayrollEntry\)\|null but returns App\\Models\\PayrollEntry\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/PayrollEntry.php
 
@@ -1461,12 +1281,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\PayrollRun\:\:entries\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollRun.php
-
-		-
-			message: '#^Method App\\Models\\PayrollRun\:\:findByPublicId\(\) should return static\(App\\Models\\PayrollRun\)\|null but returns App\\Models\\PayrollRun\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/PayrollRun.php
 
@@ -1501,12 +1315,6 @@ parameters:
 			path: app/Models/PayrollRun.php
 
 		-
-			message: '#^Method App\\Models\\Permission\:\:findByPublicId\(\) should return static\(App\\Models\\Permission\)\|null but returns App\\Models\\Permission\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Permission.php
-
-		-
 			message: '#^Method App\\Models\\PersonalAccessToken\:\:tokenable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1519,18 +1327,6 @@ parameters:
 			path: app/Models/Plan.php
 
 		-
-			message: '#^Method App\\Models\\Plan\:\:findByPublicId\(\) should return static\(App\\Models\\Plan\)\|null but returns App\\Models\\Plan\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Plan.php
-
-		-
-			message: '#^Method App\\Models\\PlatformSetting\:\:findByPublicId\(\) should return static\(App\\Models\\PlatformSetting\)\|null but returns App\\Models\\PlatformSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/PlatformSetting.php
-
-		-
 			message: '#^Class App\\Models\\Position uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -1539,12 +1335,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Position\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Position.php
-
-		-
-			message: '#^Method App\\Models\\Position\:\:findByPublicId\(\) should return static\(App\\Models\\Position\)\|null but returns App\\Models\\Position\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Position.php
 
@@ -1567,12 +1357,6 @@ parameters:
 			path: app/Models/SavedReport.php
 
 		-
-			message: '#^Method App\\Models\\SavedReport\:\:findByPublicId\(\) should return static\(App\\Models\\SavedReport\)\|null but returns App\\Models\\SavedReport\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/SavedReport.php
-
-		-
 			message: '#^Method App\\Models\\SavedReport\:\:schedules\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1587,12 +1371,6 @@ parameters:
 		-
 			message: '#^Class App\\Models\\ScheduledReport uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/ScheduledReport.php
-
-		-
-			message: '#^Method App\\Models\\ScheduledReport\:\:findByPublicId\(\) should return static\(App\\Models\\ScheduledReport\)\|null but returns App\\Models\\ScheduledReport\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/ScheduledReport.php
 
@@ -1617,12 +1395,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Shift\:\:attendanceRecords\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Shift.php
-
-		-
-			message: '#^Method App\\Models\\Shift\:\:findByPublicId\(\) should return static\(App\\Models\\Shift\)\|null but returns App\\Models\\Shift\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Shift.php
 
@@ -1657,12 +1429,6 @@ parameters:
 			path: app/Models/ShiftAssignment.php
 
 		-
-			message: '#^Method App\\Models\\SsoSetting\:\:findByPublicId\(\) should return static\(App\\Models\\SsoSetting\)\|null but returns App\\Models\\SsoSetting\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/SsoSetting.php
-
-		-
 			message: '#^Method App\\Models\\SsoSetting\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1675,22 +1441,10 @@ parameters:
 			path: app/Models/Subscription.php
 
 		-
-			message: '#^Method App\\Models\\Subscription\:\:findByPublicId\(\) should return static\(App\\Models\\Subscription\)\|null but returns App\\Models\\Subscription\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Subscription.php
-
-		-
 			message: '#^Method App\\Models\\Subscription\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Subscription.php
-
-		-
-			message: '#^Method App\\Models\\TaxBracket\:\:findByPublicId\(\) should return static\(App\\Models\\TaxBracket\)\|null but returns App\\Models\\TaxBracket\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/TaxBracket.php
 
 		-
 			message: '#^Method App\\Models\\TaxBracket\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
@@ -1713,12 +1467,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Team\:\:employees\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Team.php
-
-		-
-			message: '#^Method App\\Models\\Team\:\:findByPublicId\(\) should return static\(App\\Models\\Team\)\|null but returns App\\Models\\Team\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Team.php
 
@@ -1785,12 +1533,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Tenant\:\:featureFlags\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Tenant.php
-
-		-
-			message: '#^Method App\\Models\\Tenant\:\:findByPublicId\(\) should return static\(App\\Models\\Tenant\)\|null but returns App\\Models\\Tenant\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Tenant.php
 
@@ -1867,12 +1609,6 @@ parameters:
 			path: app/Models/User.php
 
 		-
-			message: '#^Method App\\Models\\User\:\:findByPublicId\(\) should return static\(App\\Models\\User\)\|null but returns App\\Models\\User\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/User.php
-
-		-
 			message: '#^Method App\\Models\\User\:\:invitedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1911,12 +1647,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\Webhook\:\:deliveries\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
-			count: 1
-			path: app/Models/Webhook.php
-
-		-
-			message: '#^Method App\\Models\\Webhook\:\:findByPublicId\(\) should return static\(App\\Models\\Webhook\)\|null but returns App\\Models\\Webhook\|null\.$#'
-			identifier: return.type
 			count: 1
 			path: app/Models/Webhook.php
 
