@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import QrScanPage from "@/app/(dashboard)/attendance/scan/page";
 import { apiClient } from "@/api/client";
 
@@ -19,6 +20,18 @@ vi.mock("html5-qrcode", () => ({
   },
 }));
 
+// The scan goes through a TanStack mutation hook, which needs a client.
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <QrScanPage />
+    </QueryClientProvider>,
+  );
+}
+
 describe("QR scan page — camera fallback (GAP-FIX-7)", () => {
   beforeEach(() => {
     startMock.mockReset();
@@ -30,7 +43,7 @@ describe("QR scan page — camera fallback (GAP-FIX-7)", () => {
 
   it("offers manual entry from the idle screen without requiring the camera", async () => {
     const user = userEvent.setup();
-    render(<QrScanPage />);
+    renderPage();
 
     // Not shown until the employee asks for it.
     expect(screen.queryByLabelText(/enter qr code manually/i)).toBeNull();
@@ -49,7 +62,7 @@ describe("QR scan page — camera fallback (GAP-FIX-7)", () => {
     startMock.mockRejectedValue(new Error("NotAllowedError"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(<QrScanPage />);
+    renderPage();
     await user.click(screen.getByRole("button", { name: /start scanner/i }));
 
     expect(
@@ -71,7 +84,7 @@ describe("QR scan page — camera fallback (GAP-FIX-7)", () => {
       .spyOn(apiClient, "post")
       .mockResolvedValue({ data: { employee: { name: "Abebe Kebede" } } });
 
-    render(<QrScanPage />);
+    renderPage();
     await user.click(
       screen.getByRole("button", { name: /enter qr code manually/i }),
     );
@@ -96,7 +109,7 @@ describe("QR scan page — camera fallback (GAP-FIX-7)", () => {
     const user = userEvent.setup();
     const post = vi.spyOn(apiClient, "post");
 
-    render(<QrScanPage />);
+    renderPage();
     await user.click(
       screen.getByRole("button", { name: /enter qr code manually/i }),
     );

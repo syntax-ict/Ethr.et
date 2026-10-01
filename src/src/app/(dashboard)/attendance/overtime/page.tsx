@@ -17,19 +17,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useAttendanceOvertime } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
-
-interface OvertimeResponse {
-  period: string;
-  employees: Array<{
-    employee_public_id: string;
-    employee_name: string;
-    total_overtime_minutes: number;
-    days_with_overtime: number;
-  }>;
-}
 
 const THRESHOLD_MINUTES = 600; // 10 hours/month flag
 
@@ -37,15 +26,7 @@ export default function OvertimePage() {
   const { t } = useT();
   const [period, setPeriod] = useState<"weekly" | "monthly">("monthly");
 
-  const query = useQuery<OvertimeResponse>({
-    queryKey: ["attendance", "overtime", period],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/attendance/overtime", {
-        params: { period },
-      });
-      return data;
-    },
-  });
+  const query = useAttendanceOvertime(period);
 
   const employees = (query.data?.employees ?? [])
     .slice()
@@ -59,7 +40,8 @@ export default function OvertimePage() {
   ).length;
 
   return (
-    <RoleGate minRole="hr_admin">
+    // The overtime summary requires attendance.viewAll, not a role tier.
+    <RoleGate anyPermission={["viewAllAttendance"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.overtime_page.title")}
@@ -160,7 +142,7 @@ export default function OvertimePage() {
                         const isFlagged =
                           e.total_overtime_minutes > THRESHOLD_MINUTES;
                         return {
-                          key: e.employee_public_id,
+                          key: e.employee_public_id ?? e.employee_name ?? "",
                           cells: [
                             <span key="n" className="font-medium">
                               {e.employee_name}

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
-import { apiClient } from "@/api/client";
+import { useMobilePunch } from "@/features/attendance/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOfflineSync } from "@/lib/hooks/useOfflineSync";
@@ -48,6 +48,7 @@ export default function MobileCheckInPage() {
   const [cameraOn, setCameraOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const punch = useMobilePunch();
 
   // Auto-request geolocation on load
   useEffect(() => {
@@ -151,33 +152,36 @@ export default function MobileCheckInPage() {
       }
     }
 
-    try {
-      const path =
-        type === "check_in"
-          ? "/attendance/mobile/check-in"
-          : "/attendance/mobile/check-out";
-      const payload: Record<string, unknown> = {
+    // The server stores the selfie and derives the object key; sending the
+    // data URL as `photo_path` would exceed that field's length entirely.
+    punch.mutate(
+      {
+        type,
         idempotency_key: idempotencyKey,
         latitude: coords.lat,
         longitude: coords.lng,
-      };
-      // The server stores the selfie and derives the object key; sending the
-      // data URL as `photo_path` would exceed that field's length entirely.
-      if (photoDataUrl) payload.photo = photoDataUrl;
-      const { data } = await apiClient.post(path, payload);
-      setMessage(
-        `${type === "check_in" ? t("attendance.checked_in_label") : t("attendance.checked_out_label")} · ${t("attendance.mobile_page.confidence")} ${data.confidence_score ?? "—"}`,
-      );
-      setStatus("success");
-      setTimeout(() => router.push("/attendance"), 3000);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      setMessage(
-        axiosErr.response?.data?.detail ??
-          t("attendance.mobile_page.submit_failed"),
-      );
-      setStatus("error");
-    }
+        ...(photoDataUrl ? { photo: photoDataUrl } : {}),
+      },
+      {
+        onSuccess: (data) => {
+          setMessage(
+            `${type === "check_in" ? t("attendance.checked_in_label") : t("attendance.checked_out_label")} · ${t("attendance.mobile_page.confidence")} ${data.confidence_score ?? "—"}`,
+          );
+          setStatus("success");
+          setTimeout(() => router.push("/attendance"), 3000);
+        },
+        onError: (err: unknown) => {
+          const axiosErr = err as {
+            response?: { data?: { detail?: string } };
+          };
+          setMessage(
+            axiosErr.response?.data?.detail ??
+              t("attendance.mobile_page.submit_failed"),
+          );
+          setStatus("error");
+        },
+      },
+    );
   }
 
   if (status === "success") {

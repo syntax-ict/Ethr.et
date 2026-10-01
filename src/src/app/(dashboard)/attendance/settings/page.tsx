@@ -10,13 +10,22 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useAttendanceSettings,
+  useUpdateAttendanceSettings,
+  type AttendanceSettings,
+} from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { SettingRow } from "@/components/patterns/SettingRow";
 
-const ALL_METHODS = [
+type Method = AttendanceSettings["enabled_methods"][number];
+
+const ALL_METHODS: {
+  key: Method;
+  labelKey: string;
+  descriptionKey: string;
+}[] = [
   {
     key: "biometric",
     labelKey: "attendance.settings_page.method_biometric_label",
@@ -54,31 +63,11 @@ const ALL_METHODS = [
   },
 ];
 
-interface AttendanceSettings {
-  enabled_methods: string[];
-  geofence_required: boolean;
-  mobile_photo_required: boolean;
-  kiosk_pin_required: boolean;
-  qr_expiry_minutes: number;
-  qr_auto_refresh: boolean;
-  qr_single_use_limit: number;
-  mobile_accuracy_threshold_meters: number;
-  offline_sync_enabled: boolean;
-  kiosk_auto_reset_seconds: number;
-  grace_period_minutes: number;
-  ot_daily_cap_minutes: number;
-  confidence_threshold: number;
-}
-
 export default function AttendanceSettingsPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [form, setForm] = useState<AttendanceSettings | null>(null);
 
-  const { data, isLoading } = useQuery<AttendanceSettings>({
-    queryKey: ["attendance", "settings"],
-    queryFn: async () => (await apiClient.get("/attendance/settings")).data,
-  });
+  const { data, isLoading } = useAttendanceSettings();
 
   // Seed the editable copy once the server data arrives, without clobbering an
   // in-progress edit. Adjusting state during render avoids an extra effect
@@ -87,20 +76,20 @@ export default function AttendanceSettingsPage() {
     setForm(data);
   }
 
-  const save = useMutation({
-    mutationFn: async (payload: Partial<AttendanceSettings>) => {
-      const { data } = await apiClient.put("/attendance/settings", payload);
-      return data;
-    },
-    onSuccess: (updated) => {
-      setForm(updated);
-      queryClient.invalidateQueries({ queryKey: ["attendance", "settings"] });
-      toast.success(t("attendance.settings_page.saved"));
-    },
-    onError: () => toast.error(t("attendance.settings_page.save_failed")),
-  });
+  const save = useUpdateAttendanceSettings();
 
-  function toggleMethod(method: string) {
+  function handleSave() {
+    if (!form) return;
+    save.mutate(form, {
+      onSuccess: (updated) => {
+        setForm(updated);
+        toast.success(t("attendance.settings_page.saved"));
+      },
+      onError: () => toast.error(t("attendance.settings_page.save_failed")),
+    });
+  }
+
+  function toggleMethod(method: Method) {
     if (!form) return;
     const enabled = form.enabled_methods.includes(method)
       ? form.enabled_methods.filter((m) => m !== method)
@@ -121,16 +110,14 @@ export default function AttendanceSettingsPage() {
   }
 
   return (
-    <RoleGate minRole="hr_admin">
+    // AttendanceSettingController checks attendance.manage.
+    <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.settings_page.title")}
           description={t("attendance.settings_page.description")}
           actions={
-            <Button
-              onClick={() => form && save.mutate(form)}
-              disabled={!form || save.isPending}
-            >
+            <Button onClick={handleSave} disabled={!form || save.isPending}>
               {save.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

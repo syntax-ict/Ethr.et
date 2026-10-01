@@ -7,12 +7,12 @@ import { server } from "./msw/server";
 import AttendanceIntelligencePage from "@/app/(dashboard)/attendance/intelligence/page";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is gated on attendance.viewAll; grant access directly.
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
-    can: {},
+    can: { viewAllAttendance: true },
     role: "hr_admin",
   }),
 }));
