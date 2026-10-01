@@ -94,6 +94,20 @@ describe("DocumentsTab list", () => {
     expect(screen.getByText("Kebele ID")).toBeInTheDocument();
     expect(screen.getByText("ID copy")).toBeInTheDocument();
   });
+
+  it("names the delete control after the document it removes", async () => {
+    // Regression: an icon-only button with no accessible name.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Delete Employment contract 2026",
+      }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("DocumentsTab upload", () => {

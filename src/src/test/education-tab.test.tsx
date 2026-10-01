@@ -51,6 +51,18 @@ describe("<EducationTab>", () => {
     expect(screen.queryByText("No education records")).not.toBeInTheDocument();
   });
 
+  it("names the delete control after the record it removes", async () => {
+    // Regression: an icon-only button with no accessible name.
+    server.use(
+      http.get(EDUCATION_URL, () => HttpResponse.json([buildEducation()])),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", { name: "Delete BSc" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the years and grade from the dates the resource returns", async () => {
     // Regression: rows read `start_year`, `end_year` and `gpa`, none of which
     // EducationResource returns, so no record ever showed when or how well.

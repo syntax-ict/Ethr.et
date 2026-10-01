@@ -47,4 +47,16 @@ describe("<EmergencyContactsTab>", () => {
     expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
     expect(screen.queryByText("No emergency contacts")).not.toBeInTheDocument();
   });
+
+  it("names the delete control after the contact it removes", async () => {
+    // Regression: an icon-only button with no accessible name.
+    server.use(
+      http.get(CONTACTS_URL, () => HttpResponse.json([buildContact()])),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", { name: "Delete Abebe Kebede" }),
+    ).toBeInTheDocument();
+  });
 });

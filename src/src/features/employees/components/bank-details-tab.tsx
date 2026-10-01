@@ -159,6 +159,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                   variant="ghost"
                   size="sm"
                   onClick={() => onDelete(b.public_id)}
+                  aria-label={`${t("common.delete", "Delete")} ${b.bank_name}`}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>

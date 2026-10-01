@@ -59,6 +59,21 @@ describe("<BankDetailsTab>", () => {
   });
 });
 
+describe("<BankDetailsTab> delete", () => {
+  it("names the delete control after the account it removes", async () => {
+    // Regression: an icon-only button with no accessible name, announced to a
+    // screen reader as just "button" on every row.
+    server.use(http.get(BANK_URL, () => HttpResponse.json([buildBank()])));
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Delete Commercial Bank of Ethiopia",
+      }),
+    ).toBeInTheDocument();
+  });
+});
+
 /** Opens the add dialog and fills the two required fields by typing. */
 async function fillNewAccount(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: /Add/ }));
