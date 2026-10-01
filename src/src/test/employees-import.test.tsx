@@ -9,12 +9,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is wrapped in <RoleGate anyPermission={["manageEmployees"]}>;
+// grant access directly.
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
     role: "hr_admin",
+    can: { manageEmployees: true },
   }),
 }));
 

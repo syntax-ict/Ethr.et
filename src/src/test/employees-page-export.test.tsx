@@ -16,11 +16,11 @@ vi.mock("@/lib/utils/csv-export", async (importOriginal) => ({
   saveCsv: vi.fn(),
 }));
 
-function renderPage() {
+function renderPage(role = "hr_admin") {
   server.use(
     http.get("*/api/v1/auth/me", () =>
       HttpResponse.json({
-        user: { public_id: "U1", name: "HR", role: "hr_admin" },
+        user: { public_id: "U1", name: "HR", role },
         tenant: {
           public_id: "T1",
           name: "Demo",
@@ -84,5 +84,16 @@ describe("Employees page export", () => {
       ),
     );
     expect(exportHit).toBe(1);
+  });
+});
+
+describe("Employees page access", () => {
+  it("opens for a custom role holding employee.create, as the sidebar promises", async () => {
+    // The sidebar offers this page on `can.manageEmployees`; the page gated on
+    // the hr_admin role tier, so this user got the link and "Access Denied".
+    renderPage("employee");
+
+    expect(await screen.findByText("Abebe Kebede")).toBeInTheDocument();
+    expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
   });
 });

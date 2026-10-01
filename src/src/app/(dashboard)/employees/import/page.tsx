@@ -159,7 +159,7 @@ export default function EmployeeImportPage() {
   const validCount = validRows.length;
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageEmployees"]}>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>

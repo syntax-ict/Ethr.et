@@ -163,8 +163,11 @@ export default function EmployeesPage() {
     },
   ];
 
+  // The same flag the sidebar shows this page under (`employee.create`). It
+  // gated on `minRole="hr_admin"`, so a custom role holding the permission
+  // was offered the link and then shown "Access Denied".
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageEmployees"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("nav.employees", "Employees")}
