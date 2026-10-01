@@ -2257,6 +2257,7 @@
   "payroll_config.ot_holiday_night": "የበዓል ሌሊት",
   "payroll_config.ot_night": "ሌሊት (22:00–06:00)",
   "payroll_config.ot_normal": "መደበኛ ቀን",
+  "payroll_config.ot_rest_day": "የሳምንት የእረፍት ቀን",
   "payroll_config.ot_save_failed": "ተመኖቹን ማስቀመጥ አልተቻለም",
   "payroll_config.ot_saved": "የትርፍ ሰዓት ተመኖች ተዘምነዋል",
   "payroll_config.overtime_rates": "የትርፍ ሰዓት ተመኖች",

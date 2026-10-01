@@ -2257,6 +2257,7 @@
   "payroll_config.ot_holiday_night": "Holiday night",
   "payroll_config.ot_night": "Night (22:00–06:00)",
   "payroll_config.ot_normal": "Ordinary day",
+  "payroll_config.ot_rest_day": "Weekly rest day",
   "payroll_config.ot_save_failed": "Could not save rates",
   "payroll_config.ot_saved": "Overtime rates updated",
   "payroll_config.overtime_rates": "Overtime rates",

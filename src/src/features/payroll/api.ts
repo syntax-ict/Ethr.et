@@ -392,6 +392,7 @@ export interface TaxBracket {
 export interface OvertimeRates {
   normal: number;
   night: number;
+  rest_day: number;
   holiday: number;
   holiday_night: number;
 }

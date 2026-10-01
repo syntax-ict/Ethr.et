@@ -231,10 +231,13 @@ describe("TaxBracketsCard", () => {
 // ── Overtime rates ────────────────────────────────────────────────────────────
 
 describe("OvertimeRatesCard", () => {
+  // Labour Proclamation 1156/2019 Art. 68(1). These were the repealed
+  // 377/2003 rates (1.25 / 1.5 / 2 / 2.5, no rest day) until 2026-10-01.
   const DEFAULTS = {
-    normal: 1.25,
-    night: 1.5,
-    holiday: 2,
+    normal: 1.5,
+    night: 1.75,
+    rest_day: 2,
+    holiday: 2.5,
     holiday_night: 2.5,
   };
 
@@ -252,7 +255,7 @@ describe("OvertimeRatesCard", () => {
     renderWithClient(<OvertimeRatesCard />);
 
     expect(await screen.findByText("Using defaults")).toBeInTheDocument();
-    expect(screen.getByLabelText("Ordinary day")).toHaveValue(1.25);
+    expect(screen.getByLabelText("Ordinary day")).toHaveValue(1.5);
   });
 
   it("does not flag defaults once rates are customized", async () => {
@@ -315,10 +318,61 @@ describe("OvertimeRatesCard", () => {
 
     expect(put.mock.calls[0][0]).toEqual({
       normal: 2,
-      night: 1.5,
-      holiday: 2,
+      night: 1.75,
+      rest_day: 2,
+      holiday: 2.5,
       holiday_night: 2.5,
     });
+  });
+
+  it("refuses a rate below the statutory minimum before sending it", async () => {
+    const put = vi.fn();
+    server.use(
+      http.get(RATES_URL, () =>
+        HttpResponse.json({
+          rates: DEFAULTS,
+          defaults: DEFAULTS,
+          is_customized: false,
+        }),
+      ),
+      http.put(RATES_URL, async ({ request }) => {
+        put(await request.json());
+        return HttpResponse.json({
+          rates: DEFAULTS,
+          defaults: DEFAULTS,
+          is_customized: true,
+        });
+      }),
+    );
+
+    renderWithClient(<OvertimeRatesCard />);
+
+    // 1.25 was the legal weekday rate under the repealed Proclamation 377/2003.
+    fireEvent.change(await screen.findByLabelText("Ordinary day"), {
+      target: { value: "1.25" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findAllByText(/below the statutory minimum of 1.5/),
+    ).not.toHaveLength(0);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("lists the weekly rest day rate", async () => {
+    server.use(
+      http.get(RATES_URL, () =>
+        HttpResponse.json({
+          rates: DEFAULTS,
+          defaults: DEFAULTS,
+          is_customized: false,
+        }),
+      ),
+    );
+
+    renderWithClient(<OvertimeRatesCard />);
+
+    expect(await screen.findByLabelText("Weekly rest day")).toHaveValue(2);
   });
 
   it("restores the defaults into the form", async () => {
@@ -340,6 +394,6 @@ describe("OvertimeRatesCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
 
-    expect(screen.getByLabelText("Ordinary day")).toHaveValue(1.25);
+    expect(screen.getByLabelText("Ordinary day")).toHaveValue(1.5);
   });
 });
