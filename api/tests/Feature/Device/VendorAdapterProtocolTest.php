@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 use App\Models\Device;
+use App\Services\Device\DeviceHost;
 use App\Services\Device\HikvisionAdapter;
 use App\Services\Device\SupremaAdapter;
 use App\Services\Device\ZktecoAdapter;
@@ -234,5 +235,55 @@ describe('ZktecoAdapter', function () {
 
         expect(app(ZktecoAdapter::class)->pullEvents($device))->toBe([]);
         expect(app(ZktecoAdapter::class)->pullEnrollments($device))->toBe([]);
+    });
+});
+
+// An IPv6 device address is accepted by DeviceConnectionConfig, because
+// DeviceHost treats any valid IP as well-formed. But the three vendor adapters
+// interpolated it unbracketed, `http://2606:4700:4700::1111:80/...`, which curl
+// rejects outright ("URL rejected: Port number was not a decimal number"). So a
+// device saved with a public IPv6 address passed validation and then failed
+// every request. RFC 3986 §3.2.2: an IPv6 literal in a URL goes in brackets.
+describe('IPv6 device addresses', function () {
+    it('is an address DeviceConnectionConfig accepts', function () {
+        expect(DeviceHost::refusal('2606:4700:4700::1111'))->toBeNull();
+    });
+
+    it('brackets an IPv6 host in the request URL', function (string $adapterClass, int $port, string $scheme) {
+        $device = Device::factory()->make([
+            'connection_config' => [
+                'ip' => '2606:4700:4700::1111',
+                'port' => $port,
+                'api_key' => 'k',
+                'device_id' => 'D-1',
+            ],
+        ]);
+        Http::fake();
+
+        app($adapterClass)->connect($device);
+
+        // Asserted on the parsed URI, because Guzzle drops a scheme's default
+        // port (80, 443) from the string form.
+        Http::assertSent(function ($request) use ($scheme, $port) {
+            $uri = $request->toPsrRequest()->getUri();
+
+            return $uri->getScheme() === $scheme
+                && $uri->getHost() === '[2606:4700:4700::1111]'
+                && ($uri->getPort() ?? ($scheme === 'https' ? 443 : 80)) === $port;
+        });
+    })->with([
+        'hikvision' => [HikvisionAdapter::class, 80, 'http'],
+        'zkteco' => [ZktecoAdapter::class, 4370, 'http'],
+        'suprema' => [SupremaAdapter::class, 443, 'https'],
+    ]);
+
+    it('formats an IPv6 base URL with brackets', function () {
+        expect(DeviceHost::baseUrl('http', '2606:4700:4700::1111', '80'))
+            ->toBe('http://[2606:4700:4700::1111]:80');
+    });
+
+    it('leaves IPv4 and DNS hosts as they were', function () {
+        expect(DeviceHost::baseUrl('http', '203.0.113.5', '80'))->toBe('http://203.0.113.5:80')
+            ->and(DeviceHost::baseUrl('https', 'biostar.example.com', '443'))->toBe('https://biostar.example.com:443');
     });
 });

@@ -63,9 +63,17 @@ final class DeviceHost
      * adapter does not use this. It is configured with a whole `base_url` and
      * joins request paths onto it, which needs a different check, the
      * same-host check in GenericHttpAdapter::path().
+     *
+     * An IPv6 literal is bracketed (RFC 3986 §3.2.2). refusal() accepts a
+     * bare IPv6 address, and written unbracketed, `http://2606:4700::1:80/`,
+     * curl rejects the URL before connecting.
      */
     public static function baseUrl(string $scheme, string $host, string $port): string
     {
+        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            $host = "[{$host}]";
+        }
+
         return "{$scheme}://{$host}:{$port}";
     }
 }
