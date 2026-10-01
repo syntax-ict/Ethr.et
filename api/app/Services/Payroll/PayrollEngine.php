@@ -13,6 +13,7 @@ use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
+use App\Services\Attendance\ShiftMatcher;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
@@ -36,6 +37,7 @@ final class PayrollEngine
         private readonly HolidayService $holidayService,
         private readonly LeaveDayCalculator $leaveDayCalculator,
         private readonly EthiopianCalendar $calendar,
+        private readonly ShiftMatcher $shiftMatcher,
     ) {}
 
     /**
@@ -550,12 +552,18 @@ final class PayrollEngine
             ->with('shift')
             ->get();
 
+        // A rotation decides its own rest days: it can put a Monday-Friday
+        // shift on a Saturday, and its rest day matches no shift at all.
+        // Asked once for the period, not per record.
+        $rotationRestDays = $this->shiftMatcher->rotationRestDays($employee, $periodStart, $periodEnd);
+
         foreach ($records as $record) {
             $date = Carbon::parse($record->date);
             $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
-            $isRestDay = $record->shift !== null
-                ? ! $record->shift->isWorkingDay($date)
-                : $date->isSunday();
+            $isRestDay = $rotationRestDays[$date->format('Y-m-d')]
+                ?? ($record->shift !== null
+                    ? ! $record->shift->isWorkingDay($date)
+                    : $date->isSunday());
 
             foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
                 $buckets[$type] += $minutes;

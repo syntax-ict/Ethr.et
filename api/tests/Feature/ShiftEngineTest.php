@@ -264,7 +264,7 @@ test('shift matcher prioritizes employee over department over branch', function 
         'assignable_id' => $employee->id,
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched?->name)->toBe('Employee Shift');
@@ -286,7 +286,7 @@ test('shift matcher falls back to department when no employee assignment', funct
         'assignable_id' => $dept->id,
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched?->name)->toBe('Dept Shift');
@@ -301,7 +301,7 @@ test('shift matcher falls back to default shift', function () {
         'name' => 'Default Shift',
     ]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched->name)->toBe('Default Shift');
@@ -311,7 +311,7 @@ test('shift matcher returns null when no shift found', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-    $matcher = new ShiftMatcher;
+    $matcher = app(ShiftMatcher::class);
     $matched = $matcher->match($employee, Carbon::today());
 
     expect($matched)->toBeNull();

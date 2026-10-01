@@ -8,6 +8,8 @@ use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Models\AuditLog;
 use App\Models\PayrollRun;
+use App\Models\Tenant;
+use App\Services\CurrentTenant;
 use App\Services\Payroll\PayrollEngine;
 use App\Traits\DispatchesWebhooks;
 use Illuminate\Bus\Queueable;
@@ -84,6 +86,17 @@ class ProcessPayrollJob implements ShouldQueue
 
     public function handle(PayrollEngine $engine): void
     {
+        // The engine states tenant_id on its own queries, but services it
+        // calls rely on the tenant scope — ShiftMatcher reading rotation rest
+        // days, for one (audit N20) — and a worker resolves no tenant, so they
+        // found nothing and fell back without a word. CurrentTenant is a
+        // scoped binding, flushed between jobs, so this cannot leak into the
+        // next one.
+        $tenant = Tenant::query()->find($this->tenantId);
+        if ($tenant !== null) {
+            app(CurrentTenant::class)->set($tenant);
+        }
+
         // Jobs carry no HTTP tenant context, so the global scope would resolve
         // to `whereRaw('0 = 1')` and find nothing. The predicate now comes from
         // the dispatcher rather than from the row this query is fetching: the

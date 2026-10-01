@@ -9,7 +9,9 @@ use App\Models\AttendanceRecord;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\Shift;
 use App\Services\Attendance\AttendanceEngine;
+use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Device\MockAdapter;
 use App\Services\Identity\IdentityResolver;
@@ -222,4 +224,27 @@ describe('history import pagination', function () {
         expect(AttendanceRecord::where('tenant_id', $tenant->id)->where('employee_id', $employee->id)->count())
             ->toBe(150);
     });
+});
+
+it('matches a pulled punch to its shift on a worker with no tenant resolved', function () {
+    // The job runs on a queue worker, where no tenant is resolved. Shift
+    // matching goes through the tenant scope, so every pulled punch was
+    // recorded with no shift — no lateness, no overtime — while every test
+    // here passed, because they all ran with the tenant still set.
+    Carbon::setTestNow('2026-07-31 09:00:00');
+
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1', 'badge_number' => '1001']);
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    $device = mockDevice($tenant->id, $branch->id);
+
+    app(CurrentTenant::class)->forget();
+    runPull($device);
+    app(CurrentTenant::class)->set($tenant);
+
+    $record = AttendanceRecord::where('employee_id', $employee->id)->first();
+
+    expect($record)->not->toBeNull()
+        ->and($record->shift_id)->toBe($shift->id);
 });

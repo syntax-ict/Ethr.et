@@ -9,8 +9,10 @@ use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
+use App\Models\Tenant;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
@@ -49,6 +51,16 @@ class PullDeviceEventsJob implements ShouldQueue
 
     public function handle(DeviceManager $manager, AttendanceEngine $engine, IdentityResolver $resolver): void
     {
+        // A worker resolves no tenant, and the attendance engine and shift
+        // matching run through the tenant scope: without this a pulled punch
+        // matched no employee or shift and recorded nothing (audit N21). The
+        // device is tenant-owned, so its tenant is the one these punches
+        // belong to. CurrentTenant is a scoped binding, flushed between jobs.
+        $tenant = Tenant::query()->find($this->device->tenant_id);
+        if ($tenant !== null) {
+            app(CurrentTenant::class)->set($tenant);
+        }
+
         $startedAt = now();
         $syncLog = DeviceSyncLog::create([
             'tenant_id' => $this->device->tenant_id,
