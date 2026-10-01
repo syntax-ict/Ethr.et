@@ -64,6 +64,24 @@ describe("<DepartmentDrillDownDialog>", () => {
     );
   });
 
+  it("labels employees with no recorded gender, and translates the rest", async () => {
+    // Regression: the badges printed the raw `groupBy('gender')` keys. For
+    // employees whose gender was never recorded that key is "", so the badge
+    // read ": 2" — a count with no label — and male/female were English
+    // under every locale.
+    server.use(
+      http.get(DETAIL_URL, () =>
+        HttpResponse.json(
+          buildDetail({ gender_breakdown: { "": 2, male: 1 } }),
+        ),
+      ),
+    );
+    renderDialog(DEPARTMENT_ID);
+
+    expect(await screen.findByText("Not recorded: 2")).toBeInTheDocument();
+    expect(screen.getByText("Male: 1")).toBeInTheDocument();
+  });
+
   it("asks for nothing while no department is picked", async () => {
     let called = false;
     server.use(

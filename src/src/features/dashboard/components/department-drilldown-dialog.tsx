@@ -32,6 +32,21 @@ export function DepartmentDrillDownDialog({
   const { t } = useT();
   const query = useDepartmentDetail(departmentPublicId);
 
+  /**
+   * The keys are stored values: `male`, `female` (StoreEmployeeRequest allows
+   * no others) or `""`, which is how `groupBy('gender')` files employees
+   * whose gender was never recorded. That one used to render as a badge
+   * reading ": 3", and the other two in English under every locale.
+   */
+  function genderLabel(gender: string): string {
+    if (gender === "male") return t("common.male", "Male");
+    if (gender === "female") return t("common.female", "Female");
+    if (gender === "") {
+      return t("executive_dashboard.gender_unrecorded", "Not recorded");
+    }
+    return gender;
+  }
+
   return (
     <Dialog open={departmentPublicId !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -82,8 +97,8 @@ export function DepartmentDrillDownDialog({
               {Object.keys(data.gender_breakdown).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(data.gender_breakdown).map(([g, n]) => (
-                    <Badge key={g} variant="outline" className="capitalize">
-                      {g}: {n}
+                    <Badge key={g} variant="outline">
+                      {genderLabel(g)}: {n}
                     </Badge>
                   ))}
                 </div>

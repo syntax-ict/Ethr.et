@@ -1566,6 +1566,7 @@
   "executive_dashboard.expiring_documents": "Documents expiring within 30 days",
   "executive_dashboard.export_csv": "Export CSV",
   "executive_dashboard.forecast_subtitle": "Dashed bars are a simple trend projection, not a guarantee.",
+  "executive_dashboard.gender_unrecorded": "Not recorded",
   "executive_dashboard.headcount": "Headcount",
   "executive_dashboard.probation_overdue": "Probation ended, no decision recorded",
   "executive_dashboard.projected": "Projected",

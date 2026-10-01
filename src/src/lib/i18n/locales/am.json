@@ -1566,6 +1566,7 @@
   "executive_dashboard.expiring_documents": "በ30 ቀናት ውስጥ የሚያበቁ ሰነዶች",
   "executive_dashboard.export_csv": "CSV ላክ",
   "executive_dashboard.forecast_subtitle": "የተሰነጣጠሉ አሞሌዎች ቀላል የአዝማሚያ ትንበያ ናቸው፣ ዋስትና አይደሉም።",
+  "executive_dashboard.gender_unrecorded": "አልተመዘገበም",
   "executive_dashboard.headcount": "የሰራተኞች ብዛት",
   "executive_dashboard.probation_overdue": "የሙከራ ጊዜ አልቋል፣ ውሳኔ አልተመዘገበም",
   "executive_dashboard.projected": "የተተነበየ",
