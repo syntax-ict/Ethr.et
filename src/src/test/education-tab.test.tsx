@@ -1,11 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "./msw/server";
 import { EducationTab } from "@/features/employees/components/education-tab";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const EMPLOYEE_ID = "01HZEMPLOYEE0000000000001";
 const EDUCATION_URL = `*/api/v1/employees/${EMPLOYEE_ID}/education`;
@@ -61,6 +66,29 @@ describe("<EducationTab>", () => {
     expect(
       await screen.findByRole("button", { name: "Delete BSc" }),
     ).toBeInTheDocument();
+  });
+
+  it("says so when a delete fails", async () => {
+    // Regression: no onError, so a failed delete changed nothing on screen
+    // and said nothing.
+    server.use(
+      http.get(EDUCATION_URL, () => HttpResponse.json([buildEducation()])),
+      http.delete(
+        `${EDUCATION_URL}/:id`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+    vi.mocked(toast.error).mockClear();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(await screen.findByRole("button", { name: "Delete BSc" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not delete the education record",
+      ),
+    );
   });
 
   it("shows the years and grade from the dates the resource returns", async () => {

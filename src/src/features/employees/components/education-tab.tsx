@@ -21,6 +21,7 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   useAddEducation,
   useDeleteEducation,
@@ -136,6 +137,14 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     deleteEducation.mutate(id, {
       onSuccess: () =>
         toast.success(t("employee.education.deleted", "Education deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t(
+            "employee.education.delete_failed",
+            "Could not delete the education record",
+          ),
+        ),
     });
   }
 

@@ -4,10 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "./msw/server";
 import { DocumentsTab } from "@/features/employees/components/documents-tab";
 import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { apiClient } from "@/api/client";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const EMPLOYEE_ID = "01HZEMPLOYEE0000000000001";
 const DOCUMENTS_URL = `*/api/v1/employees/${EMPLOYEE_ID}/documents`;
@@ -107,6 +112,31 @@ describe("DocumentsTab list", () => {
         name: "Delete Employment contract 2026",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("says so when a delete fails", async () => {
+    // Regression: no onError, so a failed delete changed nothing on screen
+    // and said nothing.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+      http.delete(
+        `${DOCUMENTS_URL}/:id`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+    vi.mocked(toast.error).mockClear();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Delete Employment contract 2026",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Could not delete the document"),
+    );
   });
 });
 

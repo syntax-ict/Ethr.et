@@ -30,6 +30,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   useDeleteEmployeeDocument,
   useEmployeeDocuments,
@@ -153,6 +154,14 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     deleteDoc.mutate(docId, {
       onSuccess: () =>
         toast.success(t("employee.documents.deleted", "Document deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t(
+            "employee.documents.delete_failed",
+            "Could not delete the document",
+          ),
+        ),
     });
   }
 

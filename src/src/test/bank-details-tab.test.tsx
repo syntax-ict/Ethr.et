@@ -1,11 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "./msw/server";
 import { BankDetailsTab } from "@/features/employees/components/bank-details-tab";
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const EMPLOYEE_ID = "01HZEMPLOYEE0000000000001";
 const BANK_URL = `*/api/v1/employees/${EMPLOYEE_ID}/bank-details`;
@@ -71,6 +76,65 @@ describe("<BankDetailsTab> delete", () => {
         name: "Delete Commercial Bank of Ethiopia",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("says so when the server refuses, and keeps the account listed", async () => {
+    // Regression: the delete had no onError. A refused delete (a 403 for a
+    // user without employee.updateFinancial, a 500) did nothing visible: no
+    // toast, no change, and no hint that the click had been tried at all.
+    server.use(
+      http.get(BANK_URL, () => HttpResponse.json([buildBank()])),
+      http.delete(`${BANK_URL}/:id`, () =>
+        HttpResponse.json(
+          {
+            title: "Forbidden",
+            status: 403,
+            detail: "This action is unauthorized.",
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+    vi.mocked(toast.error).mockClear();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Delete Commercial Bank of Ethiopia",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("This action is unauthorized."),
+    );
+    expect(toast.success).not.toHaveBeenCalledWith("Bank deleted");
+    expect(screen.getByText("Commercial Bank of Ethiopia")).toBeInTheDocument();
+  });
+
+  it("falls back to its own message when the failure carries none", async () => {
+    server.use(
+      http.get(BANK_URL, () => HttpResponse.json([buildBank()])),
+      http.delete(
+        `${BANK_URL}/:id`,
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+    vi.mocked(toast.error).mockClear();
+
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Delete Commercial Bank of Ethiopia",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not delete the bank account",
+      ),
+    );
   });
 });
 

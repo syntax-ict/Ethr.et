@@ -21,6 +21,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   useAddEmergencyContact,
   useDeleteEmergencyContact,
@@ -68,6 +69,11 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     deleteContact.mutate(id, {
       onSuccess: () =>
         toast.success(t("employee.emergency.deleted", "Contact deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t("employee.emergency.delete_failed", "Could not delete the contact"),
+        ),
     });
   }
 

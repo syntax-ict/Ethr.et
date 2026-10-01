@@ -23,6 +23,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
 import {
   useAddBankDetail,
   useDeleteBankDetail,
@@ -88,6 +89,11 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     deleteBank.mutate(id, {
       onSuccess: () =>
         toast.success(t("employee.bank.deleted", "Bank deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t("employee.bank.delete_failed", "Could not delete the bank account"),
+        ),
     });
   }
 
