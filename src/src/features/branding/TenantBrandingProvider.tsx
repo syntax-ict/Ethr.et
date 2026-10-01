@@ -2,17 +2,60 @@
 
 import { useEffect } from "react";
 import { useCurrentTenant } from "@/features/auth/api";
+import { parseHex, readableInkOn, tint } from "@/lib/utils/color";
 
 /**
- * Reads the current tenant from /auth/me and applies its saved theme
- * (primary_color, secondary_color, accent_color) to CSS custom properties
- * on <html>. shadcn/ui reads --primary etc, so overriding at document root
- * cascades to every component.
+ * Reads the current tenant from /auth/me and applies its saved brand colours
+ * to the theme's custom properties on <html>.
  *
- * Colors are stored as hex strings (#RRGGBB). We convert to HSL because
- * globals.css declares --primary as HSL triplets (H S% L%). If a tenant
- * hasn't set a theme yet (theme is null/empty), we leave the defaults alone.
+ * Until 2026-10-01 this set `--primary` (and `--secondary`, `--accent`) to an
+ * HSL triplet. Neither half worked: globals.css builds `--color-primary` from
+ * `--interactive-primary`, not `--primary` (its own comment says the @theme
+ * chain through `--primary` is broken), and its tokens are hex colours, so a
+ * bare "210 50% 40%" would not have been a colour anyway. Tenant branding
+ * changed nothing on screen — the settings page saved it and previewed it.
+ *
+ * Now: the primary colour drives `--interactive-primary` (with a matching
+ * focus ring and a lighter hover tone) and its text colour is chosen for
+ * contrast, because a tenant may pick any hex — a yellow under white text is
+ * unreadable. The accent colour drives `--brand-accent` the same way.
+ * `secondary_color` is not applied: in this design system "secondary" is a
+ * near-white surface, and painting a brand colour across every card would be
+ * wrong. An inline style on <html> outranks both the light and dark themes,
+ * so a brand colour holds in either.
  */
+const BRAND_PROPERTIES = [
+  "--interactive-primary",
+  "--interactive-focus",
+  "--interactive-hover",
+  "--color-primary-foreground",
+  "--brand-accent",
+  "--brand-accent-foreground",
+] as const;
+
+export function brandProperties(theme: {
+  primary_color?: string | null;
+  accent_color?: string | null;
+}): Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> {
+  const out: Partial<Record<(typeof BRAND_PROPERTIES)[number], string>> = {};
+
+  const primary = theme.primary_color ?? "";
+  if (parseHex(primary)) {
+    out["--interactive-primary"] = primary;
+    out["--interactive-focus"] = primary;
+    out["--interactive-hover"] = tint(primary, 0.25) ?? primary;
+    out["--color-primary-foreground"] = readableInkOn(primary);
+  }
+
+  const accent = theme.accent_color ?? "";
+  if (parseHex(accent)) {
+    out["--brand-accent"] = accent;
+    out["--brand-accent-foreground"] = readableInkOn(accent);
+  }
+
+  return out;
+}
+
 export function TenantBrandingProvider({
   children,
 }: {
@@ -24,65 +67,20 @@ export function TenantBrandingProvider({
     if (typeof document === "undefined") return;
     const root = document.documentElement;
 
-    // Reset first so switching tenants doesn't leave stale colors
-    root.style.removeProperty("--primary");
-    root.style.removeProperty("--secondary");
-    root.style.removeProperty("--accent");
+    // Reset first so switching tenants doesn't leave stale colours.
+    for (const property of BRAND_PROPERTIES) {
+      root.style.removeProperty(property);
+    }
 
     const theme = tenant?.theme;
     if (!theme) return;
 
-    if (theme.primary_color) {
-      const hsl = hexToHslString(theme.primary_color);
-      if (hsl) root.style.setProperty("--primary", hsl);
-    }
-    if (theme.secondary_color) {
-      const hsl = hexToHslString(theme.secondary_color);
-      if (hsl) root.style.setProperty("--secondary", hsl);
-    }
-    if (theme.accent_color) {
-      const hsl = hexToHslString(theme.accent_color);
-      if (hsl) root.style.setProperty("--accent", hsl);
+    for (const [property, value] of Object.entries(brandProperties(theme))) {
+      root.style.setProperty(property, value);
     }
   }, [tenant?.theme]);
 
   return <>{children}</>;
-}
-
-/** Convert #RRGGBB to "H S% L%" for CSS custom property assignment. */
-function hexToHslString(hex: string): string | null {
-  const m = hex.replace("#", "").match(/^([0-9a-fA-F]{6})$/);
-  if (!m) return null;
-
-  const r = parseInt(m[1].slice(0, 2), 16) / 255;
-  const g = parseInt(m[1].slice(2, 4), 16) / 255;
-  const b = parseInt(m[1].slice(4, 6), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-
-  let h = 0;
-  let s = 0;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      case b:
-        h = (r - g) / d + 4;
-        break;
-    }
-    h *= 60;
-  }
-
-  return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
 /**

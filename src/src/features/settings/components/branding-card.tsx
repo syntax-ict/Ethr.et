@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { readableInkOn } from "@/lib/utils/color";
 import { Loader2, Palette, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useUpdateBranding, type BrandColorKey } from "@/features/settings/api";
@@ -183,20 +184,29 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white"
-              style={{ backgroundColor: colors.primary_color }}
+              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+              style={{
+                backgroundColor: colors.primary_color,
+                color: readableInkOn(colors.primary_color),
+              }}
             >
               {t("common.save", "Save Changes")}
             </span>
             <span
-              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white"
-              style={{ backgroundColor: colors.secondary_color }}
+              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+              style={{
+                backgroundColor: colors.secondary_color,
+                color: readableInkOn(colors.secondary_color),
+              }}
             >
               {t("common.cancel", "Cancel")}
             </span>
             <span
-              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white"
-              style={{ backgroundColor: colors.accent_color }}
+              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+              style={{
+                backgroundColor: colors.accent_color,
+                color: readableInkOn(colors.accent_color),
+              }}
             >
               {t("settings.branding_badge_sample", "Badge")}
             </span>
