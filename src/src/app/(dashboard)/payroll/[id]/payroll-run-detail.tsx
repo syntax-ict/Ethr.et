@@ -36,13 +36,19 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
+  bankTransferCsv,
+  fetchBankTransferExport,
   usePayrollRun,
   useApprovePayroll,
   useVoidPayroll,
   useReprocessPayroll,
   type PayrollEntry,
 } from "@/features/payroll/api";
-import { apiClient } from "@/api/client";
+import {
+  fetchPayrollJournal,
+  journalCsv,
+  journalFilename,
+} from "@/features/accounting/api";
 import { csvAmount, csvFromRows, saveCsv } from "@/lib/utils/csv-export";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRouteId } from "@/lib/hooks/useRouteId";
@@ -53,7 +59,13 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
   const id = useRouteId(routeId) ?? "";
   const { data: run, isLoading } = usePayrollRun(id);
-  const { isAtLeast } = usePermissions();
+  // Each action is its own permission server-side (`PayrollRunPolicy`). The
+  // page asked for the tenant-admin role instead, so a custom role granted
+  // `payroll.approve` never saw the button.
+  const { hasPermission } = usePermissions();
+  const canApprove = hasPermission("payroll.approve");
+  const canVoid = hasPermission("payroll.void");
+  const canReprocess = hasPermission("payroll.reprocess");
   const approvePayroll = useApprovePayroll();
   const voidPayroll = useVoidPayroll();
   const reprocessPayroll = useReprocessPayroll();
@@ -133,37 +145,16 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
     toast.success(t("payroll_detail_page.register_downloaded"));
   }
 
+  // Both files are built here from the API's JSON rather than downloaded from
+  // the server's CSV endpoints: `/export/bank-csv` has no branch column and
+  // does not neutralise formulas, and `/accounting/export/{run}` groups
+  // amounts with commas. The builders say why in full.
   async function exportBankFile() {
     try {
-      const { data } = await apiClient.get(`/payroll/runs/${id}/export/bank`);
-      const headers = [
-        "Employee Name",
-        "Employee Code",
-        "Bank",
-        "Branch",
-        "Account Number",
-        "Net Amount (ETB)",
-      ];
-      const rows = (data.rows ?? []).map(
-        (r: {
-          employee_name: string;
-          employee_code: string;
-          bank_name: string;
-          branch_name: string;
-          account_number: string;
-          net_amount_cents: number;
-        }) => [
-          r.employee_name,
-          r.employee_code,
-          r.bank_name,
-          r.branch_name,
-          r.account_number,
-          csvAmount(r.net_amount_cents),
-        ],
-      );
+      const file = await fetchBankTransferExport(id);
       saveCsv(
-        `bank-transfer-${data.period?.replace(/\s/g, "-")}.csv`,
-        csvFromRows(headers, rows),
+        `bank-transfer-${file.period.replace(/\s/g, "-")}.csv`,
+        bankTransferCsv(file),
       );
       toast.success(t("payroll_detail_page.bank_file_downloaded"));
     } catch {
@@ -173,32 +164,13 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
 
   async function exportJournal() {
     try {
-      const { data } = await apiClient.get(`/accounting/journal/${id}`);
-      const entries = data.entries ?? data.journal?.entries ?? [];
-      if (!entries.length) {
+      const journal = await fetchPayrollJournal(id);
+      if (!journal.entries.length) {
         toast.error(t("payroll_detail_page.no_journal_entries"));
         return;
       }
-      const headers = ["Account", "Description", "Debit (ETB)", "Credit (ETB)"];
-      // The API sends account_code/account_name. This read account and
-      // description, which do not exist, so both columns were always empty.
-      const rows = entries.map(
-        (e: {
-          account_code: string;
-          account_name: string;
-          debit_cents: number;
-          credit_cents: number;
-        }) => [
-          e.account_code,
-          e.account_name,
-          e.debit_cents ? csvAmount(e.debit_cents) : "",
-          e.credit_cents ? csvAmount(e.credit_cents) : "",
-        ],
-      );
-      saveCsv(
-        `journal-${run?.period_label?.replace(/\s/g, "-")}.csv`,
-        csvFromRows(headers, rows),
-      );
+      // The same file the Accounting settings page exports.
+      saveCsv(journalFilename(journal), journalCsv(journal));
       toast.success(t("payroll_detail_page.journal_downloaded"));
     } catch {
       toast.error(t("payroll_detail_page.journal_failed"));
@@ -255,7 +227,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {run.status === "completed" && isAtLeast("tenant_admin") && (
+          {run.status === "completed" && canApprove && (
             <Button
               size="sm"
               onClick={() =>
@@ -284,7 +256,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             </Button>
           )}
           {(run.status === "completed" || run.status === "approved") &&
-            isAtLeast("tenant_admin") && (
+            canVoid && (
               <Button
                 size="sm"
                 variant="outline"
@@ -294,7 +266,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 {t("payroll_detail_page.void_payroll")}
               </Button>
             )}
-          {run.status === "voided" && isAtLeast("tenant_admin") && (
+          {run.status === "voided" && canReprocess && (
             <Button
               size="sm"
               variant="outline"
