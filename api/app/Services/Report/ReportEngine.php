@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
+use App\Support\Csv;
 use Carbon\Carbon;
 
 final class ReportEngine
@@ -116,12 +117,9 @@ final class ReportEngine
             return '';
         }
 
-        $lines = [implode(',', array_keys($rows[0]))];
+        $lines = [Csv::row(array_keys($rows[0]))];
         foreach ($rows as $row) {
-            $lines[] = implode(',', array_map(
-                fn ($value) => '"'.str_replace('"', '""', (string) $value).'"',
-                $row
-            ));
+            $lines[] = Csv::row($row);
         }
 
         return implode("\r\n", $lines);
