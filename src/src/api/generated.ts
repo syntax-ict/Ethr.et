@@ -6716,7 +6716,7 @@ export interface components {
             /** @enum {string} */
             priority?: "low" | "normal" | "high" | "urgent";
             /** @enum {string} */
-            target_type?: "all" | "department" | "branch" | "role";
+            target_type?: "all" | "department" | "branch";
             target_id?: string | null;
             publish_now?: boolean;
             /** Format: date-time */
@@ -7192,7 +7192,7 @@ export interface components {
             /** @enum {string} */
             priority?: "low" | "normal" | "high" | "urgent";
             /** @enum {string} */
-            target_type?: "all" | "department" | "branch" | "role";
+            target_type?: "all" | "department" | "branch";
             target_id?: string | null;
             /** Format: date-time */
             expires_at?: string | null;
