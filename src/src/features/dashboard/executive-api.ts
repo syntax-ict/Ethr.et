@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { operations } from "@/api/generated";
 
 /**
  * Shared data layer for the persona-scoped executive dashboards (CEO / HR
@@ -146,6 +147,39 @@ export function useBranchList(enabled: boolean) {
       const { data } = await apiClient.get("/analytics/branches");
       return data;
     },
+  });
+}
+
+type DepartmentDetailContract =
+  operations["analytics.departmentDetail"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `GET /analytics/departments/{id}` (DepartmentAnalyticsService::detail).
+ * Scramble cannot see through the two collection pipelines, so it publishes
+ * `gender_breakdown` as a string and `employees` as `unknown[]`; these mirror
+ * the PHP. `gender_breakdown` is `groupBy('gender')->map->count()`: keyed by
+ * the stored value, with `""` for employees whose gender was never recorded,
+ * and a JSON `[]` rather than `{}` when the department is empty.
+ */
+export type DepartmentDetail = Omit<
+  DepartmentDetailContract,
+  "gender_breakdown" | "employees"
+> & {
+  gender_breakdown: Record<string, number>;
+  employees: Array<{ public_id: string; name: string; status: string }>;
+};
+
+/** The executive dashboard's department drill-down; idle until one is picked. */
+export function useDepartmentDetail(departmentPublicId: string | null) {
+  return useQuery<DepartmentDetail>({
+    queryKey: ["analytics", "departments", departmentPublicId],
+    enabled: departmentPublicId !== null,
+    queryFn: async () =>
+      (
+        await apiClient.get<DepartmentDetail>(
+          `/analytics/departments/${departmentPublicId}`,
+        )
+      ).data,
   });
 }
 
