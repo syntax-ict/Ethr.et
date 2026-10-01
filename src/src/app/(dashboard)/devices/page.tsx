@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import Link from "next/link";
 import {
   Fingerprint,
@@ -49,7 +50,6 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
 
 import {
   DeviceEnrollmentsDialog,
@@ -71,7 +71,6 @@ import {
   isIpAdapter,
   type DeviceFormData,
 } from "@/features/devices/payload";
-import { apiClient } from "@/api/client";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -99,10 +98,7 @@ export default function DevicesPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
   const createMutation = useCreateDevice();
   const updateMutation = useUpdateDevice();

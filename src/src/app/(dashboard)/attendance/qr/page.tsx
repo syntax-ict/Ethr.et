@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import { QRCodeSVG } from "qrcode.react";
 import {
   QrCode,
@@ -52,10 +53,7 @@ export default function QrGeneratorPage() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
   const { data: shifts } = useQuery({
     queryKey: ["shifts"],

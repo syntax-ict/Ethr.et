@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { PaginatedResponse } from "@/api/types";
+import { fetchAllPages } from "@/api/fetch-all-pages";
 
 export interface Branch {
   public_id: string;
@@ -108,13 +108,15 @@ export function useReportingTree() {
 
 function makeHooks<T extends { public_id: string }>(resource: string) {
   return {
+    // Every row, not the first page: these feed the Organization page and the
+    // branch/department/position/grade pickers, which have no pagination, so
+    // a 26th record was invisible and unpickable.
     useList: () =>
-      useQuery<PaginatedResponse<T>>({
+      useQuery<{ data: T[] }>({
         queryKey: ["organization", resource],
-        queryFn: async () => {
-          const { data } = await apiClient.get(`/organization/${resource}`);
-          return data;
-        },
+        queryFn: async () => ({
+          data: await fetchAllPages<T>(`/organization/${resource}`),
+        }),
         staleTime: 30 * 60 * 1000,
       }),
 

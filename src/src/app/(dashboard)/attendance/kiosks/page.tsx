@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import {
   Monitor,
   Plus,
@@ -82,10 +83,7 @@ export default function KioskSessionsPage() {
     queryFn: async () => (await apiClient.get("/kiosk-sessions")).data,
   });
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["kiosk-sessions"] });

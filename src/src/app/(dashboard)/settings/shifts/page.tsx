@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
 import {
   Clock,
   Plus,
@@ -153,22 +154,8 @@ export default function ShiftsPage() {
     enabled: assignOpen,
   });
 
-  const { data: departments } = useQuery<{
-    data: { public_id: string; name: string }[];
-  }>({
-    queryKey: ["departments", "lookup"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/departments")).data,
-    enabled: assignOpen && assignableType === "department",
-  });
-
-  const { data: branches } = useQuery<{
-    data: { public_id: string; name: string }[];
-  }>({
-    queryKey: ["branches", "lookup"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-    enabled: assignOpen && assignableType === "branch",
-  });
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
 
   const createShift = useMutation({
     mutationFn: async (payload: {

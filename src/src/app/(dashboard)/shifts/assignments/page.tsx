@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { Suspense, useState } from "react";
 import { CalendarRange, Plus, Users, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,19 +88,8 @@ function AssignmentsContent() {
     enabled: form.assignable_type === "employee",
   });
 
-  const { data: departments } = useQuery({
-    queryKey: ["departments"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/departments?per_page=100")).data,
-    enabled: form.assignable_type === "department",
-  });
-
-  const { data: branches } = useQuery({
-    queryKey: ["branches"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/branches?per_page=100")).data,
-    enabled: form.assignable_type === "branch",
-  });
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
 
   const assign = useMutation({
     mutationFn: async (payload: AssignmentForm) => {

@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import {
+  branchesApi,
+  departmentsApi,
+  positionsApi,
+} from "@/features/organization/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -17,8 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateEmployee } from "@/features/employees/api";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 
 import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { FormField } from "@/components/patterns/FormField";
@@ -30,27 +33,9 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const createEmployee = useCreateEmployee();
 
-  const { data: depts } = useQuery({
-    queryKey: ["org", "departments"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/departments");
-      return data;
-    },
-  });
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/branches");
-      return data;
-    },
-  });
-  const { data: positions } = useQuery({
-    queryKey: ["org", "positions"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/organization/positions");
-      return data;
-    },
-  });
+  const { data: depts } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
+  const { data: positions } = positionsApi.useList();
 
   const [form, setForm] = useState({
     name: "",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
 import Link from "next/link";
 import { CalendarSync, Plus, Loader2, Moon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -466,18 +467,8 @@ function RotationAssignDialog({
     queryFn: async () => (await apiClient.get("/employees?per_page=200")).data,
     enabled: rotation !== null && type === "employee",
   });
-  const { data: departments } = useQuery({
-    queryKey: ["departments"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/departments?per_page=100")).data,
-    enabled: rotation !== null && type === "department",
-  });
-  const { data: branches } = useQuery({
-    queryKey: ["branches"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/branches?per_page=100")).data,
-    enabled: rotation !== null && type === "branch",
-  });
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
 
   const options: { public_id: string; name: string }[] =
     type === "employee"
