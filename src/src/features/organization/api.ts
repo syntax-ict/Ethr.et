@@ -1,97 +1,34 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { components } from "@/api/generated";
 
-export interface Branch {
-  public_id: string;
-  name: string;
-  name_am?: string | null;
-  code?: string | null;
-  address?: string | null;
-  city?: string | null;
-  phone?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  geofence_radius_meters?: number | null;
-  is_active: boolean;
-  departments_count?: number;
-  employees_count?: number;
-}
+type Schemas = components["schemas"];
 
-export interface Department {
-  public_id: string;
-  name: string;
-  name_am?: string | null;
-  code?: string | null;
-  is_active: boolean;
-  parent?: { public_id: string; name: string } | null;
-  branch?: { public_id: string; name: string } | null;
-}
-
-export interface Team {
-  public_id: string;
-  name: string;
-  name_am?: string | null;
-  is_active: boolean;
-  department?: { public_id: string; name: string } | null;
-}
-
-export interface Position {
-  public_id: string;
-  title: string;
-  title_am?: string | null;
-  code?: string | null;
-  description?: string | null;
-  is_active: boolean;
-  employees_count?: number;
-}
-
-export interface Grade {
-  public_id: string;
-  name: string;
-  min_salary_cents: number;
-  max_salary_cents: number;
-  sort_order?: number;
-}
-
-export interface CostCenter {
-  public_id: string;
-  name: string;
-  code?: string | null;
-  is_active: boolean;
-}
+// Shapes come from the generated contract, so a renamed resource field fails
+// tsc here instead of rendering blank. The hand-written types these replace
+// had drifted: `Branch.latitude`/`longitude` were `number`, but the model casts
+// both `decimal:7`, which serialises as a string.
+export type Branch = Schemas["BranchResource"];
+export type Department = Schemas["DepartmentResource"];
+export type Team = Schemas["TeamResource"];
+export type Position = Schemas["PositionResource"];
+export type Grade = Schemas["GradeResource"];
+export type CostCenter = Schemas["CostCenterResource"];
 
 /**
- * A node in the department hierarchy returned by `GET /organization/tree`.
- * `employees_count` is the department's own direct headcount; the rolled-up
- * subtree total is derived on the client. The endpoint returns a bare array of
- * root nodes (no pagination wrapper), each nesting its descendants under
- * `children_recursive`.
+ * A node in the department hierarchy returned by `GET /organization/tree`: a
+ * bare array of root departments, each nesting its descendants under
+ * `children_recursive`. `employees_count` is the department's own direct
+ * headcount; the rolled-up subtree total is derived on the client.
  */
-export interface DepartmentTreeNode {
-  public_id: string;
-  name: string;
-  name_am?: string | null;
-  code?: string | null;
-  is_active: boolean;
-  branch?: { public_id: string; name: string } | null;
-  employees_count?: number;
-  children_recursive?: DepartmentTreeNode[];
-}
+export type DepartmentTreeNode = Schemas["DepartmentResource"];
 
 /**
  * A node in the reporting hierarchy from `GET /organization/reporting-tree`:
  * an employee with their chain of direct reports nested under `direct_reports`.
  */
-export interface ReportingNode {
-  public_id: string;
-  name: string;
-  employee_code: string;
-  position?: string | null;
-  photo_url?: string | null;
-  photo_thumb_url?: string | null;
-  direct_reports?: ReportingNode[];
-}
+export type ReportingNode = Schemas["EmployeeReportingNodeResource"];
 
 export function useReportingTree() {
   return useQuery<ReportingNode[]>({
@@ -106,7 +43,10 @@ export function useReportingTree() {
   });
 }
 
-function makeHooks<T extends { public_id: string }>(resource: string) {
+/** `T` is the resource read back; the bodies are the FormRequests' own shapes. */
+function makeHooks<T extends { public_id: string }, TCreate, TUpdate>(
+  resource: string,
+) {
   return {
     // Every row, not the first page: these feed the Organization page and the
     // branch/department/position/grade pickers, which have no pagination, so
@@ -123,7 +63,7 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
     useCreate: () => {
       const qc = useQueryClient();
       return useMutation({
-        mutationFn: async (payload: Partial<T>) => {
+        mutationFn: async (payload: TCreate) => {
           const { data } = await apiClient.post(
             `/organization/${resource}`,
             payload,
@@ -147,7 +87,7 @@ function makeHooks<T extends { public_id: string }>(resource: string) {
           payload,
         }: {
           publicId: string;
-          payload: Partial<T>;
+          payload: TUpdate;
         }) => {
           const { data } = await apiClient.put(
             `/organization/${resource}/${publicId}`,
@@ -193,26 +133,41 @@ export function useOrganizationTree() {
   });
 }
 
-export const branchesApi = makeHooks<Branch>("branches");
-export const departmentsApi = makeHooks<Department>("departments");
-export const teamsApi = makeHooks<Team>("teams");
-export const positionsApi = makeHooks<Position>("positions");
-export const gradesApi = makeHooks<Grade>("grades");
-export const costCentersApi = makeHooks<CostCenter>("cost-centers");
+export const branchesApi = makeHooks<
+  Branch,
+  Schemas["StoreBranchRequest"],
+  Schemas["UpdateBranchRequest"]
+>("branches");
+export const departmentsApi = makeHooks<
+  Department,
+  Schemas["StoreDepartmentRequest"],
+  Schemas["UpdateDepartmentRequest"]
+>("departments");
+export const teamsApi = makeHooks<
+  Team,
+  Schemas["StoreTeamRequest"],
+  Schemas["UpdateTeamRequest"]
+>("teams");
+export const positionsApi = makeHooks<
+  Position,
+  Schemas["StorePositionRequest"],
+  Schemas["UpdatePositionRequest"]
+>("positions");
+export const gradesApi = makeHooks<
+  Grade,
+  Schemas["StoreGradeRequest"],
+  Schemas["UpdateGradeRequest"]
+>("grades");
+export const costCentersApi = makeHooks<
+  CostCenter,
+  Schemas["StoreCostCenterRequest"],
+  Schemas["UpdateCostCenterRequest"]
+>("cost-centers");
 
 // ── Grade salary steps (the grade→step salary scale) ────────────────
 
-export interface GradeSalaryStep {
-  public_id: string;
-  step: number;
-  salary_cents: number;
-  created_at: string;
-}
-
-export interface GradeSalaryStepInput {
-  step: number;
-  salary_cents: number;
-}
+export type GradeSalaryStep = Schemas["GradeSalaryStepResource"];
+export type GradeSalaryStepInput = Schemas["StoreGradeSalaryStepRequest"];
 
 function gradeStepsKey(gradePublicId: string) {
   return ["organization", "grades", gradePublicId, "salary-steps"];

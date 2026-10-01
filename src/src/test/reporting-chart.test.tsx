@@ -12,7 +12,12 @@ import type { ReportingNode } from "@/features/organization/api";
 function person(
   partial: Partial<ReportingNode> & { public_id: string; name: string },
 ): ReportingNode {
-  return { employee_code: partial.public_id, ...partial };
+  return {
+    employee_code: partial.public_id,
+    photo_url: null,
+    photo_thumb_url: null,
+    ...partial,
+  };
 }
 
 // Chief → Manager → IC;  Chief → Analyst
