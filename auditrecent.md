@@ -208,3 +208,29 @@ were taken.)*
 | **S5 device SSRF** | Still open *(closed in Phase 2 — FIXED, see §2)* | Needs per-adapter rules and a traced path; guessing risks breaking device sync. Phase 2 did the tracing and wrote the per-adapter rules |
 | **Dependabot PR #9** (Scramble 0.13.36 → 0.13.45) | **Closed, with evidence** | Regenerating to pass the contract gate would have written a *worse* contract: paginated `data` typed as `string`, paginator `links` collapsed to `unknown`, nullable page URLs losing `| null`. Its advisory failure (`brace-expansion` via `@sentry`) is on `main`'s lockfile and already fixed on this branch (`b8ca0fb`) |
 | **Phase 3 (cutover)** | **Not attempted — host gates marked known gaps, 2026-10-01** | `CUTOVER READY = NO`: 4 of 14 mandatory gates PASS and all 10 outstanding need the Ethio Telecom account. Recorded as owner-deferred known gaps in `CUTOVER-CHECKLIST.md`, with no state changed. Repository side verified ready: local production rehearsal on current code, 36/36. Not verified: whether the M2 probe is still live (the check was refused by agent tooling) |
+
+---
+
+## 10. Found during F2 (2026-10-01)
+
+Moving the pages onto the feature API layer meant reading every page against its controller,
+request and resource. That surfaced the frontend defects fixed in the F2 commits, and the backend
+defects below, which the page agents were told to report rather than fix. Evidence for each is in
+the commit or report cited; severity is this pass's judgement.
+
+| ID | Sev | Finding | Status |
+|---|---|---|---|
+| N1 | **High** | **SSRF via webhook update.** `StoreWebhookRequest` applied `ExternalUrl`, `UpdateWebhookRequest` did not, and `DispatchWebhookJob` POSTed signed tenant data to whatever URL was stored — a webhook created with a public URL could be repointed at `127.0.0.1`, `10.x` or a metadata endpoint with one PUT | **FIXED** — the update request applies `ExternalUrl`, and the job re-checks the host at send time (covers rows already saved, and DNS that changed), refusing without retry. 7 tests, 6 fail on the old code |
+| N2 | **High** | **MFA could never be enabled, and enabling it would break sign-in.** The page sent only `{code}` where `EnableMfaRequest` requires `secret`, and rendered an `otpauth://` URI as an image. Behind that, `MfaService` stores the secret through the `encrypted` cast and `MfaVerifyController`/`MfaService` then `decrypt()` it again — a user who enabled MFA would get a 500 at their next sign-in. Tests hid it by writing `encrypt(...)` through the cast | OPEN — the page fix is held until the backend is fixed |
+| N3 | **High** | **Anyone could correct anyone's attendance.** `AttendanceCorrectionController::store` accepted any record `public_id` in the tenant with no ownership check, and `approve()` rewrote the punches; `pending/approve/reject` were not limited to a supervisor's team, and `payrollImpact()` showed any employee's hourly rate to any supervisor. No endpoint served "my corrections" though `correction.viewOwn` is granted to everyone | OPEN |
+| N4 | **High** | **Manual entry and CSV import stored times three hours early.** Both parse a local `H:i` in the app timezone (UTC): a 09:00 punch in Addis Ababa was stored as 09:00 UTC and shown as 12:00 | OPEN |
+| N5 | Med | **Bulk approval was weaker than single approval.** `ApprovalController::processLeaveAction` had no team check (any `leave.approve` holder approves any leave by id), no self-approval guard, and wrote a bare id into `approved_by`; `processCorrectionAction` was authorised by `leave.approve`, not `correction.approve` | OPEN |
+| N6 | Med | **Tenant security settings are stored and never enforced.** `mfa_policy` ("Required") and `session_timeout_minutes` are saved and read by nothing; `UpdateSettingsRequest` accepts any key and merges it into the tenant settings JSON | OPEN |
+| N7 | Med | **Notification templates are saved and never used.** Editing a template changes no e-mail | OPEN |
+| N8 | Med | **An employee cannot download their own payslip PDF.** `PayrollController::downloadPayslip` authorises `viewAny` (`payroll.viewAll`) | OPEN |
+| N9 | Med | **Shift assignments.** `ShiftController::schedule` loads `shift` but not `rotation`, so rotation assignments arrive as "Unknown Shift" (and the resource's own comment says both keys are always present); `ShiftAssignmentResource` has no `public_id` or assignee, so no page can show whom an assignment is for or end it; deleting a shift leaves its assignments pointing at nothing; `AssignShiftRotationRequest` uses an unscoped `exists:` (confirms ids across tenants) | OPEN |
+| N10 | Med | **Directory lists terminated and resigned staff** with contact details, and exposes the raw `photo_path` | OPEN |
+| N11 | Low | Validation gaps: webhook `events.*` accept any string (a webhook on an event never sent shows Active forever); chart-of-accounts `accounts.*.key` unrestricted; employee import preview and commit validate differently (a row the preview passes can 422 the batch); `bulkUpdate` silently ignores an unknown or cross-tenant department/branch; CSV preview breaks on CRLF and a UTF-8 BOM | OPEN |
+| N12 | Low | `AuditLogResource` exposes numeric `auditable_id`/`user_id` (convention 4); conflict and kiosk-session lists are not scoped/paged like their siblings; `EmployeeBulkController::export` writes CSV without formula neutralisation | OPEN |
+| N13 | Low | Contract mistypes from Scramble (summed cents as `string`, `attendanceSetting.show` as `unknown[]`, intelligence lists as `Record<string, never>`) — the frontend types are hand-written against the PHP at each site, with a comment | OPEN — recorded |
+

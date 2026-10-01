@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Support\OutboundHost;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -80,6 +81,19 @@ class DispatchWebhookJob implements ShouldQueue
         // Skip if webhook has been disabled between retries
         if (! $webhook->is_active) {
             $this->markFailed($delivery, null, 'Webhook disabled before delivery', 0);
+
+            return;
+        }
+
+        // Re-checked at send time, not only when the URL was saved: the update
+        // request did not apply ExternalUrl until 2026-10-01, so a webhook
+        // created with a public URL could be repointed at an internal one, and
+        // rows saved that way are still in the database. A host that now
+        // resolves inside the network is refused the same way. Not retried —
+        // retrying cannot make an internal address external.
+        $host = parse_url((string) $webhook->url, PHP_URL_HOST);
+        if (! is_string($host) || OutboundHost::isInternal(trim($host, '[]'))) {
+            $this->markFailed($delivery, null, 'Refused: the webhook URL points to an internal address', 0);
 
             return;
         }
