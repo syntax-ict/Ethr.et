@@ -52,4 +52,20 @@ final class DeviceHost
             throw new RuntimeException($refusal);
         }
     }
+
+    /**
+     * `scheme://host:port` for the vendor adapters that address a device by its
+     * `ip` and `port` config keys (Hikvision, ZKTeco, Suprema).
+     *
+     * This only formats. It does not check the host: each adapter calls
+     * assertAllowed() on the line before, and must keep doing so. Validating
+     * here as well would resolve the host twice per request. The generic
+     * adapter does not use this. It is configured with a whole `base_url` and
+     * joins request paths onto it, which needs a different check, the
+     * same-host check in GenericHttpAdapter::path().
+     */
+    public static function baseUrl(string $scheme, string $host, string $port): string
+    {
+        return "{$scheme}://{$host}:{$port}";
+    }
 }

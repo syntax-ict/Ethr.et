@@ -8,8 +8,12 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 156 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 154 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-01, later: **154 across 56 files**. `DeviceController`'s three
+ * identical per-vendor webhook employee lookups became one method, audit B9 —
+ * no bypass removed in substance, two duplicate call sites gone.)
  *
  * (2026-10-01: **156 across 56 files**. Three left with dead code, audit B1/B2 —
  * `LoginAttemptService` (1, the whole file) and `HolidayService::getHolidays()` /
@@ -83,7 +87,12 @@ return [
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
-    'Http/Controllers/Api/V1/Device/DeviceController.php' => 5,
+    // Two device lookups in resolveWebhookDevice() (token; serial + IP
+    // allowlist) and one employee lookup in webhookEmployee(), which states
+    // `tenant_id` from the authenticated device. The employee lookup was written
+    // out three times, once per vendor handler, until audit B9 (2026-10-01) made
+    // it one method: 5 -> 3, the same query at fewer call sites.
+    'Http/Controllers/Api/V1/Device/DeviceController.php' => 3,
     'Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     'Http/Middleware/ScimAuth.php' => 1,

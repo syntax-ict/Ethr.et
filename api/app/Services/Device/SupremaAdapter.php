@@ -185,7 +185,7 @@ final class SupremaAdapter implements DeviceAdapter
         DeviceHost::assertAllowed((string) ($config['ip'] ?? ''));
         $port = $config['port'] ?? 443;
         $scheme = $port === 443 ? 'https' : 'http';
-        $baseUrl = "{$scheme}://{$config['ip']}:{$port}";
+        $baseUrl = DeviceHost::baseUrl($scheme, (string) $config['ip'], (string) $port);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast.
         $request = Http::connectTimeout(2)->timeout(10)
