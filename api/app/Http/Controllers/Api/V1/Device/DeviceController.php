@@ -501,6 +501,7 @@ class DeviceController extends Controller
                     type: $type,
                     idempotencyKey: $idempotencyKey,
                     deviceId: $device->id,
+                    occurredAt: $timestamp,
                 ));
                 $processed++;
             } catch (\Throwable) {

@@ -551,6 +551,50 @@ test('zkteco webhook processes event for known employee', function () {
     ]);
 });
 
+// A webhook is delayed ingestion: a device that was offline delivers its
+// buffer later, so the record must be dated by the event's own time, not by
+// when it reached the server (AttendanceInput::$occurredAt says so). Hikvision
+// and ZKTeco passed it; Suprema parsed `datetime`, used it in the idempotency
+// key, and then dropped it, so every Suprema punch was dated "now".
+test('every vendor webhook dates the record by the event time, not arrival', function (string $adapter, string $path, Closure $payload) {
+    $tenant = createTenant();
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => $adapter,
+        'serial_number' => strtoupper($adapter).'-OCCURRED',
+        'webhook_token' => "{$adapter}-occurred-token",
+    ]);
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_code' => 'EMP-OCCURRED',
+    ]);
+
+    $eventAt = now()->subHours(3)->startOfSecond();
+
+    test()->withHeader('X-Webhook-Token', "{$adapter}-occurred-token")
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/webhook/{$path}", $payload($eventAt->toIso8601String()))
+        ->assertOk()
+        ->assertJsonPath('status', 'processed');
+
+    $record = AttendanceRecord::withoutGlobalScopes()->where('employee_id', $employee->id)->sole();
+
+    expect($record->check_in->equalTo($eventAt))->toBeTrue(
+        "check_in was {$record->check_in->toIso8601String()}, the event happened at {$eventAt->toIso8601String()}"
+    );
+})->with([
+    'hikvision' => ['hikvision', 'hikvision', fn (string $at) => [
+        'AccessControllerEvent' => ['employeeNoString' => 'EMP-OCCURRED', 'time' => $at],
+    ]],
+    'zkteco' => ['zkteco', 'zkteco', fn (string $at) => [
+        'records' => [['pin' => 'EMP-OCCURRED', 'timestamp' => $at, 'punch' => 0]],
+    ]],
+    'suprema' => ['suprema', 'suprema', fn (string $at) => [
+        'events' => [['user_id' => 'EMP-OCCURRED', 'datetime' => $at, 'event_type_id' => 0x1000]],
+    ]],
+]);
+
 // ── Device Audit Logging ──
 
 test('device creation is audit logged', function () {
