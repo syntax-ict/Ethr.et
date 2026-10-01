@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   ShieldCheck,
   ShieldOff,
   Loader2,
-  Copy,
-  AlertCircle,
   Eye,
   EyeOff,
   KeyRound,
@@ -23,9 +22,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useCurrentUser } from "@/features/auth/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useChangePassword,
+  useCurrentUser,
+  useDisableMfa,
+  useEnableMfa,
+  useStartMfaSetup,
+  type MfaSetup,
+} from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
@@ -37,13 +41,8 @@ import {
 export default function SecurityPage() {
   const { t } = useT();
   const { data: user } = useCurrentUser();
-  const queryClient = useQueryClient();
   const [setupOpen, setSetupOpen] = useState(false);
-  const [setupData, setSetupData] = useState<{
-    secret: string;
-    qr_code_url: string;
-    recovery_codes: string[];
-  } | null>(null);
+  const [setupData, setSetupData] = useState<MfaSetup | null>(null);
   const [code, setCode] = useState("");
   const [disableOpen, setDisableOpen] = useState(false);
   const [disableCode, setDisableCode] = useState("");
@@ -54,86 +53,95 @@ export default function SecurityPage() {
   const [showNew, setShowNew] = useState(false);
   const [changeError, setChangeError] = useState("");
 
-  const startSetup = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/auth/mfa/setup");
-      return data;
-    },
-    onSuccess: (data) => {
-      setSetupData(data);
-      setSetupOpen(true);
-    },
-    onError: () => toast.error(t("security_page.mfa_setup_failed")),
-  });
+  const startSetup = useStartMfaSetup();
+  const enableMfa = useEnableMfa();
+  const disableMfa = useDisableMfa();
+  const changePassword = useChangePassword();
 
-  const enableMfa = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/auth/mfa/enable", { code });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success(t("security_page.mfa_enabled"));
-      setSetupOpen(false);
-      setSetupData(null);
-      setCode("");
-    },
-    onError: () => toast.error(t("security_page.invalid_code")),
-  });
+  function beginSetup() {
+    startSetup.mutate(undefined, {
+      onSuccess: (data) => {
+        setSetupData(data);
+        setSetupOpen(true);
+      },
+      onError: () => toast.error(t("security_page.mfa_setup_failed")),
+    });
+  }
 
-  const disableMfa = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/auth/mfa/disable", {
-        code: disableCode,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success(t("security_page.mfa_disabled"));
-      setDisableOpen(false);
-      setDisableCode("");
-    },
-    onError: () => toast.error(t("security_page.invalid_code")),
-  });
+  /**
+   * Sends the secret back with the code. EnableMfaRequest requires both —
+   * setup does not store the secret — and this sent only `{ code }`, so every
+   * attempt was a 422 shown as "invalid code": two-factor authentication could
+   * not be turned on from this page at all.
+   */
+  function confirmEnable() {
+    if (!setupData) return;
+    enableMfa.mutate(
+      { secret: setupData.secret, code },
+      {
+        onSuccess: () => {
+          toast.success(t("security_page.mfa_enabled"));
+          setSetupOpen(false);
+          setSetupData(null);
+          setCode("");
+        },
+        onError: () => toast.error(t("security_page.invalid_code")),
+      },
+    );
+  }
 
-  const changePassword = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/auth/password/change", {
+  function confirmDisable() {
+    disableMfa.mutate(
+      { code: disableCode },
+      {
+        onSuccess: () => {
+          toast.success(t("security_page.mfa_disabled"));
+          setDisableOpen(false);
+          setDisableCode("");
+        },
+        onError: () => toast.error(t("security_page.invalid_code")),
+      },
+    );
+  }
+
+  function changePasswordNow() {
+    changePassword.mutate(
+      {
         current_password: currentPassword,
         password: newPassword,
         password_confirmation: confirmPassword,
-      });
-      return data;
-    },
-    onSuccess: (data: { message: string }) => {
-      toast.success(data.message ?? t("security_page.password_changed"));
-      setChangeOpen(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setChangeError("");
-    },
-    onError: (err: unknown) => {
-      const e = err as {
-        response?: {
-          data?: {
-            detail?: string;
-            message?: string;
-            errors?: Record<string, string[]>;
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(data.message ?? t("security_page.password_changed"));
+          setChangeOpen(false);
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+          setChangeError("");
+        },
+        onError: (err: unknown) => {
+          const e = err as {
+            response?: {
+              data?: {
+                detail?: string;
+                message?: string;
+                errors?: Record<string, string[]>;
+              };
+            };
           };
-        };
-      };
-      const errors = e.response?.data?.errors;
-      const first = errors ? Object.values(errors)[0]?.[0] : undefined;
-      setChangeError(
-        first ||
-          e.response?.data?.detail ||
-          e.response?.data?.message ||
-          t("security_page.change_failed"),
-      );
-    },
-  });
+          const errors = e.response?.data?.errors;
+          const first = errors ? Object.values(errors)[0]?.[0] : undefined;
+          setChangeError(
+            first ||
+              e.response?.data?.detail ||
+              e.response?.data?.message ||
+              t("security_page.change_failed"),
+          );
+        },
+      },
+    );
+  }
 
   function submitChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -150,14 +158,7 @@ export default function SecurityPage() {
       setChangeError(t("security_page.password_must_differ"));
       return;
     }
-    changePassword.mutate();
-  }
-
-  function copyCodes() {
-    if (setupData?.recovery_codes) {
-      navigator.clipboard.writeText(setupData.recovery_codes.join("\n"));
-      toast.success(t("security_page.recovery_codes_copied"));
-    }
+    changePasswordNow();
   }
 
   return (
@@ -207,10 +208,7 @@ export default function SecurityPage() {
                 {t("security_page.disable")}
               </Button>
             ) : (
-              <Button
-                onClick={() => startSetup.mutate()}
-                disabled={startSetup.isPending}
-              >
+              <Button onClick={beginSetup} disabled={startSetup.isPending}>
                 {startSetup.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -261,13 +259,16 @@ export default function SecurityPage() {
                 <p className="text-sm text-muted-foreground">
                   {t("security_page.scan_qr_hint")}
                 </p>
+                {/* Encoded here. `qr_code_url` is the otpauth:// URI itself,
+                    and it was put in an <img src>, which renders a broken
+                    image — there was never a QR code to scan. */}
                 {setupData.qr_code_url && (
                   <div className="mt-3 flex justify-center rounded-lg border bg-white p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={setupData.qr_code_url}
-                      alt={t("security_page.mfa_qr_alt")}
-                      className="h-48 w-48"
+                    <QRCodeSVG
+                      value={setupData.qr_code_url}
+                      size={192}
+                      role="img"
+                      aria-label={t("security_page.mfa_qr_alt")}
                     />
                   </div>
                 )}
@@ -279,49 +280,20 @@ export default function SecurityPage() {
                 </code>
               </div>
 
-              {setupData.recovery_codes &&
-                setupData.recovery_codes.length > 0 && (
-                  <div className="rounded-lg border-2 border-status-warning bg-status-warning/10 p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-4 w-4 text-status-warning" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-status-warning">
-                          {t("security_page.recovery_codes")}
-                        </p>
-                        <p className="mt-1 text-xs text-status-warning/80">
-                          {t("security_page.recovery_codes_hint")}
-                        </p>
-                        <div className="mt-2 grid grid-cols-2 gap-1 font-mono text-xs">
-                          {setupData.recovery_codes.map((c) => (
-                            <code
-                              key={c}
-                              className="rounded bg-background px-2 py-1"
-                            >
-                              {c}
-                            </code>
-                          ))}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2"
-                          onClick={copyCodes}
-                        >
-                          <Copy className="mr-2 h-3 w-3" />{" "}
-                          {t("security_page.copy_all")}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+              {/* No recovery-codes panel: it read `recovery_codes`, which
+                  MfaSetupController::setup() has never returned. */}
               <div>
-                <Label>{t("security_page.enter_6_digit_code")}</Label>
+                <Label htmlFor="mfa_enable_code">
+                  {t("security_page.enter_6_digit_code")}
+                </Label>
                 <Input
+                  id="mfa_enable_code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="000000"
                   maxLength={6}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   className="mt-1 text-center text-2xl font-mono tracking-widest"
                 />
               </div>
@@ -335,7 +307,7 @@ export default function SecurityPage() {
                   {t("common.cancel")}
                 </Button>
                 <Button
-                  onClick={() => enableMfa.mutate()}
+                  onClick={confirmEnable}
                   disabled={enableMfa.isPending || code.length !== 6}
                 >
                   {enableMfa.isPending && (
@@ -394,6 +366,12 @@ export default function SecurityPage() {
                   onClick={() => setShowNew(!showNew)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   tabIndex={-1}
+                  aria-label={
+                    showNew
+                      ? t("auth.hide_password", "Hide password")
+                      : t("auth.show_password", "Show password")
+                  }
+                  aria-pressed={showNew}
                 >
                   {showNew ? (
                     <EyeOff className="h-4 w-4" />
@@ -454,10 +432,13 @@ export default function SecurityPage() {
           <DialogHeader>
             <DialogTitle>{t("security_page.disable_mfa_title")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+          <p id="mfa_disable_hint" className="text-sm text-muted-foreground">
             {t("security_page.disable_confirm_hint")}
           </p>
           <Input
+            aria-labelledby="mfa_disable_hint"
+            inputMode="numeric"
+            autoComplete="one-time-code"
             value={disableCode}
             onChange={(e) => setDisableCode(e.target.value)}
             placeholder="000000"
@@ -474,7 +455,7 @@ export default function SecurityPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => disableMfa.mutate()}
+              onClick={confirmDisable}
               disabled={disableMfa.isPending || disableCode.length !== 6}
             >
               {disableMfa.isPending && (
