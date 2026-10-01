@@ -1,98 +1,10 @@
 # ETHR — Global Development Rules (v2.0)
 
-# AI Execution Policy (Pro/Max)
+> **The model-routing and agent-execution policy that opened this file moved to
+> [`MODEL-ROUTING.md`](MODEL-ROUTING.md) on 2026-10-01** (audit D8): model routing, task
+> decomposition, context management, response policy, large refactors, the build lifecycle,
+> the completion report and the auto-resume protocol. What remains here is the conventions.
 
-## Automatic Model Routing
-
-Prefer the lowest-cost model capable of completing the task.
-
-### Sonnet (Default)
-
-Use Sonnet automatically for:
-
-- CRUD implementation
-- Controllers
-- FormRequests
-- Policies
-- API Resources
-- Models
-- Migrations
-- Frontend components
-- React pages
-- Tailwind styling
-- API hooks
-- Unit tests
-- Feature tests
-- Documentation
-- Translation keys
-- Refactoring under 10 files
-- Bug fixes
-- Formatting
-- Type fixes
-- Lint fixes
-
-Target: 90% of development work.
-
----
-
-### Opus (Escalate Only)
-
-Automatically escalate to Opus when any of these are true:
-
-- Architectural decisions
-- Security review
-- Multi-file refactor (>10 files)
-- Tenant isolation changes
-- Authentication or authorization design
-- Complex debugging after two failed attempts
-- Performance optimization
-- Query optimization
-- Database redesign
-- Event-driven architecture
-- Queue design
-- Offline sync logic
-- PWA synchronization
-- Payroll calculation engine
-- Attendance matching engine
-- Conflict resolution logic
-- Permission system changes
-- Large context analysis (>30 files)
-- Reviewing an entire phase
-- Release readiness audit
-
-Return to Sonnet immediately after the architecture is decided.
-
----
-
-### Never use Opus for
-
-- Formatting
-- Renaming files
-- Small UI changes
-- CSS
-- Translation
-- Documentation only
-- Boilerplate CRUD
-- Simple tests
-- Small bug fixes
-
-These should always stay on Sonnet.
-
----
-
-### Cost Optimization
-
-Before escalating to Opus ask internally:
-
-1. Is this mainly implementation?
-2. Is reasoning actually required?
-3. Can Sonnet complete this safely?
-
-If YES to implementation, remain on Sonnet.
-
-Only escalate when reasoning complexity exceeds implementation complexity.
-
----
 # ========================================================
 # LOCAL DEVELOPMENT POLICY (NON-NEGOTIABLE)
 # ========================================================
@@ -136,50 +48,6 @@ the half that goes.
 - Push only when the owner asks. `origin` is a shared remote, and this
   environment has no non-interactive credentials for it.
 
-# Task Decomposition Rules
-
-Never attempt an entire phase in one execution.
-
-Break work into slices no larger than:
-
-- one feature
-- one controller
-- one policy
-- one page
-- one service
-
-Each slice must compile independently.
-
-Complete:
-
-Analyze → Implement → Test → Commit
-
-before starting another slice.
-
----
-
-# Context Management
-
-Avoid re-reading the entire repository.
-
-At the beginning of each task:
-
-Read:
-
-- CLAUDE.md
-- Relevant phase document
-- Files directly related to the feature
-
-Do not scan unrelated modules.
-
-If more than 30 files are required:
-
-Create an implementation plan first.
-
-Then implement incrementally.
-
----
-
 # Development Priority
 
 Always work in this order:
@@ -196,37 +64,6 @@ Always work in this order:
 Never implement frontend before backend contracts exist.
 
 Never implement a feature without writing its tests in the same slice.
-
----
-
-# Response Policy
-
-Do not explain every generated file.
-
-Output only:
-
-- files changed
-- summary
-- remaining tasks
-- blockers
-
-Keep explanations under 200 words unless asked.
-
-Minimize token usage.
-
----
-
-# Large Refactor Rules
-
-When touching more than 20 files:
-
-Phase 1: Analyze, identify dependencies, produce plan.
-
-Phase 2: Implement.
-
-Phase 3: Run tests.
-
-Never mix planning and implementation in the same large task.
 
 ---
 
@@ -605,119 +442,20 @@ Rules for all forms:
 - Amharic line-height: use 1.6-1.8 (vs 1.5 for Latin text).
 
 ---
-# Build Lifecycle
-
-Every task must follow this lifecycle.
-
-Do not skip any step.
-
-Do not mark a task complete until every validation passes.
-
-```
-Read CLAUDE.md
-       |
-Read relevant phase document(s)
-       |
-Analyze current code
-       |
-Verify existing implementation
-       |
-Determine completed vs missing work
-       |
-Understand architecture + dependencies
-       |
-Implement ONE feature slice
-       |
-Backend
-(migration → model → service → controller → FormRequest → Policy → tests)
-       |
-Frontend
-(types → API hooks → components → pages → tests)
-       |
-Run formatter
-(Pint + Prettier)
-       |
-Run static analysis
-(PHPStan + TypeScript)
-       |
-Run Pest tests
-       |
-Run Vitest tests
-       |
-Run TenantIsolationTest
-(if applicable)
-       |
-Verify Browser
-Desktop
-Tablet
-Mobile
-Dark
-Light
-       |
-Fix issues
-       |
-Re-run validation
-       |
-Update documentation
-       |
-Output:
-Files Changed
-Summary
-Remaining Tasks
-Blockers
-       |
-Continue to next highest-priority unfinished feature
-```
-## Completion Report 
-
-After every completed task output ONLY:
-
-Files changed
-
-Summary
-
-Validation performed
-
-Remaining tasks
-
-Known blockers
-
-Do not output Git commands.
-
-Do not generate commit messages.
-
-Do not reference repositories.
-```
-
----
 
 ## Quality Gates
 
 No slice ships without all checks passing.
 
-**Run them with `bash scripts/gates.sh`, not by hand.** It runs all nine
-(Pint, PHPStan, Pest, i18n, Prettier, ESLint, tsc, Vitest, API-contract), keeps
-going after a failure so one run reports all the damage, and applies the
-bind-mount workarounds below automatically. The itemised list that follows is
-the *rationale* for each gate — the script is the enforcement. Anything listed
-here but not wired into the script is not a gate: Prettier and ESLint sat in
-this list unenforced until 2026-08-24, which is how a release audit, rather
-than a gate, is what caught `prettier --check` failing on 36 files.
+**The gates, and how to run them, are in root [`CLAUDE.md` → *Quality gates*](../CLAUDE.md#quality-gates)**:
+`./scripts/gates.sh` and its scopes, what CI runs, and why a green run can lie. This section used
+to restate that list, and the copy had drifted — it said the script "runs all nine" gates when the
+full sweep runs twelve — while a stray code fence left by the section above rendered all of it as
+a code block. *(Replaced with this pointer 2026-10-01, audit D8; the per-slice checklist below is
+unchanged.)*
 
-Performance budgets are separate and opt-in: `bash scripts/gates.sh performance`.
+Per-slice review checklist — a few items are also enforced by a gate, most are not:
 
-- [ ] Pest — all green, **through `bash scripts/gates.sh backend`**, which
-      compares the collected class count against `find` and fails on an
-      undercount. A lossy directory scan once collected 21 of 132 test classes
-      and still exited 0 green (measured 2026-08-21, over a Docker Desktop bind
-      mount; the Docker stack and its `pest-isolated.sh` were removed
-      2026-09-30).
-- [ ] `npx vitest run` — all green
-- [ ] PHPStan — level 6, zero errors (`gates.sh` runs it natively; the same
-      lossy scan once cost Larastan half the migrations and ~990 phantom errors).
-- [ ] `./vendor/bin/pint --test` — no formatting issues
-- [ ] `npx prettier --check src/` — no formatting issues
-- [ ] `npx tsc --noEmit` — zero type errors
 - [ ] Every endpoint has a `FormRequest`
 - [ ] Every endpoint has a `Policy` using `hasPermission()`
 - [ ] Sensitive operations write to `audit_log`
@@ -1185,33 +923,6 @@ IndexedDB queue, so the correct recovery is the client retrying — replay
 returns `duplicate` rather than double-punching (convention #10).
 
 ---
-
-# Auto Resume Protocol
-
-If generation stops for any reason:
-
-- rate limit
-- internet disconnect
-- browser refresh
-- power outage
-- token limit
-
-then the NEXT user message:
-
-Continue
-
-means:
-
-1. Reload entire CLAUDE.md
-2. Read all completed work
-3. Determine unfinished task
-4. Continue exactly where stopped
-5. Do not repeat completed work
-6. Do not ask unnecessary questions
-7. Continue until task completes or another interruption occurs.
-
----
-
 
 # For Every New Session
 

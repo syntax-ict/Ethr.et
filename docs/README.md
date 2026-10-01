@@ -31,7 +31,8 @@ Three standing caveats:
 
 | Document | What it is |
 |---|---|
-| [`CLAUDE.md`](CLAUDE.md) | **Authoritative.** 15 Non-Negotiable Conventions, design system, API and testing rules, model routing policy |
+| [`CLAUDE.md`](CLAUDE.md) | **Authoritative.** 15 Non-Negotiable Conventions, design system, API and testing rules. The quality gates themselves are in root [`../CLAUDE.md`](../CLAUDE.md) |
+| [`MODEL-ROUTING.md`](MODEL-ROUTING.md) | Policy for the AI agents working in this repo — model routing, slicing, the build lifecycle, reporting. Split out of `CLAUDE.md` 2026-10-01 |
 | [`AGENTS.md`](AGENTS.md) | A pointer to the above. Was a fork; drifted 288 lines; retired in Phase 1 |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | How to run, test and commit — including the traps |
 | [`API-CONTRACT.md`](API-CONTRACT.md) | How `src/src/api/generated.ts` is generated from the Laravel routes (Scramble → OpenAPI → openapi-typescript), the drift gate, and why a comment above an array key ends up in the public contract |
