@@ -1,5 +1,18 @@
 # ETHR — Database Schema (v2.0)
 
+> **2026-10-01: written for the VPS/Docker stack, which no longer exists in the repository**
+> (production set removed in `3db9904`, 2026-09-26/27; the Docker development stack on
+> 2026-09-30). The schema description stands — the migrations in `api/database/migrations/`
+> are the authority where they differ. Two things an operator could act on wrongly:
+>
+> - **"MinIO path" columns** (`tenants.logo_path`, `payroll_entries.payslip_pdf_path`) hold a
+>   path on the configured default disk — `local` in production (`api/config/filesystems.php:16`,
+>   read by `FileStorageService.php:64`). There is no MinIO.
+> - **Backing up or restoring this database** is `php artisan ethr:backup` / `ethr:restore`
+>   (PDO, no `mysqldump`, no Docker) — [`deployment/BACKUP-RESTORE.md`](deployment/BACKUP-RESTORE.md)
+>   from *The commands* onward. Restoring a dump with the audit-log triggers into a different
+>   database user hits MariaDB error 1227; that document explains when.
+
 ## Conventions
 
 - **Engine:** InnoDB (all tables)
@@ -26,7 +39,7 @@
 | type | VARCHAR(50) | government, bank, hospital, etc. |
 | status | ENUM(trial, active, suspended, cancelled) | |
 | trial_ends_at | TIMESTAMP NULL | |
-| logo_path | VARCHAR(500) NULL | MinIO path |
+| logo_path | VARCHAR(500) NULL | Path on the default disk (`local`; MinIO until 2026-09-30) |
 | primary_color | CHAR(7) NULL | Hex |
 | secondary_color | CHAR(7) NULL | Hex |
 | settings | JSON NULL | Consolidated tenant settings |
@@ -548,7 +561,7 @@ obligation is a status change (`cancelled`), not a DELETE.
 | income_tax_cents, pension_employee_cents, pension_employer_cents, loan_deduction_cents, other_deductions_cents, total_deductions_cents | BIGINT | Deductions |
 | net_salary_cents | BIGINT | Net |
 | **calculation_log** | **JSON NOT NULL** | **MANDATORY audit trail — immutable after approval** |
-| payslip_pdf_path | VARCHAR(500) NULL | MinIO path |
+| payslip_pdf_path | VARCHAR(500) NULL | Path on the default disk (`local`; MinIO until 2026-09-30) |
 | worked_days, leave_days | INT / DECIMAL | |
 | ot_normal_minutes, ot_night_minutes, ot_holiday_minutes, ot_holiday_night_minutes | INT | |
 

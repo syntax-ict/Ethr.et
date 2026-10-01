@@ -2,6 +2,16 @@
 
 **Status: built and round-trip tested locally. The rehearsal on the real host has not happened, so the go-live gate is not closed.**
 
+> **2026-10-01: the first section describes the VPS/Docker backup that no longer exists.** The VPS
+> stack was removed in `3db9904` (2026-09-26/27) and the Docker development stack on 2026-09-30.
+> `scripts/backup.sh` and `restore.sh` are retired and refuse to run (`backup.sh` exits 64).
+> Mentions below of `docker-compose.yml`, "on the VPS" and a VPS dump are history.
+> **The live procedure starts at [*The commands*](#the-commands)**: `php artisan ethr:backup`,
+> scheduled daily at 01:00 UTC (`api/routes/console.php:109`) and reaching the host through
+> `POST /api/v1/cron/schedule`. During an incident start with
+> [`../operations/ON-CALL.md`](../operations/ON-CALL.md); every command and the full schedule
+> are in [`../operations/COMMANDS-AND-SCHEDULE.md`](../operations/COMMANDS-AND-SCHEDULE.md).
+
 ETHR holds employee records, bank details, salary history and scanned identity documents for multiple organizations. Master plan §30 sets the standard this document has to meet: *a backup that has never been restored is not considered verified.*
 
 ---
@@ -99,7 +109,7 @@ changes which operation it bites.
 
 `2026_07_22_000001_restrict_audit_log_to_insert_only.php` emits `CREATE TRIGGER` with **no
 `DEFINER` clause** (lines 53 and 95), so the engine assigns whoever ran `migrate`. That is
-the connection's `DB_USERNAME` — `ethr` under `docker-compose.yml`, and on Plesk a
+the connection's `DB_USERNAME` — `ethr` under `docker-compose.yml` (removed 2026-09-30), and on Plesk a
 restricted per-database user issued by the panel (`ENVIRONMENT.md:98`), never `root`. The
 `root@localhost` reading above is therefore a true measurement **of the schema it was run
 against**, not a property ETHR's migration produces everywhere.
@@ -234,7 +244,8 @@ One entry, already registered in `routes/console.php`:
 
 **No `--keep` on that line, deliberately.** The command falls back to
 `config('backup.keep')`, so `BACKUP_KEEP` sets retention per environment — **7**
-on the VPS, **2** on shared hosting. Passing `--keep` here would override the env
+on the VPS *(gone since 2026-09-26)*, **2** on shared hosting, which is also the default
+(`api/config/backup.php`). Passing `--keep` here would override the env
 var on every host, which is the defect this had until 2026-09-23: the command's
 signature carried its own `--keep=7` default, so `config('backup.keep')` and
 `BACKUP_KEEP` were read by nothing and lowering retention on a fixed quota did
