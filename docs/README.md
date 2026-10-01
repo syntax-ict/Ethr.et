@@ -34,6 +34,7 @@ Three standing caveats:
 | [`CLAUDE.md`](CLAUDE.md) | **Authoritative.** 15 Non-Negotiable Conventions, design system, API and testing rules, model routing policy |
 | [`AGENTS.md`](AGENTS.md) | A pointer to the above. Was a fork; drifted 288 lines; retired in Phase 1 |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | How to run, test and commit — including the traps |
+| [`API-CONTRACT.md`](API-CONTRACT.md) | How `src/src/api/generated.ts` is generated from the Laravel routes (Scramble → OpenAPI → openapi-typescript), the drift gate, and why a comment above an array key ends up in the public contract |
 
 ## Product and architecture
 
@@ -57,6 +58,7 @@ Three standing caveats:
 | [`DEVICE_INTEGRATION.md`](DEVICE_INTEGRATION.md) | Biometric and attendance devices |
 | [`IDENTITY_RESOLUTION.md`](IDENTITY_RESOLUTION.md) | Matching people across sources |
 | [`MIGRATION.md`](MIGRATION.md) | **Workforce** data migration — the product feature, not hosting |
+| [`WEBHOOKS.md`](WEBHOOKS.md) | **For tenant developers.** The nine events actually sent, the payload, verifying `X-ETHR-Signature`, retries and auto-disable, and why the URL must be public |
 
 ## Status
 
@@ -114,6 +116,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) | Detecting silent queue death on a host with no supervisor |
 | [`operations/ON-CALL.md`](operations/ON-CALL.md) | **What to do when** something breaks in production — symptom, cause, action, on a host with no shell |
 | [`operations/COMMANDS-AND-SCHEDULE.md`](operations/COMMANDS-AND-SCHEDULE.md) | Every `ethr:*` Artisan command, the full schedule, and first checks when something looks wrong |
+| [`operations/IMPERSONATION.md`](operations/IMPERSONATION.md) | How a platform super admin acts as a tenant admin: MFA re-check, 30-minute token, cross-host handoff, audit tagging, what is blocked. **Ends with three findings on the production (hostname) path that no test covers** |
 
 ### The Bronze/Plesk migration audit — Phases 0–2, 2026-09-25
 
