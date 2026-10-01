@@ -49,12 +49,22 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
 } from "@/features/devices/components/device-workforce-dialogs";
+import {
+  useCreateDevice,
+  useDeleteDevice,
+  useDevices,
+  usePullDeviceEvents,
+  useSyncAllDevices,
+  useTestDeviceConnection,
+  useUpdateDevice,
+  type Device,
+} from "@/features/devices/api";
 import {
   buildDevicePayload,
   EMPTY_DEVICE_FORM,
@@ -66,24 +76,6 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-interface Device {
-  public_id: string;
-  name: string;
-  location_description: string | null;
-  serial_number: string | null;
-  adapter_type: string;
-  status: string;
-  auto_sync: boolean;
-  sync_interval_minutes: number;
-  last_sync_at: string | null;
-  branch?: { public_id: string; name: string } | null;
-  branch_public_id: string | null;
-  attendance_records_count?: number;
-  sync_logs_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
   zkteco: "ZKTeco",
@@ -93,7 +85,6 @@ const ADAPTER_LABELS: Record<string, string> = {
 
 export default function DevicesPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
@@ -103,15 +94,9 @@ export default function DevicesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["devices", search, statusFilter],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (statusFilter !== "all") params["filter[status]"] = statusFilter;
-      const { data } = await apiClient.get("/devices", { params });
-      return data;
-    },
+  const { data, isLoading } = useDevices({
+    search: search || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
   });
 
   const { data: branches } = useQuery({
@@ -119,96 +104,84 @@ export default function DevicesPage() {
     queryFn: async () => (await apiClient.get("/organization/branches")).data,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post(
-        "/devices",
-        buildDevicePayload(form, "create"),
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.registered"));
-      setCreateOpen(false);
-      setForm({ ...EMPTY_DEVICE_FORM });
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail;
-      toast.error(msg || t("devices_page.add_failed"));
-    },
-  });
+  const createMutation = useCreateDevice();
+  const updateMutation = useUpdateDevice();
+  const deleteMutation = useDeleteDevice();
+  const pullMutation = usePullDeviceEvents();
+  const syncAllMutation = useSyncAllDevices();
+  const testMutation = useTestDeviceConnection();
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!editDevice) return;
-      const { data } = await apiClient.put(
-        `/devices/${editDevice.public_id}`,
-        buildDevicePayload(form, "edit"),
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.updated"));
-      setEditDevice(null);
-    },
-    onError: () => toast.error(t("devices_page.update_failed")),
-  });
+  function submitCreate() {
+    createMutation.mutate(buildDevicePayload(form, "create"), {
+      onSuccess: () => {
+        toast.success(t("devices_page.registered"));
+        setCreateOpen(false);
+        setForm({ ...EMPTY_DEVICE_FORM });
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { detail?: string } } })
+          ?.response?.data?.detail;
+        toast.error(msg || t("devices_page.add_failed"));
+      },
+    });
+  }
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/devices/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-      toast.success(t("devices_page.deleted"));
-      setDeleteDevice(null);
-    },
-    onError: () => toast.error(t("devices_page.delete_failed")),
-  });
+  function submitUpdate() {
+    if (!editDevice) return;
+    updateMutation.mutate(
+      {
+        publicId: editDevice.public_id,
+        payload: buildDevicePayload(form, "edit"),
+      },
+      {
+        onSuccess: () => {
+          toast.success(t("devices_page.updated"));
+          setEditDevice(null);
+        },
+        onError: () => toast.error(t("devices_page.update_failed")),
+      },
+    );
+  }
 
-  const pullMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(`/devices/${id}/pull`);
-      return data;
-    },
-    onSuccess: () => toast.success(t("devices_page.pull_initiated")),
-    onError: () => toast.error(t("devices_page.pull_failed")),
-  });
+  function confirmDelete(id: string) {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(t("devices_page.deleted"));
+        setDeleteDevice(null);
+      },
+      onError: () => toast.error(t("devices_page.delete_failed")),
+    });
+  }
 
-  const syncAllMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/devices/sync-all");
-      return data;
-    },
-    onSuccess: (data) => {
-      const d = data as { dispatched?: number };
-      toast.success(
-        `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched ?? 0} ${t("devices_page.device_s")}`,
-      );
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-    },
-    onError: () => toast.error(t("devices_page.bulk_sync_failed")),
-  });
+  function pull(id: string) {
+    pullMutation.mutate(id, {
+      onSuccess: () => toast.success(t("devices_page.pull_initiated")),
+      onError: () => toast.error(t("devices_page.pull_failed")),
+    });
+  }
 
-  const testMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.get(`/devices/${id}/status`);
-      return data;
-    },
-    onSuccess: (data) => {
-      const status = (data as { status?: string })?.status;
-      if (status === "online") {
-        toast.success(t("devices_page.online_responding"));
-      } else {
-        toast.error(`${t("devices_page.device_is")} ${status}`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["devices"] });
-    },
-    onError: () => toast.error(t("devices_page.test_failed")),
-  });
+  function syncAll() {
+    syncAllMutation.mutate(undefined, {
+      onSuccess: (d) =>
+        toast.success(
+          `${t("devices_page.sync_dispatched_prefix")} ${d.dispatched} ${t("devices_page.device_s")}`,
+        ),
+      onError: () => toast.error(t("devices_page.bulk_sync_failed")),
+    });
+  }
+
+  function testConnection(id: string) {
+    testMutation.mutate(id, {
+      onSuccess: ({ status }) => {
+        if (status === "online") {
+          toast.success(t("devices_page.online_responding"));
+        } else {
+          toast.error(`${t("devices_page.device_is")} ${status}`);
+        }
+      },
+      onError: () => toast.error(t("devices_page.test_failed")),
+    });
+  }
 
   function openEdit(device: Device) {
     setForm({
@@ -246,7 +219,7 @@ export default function DevicesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => syncAllMutation.mutate()}
+                onClick={syncAll}
                 disabled={syncAllMutation.isPending || devices.length === 0}
               >
                 {syncAllMutation.isPending ? (
@@ -326,8 +299,8 @@ export default function DevicesPage() {
               <DeviceCard
                 key={d.public_id}
                 device={d}
-                onPull={() => pullMutation.mutate(d.public_id)}
-                onTest={() => testMutation.mutate(d.public_id)}
+                onPull={() => pull(d.public_id)}
+                onTest={() => testConnection(d.public_id)}
                 onEdit={() => openEdit(d)}
                 onDelete={() => setDeleteDevice(d)}
                 onDiscover={() => setDiscoverDevice(d)}
@@ -351,7 +324,7 @@ export default function DevicesPage() {
           addressRequired
           onSubmit={(e) => {
             e.preventDefault();
-            createMutation.mutate();
+            submitCreate();
           }}
           isPending={createMutation.isPending}
           submitLabel={t("devices_page.register")}
@@ -373,7 +346,7 @@ export default function DevicesPage() {
           addressRequired={editDevice?.adapter_type !== form.adapter_type}
           onSubmit={(e) => {
             e.preventDefault();
-            updateMutation.mutate();
+            submitUpdate();
           }}
           isPending={updateMutation.isPending}
           submitLabel={t("leave_types_page.save_changes")}
@@ -402,7 +375,7 @@ export default function DevicesPage() {
               <Button
                 variant="destructive"
                 onClick={() =>
-                  deleteDevice && deleteMutation.mutate(deleteDevice.public_id)
+                  deleteDevice && confirmDelete(deleteDevice.public_id)
                 }
                 disabled={deleteMutation.isPending}
               >

@@ -18,49 +18,20 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useDeviceDashboard,
+  useDevices,
+  type Device,
+} from "@/features/devices/api";
 import { useT } from "@/lib/i18n/useT";
-
-interface DashboardResponse {
-  total: number;
-  online: number;
-  offline: number;
-  error: number;
-  pending: number;
-  auto_sync_enabled: number;
-  events_today: number;
-  last_sync_at: string | null;
-  sync_stats_24h: {
-    success: number;
-    partial: number;
-    failed: number;
-    offline: number;
-  };
-}
-
-interface Device {
-  public_id: string;
-  name: string;
-  adapter_type: string;
-  serial_number: string | null;
-  status: string;
-  last_sync_at: string | null;
-  branch?: { name: string } | null;
-  attendance_records_count?: number;
-}
 
 export default function DeviceDashboardPage() {
   const { t } = useT();
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardResponse>({
-    queryKey: ["devices", "dashboard"],
-    queryFn: async () => (await apiClient.get("/devices/dashboard")).data,
+  const { data: stats, isLoading: statsLoading } = useDeviceDashboard({
     refetchInterval: 30000,
   });
 
-  const { data: devices, isLoading: devicesLoading } = useQuery({
-    queryKey: ["devices"],
-    queryFn: async () => (await apiClient.get("/devices")).data,
+  const { data: devices, isLoading: devicesLoading } = useDevices(undefined, {
     refetchInterval: 30000,
   });
 

@@ -48,8 +48,20 @@ import {
 } from "@/components/ui/dialog";
 
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useDeleteDevice,
+  useDevice,
+  useDeviceEvents,
+  useDeviceSyncLogs,
+  usePullDeviceEvents,
+  useRegenerateDeviceToken,
+  useTestDeviceConnection,
+  useUpdateDevice,
+  type Device,
+  type DeviceEvent,
+  type DeviceSyncLog,
+  type DeviceUpdate,
+} from "@/features/devices/api";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -76,146 +88,85 @@ const SYNC_STATUS_ICON: Record<string, React.ReactNode> = {
   running: <Loader2 className="h-4 w-4 animate-spin text-status-info" />,
 };
 
-interface Device {
-  public_id: string;
-  name: string;
-  location_description: string | null;
-  serial_number: string | null;
-  adapter_type: string;
-  status: string;
-  auto_sync: boolean;
-  sync_interval_minutes: number;
-  webhook_token: string | null;
-  webhook_url: string | null;
-  last_sync_at: string | null;
-  branch?: { public_id: string; name: string } | null;
-  branch_public_id: string | null;
-  attendance_records_count?: number;
-  sync_logs_count?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface SyncLog {
-  public_id: string;
-  status: string;
-  triggered_by: string;
-  events_found: number;
-  events_processed: number;
-  events_failed: number;
-  error_message: string | null;
-  duration_ms: number | null;
-  started_at: string;
-  completed_at: string | null;
-  created_at: string;
-}
-
-interface DeviceEvent {
-  public_id: string;
-  employee_name: string;
-  employee_code: string | null;
-  date: string;
-  check_in: string | null;
-  check_out: string | null;
-  source: string;
-  status: string;
-  confidence_score: number;
-  created_at: string;
-}
-
 export function DeviceDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
   // Punch times render in the tenant's timezone, not the browser's — §12g.
   const { formatTime } = useDateFormatters();
   const id = useRouteId(routeId) ?? "";
-  const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [syncLogPage, setSyncLogPage] = useState(1);
   const [eventPage, setEventPage] = useState(1);
 
-  const { data: device, isLoading } = useQuery<Device>({
-    queryKey: ["devices", id],
-    queryFn: async () => (await apiClient.get(`/devices/${id}`)).data,
-    // The two child queries gate on `device`; this one is the root, so it is the
-    // one that has to gate on the id. Without it a static-export shell fires
-    // `GET /devices/` on its first paint, before `useRouteId` has the real id.
-    enabled: !!id,
-  });
+  const { data: device, isLoading } = useDevice(id);
 
-  const { data: syncLogs, isLoading: syncLogsLoading } = useQuery({
-    queryKey: ["devices", id, "sync-logs", syncLogPage],
-    queryFn: async () =>
-      (
-        await apiClient.get(`/devices/${id}/sync-logs`, {
-          params: { page: syncLogPage, per_page: 10 },
-        })
-      ).data,
-    enabled: !!device,
-  });
+  // Child queries wait for the device itself, so a deleted or foreign id
+  // costs one 404 rather than three.
+  const { data: syncLogs, isLoading: syncLogsLoading } = useDeviceSyncLogs(
+    id,
+    { page: syncLogPage, per_page: 10 },
+    { enabled: !!device },
+  );
 
-  const { data: events, isLoading: eventsLoading } = useQuery({
-    queryKey: ["devices", id, "events", eventPage],
-    queryFn: async () =>
-      (
-        await apiClient.get(`/devices/${id}/events`, {
-          params: { page: eventPage, per_page: 15 },
-        })
-      ).data,
-    enabled: !!device,
-  });
+  const { data: events, isLoading: eventsLoading } = useDeviceEvents(
+    id,
+    { page: eventPage, per_page: 15 },
+    { enabled: !!device },
+  );
 
-  const pullMutation = useMutation({
-    mutationFn: async () => (await apiClient.post(`/devices/${id}/pull`)).data,
-    onSuccess: () => {
-      toast.success(t("devices_page.pull_initiated"));
-      queryClient.invalidateQueries({ queryKey: ["devices", id] });
-    },
-    onError: () => toast.error(t("devices_page.pull_failed")),
-  });
+  const pullMutation = usePullDeviceEvents();
+  const testMutation = useTestDeviceConnection();
+  const regenTokenMutation = useRegenerateDeviceToken();
+  const deleteMutation = useDeleteDevice();
+  const updateMutation = useUpdateDevice();
 
-  const testMutation = useMutation({
-    mutationFn: async () => (await apiClient.get(`/devices/${id}/status`)).data,
-    onSuccess: (data) => {
-      const s = (data as { status?: string })?.status;
-      if (s === "online") toast.success(t("devices_page.online_responding"));
-      else toast.error(`${t("devices_page.device_is")} ${s}`);
-      queryClient.invalidateQueries({ queryKey: ["devices", id] });
-    },
-    onError: () => toast.error(t("devices_page.test_failed")),
-  });
+  function pull() {
+    pullMutation.mutate(id, {
+      onSuccess: () => toast.success(t("devices_page.pull_initiated")),
+      onError: () => toast.error(t("devices_page.pull_failed")),
+    });
+  }
 
-  const regenTokenMutation = useMutation({
-    mutationFn: async () =>
-      (await apiClient.post(`/devices/${id}/regenerate-token`)).data,
-    onSuccess: () => {
-      toast.success(t("device_detail_page.token_regenerated"));
-      queryClient.invalidateQueries({ queryKey: ["devices", id] });
-    },
-    onError: () => toast.error(t("device_detail_page.regenerate_failed")),
-  });
+  function testConnection() {
+    testMutation.mutate(id, {
+      onSuccess: ({ status }) => {
+        if (status === "online")
+          toast.success(t("devices_page.online_responding"));
+        else toast.error(`${t("devices_page.device_is")} ${status}`);
+      },
+      onError: () => toast.error(t("devices_page.test_failed")),
+    });
+  }
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.delete(`/devices/${id}`);
-    },
-    onSuccess: () => {
-      toast.success(t("devices_page.deleted"));
-      window.location.href = "/devices";
-    },
-    onError: () => toast.error(t("devices_page.delete_failed")),
-  });
+  function regenerateToken() {
+    regenTokenMutation.mutate(id, {
+      onSuccess: () => toast.success(t("device_detail_page.token_regenerated")),
+      onError: () => toast.error(t("device_detail_page.regenerate_failed")),
+    });
+  }
 
-  const updateMutation = useMutation({
-    mutationFn: async (data: Record<string, unknown>) =>
-      (await apiClient.put(`/devices/${id}`, data)).data,
-    onSuccess: () => {
-      toast.success(t("devices_page.updated"));
-      setEditOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["devices", id] });
-    },
-    onError: () => toast.error(t("device_detail_page.update_failed")),
-  });
+  function remove() {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(t("devices_page.deleted"));
+        window.location.href = "/devices";
+      },
+      onError: () => toast.error(t("devices_page.delete_failed")),
+    });
+  }
+
+  function update(payload: DeviceUpdate) {
+    updateMutation.mutate(
+      { publicId: id, payload },
+      {
+        onSuccess: () => {
+          toast.success(t("devices_page.updated"));
+          setEditOpen(false);
+        },
+        onError: () => toast.error(t("device_detail_page.update_failed")),
+      },
+    );
+  }
 
   if (!id || isLoading) {
     return (
@@ -242,8 +193,10 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   }
 
   const isOnline = device.status === "online";
-  const syncLogItems: SyncLog[] = syncLogs?.data ?? [];
+  const syncLogItems: DeviceSyncLog[] = syncLogs?.data ?? [];
   const eventItems: DeviceEvent[] = events?.data ?? [];
+  const syncLogPages = syncLogs?.meta.last_page ?? 1;
+  const eventPages = events?.last_page ?? 1;
 
   return (
     <RoleGate minRole="hr_admin">
@@ -286,7 +239,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => testMutation.mutate()}
+              onClick={testConnection}
               disabled={testMutation.isPending}
             >
               {testMutation.isPending ? (
@@ -299,7 +252,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => pullMutation.mutate()}
+              onClick={pull}
               disabled={pullMutation.isPending}
             >
               {pullMutation.isPending ? (
@@ -399,7 +352,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => regenTokenMutation.mutate()}
+                    onClick={regenerateToken}
                     disabled={regenTokenMutation.isPending}
                   >
                     <RotateCw className="mr-2 h-3 w-3" />
@@ -521,12 +474,12 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             key="ts"
                             className="text-xs text-muted-foreground"
                           >
-                            {timeAgo(log.started_at, t)}
+                            {log.started_at ? timeAgo(log.started_at, t) : "—"}
                           </span>,
                         ],
                       }))}
                     />
-                    {syncLogs?.meta?.last_page > 1 && (
+                    {syncLogPages > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
                           {t("device_detail_page.page")} {syncLogPage}
@@ -550,7 +503,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             size="icon"
                             className="h-7 w-7"
                             aria-label={t("common.next_page", "Next page")}
-                            disabled={syncLogPage >= syncLogs.meta.last_page}
+                            disabled={syncLogPage >= syncLogPages}
                             onClick={() => setSyncLogPage((p) => p + 1)}
                           >
                             <ChevronRight className="h-4 w-4" />
@@ -634,7 +587,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                         ],
                       }))}
                     />
-                    {events?.meta?.last_page > 1 && (
+                    {eventPages > 1 && (
                       <div className="flex items-center justify-between border-t p-3">
                         <span className="text-xs text-muted-foreground">
                           {t("device_detail_page.page")} {eventPage}
@@ -658,7 +611,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
                             size="icon"
                             className="h-7 w-7"
                             aria-label={t("common.next_page", "Next page")}
-                            disabled={eventPage >= events.meta.last_page}
+                            disabled={eventPage >= eventPages}
                             onClick={() => setEventPage((p) => p + 1)}
                           >
                             <ChevronRight className="h-4 w-4" />
@@ -679,7 +632,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
             device={device}
             open={editOpen}
             onOpenChange={setEditOpen}
-            onSubmit={(data) => updateMutation.mutate(data)}
+            onSubmit={update}
             isPending={updateMutation.isPending}
           />
         )}
@@ -701,7 +654,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => deleteMutation.mutate()}
+                onClick={remove}
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending && (
@@ -749,7 +702,7 @@ function EditDeviceDialog({
   device: Device;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Record<string, unknown>) => void;
+  onSubmit: (data: DeviceUpdate) => void;
   isPending: boolean;
 }) {
   const { t } = useT();
