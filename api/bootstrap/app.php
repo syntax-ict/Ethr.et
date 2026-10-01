@@ -49,6 +49,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        // Since Laravel 11 the api group carries no throttle unless asked, and
+        // nothing asked: the named limiters applied only where a route listed
+        // one, so every other endpoint — the whole authenticated API, and the
+        // public catalogue — took unlimited requests (measured 2026-10-01:
+        // 400 of 400 returned 200). Shared hosting puts no per-IP brake in
+        // front of PHP, so this is the only one. Route-level limiters still
+        // apply on top.
+        $middleware->throttleApi('api-global');
+
         // Trusted proxies are deliberately NOT configured. This looks like an
         // omission and is not — it was added during the 2026-08-15 domain audit
         // and reverted the same day, because measuring it showed it made things

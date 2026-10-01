@@ -152,8 +152,36 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Applied to the whole api group (bootstrap/app.php). Five requests a
+        // second sustained per signed-in user is far above what the busiest
+        // page fires, and it caps scripted scraping by one account. Guests are
+        // keyed by IP.
+        RateLimiter::for('api-global', function (Request $request) {
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Unauthenticated, cheap, and cached — but unauthenticated, so bounded
+        // per IP rather than left to the global guest budget alone.
+        RateLimiter::for('public-catalogue', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
+        // Keyed to the account as well as the address. Per IP alone, it counted
+        // every login — successful ones too — so an office behind one NAT
+        // address (the norm here) locked its 11th person out at 8:00.
+        // Guessing one account's password stays at 10/min (and
+        // RateLimitLoginAttempts adds a 15-minute lockout on failures); the
+        // per-IP ceiling still bounds spraying many accounts from one address.
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            $account = mb_strtolower(trim((string) ($request->input('identifier')
+                ?? $request->input('email')
+                ?? $request->input('phone')
+                ?? '')));
+
+            return [
+                Limit::perMinute(10)->by('auth-account:'.$account.'|'.$request->ip()),
+                Limit::perMinute(100)->by('auth-ip:'.$request->ip()),
+            ];
         });
 
         // `/health` has to stay unauthenticated — uptime probes cannot log in —

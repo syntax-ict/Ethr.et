@@ -143,15 +143,15 @@ Route::prefix('cron')
     });
 
 // Public endpoints
-Route::get('/plans', [PlanController::class, 'index']);
+Route::get('/plans', [PlanController::class, 'index'])->middleware('throttle:public-catalogue');
 
 // Contact details, brand and published figures for the marketing site.
 // Unauthenticated and deliberately NOT behind EnsurePlatformContext, which
 // 404s whenever a tenant is resolved — the marketing pages are served from
 // tenant subdomains too. See SiteContentResource for what is published.
-Route::get('/site-content', [SiteContentController::class, 'index']);
-Route::get('/templates', [TemplateController::class, 'index']);
-Route::get('/templates/{slug}', [TemplateController::class, 'show']);
+Route::get('/site-content', [SiteContentController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
 // Public auth routes
