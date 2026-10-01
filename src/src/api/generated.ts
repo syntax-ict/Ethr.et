@@ -9908,6 +9908,15 @@ export interface operations {
                         status: 403;
                         /** @constant */
                         detail: "No account found for this SSO identity. Contact your administrator.";
+                    } | {
+                        /** @constant */
+                        type: "https://ethr.et/errors/tenant-inactive";
+                        /** @constant */
+                        title: "Organization Inactive";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your organization account is not active.";
                     };
                 };
             };
@@ -13501,6 +13510,30 @@ export interface operations {
                     };
                 };
             };
+            /**
+             * @description An expression this endpoint cannot evaluate used to be ignored,
+             *     returning every user — an IdP asking "does this person exist?"
+             *     was told everyone matched, and typically linked to the first
+             *     result. RFC 7644 §3.4.2.2: 400 invalidFilter.
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "Unsupported filter";
+                        /** @constant */
+                        scimType: "invalidFilter";
+                        /** @constant */
+                        status: 400;
+                    };
+                };
+            };
         };
     };
     "scimUser.store": {
@@ -13565,6 +13598,16 @@ export interface operations {
                         ];
                         /** @constant */
                         detail: "userName or emails[0].value is required";
+                        /** @constant */
+                        scimType: "invalidValue";
+                        /** @constant */
+                        status: 400;
+                    } | {
+                        schemas: [
+                            "urn:ietf:params:scim:api:messages:2.0:Error"
+                        ];
+                        /** @constant */
+                        detail: "userName must be a string and emails a list of {value}";
                         /** @constant */
                         scimType: "invalidValue";
                         /** @constant */
