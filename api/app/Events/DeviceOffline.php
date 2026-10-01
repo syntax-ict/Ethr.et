@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events;
 
+use App\Events\Concerns\BroadcastsWhenEnabled;
 use App\Models\Device;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -13,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
 
 class DeviceOffline implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use BroadcastsWhenEnabled, Dispatchable, SerializesModels;
 
     public function __construct(
         public readonly Device $device,
