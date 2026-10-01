@@ -16,20 +16,16 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
-
-interface EmergencyContact {
-  public_id: string;
-  name: string;
-  relationship: string;
-  phone: string;
-}
+import {
+  useAddEmergencyContact,
+  useDeleteEmergencyContact,
+  useEmployeeEmergencyContacts,
+} from "../api";
 
 const contactSchema = z.object({
   name: rules.requiredText(255),
@@ -44,7 +40,6 @@ type ContactValues = z.infer<typeof contactSchema>;
 
 export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -58,51 +53,25 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     defaultValues: { name: "", relationship: "", phone: "" },
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "emergency-contacts"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/emergency-contacts`,
-      );
-      return data;
-    },
-  });
+  const { data, isLoading } = useEmployeeEmergencyContacts(employeeId);
+  const addContact = useAddEmergencyContact(employeeId);
+  const deleteContact = useDeleteEmergencyContact(employeeId);
 
-  const addContact = useMutation({
-    mutationFn: async (values: ContactValues) => {
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/emergency-contacts`,
-        values,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "emergency-contacts"],
-      });
-      toast.success(t("employee.emergency.added", "Contact added"));
-      setAddOpen(false);
-      reset();
-    },
-  });
+  async function onAdd(values: ContactValues) {
+    await addContact.mutateAsync(values);
+    toast.success(t("employee.emergency.added", "Contact added"));
+    setAddOpen(false);
+    reset();
+  }
 
-  const deleteContact = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(
-        `/employees/${employeeId}/emergency-contacts/${id}`,
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "emergency-contacts"],
-      });
-      toast.success(t("employee.emergency.deleted", "Contact deleted"));
-    },
-  });
+  function onDelete(id: string) {
+    deleteContact.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.emergency.deleted", "Contact deleted")),
+    });
+  }
 
-  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
-  // so a non-paginated collection has no `data` key to read.
-  const contacts: EmergencyContact[] = data ?? [];
+  const contacts = data ?? [];
 
   return (
     <Card>
@@ -145,7 +114,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteContact.mutate(c.public_id)}
+                  onClick={() => onDelete(c.public_id)}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -164,7 +133,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addContact.mutateAsync(values),
+              onAdd,
               t("employee.emergency.add_failed", "Failed to add contact"),
             )}
             className="space-y-4"

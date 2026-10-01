@@ -19,20 +19,13 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-
-interface Education {
-  public_id: string;
-  institution: string;
-  degree: string;
-  field_of_study: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  grade: string | null;
-}
+import {
+  useAddEducation,
+  useDeleteEducation,
+  useEmployeeEducation,
+} from "../api";
 
 /**
  * The form asks for years, because that is how people remember a degree, but
@@ -108,7 +101,6 @@ const EMPTY_EDUCATION: EducationValues = {
 
 export function EducationTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -122,57 +114,32 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_EDUCATION,
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "education"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/education`,
-      );
-      return data;
-    },
-  });
+  const { data, isLoading } = useEmployeeEducation(employeeId);
+  const addEducation = useAddEducation(employeeId);
+  const deleteEducation = useDeleteEducation(employeeId);
 
-  const addEducation = useMutation({
-    mutationFn: async (values: EducationValues) => {
-      const payload = {
-        institution: values.institution,
-        degree: values.degree,
-        field_of_study: values.field_of_study,
-        start_date: yearToDate(values.start_year),
-        end_date: yearToDate(values.end_year),
-        grade: values.gpa === "" ? undefined : values.gpa,
-      };
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/education`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "education"],
-      });
-      toast.success(t("employee.education.added", "Education added"));
-      setAddOpen(false);
-      reset(EMPTY_EDUCATION);
-    },
-  });
+  async function onAdd(values: EducationValues) {
+    await addEducation.mutateAsync({
+      institution: values.institution,
+      degree: values.degree,
+      field_of_study: values.field_of_study,
+      start_date: yearToDate(values.start_year),
+      end_date: yearToDate(values.end_year),
+      grade: values.gpa === "" ? undefined : values.gpa,
+    });
+    toast.success(t("employee.education.added", "Education added"));
+    setAddOpen(false);
+    reset(EMPTY_EDUCATION);
+  }
 
-  const deleteEducation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/employees/${employeeId}/education/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "education"],
-      });
-      toast.success(t("employee.education.deleted", "Education deleted"));
-    },
-  });
+  function onDelete(id: string) {
+    deleteEducation.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.education.deleted", "Education deleted")),
+    });
+  }
 
-  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
-  // so a non-paginated collection has no `data` key to read.
-  const records: Education[] = data ?? [];
+  const records = data ?? [];
 
   return (
     <Card>
@@ -230,7 +197,7 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteEducation.mutate(e.public_id)}
+                  onClick={() => onDelete(e.public_id)}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -249,7 +216,7 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addEducation.mutateAsync(values),
+              onAdd,
               t("employee.education.add_failed", "Failed to add education"),
             )}
             className="space-y-4"

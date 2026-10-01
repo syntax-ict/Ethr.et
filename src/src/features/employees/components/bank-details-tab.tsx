@@ -17,23 +17,17 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller } from "react-hook-form";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
-
-interface BankDetail {
-  public_id: string;
-  bank_name: string;
-  branch_name?: string;
-  /** All but the last four digits starred; the full number is never sent. */
-  account_number_masked: string;
-  is_primary?: boolean;
-}
+import {
+  useAddBankDetail,
+  useDeleteBankDetail,
+  useEmployeeBankDetails,
+} from "../api";
 
 const bankSchema = z.object({
   bank_name: rules.requiredText(255),
@@ -65,7 +59,6 @@ const EMPTY_BANK: BankValues = {
 
 export function BankDetailsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -80,49 +73,25 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_BANK,
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "bank-details"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/bank-details`,
-      );
-      return data;
-    },
-  });
+  const { data, isLoading } = useEmployeeBankDetails(employeeId);
+  const addBank = useAddBankDetail(employeeId);
+  const deleteBank = useDeleteBankDetail(employeeId);
 
-  const addBank = useMutation({
-    mutationFn: async (values: BankValues) => {
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/bank-details`,
-        values,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "bank-details"],
-      });
-      toast.success(t("employee.bank.added", "Bank details added"));
-      setAddOpen(false);
-      reset(EMPTY_BANK);
-    },
-  });
+  async function onAdd(values: BankValues) {
+    await addBank.mutateAsync(values);
+    toast.success(t("employee.bank.added", "Bank details added"));
+    setAddOpen(false);
+    reset(EMPTY_BANK);
+  }
 
-  const deleteBank = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/employees/${employeeId}/bank-details/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "bank-details"],
-      });
-      toast.success(t("employee.bank.deleted", "Bank deleted"));
-    },
-  });
+  function onDelete(id: string) {
+    deleteBank.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.bank.deleted", "Bank deleted")),
+    });
+  }
 
-  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
-  // so a non-paginated collection has no `data` key to read.
-  const banks: BankDetail[] = data ?? [];
+  const banks = data ?? [];
 
   /**
    * `is_primary` is the account `BankExportService` pays salary into, and
@@ -189,7 +158,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteBank.mutate(b.public_id)}
+                  onClick={() => onDelete(b.public_id)}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -208,7 +177,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addBank.mutateAsync(values),
+              onAdd,
               t("employee.bank.add_failed", "Failed to add bank account"),
             )}
             className="space-y-4"

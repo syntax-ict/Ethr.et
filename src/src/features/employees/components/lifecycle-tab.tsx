@@ -19,27 +19,20 @@ import {
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller } from "react-hook-form";
-import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import {
+  useEmployeeTransitions,
+  useTransitionEmployee,
+  type TransitionPayload,
+} from "../api";
 
 // ── LIFECYCLE TAB ──────────────────────────────────────────────
-
-interface Transition {
-  public_id: string;
-  from_status: string;
-  to_status: string;
-  reason: string | null;
-  effective_date: string;
-  approved_by?: { name?: string; email?: string };
-  created_at: string;
-}
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   hired: ["probation", "confirmed"],
@@ -95,7 +88,6 @@ export function LifecycleTab({
   currentStatus: string;
 }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const { can } = usePermissions();
   const canTransition = can.manageEmployees;
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -116,44 +108,27 @@ export function LifecycleTab({
 
   const selectedStatus = watch("to_status");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "transitions"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/transitions`,
-      );
-      return data;
-    },
-  });
+  const { data, isLoading } = useEmployeeTransitions(employeeId);
+  const transitionMut = useTransitionEmployee(employeeId);
 
-  const transitionMut = useMutation({
-    mutationFn: async (values: TransitionValues) => {
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/transition`,
-        values,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success(
-        t("employee.lifecycle.transitioned", "Status transitioned"),
-      );
-      setDialogOpen(false);
-      reset(emptyTransition());
-    },
-    // The server enforces the same state machine `ALLOWED_TRANSITIONS` mirrors,
-    // and it is the authority on whether this particular employee can move —
-    // its refusal now stays on screen in the dialog instead of in a toast that
-    // outlives the closed form by five seconds.
-  });
+  // The server enforces the same state machine `ALLOWED_TRANSITIONS` mirrors,
+  // and it is the authority on whether this particular employee can move — a
+  // rejection propagates out of here into `submit()`, so its refusal stays on
+  // screen in the dialog instead of in a toast that outlives the closed form.
+  async function onTransition(values: TransitionValues) {
+    await transitionMut.mutateAsync({
+      ...values,
+      // A string in the form, picked only from ALLOWED_TRANSITIONS' values.
+      to_status: values.to_status as TransitionPayload["to_status"],
+    });
+    toast.success(t("employee.lifecycle.transitioned", "Status transitioned"));
+    setDialogOpen(false);
+    reset(emptyTransition());
+  }
 
   const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
   const isTerminal = allowed.length === 0;
-  const transitions: Transition[] = Array.isArray(data)
-    ? data
-    : (data?.data ?? []);
+  const transitions = data ?? [];
 
   return (
     <Card>
@@ -233,15 +208,18 @@ export function LifecycleTab({
                   .slice()
                   .sort(
                     (a, b) =>
-                      new Date(b.effective_date).getTime() -
-                      new Date(a.effective_date).getTime(),
+                      new Date(b.effective_date ?? 0).getTime() -
+                      new Date(a.effective_date ?? 0).getTime(),
                   )
-                  .map((t) => (
-                    <div key={t.public_id} className="relative flex gap-3 pl-0">
+                  .map((tr) => (
+                    <div
+                      key={tr.public_id}
+                      className="relative flex gap-3 pl-0"
+                    >
                       <div
                         className={cn(
                           "z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-background",
-                          STATUS_DOT_COLOR[t.to_status],
+                          STATUS_DOT_COLOR[tr.to_status ?? ""],
                         )}
                       />
                       <div className="flex-1 min-w-0 rounded-lg border p-3">
@@ -250,34 +228,34 @@ export function LifecycleTab({
                             variant="outline"
                             className="text-[10px] font-mono"
                           >
-                            {STATUS_LABEL[t.from_status] ?? t.from_status}
+                            {STATUS_LABEL[tr.from_status ?? ""] ??
+                              tr.from_status}
                           </Badge>
                           <ArrowRight className="h-3 w-3 text-muted-foreground" />
                           <Badge
                             variant="outline"
                             className={cn(
                               "text-[10px] font-mono border-0",
-                              STATUS_DOT_COLOR[t.to_status],
+                              STATUS_DOT_COLOR[tr.to_status ?? ""],
                               "text-text-inverse",
                             )}
                           >
-                            {STATUS_LABEL[t.to_status] ?? t.to_status}
+                            {STATUS_LABEL[tr.to_status ?? ""] ?? tr.to_status}
                           </Badge>
                           <span className="ml-auto text-xs text-muted-foreground">
-                            {t.effective_date}
+                            {tr.effective_date}
                           </span>
                         </div>
-                        {t.reason && (
+                        {tr.reason && (
                           <p className="mt-2 text-sm text-foreground">
-                            {t.reason}
+                            {tr.reason}
                           </p>
                         )}
-                        {t.approved_by && (
+                        {/* EmployeeSummaryResource over the approving User: a
+                            name, never an email. */}
+                        {tr.approved_by && (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            by{" "}
-                            {t.approved_by.name ??
-                              t.approved_by.email ??
-                              "system"}
+                            by {tr.approved_by.name}
                           </p>
                         )}
                       </div>
@@ -301,7 +279,7 @@ export function LifecycleTab({
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => transitionMut.mutateAsync(values),
+              onTransition,
               t("employee.lifecycle.transition_failed", "Transition failed"),
             )}
             className="space-y-4"

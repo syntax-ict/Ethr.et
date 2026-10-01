@@ -695,3 +695,248 @@ export function useCancelRetirementCase(publicId: string) {
     (caseId) => `${caseId}/cancel`,
   );
 }
+
+// ── Profile sub-resources (bank, documents, education, emergency contacts) ──
+//
+// Every index below is a bare array: AppServiceProvider calls
+// `JsonResource::withoutWrapping()`, so a non-paginated resource collection has
+// no `data` key. The tabs these replace read `data.data` and rendered their
+// empty state no matter what was on file.
+//
+// Toasts stay with the component, passed as `mutate(vars, { onError })`; a
+// hook owns only the request and what it invalidates.
+
+export type BankDetail = components["schemas"]["BankDetailResource"];
+export type BankDetailPayload = components["schemas"]["StoreBankDetailRequest"];
+
+/** Scramble types the two expiry flags as strings; the resource emits booleans. */
+export type EmployeeDocument = Omit<
+  components["schemas"]["EmployeeDocumentResource"],
+  "is_expired" | "expires_soon"
+> & { is_expired: boolean; expires_soon: boolean };
+
+/** `file` is a `File` on the wire; the contract can only call it a string. */
+export type DocumentUpload = Omit<
+  components["schemas"]["StoreDocumentRequest"],
+  "file"
+> & { file: File };
+
+export type EducationRecord = components["schemas"]["EducationResource"];
+export type EducationPayload = components["schemas"]["StoreEducationRequest"];
+
+export type EmergencyContact =
+  components["schemas"]["EmergencyContactResource"];
+export type EmergencyContactPayload =
+  components["schemas"]["StoreEmergencyContactRequest"];
+
+function subResourceKey(publicId: string, resource: string) {
+  return ["employees", publicId, resource];
+}
+
+function useSubResourceList<T>(publicId: string, resource: string) {
+  return useQuery<T[]>({
+    queryKey: subResourceKey(publicId, resource),
+    queryFn: async () =>
+      (await apiClient.get<T[]>(`/employees/${publicId}/${resource}`)).data,
+    enabled: !!publicId,
+  });
+}
+
+/**
+ * A write to `/employees/{id}/{resource}`. Invalidates that list, plus any
+ * query outside the employee tree that reads the same rows.
+ */
+function useSubResourceWrite<TVars, TData>(
+  publicId: string,
+  resource: string,
+  mutationFn: (vars: TVars) => Promise<TData>,
+  alsoInvalidate: readonly (readonly string[])[] = [],
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: subResourceKey(publicId, resource),
+      });
+      for (const queryKey of alsoInvalidate) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
+}
+
+export function useEmployeeBankDetails(publicId: string) {
+  return useSubResourceList<BankDetail>(publicId, "bank-details");
+}
+
+export function useAddBankDetail(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "bank-details",
+    async (payload: BankDetailPayload) =>
+      (
+        await apiClient.post<BankDetail>(
+          `/employees/${publicId}/bank-details`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteBankDetail(publicId: string) {
+  return useSubResourceWrite(publicId, "bank-details", async (id: string) => {
+    await apiClient.delete(`/employees/${publicId}/bank-details/${id}`);
+  });
+}
+
+/**
+ * The executive compliance card counts expiring documents, so a document
+ * upload or deletion refreshes it too.
+ */
+const COMPLIANCE_KEY = ["dashboard", "executive", "compliance"] as const;
+
+export function useEmployeeDocuments(publicId: string) {
+  return useSubResourceList<EmployeeDocument>(publicId, "documents");
+}
+
+export function useUploadEmployeeDocument(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "documents",
+    async (upload: DocumentUpload) => {
+      const fd = new FormData();
+      fd.append("file", upload.file);
+      fd.append("title", upload.title);
+      fd.append("type", upload.type);
+      if (upload.expiry_date) fd.append("expiry_date", upload.expiry_date);
+      return (
+        await apiClient.post<EmployeeDocument>(
+          `/employees/${publicId}/documents`,
+          fd,
+          { headers: { "Content-Type": "multipart/form-data" } },
+        )
+      ).data;
+    },
+    [COMPLIANCE_KEY],
+  );
+}
+
+export function useDeleteEmployeeDocument(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "documents",
+    async (id: string) => {
+      await apiClient.delete(`/employees/${publicId}/documents/${id}`);
+    },
+    [COMPLIANCE_KEY],
+  );
+}
+
+export function useEmployeeEducation(publicId: string) {
+  return useSubResourceList<EducationRecord>(publicId, "education");
+}
+
+export function useAddEducation(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "education",
+    async (payload: EducationPayload) =>
+      (
+        await apiClient.post<EducationRecord>(
+          `/employees/${publicId}/education`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteEducation(publicId: string) {
+  return useSubResourceWrite(publicId, "education", async (id: string) => {
+    await apiClient.delete(`/employees/${publicId}/education/${id}`);
+  });
+}
+
+export function useEmployeeEmergencyContacts(publicId: string) {
+  return useSubResourceList<EmergencyContact>(publicId, "emergency-contacts");
+}
+
+export function useAddEmergencyContact(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "emergency-contacts",
+    async (payload: EmergencyContactPayload) =>
+      (
+        await apiClient.post<EmergencyContact>(
+          `/employees/${publicId}/emergency-contacts`,
+          payload,
+        )
+      ).data,
+  );
+}
+
+export function useDeleteEmergencyContact(publicId: string) {
+  return useSubResourceWrite(
+    publicId,
+    "emergency-contacts",
+    async (id: string) => {
+      await apiClient.delete(`/employees/${publicId}/emergency-contacts/${id}`);
+    },
+  );
+}
+
+// ── Status transitions (lifecycle) ──────────────────────────────────
+
+export type EmployeeTransition =
+  components["schemas"]["EmployeeTransitionResource"];
+export type TransitionPayload =
+  components["schemas"]["TransitionEmployeeRequest"];
+
+export function useEmployeeTransitions(publicId: string) {
+  return useSubResourceList<EmployeeTransition>(publicId, "transitions");
+}
+
+/**
+ * A transition changes the employee's status, which every employee query and
+ * every dashboard headcount reads, so this refreshes both trees rather than
+ * only the history list.
+ */
+export function useTransitionEmployee(publicId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: TransitionPayload) =>
+      (
+        await apiClient.post<EmployeeTransition>(
+          `/employees/${publicId}/transition`,
+          payload,
+        )
+      ).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+// ── Attendance timeline ─────────────────────────────────────────────
+
+export type AttendanceTimeline =
+  operations["employee.employeeAttendanceTimeline"]["responses"][200]["content"]["application/json"];
+export type AttendanceTimelineDay = AttendanceTimeline["days"][number];
+
+export function useEmployeeAttendanceTimeline(
+  publicId: string,
+  range: { from: string; to: string },
+) {
+  return useQuery<AttendanceTimeline>({
+    queryKey: [...subResourceKey(publicId, "attendance-timeline"), range],
+    queryFn: async () =>
+      (
+        await apiClient.get<AttendanceTimeline>(
+          `/employees/${publicId}/attendance/timeline`,
+          { params: range },
+        )
+      ).data,
+    enabled: !!publicId,
+  });
+}

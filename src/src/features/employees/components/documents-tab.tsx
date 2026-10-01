@@ -24,25 +24,20 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller } from "react-hook-form";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import {
+  useDeleteEmployeeDocument,
+  useEmployeeDocuments,
+  useUploadEmployeeDocument,
+  type DocumentUpload,
+} from "../api";
 
-interface Doc {
-  public_id: string;
-  title: string;
-  type: string;
-  mime_type: string | null;
-  expiry_date: string | null;
-  created_at: string | null;
-}
-
-/** Mirrors `StoreDocumentRequest::rules()['type']`. */
+/** Mirrors `StoreDocumentRequest::rules()['type']`; tsc fails if it drifts. */
 const DOCUMENT_TYPES = [
   "contract",
   "certificate",
@@ -50,7 +45,7 @@ const DOCUMENT_TYPES = [
   "academic",
   "medical",
   "other",
-] as const;
+] as const satisfies readonly DocumentUpload["type"][];
 
 /** `max:10240` in the FormRequest is kilobytes. */
 const MAX_FILE_BYTES = 10240 * 1024;
@@ -85,7 +80,6 @@ type DocumentValues = z.infer<typeof documentSchema>;
 
 export function DocumentsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -133,71 +127,36 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     return null;
   }
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "documents"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/documents`,
-      );
-      return data;
-    },
-  });
-
-  const uploadDoc = useMutation({
-    mutationFn: async (values: DocumentValues) => {
-      const fd = new FormData();
-      fd.append("file", file!);
-      fd.append("title", values.title);
-      fd.append("type", values.type);
-      if (values.expiry_date) fd.append("expiry_date", values.expiry_date);
-
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/documents`,
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "documents"],
-      });
-      toast.success(t("employee.documents.uploaded", "Document uploaded"));
-      setUploadOpen(false);
-      setFile(null);
-      setFileError(null);
-      reset();
-    },
-  });
+  const { data, isLoading } = useEmployeeDocuments(employeeId);
+  const uploadDoc = useUploadEmployeeDocument(employeeId);
+  const deleteDoc = useDeleteEmployeeDocument(employeeId);
 
   async function onSubmit(values: DocumentValues) {
     const problem = validateFile(file);
     setFileError(problem);
-    if (problem) {
+    if (problem || !file) {
       // Not a schema field, so it cannot block submit on its own — surface it
       // in the summary too, otherwise a valid-looking form appears to do
       // nothing when only the file is missing.
       setRootError(problem);
       return;
     }
-    await uploadDoc.mutateAsync(values);
+    await uploadDoc.mutateAsync({ ...values, file });
+    toast.success(t("employee.documents.uploaded", "Document uploaded"));
+    setUploadOpen(false);
+    setFile(null);
+    setFileError(null);
+    reset();
   }
 
-  const deleteDoc = useMutation({
-    mutationFn: async (docId: string) => {
-      await apiClient.delete(`/employees/${employeeId}/documents/${docId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "documents"],
-      });
-      toast.success(t("employee.documents.deleted", "Document deleted"));
-    },
-  });
+  function onDelete(docId: string) {
+    deleteDoc.mutate(docId, {
+      onSuccess: () =>
+        toast.success(t("employee.documents.deleted", "Document deleted")),
+    });
+  }
 
-  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
-  // so a non-paginated collection has no `data` key to read.
-  const docs: Doc[] = data ?? [];
+  const docs = data ?? [];
 
   return (
     <Card>
@@ -240,7 +199,7 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteDoc.mutate(d.public_id)}
+                  onClick={() => onDelete(d.public_id)}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
