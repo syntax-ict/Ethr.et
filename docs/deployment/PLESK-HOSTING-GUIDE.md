@@ -152,6 +152,10 @@ repository pins two versions for two jobs:
 
 The host never runs the gates.
 
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30; `.nvmrc` (24) is now the only Node pin. Under the static-export decision (C-5,
+> 2026-09-27) the host runs no Node application, so the runtime row no longer applies.
+
 ### A4. Document root — **DO NOTHING. Do not change this field.**
 
 **Corrected 2026-09-24, same day this guide was written.** This section previously read

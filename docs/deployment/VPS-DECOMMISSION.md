@@ -48,6 +48,9 @@ this?'"*
 `seed.sh` are still present, on purpose**, and the reason is §3b.2a's own two qualifications
 rather than a permission refusal:
 
+*(2026-10-01: `seed.sh` is no longer present — it went with the Docker development stack on
+2026-09-30; see the end of this document. `backup.sh` and `restore.sh` are still held.)*
+
 | Held | Why |
 |---|---|
 | `backup.sh`, `restore.sh` | `ethr:backup` / `ethr:restore` are rehearsed in CI against MariaDB and have **never been rehearsed on the Ethio Telecom host** — that is Stage 6 of the migration plan. Deleting these removes a working path in favour of an untested one |

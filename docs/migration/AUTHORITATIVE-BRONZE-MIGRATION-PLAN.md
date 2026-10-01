@@ -205,6 +205,11 @@ being unavailable.
 > | Retired but present | `scripts/{backup,restore}.sh` — they **refuse to run**; see the risk row in §7 |
 > | Repointed | `scripts/seed.sh` — now targets the local dev stack |
 >
+> **2026-10-01:** the *Kept* and *Repointed* rows describe 2026-09-27. Both compose files,
+> `docker/` and `scripts/seed.sh` were removed with the Docker development stack on
+> 2026-09-30, by owner decision; local development is XAMPP
+> ([`../LOCAL_SETUP.md`](../LOCAL_SETUP.md), `scripts/local-production/up.sh`).
+>
 > **There is no repository-level VPS rollback path.** The only way back to those files
 > is `git revert 3db9904` — one commit, verified 2026-09-27 as the sole commit
 > containing any of the deletions — and it restores files, not a running VPS.
@@ -253,7 +258,9 @@ change.~~
 > - **What is still removable on the old condition:** `scripts/{backup,restore,seed}.sh`
 >   were held back. `backup.sh` and `restore.sh` are now **retired** — they refuse to run
 >   — and come out after the **Stage 6 host restore rehearsal**. `seed.sh` was repointed
->   at the local development stack and stays as a development utility.
+>   at the local development stack and stays as a development utility. *(No longer: it went
+  with the Docker development stack on 2026-09-30. Seed with `php artisan migrate --seed`,
+  as `../LOCAL_SETUP.md` does.)*
 
 ---
 

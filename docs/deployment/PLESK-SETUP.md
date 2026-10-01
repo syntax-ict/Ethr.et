@@ -276,6 +276,10 @@ Node versions are in play and **neither moves to fit the host**:
 The host never runs the gates, so 22.23.2 is not a blocker for this branch. Build the
 artifact on Node 22 to match the runtime.
 
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30; `.nvmrc` (24) is now the only Node pin. Under the static-export decision (C-5,
+> 2026-09-27) the host runs no Node application, so the runtime row no longer applies.
+
 ### Plesk — *Node.js*
 
 Read 2026-09-22: version **22.23.2**, npm, *Enable Node.js* and *Run Node.js commands* both

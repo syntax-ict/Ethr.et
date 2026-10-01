@@ -212,6 +212,8 @@ that only appear once you actually sign in as that user.
 
 ## Standing verification checklist (every item)
 
+> **2026-10-01:** the first two items name `scripts/pest-isolated.sh` and `scripts/phpstan-isolated.sh`, removed with the Docker stack on 2026-09-30. Run `./scripts/gates.sh backend` instead — native, with the collection guard.
+
 - [ ] `php -d memory_limit=-1 vendor/bin/pest` green — **run it via `scripts/pest-isolated.sh`**, not directly in `et-api-1`: over the Windows bind mount Pest silently collects a fraction of the suite and still exits 0 (see 9.4). The memory flag matters too: DomPDF payslip tests OOM the default limit.
 - [ ] `bash scripts/phpstan-isolated.sh` — L6, 0 errors. **Not `vendor/bin/phpstan` directly**: Larastan builds its schema by parsing migrations with `RecursiveDirectoryIterator`, which sees 25 of 52 of them over the Windows bind mount, and the missing tables surface as ~990 phantom "undefined property" errors (see 9.6).
 - [ ] `./vendor/bin/pint --test` clean

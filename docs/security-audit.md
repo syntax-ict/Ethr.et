@@ -60,7 +60,7 @@ assertions.** The figure below is kept as it stood when this audit was written.
 | Control | Evidence |
 |---------|----------|
 | Sensitive fields encrypted at rest (AES-256 via Laravel `encrypted` cast) | `Employee.tin`, `EmployeeBankDetail.account_number`, `User.mfa_secret`, `Device.connection_config`, `SsoSetting.idp_certificate` |
-| TLS enforced | `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` (`api/app/Http/Middleware/SecurityHeaders.php:19`); HTTP→HTTPS redirect in `infrastructure/nginx.conf` |
+| TLS enforced | `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` (`api/app/Http/Middleware/SecurityHeaders.php:19`); HTTP→HTTPS redirect was in `infrastructure/nginx.conf`, removed with the VPS on 2026-09-26. *(2026-10-01: the shared-hosting `.htaccess` sets HSTS but carries no redirect rule; on Plesk the redirect is a hosting setting this repository does not record — **not verified**)* |
 | Passwords hashed with bcrypt | Laravel default (`config/hashing.php`) |
 | No sensitive data leaked in responses | Numeric-id and cross-tenant tests above; API resources expose `public_id` only |
 
@@ -94,8 +94,8 @@ assertions.** The figure below is kept as it stood when this audit was written.
 |---------|----------|
 | Security headers on every response | `api/app/Http/Middleware/SecurityHeaders.php`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`, HSTS, CSP (`default-src 'none'` for the JSON API), `Referrer-Policy`, `Permissions-Policy` |
 | Headers asserted in tests | `SecurityHardeningTest`: "api responses include required security headers" |
-| `APP_DEBUG=false`, no default creds in prod | `api/.env.production.example` ships every secret blank with a `REQUIRED` marker; documented in `docs/DEPLOYMENT.md` |
-| Frontend CSP / server hardening | `infrastructure/nginx.conf` (frontend CSP, directory listing off, version headers suppressed) |
+| `APP_DEBUG=false`, no default creds in prod | `api/.env.production.example` ships every secret blank with a `REQUIRED` marker; documented in `docs/DEPLOYMENT.md`. *(2026-10-01: that template went with the VPS on 2026-09-26; the shared-hosting one is `api/.env.shared-hosting.example`, with `APP_DEBUG=false` at line 22)* |
+| Frontend CSP / server hardening | ~~`infrastructure/nginx.conf`~~ (removed 2026-09-26). *(2026-10-01: now `docs/deployment/shared-hosting/.htaccess`, rendered with `scripts/shared-hosting/render-htaccess.php --target=static-export` — frontend CSP and security headers in its `mod_headers` block, `Options -Indexes`)* |
 
 ---
 

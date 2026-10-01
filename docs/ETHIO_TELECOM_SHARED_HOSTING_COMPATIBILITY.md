@@ -132,7 +132,7 @@ CPU core counts are not published. Both include root access and are Linux.
 | **Long-running daemons** (`horizon`, `queue:work --daemon`, `schedule:work`, `reverb`) | **UNSUPPORTED** | Shared hosting kills background processes. Queue and schedule move to cron; Reverb cannot run at all. |
 | **WebSocket listener** | **UNSUPPORTED** | No inbound port for Reverb, and no process to hold it. Realtime must go external or degrade. |
 | **MinIO** | **UNSUPPORTED** | It is a server. Storage must be the local disk or an external S3-compatible service. |
-| **Custom nginx config** | **UNSUPPORTED** | `infrastructure/nginx.conf` cannot be used. Plesk exposes limited "Additional nginx directives" on some plans; assume not. |
+| **Custom nginx config** | **UNSUPPORTED** | `infrastructure/nginx.conf` (removed 2026-09-26) cannot be used. Plesk exposes limited "Additional nginx directives" on some plans; assume not. |
 | **Read replica** | **UNSUPPORTED** | Drop `DB_READ_HOST`. Optimisation only. |
 | **Root access** | **UNSUPPORTED** | Available on VPS tiers only. |
 

@@ -2,6 +2,11 @@
 
 **Phase 0 forensic audit, read-only. Measured 2026-09-25 against `6d9fb23`.**
 
+> **2026-10-01:** dated, and left as measured. Every Docker, nginx and VPS path it cites has
+> since been removed — the production set in `3db9904` (2026-09-26/27), the development set
+> (`docker-compose*.yml`, `docker/`, `pest-isolated.sh`, `phpstan-isolated.sh`) on 2026-09-30.
+> See [`../deployment/VPS-DECOMMISSION.md`](../deployment/VPS-DECOMMISSION.md).
+
 Classification rule applied throughout, and the reason this document exists: **a filename
 containing "docker", "redis" or "nginx" is not evidence of a production dependency.** Each
 row below was classified by asking *what stops working if this is absent at runtime*, then

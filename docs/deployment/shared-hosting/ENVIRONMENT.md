@@ -223,6 +223,10 @@ long-running process:
 > `routes/console.php`, which would make the "one line" claim true — is **not implemented
 > here**: it also fires on the VPS, where `infrastructure/supervisor.conf` now runs a
 > `queue:work` daemon, and choosing between one runner and two is the owner's call.
+> *(2026-10-01: there is no VPS and no `supervisor.conf` — both removed 2026-09-26/27. The
+> owner chose GitHub Actions on 2026-09-27: `.github/workflows/cron.yml` calls
+> `POST /api/v1/cron/queue` and `/cron/schedule` (`api/routes/api.php:135-144`); see
+> [`cron-caller.md`](cron-caller.md).)*
 > Recorded in `MIGRATION_STATE.md` → *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER*.
 
 That file's 14 entries are otherwise unchanged from the VPS, because nothing about *what*

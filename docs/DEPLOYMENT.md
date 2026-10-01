@@ -22,7 +22,9 @@
 > This file is kept as the record of how the VPS was run, not as instructions.
 >
 > **2026-09-30:** the Docker *development* stack (compose files, `docker/`, the container-only
-> scripts) was removed as well. Nothing in this repository runs under Docker now; local
+> scripts — `seed.sh`, `pest-isolated.sh`, `phpstan-isolated.sh`, `api-reload.sh`, `run-e2e.sh`)
+> was removed as well. Of the scripts this guide names, only `backup.sh` and `restore.sh` remain,
+> and both are retired: they refuse to run. Nothing in this repository runs under Docker now; local
 > development is XAMPP — [`LOCAL_SETUP.md`](LOCAL_SETUP.md).
 
 ## Pre-Deployment Readiness Checklist

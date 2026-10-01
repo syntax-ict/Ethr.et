@@ -380,8 +380,8 @@ document root would make `storage:link` look runnable again.
 ### What is deliberately not copied
 
 `api/public/` contains three other files: `.htaccess`, `robots.txt` and `favicon.ico`.
-On the VPS all three serve the **API vhost** (`infrastructure/nginx.conf` roots three
-server blocks at `api/public`) — a different origin from the marketing site. This
+On the VPS all three served the **API vhost** (`infrastructure/nginx.conf`, removed
+2026-09-26, rooted three server blocks at `api/public`) — a different origin from the marketing site. This
 deployment merges the API and the public site into one document root, so copying them
 changes what they mean.
 
@@ -523,6 +523,11 @@ them as one number is how the host's 22.23.2 gets mistaken for a blocker.
 | CI build, gates, test suite | **24** | `.nvmrc` | does **not** satisfy — and **is not relaxed to fit the host** |
 | Frontend application runtime | **22** | `docker/frontend/Dockerfile` (`FROM node:22-alpine`, which both builds and runs `server.js`) | **satisfies exactly** |
 
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30, so nothing in the repository declares the 22 runtime any more — `.nvmrc` (24) is
+> the only Node pin. Under the static-export decision (C-5) the host runs no Node at all; this
+> subsection is the record of the Node branch.
+
 **The host never runs the gates**, so the 24 pin is not a hosting requirement and nothing
 here asks you to weaken it. The host runs a built artifact, and 22 is the runtime the
 repository already ships against.
@@ -597,7 +602,8 @@ wrong)". It is not a fallback and there is no routing question: it is what ships
 >
 > `standalone` remains the *default* build, because it is what local development and the
 > gates use and what `docker/frontend/Dockerfile` runs. It is **not** a rollback path —
-> the VPS was decommissioned in `3db9904`.
+> the VPS was decommissioned in `3db9904`. *(`docker/frontend/Dockerfile` itself was removed
+> on 2026-09-30.)*
 
 1. ~~`next.config.ts`: add `output: "export"`, remove `rewrites()`, move the CSP into
    `.htaccess`.~~ **DONE, as a switch rather than a flip.** `src/lib/build-target.ts` reads

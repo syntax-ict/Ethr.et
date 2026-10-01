@@ -171,6 +171,9 @@ configuration. Those are panel questions and are listed separately below.
 > **frontend application runtime**, **22**, declared by `docker/frontend/Dockerfile`
 > (`FROM node:22-alpine`, which both builds and runs `server.js`). The observed 22.23.2
 > misses the first and *is* the second. `.nvmrc` stays 24 and is not relaxed to fit the host.
+> *(2026-10-01: `docker/frontend/Dockerfile` was removed on 2026-09-30 with the Docker
+> development stack, and under C-5 the host runs no Node application — `.nvmrc` is the only
+> pin left.)*
 >
 > **N4 is a real risk independent of N1–N3**, and N1–N3 being answered does not shrink it:
 > a Next 16 production build is memory-hungry and shared hosts cap per-process RAM. If the
