@@ -366,9 +366,7 @@ test('submitting a correction succeeds when the supervisor notification fails', 
 
 test('approving or rejecting a correction succeeds when the employee notification fails', function (string $action, CorrectionStatus $expected) {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     $record = AttendanceRecord::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id]);
     $correction = AttendanceCorrection::factory()->create([
