@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Payroll;
 
+use App\Http\Requests\Payroll\Concerns\PayrollRuleRules;
 use App\Models\PayrollRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -13,6 +14,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class UpdatePayrollRuleRequest extends FormRequest
 {
+    use PayrollRuleRules;
+
     public function authorize(): bool
     {
         return true;
@@ -21,16 +24,7 @@ class UpdatePayrollRuleRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
-            'name' => ['sometimes', 'required', 'string', 'max:100'],
-            'type' => ['required', 'string', 'in:fixed,percentage'],
-            'formula' => ['required', 'array'],
-            'formula.amount_cents' => ['required_if:type,fixed', 'prohibited_unless:type,fixed', 'integer', 'min:0'],
-            'formula.percent' => ['required_if:type,percentage', 'prohibited_unless:type,percentage', 'numeric', 'min:0', 'max:100'],
-            'is_taxable' => ['nullable', 'boolean'],
-            'is_active' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
-        ];
+        return $this->payrollRuleRules(['sometimes', 'required']);
     }
 
     /**
