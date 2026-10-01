@@ -10,25 +10,25 @@ use App\Enums\ProfileUpdateStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approval\BatchApprovalRequest;
 use App\Models\AttendanceCorrection;
-use App\Models\AuditLog;
 use App\Models\Employee;
-use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
-use App\Notifications\LeaveApprovedNotification;
-use App\Notifications\LeaveRejectedNotification;
+use App\Services\Attendance\CorrectionDecisionService;
+use App\Services\Leave\LeaveDecisionService;
 use App\Services\Profile\ProfileUpdateRequestService;
-use App\Traits\SendsNotifications;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class ApprovalController extends Controller
 {
-    use SendsNotifications;
-
-    public function __construct(private readonly ProfileUpdateRequestService $profileUpdates) {}
+    public function __construct(
+        private readonly ProfileUpdateRequestService $profileUpdates,
+        private readonly LeaveDecisionService $leaveDecisions,
+        private readonly CorrectionDecisionService $correctionDecisions,
+    ) {}
 
     public function pending(Request $request): JsonResponse
     {
@@ -62,17 +62,22 @@ class ApprovalController extends Controller
             $corrections = AttendanceCorrection::query()
                 ->whereIn('employee_id', $teamIds)
                 ->where('status', CorrectionStatus::PENDING)
-                ->with('employee:id,name,public_id')
+                ->with('employee:id,name,public_id', 'attendanceRecord:id,date')
                 ->orderByDesc('created_at')
                 ->get();
 
             foreach ($corrections as $c) {
+                // A correction has no `date` of its own — it is the corrected
+                // record's. Reading `$c->date` threw on null, so one pending
+                // correction in the team turned this whole endpoint into a 500.
+                $date = $c->attendanceRecord?->date;
+
                 $items[] = [
                     'type' => 'correction',
                     'public_id' => $c->public_id,
                     'employee_name' => $c->employee?->name,
                     'employee_public_id' => $c->employee?->public_id,
-                    'summary' => 'Attendance correction for '.$c->date->format('M d'),
+                    'summary' => 'Attendance correction for '.($date?->format('M d') ?? '—'),
                     'submitted_at' => $c->created_at,
                 ];
             }
@@ -118,7 +123,12 @@ class ApprovalController extends Controller
 
     public function batch(BatchApprovalRequest $request): JsonResponse
     {
-        Gate::authorize('leave.approve');
+        // Each item is authorised on its own below, with the ability its single
+        // endpoint checks. This only turns away a caller who could decide none
+        // of the three kinds.
+        if (Gate::none(['leave.approve', 'correction.approve', 'employee.update'])) {
+            throw new AuthorizationException;
+        }
 
         $user = $request->user();
         $results = [];
@@ -137,111 +147,79 @@ class ApprovalController extends Controller
         return response()->json(['results' => $results]);
     }
 
-    private function processLeaveAction(array $action, $user): array
+    /**
+     * The same decision `LeaveRequestController::approve/reject` makes, through
+     * the same policy and the same service. This used to be a copy with no team
+     * check, no self-approval guard, a bare id appended to `approved_by` and no
+     * webhook — any `leave.approve` holder could approve any leave by id.
+     *
+     * @param  array<string, mixed>  $action
+     * @return array<string, string>
+     */
+    private function processLeaveAction(array $action, User $user): array
     {
         $lr = LeaveRequest::where('public_id', $action['public_id'])->first();
-        if (! $lr || $lr->status !== LeaveStatus::PENDING) {
+        if (! $lr) {
             return ['status' => 'error', 'detail' => 'Not found or not pending'];
         }
 
-        if ($action['action'] === 'approve') {
-            $lr->update([
-                'status' => LeaveStatus::APPROVED,
-                'approved_by' => array_merge($lr->approved_by ?? [], [$user->id]),
-            ]);
+        if (Gate::forUser($user)->denies('approve', $lr)) {
+            return ['status' => 'error', 'detail' => 'Not permitted to decide this request'];
+        }
 
-            $balance = LeaveBalance::where('employee_id', $lr->employee_id)
-                ->where('leave_type_id', $lr->leave_type_id)
-                ->where('year', $lr->start_date->year)
-                ->first();
+        $approving = $action['action'] === 'approve';
 
-            if ($balance) {
-                $balance->update([
-                    'used_days' => $balance->used_days + $lr->days,
-                    'pending_days' => max(0, $balance->pending_days - $lr->days),
-                ]);
-            }
+        $refusal = $this->leaveDecisions->refusal($lr, $user, $approving);
+        if ($refusal !== null) {
+            return ['status' => 'error', 'detail' => $refusal->detail];
+        }
 
-            AuditLog::record('leave.approved', $lr);
-
-            $this->notify($this->userOf($lr->employee), new LeaveApprovedNotification($lr));
+        if ($approving) {
+            $this->leaveDecisions->approve($lr, $user);
 
             return ['status' => 'approved'];
         }
 
-        $lr->update([
-            'status' => LeaveStatus::REJECTED,
-            'rejected_by' => $user->id,
-            'rejected_reason' => $action['reason'] ?? 'Batch rejected',
-        ]);
-
-        $balance = LeaveBalance::where('employee_id', $lr->employee_id)
-            ->where('leave_type_id', $lr->leave_type_id)
-            ->where('year', $lr->start_date->year)
-            ->first();
-
-        if ($balance) {
-            $balance->update([
-                'pending_days' => max(0, $balance->pending_days - $lr->days),
-            ]);
-        }
-
-        AuditLog::record('leave.rejected', $lr);
-
-        $this->notify($this->userOf($lr->employee), new LeaveRejectedNotification($lr));
+        $this->leaveDecisions->reject($lr, $user, (string) ($action['reason'] ?? 'Batch rejected'));
 
         return ['status' => 'rejected'];
     }
 
-    private function processCorrectionAction(array $action, $user): array
+    /**
+     * The same decision `AttendanceCorrectionController::approve/reject` makes:
+     * `correction.approve` and the subject inside the caller's org scope
+     * (`AttendanceCorrectionPolicy::decide`), not `leave.approve`.
+     *
+     * @param  array<string, mixed>  $action
+     * @return array<string, string>
+     */
+    private function processCorrectionAction(array $action, User $user): array
     {
-        if (! class_exists(AttendanceCorrection::class)) {
-            return ['status' => 'error', 'detail' => 'Corrections not available'];
-        }
-
         $correction = AttendanceCorrection::where('public_id', $action['public_id'])->first();
-        if (! $correction || $correction->status !== CorrectionStatus::PENDING) {
+        if (! $correction) {
             return ['status' => 'error', 'detail' => 'Not found or not pending'];
         }
 
-        $approved = $action['action'] === 'approve';
-
-        // attendance_corrections has no reviewed_by/reviewed_at/review_notes
-        // columns — approval history lives in the approval_chain JSON array,
-        // same as the single-item AttendanceCorrectionController::approve()/reject().
-        $chain = $correction->approval_chain ?? [];
-        $chain[] = [
-            'user_id' => $user->id,
-            'role' => $user->role?->value,
-            'action' => $approved ? 'approved' : 'rejected',
-            'reason' => $approved ? null : ($action['reason'] ?? 'Batch rejected'),
-            'at' => now()->toIso8601String(),
-        ];
-
-        $correction->update([
-            'approval_chain' => $chain,
-            'status' => $approved ? CorrectionStatus::APPROVED : CorrectionStatus::REJECTED,
-        ]);
-
-        if ($approved) {
-            $record = $correction->attendanceRecord;
-            if ($record) {
-                $updateData = ['metadata' => array_merge($record->metadata ?? [], ['is_corrected' => true, 'correction_id' => $correction->public_id])];
-
-                if ($correction->proposed_check_in) {
-                    $updateData['check_in'] = $correction->proposed_check_in;
-                }
-                if ($correction->proposed_check_out) {
-                    $updateData['check_out'] = $correction->proposed_check_out;
-                }
-
-                $record->update($updateData);
-            }
+        if (Gate::forUser($user)->denies('decide', $correction)) {
+            return ['status' => 'error', 'detail' => 'Not permitted to decide this request'];
         }
 
-        AuditLog::record($approved ? 'correction.approved' : 'correction.rejected', $correction);
+        $approving = $action['action'] === 'approve';
 
-        return ['status' => $approved ? 'approved' : 'rejected'];
+        $refusal = $this->correctionDecisions->refusal($correction, $user, $approving);
+        if ($refusal !== null) {
+            return ['status' => 'error', 'detail' => $refusal->detail];
+        }
+
+        if ($approving) {
+            $this->correctionDecisions->approve($correction, $user);
+
+            return ['status' => 'approved'];
+        }
+
+        $this->correctionDecisions->reject($correction, $user, (string) ($action['reason'] ?? 'Batch rejected'));
+
+        return ['status' => 'rejected'];
     }
 
     /**
