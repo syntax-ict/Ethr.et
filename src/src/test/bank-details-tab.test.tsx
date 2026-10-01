@@ -109,4 +109,62 @@ describe("<BankDetailsTab> add", () => {
       "is_primary",
     ]);
   });
+
+  it("does not make a second account the salary account unless asked", async () => {
+    // Regression: `is_primary` was hard-wired to true with no control, and
+    // storing a primary demotes the old one. Adding a second account silently
+    // redirected the next payroll bank export into it.
+    server.use(http.get(BANK_URL, () => HttpResponse.json([buildBank()])));
+    const bodies = capturePost();
+
+    const user = userEvent.setup();
+    renderTab();
+    await screen.findByText("Commercial Bank of Ethiopia");
+    const dialog = await fillNewAccount(user);
+
+    expect(
+      within(dialog).getByRole("checkbox", {
+        name: "Pay salary into this account",
+      }),
+    ).not.toBeChecked();
+
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0].is_primary).toBe(false);
+  });
+
+  it("makes a second account the salary account when the box is ticked", async () => {
+    server.use(http.get(BANK_URL, () => HttpResponse.json([buildBank()])));
+    const bodies = capturePost();
+
+    const user = userEvent.setup();
+    renderTab();
+    await screen.findByText("Commercial Bank of Ethiopia");
+    const dialog = await fillNewAccount(user);
+
+    await user.click(
+      within(dialog).getByRole("checkbox", {
+        name: "Pay salary into this account",
+      }),
+    );
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0].is_primary).toBe(true);
+  });
+
+  it("makes the first account the salary account by default", async () => {
+    server.use(http.get(BANK_URL, () => HttpResponse.json([])));
+    const bodies = capturePost();
+
+    const user = userEvent.setup();
+    renderTab();
+    await screen.findByText("No bank accounts");
+    const dialog = await fillNewAccount(user);
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0].is_primary).toBe(true);
+  });
 });

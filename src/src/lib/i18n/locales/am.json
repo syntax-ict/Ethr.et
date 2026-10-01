@@ -1209,6 +1209,8 @@
   "employee.bank.deleted": "ባንክ ተሰርዟል",
   "employee.bank.empty_desc": "ለደመወዝ ክፍያ የባንክ ዝርዝር ያስገቡ",
   "employee.bank.empty_title": "የባንክ ሂሳቦች የሉም",
+  "employee.bank.is_primary": "ደመወዝ ወደዚህ ሂሳብ ይከፈል",
+  "employee.bank.is_primary_hint": "ደመወዝ የሚከፈለው ወደ አንድ ሂሳብ ብቻ ነው። ይህን መምረጥ የአሁኑን የደመወዝ ሂሳብ ይተካል።",
   "employee.bank.primary": "ዋና",
   "employee.bank.title": "የባንክ ዝርዝር",
   "employee.code": "ኮድ",

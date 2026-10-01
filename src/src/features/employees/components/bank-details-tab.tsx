@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Controller } from "react-hook-form";
 import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
@@ -68,6 +70,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
 
   const {
     register,
+    control,
     submit,
     reset,
     rootError,
@@ -121,13 +124,25 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
   // so a non-paginated collection has no `data` key to read.
   const banks: BankDetail[] = data ?? [];
 
+  /**
+   * `is_primary` is the account `BankExportService` pays salary into, and
+   * storing a new primary demotes the old one. It used to be hard-wired to
+   * true with no control, so adding a second account — a savings account, a
+   * spouse's — silently redirected the next payroll into it. It now defaults
+   * on only for the first account and is otherwise the user's explicit choice.
+   */
+  function openAdd() {
+    reset({ ...EMPTY_BANK, is_primary: banks.length === 0 });
+    setAddOpen(true);
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">
           {t("employee.bank.title", "Bank Details")}
         </CardTitle>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
+        <Button size="sm" onClick={openAdd}>
           <Plus className="mr-2 h-3 w-3" /> {t("common.add", "Add")}
         </Button>
       </CardHeader>
@@ -230,6 +245,44 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                 className="mt-1 font-mono"
               />
             </FormField>
+
+            <Controller
+              name="is_primary"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="bank_is_primary"
+                    checked={field.value}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked === true)
+                    }
+                    aria-describedby="bank_is_primary_hint"
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <label
+                      htmlFor="bank_is_primary"
+                      className="cursor-pointer text-sm font-medium"
+                    >
+                      {t(
+                        "employee.bank.is_primary",
+                        "Pay salary into this account",
+                      )}
+                    </label>
+                    <p
+                      id="bank_is_primary_hint"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t(
+                        "employee.bank.is_primary_hint",
+                        "Payroll pays into one account. Choosing this one replaces the current salary account.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            />
 
             <DialogFooter>
               <Button

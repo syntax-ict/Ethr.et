@@ -1209,6 +1209,8 @@
   "employee.bank.deleted": "Bank deleted",
   "employee.bank.empty_desc": "Add bank details for salary deposits",
   "employee.bank.empty_title": "No bank accounts",
+  "employee.bank.is_primary": "Pay salary into this account",
+  "employee.bank.is_primary_hint": "Payroll pays into one account. Choosing this one replaces the current salary account.",
   "employee.bank.primary": "PRIMARY",
   "employee.bank.title": "Bank Details",
   "employee.code": "Code",
