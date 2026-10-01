@@ -73,9 +73,12 @@ export function buildDevicePayload(
   if (!isIpAdapter(form.adapter_type)) return payload;
   if (mode === "edit" && form.ip.trim() === "") return payload;
 
+  // No fallback port: a blank one goes as null and the server says so, rather
+  // than this guessing 80 over a ZKTeco's 4370.
+  const port = Number.parseInt(form.port, 10);
   payload.connection_config = {
     ip: form.ip.trim(),
-    port: parseInt(form.port, 10) || 80,
+    port: Number.isNaN(port) ? null : port,
     ...(form.username && { username: form.username }),
     ...(form.password && { password: form.password }),
     ...(form.api_key && { api_key: form.api_key }),

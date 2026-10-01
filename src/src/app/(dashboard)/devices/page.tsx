@@ -189,8 +189,10 @@ export default function DevicesPage() {
       adapter_type: device.adapter_type,
       serial_number: device.serial_number ?? "",
       branch_public_id: device.branch_public_id ?? "",
+      // Blank, not "80": the stored port is not shown, and a pre-filled
+      // default would silently replace it whenever only the IP is changed.
       ip: "",
-      port: "80",
+      port: "",
       username: "",
       password: "",
       api_key: "",
@@ -735,7 +737,7 @@ function DeviceFormDialog({
                     id="port"
                     value={form.port}
                     onChange={(e) => set("port", e.target.value)}
-                    required={addressRequired}
+                    required={addressRequired || form.ip.trim() !== ""}
                     type="number"
                     min={1}
                     max={65535}

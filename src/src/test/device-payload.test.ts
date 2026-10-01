@@ -63,6 +63,23 @@ describe("buildDevicePayload", () => {
     expect(payload).not.toHaveProperty("connection_config");
   });
 
+  it("sends the port that was typed and never substitutes a default", () => {
+    // The edit form used to pre-fill port 80, so changing only a ZKTeco's IP
+    // silently replaced its stored 4370. A blank port must reach the server
+    // as null — which it refuses — not as a guess.
+    const typed = buildDevicePayload(
+      { ...hikvision, ip: "203.0.113.9", port: "4370" },
+      "edit",
+    ).connection_config;
+    const blank = buildDevicePayload(
+      { ...hikvision, ip: "203.0.113.9", port: "" },
+      "edit",
+    ).connection_config;
+
+    expect(typed).toMatchObject({ port: 4370 });
+    expect(blank).toMatchObject({ port: null });
+  });
+
   it("never resends a mock device's config on edit", () => {
     const payload = buildDevicePayload(
       { ...EMPTY_DEVICE_FORM, name: "Sim 2", branch_public_id: "01BRANCH" },
