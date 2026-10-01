@@ -14,61 +14,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import {
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from "@/features/notifications/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-interface PreferencesResponse {
-  notification_types: string[];
-  channels: string[];
-  preferences: Record<string, Record<string, boolean>>;
-  /**
-   * Which channels this deployment can actually deliver on. SMS needs a
-   * configured gateway; without one the column is disabled rather than offering
-   * a toggle that nothing acts on.
-   */
-  channel_availability?: Record<string, boolean>;
-}
-
-const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey: string }> = {
-  leave_requested: {
-    labelKey: "notification_prefs_page.type_leave_requested",
-    descKey: "notification_prefs_page.desc_leave_requested",
-  },
-  leave_approved: {
-    labelKey: "notification_prefs_page.type_leave_approved",
-    descKey: "notification_prefs_page.desc_leave_approved",
-  },
-  leave_rejected: {
-    labelKey: "notification_prefs_page.type_leave_rejected",
-    descKey: "notification_prefs_page.desc_leave_rejected",
-  },
-  attendance_correction: {
-    labelKey: "notification_prefs_page.type_correction_request",
-    descKey: "notification_prefs_page.desc_correction_request",
-  },
-  attendance_anomaly: {
-    labelKey: "notification_prefs_page.type_attendance_anomaly",
-    descKey: "notification_prefs_page.desc_attendance_anomaly",
-  },
-  payslip_available: {
-    labelKey: "notification_prefs_page.type_payslip_available",
-    descKey: "notification_prefs_page.desc_payslip_available",
-  },
-  payroll_processed: {
-    labelKey: "notification_prefs_page.type_payroll_processed",
-    descKey: "notification_prefs_page.desc_payroll_processed",
-  },
-  announcement: {
-    labelKey: "notification_prefs_page.type_announcement",
-    descKey: "notification_prefs_page.desc_announcement",
-  },
-  approval_reminder: {
-    labelKey: "notification_prefs_page.type_approval_reminder",
-    descKey: "notification_prefs_page.desc_approval_reminder",
-  },
-};
+const TYPE_LABEL_KEYS: Record<string, { labelKey: string; descKey?: string }> =
+  {
+    leave_requested: {
+      labelKey: "notification_prefs_page.type_leave_requested",
+      descKey: "notification_prefs_page.desc_leave_requested",
+    },
+    leave_approved: {
+      labelKey: "notification_prefs_page.type_leave_approved",
+      descKey: "notification_prefs_page.desc_leave_approved",
+    },
+    leave_rejected: {
+      labelKey: "notification_prefs_page.type_leave_rejected",
+      descKey: "notification_prefs_page.desc_leave_rejected",
+    },
+    attendance_correction: {
+      labelKey: "notification_prefs_page.type_correction_request",
+      descKey: "notification_prefs_page.desc_correction_request",
+    },
+    attendance_anomaly: {
+      labelKey: "notification_prefs_page.type_attendance_anomaly",
+      descKey: "notification_prefs_page.desc_attendance_anomaly",
+    },
+    payslip_available: {
+      labelKey: "notification_prefs_page.type_payslip_available",
+      descKey: "notification_prefs_page.desc_payslip_available",
+    },
+    payroll_processed: {
+      labelKey: "notification_prefs_page.type_payroll_processed",
+      descKey: "notification_prefs_page.desc_payroll_processed",
+    },
+    announcement: {
+      labelKey: "notification_prefs_page.type_announcement",
+      descKey: "notification_prefs_page.desc_announcement",
+    },
+    approval_reminder: {
+      labelKey: "notification_prefs_page.type_approval_reminder",
+      descKey: "notification_prefs_page.desc_approval_reminder",
+    },
+    // The API has sent this type since profile changes became reviewable; with
+    // no entry here its row was labelled with the raw key "profile_update".
+    profile_update: {
+      labelKey: "approvals.type_profile_update",
+    },
+  };
 
 const CHANNEL_META: Record<
   string,
@@ -89,18 +86,14 @@ const CHANNEL_META: Record<
 
 export default function NotificationPreferencesPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [local, setLocal] = useState<Record<
     string,
     Record<string, boolean>
   > | null>(null);
   const [dirty, setDirty] = useState(false);
 
-  const { data, isLoading } = useQuery<PreferencesResponse>({
-    queryKey: ["notifications", "preferences"],
-    queryFn: async () =>
-      (await apiClient.get("/notifications/preferences")).data,
-  });
+  const preferences = useNotificationPreferences();
+  const { data } = preferences;
 
   // Sync server data → local editable copy the first time it arrives. Adjusting
   // state during render avoids an extra effect commit — see
@@ -109,22 +102,19 @@ export default function NotificationPreferencesPage() {
     setLocal(data.preferences);
   }
 
-  const save = useMutation({
-    mutationFn: async () => {
-      if (!local) throw new Error("No preferences");
-      const { data } = await apiClient.put("/notifications/preferences", {
-        preferences: local,
-      });
-      return data;
-    },
-    onSuccess: (result) => {
-      queryClient.setQueryData(["notifications", "preferences"], result);
-      setLocal(result.preferences);
-      setDirty(false);
-      toast.success(t("notification_prefs_page.saved"));
-    },
-    onError: () => toast.error(t("notification_prefs_page.save_failed")),
-  });
+  const save = useUpdateNotificationPreferences();
+
+  function saveChanges() {
+    if (!local) return;
+    save.mutate(local, {
+      onSuccess: (result) => {
+        setLocal(result.preferences);
+        setDirty(false);
+        toast.success(t("notification_prefs_page.saved"));
+      },
+      onError: () => toast.error(t("notification_prefs_page.save_failed")),
+    });
+  }
 
   /**
    * A channel the deployment cannot deliver on. The server omits the field on
@@ -155,14 +145,22 @@ export default function NotificationPreferencesPage() {
     }
   }
 
-  if (isLoading || !data || !local) {
+  // Through QueryBoundary so a failed load shows its error and a retry. It
+  // was `if (isLoading || !data)` → skeleton, so a failed request left the
+  // skeleton on screen for good.
+  if (!data || !local) {
     return (
       <div className="space-y-6">
         <PageHeader
           title={t("notification_prefs_page.title")}
           description={t("notification_prefs_page.description_short")}
         />
-        <Skeleton className="h-96 w-full" />
+        <QueryBoundary
+          query={preferences}
+          loading={<Skeleton className="h-96 w-full" />}
+        >
+          {() => <Skeleton className="h-96 w-full" />}
+        </QueryBoundary>
       </div>
     );
   }
@@ -184,10 +182,7 @@ export default function NotificationPreferencesPage() {
                 {t("notification_prefs_page.reset")}
               </Button>
             )}
-            <Button
-              onClick={() => save.mutate()}
-              disabled={!dirty || save.isPending}
-            >
+            <Button onClick={saveChanges} disabled={!dirty || save.isPending}>
               {save.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -237,7 +232,7 @@ export default function NotificationPreferencesPage() {
             rows={data.notification_types.map((type) => {
               const meta = TYPE_LABEL_KEYS[type];
               const label = meta ? t(meta.labelKey) : type;
-              const description = meta ? t(meta.descKey) : "";
+              const description = meta?.descKey ? t(meta.descKey) : "";
               return {
                 key: type,
                 cells: [

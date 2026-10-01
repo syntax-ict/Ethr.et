@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
 export interface Notification {
@@ -85,6 +86,50 @@ export function useMarkAsRead() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// ── Preferences (type × channel opt-in matrix) ───────────────────
+
+type PreferencesContract =
+  operations["notificationPreferences.index"]["responses"][200]["content"]["application/json"];
+
+/**
+ * From the contract, with two fields corrected by hand: Scramble publishes the
+ * `preferences` matrix as a string and `channel_availability.sms` as a string.
+ * Both mirror NotificationPreferencesController::index() — a boolean per
+ * notification type per channel, and a boolean per channel.
+ */
+export type NotificationPreferences = Omit<
+  PreferencesContract,
+  "preferences" | "channel_availability"
+> & {
+  preferences: Record<string, Record<string, boolean>>;
+  channel_availability: Record<string, boolean>;
+};
+
+const PREFERENCES_KEY = ["notifications", "preferences"] as const;
+
+export function useNotificationPreferences() {
+  return useQuery<NotificationPreferences>({
+    queryKey: PREFERENCES_KEY,
+    queryFn: async () =>
+      (await apiClient.get("/notifications/preferences")).data,
+  });
+}
+
+/** The server answers with the whole merged matrix, so it replaces the cache. */
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      preferences: NotificationPreferences["preferences"],
+    ): Promise<NotificationPreferences> =>
+      (await apiClient.put("/notifications/preferences", { preferences })).data,
+    onSuccess: (result) => {
+      queryClient.setQueryData(PREFERENCES_KEY, result);
     },
   });
 }
