@@ -42,7 +42,7 @@ cheaper architecture — it is not an available one.
 >   cost of Option A against Option B is comparing a running architecture against one with
 >   no demonstrated route to installation.
 > - What could still reopen it: the **cron** or **SSH** asks of
->   [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
+>   [`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](../../deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
 >   , or the **higher-plans** ask — the tiers above Bronze may carry *Scheduled Tasks*,
 >   custom directives and Node, which is three gates on one answer. **The request is
 >   drafted and not sent.**
@@ -95,7 +95,7 @@ Public sources disagree, and the disagreement is not a rounding error:
 > **root servers**, the Option A fallback. Ethio Telecom **also** sells shared **Gold** and
 > **Platinum** Linux hosting plans (50 GB and 100 GB, no root) — the ones a tier upgrade from
 > Bronze would actually reach. They are listed in
-> [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) §1.
+> [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](../../ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) §1.
 > An unqualified "Gold" in a price comparison is ambiguous by a factor of roughly three, so
 > always write *VPS Gold* or *shared Gold*.
 
@@ -134,7 +134,7 @@ counts a wildcard against the quota**, which nobody has asked until now:
 
 Those are opposite conclusions from the same figure, and the repository has at different
 times asserted both. It is now asked explicitly in the higher-plans ask of
-[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
+[`deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`](../../deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md)
 and tracked as **NOT VERIFIED** at `deployment/GATE-0-RESULT.md` → G0-C. **Do not size a
 plan on either reading until it is answered.**
 

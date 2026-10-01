@@ -241,7 +241,7 @@ Three options, traded in full in `deployment/SHARED_HOSTING_PLAN.md` §5.3a:
 | Option | For | Against |
 |---|---|---|
 | **GitHub Actions** | no new vendor | 5-minute documented minimum, best-effort delivery |
-| **The existing VPS** | perfect cadence | makes this Option C, and `SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better |
+| **The existing VPS** | perfect cadence | makes this Option C, and `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better |
 | **Third-party cron service** | good cadence | a stranger holds a key that can drain your queues and reads up to 2000 characters of Artisan output |
 
 **Copy back:** which one, and where the token should live.
@@ -260,7 +260,7 @@ the deploy path at step 3 of §5.5** — nothing past installation proceeds with
 
 ### The No-Go re-take
 
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** fired on **G0-D**, and stands
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** fired on **G0-D**, and stands
 until someone re-takes it deliberately. Note what it does *not* turn on: `httpdocs/` being
 clean now does not move it, and neither does B-3. **G0-D was answered FAIL on 2026-09-18** —
 there is no Scheduled Tasks section — so the thing the No-Go fired on has not changed.

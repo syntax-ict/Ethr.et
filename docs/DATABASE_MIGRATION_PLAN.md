@@ -7,7 +7,7 @@ at the end.
 
 ## Compatibility, already verified
 
-`docs/SHARED_HOSTING_AUDIT.md` §B covers the schema-level risk in full; summarized here
+`docs/archive/migration/SHARED_HOSTING_AUDIT.md` §B covers the schema-level risk in full; summarized here
 because it's what this plan depends on:
 
 | Feature | Migrations using it | Risk |

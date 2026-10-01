@@ -564,7 +564,7 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 
 **[verified]** — Phase 1 consumes this directly.
 
-1. **Nine stale `deployment/shared-hosting/` references** survive the move, in `docs/ROLLBACK_RUNBOOK.md`, `PRODUCTION_CHECKLIST.md`, `DATABASE_MIGRATION_PLAN.md`, `MIGRATION_STATE.md`, `MIGRATION_CHANGELOG.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` — **and five inside the moved files themselves**, including `docs/deployment/shared-hosting/DEPLOYMENT.md:24`, a literal copy instruction naming a directory that no longer exists.
+1. **Nine stale `deployment/shared-hosting/` references** survive the move, in `docs/ROLLBACK_RUNBOOK.md`, `PRODUCTION_CHECKLIST.md`, `DATABASE_MIGRATION_PLAN.md`, `MIGRATION_STATE.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`, `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` — **and five inside the moved files themselves**, including `docs/deployment/shared-hosting/DEPLOYMENT.md:24`, a literal copy instruction naming a directory that no longer exists.
 2. **`docs/AGENTS.md` is a 236-line-divergent fork of `docs/CLAUDE.md`**, still carrying the "Ignore ALL Git-related functionality" ban that commit `0997faa` explicitly retired. Two rule files, one corrected, one not.
 3. **Four documents assert CI that does not exist** — `docs/CLAUDE.md:269,716`, `docs/AGENTS.md:227,604`, `docs/SECURITY.md:298`, `docs/security-audit.md:84`.
 4. **Six different test counts across seven documents** — 954 / 1328 / 1330 / 1647 / 1652 / 1669. Only `docs/security-audit.md` carries a `Last reviewed:` stamp, and it is the most stale.
@@ -2945,7 +2945,7 @@ because it had already been fixed and the entry had outlived the defect.
   A file that is dead until an unrelated edit makes it live, and then serves the
   wrong brand colour without the notification badge, is worse than no file.
   Deleting it also retires one of the three build-stopping blockers the static
-  export hit (`SHARED_HOSTING_AUDIT.md` §E, `GATE-0-RESULT.md` G0-A): the
+  export hit (`docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E, `GATE-0-RESULT.md` G0-A): the
   `force-static` directive that file needed is moot now there is no metadata route.
   Those entries are left as written — they record what the export attempt found.
 

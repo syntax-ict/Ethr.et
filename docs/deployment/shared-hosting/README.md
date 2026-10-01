@@ -15,11 +15,11 @@ later — see each file's own "branch on B5/B3" sections.
 | `health-check.md` | What to check post-deploy, and on an ongoing basis |
 | `rollback.md` | Short pointer — the real plan is `docs/ROLLBACK_RUNBOOK.md` |
 
-Related, at the `docs/` level rather than in this package: `SHARED_HOSTING_AUDIT.md`
+Related, at the `docs/` level rather than in this package: `docs/archive/migration/SHARED_HOSTING_AUDIT.md`
 (why each change is safe), `B1-B5_GATE_REPORT.md` (what's verified about this specific
 account), `AUDIT_LOG_INTEGRITY_DECISION.md` (the one security trade-off this migration
 could force), `DATABASE_MIGRATION_PLAN.md`, `ROLLBACK_RUNBOOK.md`,
-`PRODUCTION_CHECKLIST.md`, `MIGRATION_CHANGELOG.md`.
+`PRODUCTION_CHECKLIST.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`.
 
 **No secrets are in this package.** `.htaccess` and `ENVIRONMENT.md` name every
 variable that needs a real value; neither contains one.

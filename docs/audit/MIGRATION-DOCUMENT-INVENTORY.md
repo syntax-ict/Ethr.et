@@ -63,13 +63,13 @@ supersession banner.
 
 | Document | Last touched | Class | Superseded by |
 |---|---|---|---|
-| [`../SHARED_HOSTING_AUDIT.md`](../SHARED_HOSTING_AUDIT.md) (Phase 0 + 1) | 2026-09-22 | **HISTORICAL** | This audit and `BASELINE.md`. Its own method line — *"Source of truth: the code in `api/` and `src/`, not `docs/phases/PHASE_*.md`"* — is the right principle and is the one applied here |
+| [`../archive/migration/SHARED_HOSTING_AUDIT.md`](../archive/migration/SHARED_HOSTING_AUDIT.md) (Phase 0 + 1) | 2026-09-22 | **HISTORICAL** | This audit and `BASELINE.md`. Its own method line — *"Source of truth: the code in `api/` and `src/`, not `docs/phases/PHASE_*.md`"* — is the right principle and is the one applied here |
 | [`../ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](../ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) (Phase 2) | 2026-09-22 | **HISTORICAL** | `GATE-0-RESULT.md`. Self-flagged *"Partially superseded 2026-09-17/18"*; built from public product pages with **no account available** |
-| [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) (Phase 3) | 2026-09-23 | **HISTORICAL** | `deployment/shared-hosting/DEPLOYMENT.md`. Self-flagged: *"Superseded 2026-09-18 — both halves of that line are now false"* |
+| [`../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`](../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md) (Phase 3) | 2026-09-23 | **HISTORICAL** | `deployment/shared-hosting/DEPLOYMENT.md`. Self-flagged: *"Superseded 2026-09-18 — both halves of that line are now false"* |
 | [`../deployment/SHARED_HOSTING_PLAN.md`](../deployment/SHARED_HOSTING_PLAN.md) | 2026-09-25 | **HISTORICAL / CONTRADICTORY by title** | 77 KB gap analysis whose title says **Gold**. Its own banner: *"The tier in that title is ASSUMED… The account is reported **Bronze** — owner-supplied… That is testimony, not panel output."* Contains Plan B, which restructured the workstream on the assumption every support ask is denied — **that reasoning is worth preserving** |
 | [`../PRODUCTION_CHECKLIST.md`](../PRODUCTION_CHECKLIST.md), [`../ROLLBACK_RUNBOOK.md`](../ROLLBACK_RUNBOOK.md) | 2026-09-18 | **HISTORICAL** | The `deployment/shared-hosting/` equivalents |
-| [`../MIGRATION_CHANGELOG.md`](../MIGRATION_CHANGELOG.md) | 2026-09-18 | **HISTORICAL — by design** | A changelog is supposed to be historical |
-| [`../phases/`](../phases/) | — | **HISTORICAL** | Explicitly demoted by `SHARED_HOSTING_AUDIT.md`'s method line |
+| [`../archive/migration/MIGRATION_CHANGELOG.md`](../archive/migration/MIGRATION_CHANGELOG.md) | 2026-09-18 | **HISTORICAL — by design** | A changelog is supposed to be historical |
+| [`../phases/`](../phases/) | — | **HISTORICAL** | Explicitly demoted by `docs/archive/migration/SHARED_HOSTING_AUDIT.md`'s method line |
 
 ---
 
@@ -80,7 +80,7 @@ supersession banner.
 | ~~`../VPS_DEPLOYMENT.md`~~ | 2026-09-24 | **REMOVED 2026-09-26** | Deleted with the VPS stack at the owner's direction. §3 said *"out last, not first"* because it was the rollback path; it went before a verified cutover, so that path no longer exists |
 | [`../DEPLOYMENT.md`](../DEPLOYMENT.md) | 2026-09-25 | **CURRENT** *(was PARTLY OBSOLETE)* | Phase 2 corrected the service table, the worker-sizing section, the deploy description and three diagnostic snippets — all of which prescribed `horizon`, a package that is not installed. Its *Draining the queue before an upgrade* section was always **CURRENT and load-bearing** and is untouched — the root `CLAUDE.md` cites it as a deploy precondition |
 | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | 2026-09-25 *(prior substantive revision **2026-08-28**)* | **CURRENT with a standing caution** *(was PARTLY OBSOLETE — the most stale document in the set)* | Phase 2 corrected the diagram, service list, queue table and health-check row, and added a header banner: it describes the **VPS/Docker** deployment, not the Plesk target, and where it disagrees with code the code wins. The body still predates the shared-hosting decision — the banner says so rather than pretending a one-day edit re-verified 58 KB |
-| [`../TCO_COMPARISON.md`](../TCO_COMPARISON.md) | 2026-09-22 | **PROPOSED / decision input** | Cost comparison, not a record of state |
+| [`../archive/migration/TCO_COMPARISON.md`](../archive/migration/TCO_COMPARISON.md) | 2026-09-22 | **PROPOSED / decision input** | Cost comparison, not a record of state |
 
 ---
 

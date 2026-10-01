@@ -62,7 +62,7 @@ never booted (see "Queue and scheduler" below).
 + FILESYSTEM_DISK=local
 ```
 
-No application code needed any of these to change — see `docs/SHARED_HOSTING_AUDIT.md`
+No application code needed any of these to change — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md`
 §D: zero `Redis::` calls anywhere in `app/`, the broadcast leg of every notification is
 already guarded on `config('broadcasting.default') === 'reverb'`, and
 `FileStorageService` (fixed in commit `80cac67`) resolves `filesystems.default` instead

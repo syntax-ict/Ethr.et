@@ -102,7 +102,7 @@ stricter one) now compares against a file nobody can open. It is a **record**, n
 check, and it says so. That was already true before the deletion — the "byte-identical" sync
 claim it replaced was measured false on 2026-09-25 — so nothing that was being enforced
 stopped being enforced. The citations in `MIGRATION_STATE.md`, `REPOSITORY-INVENTORY.md` and
-`SHARED_HOSTING_AUDIT.md` are provenance in historical documents and are marked, not rewritten.
+`docs/archive/migration/SHARED_HOSTING_AUDIT.md` are provenance in historical documents and are marked, not rewritten.
 
 ### NOT removed on 2026-09-26 — eight scripts, and they are now broken
 

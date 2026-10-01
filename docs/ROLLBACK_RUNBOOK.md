@@ -122,7 +122,7 @@ rollback above — reverting the driver-swap commits (`CACHE_STORE=database` etc
 matters if going back to needing the VPS's Redis/MinIO/Reverb, and even then those
 commits made the code *support* either configuration via `.env`, not *require* the
 non-VPS one — so a VPS rollback needs no code revert at all, only pointing `.env` back
-at the VPS's own values. See `docs/SHARED_HOSTING_AUDIT.md` §D: none of the changed
+at the VPS's own values. See `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §D: none of the changed
 code became VPS-incompatible, it became configuration-driven.
 
 ## What is deliberately not automated

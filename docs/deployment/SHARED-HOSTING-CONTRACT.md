@@ -168,7 +168,7 @@ So the rule divides by *what a sentence is for*, not by which file it sits in:
 |---|---|---|
 | **Procedure** — something a reader follows | **Placeholder** | `AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md`, `shared-hosting/DEPLOYMENT.md`, `PLESK-SETUP.md`, `deploy-checklist.md`, the manual queue |
 | **Evidence** — something a reader checks | **Literal, verbatim** | `GATE-0-RESULT.md`, `audit/BRONZE-BLOCKER-RESOLUTION.md`, `audit/BASELINE.md`, `B1-B5_GATE_REPORT.md`, panel readings, probe output, `curl` transcripts |
-| **History** — something already recorded | **Leave exactly as written** | `CHANGELOG.md`, `MIGRATION_CHANGELOG.md`, `decisions/DECISIONS.md`, `phases/` |
+| **History** — something already recorded | **Leave exactly as written** | `CHANGELOG.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`, `decisions/DECISIONS.md`, `phases/` |
 | **Correspondence** — something sent to a third party | **Literal, and required** | `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`, `external/ETHIO_TELECOM_SMS_REQUEST.md` |
 
 **The correspondence row was added on first application of this rule, because the inventory
@@ -191,7 +191,7 @@ reasoning that keeps corrections elsewhere in this tree as inline banners.
 |---|---|
 | **✅ Compliant — placeholders applied** | `migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md` *(converted 2026-09-25; its one remaining literal is a §7 evidence cell, which the rule requires)* |
 | **✅ Correct as-is — evidence** | `deployment/GATE-0-RESULT.md`, `audit/BRONZE-BLOCKER-RESOLUTION.md`, `audit/BRONZE-COMPATIBILITY-MATRIX.md`, `B1-B5_GATE_REPORT.md` |
-| **✅ Correct as-is — history** | `MIGRATION_CHANGELOG.md`, `AUDIT_LOG_INTEGRITY_DECISION.md` |
+| **✅ Correct as-is — history** | `docs/archive/migration/MIGRATION_CHANGELOG.md`, `AUDIT_LOG_INTEGRITY_DECISION.md` |
 | **✅ Correct as-is — correspondence** | `deployment/ETHIO-TELECOM-SUPPORT-REQUEST.md`, `external/ETHIO_TELECOM_SMS_REQUEST.md` |
 | **✅ Compliant — converted 2026-09-25** | `deployment/shared-hosting/DEPLOYMENT.md` — the runbook, done first for the reason given below. Its header, the two `rsync` targets and the DNS-cutover step now take placeholders. **One literal is deliberately retained**: a *history* row in the status banner recording a username typo that was fixed, where the literal is the content, annotated in place so it is not "completed" later |
 | **✅ Compliant — converted 2026-09-25** | `deployment/PLESK-HOSTING-GUIDE.md` · `deployment/PLESK-SETUP.md` · `PANEL-SESSION-RUNBOOK.md`. Each was a *Target:* header plus, in the runbook, a `curl --resolve` example. Two keep a literal on purpose: the guide's PHP/Node versions (panel and header **readings**) and `PLESK-SETUP.md`'s *"the served directory was still `ethr.et/`"* — that reading versus `<DOCROOT>` **is** the finding its §5 exists to state |
@@ -355,12 +355,12 @@ runner the asynchronous half of the product is inert regardless of how the code 
 
 ## What this does not change
 
-- **The pre-registered decision.** `shared-hosting/SHARED_HOSTING_MIGRATION_PLAN.md` §4's
+- **The pre-registered decision.** `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's
   rule fired on G0-D and returned **No-Go → Option A**. Making SSH optional does not
   reverse it, because SSH was never what fired it.
 
   > **Annotated 2026-09-27, because the target of that "Option A" no longer exists in
-  > this repository.** In `SHARED_HOSTING_MIGRATION_PLAN.md` **Option A means *stay on
+  > this repository.** In `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` **Option A means *stay on
   > the VPS*** — a different Option A from `deployment/SHARED_HOSTING_PLAN.md` §3A, where
   > A is *static export*; both documents carry an explicit naming warning about the
   > collision, and neither set is renamed.

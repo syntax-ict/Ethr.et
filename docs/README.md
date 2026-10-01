@@ -1,6 +1,6 @@
 # ETHR Documentation
 
-Index for 39 top-level documents plus `phases/`, `audit/`, `migration/` and `deployment/`. There was no index before Phase 1, and `README.md` mapped eight of them.
+Index for 34 top-level documents plus `phases/`, `audit/`, `migration/`, `deployment/`, `operations/` and `archive/`. *(It said 39 until 2026-10-01, when five superseded migration documents moved to [`archive/migration/`](archive/migration/README.md).)* There was no index before Phase 1, and `README.md` mapped eight of them.
 
 **Start here:** root [`CLAUDE.md`](../CLAUDE.md) for the environment traps · [`CLAUDE.md`](CLAUDE.md) for the conventions · [`audit/BASELINE.md`](audit/BASELINE.md) for what is measured versus merely documented.
 
@@ -64,7 +64,6 @@ Three standing caveats:
 |---|---|
 | [`ENTERPRISE_ROADMAP.md`](ENTERPRISE_ROADMAP.md) | **Live status** — done, partial, missing, grounded in code (97 KB). Cites several audit documents that no longer exist; see the note below |
 | [`external/ERCA_INCOME_TAX_QUERY.md`](external/ERCA_INCOME_TAX_QUERY.md) | **Drafted, unsent.** Asks the **Ministry of Revenues** (not "ERCA" — that body is gone) to confirm the Proclamation 1395/2025 employment-income ladder band by band, because `DEPLOYMENT.md` records it was taken from legal-firm summaries rather than the Negarit Gazeta, and to say how an over-withholding must be corrected. Also records that **both** "open items" in roadmap 4.3 are stale |
-| [`PHASE_A_CHANGE_REVIEW.md`](PHASE_A_CHANGE_REVIEW.md) | Point-in-time review |
 | [`B1-B5_GATE_REPORT.md`](B1-B5_GATE_REPORT.md) | External probing of the hosting target — DNS, ports, TLS |
 | [`phases/`](phases/) | `PHASE_00`–`PHASE_09` design records. **Checkboxes not maintained** |
 
@@ -93,10 +92,8 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`deployment/shared-hosting/`](deployment/shared-hosting/) | The deployment package: runbook, env reference, `.htaccess`, cron caller, checklists. **Its `.htaccess` mechanisms were verified working on the host 2026-09-25** — `mod_rewrite`, `mod_headers`, `<FilesMatch>` deny, `Authorization` passthrough, and `.htaccess` reaching static assets. Two baits remain unfetched because the **canary deployed on the host is the 2026-09-18 revision**, predating the two added in `1edaad4` |
 | [`HOSTING_VERIFICATION_CHECKLIST.md`](HOSTING_VERIFICATION_CHECKLIST.md) | ~60 capability rows. **Most are `NOT VERIFIED`, and the reason is sharper than "nobody looked": nobody has run the probe.** *(Corrected 2026-09-23: this said the probe "has no route to run" because SSH is Forbidden and G0-D is FAIL. It has a web-execution mode — 403 by default, unlocked by `ETHR_PROBE_WEB_TOKEN` in the uploaded copy — so the route exists and the containment question in `MIGRATION_STATE.md` NEXT ACTION item 2 is what gates using it.)* The rows a panel read can answer are answered (`W3`, `W6`, `N1`–`N3`) |
 | [`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`](ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md) | Plan tiers and platform constraints |
-| [`SHARED_HOSTING_AUDIT.md`](SHARED_HOSTING_AUDIT.md) · [`SHARED_HOSTING_MIGRATION_PLAN.md`](SHARED_HOSTING_MIGRATION_PLAN.md) | What must change, and in what order |
-| [`MIGRATION_STATE.md`](MIGRATION_STATE.md) · [`MIGRATION_CHANGELOG.md`](MIGRATION_CHANGELOG.md) | **Hosting** migration state and history |
+| [`MIGRATION_STATE.md`](MIGRATION_STATE.md) | **Hosting** migration state — a dated log (200 KB). Stays here because scripts cite it by path; superseded in substance by the canonical set in [`archive/migration/README.md`](archive/migration/README.md) |
 | [`DATABASE_MIGRATION_PLAN.md`](DATABASE_MIGRATION_PLAN.md) | Moving the **schema and data** to the target MySQL/MariaDB |
-| [`TCO_COMPARISON.md`](TCO_COMPARISON.md) | Cost comparison — opens by questioning the migration's own premise |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | **Historical — the VPS/Docker record.** Only *Draining the queue before an upgrade*, the tax schedule and the env-var reasoning are still authoritative; the live procedure is `deployment/shared-hosting/DEPLOYMENT.md` |
 | ~~`VPS_DEPLOYMENT.md`~~ | **Removed 2026-09-26** with the rest of the VPS stack, at the owner's direction and before a verified cutover. There is no rollback path now; the way back is `git revert`. See [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) |
 | [`deployment/CUTOVER-CHECKLIST.md`](deployment/CUTOVER-CHECKLIST.md) | **Can we go live? The one register that decides.** Every gate is `PASS` / `FAIL` / `HOST ACTION REQUIRED` / `OWNER DECISION` / `BLOCKED` |
@@ -135,6 +132,12 @@ a measured figure is how figures drift.
 | [`audit/TENANT-ISOLATION-AUDIT.md`](audit/TENANT-ISOLATION-AUDIT.md) | The isolation mechanism end to end — including the surfaces the global scope does not cover: cache keys, file paths, broadcast channels, sessions |
 | [`audit/MIGRATION-DOCUMENT-INVENTORY.md`](audit/MIGRATION-DOCUMENT-INVENTORY.md) | Which migration document to trust: CURRENT / HISTORICAL / PROPOSED / OBSOLETE / CONTRADICTORY |
 
+## Archive
+
+| Document | What it is |
+|---|---|
+| [`archive/migration/`](archive/migration/README.md) | **Superseded — do not act on.** The 2026-08-29 hosting-migration working set: `SHARED_HOSTING_AUDIT`, `SHARED_HOSTING_MIGRATION_PLAN`, `TCO_COMPARISON`, `PHASE_A_CHANGE_REVIEW`, `MIGRATION_CHANGELOG`. Moved 2026-10-01 (audit D12); its README names the five canonical documents to read instead, and the four cluster members that stayed put and why |
+
 ## End-user guides
 
 [`user-guide.md`](user-guide.md) · [`admin-guide.md`](admin-guide.md) · [`manager-guide.md`](manager-guide.md)
@@ -148,7 +151,7 @@ a measured figure is how figures drift.
 | Usage | Sequence |
 |---|---|
 | This file's own caveats; `phases/PHASE_00.md`–`PHASE_09.md` | The **documentation and build** phases, 2026 H1 |
-| `SHARED_HOSTING_AUDIT.md` *(Phase 0+1)*, `ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md` *(Phase 2)*, `SHARED_HOSTING_MIGRATION_PLAN.md` *(Phase 3)* | The **2026-08-29 hosting** sequence — superseded, see `audit/MIGRATION-DOCUMENT-INVENTORY.md` |
+| `archive/migration/SHARED_HOSTING_AUDIT.md` *(Phase 0+1)*, `ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md` *(Phase 2)*, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` *(Phase 3)* | The **2026-08-29 hosting** sequence — superseded, see `audit/MIGRATION-DOCUMENT-INVENTORY.md` |
 | `audit/REPOSITORY-INVENTORY.md` *(Phase 0)*, `audit/BRONZE-BLOCKER-RESOLUTION.md` *(Phase 1)* | The **2026-09-25 Bronze** sequence — current |
 
 So *"Phase 1 corrected four documents"* and *"Phase 1 host verification"* are different events a
@@ -160,10 +163,10 @@ in this tree.
 | File | Meaning |
 |---|---|
 | `MIGRATION.md` | Moving *workforce data into ETHR* — a product feature |
-| `MIGRATION_STATE.md`, `MIGRATION_CHANGELOG.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` | Moving *ETHR onto new hosting* |
+| `MIGRATION_STATE.md`, `archive/migration/MIGRATION_CHANGELOG.md`, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` | Moving *ETHR onto new hosting* |
 | `DATABASE_MIGRATION_PLAN.md` | Moving *the schema* — and Laravel migrations generally |
 
-Renaming them would be tidier. It would also invalidate roughly 150 backticked prose references across 37 files, which is the kind of change that looks harmless and silently leaves half the tree pointing at the wrong thing. Recorded here instead; see `decisions/DECISIONS.md` D-002.
+Renaming them would be tidier. It would also invalidate roughly 150 backticked prose references across 37 files, which is the kind of change that looks harmless and silently leaves half the tree pointing at the wrong thing. Recorded here instead; see `decisions/DECISIONS.md` D-002. *(2026-10-01: D-002's reversal condition — a link checker in CI — has held since run #66, and five superseded hosting documents were moved to `archive/migration/` with every link and backticked path updated in the same change. The renames above are still not done.)*
 
 **Casing is inconsistent** — the three end-user guides are lowercase, everything else is `SCREAMING_SNAKE`. Same reasoning. *(The 2026-09-25 audit documents use `KEBAB-CASE`, a third convention, for the same reason: renaming to match would break the citations that already point at them.)*
 

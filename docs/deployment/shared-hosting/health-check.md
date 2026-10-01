@@ -1,7 +1,7 @@
 # Health Checking — Shared Hosting
 
 No uptime-monitoring infrastructure exists yet for this deployment (the VPS's
-Horizon dashboard is gone by design — see `docs/SHARED_HOSTING_AUDIT.md` §F). This is
+Horizon dashboard is gone by design — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §F). This is
 what to actually watch instead, and why each one matters here specifically.
 
 ## The one built-in endpoint

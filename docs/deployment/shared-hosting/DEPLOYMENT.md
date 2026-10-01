@@ -576,7 +576,7 @@ frontend route and see which process answers. Until it is answered, treat the No
 question, because there is only one server.
 
 `middleware.ts` and the `headers()`-reading `(auth)/layout.tsx` need **zero code
-changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
+changes** in this branch — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
 "Everything else → frontend, BRANCH B" block from `docs/deployment/shared-hosting/.htaccess`
 before deploying it (leave BRANCH A as a comment for documentation, per that file's own
 instructions).

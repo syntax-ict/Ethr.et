@@ -251,16 +251,16 @@ Owner said "decide for me". These are settled; they are not open questions.
 **Hosting migration:**
 
 - **Phase 0** — Read-only discovery. No file modified.
-- **Phase 1** — Architecture audit → `docs/SHARED_HOSTING_AUDIT.md`
+- **Phase 1** — Architecture audit → `docs/archive/migration/SHARED_HOSTING_AUDIT.md`
 - **Phase 2** — Capability matrix → `docs/ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`
-- **Phase 3** — Options and recommendation → `docs/SHARED_HOSTING_MIGRATION_PLAN.md`
+- **Phase 3** — Options and recommendation → `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 - **Phase A** — Config changes: implemented, tested, **committed and merged** (`12f53de`).
 - **Gate review** — →
-  `docs/PHASE_A_CHANGE_REVIEW.md`,
+  `docs/archive/migration/PHASE_A_CHANGE_REVIEW.md`,
   `docs/AUDIT_LOG_INTEGRITY_DECISION.md`,
   `docs/HOSTING_VERIFICATION_CHECKLIST.md`,
   `docs/B1-B5_GATE_REPORT.md`,
-  `docs/TCO_COMPARISON.md`
+  `docs/archive/migration/TCO_COMPARISON.md`
 - **Verification tooling** — `scripts/hosting-verification/ethr-hosting-check.php`,
   self-tested against the dev stack.
 - **External DNS/TLS/host probing** — done without needing account access; see the
@@ -283,7 +283,7 @@ did not. Written as **step 4a**, plus an enforceable control and one new canary 
 | **Status** | **Merged 2026-09-18 as `e7e0199`.** PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
 | **Gates moved** | **None.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk account. `G0-B.5` is new and equally unverified. |
 | **Freeze** | One narrow exception taken and recorded at `deployment/GATE-0-RESULT.md` → *After the run* item 5. The freeze otherwise stands. |
-| **Detail** | `MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
+| **Detail** | `archive/migration/MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
 | **Enforcement** | `api/tests/Feature/DocumentRootInventoryTest.php` pins `api/public/` against a manifest, so a file cannot arrive in the document-root decision set unnoticed. It found one of the four defects on its first run. |
 
 **PR #17 (tenant public pages) untouched.** Open, unmerged, separate workstream, and it
@@ -298,7 +298,7 @@ copy of its rows — one table authoritative per vhost.
 **The rest of the deployment package is built and merged** —
 `docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
-`docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the
+`docs/PRODUCTION_CHECKLIST.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`. Built ahead of the
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
 each file's own "branch on B3/B5" sections for exactly what changes once those answers
 land. Hosting migration *execution* (upload, migrate, cutover) has not started and is
@@ -1261,7 +1261,7 @@ App pages cannot use both "use client" and export function "generateStaticParams
 
 ### Why that matters
 
-`SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
+`archive/migration/SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
 *"`generateStaticParams` on four dynamic routes"* — four one-line additions. **That is not
 implementable as written.** `app/(dashboard)/{admin/tenants,devices,employees,payroll}/[id]/page.tsx`
 all open with `"use client"`, so the compiler rejects the addition outright.
@@ -1293,14 +1293,14 @@ before the thing works.
 
 Until a deployment architecture is selected. It is gated on G0-A (`NOT VERIFIED`) and G0-G
 (`PARTIAL` as of 2026-09-22 — this read "both `NOT VERIFIED`"), and
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has returned No-Go on B3. The
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has returned No-Go on B3. The
 conclusion stands: PARTIAL is not PASS.
 
 **The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
 evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
 switch, four component splits, and a routing rearchitecture for entity pages. Corrected at
-source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
-`GATE-0-RESULT.md` (×3), `TCO_COMPARISON.md`, `SHARED_HOSTING_MIGRATION_PLAN.md`,
+source in `archive/migration/SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
+`GATE-0-RESULT.md` (×3), `archive/migration/TCO_COMPARISON.md`, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`,
 `B1-B5_GATE_REPORT.md`, `shared-hosting/DEPLOYMENT.md` step 4, and this file's queue row 3.
 
 ### What was NOT done, deliberately
@@ -1331,7 +1331,7 @@ not, and now has a measured gap rather than an assumed one.**
 
 Recorded because the owner asked for a decision, and one was already committed to in
 writing before any evidence existed. This is not a new judgement; it is reading the rule
-that `SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
+that `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
 
 ### The rule
 
@@ -1753,9 +1753,9 @@ rather than an error: `ethr:backup` (line 103), the `QueueHealth::beat()` heartb
 (line 117), and one of the `Schedule::call` closures. The documents were written before
 them and never re-counted.
 
-Corrected in the eight editable occurrences across `SHARED_HOSTING_AUDIT.md`,
+Corrected in the eight editable occurrences across `archive/migration/SHARED_HOSTING_AUDIT.md`,
 `PRODUCTION_CHECKLIST.md`, `B1-B5_GATE_REPORT.md`,
-`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` and
+`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` and
 this file.
 
 **Three occurrences remain wrong, all inside the frozen directory** — and one of them is
@@ -1848,7 +1848,7 @@ so rather than less. Every other consequence was "the product runs badly". That 
 
 ### The plan's own position on this
 
-`SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
+`archive/migration/SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
 scheduled entries and all 16 queued jobs stop."* `ETHIO_TELECOM_…_COMPATIBILITY.md` B3
 lists the same, ending *"**and no queued email is ever sent**."* `GATE-0-RESULT.md`'s
 consequence column said the scheduler and queue *"move behind an authenticated HTTP
@@ -1892,7 +1892,7 @@ which is the sendable text and carries all four.
 
 Either of the first two alone substantially unblocks the migration. None is a code change.
 
-**3 — If both are refused, the architecture decision reopens.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+**3 — If both are refused, the architecture decision reopens.** `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 already costed the alternatives: **Option A** (stay on the VPS) and **Option C** (shared
 hosting plus a small VPS for cron and queue only). Option C is the cheaper of those and
 exists in the plan precisely for this outcome. That is an owner decision and nothing here
@@ -2819,7 +2819,7 @@ were left broken **on purpose**: choosing the replacement worker topology was an
 decision, and at the time the VPS was the thing this project was migrating *away* from.
 
 **What changed is which path is live.** The pre-registered rule in
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4 fired on **G0-D** and returned **No-Go → Option A**
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4 fired on **G0-D** and returned **No-Go → Option A**
 — and Option A is *"stay on the VPS"*. That made `docker-compose.prod.yml` the production
 path rather than a fallback, so a stack that cannot start a worker stopped being a
 recorded curiosity and became a live gap.
@@ -2999,7 +2999,7 @@ is the result.
 | *"With no cron and no shell there is no route on this account that runs `artisan`"* | **Still true for `artisan` as a command**, and **no longer true for the work it was needed for.** `POST /api/v1/cron/{schedule,queue}` (built `b61cb05`) drive the scheduler and the queue, and `ethr:backup` rides the scheduler. Install commands still need Plesk Git *additional deployment actions* |
 | *"4. Upload the probe … Do not. Nothing on the account can run it"* | **Wrong, and it was wrong when written.** The probe has a deliberate **web-execution mode** — 403 by default, unlocked by setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy (`ethr-hosting-check.php:35-38`). It needs no shell and no cron. See item 2, and read it with the containment question, not instead of it |
 
-**The headline, and the reason this section is reordered.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+**The headline, and the reason this section is reordered.** `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 §4's decision rule fired on **B3 — cron**, and the reason it gave was *"Leave accrual,
 invoicing, anomaly scanning, cleanup and every queued email stop."* That reason no longer
 holds. **G0-D = FAIL is still true and is no longer fatal.** No gate moved, and the
@@ -3055,7 +3055,7 @@ unverified workaround; the other is an owner decision. Both are below.
    - **Q6 — which external caller drives the cron endpoints, and where does `CRON_TOKEN`
      live?** GitHub Actions (no new vendor, 5-minute documented minimum and best-effort
      delivery), the VPS you already have (perfect cadence — **but it makes this Option C,
-     and `SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better**), or
+     and `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better**), or
      a third-party cron service (good cadence, a stranger holds a key that can drain your
      queues and reads up to 2000 characters of Artisan output). §5.3a lays out the trade in
      full.
