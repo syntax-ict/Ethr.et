@@ -121,43 +121,14 @@ parameters:
         - message: '#^Method App\\Models\\GradeSalaryStep\:\:findByPublicId\(\) should return static\(App\\Models\\GradeSalaryStep\)\|null but returns App\\Models\\GradeSalaryStep\|null\.$#'
           path: app/Traits/HasPublicId.php
 
-        # Same as the entries above, for retirement_cases. No JSON column here
-        # either, and RetirementCaseService touches more enum-cast properties
-        # than the earlier services did (status, decision, plus two Carbon
-        # casts), so the fallout is wider — every message below is the same
-        # root cause (enum/Carbon casts resolving to their raw backing type),
-        # not distinct bugs. Model is correct (casts() declares the real
-        # types) and covered by RetirementCaseTest.
+        # Same larastan limitation for retirement_cases: the trait generics
+        # resolve to false positives "in context of" RetirementCase. The model's
+        # enum and Carbon casts are typed by @property since 2026-10-01, which
+        # retired the eleven service and resource entries that used to follow.
         - message: '#^Method App\\Models\\RetirementCase\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
         - message: '#^Method App\\Models\\RetirementCase\:\:findByPublicId\(\) should return static\(App\\Models\\RetirementCase\)\|null but returns App\\Models\\RetirementCase\|null\.$#'
           path: app/Traits/HasPublicId.php
-        - message: '#^Property App\\Models\\RetirementCase\:\:\$status \(string\) does not accept App\\Enums\\RetirementCaseStatus\:\:.*\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Property App\\Models\\RetirementCase\:\:\$decision \(string\|null\) does not accept App\\Enums\\RetirementDecision\:\:.*\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Property App\\Models\\RetirementCase\:\:\$decided_at \(string\|null\) does not accept Illuminate\\Support\\Carbon\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Property App\\Models\\RetirementCase\:\:\$finalized_at \(string\|null\) does not accept Illuminate\\Support\\Carbon\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Cannot access property \$value on string\.$#'
-          count: 3
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Cannot call method canTransitionTo\(\) on string\.$#'
-          count: 1
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Strict comparison using === between string and App\\Enums\\RetirementCaseStatus\:\:INITIATED will always evaluate to false\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Call to function in_array\(\) with arguments string, array\{App\\Enums\\RetirementCaseStatus\:\:REJECTED, App\\Enums\\RetirementCaseStatus\:\:FINALIZED, App\\Enums\\RetirementCaseStatus\:\:CANCELLED\} and true will always evaluate to false\.$#'
-          path: app/Services/RetirementCaseService.php
-        - message: '#^Cannot access property \$value on string\.$#'
-          count: 3
-          path: app/Http/Resources/RetirementCaseResource.php
-        - message: '#^Cannot call method toDateString\(\) on string\.$#'
-          path: app/Http/Resources/RetirementCaseResource.php
-        - message: '#^Cannot call method toIso8601String\(\) on string\.$#'
-          count: 2
-          path: app/Http/Resources/RetirementCaseResource.php
 
         # `HasFactory`'s generic isn't specified anywhere in this codebase —
         # every other model using it (Employee, Announcement, Branch, …) has
