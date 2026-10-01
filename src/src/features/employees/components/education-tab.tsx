@@ -153,7 +153,9 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
     },
   });
 
-  const records: Education[] = data?.data ?? [];
+  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
+  // so a non-paginated collection has no `data` key to read.
+  const records: Education[] = data ?? [];
 
   return (
     <Card>

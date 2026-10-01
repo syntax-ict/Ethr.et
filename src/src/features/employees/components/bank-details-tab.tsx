@@ -115,7 +115,9 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     },
   });
 
-  const banks: BankDetail[] = data?.data ?? [];
+  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
+  // so a non-paginated collection has no `data` key to read.
+  const banks: BankDetail[] = data ?? [];
 
   return (
     <Card>

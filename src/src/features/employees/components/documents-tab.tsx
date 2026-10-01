@@ -194,7 +194,9 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     },
   });
 
-  const docs: Doc[] = data?.data ?? [];
+  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
+  // so a non-paginated collection has no `data` key to read.
+  const docs: Doc[] = data ?? [];
 
   return (
     <Card>

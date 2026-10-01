@@ -100,7 +100,9 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     },
   });
 
-  const contacts: EmergencyContact[] = data?.data ?? [];
+  // A bare array: AppServiceProvider calls `JsonResource::withoutWrapping()`,
+  // so a non-paginated collection has no `data` key to read.
+  const contacts: EmergencyContact[] = data ?? [];
 
   return (
     <Card>

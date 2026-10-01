@@ -31,9 +31,43 @@ function renderTab() {
   );
 }
 
-function emptyList() {
-  server.use(http.get(DOCUMENTS_URL, () => HttpResponse.json({ data: [] })));
+/** The shape `EmployeeDocumentResource` renders — nothing more. */
+function buildDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    public_id: "01HZDOC0000000000000001",
+    type: "contract",
+    title: "Employment contract 2026",
+    file_path: "employees/01HZEMPLOYEE0000000000001/documents/contract.pdf",
+    file_size: 1024,
+    mime_type: "application/pdf",
+    expiry_date: null,
+    is_expired: false,
+    expires_soon: false,
+    days_until_expiry: null,
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
 }
+
+// A bare array, as the endpoint returns it: resources render unwrapped.
+function emptyList() {
+  server.use(http.get(DOCUMENTS_URL, () => HttpResponse.json([])));
+}
+
+describe("DocumentsTab list", () => {
+  it("lists the documents the endpoint returns as a bare array", async () => {
+    // Regression: the tab read `data.data` from an unwrapped collection, so a
+    // successful upload was followed by "No documents" every time.
+    server.use(
+      http.get(DOCUMENTS_URL, () => HttpResponse.json([buildDocument()])),
+    );
+    renderTab();
+
+    // The header's Upload button, plus the row's delete control.
+    await waitFor(() => expect(screen.getAllByRole("button")).toHaveLength(2));
+    expect(screen.queryByText("No documents")).not.toBeInTheDocument();
+  });
+});
 
 describe("DocumentsTab upload", () => {
   it("posts the fields StoreDocumentRequest actually requires", async () => {
