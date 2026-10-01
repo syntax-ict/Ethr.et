@@ -44,6 +44,25 @@ mandatory gate below reads `PASS`.**
 > **G0-I** (`DB1`). The panel labels the server *MySQL v8.0.32*; if `DB1` confirms it,
 > `DB_CONNECTION` is `mysql`, not the `mariadb` the template ships.
 
+> ### Known gaps — re-confirmed and deferred again by the owner on 2026-10-01
+>
+> All five items above are **still open**, and so are the ten host gates
+> `./scripts/gates.sh evidence` lists (Q6-x, M2, G0-F, G0-B.6, M6, M3, G0-H, G0-I, G0-J,
+> Quotas — 4 of 14 mandatory gates PASS). The owner chose to defer them and continue
+> repository work. Deferring is not closing: **no state in this register changed**, and
+> `CUTOVER READY` stays **NO**.
+>
+> Two things this record adds:
+>
+> - **Item 1 is unverified, not done.** On 2026-10-01 a session tried to run
+>   `bash .m2-kit/m2.sh gone` and its agent tooling refused the request to the production
+>   host. Nobody has confirmed the probe is gone since 2026-09-29. Run it by hand.
+> - **The repository side is ready to be cut over.** The local production rehearsal was
+>   refreshed onto the current code — not the stale copy `up.sh` otherwise reuses — and
+>   `verify.sh` reported **36 passed, 0 failed** on 2026-10-01. That closes no host gate.
+>
+> PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
+
 Five states, and they are not interchangeable:
 
 | State | Means |
