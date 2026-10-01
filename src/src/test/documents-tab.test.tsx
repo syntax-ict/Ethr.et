@@ -67,6 +67,33 @@ describe("DocumentsTab list", () => {
     await waitFor(() => expect(screen.getAllByRole("button")).toHaveLength(2));
     expect(screen.queryByText("No documents")).not.toBeInTheDocument();
   });
+
+  it("names each document by the title and type the resource returns", async () => {
+    // Regression: rows read `filename` and `document_type`.
+    // EmployeeDocumentResource returns neither — it returns `title` and
+    // `type` — so every row was a blank name over the word "document", and
+    // a contract could not be told from an ID copy without opening it.
+    server.use(
+      http.get(DOCUMENTS_URL, () =>
+        HttpResponse.json([
+          buildDocument(),
+          buildDocument({
+            public_id: "01HZDOC0000000000000002",
+            type: "id_copy",
+            title: "Kebele ID",
+          }),
+        ]),
+      ),
+    );
+    renderTab();
+
+    expect(
+      await screen.findByText("Employment contract 2026"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Contract")).toBeInTheDocument();
+    expect(screen.getByText("Kebele ID")).toBeInTheDocument();
+    expect(screen.getByText("ID copy")).toBeInTheDocument();
+  });
 });
 
 describe("DocumentsTab upload", () => {

@@ -35,10 +35,11 @@ import { toast } from "sonner";
 
 interface Doc {
   public_id: string;
-  filename: string;
-  mime_type?: string;
-  document_type?: string;
-  uploaded_at?: string;
+  title: string;
+  type: string;
+  mime_type: string | null;
+  expiry_date: string | null;
+  created_at: string | null;
 }
 
 /** Mirrors `StoreDocumentRequest::rules()['type']`. */
@@ -230,9 +231,9 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
                 <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">{d.filename}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {d.document_type ?? "document"}
+                    <p className="text-sm font-medium">{d.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(`employee.documents.type_${d.type}`, d.type)}
                     </p>
                   </div>
                 </div>
