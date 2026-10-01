@@ -8,6 +8,7 @@ use App\Contracts\SmsSender;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
 use App\Events\DeviceSyncFailed;
+use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
@@ -16,6 +17,7 @@ use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\NotifyDeviceSyncFailed;
 use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
+use App\Listeners\NotifyPayslipsReleased;
 use App\Listeners\ProvisionTenant;
 use App\Models\AttendanceRecord;
 use App\Models\DisciplinaryCase;
@@ -147,6 +149,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(AttendanceRecorded::class, [InvalidateDashboardCache::class, 'handleAttendance']);
         Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
         Event::listen(PayrollProcessed::class, NotifyPayrollProcessed::class);
+        Event::listen(PayrollApproved::class, NotifyPayslipsReleased::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());

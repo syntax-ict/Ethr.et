@@ -66,6 +66,7 @@ class PayrollEntry extends Model
         });
     }
 
+    /** @return BelongsTo<PayrollRun, $this> */
     public function payrollRun(): BelongsTo
     {
         return $this->belongsTo(PayrollRun::class);

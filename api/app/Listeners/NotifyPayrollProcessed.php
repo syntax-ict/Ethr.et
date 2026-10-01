@@ -6,7 +6,6 @@ namespace App\Listeners;
 
 use App\Enums\UserRole;
 use App\Events\PayrollProcessed;
-use App\Models\PayrollEntry;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\PayrollProcessedNotification;
@@ -17,8 +16,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
 /**
- * PHASE_05 S26: "PayrollProcessedNotification → finance team" and
- * "PayslipAvailableNotification → employee".
+ * PHASE_05 S26: "PayrollProcessedNotification → finance team". The employee
+ * half — "PayslipAvailableNotification" — moved to NotifyPayslipsReleased on
+ * 2026-10-01: it went out here, before approval, with net pay a void and
+ * reprocess could still change.
  *
  * Both classes shipped in Phase 5 and neither was ever constructed — payroll ran
  * and payslips appeared with nobody told. `PayrollProcessed` was already
@@ -56,26 +57,9 @@ class NotifyPayrollProcessed implements ShouldQueue
 
         $this->notify($financeUsers, new PayrollProcessedNotification($run));
 
-        $run->loadMissing('entries.employee.user');
-
-        foreach ($run->entries as $entry) {
-            if (! $entry instanceof PayrollEntry) {
-                continue;
-            }
-
-            $user = $this->userOf($entry->employee);
-
-            if ($user instanceof User) {
-                // Per-entry rather than a bulk send: each payslip notification
-                // carries that employee's own net pay.
-                $this->notify($user, new PayslipAvailableNotification($entry));
-            }
-        }
-
         Log::info('Payroll notifications dispatched', [
             'payroll_run' => $run->public_id,
             'finance_recipients' => $financeUsers->count(),
-            'payslips' => $run->entries->count(),
         ]);
     }
 }

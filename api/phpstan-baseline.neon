@@ -1465,12 +1465,6 @@ parameters:
 			path: app/Models/PayrollEntry.php
 
 		-
-			message: '#^Method App\\Models\\PayrollEntry\:\:payrollRun\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Models/PayrollEntry.php
-
-		-
 			message: '#^Method App\\Models\\PayrollEntry\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -1981,12 +1975,6 @@ parameters:
 			path: app/Notifications/DeviceOfflineNotification.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Notifications/PayslipAvailableNotification.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>period_label" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -2191,12 +2179,6 @@ parameters:
 			path: app/Services/Billing/BillingService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dashboard/EmployeeDashboardService.php
-
-		-
 			message: '#^Method App\\Services\\Dashboard\\EmployeeDashboardService\:\:latestPayslip\(\) has parameter \$employee with no type specified\.$#'
 			identifier: missingType.parameter
 			count: 1
@@ -2287,18 +2269,6 @@ parameters:
 			path: app/Services/Payroll/PayrollEngine.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayslipPdfService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Payroll/PayslipPdfService.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
@@ -2317,31 +2287,13 @@ parameters:
 			path: app/Services/Report/ReportEngine.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$period_label\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/Report/ReportEngine.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
 			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\LeaveBalance\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: method.unresolvableReturnType
-			count: 1
-			path: app/Services/Report/ReportEngine.php
-
-		-
-			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\PayrollEntry\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: method.unresolvableReturnType
 			count: 1
 			path: app/Services/Report/ReportEngine.php

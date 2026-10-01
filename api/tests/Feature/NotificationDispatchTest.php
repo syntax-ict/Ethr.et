@@ -171,7 +171,7 @@ test('batch approval notifies the employee too', function () {
 
 // ── Payroll (PHASE_05 S26) ──
 
-test('processing payroll notifies finance and each employee', function () {
+test('processing payroll notifies finance; employees hear at approval (PayslipReleaseTest)', function () {
     Notification::fake();
 
     $tenant = createTenant();
@@ -193,7 +193,7 @@ test('processing payroll notifies finance and each employee', function () {
     (new NotifyPayrollProcessed)->handle(new PayrollProcessed($run));
 
     Notification::assertSentTo($finance, PayrollProcessedNotification::class);
-    Notification::assertSentTo($staff, PayslipAvailableNotification::class);
+    Notification::assertNotSentTo($staff, PayslipAvailableNotification::class);
 });
 
 // ── Announcements (PHASE_05 S26) ──
