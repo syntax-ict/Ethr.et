@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { apiClient } from "@/api/client";
+import { claimImpersonationSession } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -43,7 +43,7 @@ export function ClaimSession() {
           // Drop the nonce from the address bar before doing anything else, so
           // it is not left in history or shoulder-surfable once it has been used.
           window.history.replaceState(null, "", window.location.pathname);
-          return apiClient.post("/auth/session/claim", { nonce });
+          return claimImpersonationSession(nonce);
         })()
       : Promise.reject(new Error("missing nonce"));
 

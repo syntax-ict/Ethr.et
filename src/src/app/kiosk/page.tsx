@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_TIMEZONE } from "@/lib/utils/date";
-import { apiClient } from "@/api/client";
+import { authenticateKiosk, kioskPunch } from "@/features/kiosk/api";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 
@@ -98,7 +98,7 @@ export default function KioskPage() {
     setSetupLoading(true);
     setSetupError("");
     try {
-      const { data } = await apiClient.post("/kiosk/authenticate", { token });
+      const data = await authenticateKiosk(token);
       const cfg: KioskConfig = {
         token,
         tenantName: data.tenant.name,
@@ -155,18 +155,12 @@ export default function KioskPage() {
 
     setMode("checking");
     try {
-      const { data } = await apiClient.post(
-        "/kiosk/check-in",
-        {
-          employee_code: code,
-          type,
-          pin: config.pinRequired ? pin : undefined,
-          idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        },
-        {
-          headers: { "X-Kiosk-Token": config.token },
-        },
-      );
+      const data = await kioskPunch(config.token, {
+        employee_code: code,
+        type,
+        pin: config.pinRequired ? pin : undefined,
+        idempotency_key: `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      });
       const empName =
         data.employee_name ??
         data.employee?.name ??
