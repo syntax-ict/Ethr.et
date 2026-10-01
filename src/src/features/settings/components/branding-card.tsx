@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { Loader2, Palette, RotateCcw, Save } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiClient } from "@/api/client";
+import { useUpdateBranding, type BrandColorKey } from "@/features/settings/api";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +28,9 @@ const DEFAULT_COLORS = {
   primary_color: "#0F4C75",
   secondary_color: "#3282B8",
   accent_color: "#E8A838",
-} as const;
+} as const satisfies Record<BrandColorKey, string>;
 
-type ColorKey = keyof typeof DEFAULT_COLORS;
+type ColorKey = BrandColorKey;
 
 export interface BrandingCardProps {
   logoUrl?: string | null;
@@ -40,7 +39,7 @@ export interface BrandingCardProps {
 
 export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
   const { t } = useT();
-  const queryClient = useQueryClient();
+  const updateBranding = useUpdateBranding();
 
   const [logo, setLogo] = useState(logoUrl ?? "");
   const [colors, setColors] = useState<Record<ColorKey, string>>({
@@ -50,26 +49,22 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
   });
   const [logoBroken, setLogoBroken] = useState(false);
 
-  const save = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.put("/settings/branding", {
-        logo_url: logo.trim() === "" ? null : logo.trim(),
-        ...colors,
-      });
-      return data;
-    },
-    onSuccess: () => {
-      // /auth/me carries the theme TenantBrandingProvider applies, so it has to
-      // be refetched too or the saved colors only appear after a reload.
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast.success(t("settings.branding_saved", "Branding saved"));
-    },
-    onError: () =>
-      toast.error(
-        t("settings.branding_save_failed", "Failed to save branding"),
-      ),
-  });
+  // The hook refreshes /auth/me as well as the settings query: it carries the
+  // theme TenantBrandingProvider applies, so without it the saved colors only
+  // appear after a reload.
+  function save() {
+    updateBranding.mutate(
+      { logo_url: logo.trim() === "" ? null : logo.trim(), ...colors },
+      {
+        onSuccess: () =>
+          toast.success(t("settings.branding_saved", "Branding saved")),
+        onError: () =>
+          toast.error(
+            t("settings.branding_save_failed", "Failed to save branding"),
+          ),
+      },
+    );
+  }
 
   function setColor(key: ColorKey, value: string) {
     setColors((prev) => ({ ...prev, [key]: value }));
@@ -213,8 +208,8 @@ export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
             <RotateCcw className="mr-2 h-4 w-4" />
             {t("settings.reset_colors", "Reset to defaults")}
           </Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
-            {save.isPending ? (
+          <Button onClick={save} disabled={updateBranding.isPending}>
+            {updateBranding.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Save className="mr-2 h-4 w-4" />
