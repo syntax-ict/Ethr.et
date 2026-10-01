@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Notification;
  * AttendanceCorrectionApprovedNotification (which also carries the rejection)
  * had no test of their own. The controller tests in IntelligenceCorrectionTest
  * pin status codes; these pin who is told, over which channel, and what the
- * message says â€” and the authorization holes found while reading the
+ * message says — and the authorization holes found while reading the
  * controller that sends them.
  */
 
@@ -71,7 +71,7 @@ function correctionNotifyUrl(Tenant $tenant, string $path = ''): string
     return "http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections{$path}";
 }
 
-// â”€â”€ Who is told when a correction is submitted â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Who is told when a correction is submitted ──────────────────────────────
 
 it('tells the submitter\'s supervisor, and nobody else, that a correction is waiting', function () {
     Notification::fake();
@@ -134,9 +134,9 @@ it('does not tell a supervisor who has no login', function () {
     Notification::assertNothingSent();
 });
 
-// â”€â”€ What the request notice says â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── What the request notice says ────────────────────────────────────────────
 
-it('describes the request by public id, name and the corrected day â€” never an internal id', function () {
+it('describes the request by public id, name and the corrected day — never an internal id', function () {
     $tenant = createTenant();
     $team = correctionNotifyTeam($tenant);
     $correction = correctionNotifyPending($tenant, $team['staff'], $team['record']);
@@ -152,7 +152,7 @@ it('describes the request by public id, name and the corrected day â€” neve
     ]);
 });
 
-// â”€â”€ Who is told about the outcome â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Who is told about the outcome ───────────────────────────────────────────
 
 it('tells the employee, and only the employee, that their correction was approved', function () {
     Notification::fake();
@@ -225,7 +225,7 @@ it('names the corrected day in the outcome message', function () {
     ]);
 });
 
-// â”€â”€ Channels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Channels ────────────────────────────────────────────────────────────────
 
 it('delivers both correction notices in-app only while broadcasting is off', function () {
     $tenant = createTenant();
@@ -233,7 +233,7 @@ it('delivers both correction notices in-app only while broadcasting is off', fun
     $correction = correctionNotifyPending($tenant, $team['staff'], $team['record']);
 
     // BROADCAST_CONNECTION=null in phpunit.xml, as in production on shared
-    // hosting. Neither class defines toMail(), so 'mail' must never appear â€”
+    // hosting. Neither class defines toMail(), so 'mail' must never appear —
     // a channel with no renderer throws at send time.
     expect((new AttendanceCorrectionRequestedNotification($correction))->via($team['supervisorUser']))
         ->toBe(['database'])
@@ -266,20 +266,24 @@ it('keeps the in-app record even when the user has switched the correction type 
         ]);
     }
 
-    // in_app is the record of what happened, not a delivery preference â€” see
+    // in_app is the record of what happened, not a delivery preference — see
     // RespectsNotificationPreferences.
     expect((new AttendanceCorrectionApprovedNotification($correction))->via($team['staffUser']))
         ->toBe(['database']);
 });
 
-// â”€â”€ Defects found in the controller that sends these â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Defects found in the controller that sends these ────────────────────────
+//
+// Written as todos against the old controller; all four were fixed by audit
+// N3 (AttendanceCorrectionPolicy, CorrectionDecisionService) and fail on the
+// code before it (20fde1d~1).
 
 it('refuses to file a correction against a colleague\'s attendance record', function () {
-    // AttendanceCorrectionController::store() (line 31) looks the record up by
-    // public_id alone and files the correction under the CALLER's employee_id
-    // (line 35), so any employee can propose new times for anyone's record in
-    // the tenant. The supervisor is notified about the caller, approves, and
-    // approve() rewrites the colleague's check-in/out (lines 120-131).
+    // store() used to look the record up by public_id alone and file the
+    // correction under the CALLER's employee_id, so any employee could propose
+    // new times for anyone's record in the tenant — and approval rewrote the
+    // colleague's check-in/out. AttendanceCorrectionPolicy::file now ties it
+    // to the caller's own records (or HR within org scope).
     $tenant = createTenant();
     $team = correctionNotifyTeam($tenant);
     $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
@@ -294,13 +298,14 @@ it('refuses to file a correction against a colleague\'s attendance record', func
 
     expect($response->status())->toBeIn([403, 404, 422]);
     expect(AttendanceCorrection::where('attendance_record_id', $theirRecord->id)->exists())->toBeFalse();
-})->todo(note: 'DEFECT: AttendanceCorrectionController::store (lines 31-35) accepts any record in the tenant; an employee can file corrections against a colleague\'s attendance');
+});
 
 it('answers another tenant\'s attendance record exactly as it answers a nonexistent one', function () {
-    // StoreCorrectionRequest validates with an unscoped
-    // `exists:attendance_records,public_id`, then the controller's scoped
-    // firstOrFail() 404s. A nonexistent id gets 422, another tenant's real id
-    // gets 404 â€” the difference confirms the id exists somewhere.
+    // StoreCorrectionRequest's `exists:attendance_records,public_id` is
+    // unscoped, so another tenant's real id passed it and 404'd at the
+    // controller's scoped lookup while a nonexistent one got 422 — the
+    // difference confirmed the id exists somewhere. Its withValidator() hook
+    // now answers both with the same 422.
     $tenant = createTenant();
     $team = correctionNotifyTeam($tenant);
 
@@ -318,13 +323,13 @@ it('answers another tenant\'s attendance record exactly as it answers a nonexist
     $crossTenant = $post($foreign['record']->public_id);
 
     expect($crossTenant->status())->toBe($nonexistent->status());
-})->todo(note: 'DEFECT: StoreCorrectionRequest.php:20 unscoped exists rule -> 422 for nonexistent, 404 for another tenant\'s record (existence oracle)');
+});
 
 it('does not let a supervisor approve their own correction', function () {
-    // LeaveRequestController::approve() refuses self-approval with a 403
-    // (lines 263-270). AttendanceCorrectionController::approve() has no such
-    // check, so a supervisor can raise a correction on their own record and
-    // approve it, rewriting their own hours.
+    // Leave approval refused self-approval; correction approval did not, so a
+    // supervisor could raise a correction on their own record and approve it,
+    // rewriting their own hours. CorrectionDecisionService::refusal() now
+    // refuses it with a 403.
     $tenant = createTenant();
     $team = correctionNotifyTeam($tenant);
     $ownRecord = AttendanceRecord::factory()->create([
@@ -339,12 +344,12 @@ it('does not let a supervisor approve their own correction', function () {
         ->assertForbidden();
 
     expect($own->fresh()->status)->toBe(CorrectionStatus::PENDING);
-})->todo(note: 'DEFECT: AttendanceCorrectionController::approve (line 94) has no self-approval guard, unlike LeaveRequestController::approve:263');
+});
 
 it('does not let a supervisor approve a correction for someone outside their reports', function () {
-    // correction.approve is a bare permission check (line 96). Every other
-    // supervisor-scoped decision goes through canAccessEmployee(), which limits
-    // a SUPERVISOR to direct reports (ScopesEmployeeAccess::canAccessEmployee).
+    // correction.approve was a bare permission check. AttendanceCorrectionPolicy
+    // ::decide now also requires canAccessEmployee(), which limits a
+    // SUPERVISOR to direct reports.
     $tenant = createTenant();
     $team = correctionNotifyTeam($tenant);
     $stranger = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => null]);
@@ -354,4 +359,4 @@ it('does not let a supervisor approve a correction for someone outside their rep
     $this->actingAs($team['supervisorUser'])
         ->putJson(correctionNotifyUrl($tenant, "/{$correction->public_id}/approve"))
         ->assertForbidden();
-})->todo(note: 'DEFECT: AttendanceCorrectionController::approve/reject check only the correction.approve permission, not canAccessEmployee(); any supervisor can approve any employee\'s correction');
+});
