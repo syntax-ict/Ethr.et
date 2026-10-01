@@ -28,10 +28,25 @@ interface Education {
   public_id: string;
   institution: string;
   degree: string;
-  field_of_study?: string;
-  start_year?: number;
-  end_year?: number;
-  gpa?: string;
+  field_of_study: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  grade: string | null;
+}
+
+/**
+ * The form asks for years, because that is how people remember a degree, but
+ * StoreEducationRequest takes `start_date`, `end_date` and `grade`. Sending
+ * `start_year`, `end_year` and `gpa` — as this form did — had all three
+ * dropped by `validated()`: every record was saved with no dates and no
+ * grade. A year is stored as 1 January of it and only the year is shown.
+ */
+function yearToDate(year: string): string | undefined {
+  return year === "" ? undefined : `${year}-01-01`;
+}
+
+function dateToYear(date: string | null): string | null {
+  return date ? date.slice(0, 4) : null;
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -120,10 +135,12 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
   const addEducation = useMutation({
     mutationFn: async (values: EducationValues) => {
       const payload = {
-        ...values,
-        start_year: values.start_year ? Number(values.start_year) : undefined,
-        end_year: values.end_year ? Number(values.end_year) : undefined,
-        gpa: values.gpa === "" ? undefined : values.gpa,
+        institution: values.institution,
+        degree: values.degree,
+        field_of_study: values.field_of_study,
+        start_date: yearToDate(values.start_year),
+        end_date: yearToDate(values.end_year),
+        grade: values.gpa === "" ? undefined : values.gpa,
       };
       const { data } = await apiClient.post(
         `/employees/${employeeId}/education`,
@@ -196,12 +213,16 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
                     <p className="text-xs text-muted-foreground">
                       {e.institution}
                     </p>
-                    {(e.start_year || e.end_year) && (
+                    {(e.start_date || e.end_date) && (
                       <p className="text-xs text-muted-foreground">
-                        {e.start_year ?? ""} –{" "}
-                        {e.end_year ??
+                        {dateToYear(e.start_date) ?? ""} –{" "}
+                        {dateToYear(e.end_date) ??
                           t("employee.education.present", "Present")}
-                        {e.gpa && ` · GPA: ${e.gpa}`}
+                      </p>
+                    )}
+                    {e.grade && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("employee.education.gpa", "GPA")}: {e.grade}
                       </p>
                     )}
                   </div>
