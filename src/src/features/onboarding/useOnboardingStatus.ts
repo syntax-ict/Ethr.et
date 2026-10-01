@@ -19,7 +19,9 @@ export function useOnboardingStatus(enabled = true) {
   const isComplete = !enabled || isError || !!data?.completed_at;
   const currentStep = data?.current_step ?? 1;
   const completedSteps = data?.completed_steps ?? [];
-  const totalSteps = 6;
+  // `App\Enums\OnboardingStep` has seven cases; six put a finished tenant at
+  // "7 of 6" and 117%.
+  const totalSteps = 7;
   const progress = Math.round((completedSteps.length / totalSteps) * 100);
 
   return {

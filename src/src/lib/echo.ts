@@ -7,11 +7,6 @@ import { apiClient } from "@/api/client";
 
 let echoInstance: any = null;
 
-export function getEcho(): any {
-  if (typeof window === "undefined") return null;
-  return echoInstance;
-}
-
 export async function initEcho(): Promise<any> {
   if (typeof window === "undefined") return null;
 

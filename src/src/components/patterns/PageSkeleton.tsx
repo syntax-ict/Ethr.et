@@ -174,48 +174,6 @@ export function DetailPageSkeleton({ label = "Loading" }: { label?: string }) {
   );
 }
 
-/** Stacked labelled fields. For create/edit routes. */
-export function FormPageSkeleton({
-  fields = 6,
-  columns = 2,
-  label = "Loading",
-}: {
-  fields?: number;
-  columns?: number;
-  label?: string;
-}) {
-  return (
-    <SkeletonRegion label={label}>
-      <div
-        className={cn(
-          "grid gap-6",
-          columns === 2 ? "lg:grid-cols-2" : "lg:grid-cols-1",
-        )}
-      >
-        {Array.from({ length: columns }).map((_, card) => (
-          <div
-            key={card}
-            className="space-y-4 rounded-lg border border-border bg-card p-4"
-          >
-            <Skeleton className="h-4 w-40" />
-            {Array.from({ length: fields }).map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-9 w-full" />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end gap-3">
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-    </SkeletonRegion>
-  );
-}
-
 /** Settings-style stacked panels. */
 export function SettingsPageSkeleton({
   panels = 3,

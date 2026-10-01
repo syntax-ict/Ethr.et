@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import {
   Select,
@@ -94,9 +95,10 @@ export default function NewEmployeePage() {
       marital_status: (form.marital_status ||
         null) as CreateEmployeePayload["marital_status"],
       hire_date: form.hire_date,
-      // ETB to integer cents, keeping the decimals: `parseInt` turned
-      // 5000.50 into 500000.
-      salary_cents: Math.round((parseFloat(form.salary_cents) || 0) * 100),
+      // Already integer cents — CurrencyInput does the ETB conversion, so
+      // this page no longer hand-rolls it (`parseInt` once turned 5000.50
+      // into 500000).
+      salary_cents: Number(form.salary_cents) || 0,
       department_id: form.department_id || null,
       branch_id: form.branch_id || null,
       position_id: form.position_id || null,
@@ -303,12 +305,13 @@ export default function NewEmployeePage() {
                 required
                 error={errors.salary_cents}
               >
-                <Input
-                  type="number"
-                  value={form.salary_cents}
-                  onChange={(e) => updateField("salary_cents", e.target.value)}
+                <CurrencyInput
+                  value={Number(form.salary_cents) || 0}
+                  onChange={(cents) =>
+                    updateField("salary_cents", cents ? String(cents) : "")
+                  }
                   required
-                  placeholder="5000"
+                  placeholder="5000.00"
                 />
               </FormField>
 

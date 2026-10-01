@@ -90,20 +90,3 @@ export function statusToSemanticTone(status: string): SemanticTone {
 export function statusBadgeClass(status: string): string {
   return toneClasses[statusToSemanticTone(status)].badge;
 }
-
-export function statusTextClass(status: string): string {
-  return toneClasses[statusToSemanticTone(status)].text;
-}
-
-export function statusDotClass(status: string): string {
-  const tone = statusToSemanticTone(status);
-  const map: Record<SemanticTone, string> = {
-    success: "bg-status-success",
-    warning: "bg-status-warning",
-    error: "bg-status-error",
-    info: "bg-status-info",
-    primary: "bg-interactive-primary",
-    neutral: "bg-muted-foreground/40",
-  };
-  return map[tone];
-}

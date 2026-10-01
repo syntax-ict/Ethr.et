@@ -123,10 +123,6 @@ export function daysInEthiopianMonth(year: number, month: number): number {
   return 0;
 }
 
-export function ethiopianMonthStart(ethYear: number, ethMonth: number): Date {
-  return toGregorian(ethYear, ethMonth, 1);
-}
-
 export function nextEthiopianMonth(
   year: number,
   month: number,

@@ -87,12 +87,9 @@ describe("New employee form", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Full Name/ }), {
       target: { value: "Hana Girma" },
     });
-    fireEvent.change(
-      screen.getByRole("spinbutton", { name: /Monthly Salary/ }),
-      {
-        target: { value: "5000.50" },
-      },
-    );
+    fireEvent.change(screen.getByRole("textbox", { name: /Monthly Salary/ }), {
+      target: { value: "5000.50" },
+    });
 
     // Wait for the pickers to have their options.
     await waitFor(() =>
