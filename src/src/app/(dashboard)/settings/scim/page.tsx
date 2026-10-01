@@ -16,8 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useGenerateScimToken } from "@/features/settings/api";
 import { toast } from "sonner";
 
 export default function ScimSettingsPage() {
@@ -26,28 +25,36 @@ export default function ScimSettingsPage() {
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [tokenCopied, setTokenCopied] = useState(false);
 
-  const generateScimToken = useMutation({
-    mutationFn: async (name: string) => {
-      const { data } = await apiClient.post("/settings/scim-token", { name });
-      return data;
-    },
-    onSuccess: (result) => {
-      setGeneratedToken(result.token);
-      setScimTokenName("");
-      toast.success(t("settings.scim_token_generated", "SCIM token generated"));
-    },
-    onError: () =>
-      toast.error(t("settings.scim_token_failed", "Failed to generate token")),
-  });
+  const generateScimToken = useGenerateScimToken();
+
+  function generate() {
+    generateScimToken.mutate(scimTokenName.trim(), {
+      onSuccess: (result) => {
+        setGeneratedToken(result.token);
+        setScimTokenName("");
+        toast.success(
+          t("settings.scim_token_generated", "SCIM token generated"),
+        );
+      },
+      onError: () =>
+        toast.error(
+          t("settings.scim_token_failed", "Failed to generate token"),
+        ),
+    });
+  }
 
   function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    setTokenCopied(true);
-    setTimeout(() => setTokenCopied(false), 2000);
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setTokenCopied(true);
+        setTimeout(() => setTokenCopied(false), 2000);
+      },
+      () => toast.error(t("common.action_failed")),
+    );
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("settings.scim_provisioning", "SCIM Provisioning")}
@@ -104,7 +111,7 @@ export default function ScimSettingsPage() {
                   onChange={(e) => setScimTokenName(e.target.value)}
                 />
                 <Button
-                  onClick={() => generateScimToken.mutate(scimTokenName)}
+                  onClick={generate}
                   disabled={
                     !scimTokenName.trim() || generateScimToken.isPending
                   }

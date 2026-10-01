@@ -19,33 +19,44 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import {
+  useNotificationTemplates,
+  useUpdateNotificationTemplate,
+  type NotificationTemplate,
+} from "@/features/settings/api";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 
-interface NotificationTemplate {
-  type: string;
-  subject_en: string;
-  subject_am: string;
-  body_en: string;
-  body_am: string;
-  is_customized: boolean;
-  variables: string[];
-}
+/**
+ * Template type → label. Four reuse the notification-preference labels; the
+ * other two have no translation key yet and stay English.
+ */
+function useTypeLabel() {
+  const { t } = useT();
 
-const typeLabels: Record<string, string> = {
-  leave_requested: "Leave Requested",
-  leave_approved: "Leave Approved",
-  leave_rejected: "Leave Rejected",
-  payslip_available: "Payslip Available",
-  missing_punch: "Missing Punch",
-  trial_expiring: "Trial Expiring",
-};
+  return (type: NotificationTemplate["type"]): string => {
+    switch (type) {
+      case "leave_requested":
+        return t("notification_prefs_page.type_leave_requested");
+      case "leave_approved":
+        return t("notification_prefs_page.type_leave_approved");
+      case "leave_rejected":
+        return t("notification_prefs_page.type_leave_rejected");
+      case "payslip_available":
+        return t("notification_prefs_page.type_payslip_available");
+      case "missing_punch":
+        return "Missing Punch";
+      case "trial_expiring":
+        return "Trial Expiring";
+      default:
+        return type;
+    }
+  };
+}
 
 export default function NotificationTemplatesPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<NotificationTemplate | null>(null);
   const [form, setForm] = useState({
     subject_en: "",
@@ -54,128 +65,113 @@ export default function NotificationTemplatesPage() {
     body_am: "",
   });
 
-  const { data, isLoading } = useQuery<{ templates: NotificationTemplate[] }>({
-    queryKey: ["settings", "notification-templates"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/settings/notification-templates");
-      return data;
-    },
-  });
+  const templatesQuery = useNotificationTemplates();
+  const update = useUpdateNotificationTemplate();
+  const typeLabel = useTypeLabel();
 
-  const update = useMutation({
-    mutationFn: async ({
-      type,
-      payload,
-    }: {
-      type: string;
-      payload: typeof form;
-    }) => {
-      const { data } = await apiClient.put(
-        `/settings/notification-templates/${type}`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["settings", "notification-templates"],
-      });
-      setEditing(null);
-      toast.success(t("settings.template_updated", "Template updated"));
-    },
-    onError: () =>
-      toast.error(
-        t("settings.template_update_failed", "Failed to update template"),
-      ),
-  });
-
-  function openEdit(t: NotificationTemplate) {
+  function openEdit(template: NotificationTemplate) {
     setForm({
-      subject_en: t.subject_en,
-      subject_am: t.subject_am,
-      body_en: t.body_en,
-      body_am: t.body_am,
+      subject_en: template.subject_en,
+      subject_am: template.subject_am,
+      body_en: template.body_en,
+      body_am: template.body_am,
     });
-    setEditing(t);
+    setEditing(template);
   }
 
   function handleSave() {
     if (!editing) return;
-    update.mutate({ type: editing.type, payload: form });
+    update.mutate(
+      { type: editing.type, payload: form },
+      {
+        onSuccess: () => {
+          setEditing(null);
+          toast.success(t("settings.template_updated", "Template updated"));
+        },
+        onError: () =>
+          toast.error(
+            t("settings.template_update_failed", "Failed to update template"),
+          ),
+      },
+    );
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("nav.notification_templates")}
           description="Customize the content of notification emails sent to employees and managers"
         />
 
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data?.templates.map((t) => (
-              <Card key={t.type}>
-                <CardContent className="flex items-start justify-between gap-4 p-5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <p className="font-medium">
-                        {typeLabels[t.type] ?? t.type}
+        <QueryBoundary
+          query={templatesQuery}
+          loading={
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+          }
+        >
+          {(templates) => (
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <Card key={template.type}>
+                  <CardContent className="flex items-start justify-between gap-4 p-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <p className="font-medium">
+                          {typeLabel(template.type)}
+                        </p>
+                        {template.is_customized && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-status-success"
+                          >
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Customized
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground truncate">
+                        {template.subject_en}
                       </p>
-                      {t.is_customized && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] text-status-success"
-                        >
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Customized
-                        </Badge>
+                      {template.variables.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {template.variables.map((v) => (
+                            <Badge
+                              key={v}
+                              variant="secondary"
+                              className="font-mono text-[10px]"
+                            >
+                              {`{${v}}`}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground truncate">
-                      {t.subject_en}
-                    </p>
-                    {t.variables.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {t.variables.map((v) => (
-                          <Badge
-                            key={v}
-                            variant="secondary"
-                            className="font-mono text-[10px]"
-                          >
-                            {`{${v}}`}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEdit(t)}
-                  >
-                    <Edit2 className="mr-1 h-3 w-3" />
-                    Edit
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEdit(template)}
+                    >
+                      <Edit2 className="mr-1 h-3 w-3" />
+                      {t("common.edit")}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
 
         <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                Edit:{" "}
-                {editing ? (typeLabels[editing.type] ?? editing.type) : ""}
+                {t("common.edit")}: {editing ? typeLabel(editing.type) : ""}
               </DialogTitle>
               <DialogDescription>
                 Customize the notification content. Use variables like{" "}
@@ -187,8 +183,10 @@ export default function NotificationTemplatesPage() {
             <div className="space-y-4 py-2">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Subject (English)</Label>
+                  <Label htmlFor="template-subject-en">Subject (English)</Label>
                   <Input
+                    id="template-subject-en"
+                    maxLength={200}
                     value={form.subject_en}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, subject_en: e.target.value }))
@@ -196,8 +194,10 @@ export default function NotificationTemplatesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Subject (Amharic)</Label>
+                  <Label htmlFor="template-subject-am">Subject (Amharic)</Label>
                   <Input
+                    id="template-subject-am"
+                    maxLength={200}
                     value={form.subject_am}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, subject_am: e.target.value }))
@@ -207,8 +207,10 @@ export default function NotificationTemplatesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Body (English)</Label>
+                <Label htmlFor="template-body-en">Body (English)</Label>
                 <Textarea
+                  id="template-body-en"
+                  maxLength={2000}
                   rows={4}
                   value={form.body_en}
                   onChange={(e) =>
@@ -218,8 +220,10 @@ export default function NotificationTemplatesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Body (Amharic)</Label>
+                <Label htmlFor="template-body-am">Body (Amharic)</Label>
                 <Textarea
+                  id="template-body-am"
+                  maxLength={2000}
                   rows={4}
                   value={form.body_am}
                   onChange={(e) =>
@@ -231,7 +235,7 @@ export default function NotificationTemplatesPage() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditing(null)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleSave} disabled={update.isPending}>
                 {update.isPending ? (
@@ -239,7 +243,7 @@ export default function NotificationTemplatesPage() {
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Save Template
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </DialogContent>
