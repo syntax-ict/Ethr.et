@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\ConflictResolutionStatus;
+use App\Enums\OrgScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ResolveConflictRequest;
 use App\Http\Resources\AttendanceConflictResource;
@@ -33,6 +34,15 @@ class AttendanceConflictController extends Controller
                 'recordB.employee', 'recordB.shift',
                 'resolvedByUser',
             ]);
+
+        // Limited to the employees the caller may see, as every sibling
+        // attendance list is (AttendanceController::index). The stock roles
+        // holding attendance.viewConflicts see everyone anyway; a custom role
+        // granted it with a narrower org scope used to see the whole tenant.
+        $user = $request->user();
+        if ($user->orgScope() !== OrgScope::ALL) {
+            $query->whereHas('employee', fn ($q) => $user->scopeAccessibleEmployees($q));
+        }
 
         if ($request->has('filter.resolution')) {
             $query->where('resolution', $request->input('filter.resolution'));

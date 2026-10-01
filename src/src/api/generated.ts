@@ -9496,7 +9496,9 @@ export interface operations {
     };
     "kioskSession.index": {
         parameters: {
-            query?: never;
+            query?: {
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
