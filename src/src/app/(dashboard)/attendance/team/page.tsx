@@ -12,20 +12,10 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import { useTeamAttendance } from "@/features/attendance/api";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
-
-interface TeamRecord {
-  public_id: string;
-  employee?: { name: string; public_id: string };
-  employee_name?: string;
-  date: string;
-  check_in: string | null;
-  check_out: string | null;
-  status: string;
-  source: string;
-}
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -39,23 +29,26 @@ function shiftDate(dateStr: string, days: number) {
 
 export default function TeamAttendancePage() {
   const { t } = useT();
-  const [date, setDate] = useState(todayStr);
+  const { formatTime } = useDateFormatters();
+  const [date, setDateState] = useState(todayStr);
+  const [page, setPage] = useState(1);
 
-  const query = useQuery({
-    queryKey: ["attendance", "team", date],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/attendance/team", {
-        params: { per_page: 50, date },
-      });
-      return data;
-    },
-  });
+  function setDate(next: string) {
+    setDateState(next);
+    setPage(1);
+  }
 
-  const records: TeamRecord[] = query.data?.data ?? [];
+  // Paged like every other list. This asked for 50 rows and rendered no
+  // pagination, so a supervisor of a larger team never saw anyone past the
+  // fiftieth record of the day.
+  const query = useTeamAttendance({ date, page });
+
+  const records = query.data?.data ?? [];
   const isToday = date === todayStr();
 
   return (
-    <RoleGate minRole="supervisor">
+    // AttendanceController::team checks attendance.viewTeam, not a role tier.
+    <RoleGate anyPermission={["viewTeam"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.team_page.title")}
@@ -147,26 +140,36 @@ export default function TeamAttendancePage() {
                     key: r.public_id,
                     cells: [
                       <span key="e" className="font-medium">
-                        {r.employee?.name ?? r.employee_name ?? "—"}
+                        {r.employee?.name ?? "—"}
                       </span>,
                       <span key="d" className="text-muted-foreground">
                         {r.date}
                       </span>,
-                      <span key="i" className="text-muted-foreground">
-                        {r.check_in ?? "—"}
+                      <span
+                        key="i"
+                        className="tabular-nums text-muted-foreground"
+                      >
+                        {r.check_in ? formatTime(r.check_in) : "—"}
                       </span>,
-                      <span key="o" className="text-muted-foreground">
-                        {r.check_out ?? "—"}
+                      <span
+                        key="o"
+                        className="tabular-nums text-muted-foreground"
+                      >
+                        {r.check_out ? formatTime(r.check_out) : "—"}
                       </span>,
                       <span
                         key="s"
                         className="capitalize text-muted-foreground"
                       >
-                        {r.source}
+                        {t(`attendance.source_${r.source}`, r.source)}
                       </span>,
                       <StatusBadge key="st" status={r.status} />,
                     ],
                   }))}
+                />
+                <PaginationControls
+                  meta={query.data?.meta}
+                  onPageChange={setPage}
                 />
               </CardContent>
             </Card>
