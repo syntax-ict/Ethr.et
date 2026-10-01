@@ -9,17 +9,33 @@ use App\Models\PayrollRule;
 final class OvertimeCalculator
 {
     /**
-     * Ethiopian Labour Proclamation minimums, used when a tenant has not
-     * configured its own (higher) rates.
+     * Labour Proclamation No. 1156/2019, Art. 68(1): 1.5x for overtime between
+     * 06:00 and 22:00, 1.75x between 22:00 and 06:00, 2x for work on a weekly
+     * rest day and 2.5x for work on a public holiday. These are the minimums,
+     * and the defaults when a tenant has set nothing higher.
+     *
+     * Until 2026-10-01 this table held 1.25 / 1.5 / 2.0 / 2.5 — the rates of
+     * the repealed Proclamation 377/2003 — with no weekly-rest-day rate at all,
+     * and "holiday" (2.0) paid public-holiday daytime work below the 2.5 Art.
+     * 68(1)(d) requires. Every tenant on the defaults was paid below the law.
      *
      * @var array<string, float>
      */
     public const DEFAULT_RATES = [
-        'normal' => 1.25,
-        'night' => 1.5,
-        'holiday' => 2.0,
+        'normal' => 1.5,
+        'night' => 1.75,
+        'rest_day' => 2.0,
+        'holiday' => 2.5,
         'holiday_night' => 2.5,
     ];
+
+    /**
+     * The floor for each rate. Equal to the defaults today; kept separate so a
+     * tenant default can move without moving the law.
+     *
+     * @var array<string, float>
+     */
+    public const STATUTORY_MINIMUMS = self::DEFAULT_RATES;
 
     /**
      * Per-tenant resolved rates, memoized so a payroll run does not re-query
@@ -76,10 +92,13 @@ final class OvertimeCalculator
 
         $formula = is_array($rule?->formula) ? $rule->formula : [];
 
+        // A stored rate below the statutory minimum is raised to it: rates
+        // saved under the old 1.25 / 1.5 floors are still in the database, and
+        // a tenant may pay above the law, never below it.
         $rates = self::DEFAULT_RATES;
         foreach (array_keys(self::DEFAULT_RATES) as $key) {
             if (isset($formula[$key]) && is_numeric($formula[$key])) {
-                $rates[$key] = (float) $formula[$key];
+                $rates[$key] = max((float) $formula[$key], self::STATUTORY_MINIMUMS[$key]);
             }
         }
 

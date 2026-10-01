@@ -522,14 +522,16 @@ final class PayrollEngine
 
     /**
      * Sum the period's overtime minutes for an employee, split by rate type
-     * (normal / night / holiday / holiday_night). Holidays are pre-fetched once
-     * for the period so classification is a memory lookup per record.
+     * (normal / night / rest_day / holiday / holiday_night). Holidays are
+     * pre-fetched once for the period so classification is a memory lookup per
+     * record. A weekly rest day is a day the record's shift does not work; with
+     * no shift it is Sunday, Art. 69's default.
      *
-     * @return array{normal: int, night: int, holiday: int, holiday_night: int}
+     * @return array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}
      */
     private function gatherOvertimeByType(Employee $employee, Carbon $periodStart, Carbon $periodEnd): array
     {
-        $buckets = ['normal' => 0, 'night' => 0, 'holiday' => 0, 'holiday_night' => 0];
+        $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
 
         $holidayDates = $this->holidayService->getHolidayDates(
             $employee->tenant_id,
@@ -549,9 +551,13 @@ final class PayrollEngine
             ->get();
 
         foreach ($records as $record) {
-            $isHoliday = isset($holidayDates[Carbon::parse($record->date)->format('Y-m-d')]);
+            $date = Carbon::parse($record->date);
+            $isHoliday = isset($holidayDates[$date->format('Y-m-d')]);
+            $isRestDay = $record->shift !== null
+                ? ! $record->shift->isWorkingDay($date)
+                : $date->isSunday();
 
-            foreach ($this->overtimeClassifier->classify($record, $isHoliday) as $type => $minutes) {
+            foreach ($this->overtimeClassifier->classify($record, $isHoliday, $isRestDay) as $type => $minutes) {
                 $buckets[$type] += $minutes;
             }
         }

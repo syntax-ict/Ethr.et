@@ -121,6 +121,21 @@ class AttendanceRecord extends Model
      *
      * @return array{0: Carbon, 1: Carbon}|null [start, end]
      */
+    /**
+     * The whole span worked, for a day with no scheduled hours (a weekly rest
+     * day or a public holiday), where all of it is paid as overtime.
+     *
+     * @return array{0: Carbon, 1: Carbon}|null
+     */
+    public function workedWindow(): ?array
+    {
+        if (! $this->check_in || ! $this->check_out || $this->check_out->lte($this->check_in)) {
+            return null;
+        }
+
+        return [$this->check_in->copy(), $this->check_out->copy()];
+    }
+
     public function overtimeWindow(): ?array
     {
         if (! $this->shift || ! $this->check_in || ! $this->check_out) {

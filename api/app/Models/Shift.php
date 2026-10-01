@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -64,8 +65,14 @@ class Shift extends Model
         return array_map('intval', explode(',', $this->working_days));
     }
 
-    public function isWorkingDay(int $dayOfWeek): bool
+    /**
+     * `working_days` holds ISO day numbers (1 = Monday … 7 = Sunday), as the
+     * shift forms write them. This took a bare int and had no caller; Carbon's
+     * `dayOfWeek` is 0-6 with Sunday 0, so passing it would never have matched
+     * Sunday. It takes the date now, and payroll uses it to find rest days.
+     */
+    public function isWorkingDay(CarbonInterface $date): bool
     {
-        return in_array($dayOfWeek, $this->workingDaysArray());
+        return in_array($date->dayOfWeekIso, $this->workingDaysArray(), true);
     }
 }

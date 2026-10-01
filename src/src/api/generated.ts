@@ -7384,12 +7384,15 @@ export interface components {
         };
         /**
          * UpdateOvertimeRatesRequest
-         * @description Tenant overtime multipliers. The lower bounds are the Ethiopian Labour
-         *     Proclamation minimums — a tenant may pay above them, never below.
+         * @description Tenant overtime multipliers. The lower bounds are Labour Proclamation
+         *     1156/2019 Art. 68(1) — a tenant may pay above them, never below.
+         *     (They were the repealed 377/2003 rates until 2026-10-01.) `rest_day` is
+         *     optional so a client that predates it keeps working; the default applies.
          */
         UpdateOvertimeRatesRequest: {
             normal: number;
             night: number;
+            rest_day?: number;
             holiday: number;
             holiday_night: number;
         };
@@ -17862,6 +17865,7 @@ export interface operations {
                         defaults: {
                             normal: number;
                             night: number;
+                            rest_day: number;
                             holiday: number;
                             holiday_night: number;
                         };
@@ -17898,6 +17902,7 @@ export interface operations {
                         defaults: {
                             normal: number;
                             night: number;
+                            rest_day: number;
                             holiday: number;
                             holiday_night: number;
                         };

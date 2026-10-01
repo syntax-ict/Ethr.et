@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Services\Payroll\OvertimeCalculator;
 
+// Labour Proclamation 1156/2019 Art. 68(1). These were the repealed
+// 377/2003 rates (1.25 / 1.5 / 2.0 / 2.5, no rest day) until 2026-10-01.
 dataset('overtime_types', [
-    'normal (1.25x)' => ['normal', 1.25],
-    'night (1.5x)' => ['night', 1.5],
-    'holiday (2.0x)' => ['holiday', 2.0],
-    'holiday_night (2.5x)' => ['holiday_night', 2.5],
+    'normal (1.5x)' => ['normal', 1.5],
+    'night (1.75x)' => ['night', 1.75],
+    'weekly rest day (2.0x)' => ['rest_day', 2.0],
+    'public holiday (2.5x)' => ['holiday', 2.5],
+    'public holiday night (2.5x)' => ['holiday_night', 2.5],
 ]);
 
 test('applies correct multiplier for each overtime type', function (string $type, float $multiplier) {
@@ -61,16 +64,16 @@ test('handles partial hours correctly', function () {
     $result = $calc->calculate(480_000, 26, 8, 90);
 
     $hourlyRate = 480_000 / (26 * 8);
-    $expected = (int) round($hourlyRate * 1.5 * 1.25);
+    $expected = (int) round($hourlyRate * 1.5 * 1.5);
 
     expect($result)->toBe($expected);
 });
 
-test('holiday night pays double the normal rate', function () {
+test('public-holiday night pays the public-holiday rate', function () {
     $calc = new OvertimeCalculator;
 
     $normal = $calc->calculate(480_000, 26, 8, 120, 'normal');
     $holidayNight = $calc->calculate(480_000, 26, 8, 120, 'holiday_night');
 
-    expect($holidayNight)->toBe((int) round($normal * 2.5 / 1.25));
+    expect($holidayNight)->toBe((int) round($normal * 2.5 / 1.5));
 });
