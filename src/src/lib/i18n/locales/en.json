@@ -1209,7 +1209,6 @@
   "employee.bank.deleted": "Bank deleted",
   "employee.bank.empty_desc": "Add bank details for salary deposits",
   "employee.bank.empty_title": "No bank accounts",
-  "employee.bank.holder_name": "Account Holder Name",
   "employee.bank.primary": "PRIMARY",
   "employee.bank.title": "Bank Details",
   "employee.code": "Code",

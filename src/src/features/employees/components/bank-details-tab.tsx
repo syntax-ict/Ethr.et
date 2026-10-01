@@ -30,7 +30,6 @@ interface BankDetail {
   branch_name?: string;
   /** All but the last four digits starred; the full number is never sent. */
   account_number_masked: string;
-  account_holder_name?: string;
   is_primary?: boolean;
 }
 
@@ -47,7 +46,10 @@ const bankSchema = z.object({
     .min(5, "employee.bank.account_number_short")
     .max(34, "validation.too_long")
     .regex(/^[0-9][0-9\s-]*$/, "employee.bank.account_number_format"),
-  account_holder_name: rules.text(255),
+  // No account-holder field: `employee_bank_details` has no column for one and
+  // StoreBankDetailRequest does not accept it, so whatever was typed there was
+  // dropped by `validated()` behind a success toast. The holder is the
+  // employee whose record this is.
   is_primary: z.boolean(),
 });
 type BankValues = z.infer<typeof bankSchema>;
@@ -56,7 +58,6 @@ const EMPTY_BANK: BankValues = {
   bank_name: "",
   branch_name: "",
   account_number: "",
-  account_holder_name: "",
   is_primary: true,
 };
 
@@ -228,14 +229,6 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
                 inputMode="numeric"
                 className="mt-1 font-mono"
               />
-            </FormField>
-
-            <FormField
-              id="bank_holder"
-              label={t("employee.bank.holder_name", "Account Holder Name")}
-              error={fieldMessage(t, errors.account_holder_name?.message)}
-            >
-              <Input {...register("account_holder_name")} className="mt-1" />
             </FormField>
 
             <DialogFooter>

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
@@ -55,5 +56,57 @@ describe("<BankDetailsTab>", () => {
     renderTab();
 
     expect(await screen.findByText("*********6789")).toBeInTheDocument();
+  });
+});
+
+/** Opens the add dialog and fills the two required fields by typing. */
+async function fillNewAccount(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: /Add/ }));
+  const dialog = await screen.findByRole("dialog");
+  await user.type(within(dialog).getByLabelText(/Bank Name/), "Dashen Bank");
+  await user.type(
+    within(dialog).getByLabelText(/Account Number/),
+    "2000987654321",
+  );
+  return dialog;
+}
+
+function capturePost() {
+  const bodies: Array<Record<string, unknown>> = [];
+  server.use(
+    http.post(BANK_URL, async ({ request }) => {
+      bodies.push((await request.json()) as Record<string, unknown>);
+      return HttpResponse.json(buildBank(), { status: 201 });
+    }),
+  );
+  return bodies;
+}
+
+describe("<BankDetailsTab> add", () => {
+  it("sends only the fields StoreBankDetailRequest accepts", async () => {
+    // Regression: the form had an "Account Holder Name" field. There is no
+    // such column and the FormRequest has no such rule, so `validated()`
+    // dropped it and HR was told "Bank details added" about a value that was
+    // never stored.
+    server.use(http.get(BANK_URL, () => HttpResponse.json([])));
+    const bodies = capturePost();
+
+    const user = userEvent.setup();
+    renderTab();
+    const dialog = await fillNewAccount(user);
+
+    expect(
+      within(dialog).queryByLabelText(/Account Holder/),
+    ).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: /^Add$/ }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(Object.keys(bodies[0]).sort()).toEqual([
+      "account_number",
+      "bank_name",
+      "branch_name",
+      "is_primary",
+    ]);
   });
 });
