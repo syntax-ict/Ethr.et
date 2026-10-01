@@ -19,27 +19,16 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { SimpleTable } from "@/components/shared/simple-table";
 
-import { apiClient } from "@/api/client";
+import {
+  useCommitImport,
+  useImportTemplate,
+  usePreviewImport,
+  type ImportCommitResult,
+  type ImportPreview,
+} from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface PreviewRow {
-  employee_code: string;
-  date: string;
-  check_in_time: string;
-  check_out_time?: string;
-  line: number;
-  valid: boolean;
-  errors: string[];
-}
-
-interface PreviewResult {
-  rows: PreviewRow[];
-  valid: number;
-  invalid: number;
-  errors: string[];
-}
 
 type Step = "upload" | "preview" | "importing" | "done";
 
@@ -49,13 +38,20 @@ export default function AttendanceImportPage() {
   const [step, setStep] = useState<Step>("upload");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  // One key per previewed file, not per click. The commit is idempotent on
+  // this key, but the page minted a fresh one on every attempt — so retrying a
+  // commit whose response was lost (a timeout on a slow link) imported every
+  // row a second time instead of reporting them as skipped.
+  const [importKey, setImportKey] = useState("");
   const [fileName, setFileName] = useState("");
-  const [importResult, setImportResult] = useState<{
-    created: number;
-    skipped: number;
-    errors: string[];
-  } | null>(null);
+  const [importResult, setImportResult] = useState<ImportCommitResult | null>(
+    null,
+  );
+
+  const previewImport = usePreviewImport();
+  const commit = useCommitImport();
+  const template = useImportTemplate();
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -72,24 +68,15 @@ export default function AttendanceImportPage() {
       setUploading(true);
 
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const { data } = await apiClient.post(
-          "/attendance/import/preview",
-          formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          },
-        );
+        const data = await previewImport.mutateAsync(file);
 
         if (data.errors?.length) {
           toast.error(data.errors.join(", "));
-          setUploading(false);
           return;
         }
 
-        setPreview(data as PreviewResult);
+        setPreview(data);
+        setImportKey(crypto.randomUUID());
         setStep("preview");
       } catch (err: unknown) {
         const e = err as { response?: { data?: { detail?: string } } };
@@ -100,7 +87,7 @@ export default function AttendanceImportPage() {
         setUploading(false);
       }
     },
-    [t],
+    [previewImport, t],
   );
 
   function handleDrop(e: React.DragEvent) {
@@ -116,22 +103,23 @@ export default function AttendanceImportPage() {
     e.target.value = "";
   }
 
-  async function downloadTemplate() {
-    try {
-      const { data } = await apiClient.post("/attendance/import/template");
-      const blob = new Blob([data.template], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "attendance_import_template.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error(t("attendance.import_page.template_download_failed"));
-    }
+  function downloadTemplate() {
+    template.mutate(undefined, {
+      onSuccess: (data) => {
+        const blob = new Blob([data.template], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "attendance_import_template.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      onError: () =>
+        toast.error(t("attendance.import_page.template_download_failed")),
+    });
   }
 
-  async function commitImport() {
+  function commitImport() {
     if (!preview) return;
 
     const validRows = preview.rows.filter((r) => r.valid);
@@ -141,10 +129,9 @@ export default function AttendanceImportPage() {
     }
 
     setStep("importing");
-    const importKey = `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    try {
-      const { data } = await apiClient.post("/attendance/import/commit", {
+    commit.mutate(
+      {
         import_key: importKey,
         rows: validRows.map((r) => ({
           employee_code: r.employee_code,
@@ -152,25 +139,31 @@ export default function AttendanceImportPage() {
           check_in: r.check_in_time,
           check_out: r.check_out_time || null,
         })),
-      });
-
-      setImportResult(data);
-      setStep("done");
-      toast.success(
-        `${t("attendance.import_page.imported")} ${data.created} ${t("attendance.import_page.records")}`,
-      );
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail ?? t("attendance.import_page.import_failed"),
-      );
-      setStep("preview");
-    }
+      },
+      {
+        onSuccess: (data) => {
+          setImportResult(data);
+          setStep("done");
+          toast.success(
+            `${t("attendance.import_page.imported")} ${data.created} ${t("attendance.import_page.records")}`,
+          );
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { detail?: string } } };
+          toast.error(
+            e.response?.data?.detail ??
+              t("attendance.import_page.import_failed"),
+          );
+          setStep("preview");
+        },
+      },
+    );
   }
 
   function reset() {
     setStep("upload");
     setPreview(null);
+    setImportKey("");
     setFileName("");
     setImportResult(null);
   }
