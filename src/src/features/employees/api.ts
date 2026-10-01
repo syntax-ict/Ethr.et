@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { components } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 import type { Employee } from "./types";
 
@@ -116,6 +116,82 @@ export function useEmployeeStats() {
     queryFn: async () => {
       const { data } = await apiClient.get("/employees/stats");
       return data;
+    },
+  });
+}
+
+// ── CSV import (template → preview → commit) ──────────────────────
+
+/**
+ * Hand-written: Scramble cannot follow `EmployeeImporter::preview()` and
+ * publishes `rows` as `string[]` and `errors` as a string. This mirrors the
+ * PHP return shape. `errors` is keyed by CSV line number — the header is line
+ * 1, so data row `i` is line `i + 2` — and key 0 is a file-level error (a
+ * missing required column, or no data rows), which comes with no rows at all.
+ */
+export interface EmployeeImportPreview {
+  headers: string[];
+  rows: Array<Record<string, string | null>>;
+  errors: Record<number, string[]>;
+}
+
+/**
+ * Hand-written for the same reason, mirroring `EmployeeImporter::commit()`.
+ * `skipped` rows carried an import key already used; `matched` rows are a
+ * person who already exists (same code, email, phone or national id). Neither
+ * creates an employee.
+ */
+export interface EmployeeImportResult {
+  created: number;
+  skipped: number;
+  matched: number;
+  users_created: number;
+  errors: Record<number, string[]>;
+}
+
+export type EmployeeImportTemplate =
+  operations["employeeImport.template"]["responses"][200]["content"]["application/json"];
+
+/** The blank CSV template. The endpoint reads no body; it is only a POST. */
+export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTemplate> {
+  const { data } = await apiClient.post<EmployeeImportTemplate>(
+    "/employees/import/template",
+  );
+  return data;
+}
+
+/** Parses and validates a CSV server-side; nothing is written. */
+export function usePreviewEmployeeImport() {
+  return useMutation({
+    mutationFn: async (file: File): Promise<EmployeeImportPreview> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await apiClient.post<EmployeeImportPreview>(
+        "/employees/import/preview",
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      return data;
+    },
+  });
+}
+
+export function useCommitEmployeeImport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      importKey: string;
+      rows: EmployeeImportPreview["rows"];
+    }): Promise<EmployeeImportResult> => {
+      const { data } = await apiClient.post<EmployeeImportResult>(
+        "/employees/import/commit",
+        { import_key: vars.importKey, rows: vars.rows },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
 }
