@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
+use App\Models\Device;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin Device */
 class DeviceResource extends JsonResource
 {
     public function toArray(Request $request): array

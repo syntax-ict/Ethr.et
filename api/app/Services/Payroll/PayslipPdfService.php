@@ -19,10 +19,14 @@ final class PayslipPdfService
         $data = [
             'tenant_name' => $tenant?->name ?? 'ETHR',
             'period' => $entry->payrollRun->period_label,
-            'employee_name' => $entry->employee->full_name ?? '',
+            // `name`: employees have no `full_name` column or accessor, so this
+            // printed a blank name — the same defect BankExportService records.
+            'employee_name' => $entry->employee->name ?? '',
             'employee_code' => $entry->employee->employee_code ?? '',
             'department' => $entry->employee->department?->name ?? '',
-            'position' => $entry->employee->position?->name ?? '',
+            // `title`: positions have no `name` column, so `->name` printed a blank
+            // position on every payslip. Every other reader already uses `title`.
+            'position' => $entry->employee->position?->title ?? '',
             'basic_salary_cents' => $entry->basic_salary_cents,
             'allowances' => $entry->allowances ?? [],
             'gross_cents' => $entry->gross_cents,

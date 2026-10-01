@@ -5198,11 +5198,13 @@ export interface components {
             public_id: string;
             name: string;
             subdomain: string;
-            type: string;
+            type: string | null;
             status: string;
             employee_count: string;
-            trial_ends_at: string;
-            created_at: string;
+            /** Format: date-time */
+            trial_ends_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
         };
         /** AnnouncementResource */
         AnnouncementResource: {
@@ -5296,10 +5298,10 @@ export interface components {
         /** AttendanceCorrectionResource */
         AttendanceCorrectionResource: {
             public_id: string;
-            attendance_record?: components["schemas"]["AttendanceRecordResource"];
-            attendance_record_public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            attendance_record?: components["schemas"]["AttendanceRecordResource"] | null;
+            attendance_record_public_id: string | null;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             reason: string;
             proposed_check_in: string | null;
             proposed_check_out: string | null;
@@ -5335,7 +5337,7 @@ export interface components {
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
             shift?: components["schemas"]["ShiftResource"] | null;
-            date: string;
+            date: string | null;
             check_in: string | null;
             check_out: string | null;
             source: string;
@@ -5379,9 +5381,9 @@ export interface components {
         BankDetailResource: {
             public_id: string;
             bank_name: string;
-            branch_name: string;
+            branch_name: string | null;
             account_number_masked: string;
-            is_primary: string;
+            is_primary: boolean;
         };
         /** BatchApprovalRequest */
         BatchApprovalRequest: {
@@ -5536,8 +5538,8 @@ export interface components {
             webhook_token?: string | null;
             webhook_url?: string | null;
             last_sync_at: string | null;
-            branch?: components["schemas"]["BranchResource"];
-            branch_public_id: string;
+            branch?: components["schemas"]["BranchResource"] | null;
+            branch_public_id: string | null;
             attendance_records_count?: number;
             sync_logs_count?: number;
             latest_sync_log?: components["schemas"]["DeviceSyncLogResource"];
@@ -5556,7 +5558,7 @@ export interface components {
             events_failed: number;
             error_message: string | null;
             duration_ms: number | null;
-            started_at: string;
+            started_at: string | null;
             completed_at: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -5565,9 +5567,9 @@ export interface components {
         DirectoryResource: {
             public_id: string;
             name: string;
-            phone: string;
-            email: string;
-            photo_path: string;
+            phone: string | null;
+            email: string | null;
+            photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
             department?: string | null;
@@ -5632,10 +5634,10 @@ export interface components {
             public_id: string;
             institution: string;
             degree: string;
-            field_of_study: string;
+            field_of_study: string | null;
             start_date: string | null;
             end_date: string | null;
-            grade: string;
+            grade: string | null;
         };
         /** EmergencyContactResource */
         EmergencyContactResource: {
@@ -5643,8 +5645,8 @@ export interface components {
             name: string;
             relationship: string;
             phone: string;
-            email: string;
-            priority: string;
+            email: string | null;
+            priority: number;
         };
         /** EmployeeContractResource */
         EmployeeContractResource: {
@@ -5733,7 +5735,7 @@ export interface components {
             amount_cents: number;
             remaining_cents: number;
             monthly_deduction_cents: number;
-            start_date: string;
+            start_date: string | null;
             end_date: string | null;
             status: string;
             reason: string | null;
@@ -5798,18 +5800,18 @@ export interface components {
         EmployeeSummaryResource: {
             public_id: string;
             name: string;
-            employee_code: string;
-            photo_path: string;
+            employee_code: string | null;
+            photo_path: string | null;
             photo_url: string | null;
             photo_thumb_url: string | null;
         };
         /** EmployeeTransitionResource */
         EmployeeTransitionResource: {
             public_id: string;
-            from_status: string;
-            to_status: string;
+            from_status: string | null;
+            to_status: string | null;
             reason: string | null;
-            effective_date: string;
+            effective_date: string | null;
             approved_by?: components["schemas"]["EmployeeSummaryResource"] | null;
             /** Format: date-time */
             created_at: string | null;
@@ -6013,8 +6015,8 @@ export interface components {
         };
         /** LeaveBalanceResource */
         LeaveBalanceResource: {
-            leave_type?: components["schemas"]["LeaveTypeResource"];
-            leave_type_public_id: string;
+            leave_type?: components["schemas"]["LeaveTypeResource"] | null;
+            leave_type_public_id: string | null;
             year: number;
             entitled_days: number;
             used_days: number;
@@ -6025,12 +6027,12 @@ export interface components {
         /** LeaveRequestResource */
         LeaveRequestResource: {
             public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             leave_type?: components["schemas"]["LeaveTypeResource"];
             leave_type_public_id: string;
-            start_date: string;
-            end_date: string;
+            start_date: string | null;
+            end_date: string | null;
             days: number;
             reason: string | null;
             attachment_path: string | null;
@@ -6140,9 +6142,11 @@ export interface components {
         NotificationResource: {
             id: string;
             type: string;
-            data: string;
-            read_at: string;
-            created_at: string;
+            data: unknown[];
+            /** Format: date-time */
+            read_at: string | null;
+            /** Format: date-time */
+            created_at: string | null;
         };
         /** OfflineSyncRequest */
         OfflineSyncRequest: {
@@ -6188,8 +6192,8 @@ export interface components {
         /** PayrollEntryResource */
         PayrollEntryResource: {
             public_id: string;
-            employee?: components["schemas"]["EmployeeResource"];
-            employee_public_id: string;
+            employee?: components["schemas"]["EmployeeResource"] | null;
+            employee_public_id: string | null;
             basic_salary_cents: number;
             allowances: unknown[] | null;
             deductions: unknown[] | null;
@@ -6222,8 +6226,8 @@ export interface components {
         PayrollRunResource: {
             public_id: string;
             period_label: string;
-            period_start: string;
-            period_end: string;
+            period_start: string | null;
+            period_end: string | null;
             status: string;
             employee_count: number;
             gross_total_cents: number;
@@ -6609,7 +6613,7 @@ export interface components {
             is_rotation: boolean;
             anchor_date: string | null;
             assignable_type: string;
-            effective_from: string;
+            effective_from: string | null;
             effective_to: string | null;
             /** Format: date-time */
             created_at: string | null;
@@ -17443,7 +17447,7 @@ export interface operations {
                         total_entries: number;
                         total_amount_cents: string;
                         rows: {
-                            employee_name: string;
+                            employee_name: string | null;
                             employee_code: string | null;
                             bank_name: string;
                             branch_name: string;
@@ -18142,7 +18146,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         period: string;
-                        date: string;
+                        date: string | null;
                         reference: string;
                         entries: ({
                             account_code: string;

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\PayrollEntry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin PayrollEntry */
 class PayrollEntryResource extends JsonResource
 {
     public function toArray(Request $request): array

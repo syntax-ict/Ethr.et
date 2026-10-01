@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin LeaveRequest */
 class LeaveRequestResource extends JsonResource
 {
     public function toArray(Request $request): array

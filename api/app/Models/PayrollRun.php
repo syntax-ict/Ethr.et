@@ -13,7 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property Carbon|null $period_start
+ * @property Carbon|null $period_end
+ * @property-read PayrollRun|null $reprocessedFrom
+ */
 class PayrollRun extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;

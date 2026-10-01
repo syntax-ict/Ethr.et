@@ -28,6 +28,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property-read Employee|null $employee A user need not be an employee — `users.employee_id` is nullable.
  * @property-read string $name Display name, computed — see name().
+ * @property-read CustomRole|null $customRole
  */
 class User extends Authenticatable
 {

@@ -104,25 +104,6 @@ parameters:
         - message: '#^Method App\\Models\\DisciplinaryCase\:\:findByPublicId\(\) should return static\(App\\Models\\DisciplinaryCase\)\|null but returns App\\Models\\DisciplinaryCase\|null\.$#'
           path: app/Traits/HasPublicId.php
 
-        # Employee::$status resolving to plain `string` instead of the cast
-        # EmployeeStatus enum is a pre-existing, already-accepted larastan
-        # limitation — EmployeeTransitionController.php carries the identical
-        # three messages in phpstan-baseline.neon (lines 244-259). Verified: it
-        # is the same false positive, not a new bug, just hit for the first
-        # time from a *Service* class rather than a Controller. Listed here
-        # (rather than regenerating the baseline) so the entries stay
-        # attributable to this change. Covered by DisciplinaryCaseTest, which
-        # exercises the termination-on-close path this touches.
-        - message: '#^Cannot call method canTransitionTo\(\) on string\.$#'
-          count: 1
-          path: app/Services/DisciplinaryCaseService.php
-        - message: '#^Cannot access property \$value on string\.$#'
-          count: 3
-          path: app/Services/DisciplinaryCaseService.php
-        - message: '#^Property App\\Models\\Employee\:\:\$status \(string\) does not accept App\\Enums\\EmployeeStatus\:\:TERMINATED\.$#'
-          count: 1
-          path: app/Services/DisciplinaryCaseService.php
-
         # Same larastan limitation for employee_contracts — no JSON column on
         # this table, so it's confirmed *not* a JSON-column-specific issue:
         # enum-cast property types resolve to their raw backing type (string)
@@ -159,13 +140,11 @@ parameters:
           path: app/Services/RetirementCaseService.php
         - message: '#^Property App\\Models\\RetirementCase\:\:\$finalized_at \(string\|null\) does not accept Illuminate\\Support\\Carbon\.$#'
           path: app/Services/RetirementCaseService.php
-        - message: '#^Property App\\Models\\Employee\:\:\$status \(string\) does not accept App\\Enums\\EmployeeStatus\:\:RETIRED\.$#'
-          path: app/Services/RetirementCaseService.php
         - message: '#^Cannot access property \$value on string\.$#'
-          count: 7
+          count: 3
           path: app/Services/RetirementCaseService.php
         - message: '#^Cannot call method canTransitionTo\(\) on string\.$#'
-          count: 2
+          count: 1
           path: app/Services/RetirementCaseService.php
         - message: '#^Strict comparison using === between string and App\\Enums\\RetirementCaseStatus\:\:INITIATED will always evaluate to false\.$#'
           path: app/Services/RetirementCaseService.php
@@ -204,8 +183,6 @@ parameters:
           path: app/Http/Resources/ShiftRotationResource.php
         - message: '#^Access to an undefined property App\\Http\\Resources\\ShiftRotationStepResource\:\:\$[a-z_]+\.$#'
           path: app/Http/Resources/ShiftRotationStepResource.php
-        - message: '#^Access to an undefined property App\\Http\\Resources\\ShiftAssignmentResource\:\:\$(rotation|shift_rotation_id|anchor_date)\.$#'
-          path: app/Http/Resources/ShiftAssignmentResource.php
 
         # OrganizationProvisioner works over a class-string<Model> that is only
         # known to soft-delete at runtime (guarded by class_uses_recursive), so

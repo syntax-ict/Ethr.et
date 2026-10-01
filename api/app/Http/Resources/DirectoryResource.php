@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\ExposesPhotoUrls;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin Employee */
 class DirectoryResource extends JsonResource
 {
     use ExposesPhotoUrls;

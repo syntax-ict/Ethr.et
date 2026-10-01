@@ -10,8 +10,15 @@ use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * @property-read Branch|null $branch
+ * @property Carbon|null $activated_at
+ * @property Carbon|null $deactivated_at
+ * @property Carbon|null $last_activity_at
+ */
 class KioskSession extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;

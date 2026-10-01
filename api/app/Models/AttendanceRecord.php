@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property AttendanceStatus $status
  * @property Carbon|null $check_in
  * @property Carbon|null $check_out
+ * @property Carbon|null $date
+ * @property array<string, mixed>|null $metadata
  */
 class AttendanceRecord extends Model
 {
