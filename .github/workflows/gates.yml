@@ -547,9 +547,12 @@ jobs:
   # slows every run it is loaded into. Its own job so the other four keep
   # `coverage: none` and stay as quick as they are.
   #
-  # No threshold, deliberately. Nobody knows what the number is yet, and choosing
-  # a floor before measuring one would be picking it out of the air. This prints
-  # what it measured; a floor can follow once there is a baseline to set it from.
+  # The floor is `--min=85` (in gates.sh), set 2026-09-23 by the owner against
+  # a measured 86.7% — BASELINE §12e. (This comment said "no threshold,
+  # deliberately" for the week before that decision and was not updated with
+  # it; corrected 2026-10-01, audit I10.) It re-runs the whole suite on purpose:
+  # coverage needs PCOV loaded, and loading it into the Backend job would slow
+  # the gate every push waits on.
   backend-coverage:
     name: Backend coverage (PCOV)
     runs-on: ubuntu-latest
