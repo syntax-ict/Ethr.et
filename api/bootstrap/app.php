@@ -34,6 +34,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         apiPrefix: 'api/v1',
     )
+    // Listeners are registered once, explicitly, in AppServiceProvider::boot.
+    // Laravel's automatic discovery registered every one of them a second time
+    // — `event:list` showed each twice — so every payslip notice, device alert
+    // and payroll alert was sent twice, and tenant provisioning ran twice.
+    ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             SecurityHeaders::class,

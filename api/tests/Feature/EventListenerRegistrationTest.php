@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\TenantCreated;
 use App\Models\Employee;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Notification;
  * directly, so none of them could see how many times a real `event()` call
  * runs a listener. These dispatch the event and count what comes out.
  *
- * DEFECT (both todos below): Laravel 12 auto-discovers listeners in
+ * FIXED 2026-10-01 (bootstrap/app.php withEvents(discover: false)). Was: Laravel 12 auto-discovers listeners in
  * app/Listeners from their handle() type-hint, and
  * AppServiceProvider::boot() (app/Providers/AppServiceProvider.php:143-149)
  * ALSO registers the same classes with Event::listen(). `php artisan
@@ -41,9 +42,9 @@ it('runs ProvisionTenant once per TenantCreated', function () {
     Log::shouldHaveReceived('info')
         ->withArgs(fn (string $message) => $message === 'Provisioning tenant')
         ->once();
-})->todo(note: 'DEFECT: listeners are both auto-discovered and registered in AppServiceProvider:143-149, so each runs twice per event');
+});
 
-it('delivers one payroll-processed notice and one payslip notice per dispatch', function () {
+it('delivers one payroll-processed notice per dispatch, and one payslip notice per approval', function () {
     Notification::fake();
 
     $tenant = createTenant();
@@ -63,5 +64,30 @@ it('delivers one payroll-processed notice and one payslip notice per dispatch', 
     event(new PayrollProcessed($run));
 
     Notification::assertSentToTimes($finance, PayrollProcessedNotification::class, 1);
+    // Payslips are released at approval since 686879a, not at processing.
+    Notification::assertSentToTimes($staff, PayslipAvailableNotification::class, 0);
+
+    event(new PayrollApproved($run->fresh()));
+
     Notification::assertSentToTimes($staff, PayslipAvailableNotification::class, 1);
-})->todo(note: 'DEFECT: NotifyPayrollProcessed is registered twice (discovery + AppServiceProvider:149), so every payslip notice is sent twice');
+});
+
+it('registers each application listener once per event', function () {
+    $duplicates = [];
+    foreach (app('events')->getRawListeners() as $event => $listeners) {
+        if (! str_starts_with($event, 'App\\')) {
+            continue;
+        }
+        $names = array_map(
+            fn ($listener) => is_array($listener) ? implode('@', $listener) : (is_string($listener) ? preg_replace('/@handle$/', '', $listener) : 'closure'),
+            $listeners,
+        );
+        foreach (array_count_values(array_filter($names, fn ($n) => $n !== 'closure')) as $name => $count) {
+            if ($count > 1) {
+                $duplicates[] = "{$event}: {$name} x{$count}";
+            }
+        }
+    }
+
+    expect($duplicates)->toBe([]);
+});
