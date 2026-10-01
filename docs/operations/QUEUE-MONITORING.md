@@ -213,7 +213,12 @@ at 3am for a cron job, or — far more likely — learning to ignore the page.
 
 ## Fix `SystemHealthService` alongside this
 
-The admin health page is the first thing an operator opens after an alert, and it currently lies in two ways (`../audit/BASELINE.md` §9, §11):
+> **Both resolved — verified 2026-10-01 (audit D15).** `SystemHealthService` now probes
+> `Storage::disk(config('filesystems.default'))` (`app/Services/Admin/SystemHealthService.php:105`),
+> not a hardcoded `minio` disk, and reads its queue list from `QueueHealth::QUEUES` (audit B4)
+> instead of `default`/`high`/`low`. The two points below are kept as the record of what was wrong.
+
+The admin health page is the first thing an operator opens after an alert, and it lied in two ways (`../audit/BASELINE.md` §9, §11):
 
 - `SystemHealthService.php:66` hardcodes `Storage::disk('minio')`. Commit `80cac67` fixed four such sites and missed this one. It is inside `try/catch`, so on any non-MinIO deployment the page shows **storage permanently red** — which trains operators to ignore a red panel.
 - `queueStatus()` polls queues named `default`, `high` and `low`. Those are not the queue names this application uses. The panel reports on queues that do not exist and ignores the four that do.
