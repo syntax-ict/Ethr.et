@@ -10,7 +10,6 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
-import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
 import { escapeHtml } from "@/lib/utils/escape-html";
 
@@ -98,7 +97,6 @@ export default function MyPayslipsPage() {
   const { t } = useT();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMyPayslips({ page });
-  const { data: user } = useCurrentUser();
 
   const labels: PayslipLabels = {
     title: t("payroll_page.payslips_page.payslip_title"),
@@ -149,7 +147,7 @@ export default function MyPayslipsPage() {
                     onClick={() =>
                       printPayslip(
                         entry,
-                        user?.email ?? t("attendance.employee"),
+                        entry.employee?.name ?? t("attendance.employee"),
                         labels,
                       )
                     }
