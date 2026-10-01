@@ -31,7 +31,7 @@ trait ShiftRules
             'grace_minutes' => ['integer', 'min:0', 'max:120'],
             'early_departure_minutes' => ['integer', 'min:0', 'max:120'],
             'break_minutes' => ['integer', 'min:0', 'max:180'],
-            'working_days' => ['string', 'regex:/^[0-7](,[0-7])*$/'],
+            'working_days' => ['string', 'regex:/^[1-7](,[1-7])*$/'],
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],
         ];
