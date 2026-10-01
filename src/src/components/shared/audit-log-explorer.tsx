@@ -13,23 +13,16 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  fetchAllAuditLogs,
+  useAuditLogs,
+  type AuditLogEndpoint,
+} from "@/features/audit-log/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { csvFromRows, saveCsv } from "@/lib/utils/csv-export";
-
-export interface AuditLogEntry {
-  action: string;
-  auditable_type?: string;
-  auditable_id?: number;
-  user_id?: number;
-  data?: Record<string, unknown>;
-  ip_address?: string;
-  user_agent?: string;
-  created_at: string;
-}
+import { toast } from "sonner";
 
 function getActionColor(action: string): string {
   if (action.includes("created") || action.includes("approved"))
@@ -58,7 +51,7 @@ export function AuditLogExplorer({
   description,
   exportPrefix = "audit-log",
 }: {
-  endpoint: string;
+  endpoint: AuditLogEndpoint;
   queryKey: string;
   title: string;
   description: string;
@@ -68,24 +61,27 @@ export function AuditLogExplorer({
   const { formatDateTime } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ action: "", from: "", to: "" });
+  const [exporting, setExporting] = useState(false);
 
-  const query = useQuery({
-    queryKey: [queryKey, page, filters],
-    queryFn: async () => {
-      const params: Record<string, unknown> = { page, per_page: 50 };
-      if (filters.action) params["filter[action]"] = filters.action;
-      if (filters.from) params["filter[from]"] = filters.from;
-      if (filters.to) params["filter[to]"] = filters.to;
-      const { data } = await apiClient.get(endpoint, { params });
-      return data;
-    },
-  });
+  const query = useAuditLogs(endpoint, queryKey, { ...filters, page });
 
   const data = query.data;
-  const logs: AuditLogEntry[] = data?.data ?? [];
+  const logs = data?.data ?? [];
 
-  function exportCsv() {
-    if (!logs.length) return;
+  /**
+   * Every entry matching the filters, not the 50 on screen. The export used to
+   * serialise `logs` — the current page — so a compliance export of a month's
+   * trail held whichever 50 rows happened to be displayed.
+   */
+  async function exportCsv() {
+    setExporting(true);
+    const all = await fetchAllAuditLogs(endpoint, filters).catch(() => null);
+    setExporting(false);
+    if (all === null) {
+      toast.error(t("employees.export_failed", "Export failed"));
+      return;
+    }
+    if (!all.length) return;
     const headers = [
       "Created At",
       "Action",
@@ -94,7 +90,7 @@ export function AuditLogExplorer({
       "Entity ID",
       "IP Address",
     ];
-    const rows = logs.map((l) => [
+    const rows = all.map((l) => [
       l.created_at,
       l.action,
       l.user_id ?? "",
@@ -118,7 +114,7 @@ export function AuditLogExplorer({
             variant="outline"
             size="sm"
             onClick={exportCsv}
-            disabled={logs.length === 0}
+            disabled={logs.length === 0 || exporting}
           >
             <Download className="mr-2 h-4 w-4" />{" "}
             {t("audit_logs_page.export_csv")}
@@ -130,10 +126,13 @@ export function AuditLogExplorer({
         <CardContent className="p-4">
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="sm:col-span-2">
-              <Label className="text-xs">{t("audit_logs_page.action")}</Label>
+              <Label htmlFor="audit_filter_action" className="text-xs">
+                {t("audit_logs_page.action")}
+              </Label>
               <div className="relative mt-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  id="audit_filter_action"
                   value={filters.action}
                   onChange={(e) => {
                     setFilters((p) => ({ ...p, action: e.target.value }));
@@ -145,8 +144,11 @@ export function AuditLogExplorer({
               </div>
             </div>
             <div>
-              <Label className="text-xs">{t("audit_logs_page.from")}</Label>
+              <Label htmlFor="audit_filter_from" className="text-xs">
+                {t("audit_logs_page.from")}
+              </Label>
               <DualCalendarDateInput
+                id="audit_filter_from"
                 value={filters.from}
                 onChange={(v) => {
                   setFilters((p) => ({ ...p, from: v }));
@@ -156,8 +158,11 @@ export function AuditLogExplorer({
               />
             </div>
             <div>
-              <Label className="text-xs">{t("audit_logs_page.to")}</Label>
+              <Label htmlFor="audit_filter_to" className="text-xs">
+                {t("audit_logs_page.to")}
+              </Label>
               <DualCalendarDateInput
+                id="audit_filter_to"
                 value={filters.to}
                 onChange={(v) => {
                   setFilters((p) => ({ ...p, to: v }));
@@ -188,7 +193,7 @@ export function AuditLogExplorer({
           />
         }
       >
-        {() => (
+        {(result) => (
           <>
             <Card>
               <CardContent className="p-0">
@@ -246,11 +251,11 @@ export function AuditLogExplorer({
               </CardContent>
             </Card>
 
-            {data.meta && data.meta.last_page > 1 && (
+            {result.meta && result.meta.last_page > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  {t("audit_logs_page.showing")} {data.meta.from}–{data.meta.to}{" "}
-                  {t("audit_logs_page.of")} {data.meta.total}
+                  {t("audit_logs_page.showing")} {result.meta.from}–
+                  {result.meta.to} {t("audit_logs_page.of")} {result.meta.total}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -264,7 +269,7 @@ export function AuditLogExplorer({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={page >= data.meta.last_page}
+                    disabled={page >= result.meta.last_page}
                     onClick={() => setPage(page + 1)}
                   >
                     {t("audit_logs_page.next")}
