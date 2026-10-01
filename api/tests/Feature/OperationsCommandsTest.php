@@ -58,7 +58,7 @@ afterEach(function () {
     File::deleteDirectory(opsCommandsBackupRoot());
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ ethr:restore Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── ethr:restore ────────────────────────────────────────────────────────────
 
 describe('ethr:restore', function () {
     it('fails, and touches nothing, when the named backup does not exist', function () {
@@ -81,7 +81,8 @@ describe('ethr:restore', function () {
                 'This DROPS every table in the current database and overwrites storage/app/private. Continue?',
                 'no'
             )
-            ->expectsOutputToContain('Aborted.');
+            ->expectsOutputToContain('Aborted.')
+            ->assertExitCode(1);
     });
 
     it('warns that an unmanifested dump cannot be checksum-verified', function () {
@@ -111,16 +112,16 @@ describe('ethr:restore', function () {
     });
 
     it('reports a declined or non-interactive restore as a failure, not a success', function () {
-        // RestoreCommand.php:57 returns self::SUCCESS after "Aborted.". A cron
-        // line or script that forgot --force therefore exits 0 having restored
-        // nothing Ã¢â‚¬â€ `ethr:restore X && echo restored` prints "restored".
-        // Laravel's own destructive commands (migrate:fresh, db:wipe) return 1
-        // when confirmation is declined.
+        // RestoreCommand returned SUCCESS after "Aborted.", so a cron line or
+        // script that forgot --force exited 0 having restored nothing —
+        // `ethr:restore X && echo restored` printed "restored". Laravel's own
+        // destructive commands (migrate:fresh, db:wipe) return 1 when
+        // confirmation is declined, and so does this one now.
         opsCommandsFakeBackup('cron-run');
         opsCommandsNoRestore();
 
         expect(Artisan::call('ethr:restore', ['name' => 'cron-run', '--no-interaction' => true]))->toBe(1);
-    })->todo(note: 'DEFECT: RestoreCommand.php:57 exits 0 ("Aborted.") when nothing was restored, so a cron/script without --force reports success');
+    });
 
     it('restores with --force and tells the operator how to verify', function () {
         $dir = opsCommandsFakeBackup('nightly');
@@ -177,7 +178,7 @@ describe('ethr:restore', function () {
     });
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ ethr:queue:check Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── ethr:queue:check ────────────────────────────────────────────────────────
 
 function opsCommandsQueueJob(string $queue, int $ageSeconds): void
 {
@@ -265,25 +266,27 @@ describe('ethr:queue:check', function () {
         // QueueHealth's message was corrected on 2026-09-28 because G0-D found
         // no Scheduled Tasks section on the target account
         // (docs/operations/QUEUE-MONITORING.md, "fixed 2026-09-28"). The
-        // command's own closing remedy, QueueCheckCommand.php:85-86, was missed
-        // and still prints "check Plesk -> Scheduled Tasks for: * * * * * cd
-        // ~/ethr/api && php artisan schedule:run" Ã¢â‚¬â€ a panel section and a cron
-        // line that do not exist on this host, printed right under the
-        // corrected message.
+        // command's own closing remedy was missed and printed "check Plesk ->
+        // Scheduled Tasks for: * * * * * cd ~/ethr/api && php artisan
+        // schedule:run" — a panel section and a cron line that do not exist on
+        // this host, right under the corrected message. It now names the
+        // caller that does exist.
         $this->artisan('ethr:queue:check')
             ->doesntExpectOutputToContain('Scheduled Tasks')
+            ->expectsOutputToContain('.github/workflows/cron.yml')
+            ->expectsOutputToContain('/api/v1/cron/queue')
             ->assertExitCode(1);
-    })->todo(note: 'DEFECT: QueueCheckCommand.php:85-86 still tells operators to check Plesk -> Scheduled Tasks, which G0-D found does not exist; the caller is cron.yml');
+    });
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ ethr:backup:rehearse Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── ethr:backup:rehearse ────────────────────────────────────────────────────
 
 describe('ethr:backup:rehearse', function () {
     it('refuses a database whose name does not look disposable, and drops nothing', function () {
         createTenant();
         $tablesBefore = count(DB::select("SELECT name FROM sqlite_master WHERE type='table'"));
 
-        // The suite's database is ':memory:' Ã¢â‚¬â€ no 'test', 'scratch', ... in it.
+        // The suite's database is ':memory:' — no 'test', 'scratch', ... in it.
         $this->artisan('ethr:backup:rehearse')
             ->expectsOutputToContain('does not look disposable')
             ->expectsOutputToContain('re-run with --force')
@@ -309,7 +312,7 @@ describe('ethr:backup:rehearse', function () {
 
     it('destroys and rebuilds the database with --force, and proves audit_log is still append-only', function () {
         // The full rehearsal, on the one driver where the drop is undone by
-        // RefreshDatabase's transaction Ã¢â‚¬â€ see BackupRestoreRehearsalTest for
+        // RefreshDatabase's transaction — see BackupRestoreRehearsalTest for
         // why this must not run on MySQL.
         config(['backup.path' => opsCommandsBackupRoot()]);
         $tenant = createTenant(['subdomain' => 'rehearsed']);
@@ -325,7 +328,7 @@ describe('ethr:backup:rehearse', function () {
     })->skip(fn () => DB::connection()->getDriverName() !== 'sqlite', 'Drops every table; only SQLite rolls that back.');
 });
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ health:check Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── health:check ────────────────────────────────────────────────────────────
 
 describe('health:check', function () {
     it('exits 0 when the database and the configured cache store answer', function () {
@@ -336,7 +339,7 @@ describe('health:check', function () {
 
     it('checks the configured cache store, not redis by name', function () {
         // As a hardcoded `redis` store this reported every Redis-less
-        // deployment Ã¢â‚¬â€ which is every shared-hosting one Ã¢â‚¬â€ as unhealthy.
+        // deployment — which is every shared-hosting one — as unhealthy.
         config([
             'cache.default' => 'array',
             'database.redis.default.host' => '127.0.0.1',

@@ -54,7 +54,10 @@ class RestoreCommand extends Command
         )) {
             $this->line('Aborted.');
 
-            return self::SUCCESS;
+            // Nothing was restored, so this is not success: a script or cron
+            // line that forgot --force must not read exit 0 as "restored".
+            // migrate:fresh and db:wipe return 1 on a declined confirmation too.
+            return self::FAILURE;
         }
 
         try {
