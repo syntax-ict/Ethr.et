@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import type { operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
 /**
@@ -165,6 +166,21 @@ export function useImpersonateTenant() {
       window.location.href = "/dashboard";
     },
   });
+}
+
+export type ExitImpersonationResult =
+  operations["adminTenant.exitImpersonation"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The one call in this module a super admin does not make: it is sent from
+ * the impersonation session itself (the tenant admin's identity) and is
+ * authorised by that session's `impersonation` token ability. The server
+ * revokes the token, re-issues the super admin's session when it can, and
+ * names the tenant to send as X-Tenant from then on. A one-shot call followed
+ * by a full navigation, so a plain function rather than a mutation hook.
+ */
+export async function exitImpersonation(): Promise<ExitImpersonationResult> {
+  return (await apiClient.post("/admin/exit-impersonation")).data;
 }
 
 export interface AdminAuditLog {

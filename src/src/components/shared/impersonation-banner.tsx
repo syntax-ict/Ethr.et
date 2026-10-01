@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { exitImpersonation as requestExit } from "@/features/admin/api";
 import { useT } from "@/lib/i18n/useT";
 
 function readImpersonating(): boolean {
@@ -28,8 +29,7 @@ export function ImpersonationBanner() {
     let restored = false;
 
     try {
-      const { apiClient } = await import("@/api/client");
-      const { data } = await apiClient.post("/admin/exit-impersonation");
+      const data = await requestExit();
       restored = data?.session_restored === true;
       restoredTenant = data?.tenant ?? null;
     } catch {
