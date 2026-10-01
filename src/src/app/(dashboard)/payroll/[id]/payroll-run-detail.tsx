@@ -126,18 +126,16 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
       "Other Deductions",
       "Net Pay",
     ];
-    const rows = run.entries.map(
-      (e: PayrollEntry & { employee?: { name: string } }) => [
-        e.employee?.name ?? "",
-        csvAmount(e.basic_salary_cents),
-        csvAmount(e.gross_cents),
-        csvAmount(e.income_tax_cents),
-        csvAmount(e.employee_pension_cents),
-        csvAmount(e.employer_pension_cents),
-        csvAmount(e.other_deductions_cents),
-        csvAmount(e.net_cents),
-      ],
-    );
+    const rows = run.entries.map((e: PayrollEntry) => [
+      e.employee?.name ?? "",
+      csvAmount(e.basic_salary_cents),
+      csvAmount(e.gross_cents),
+      csvAmount(e.income_tax_cents),
+      csvAmount(e.employee_pension_cents),
+      csvAmount(e.employer_pension_cents),
+      csvAmount(e.other_deductions_cents),
+      csvAmount(e.net_cents),
+    ]);
     saveCsv(
       `payroll-register-${run.period_label?.replace(/\s/g, "-")}.csv`,
       csvFromRows(headers, rows),
@@ -382,49 +380,39 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
                 "hidden sm:table-cell",
                 "",
               ]}
-              rows={run.entries.map(
-                (entry: {
-                  public_id: string;
-                  employee?: { name: string };
-                  basic_salary_cents: number;
-                  gross_cents: number;
-                  income_tax_cents: number;
-                  employee_pension_cents: number;
-                  net_cents: number;
-                }) => ({
-                  key: entry.public_id,
-                  cells: [
-                    <span key="e" className="font-medium">
-                      {entry.employee?.name ?? "—"}
-                    </span>,
-                    <CurrencyDisplay
-                      key="b"
-                      cents={entry.basic_salary_cents}
-                      className="text-muted-foreground"
-                    />,
-                    <CurrencyDisplay
-                      key="g"
-                      cents={entry.gross_cents}
-                      className="text-muted-foreground"
-                    />,
-                    <CurrencyDisplay
-                      key="t"
-                      cents={entry.income_tax_cents}
-                      className="text-muted-foreground"
-                    />,
-                    <CurrencyDisplay
-                      key="p"
-                      cents={entry.employee_pension_cents}
-                      className="text-muted-foreground"
-                    />,
-                    <CurrencyDisplay
-                      key="n"
-                      cents={entry.net_cents}
-                      className="font-semibold text-foreground"
-                    />,
-                  ],
-                }),
-              )}
+              rows={run.entries.map((entry: PayrollEntry) => ({
+                key: entry.public_id,
+                cells: [
+                  <span key="e" className="font-medium">
+                    {entry.employee?.name ?? "—"}
+                  </span>,
+                  <CurrencyDisplay
+                    key="b"
+                    cents={entry.basic_salary_cents}
+                    className="text-muted-foreground"
+                  />,
+                  <CurrencyDisplay
+                    key="g"
+                    cents={entry.gross_cents}
+                    className="text-muted-foreground"
+                  />,
+                  <CurrencyDisplay
+                    key="t"
+                    cents={entry.income_tax_cents}
+                    className="text-muted-foreground"
+                  />,
+                  <CurrencyDisplay
+                    key="p"
+                    cents={entry.employee_pension_cents}
+                    className="text-muted-foreground"
+                  />,
+                  <CurrencyDisplay
+                    key="n"
+                    cents={entry.net_cents}
+                    className="font-semibold text-foreground"
+                  />,
+                ],
+              }))}
             />
           </CardContent>
         </Card>

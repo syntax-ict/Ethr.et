@@ -154,18 +154,14 @@ export default function MyPayslipsPage() {
                       )
                     }
                     // Every payslip card renders this button, so a bare
-                    // "Download" would announce identically N times. Naming the
-                    // period makes each one distinguishable in a screen
-                    // reader's element list.
-                    aria-label={[
-                      t(
-                        "payroll_page.payslips_page.download",
-                        "Download payslip",
-                      ),
-                      entry.period_label,
-                    ]
-                      .filter(Boolean)
-                      .join(" — ")}
+                    // "Download" announces identically N times. This read a
+                    // `period_label` to tell them apart, but PayrollEntryResource
+                    // has never sent the run's period — that needs the resource
+                    // to carry it (audit F3), not a field the client invents.
+                    aria-label={t(
+                      "payroll_page.payslips_page.download",
+                      "Download payslip",
+                    )}
                   >
                     <Download className="h-4 w-4" aria-hidden="true" />
                   </Button>
