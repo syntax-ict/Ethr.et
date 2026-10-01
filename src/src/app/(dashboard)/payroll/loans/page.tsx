@@ -121,6 +121,7 @@ export default function LoansPage() {
                     amount_cents: parseInt(form.amount_cents) * 100,
                     monthly_deduction_cents:
                       parseInt(form.monthly_deduction_cents) * 100,
+                    reason: form.reason.trim() || null,
                   },
                   {
                     onSuccess: () => {
