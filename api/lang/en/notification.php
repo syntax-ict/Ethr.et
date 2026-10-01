@@ -46,4 +46,7 @@ return [
     'device_sync_failed_subject' => 'Biometric device sync failed: :name',
     'device_sync_failed_body' => 'Sync for device ":name" failed after every retry and no attendance events are being collected from it. The device reported: :reason',
     'device_action' => 'View device status',
+
+    // Billing
+    'trial_expiring_subject' => 'Your ETHR trial is ending soon',
 ];

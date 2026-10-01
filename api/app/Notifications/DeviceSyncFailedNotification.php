@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\Branch;
 use App\Models\Device;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -84,6 +85,6 @@ class DeviceSyncFailedNotification extends Notification
                 'name' => $this->device->name,
                 'reason' => $this->reason,
             ]))
-            ->action(__('notification.device_action'), url('/devices'));
+            ->action(__('notification.device_action'), FrontendUrl::to('/devices'));
     }
 }

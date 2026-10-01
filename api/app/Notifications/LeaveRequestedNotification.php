@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\LeaveRequest;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -48,12 +49,15 @@ class LeaveRequestedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $name = $this->leaveRequest->employee?->name;
+        // Both lines carry a :name placeholder. They were called without it,
+        // so the subject read "New Leave Request — :name" and the body
+        // "Abebe :name has submitted…".
+        $replace = ['name' => (string) $this->leaveRequest->employee?->name];
 
         return (new MailMessage)
-            ->subject(__('notification.leave_requested_subject'))
-            ->line("{$name} ".__('notification.leave_requested_body'))
+            ->subject(__('notification.leave_requested_subject', $replace))
+            ->line(__('notification.leave_requested_body', $replace))
             ->line($this->leaveRequest->leaveType?->name.': '.$this->leaveRequest->start_date->format('M d').' - '.$this->leaveRequest->end_date->format('M d'))
-            ->action(__('notification.review_request'), url('/approvals'));
+            ->action(__('notification.review_request'), FrontendUrl::to('/approvals'));
     }
 }

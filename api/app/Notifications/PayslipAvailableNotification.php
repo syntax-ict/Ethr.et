@@ -6,6 +6,7 @@ namespace App\Notifications;
 
 use App\Models\PayrollEntry;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -44,9 +45,13 @@ class PayslipAvailableNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        // Both lines carry a :period placeholder and were called without it,
+        // so the subject read "Your Payslip Is Ready — :period".
+        $replace = ['period' => (string) $this->entry->payrollRun?->period_label];
+
         return (new MailMessage)
-            ->subject(__('notification.payslip_available_subject'))
-            ->line(__('notification.payslip_available_body'))
-            ->action(__('notification.view_payslip'), url('/payslips'));
+            ->subject(__('notification.payslip_available_subject', $replace))
+            ->line(__('notification.payslip_available_body', $replace))
+            ->action(__('notification.view_payslip'), FrontendUrl::to('/payroll/payslips'));
     }
 }

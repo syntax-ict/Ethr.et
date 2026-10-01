@@ -46,4 +46,7 @@ return [
     'device_sync_failed_subject' => 'የባዮሜትሪክ መሣሪያ ማመሳሰል አልተሳካም፦ :name',
     'device_sync_failed_body' => 'የመሣሪያ ":name" ማመሳሰል ከሁሉም ሙከራዎች በኋላ አልተሳካም፤ ከእሱ ምንም የመገኘት መዝገቦች እየተሰበሰቡ አይደሉም። መሣሪያው ያሳወቀው፦ :reason',
     'device_action' => 'የመሣሪያ ሁኔታ ይመልከቱ',
+
+    // Billing
+    'trial_expiring_subject' => 'የETHR የሙከራ ጊዜዎ በቅርቡ ያበቃል',
 ];

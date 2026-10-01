@@ -82,7 +82,7 @@ it('words a missing check-in differently from a missing check-out', function () 
     $notification = new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in');
 
     expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on 2026-10-05')
-        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('missing a check-in for 2026-10-05');
+        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('no check-in on 2026-10-05');
 });
 
 // ── Channels and preferences ────────────────────────────────────────────────
@@ -166,14 +166,12 @@ it('honours the opt-out on the queue-worker path, where no tenant is resolved', 
 // ── The email ───────────────────────────────────────────────────────────────
 
 it('links the email to the frontend, not to the API host', function () {
-    // MissingPunchNotification::toMail() (line 59) builds its button with
-    // url('/attendance'): the API's own host, from APP_URL or whatever request
-    // is current — `http://localhost` in a queue worker with no request. Every
-    // mail link that works (PasswordResetLinkNotification,
-    // AccountActivationNotification) is built from config('app.frontend_url').
-    // The same url('/...') pattern is in ApprovalReminder, DashboardDigest,
-    // DeviceOffline, DeviceSyncFailed, LeaveRequested, PayslipAvailable and
-    // TrialExpiring.
+    // toMail() built its button with url('/attendance'): the API's own host,
+    // from APP_URL or whatever request is current — `http://localhost` in a
+    // queue worker with no request. The reset and activation emails were
+    // already built from config('app.frontend_url'); FrontendUrl::to() is now
+    // the one place every notification link is built
+    // (Auth/MailLinkFrontendUrlTest pins that no notification uses url()).
     config([
         'app.url' => 'https://api.ethr.test',
         'app.frontend_url' => 'https://app.ethr.test',
@@ -184,42 +182,83 @@ it('links the email to the frontend, not to the API host', function () {
     $mail = (new MissingPunchNotification($employee, '2026-10-05', 'missing_check_out'))->toMail($user);
 
     expect($mail->actionUrl)->toBe('https://app.ethr.test/attendance');
-})->todo(note: 'DEFECT: MissingPunchNotification.php:59 links url(\'/attendance\') (API host / localhost in a worker) instead of config(\'app.frontend_url\')');
+});
 
 it('gives the email a real subject line in every locale', function () {
-    // toMail() asks for notification.missing_punch_subject, which exists in
-    // neither lang/en/notification.php nor lang/am/notification.php (they
-    // carry missing_check_in_subject / missing_check_out_subject instead), so
-    // every one of these emails goes out with the raw key as its subject.
+    // toMail() asked for notification.missing_punch_subject, which exists in
+    // neither lang/en/notification.php nor lang/am/notification.php, so every
+    // one of these emails went out with the raw key as its subject. Both lang
+    // files already carried per-type keys, which it now uses.
     $tenant = createTenant();
     ['employee' => $employee, 'employeeUser' => $user] = missingPunchOpenDay($tenant);
 
     foreach (['en', 'am'] as $locale) {
         app()->setLocale($locale);
-        $subject = (new MissingPunchNotification($employee, '2026-10-05', 'missing_check_out'))->toMail($user)->subject;
 
-        expect($subject)->not->toStartWith('notification.');
+        foreach (['missing_check_out', 'missing_check_in'] as $type) {
+            $mail = (new MissingPunchNotification($employee, '2026-10-05', $type))->toMail($user);
+
+            expect($mail->subject)->not->toStartWith('notification.')
+                ->and($mail->subject)->toContain('2026-10-05')
+                ->and($mail->introLines[0])->toContain('Abebe Kebede')
+                ->and($mail->introLines[0])->toContain('2026-10-05');
+        }
     }
-})->todo(note: 'DEFECT: MissingPunchNotification.php:56 uses notification.missing_punch_subject, a key absent from lang/en and lang/am; the subject is the raw key');
 
-it('uses only notification translation keys that exist in both locales', function () {
+    app()->setLocale('en');
+    expect((new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in'))->toMail($user)->subject)
+        ->toBe('Missing Check-In — 2026-10-05');
+});
+
+it('uses only translation keys that exist in both locales, in every notification', function () {
+    // Was limited to notification.* keys; notifications also read dashboard.*,
+    // report.*, user.* and payroll.* lines, and a key missing from both
+    // locales is invisible to an en/am parity check. Dotted keys are walked
+    // into nested arrays, as __() does.
     $missing = [];
 
     foreach (File::allFiles(app_path('Notifications')) as $file) {
-        preg_match_all("/__\\('notification\\.([a-z_]+)'/", $file->getContents(), $m);
+        preg_match_all("/__\\('([a-z_]+)\\.([a-z_.]+)'/", $file->getContents(), $m, PREG_SET_ORDER);
 
-        foreach (array_unique($m[1]) as $key) {
+        foreach ($m as [, $group, $key]) {
             foreach (['en', 'am'] as $locale) {
-                $lines = require lang_path("{$locale}/notification.php");
-                if (! array_key_exists($key, $lines)) {
-                    $missing[] = "{$file->getFilename()}: notification.{$key} ({$locale})";
+                $path = lang_path("{$locale}/{$group}.php");
+                $lines = is_file($path) ? require $path : [];
+
+                if (data_get($lines, $key) === null) {
+                    $missing[] = "{$file->getFilename()}: {$group}.{$key} ({$locale})";
                 }
             }
         }
     }
 
-    expect($missing)->toBe([]);
-})->todo(note: 'DEFECT: notification.missing_punch_subject (MissingPunchNotification) and notification.trial_expiring_subject (TrialExpiringNotification) are missing from lang/en and lang/am');
+    expect(array_values(array_unique($missing)))->toBe([]);
+});
+
+it('passes a replacement for every placeholder a notification line carries', function () {
+    // LeaveRequested and PayslipAvailable called __() with no replacements on
+    // lines carrying :name and :period, so the subjects read "New Leave
+    // Request — :name" and "Your Payslip Is Ready — :period". A call with no
+    // second argument must resolve to a line with no placeholder.
+    $unreplaced = [];
+
+    foreach (File::allFiles(app_path('Notifications')) as $file) {
+        preg_match_all("/__\\('([a-z_]+)\\.([a-z_.]+)'\\s*\\)/", $file->getContents(), $m, PREG_SET_ORDER);
+
+        foreach ($m as [, $group, $key]) {
+            foreach (['en', 'am'] as $locale) {
+                $path = lang_path("{$locale}/{$group}.php");
+                $line = data_get(is_file($path) ? require $path : [], $key);
+
+                if (is_string($line) && preg_match('/:[a-z_]+/', $line) === 1) {
+                    $unreplaced[] = "{$file->getFilename()}: {$group}.{$key} ({$locale})";
+                }
+            }
+        }
+    }
+
+    expect($unreplaced)->toBe([]);
+});
 
 // ── The scan job: recipients and tenant context ─────────────────────────────
 

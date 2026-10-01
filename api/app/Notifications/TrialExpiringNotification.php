@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -37,6 +38,6 @@ class TrialExpiringNotification extends Notification
             ->subject(__('notification.trial_expiring_subject'))
             ->line("Your ETHR trial will expire in {$this->daysRemaining} day(s) on {$this->trialEndsAt}.")
             ->line('Upgrade now to ensure uninterrupted access for your team.')
-            ->action('Upgrade Plan', url('/billing'));
+            ->action('Upgrade Plan', FrontendUrl::to('/billing'));
     }
 }

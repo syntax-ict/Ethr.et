@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -43,6 +44,6 @@ class ApprovalReminderNotification extends Notification
             ->subject(__('notification.approval_reminder_subject'))
             ->line("You have {$this->pendingCount} pending approval(s) that require your attention.")
             ->line("The oldest request has been waiting for {$this->oldestHours} hours.")
-            ->action('Review Approvals', url('/approvals'));
+            ->action('Review Approvals', FrontendUrl::to('/approvals'));
     }
 }
