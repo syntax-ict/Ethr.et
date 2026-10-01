@@ -79,6 +79,7 @@ class AttendanceRecord extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    /** @return BelongsTo<Shift, $this> */
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);

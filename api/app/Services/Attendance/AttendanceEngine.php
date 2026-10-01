@@ -6,6 +6,7 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceStatus;
 use App\Events\AttendanceRecorded;
+use App\Exceptions\NoOpenCheckIn;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
@@ -137,18 +138,26 @@ final class AttendanceEngine
     {
         $now = $this->resolveMoment($input);
 
-        $record = AttendanceRecord::withoutGlobalScope('tenant')
+        // Today's open record, or yesterday's when its shift crosses midnight:
+        // a 22:00-06:00 record is dated the night it began, so a lookup on
+        // today's date alone could never close it — the morning check-out
+        // answered 500 and device webhooks dropped the punch.
+        $candidates = AttendanceRecord::withoutGlobalScope('tenant')
             ->where('tenant_id', $input->tenantId)
             ->where('employee_id', $input->employeeId)
-            ->whereDate('date', $now->format('Y-m-d'))
+            ->whereDate('date', '>=', $now->copy()->subDay()->format('Y-m-d'))
+            ->whereDate('date', '<=', $now->format('Y-m-d'))
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->with('shift')
             ->latest('check_in')
-            ->first();
+            ->get();
+
+        $record = $candidates->first(fn (AttendanceRecord $r) => $r->date->isSameDay($now))
+            ?? $candidates->first(fn (AttendanceRecord $r) => $r->shift?->crosses_midnight === true);
 
         if (! $record) {
-            throw new \RuntimeException('No open check-in found for today.');
+            throw new NoOpenCheckIn(__('attendance.no_open_check_in'));
         }
 
         $updates = ['check_out' => $now];
@@ -165,6 +174,14 @@ final class AttendanceEngine
 
         if ($record->shift && $record->status === AttendanceStatus::PRESENT) {
             $shiftEnd = $now->copy()->setTimeFromTimeString($record->shift->end_time);
+
+            // A shift that crosses midnight ends the day after it starts:
+            // leaving at 23:30 was compared with this morning's 06:00 and so
+            // never counted as early.
+            if ($record->shift->crosses_midnight && $shiftEnd->lte($record->check_in)) {
+                $shiftEnd->addDay();
+            }
+
             $earlyThreshold = $shiftEnd->copy()->subMinutes($record->shift->early_departure_minutes);
 
             if ($now->lt($earlyThreshold)) {

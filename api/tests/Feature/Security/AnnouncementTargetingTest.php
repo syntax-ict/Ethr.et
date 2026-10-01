@@ -26,7 +26,7 @@ function targetingTenant(): array
     return [$tenant, $branch, $sales, $finance];
 }
 
-function employeeIn(object $tenant, Department $department, Branch $branch): void
+function targetingEmployeeIn(object $tenant, Department $department, Branch $branch): void
 {
     $employee = Employee::factory()->create([
         'tenant_id' => $tenant->id,
@@ -98,7 +98,7 @@ test('an employee sees tenant-wide and own-department announcements only', funct
     $all = announcementFor($tenant, 'all', null);
     $own = announcementFor($tenant, 'department', $sales->id);
     $other = announcementFor($tenant, 'department', $finance->id);
-    employeeIn($tenant, $sales, $branch);
+    targetingEmployeeIn($tenant, $sales, $branch);
 
     $listed = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/announcements")
         ->assertOk()->json('data.*.public_id');
@@ -113,7 +113,7 @@ test('an employee sees announcements for their own branch only', function () {
     $otherBranch = Branch::factory()->create(['tenant_id' => $tenant->id]);
     $own = announcementFor($tenant, 'branch', $branch->id);
     announcementFor($tenant, 'branch', $otherBranch->id);
-    employeeIn($tenant, $sales, $branch);
+    targetingEmployeeIn($tenant, $sales, $branch);
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/announcements")
         ->assertOk()

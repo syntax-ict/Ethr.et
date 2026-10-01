@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\NoOpenCheckIn;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -148,6 +149,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => $status,
                 'detail' => $e->getMessage() ?: 'An error occurred.',
             ], $status);
+        });
+
+        // A check-out with nothing to close is the caller's mistake, not a
+        // server fault: 422 from every endpoint, not 500 from the ones that
+        // did not catch it.
+        $exceptions->render(function (NoOpenCheckIn $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/validation',
+                'title' => 'Validation Failed',
+                'status' => 422,
+                'detail' => $e->getMessage(),
+            ], 422);
         });
 
         // Handle validation exceptions (422)

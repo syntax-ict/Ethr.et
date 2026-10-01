@@ -709,24 +709,6 @@ parameters:
 			path: app/Models/AttendanceCorrection.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$break_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$crosses_midnight\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
 			message: '#^Class App\\Models\\AttendanceRecord uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -747,12 +729,6 @@ parameters:
 		-
 			message: '#^Method App\\Models\\AttendanceRecord\:\:findByPublicId\(\) should return static\(App\\Models\\AttendanceRecord\)\|null but returns App\\Models\\AttendanceRecord\|null\.$#'
 			identifier: return.type
-			count: 1
-			path: app/Models/AttendanceRecord.php
-
-		-
-			message: '#^Method App\\Models\\AttendanceRecord\:\:shift\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
-			identifier: missingType.generics
 			count: 1
 			path: app/Models/AttendanceRecord.php
 
@@ -2129,48 +2105,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Analytics/ExecutiveDashboardService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$early_departure_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceEngine.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceEngine.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$crosses_midnight\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$early_departure_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_time\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$grace_minutes\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Attendance/AttendanceIntelligence.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_time\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Attendance/AttendanceIntelligence.php
 
 		-
 			message: '#^Method App\\Services\\Attendance\\AttendanceIntelligence\:\:getAnomalies\(\) should return Illuminate\\Support\\Collection\<int, array\{record\: App\\Models\\AttendanceRecord, types\: list\<string\>, worked_minutes\: int, overtime_minutes\: int\}\> but returns Illuminate\\Support\\Collection\<int, array\{record\: App\\Models\\AttendanceRecord, types\: non\-empty\-list\<string\>, worked_minutes\: int, overtime_minutes\: int\}\>\.$#'
