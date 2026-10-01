@@ -67,7 +67,15 @@ class WebhookController extends Controller
     {
         Gate::authorize('webhook.manage');
 
-        $webhook->update($request->validated());
+        $changes = $request->validated();
+
+        // Re-enabling a webhook the job disabled kept its failure count at 10,
+        // so the next failed delivery switched it straight off again (N18).
+        if (($changes['is_active'] ?? false) && ! $webhook->is_active) {
+            $changes['failure_count'] = 0;
+        }
+
+        $webhook->update($changes);
 
         AuditLog::record('webhook.updated', $webhook);
 

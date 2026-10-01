@@ -8,8 +8,13 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 157 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-02, later: **158 across 57 files**. `DispatchWebhookJob::failed()` now
+ * counts an exhausted delivery against its webhook (audit N18), so it looks the
+ * webhook up the way `handle()` does — `tenant_id` from the job, stated in the
+ * same statement.)
  *
  * (2026-10-02: **157 across 57 files**. `Support/AuditSubjects` names the actor
  * and subject of audit rows by public id (audit N12), including in the platform
@@ -112,7 +117,7 @@ return [
     // read, and the message names nothing. BASELINE.md §11h.
     'Http/Requests/Device/Concerns/ValidatesSerialUniqueness.php' => 1,
     'Jobs/BackupTenantJob.php' => 3,
-    'Jobs/DispatchWebhookJob.php' => 3,
+    'Jobs/DispatchWebhookJob.php' => 4,
     'Jobs/GenerateMonthlyInvoicesJob.php' => 2,
     'Jobs/HandleOverdueInvoicesJob.php' => 6,
     'Jobs/NotifyAnnouncementAudienceJob.php' => 2,

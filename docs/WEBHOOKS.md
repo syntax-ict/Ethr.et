@@ -60,45 +60,46 @@ and swallowed (`api/app/Traits/DispatchesWebhooks.php:14-28`).
 
 ## What arrives
 
-`POST` to your URL, JSON body (`WebhookDispatcher.php:28-33`):
+> **Changed 2026-10-02 (audit N18).** `tenant_id` in the body and the `X-ETHR-Delivery` header
+> were ETHR's internal numeric ids; both are now ULID public ids. A non-`2xx` answer is now
+> retried, redirects are no longer followed, and the secret is stored encrypted. If you built on
+> the numeric values, key on the new ones — they are stable.
+
+`POST` to your URL, JSON body (`WebhookDispatcher::queue()`):
 
 ```json
 {
   "event": "leave.approved",
   "timestamp": "2026-10-01T09:30:00+00:00",
-  "tenant_id": 42,
+  "tenant_id": "01J…",
   "data": { "public_id": "01J…", "employee_name": "…" }
 }
 ```
 
 - `timestamp` is when the delivery was **queued**, in UTC — not when it was sent. A retry sends
   the same body, with the same timestamp.
-- `tenant_id` is ETHR's **internal numeric id** for your organisation. Every other API surface
-  exposes only ULID `public_id`s (convention 4 in `docs/CLAUDE.md`); this field and the
-  `X-ETHR-Delivery` header below are the exceptions. Do not build on either value staying numeric.
-  *Recorded as a finding by this document, not changed.*
+- `tenant_id` is your organisation's `public_id`, the same ULID every other API surface uses
+  (convention 4 in `docs/CLAUDE.md`).
 
-Headers (`DispatchWebhookJob.php:106-113`):
+Headers (`DispatchWebhookJob::handle()`):
 
 | Header | Value |
 |---|---|
 | `Content-Type` | `application/json` |
 | `X-ETHR-Signature` | `sha256=<hex HMAC-SHA256 of the body, keyed with your secret>` |
 | `X-ETHR-Event` | The event name |
-| `X-ETHR-Delivery` | The delivery's id. **The same on every retry of one delivery** — use it to de-duplicate |
+| `X-ETHR-Delivery` | The delivery's `public_id`. **The same on every retry of one delivery** — use it to de-duplicate |
 | `User-Agent` | `ETHR-Webhooks/1.0` |
 
-Any `2xx` counts as delivered. ETHR waits **10 seconds** for your response
-(`DispatchWebhookJob.php:106`) and stores the first 2,000 characters of whatever you return
-(`:117`).
+Any `2xx` counts as delivered. ETHR waits **10 seconds** for your response and stores the first
+2,000 characters of whatever you return.
 
 ## Verifying the signature
 
 The secret is 32 random characters (`WebhookController.php:45`), shown **once**, in the response
 that creates the webhook (`:59`). It is in no other response. There is no rotate endpoint: to
-change it, delete the webhook and create a new one. On ETHR's side it is stored as plain text —
-`Webhook.php:28-35` gives `secret` no `encrypted` cast, unlike `User.mfa_secret` (`User.php:85`) and
-`Device.connection_config`. *Recorded as a finding, not changed.*
+change it, delete the webhook and create a new one. On ETHR's side it is stored under the `encrypted` cast, like `Device.connection_config`
+(since 2026-10-02; before that it was plain text).
 
 The signature is `"sha256=" . hash_hmac("sha256", <body>, <secret>)`
 (`DispatchWebhookJob.php:101-102`). Compute it over the **raw request body exactly as received**
@@ -121,13 +122,9 @@ const given = Buffer.from(req.get("X-ETHR-Signature") || "");
 const ok = given.length === expected.length && crypto.timingSafeEqual(given, expected);
 ```
 
-**Not verified — read this if verification fails.** The signed bytes come from PHP's
-`json_encode($payload)` with default flags (`DispatchWebhookJob.php:101`); the body on the wire is
-serialised separately by Laravel's HTTP client from the same array (`:114`). Both use default
-`json_encode` flags as far as this pass could tell, so the bytes should match — but no test sends
-a request and checks the header against the body that left (`tests/Feature/ApiPlatformTest.php:206`
-tests `Webhook::sign()`, which the job does not call). If your check fails only on payloads that
-contain `/` or non-ASCII text (Amharic names), this is the first suspect; report it.
+The signed bytes are the bytes sent: the job encodes the payload once and posts that string
+(`withBody()`), so there is no second serialisation to disagree with the signature.
+`WebhookDeliveryReliabilityTest` checks the header against the body that actually left.
 
 **Replay:** the timestamp is inside the signed body, so it cannot be altered without breaking the
 signature. Rejecting deliveries much older than your tolerance, and de-duplicating on
@@ -142,37 +139,32 @@ minutes after the event, and every delay below is a minimum.
 
 What happens to one delivery (`DispatchWebhookJob.php`):
 
-| Outcome | What ETHR does | Retried? | Source |
-|---|---|---|---|
-| `2xx` | Marks delivered, resets the webhook's `failure_count` to 0 | — | `:119-131` |
-| Any other status (`4xx`, `5xx`, `3xx` that is not followed) | Records the status and body, `failure_count + 1` | **No.** The job ends normally | `:132-135` |
-| Connection error, DNS failure, or no answer in 10 s | Records the error, `failure_count + 1`, re-throws | **Yes** | `:136-148` |
-| Webhook switched off while the delivery waited | Records *"Webhook disabled before delivery"* | No | `:82-86` |
-| URL now resolves to an internal address | Records *"Refused: …internal address"*; `failure_count` unchanged | No | `:94-99` |
+| Outcome | What ETHR does | Retried? |
+|---|---|---|
+| `2xx` | Marks delivered, resets the webhook's `failure_count` to 0 | — |
+| `408`, `425`, `429` or any `5xx` | Records the status and body | **Yes** |
+| Connection error, DNS failure, or no answer in 10 s | Records the error | **Yes** |
+| Any other `4xx`, or a `3xx` | Records the status and body; counts one failed delivery | No — the same request gets the same answer |
+| Webhook switched off while the delivery waited | Records *"Webhook disabled before delivery"* | No |
+| URL now resolves to an internal address | Records *"Refused: …internal address"*; not counted | No |
 
-**Only network-level failures are retried.** An endpoint answering `500` gets one attempt.
+**Redirects are not followed.** The URL's host is checked against internal ranges before the
+request; a `3xx` could point anywhere, so it is recorded as a failure instead. Give ETHR the final
+URL.
 
-Retries: up to **5 attempts in total** (`:23`). `backoff()` lists 1 min, 5 min, 30 min, 2 h and
-24 h (`:28-31`), but with 5 tries only the first four gaps are reachable — Laravel takes the
-delay for retry *n* from entry *n − 1*, and the fifth failure is final. So the last attempt is
-roughly **2 h 36 min** after the first, plus up to 5 minutes' drain latency per step. *Reasoned
-from Laravel's worker semantics (the delay after attempt n is `backoff()[n − 1]`); no test
-exercises it. Root `CLAUDE.md` and `DEPLOYMENT.md:544-546` say a delivery that has failed four
-times waits 24 hours; by this reading it waits 2 hours, and the 24 h entry is never used. Their
-advice — wait out a quiet window before a deploy that changes the job's payload — errs on the
-safe side either way.*
+Retries: up to **6 attempts in total**, waiting 1 min, 5 min, 30 min, 2 h and 24 h between them
+(`$tries` is one more than the `backoff()` entries, so the 24 h step is reached — until
+2026-10-02 it was not, and the last attempt came about two hours in). Add up to 5 minutes' drain
+latency per step. After the last attempt `failed()` writes *"Permanently failed: …"* into the
+delivery and counts it.
 
-After the last attempt `failed()` writes *"Permanently failed: …"* into the delivery
-(`:188-219`).
+**Auto-disable at 10.** `failure_count` counts failed **deliveries** — one given up on, not one
+attempt — since the webhook's last success, and the webhook is switched off (`is_active = false`)
+when it reaches 10. (It counted attempts until 2026-10-02, so two retrying deliveries could
+disable a webhook on their own.)
 
-**Auto-disable at 10.** `failure_count` counts failed *attempts* across all of a webhook's
-deliveries since its last success, and the webhook is switched off (`is_active = false`) when it
-reaches 10 (`:158-176`). Two retrying deliveries to a dead endpoint can get there on their own.
-
-**Turning it back on does not reset the count.** `PUT … {"is_active": true}` changes only
-`is_active` (`UpdateWebhookRequest.php:45-48`), so `failure_count` stays at 10 or more and the
-next single failed attempt switches it off again. Only a successful delivery resets it — so fix
-the endpoint first, re-enable, then use **Send test** to confirm.
+**Turning it back on resets the count.** `PUT … {"is_active": true}` on a disabled webhook sets
+`failure_count` to 0. Fix the endpoint first, re-enable, then use **Send test** to confirm.
 
 Delivery records are kept **30 days**, then hard-deleted (`CleanupExpiredDataJob.php:37-39`).
 
