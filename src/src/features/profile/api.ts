@@ -137,8 +137,7 @@ function useProfileInvalidation() {
 
   return () => {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
-    // A staged change also lands in the HR review queue.
-    queryClient.invalidateQueries({ queryKey: ["profile-update-requests"] });
+    // A staged change also lands in the HR review queue (/approvals).
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
   };
 }
@@ -288,42 +287,5 @@ export function useWithdrawProfileUpdate() {
       return data;
     },
     onSuccess: invalidate,
-  });
-}
-
-/** HR review queue. Requires `employee.update`. */
-export function useProfileUpdateRequests(status = "pending") {
-  return useQuery<{ data: ProfileUpdateRequest[] }>({
-    queryKey: ["profile-update-requests", status],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/profile-update-requests", {
-        params: { status },
-      });
-      return data;
-    },
-  });
-}
-
-export function useReviewProfileUpdate() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (vars: {
-      publicId: string;
-      action: "approve" | "reject";
-      notes?: string;
-    }) => {
-      const { data } = await apiClient.post<ProfileUpdateRequest>(
-        `/profile-update-requests/${vars.publicId}/review`,
-        { action: vars.action, notes: vars.notes },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-update-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-    },
   });
 }

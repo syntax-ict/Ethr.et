@@ -37,18 +37,6 @@ export function useCustomRoles(params?: {
   });
 }
 
-export function useCustomRole(publicId: string) {
-  return useQuery<CustomRole>({
-    queryKey: ["custom-roles", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/roles/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
-    staleTime: 30 * 60 * 1000,
-  });
-}
-
 export function usePermissions() {
   return useQuery<PermissionsByModule>({
     queryKey: ["permissions"],

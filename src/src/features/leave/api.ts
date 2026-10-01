@@ -187,17 +187,6 @@ export function useCancelLeave() {
   });
 }
 
-export function useLeaveRequest(publicId: string) {
-  return useQuery<LeaveRequest>({
-    queryKey: ["leave", "request", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/leave/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
-  });
-}
-
 // Derive display-safe leave type name from either object or string
 export function leaveTypeName(leaveType: LeaveRequest["leave_type"]): string {
   if (typeof leaveType === "string") return leaveType;

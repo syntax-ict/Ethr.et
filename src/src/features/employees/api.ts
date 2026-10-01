@@ -73,19 +73,6 @@ export function useUpdateEmployee(publicId: string) {
   });
 }
 
-export function useDeleteEmployee() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (publicId: string) => {
-      await apiClient.delete(`/employees/${publicId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-    },
-  });
-}
-
 export interface BulkUpdateEmployeesInput {
   employee_ids: string[];
   department_id?: string;
@@ -106,16 +93,6 @@ export function useBulkUpdateEmployees() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-    },
-  });
-}
-
-export function useEmployeeStats() {
-  return useQuery({
-    queryKey: ["employees", "stats"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/employees/stats");
-      return data;
     },
   });
 }

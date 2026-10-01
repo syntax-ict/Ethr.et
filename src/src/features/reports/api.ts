@@ -143,19 +143,9 @@ export function useDeleteScheduledReport() {
   });
 }
 
-export function useExportReport() {
-  return useMutation<
-    Blob,
-    unknown,
-    { config: ReportConfig; format: "csv" | "pdf" }
-  >({
-    mutationFn: async ({ config, format }) => {
-      const { data } = await apiClient.post(
-        `/reports/export`,
-        { ...config, format },
-        { responseType: "blob" },
-      );
-      return data;
-    },
-  });
-}
+// No hook for POST /reports/export, deliberately. It runs the same
+// ReportEngine::generate() call as /reports/generate — same 1000-row limits —
+// so the rows the Reports page already holds from its preview are exactly the
+// rows an export would return, and the page builds the CSV from them through
+// csvCell, which neutralises spreadsheet formulas. ReportEngine::toCsv() does
+// not. The server route stays for API clients and the PDF format.
