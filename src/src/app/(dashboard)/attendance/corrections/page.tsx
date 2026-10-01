@@ -29,34 +29,51 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
-
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import {
+  useApproveCorrection,
+  useCorrectionPayrollImpact,
+  useCorrections,
+  useMyAttendance,
+  usePendingCorrections,
+  useRejectCorrection,
+  useSubmitCorrection,
+  type AttendanceCorrection,
+} from "@/features/attendance/api";
+import { zonedWallTimeToUtcIso } from "@/features/attendance/time";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-interface Correction {
-  public_id: string;
-  date: string;
-  original_check_in: string | null;
-  original_check_out: string | null;
-  corrected_check_in: string | null;
-  corrected_check_out: string | null;
-  reason: string;
-  status: string;
-  created_at: string;
-  employee?: { name: string; employee_code?: string };
-}
-
+/**
+ * Each tab is gated on the ability its endpoint checks.
+ *
+ * The first tab used to be "My Requests" and called `GET /attendance/corrections`
+ * for everyone — an endpoint that requires correction.viewAll and returns every
+ * correction in the tenant. An employee got a 403 rendered as "No correction
+ * requests"; an HR admin got the whole tenant labelled as their own. There is
+ * no endpoint for a caller's own corrections, so the list is offered only to
+ * those who may read all of them.
+ */
 export default function CorrectionsPage() {
   const { t } = useT();
-  const { isSupervisor } = usePermissions();
+  const { can } = usePermissions();
   const [requestOpen, setRequestOpen] = useState(false);
+
+  const showAll = can.viewAllCorrections;
+  const showPending = can.reviewCorrections;
 
   return (
     <div className="space-y-6">
@@ -71,43 +88,60 @@ export default function CorrectionsPage() {
         }
       />
 
-      <Tabs defaultValue="mine">
-        <TabsList>
-          <TabsTrigger value="mine">
-            {t("attendance.corrections.my_requests")}
-          </TabsTrigger>
-          {isSupervisor && (
-            <TabsTrigger value="pending">
-              {t("attendance.corrections.pending_reviews")}
-            </TabsTrigger>
-          )}
-        </TabsList>
+      {(showAll || showPending) && (
+        <Tabs defaultValue={showPending ? "pending" : "all"}>
+          <TabsList>
+            {showPending && (
+              <TabsTrigger value="pending">
+                {t("attendance.corrections.pending_reviews")}
+              </TabsTrigger>
+            )}
+            {showAll && (
+              <TabsTrigger value="all">
+                {t("nav.corrections", "Corrections")}
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        <TabsContent value="mine" className="mt-4">
-          <MyRequestsTab />
-        </TabsContent>
-        {isSupervisor && (
-          <TabsContent value="pending" className="mt-4">
-            <PendingReviewsTab />
-          </TabsContent>
-        )}
-      </Tabs>
+          {showPending && (
+            <TabsContent value="pending" className="mt-4">
+              <PendingReviewsTab canDecide={can.approveCorrections} />
+            </TabsContent>
+          )}
+          {showAll && (
+            <TabsContent value="all" className="mt-4">
+              <AllCorrectionsTab />
+            </TabsContent>
+          )}
+        </Tabs>
+      )}
 
       <RequestDialog open={requestOpen} onClose={() => setRequestOpen(false)} />
     </div>
   );
 }
 
-// ── MY REQUESTS ────────────────────────────────────────────────
+/** Proposed punches fall back to the record's own when left unchanged. */
+function punchPair(c: AttendanceCorrection) {
+  return {
+    date: c.attendance_record?.date ?? null,
+    originalIn: c.attendance_record?.check_in ?? null,
+    originalOut: c.attendance_record?.check_out ?? null,
+    proposedIn: c.proposed_check_in,
+    proposedOut: c.proposed_check_out,
+  };
+}
 
-function MyRequestsTab() {
+// ── ALL CORRECTIONS (correction.viewAll) ───────────────────────
+
+function AllCorrectionsTab() {
   const { t } = useT();
-  const { data, isLoading } = useQuery({
-    queryKey: ["corrections", "mine"],
-    queryFn: async () => (await apiClient.get("/attendance/corrections")).data,
-  });
+  const { formatTime } = useDateFormatters();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useCorrections({ page });
 
-  const corrections: Correction[] = data?.data ?? [];
+  const corrections = data?.data ?? [];
+  const time = (iso: string | null) => (iso ? formatTime(iso) : "—");
 
   if (isLoading) {
     return (
@@ -135,6 +169,7 @@ function MyRequestsTab() {
         <SimpleTable
           caption={t("attendance.corrections.title", "Corrections")}
           headers={[
+            t("attendance.employee"),
             t("common.date"),
             t("attendance.corrections.corrected_in"),
             t("attendance.corrections.corrected_out"),
@@ -143,33 +178,41 @@ function MyRequestsTab() {
           ]}
           colClassName={[
             "",
+            "",
             "hidden sm:table-cell",
             "hidden sm:table-cell",
             "hidden max-w-xs md:table-cell",
             "",
           ]}
-          rows={corrections.map((c) => ({
-            key: c.public_id,
-            cells: [
-              <span key="d" className="font-medium">
-                {c.date}
-              </span>,
-              <span key="in" className="text-muted-foreground">
-                {c.corrected_check_in ?? "—"}
-              </span>,
-              <span key="out" className="text-muted-foreground">
-                {c.corrected_check_out ?? "—"}
-              </span>,
-              <span
-                key="r"
-                className="block max-w-[200px] truncate text-muted-foreground"
-              >
-                {c.reason}
-              </span>,
-              <StatusBadge key="s" status={c.status} />,
-            ],
-          }))}
+          rows={corrections.map((c) => {
+            const p = punchPair(c);
+            return {
+              key: c.public_id,
+              cells: [
+                <span key="e" className="font-medium">
+                  {c.employee?.name ?? "—"}
+                </span>,
+                <span key="d" className="text-muted-foreground">
+                  {p.date ?? "—"}
+                </span>,
+                <span key="in" className="tabular-nums text-muted-foreground">
+                  {time(p.proposedIn)}
+                </span>,
+                <span key="out" className="tabular-nums text-muted-foreground">
+                  {time(p.proposedOut)}
+                </span>,
+                <span
+                  key="r"
+                  className="block max-w-[200px] truncate text-muted-foreground"
+                >
+                  {c.reason}
+                </span>,
+                <StatusBadge key="s" status={c.status} />,
+              ],
+            };
+          })}
         />
+        <PaginationControls meta={data?.meta} onPageChange={setPage} />
       </CardContent>
     </Card>
   );
@@ -177,25 +220,8 @@ function MyRequestsTab() {
 
 // ── PAYROLL IMPACT BADGE ────────────────────────────────────────
 
-type PayrollImpact = {
-  original_hours: number;
-  proposed_hours: number;
-  difference_minutes: number;
-  estimated_impact_cents: number;
-  hourly_rate_cents: number;
-};
-
 function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
-  const { data, isLoading } = useQuery<PayrollImpact>({
-    queryKey: ["correction-impact", correctionId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/attendance/corrections/${correctionId}/payroll-impact`,
-      );
-      return data as PayrollImpact;
-    },
-    staleTime: 60_000,
-  });
+  const { data, isLoading } = useCorrectionPayrollImpact(correctionId);
 
   if (isLoading || !data) return null;
 
@@ -229,59 +255,44 @@ function PayrollImpactBadge({ correctionId }: { correctionId: string }) {
   );
 }
 
-// ── PENDING REVIEWS (supervisor) ───────────────────────────────
+// ── PENDING REVIEWS (correction.viewPending) ───────────────────
 
-function PendingReviewsTab() {
+function PendingReviewsTab({ canDecide }: { canDecide: boolean }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
-  const [rejectFor, setRejectFor] = useState<Correction | null>(null);
+  const { formatTime } = useDateFormatters();
+  const [page, setPage] = useState(1);
+  const [rejectFor, setRejectFor] = useState<AttendanceCorrection | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["corrections", "pending"],
-    queryFn: async () =>
-      (await apiClient.get("/attendance/corrections/pending")).data,
-  });
+  const { data, isLoading } = usePendingCorrections({ page });
+  const approveMut = useApproveCorrection();
+  const rejectMut = useRejectCorrection();
 
-  const approveMut = useMutation({
-    mutationFn: async (publicId: string) => {
-      const { data } = await apiClient.put(
-        `/attendance/corrections/${publicId}/approve`,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["corrections"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast.success(t("attendance.corrections.approved"));
-    },
-    onError: () => toast.error(t("attendance.corrections.approve_failed")),
-  });
+  const time = (iso: string | null) => (iso ? formatTime(iso) : "—");
 
-  const rejectMut = useMutation({
-    mutationFn: async ({
-      publicId,
-      reason,
-    }: {
-      publicId: string;
-      reason: string;
-    }) => {
-      const { data } = await apiClient.put(
-        `/attendance/corrections/${publicId}/reject`,
-        { reason },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["corrections"] });
-      toast.success(t("attendance.corrections.rejected"));
-      setRejectFor(null);
-      setRejectReason("");
-    },
-    onError: () => toast.error(t("attendance.corrections.reject_failed")),
-  });
+  function approve(publicId: string) {
+    approveMut.mutate(publicId, {
+      onSuccess: () => toast.success(t("attendance.corrections.approved")),
+      onError: () => toast.error(t("attendance.corrections.approve_failed")),
+    });
+  }
 
-  const items: Correction[] = data?.data ?? [];
+  function reject() {
+    if (!rejectFor) return;
+    rejectMut.mutate(
+      { publicId: rejectFor.public_id, reason: rejectReason },
+      {
+        onSuccess: () => {
+          toast.success(t("attendance.corrections.rejected"));
+          setRejectFor(null);
+          setRejectReason("");
+        },
+        onError: () => toast.error(t("attendance.corrections.reject_failed")),
+      },
+    );
+  }
+
+  const items = data?.data ?? [];
 
   if (isLoading) {
     return (
@@ -307,6 +318,7 @@ function PendingReviewsTab() {
     <>
       <div className="space-y-3">
         {items.map((c) => {
+          const p = punchPair(c);
           const isProcessing =
             (approveMut.isPending && approveMut.variables === c.public_id) ||
             (rejectMut.isPending &&
@@ -318,7 +330,7 @@ function PendingReviewsTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-foreground">
-                        {c.employee?.name ?? "Employee"}
+                        {c.employee?.name ?? t("common.employee", "Employee")}
                       </p>
                       {c.employee?.employee_code && (
                         <Badge
@@ -328,9 +340,11 @@ function PendingReviewsTab() {
                           {c.employee.employee_code}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-[10px]">
-                        {c.date}
-                      </Badge>
+                      {p.date && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {p.date}
+                        </Badge>
+                      )}
                     </div>
                     <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
                       <div className="flex items-baseline gap-2">
@@ -338,8 +352,7 @@ function PendingReviewsTab() {
                           {t("attendance.corrections.original")}:
                         </span>
                         <span className="font-mono">
-                          {c.original_check_in ?? "—"} →{" "}
-                          {c.original_check_out ?? "—"}
+                          {time(p.originalIn)} → {time(p.originalOut)}
                         </span>
                       </div>
                       <div className="flex items-baseline gap-2">
@@ -347,8 +360,7 @@ function PendingReviewsTab() {
                           {t("attendance.corrections.requested")}:
                         </span>
                         <span className="font-mono font-medium text-foreground">
-                          {c.corrected_check_in ?? "—"} →{" "}
-                          {c.corrected_check_out ?? "—"}
+                          {time(p.proposedIn)} → {time(p.proposedOut)}
                         </span>
                       </div>
                     </div>
@@ -360,40 +372,43 @@ function PendingReviewsTab() {
                       <PayrollImpactBadge correctionId={c.public_id} />
                     </div>
                   </div>
-                  <div className="flex gap-2 sm:flex-col sm:items-stretch">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-success-on-soft hover:bg-success-soft"
-                      onClick={() => approveMut.mutate(c.public_id)}
-                      disabled={isProcessing}
-                    >
-                      {approveMut.isPending &&
-                      approveMut.variables === c.public_id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Check className="mr-1 h-3 w-3" />{" "}
-                          {t("common.approve")}
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive-on-soft hover:bg-destructive-soft"
-                      onClick={() => setRejectFor(c)}
-                      disabled={isProcessing}
-                    >
-                      <X className="mr-1 h-3 w-3" /> {t("common.reject")}
-                    </Button>
-                  </div>
+                  {canDecide && (
+                    <div className="flex gap-2 sm:flex-col sm:items-stretch">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-success-on-soft hover:bg-success-soft"
+                        onClick={() => approve(c.public_id)}
+                        disabled={isProcessing}
+                      >
+                        {approveMut.isPending &&
+                        approveMut.variables === c.public_id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="mr-1 h-3 w-3" />{" "}
+                            {t("common.approve")}
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive-on-soft hover:bg-destructive-soft"
+                        onClick={() => setRejectFor(c)}
+                        disabled={isProcessing}
+                      >
+                        <X className="mr-1 h-3 w-3" /> {t("common.reject")}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+      <PaginationControls meta={data?.meta} onPageChange={setPage} />
 
       <Dialog
         open={!!rejectFor}
@@ -420,6 +435,7 @@ function PendingReviewsTab() {
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder={t("attendance.corrections.reject_reason_placeholder")}
+            aria-label={t("attendance.corrections.reason")}
             rows={3}
             required
           />
@@ -429,13 +445,7 @@ function PendingReviewsTab() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() =>
-                rejectFor &&
-                rejectMut.mutate({
-                  publicId: rejectFor.public_id,
-                  reason: rejectReason,
-                })
-              }
+              onClick={reject}
               disabled={rejectMut.isPending || !rejectReason.trim()}
             >
               {rejectMut.isPending && (
@@ -452,6 +462,22 @@ function PendingReviewsTab() {
 
 // ── REQUEST DIALOG ─────────────────────────────────────────────
 
+const EMPTY_FORM = {
+  date: "",
+  check_in: "",
+  check_out: "",
+  reason: "",
+  record_public_id: "",
+};
+
+/**
+ * A correction targets one of the caller's own attendance records. The dialog
+ * posted `{date, corrected_check_in, corrected_check_out, reason}`, but
+ * StoreCorrectionRequest requires `attendance_record_public_id` and reads
+ * `proposed_check_in`/`proposed_check_out` — so every request was a 422 and no
+ * employee could ever submit one. The date now looks up the record, and the
+ * times are sent as the UTC instants they mean in the tenant's timezone.
+ */
 function RequestDialog({
   open,
   onClose,
@@ -460,32 +486,52 @@ function RequestDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    date: "",
-    corrected_check_in: "",
-    corrected_check_out: "",
-    reason: "",
-  });
+  const { timeZone, formatTime } = useDateFormatters();
+  const [form, setForm] = useState(EMPTY_FORM);
 
-  const submit = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/attendance/corrections", form);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["corrections"] });
-      toast.success(t("attendance.corrections.submitted"));
-      onClose();
-      setForm({
-        date: "",
-        corrected_check_in: "",
-        corrected_check_out: "",
-        reason: "",
-      });
-    },
-    onError: () => toast.error(t("attendance.corrections.submit_failed")),
-  });
+  const dayRecords = useMyAttendance(
+    { date_from: form.date, date_to: form.date },
+    { enabled: open && !!form.date },
+  );
+  const records = dayRecords.data?.data ?? [];
+  const recordId = form.record_public_id || records[0]?.public_id || "";
+  const noRecord = !!form.date && dayRecords.isSuccess && records.length === 0;
+
+  const submit = useSubmitCorrection();
+
+  function handleSubmit() {
+    if (!recordId) return;
+
+    const proposedIn = form.check_in
+      ? zonedWallTimeToUtcIso(form.date, form.check_in, timeZone)
+      : null;
+    // A check-out earlier than the check-in belongs to the next day — a night
+    // shift — rather than to an impossible negative shift.
+    const outDate =
+      form.check_in && form.check_out && form.check_out < form.check_in
+        ? nextDay(form.date)
+        : form.date;
+    const proposedOut = form.check_out
+      ? zonedWallTimeToUtcIso(outDate, form.check_out, timeZone)
+      : null;
+
+    submit.mutate(
+      {
+        attendance_record_public_id: recordId,
+        proposed_check_in: proposedIn,
+        proposed_check_out: proposedOut,
+        reason: form.reason,
+      },
+      {
+        onSuccess: () => {
+          toast.success(t("attendance.corrections.submitted"));
+          onClose();
+          setForm(EMPTY_FORM);
+        },
+        onError: () => toast.error(t("attendance.corrections.submit_failed")),
+      },
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -496,7 +542,7 @@ function RequestDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            submit.mutate();
+            handleSubmit();
           }}
           className="space-y-4"
         >
@@ -504,11 +550,38 @@ function RequestDialog({
             <Label>{t("attendance.date_required")}</Label>
             <DualCalendarDateInput
               value={form.date}
-              onChange={(v) => setForm((p) => ({ ...p, date: v }))}
+              onChange={(v) =>
+                setForm((p) => ({ ...p, date: v, record_public_id: "" }))
+              }
               required
               className="mt-1"
             />
+            {noRecord && (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {t("attendance.empty_title", "No attendance records")}
+              </p>
+            )}
           </div>
+          {records.length > 1 && (
+            <Select
+              value={recordId}
+              onValueChange={(v) =>
+                setForm((p) => ({ ...p, record_public_id: v }))
+              }
+            >
+              <SelectTrigger aria-label={t("attendance.title", "Attendance")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {records.map((r) => (
+                  <SelectItem key={r.public_id} value={r.public_id}>
+                    {r.check_in ? formatTime(r.check_in) : "—"} →{" "}
+                    {r.check_out ? formatTime(r.check_out) : "—"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="correct-check-in">
@@ -517,9 +590,9 @@ function RequestDialog({
               <Input
                 id="correct-check-in"
                 type="time"
-                value={form.corrected_check_in}
+                value={form.check_in}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, corrected_check_in: e.target.value }))
+                  setForm((p) => ({ ...p, check_in: e.target.value }))
                 }
                 className="mt-1"
               />
@@ -531,12 +604,9 @@ function RequestDialog({
               <Input
                 id="correct-check-out"
                 type="time"
-                value={form.corrected_check_out}
+                value={form.check_out}
                 onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    corrected_check_out: e.target.value,
-                  }))
+                  setForm((p) => ({ ...p, check_out: e.target.value }))
                 }
                 className="mt-1"
               />
@@ -561,7 +631,7 @@ function RequestDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={submit.isPending}>
+            <Button type="submit" disabled={submit.isPending || !recordId}>
               {submit.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
@@ -572,4 +642,10 @@ function RequestDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function nextDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
