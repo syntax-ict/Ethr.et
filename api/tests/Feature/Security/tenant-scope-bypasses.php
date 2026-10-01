@@ -8,8 +8,12 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 159 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 156 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-01: **156 across 56 files**. Three left with dead code, audit B1/B2 —
+ * `LoginAttemptService` (1, the whole file) and `HolidayService::getHolidays()` /
+ * `isHoliday()` (one each), none of which had a caller.)
  *
  * (Corrected 2026-09-27: this said **157**, which was the figure before
  * `NotifyPayrollRunFailed` and `NotifyDeviceSyncFailed` joined the inventory on
@@ -119,12 +123,11 @@ return [
     'Services/Auth/AuthIdentifierResolver.php' => 7,
     'Services/Billing/BillingService.php' => 5,
     'Services/Dashboard/EmployeeDashboardService.php' => 1,
-    'Services/Holiday/HolidayService.php' => 4,
+    'Services/Holiday/HolidayService.php' => 2,
     'Services/Identity/IdentityResolver.php' => 2,
     'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,
     'Services/Leave/LeaveDayCalculator.php' => 1,
-    'Services/LoginAttemptService.php' => 1,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
     'Services/Onboarding/ReadinessScorer.php' => 10,

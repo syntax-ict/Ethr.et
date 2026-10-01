@@ -69,15 +69,4 @@ trait ScopesEmployeeAccess
             OrgScope::SELF => $query->where('id', $this->employee_id),
         };
     }
-
-    public function accessibleEmployeeIds(): array
-    {
-        if ($this->orgScope() === OrgScope::ALL) {
-            return [];
-        }
-
-        return $this->scopeAccessibleEmployees(Employee::query())
-            ->pluck('id')
-            ->all();
-    }
 }

@@ -113,15 +113,6 @@ class Tenant extends Model
         return $this->hasMany(FeatureFlag::class);
     }
 
-    /**
-     * Tenant-scoped flag, falling back to the global flag of the same key.
-     * See FeatureFlag::enabled() — an unset flag (tenant or global) is off.
-     */
-    public function hasFeature(string $key): bool
-    {
-        return FeatureFlag::enabled($key, $this);
-    }
-
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);

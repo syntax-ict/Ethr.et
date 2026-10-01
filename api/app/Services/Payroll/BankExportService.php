@@ -54,34 +54,6 @@ final class BankExportService
         return implode("\r\n", $lines);
     }
 
-    public function generateCbeFormat(PayrollRun $run): string
-    {
-        $entries = $run->entries()->with(['employee.bankDetails'])->get();
-
-        $lines = [];
-        foreach ($entries as $entry) {
-            $employee = $entry->employee;
-            if (! $employee) {
-                continue;
-            }
-
-            $bank = $this->primaryBankDetail($employee);
-            if (! $bank?->account_number) {
-                continue;
-            }
-
-            $lines[] = implode('|', [
-                str_pad($bank->account_number, 13, '0', STR_PAD_LEFT),
-                number_format($entry->net_cents / 100, 2, '.', ''),
-                $employee->name ?? '',
-                $run->period_label,
-                'SALARY',
-            ]);
-        }
-
-        return implode("\r\n", $lines);
-    }
-
     /**
      * The employee's designated salary account. Falls back to the first bank
      * detail on record if none is explicitly marked primary, rather than

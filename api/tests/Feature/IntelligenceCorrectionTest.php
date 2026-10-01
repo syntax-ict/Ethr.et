@@ -2,140 +2,52 @@
 
 declare(strict_types=1);
 
-use App\Enums\AttendanceStatus;
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Holiday;
-use App\Models\Shift;
 use App\Services\Attendance\AttendanceIntelligence;
+use App\Services\CurrentTenant;
 use Carbon\Carbon;
 
-// ── Intelligence: Late Detection ──
+// ── Intelligence: Missing punches ──
+// Late, early-leave and overtime detection live in the attendance engine and
+// the record model, and are tested there (AttendanceEngineTest,
+// NightShiftAttendanceTest). The four AttendanceIntelligence methods these
+// tests used to call had no caller (audit B2) and are gone; the missing-punch
+// tests now drive getMissingPunches(), which the nightly scan really calls.
 
-test('intelligence service detects late arrival', function () {
+test('the missing-punch scan finds a check-in with no check-out', function () {
     $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'grace_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(9, 0),
-        'status' => AttendanceStatus::LATE,
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectLate($record))->toBeTrue();
-});
-
-test('intelligence service does not flag on-time arrival as late', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'grace_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'status' => AttendanceStatus::PRESENT,
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectLate($record))->toBeFalse();
-});
-
-// ── Intelligence: Early Leave ──
-
-test('intelligence service detects early departure', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'end_time' => '17:30',
-        'early_departure_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'check_out' => Carbon::today()->setTime(16, 0),
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectEarlyLeave($record))->toBeTrue();
-});
-
-// ── Intelligence: Missing Punch ──
-
-test('intelligence detects missing check-out', function () {
-    $tenant = createTenant();
+    app(CurrentTenant::class)->set($tenant);
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-    AttendanceRecord::factory()->checkInOnly()->create([
+    $open = AttendanceRecord::factory()->checkInOnly()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
-        'date' => now()->format('Y-m-d'),
-        'check_in' => now()->subHours(4),
+        'date' => '2026-10-05',
+        'check_in' => Carbon::parse('2026-10-05 08:30'),
     ]);
 
-    $intelligence = app(AttendanceIntelligence::class);
-    $result = $intelligence->detectMissingPunch($employee, now());
+    $missing = app(AttendanceIntelligence::class)->getMissingPunches($tenant->id, '2026-10-05');
 
-    expect($result)->toBe('missing_check_out');
+    expect($missing->pluck('id')->all())->toBe([$open->id]);
 });
 
-test('intelligence returns null when punch complete', function () {
+test('the missing-punch scan ignores a completed day', function () {
     $tenant = createTenant();
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    app(CurrentTenant::class)->set($tenant);
 
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
-        'employee_id' => $employee->id,
-        'date' => now()->format('Y-m-d'),
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    $result = $intelligence->detectMissingPunch($employee, now());
-
-    expect($result)->toBeNull();
-});
-
-// ── Intelligence: Overtime ──
-
-test('intelligence calculates overtime correctly', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'end_time' => '17:30',
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
         'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'check_out' => Carbon::today()->setTime(19, 30),
+        'date' => '2026-10-05',
     ]);
 
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->calculateOvertime($record))->toBe(120);
+    expect(app(AttendanceIntelligence::class)->getMissingPunches($tenant->id, '2026-10-05'))->toBeEmpty();
 });
-
-// ── Intelligence Dashboard Endpoint ──
 
 test('hr admin can view intelligence dashboard', function () {
     $tenant = createTenant();

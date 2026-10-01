@@ -33,13 +33,6 @@ final class LeaveBalanceService
         );
     }
 
-    public function calculateBalance(Employee $employee, LeaveType $leaveType, int $year): float
-    {
-        $balance = $this->getOrCreateBalance($employee, $leaveType, $year);
-
-        return $balance->remainingDays();
-    }
-
     public function accrueMonthly(int $tenantId): int
     {
         // Explicitly scoped for the same reason as carryForward() — the tenant

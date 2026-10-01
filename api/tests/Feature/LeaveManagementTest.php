@@ -617,12 +617,14 @@ test('hr admin can view employee balance', function () {
 
 // ── Balance Service ──
 
-test('balance service calculates remaining correctly', function () {
+// LeaveBalanceService::calculateBalance() had no caller (audit B2); the live
+// path is LeaveBalance::remainingDays(), read by LeaveRequestController.
+test('a leave balance\'s remaining days are entitled plus carried, less used and pending', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
     $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'code' => 'calc_test']);
 
-    LeaveBalance::factory()->create([
+    $balance = LeaveBalance::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
         'leave_type_id' => $leaveType->id,
@@ -633,10 +635,7 @@ test('balance service calculates remaining correctly', function () {
         'pending_days' => 2,
     ]);
 
-    $service = app(LeaveBalanceService::class);
-    $remaining = $service->calculateBalance($employee, $leaveType, now()->year);
-
-    expect($remaining)->toBe(16.0);
+    expect($balance->remainingDays())->toBe(16.0);
 });
 
 test('monthly accrual adds correct amount', function () {

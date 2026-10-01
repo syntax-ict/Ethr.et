@@ -7,24 +7,12 @@ namespace App\Services\Holiday;
 use App\Models\Holiday;
 use App\Services\Calendar\EthiopianCalendar;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 
 final class HolidayService
 {
     public function __construct(
         private readonly EthiopianCalendar $calendar,
     ) {}
-
-    public function getHolidays(int $tenantId, int $year): Collection
-    {
-        return Holiday::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
-            ->whereYear('date', $year)
-            ->orderBy('date')
-            ->get();
-    }
 
     /**
      * The set of holiday dates for a tenant within [$from, $to], as a map of
@@ -51,22 +39,6 @@ final class HolidayService
             ->pluck('date')
             ->mapWithKeys(fn ($date) => [Carbon::parse($date)->format('Y-m-d') => true])
             ->all();
-    }
-
-    public function isHoliday(int $tenantId, Carbon $date, ?int $branchId = null): bool
-    {
-        return Holiday::query()
-            ->withoutGlobalScope('tenant')
-            ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
-            ->whereDate('date', $date->format('Y-m-d'))
-            ->where(function ($q) use ($branchId) {
-                $q->whereNull('branch_id');
-                if ($branchId) {
-                    $q->orWhere('branch_id', $branchId);
-                }
-            })
-            ->exists();
     }
 
     public function getEthiopianHolidays(int $gregorianYear): array
