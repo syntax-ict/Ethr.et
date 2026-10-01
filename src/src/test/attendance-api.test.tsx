@@ -123,7 +123,7 @@ describe("useCheckIn", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.status).toBe("present");
+    expect(result.current.data!.status).toBe("present");
     expect(capturedHeaders["idempotency-key"]).toBe("test-idem-key-001");
   });
 });
@@ -148,7 +148,7 @@ describe("useCheckOut", () => {
     result.current.mutate({ idempotency_key: "test-idem-key-002" });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.worked_minutes).toBe(480);
+    expect(result.current.data!.worked_minutes).toBe(480);
   });
 });
 
@@ -178,8 +178,8 @@ describe("useSubmitCorrection", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.status).toBe("pending");
-    expect(result.current.data.reason).toBe("Badge reader was offline");
+    expect(result.current.data!.status).toBe("pending");
+    expect(result.current.data!.reason).toBe("Badge reader was offline");
   });
 });
 
@@ -199,7 +199,7 @@ describe("useApproveCorrection", () => {
     result.current.mutate("01HZCORR001");
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.status).toBe("approved");
+    expect(result.current.data!.status).toBe("approved");
   });
 });
 
@@ -222,7 +222,7 @@ describe("useRejectCorrection", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.status).toBe("rejected");
+    expect(result.current.data!.status).toBe("rejected");
   });
 });
 
@@ -266,8 +266,8 @@ describe("useAttendanceIntelligence", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data.anomalies.count).toBe(1);
-    expect(result.current.data.anomalies.records[0].types).toContain(
+    expect(result.current.data!.anomalies.count).toBe(1);
+    expect(result.current.data!.anomalies.records[0].types).toContain(
       "excessive_hours",
     );
   });
