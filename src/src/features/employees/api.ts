@@ -120,6 +120,25 @@ export function useEmployeeStats() {
   });
 }
 
+// ── Export ─────────────────────────────────────────────────────────
+
+export type EmployeeExport =
+  operations["employeeBulk.export"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Every employee matching `search`, as one CSV the server builds from the
+ * whole filtered set — not the page on screen. A one-shot download, so a plain
+ * function rather than a query.
+ */
+export async function exportEmployees(params: {
+  search?: string;
+}): Promise<EmployeeExport> {
+  const { data } = await apiClient.get<EmployeeExport>("/employees/export", {
+    params: { search: params.search || undefined },
+  });
+  return data;
+}
+
 // ── CSV import (template → preview → commit) ──────────────────────
 
 /**

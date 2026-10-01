@@ -19,8 +19,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SavedViewsMenu } from "@/components/shared/saved-views-menu";
 import { DataTable } from "@/components/patterns/DataTable";
 import { BulkActionsBar } from "@/features/employees/components/bulk-actions-bar";
-import { useEmployees } from "@/features/employees/api";
-import { apiClient } from "@/api/client";
+import { exportEmployees, useEmployees } from "@/features/employees/api";
+import { saveCsv } from "@/lib/utils/csv-export";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage";
@@ -80,23 +80,12 @@ export default function EmployeesPage() {
   });
 
   const exportCsv = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.get<{ csv: string; count: number }>(
-        "/employees/export",
-        {
-          params: { search: search || undefined },
-        },
-      );
-      return data;
-    },
+    mutationFn: () => exportEmployees({ search }),
     onSuccess: (data) => {
-      const blob = new Blob([data.csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `employees-${new Date().toISOString().split("T")[0]}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      saveCsv(
+        `employees-${new Date().toISOString().split("T")[0]}.csv`,
+        data.csv,
+      );
       toast.success(
         t("employees.exported", "Exported :count employees", {
           count: data.count,
@@ -197,6 +186,7 @@ export default function EmployeesPage() {
                 onClick={() => exportCsv.mutate()}
                 disabled={exportCsv.isPending}
                 title={t("common.export", "Export")}
+                aria-label={t("common.export", "Export")}
               >
                 {exportCsv.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -209,6 +199,7 @@ export default function EmployeesPage() {
                 size="icon"
                 asChild
                 title={t("common.import", "Import")}
+                aria-label={t("common.import", "Import")}
               >
                 <Link href="/employees/import">
                   <Upload className="h-4 w-4" />
@@ -276,17 +267,10 @@ export default function EmployeesPage() {
               onComplete={() => setSelectionResetKey((k) => k + 1)}
             />
           )}
-          getExportRow={(row) => ({
-            [t("employee.code", "Employee Code")]: row.employee_code ?? "",
-            [t("common.name", "Name")]: row.name,
-            [t("common.email", "Email")]: row.email ?? "",
-            [t("common.phone", "Phone")]: row.phone ?? "",
-            [t("common.department", "Department")]: row.department?.name ?? "",
-            [t("common.position", "Position")]: row.position?.title ?? "",
-            [t("common.status", "Status")]: row.status,
-            [t("employees.hire_date", "Hire Date")]: row.hire_date,
-          })}
-          exportFilename="employees"
+          // No `getExportRow`: the table's own "Export CSV" downloads only the
+          // 25 rows on screen, beside the header's Export that downloads every
+          // employee matching the search. Two buttons, one of them silently
+          // partial, is how an HR export ends up 25 rows long.
           emptyState={
             <EmptyState
               icon={Users}
