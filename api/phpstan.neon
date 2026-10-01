@@ -27,39 +27,29 @@ parameters:
           path: app/Traits/BelongsToTenant.php
         - message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$public_id\.$#'
           path: app/Traits/HasPublicId.php
-        - message: '#^Method App\\Models\\PayrollRule\:\:findByPublicId\(\) should return static\(App\\Models\\PayrollRule\)\|null but returns App\\Models\\PayrollRule\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for the onboarding-v2 tables it cannot yet
         # introspect (employee_external_identities, migration_batches,
-        # migration_staging_rows): the BelongsToTenant / HasPublicId trait
+        # migration_staging_rows): the BelongsToTenant trait
         # generics resolve to false positives "in context of" the new models.
         # The models are correct and covered by IdentityResolutionTest and
         # MigrationWorkspaceTest. Scoped to the trait files, model-named exact.
         - message: '#^Method App\\Models\\EmployeeExternalIdentity\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\EmployeeExternalIdentity\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeExternalIdentity\)\|null but returns App\\Models\\EmployeeExternalIdentity\|null\.$#'
-          path: app/Traits/HasPublicId.php
         - message: '#^Method App\\Models\\MigrationBatch\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\MigrationBatch\:\:findByPublicId\(\) should return static\(App\\Models\\MigrationBatch\)\|null but returns App\\Models\\MigrationBatch\|null\.$#'
-          path: app/Traits/HasPublicId.php
         - message: '#^Method App\\Models\\MigrationStagingRow\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\MigrationStagingRow\:\:findByPublicId\(\) should return static\(App\\Models\\MigrationStagingRow\)\|null but returns App\\Models\\MigrationStagingRow\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation again for `employee_cost_sharing`, and here the
         # trigger is identifiable: the table name is singular (set explicitly via
         # $table, because "cost sharing" is a mass noun) so larastan's convention-
-        # based schema lookup misses it, and the BelongsToTenant / HasPublicId
+        # based schema lookup misses it, and the BelongsToTenant
         # trait generics then resolve to false positives "in context of" the model.
         # The model is correct and covered by CostSharingTest, PayrollCostSharingTest
         # and CostSharingApiTest. Scoped to the trait files, model-named exact.
         - message: '#^Method App\\Models\\EmployeeCostSharing\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\EmployeeCostSharing\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeCostSharing\)\|null but returns App\\Models\\EmployeeCostSharing\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation again for profile_update_requests. The model is
         # correct and covered by ProfileUpdateRequestTest; only the trait generics
@@ -67,8 +57,6 @@ parameters:
         # model-named exact.
         - message: '#^Method App\\Models\\ProfileUpdateRequest\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\ProfileUpdateRequest\:\:findByPublicId\(\) should return static\(App\\Models\\ProfileUpdateRequest\)\|null but returns App\\Models\\ProfileUpdateRequest\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for personnel_actions — its JSON `changes`
         # column stops larastan introspecting the table, so the trait generics
@@ -77,8 +65,6 @@ parameters:
         # PersonnelActionTest. Scoped to the trait files, model-named exact.
         - message: '#^Method App\\Models\\PersonnelAction\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\PersonnelAction\:\:findByPublicId\(\) should return static\(App\\Models\\PersonnelAction\)\|null but returns App\\Models\\PersonnelAction\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for the shift-rotation models. Verified as a
         # limitation rather than a schema gap: the errors persist unchanged when
@@ -90,8 +76,6 @@ parameters:
           path: app/Traits/BelongsToTenant.php
         - message: '#^Method App\\Models\\ShiftRotationStep\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\ShiftRotation\:\:findByPublicId\(\) should return static\(App\\Models\\ShiftRotation\)\|null but returns App\\Models\\ShiftRotation\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for disciplinary_cases — its JSON
         # `investigation_notes` column stops larastan introspecting the table,
@@ -101,8 +85,6 @@ parameters:
         # files, model-named exact.
         - message: '#^Method App\\Models\\DisciplinaryCase\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\DisciplinaryCase\:\:findByPublicId\(\) should return static\(App\\Models\\DisciplinaryCase\)\|null but returns App\\Models\\DisciplinaryCase\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for employee_contracts — no JSON column on
         # this table, so it's confirmed *not* a JSON-column-specific issue:
@@ -112,14 +94,10 @@ parameters:
         # EmployeeContractTest.
         - message: '#^Method App\\Models\\EmployeeContract\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\EmployeeContract\:\:findByPublicId\(\) should return static\(App\\Models\\EmployeeContract\)\|null but returns App\\Models\\EmployeeContract\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same as the two entries above, for grade_salary_steps.
         - message: '#^Method App\\Models\\GradeSalaryStep\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\GradeSalaryStep\:\:findByPublicId\(\) should return static\(App\\Models\\GradeSalaryStep\)\|null but returns App\\Models\\GradeSalaryStep\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # Same larastan limitation for retirement_cases: the trait generics
         # resolve to false positives "in context of" RetirementCase. The model's
@@ -127,8 +105,6 @@ parameters:
         # retired the eleven service and resource entries that used to follow.
         - message: '#^Method App\\Models\\RetirementCase\:\:tenant\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
           path: app/Traits/BelongsToTenant.php
-        - message: '#^Method App\\Models\\RetirementCase\:\:findByPublicId\(\) should return static\(App\\Models\\RetirementCase\)\|null but returns App\\Models\\RetirementCase\|null\.$#'
-          path: app/Traits/HasPublicId.php
 
         # `HasFactory`'s generic isn't specified anywhere in this codebase —
         # every other model using it (Employee, Announcement, Branch, …) has
