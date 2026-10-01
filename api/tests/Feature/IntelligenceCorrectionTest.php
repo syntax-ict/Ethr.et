@@ -11,6 +11,7 @@ use App\Models\Holiday;
 use App\Services\Attendance\AttendanceIntelligence;
 use App\Services\CurrentTenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Notification;
 
 // ── Intelligence: Missing punches ──
 // Late, early-leave and overtime detection live in the attendance engine and
@@ -313,6 +314,61 @@ test('supervisor can reject correction with reason', function () {
     $response->assertOk()
         ->assertJsonPath('status', 'rejected');
 });
+
+// ── A failed notification does not fail the correction ──
+// The controller wrote the correction (and, on approval, the attendance record)
+// and then called ->notify() bare. When delivery threw (the broadcast channel
+// talks to Reverb over cURL), the request returned 500 for a write that had
+// committed, and a retried approval was refused as "not pending".
+// ApprovalController approves the same corrections through
+// SendsNotifications::notify(), which logs and carries on. Now both paths do.
+
+test('submitting a correction succeeds when the supervisor notification fails', function () {
+    $tenant = createTenant();
+    $supervisorEmployee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    createUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisorEmployee->id], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisorEmployee->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $record = AttendanceRecord::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id]);
+
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Pusher error: cURL error 7'));
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Check-in time was wrong, I arrived earlier',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201);
+
+    expect(AttendanceCorrection::where('attendance_record_id', $record->id)->count())->toBe(1);
+});
+
+test('approving or rejecting a correction succeeds when the employee notification fails', function (string $action, CorrectionStatus $expected) {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    $record = AttendanceRecord::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id]);
+    $correction = AttendanceCorrection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'attendance_record_id' => $record->id,
+        'employee_id' => $employee->id,
+        'status' => CorrectionStatus::PENDING,
+    ]);
+
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Pusher error: cURL error 7'));
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/{$action}", [
+        'reason' => 'Insufficient evidence',
+    ])->assertOk()->assertJsonPath('status', $expected->value);
+
+    expect($correction->fresh()->status)->toBe($expected);
+})->with([
+    'approve' => ['approve', CorrectionStatus::APPROVED],
+    'reject' => ['reject', CorrectionStatus::REJECTED],
+]);
 
 test('rejection requires reason', function () {
     $tenant = createTenant();

@@ -15,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
+use App\Traits\SendsNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,11 @@ use Illuminate\Support\Facades\Gate;
 
 class AttendanceCorrectionController extends Controller
 {
+    // Notifications go out after the correction is written, so a failed
+    // delivery must not turn a committed change into a 500. ApprovalController
+    // approves the same corrections the same way.
+    use SendsNotifications;
+
     public function store(StoreCorrectionRequest $request): JsonResponse
     {
         Gate::authorize('correction.create');
@@ -48,7 +54,7 @@ class AttendanceCorrectionController extends Controller
         $employee = $correction->employee ?? $user->employee;
         $supervisor = $employee?->supervisor;
         if ($supervisor?->user) {
-            $supervisor->user->notify(new AttendanceCorrectionRequestedNotification($correction));
+            $this->notify($supervisor->user, new AttendanceCorrectionRequestedNotification($correction));
         }
 
         $correction->load('attendanceRecord', 'employee');
@@ -138,7 +144,7 @@ class AttendanceCorrectionController extends Controller
         // Notify employee
         $empUser = $correction->employee?->user;
         if ($empUser) {
-            $empUser->notify(new AttendanceCorrectionApprovedNotification($correction, true));
+            $this->notify($empUser, new AttendanceCorrectionApprovedNotification($correction, true));
         }
 
         $correction->load('attendanceRecord', 'employee');
@@ -232,7 +238,7 @@ class AttendanceCorrectionController extends Controller
         // Notify employee of rejection
         $empUser = $correction->employee?->user;
         if ($empUser) {
-            $empUser->notify(new AttendanceCorrectionApprovedNotification($correction, false));
+            $this->notify($empUser, new AttendanceCorrectionApprovedNotification($correction, false));
         }
 
         $correction->load('attendanceRecord', 'employee');
