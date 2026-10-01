@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Services\FileStorageService;
+use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -111,4 +113,39 @@ test('read replica probe inspects the connection actually in use', function () {
 
     expect(test()->getJson('/api/v1/health')->json('services.database_read'))
         ->toBe('not_configured');
+});
+
+/*
+ * A probe that throws reports `unavailable`, and the status used to degrade only
+ * on `unhealthy` — so a storage disk or cache store that raised an exception left
+ * /health at 200, while one that merely answered wrong returned 503.
+ */
+test('a storage disk that throws degrades the health endpoint', function () {
+    Storage::shouldReceive('disk')->andThrow(new RuntimeException('disk gone'));
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->status())->toBe(503)
+        ->and($response->json('services.storage'))->toBe('unavailable')
+        ->and($response->json('status'))->toBe('degraded');
+});
+
+test('a cache store that throws degrades the health endpoint', function () {
+    $store = Mockery::mock(Repository::class);
+    $store->shouldReceive('put')->andThrow(new RuntimeException('cache gone'));
+    Cache::shouldReceive('store')->andReturn($store);
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->status())->toBe(503)
+        ->and($response->json('services.cache'))->toBe('unavailable');
+});
+
+test('an unconfigured read replica does not degrade the health endpoint', function () {
+    config(['database.connections.mariadb.read' => null]);
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->json('services.database_read'))->not->toBe('unhealthy')
+        ->and($response->status())->toBe(200);
 });
