@@ -128,6 +128,43 @@ describe("<AnnouncementsPage>", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("publishes immediately and refreshes the list", async () => {
+    let posted: unknown = null;
+    let rows: (typeof ANNOUNCEMENT)[] = [];
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () => HttpResponse.json(page(rows))),
+      http.post("*/api/v1/announcements", async ({ request }) => {
+        posted = await request.json();
+        rows = [{ ...ANNOUNCEMENT, title: "Payroll runs Friday" }];
+        return HttpResponse.json(rows[0], { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: /New Announcement/ }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Title" }),
+      "Payroll runs Friday",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Content" }),
+      "Cut-off is Thursday.",
+    );
+    await user.click(screen.getByRole("button", { name: /Publish/ }));
+
+    expect(await screen.findByText("Payroll runs Friday")).toBeInTheDocument();
+    expect(posted).toEqual({
+      title: "Payroll runs Friday",
+      body: "Cut-off is Thursday.",
+      priority: "normal",
+      publish_now: true,
+    });
+  });
+
   it("says so when a delete fails", async () => {
     server.use(
       me(["announcement.manage"]),
