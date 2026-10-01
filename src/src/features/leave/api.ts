@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export interface LeaveType {
-  public_id: string;
-  name: string;
-  code: string;
-  default_days: number;
-  is_active: boolean;
-}
+export type LeaveType = components["schemas"]["LeaveTypeResource"];
+export type AccrualType = components["schemas"]["AccrualType"];
+export type LeaveTypePayload = components["schemas"]["StoreLeaveTypeRequest"];
+export type LeaveTypeUpdate = components["schemas"]["UpdateLeaveTypeRequest"];
 
 export interface LeaveBalance {
   leave_type: { name: string; code: string; public_id: string } | string;
@@ -69,6 +68,53 @@ export function useLeaveTypes() {
       return data;
     },
     staleTime: 30 * 60 * 1000,
+  });
+}
+
+/**
+ * Every leave type, for the management page. `GET /leave-types` pages at 25;
+ * `useLeaveTypes` above still reads only the first page.
+ */
+export function useAllLeaveTypes() {
+  return useQuery<LeaveType[]>({
+    queryKey: ["leave-types", "all"],
+    queryFn: () => fetchAllPages<LeaveType>("/leave-types"),
+  });
+}
+
+function useLeaveTypeMutation<TVars, TData>(
+  mutationFn: (vars: TVars) => Promise<TData>,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+    },
+  });
+}
+
+export function useCreateLeaveType() {
+  return useLeaveTypeMutation(
+    async (payload: LeaveTypePayload): Promise<LeaveType> =>
+      (await apiClient.post("/leave-types", payload)).data,
+  );
+}
+
+export function useUpdateLeaveType() {
+  return useLeaveTypeMutation(
+    async (vars: {
+      publicId: string;
+      payload: LeaveTypeUpdate;
+    }): Promise<LeaveType> =>
+      (await apiClient.put(`/leave-types/${vars.publicId}`, vars.payload)).data,
+  );
+}
+
+export function useDeleteLeaveType() {
+  return useLeaveTypeMutation(async (publicId: string): Promise<void> => {
+    await apiClient.delete(`/leave-types/${publicId}`);
   });
 }
 
