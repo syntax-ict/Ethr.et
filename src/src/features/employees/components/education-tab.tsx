@@ -259,7 +259,10 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("degree")}
-                placeholder="BSc, MSc, MBA..."
+                placeholder={t(
+                  "employee.education.degree_placeholder",
+                  "BSc, MSc, MBA...",
+                )}
                 className="mt-1"
               />
             </FormField>
@@ -271,7 +274,10 @@ export function EducationTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("field_of_study")}
-                placeholder="Computer Science..."
+                placeholder={t(
+                  "employee.education.field_of_study_placeholder",
+                  "Computer Science...",
+                )}
                 className="mt-1"
               />
             </FormField>

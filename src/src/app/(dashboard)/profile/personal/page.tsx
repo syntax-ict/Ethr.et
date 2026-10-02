@@ -211,7 +211,10 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                 </Label>
                 <Input
                   id="nationality"
-                  placeholder="Ethiopian"
+                  placeholder={t(
+                    "employee.detail.nationality_placeholder",
+                    "Ethiopian",
+                  )}
                   {...register("nationality")}
                 />
               </div>

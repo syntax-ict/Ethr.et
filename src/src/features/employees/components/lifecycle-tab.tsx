@@ -379,7 +379,10 @@ export function LifecycleTab({
             >
               <Textarea
                 {...register("reason")}
-                placeholder="Optional — context for the transition"
+                placeholder={t(
+                  "employee.lifecycle.reason_placeholder",
+                  "Optional — context for the transition",
+                )}
                 rows={3}
                 className="mt-1"
               />

@@ -120,7 +120,11 @@ export function LeaveOverview() {
                       "h-1.5 transition-all",
                       isLow && "[&>div]:bg-status-warning",
                     )}
-                    aria-label={`${type} leave: ${pct}% used`}
+                    aria-label={t(
+                      "dashboard.leave_usage_aria",
+                      ":type leave: :pct% used",
+                      { type, pct },
+                    )}
                   />
                   <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
                     <span>

@@ -426,7 +426,10 @@ export default function ShiftsPage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
                     }
-                    placeholder="Morning Shift"
+                    placeholder={t(
+                      "shifts_page.name_english_placeholder",
+                      "Morning Shift",
+                    )}
                     className="mt-1"
                   />
                 </div>

@@ -167,7 +167,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                     value={region}
                     onChange={(e) => setRegion(e.target.value)}
                     className="mt-1"
-                    placeholder="Addis Ababa"
+                    placeholder={t("setup.default_city", "Addis Ababa")}
                   />
                 </div>
               </div>

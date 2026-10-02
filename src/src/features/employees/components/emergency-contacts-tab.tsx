@@ -173,7 +173,10 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("relationship")}
-                placeholder="Spouse, Parent..."
+                placeholder={t(
+                  "employee.emergency.relationship_placeholder",
+                  "Spouse, Parent...",
+                )}
                 className="mt-1"
               />
             </FormField>

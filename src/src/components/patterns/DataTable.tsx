@@ -303,7 +303,7 @@ export function DataTable<TData>({
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-border/60 py-16 text-center">
         <p className="text-sm font-medium text-foreground">
-          Something went wrong loading this data.
+          {t("table.error_loading", "Something went wrong loading this data.")}
         </p>
         {onRetry && (
           <Button
@@ -312,7 +312,7 @@ export function DataTable<TData>({
             className="mt-4"
             onClick={onRetry}
           >
-            Try Again
+            {t("common.try_again_button", "Try Again")}
           </Button>
         )}
       </div>
