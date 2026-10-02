@@ -75,7 +75,7 @@ describe("<NotificationTemplatesPage>", () => {
     renderPage();
 
     await screen.findByText("Leave Approved");
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
 
     const subject = within(dialog).getByRole("textbox", {
@@ -110,7 +110,7 @@ describe("<NotificationTemplatesPage>", () => {
     renderPage();
 
     await screen.findByText("Leave Approved");
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
 
     for (const name of TEMPLATE.variables) {
@@ -149,7 +149,7 @@ describe("<NotificationTemplatesPage>", () => {
     renderPage();
 
     await screen.findByText("Leave Approved");
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /^Edit: / }));
     const dialog = await screen.findByRole("dialog");
     const body = within(dialog).getByRole("textbox", {
       name: "Body (English)",

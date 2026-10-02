@@ -223,8 +223,9 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                 size="sm"
                 variant="ghost"
                 onClick={() => setSelectedDay(null)}
+                aria-label={t("common.close", "Close")}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3" aria-hidden="true" />
               </Button>
             </div>
             {selectedDay.check_in && (

@@ -192,8 +192,9 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       size="sm"
                       variant="ghost"
                       onClick={() => setEditing(false)}
+                      aria-label={t("common.cancel", "Cancel")}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3" aria-hidden="true" />
                     </Button>
                     <Button
                       size="sm"

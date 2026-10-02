@@ -67,9 +67,18 @@ function renderPage() {
   );
 }
 
+/**
+ * Label and text queries, not `ByRole({ name })`: role queries compute the
+ * accessible name of every control on this long form on each retry, which
+ * took the first test to 14.7 s alone against a 20 s timeout — and past it
+ * under load.
+ */
 async function pick(trigger: string, option: string) {
-  fireEvent.click(screen.getByRole("combobox", { name: trigger }));
-  fireEvent.click(await screen.findByRole("option", { name: option }));
+  fireEvent.click(screen.getByLabelText(trigger));
+  const text = await screen.findByText(option, {
+    selector: '[role="option"] *, [role="option"]',
+  });
+  fireEvent.click(text.closest('[role="option"]') ?? text);
 }
 
 describe("New employee form", () => {
@@ -84,18 +93,16 @@ describe("New employee form", () => {
 
     const { container } = renderPage();
 
-    fireEvent.change(screen.getByRole("textbox", { name: /Full Name/ }), {
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Monthly Salary/ }), {
+    fireEvent.change(screen.getByLabelText(/Monthly Salary/), {
       target: { value: "5000.50" },
     });
 
     // Wait for the pickers to have their options.
     await waitFor(() =>
-      expect(
-        screen.getByRole("combobox", { name: "Department" }),
-      ).toBeEnabled(),
+      expect(screen.getByLabelText("Department")).toBeEnabled(),
     );
     await pick("Department", "Engineering");
     await pick("Branch", "Headquarters");
@@ -116,7 +123,10 @@ describe("New employee form", () => {
     expect(body).not.toHaveProperty("department_public_id");
     expect(body).not.toHaveProperty("branch_public_id");
     expect(body).not.toHaveProperty("position_public_id");
-  });
+    // The whole new-employee form, three pickers and a submit: ~11 s alone,
+    // and 2.3x that when the backend suite shares the machine. The global 20 s
+    // left no margin; this one integration test gets its own.
+  }, 45_000);
 
   it("puts a 422 on a relation field under that field", async () => {
     server.use(
@@ -137,7 +147,7 @@ describe("New employee form", () => {
     );
 
     const { container } = renderPage();
-    fireEvent.change(screen.getByRole("textbox", { name: /Full Name/ }), {
+    fireEvent.change(screen.getByLabelText(/Full Name/), {
       target: { value: "Hana Girma" },
     });
     fireEvent.submit(container.querySelector("form")!);

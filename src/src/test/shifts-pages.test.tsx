@@ -632,3 +632,31 @@ describe("Shift settings page", () => {
     expect(posts).toBe(0);
   });
 });
+
+describe("Shift assignments page — dates", () => {
+  afterEach(() => {
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  /**
+   * The card printed the raw ISO date ("From 2026-10-02") while the form that
+   * set it, and the rest of the app, used the user's calendar (audit N30).
+   */
+  it("shows an assignment's dates in the user's calendar", async () => {
+    localStorage.setItem("ethr.calendar", "ethiopian");
+    serve({
+      schedule: [
+        assignment({
+          effective_from: "2026-09-11",
+          effective_to: "2026-10-02",
+        }),
+      ],
+    });
+    renderPage(<ShiftAssignmentsPage />);
+
+    // 2026-09-11 is Meskerem 1, 2019; 2026-10-02 is Meskerem 22, 2019.
+    expect(await screen.findByText(/Meskerem 1, 2019/)).toBeInTheDocument();
+    expect(screen.getByText(/Meskerem 22, 2019/)).toBeInTheDocument();
+    expect(screen.queryByText(/2026-09-11/)).not.toBeInTheDocument();
+  });
+});

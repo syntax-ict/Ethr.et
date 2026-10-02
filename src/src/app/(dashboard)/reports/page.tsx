@@ -2,6 +2,10 @@
 
 import { useState, useMemo } from "react";
 import {
+  formatReportCell,
+  reportFieldLabel,
+} from "@/features/reports/field-labels";
+import {
   Download,
   Loader2,
   Users,
@@ -316,7 +320,7 @@ function BuilderTab() {
                     onChange={() => toggleColumn(field)}
                     className="h-3.5 w-3.5 rounded"
                   />
-                  <span className="font-mono text-xs">{field}</span>
+                  <span className="text-xs">{reportFieldLabel(t, field)}</span>
                 </label>
               ))}
             </div>
@@ -370,7 +374,7 @@ function BuilderTab() {
                     <SelectContent>
                       {filterFields.map((field) => (
                         <SelectItem key={field} value={field}>
-                          {field}
+                          {reportFieldLabel(t, field)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -386,8 +390,14 @@ function BuilderTab() {
                     variant="ghost"
                     className="h-8 w-8 p-0"
                     onClick={() => removeFilter(i)}
+                    aria-label={[
+                      t("reports_page.remove_filter", "Remove filter"),
+                      f.field,
+                    ]
+                      .filter(Boolean)
+                      .join(": ")}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </div>
               ))
@@ -420,7 +430,7 @@ function BuilderTab() {
                 </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
-                    {field}
+                    {reportFieldLabel(t, field)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -453,7 +463,7 @@ function BuilderTab() {
                 </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
-                    {field}
+                    {reportFieldLabel(t, field)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -624,15 +634,13 @@ function PreviewResult({ result }: { result: ReportResult }) {
               caption={t("reports_page.title", "Report results")}
               maxHeight="calc(100vh - 280px)"
               headers={headers.map((col) => (
-                <span key={col} className="capitalize">
-                  {col.replace(/_/g, " ").replace(/cents/i, "(¢)")}
-                </span>
+                <span key={col}>{reportFieldLabel(t, col)}</span>
               ))}
               rows={result.data.slice(0, 200).map((row, i) => ({
                 key: String(i),
                 cells: headers.map((h) => (
                   <span key={h} className="whitespace-nowrap">
-                    {row[h] == null ? "—" : String(row[h])}
+                    {formatReportCell(h, row[h])}
                   </span>
                 )),
               }))}
@@ -957,8 +965,12 @@ function SavedTab() {
                     size="sm"
                     variant="ghost"
                     onClick={() => handleDelete(r)}
+                    aria-label={`${t("common.delete", "Delete")} ${r.name}`}
                   >
-                    <Trash2 className="h-3 w-3 text-destructive" />
+                    <Trash2
+                      className="h-3 w-3 text-destructive"
+                      aria-hidden="true"
+                    />
                   </Button>
                 </div>
               </CardContent>
@@ -1088,12 +1100,14 @@ function ScheduleDialog({
                   >
                     <Mail className="h-3 w-3" /> {r}
                     <button
+                      type="button"
                       onClick={() =>
                         setRecipients((p) => p.filter((x) => x !== r))
                       }
                       className="ml-1 hover:text-destructive"
+                      aria-label={`${t("common.remove", "Remove")} ${r}`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3" aria-hidden="true" />
                     </button>
                   </Badge>
                 ))}
@@ -1204,8 +1218,12 @@ function ScheduledTab() {
                   size="sm"
                   variant="ghost"
                   onClick={() => handleDelete(s.public_id, s.report_name)}
+                  aria-label={`${t("common.delete", "Delete")} ${s.report_name}`}
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash2
+                    className="h-4 w-4 text-destructive"
+                    aria-hidden="true"
+                  />
                 </Button>
               </CardContent>
             </Card>

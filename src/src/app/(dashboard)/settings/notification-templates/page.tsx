@@ -215,8 +215,11 @@ export default function NotificationTemplatesPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => openEdit(template)}
+                      // Six cards, one "Edit" each: the template's name tells
+                      // them apart, as the dialog title does.
+                      aria-label={`${t("common.edit")}: ${typeLabel(template.type)}`}
                     >
-                      <Edit2 className="mr-1 h-3 w-3" />
+                      <Edit2 className="mr-1 h-3 w-3" aria-hidden="true" />
                       {t("common.edit")}
                     </Button>
                   </CardContent>

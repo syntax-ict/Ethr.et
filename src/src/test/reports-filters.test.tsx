@@ -154,7 +154,7 @@ describe("Reports builder — filters", () => {
       within(listbox)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toEqual(["from", "to"]);
+    ).toEqual(["From", "To"]);
   });
 
   it("cannot add a filter to the payroll source, which applies none", async () => {

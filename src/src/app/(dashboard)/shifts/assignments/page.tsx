@@ -39,6 +39,7 @@ import {
 import { todayIso, toHHMM } from "@/features/shifts/dates";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 
 /** The API's `detail`, else its first field error, else `fallback`. */
@@ -81,7 +82,16 @@ const TYPE_ICONS = {
 };
 
 function AssignmentsContent() {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate: formatCalendarDate } = useCalendar();
+  // The card printed raw ISO dates while the form beside it set them in the
+  // user's calendar (audit N30). Built from parts, not `new Date(iso)`: that is
+  // UTC midnight, which is the previous day anywhere west of UTC.
+  const showDate = (iso: string | null) => {
+    if (!iso) return "—";
+    const [y, m, d] = iso.split("-").map(Number);
+    return formatCalendarDate(new Date(y, m - 1, d), locale);
+  };
   const TYPE_LABEL: Record<string, string> = {
     Employee: t("shifts_settings_page.employee"),
     Department: t("shifts_settings_page.department"),
@@ -282,9 +292,10 @@ function AssignmentsContent() {
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {a.shift &&
                         `${toHHMM(a.shift.start_time)} – ${toHHMM(a.shift.end_time)} · `}
-                      {t("shift_assignments_page.from")} {a.effective_from}
+                      {t("shift_assignments_page.from")}{" "}
+                      {showDate(a.effective_from)}
                       {a.effective_to
-                        ? ` ${t("shift_assignments_page.to_lc")} ${a.effective_to}`
+                        ? ` ${t("shift_assignments_page.to_lc")} ${showDate(a.effective_to)}`
                         : ` (${t("shift_assignments_page.no_end_date")})`}
                     </p>
                   </div>

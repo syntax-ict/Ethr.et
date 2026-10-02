@@ -172,6 +172,7 @@ export function DashboardDigestDialog({
                         setRecipients((p) => p.filter((x) => x !== r))
                       }
                       className="ml-1 hover:text-destructive"
+                      aria-label={`${t("common.remove", "Remove")} ${r}`}
                     >
                       <X className="h-3 w-3" />
                     </button>

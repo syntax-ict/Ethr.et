@@ -126,7 +126,7 @@ export function AuditLogExplorer({
 
       <Card>
         <CardContent className="p-4">
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
             <div className="sm:col-span-2">
               <Label htmlFor="audit_filter_action" className="text-xs">
                 {t("audit_logs_page.action")}
