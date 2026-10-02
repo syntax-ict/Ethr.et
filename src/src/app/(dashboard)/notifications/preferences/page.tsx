@@ -122,7 +122,9 @@ export default function NotificationPreferencesPage() {
    * blanking every column.
    */
   function isUnavailable(channelKey: string) {
-    return data?.channel_availability?.[channelKey] === false;
+    const availability: Record<string, boolean> | undefined =
+      data?.channel_availability;
+    return availability?.[channelKey] === false;
   }
 
   function toggle(typeKey: string, channelKey: string) {

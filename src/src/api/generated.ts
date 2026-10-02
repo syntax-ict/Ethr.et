@@ -15546,7 +15546,11 @@ export interface operations {
                             "email",
                             "sms"
                         ];
-                        preferences: string;
+                        preferences: {
+                            [key: string]: {
+                                [key: string]: boolean;
+                            };
+                        };
                         /**
                          * @description Which channels this deployment can actually deliver on. SMS depends
                          *     on a configured gateway; without one the client disables the toggle
@@ -15555,7 +15559,7 @@ export interface operations {
                         channel_availability: {
                             in_app: boolean;
                             email: boolean;
-                            sms: string;
+                            sms: boolean;
                         };
                     };
                 };
@@ -15599,7 +15603,11 @@ export interface operations {
                             "email",
                             "sms"
                         ];
-                        preferences: string;
+                        preferences: {
+                            [key: string]: {
+                                [key: string]: boolean;
+                            };
+                        };
                         /**
                          * @description Which channels this deployment can actually deliver on. SMS depends
                          *     on a configured gateway; without one the client disables the toggle
@@ -15608,7 +15616,7 @@ export interface operations {
                         channel_availability: {
                             in_app: boolean;
                             email: boolean;
-                            sms: string;
+                            sms: boolean;
                         };
                     };
                 };

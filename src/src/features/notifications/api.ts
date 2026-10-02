@@ -115,22 +115,9 @@ export function useMarkAsRead() {
 
 // ── Preferences (type × channel opt-in matrix) ───────────────────
 
-type PreferencesContract =
+/** A boolean per notification type per channel, and a boolean per channel. */
+export type NotificationPreferences =
   operations["notificationPreferences.index"]["responses"][200]["content"]["application/json"];
-
-/**
- * From the contract, with two fields corrected by hand: Scramble publishes the
- * `preferences` matrix as a string and `channel_availability.sms` as a string.
- * Both mirror NotificationPreferencesController::index() — a boolean per
- * notification type per channel, and a boolean per channel.
- */
-export type NotificationPreferences = Omit<
-  PreferencesContract,
-  "preferences" | "channel_availability"
-> & {
-  preferences: Record<string, Record<string, boolean>>;
-  channel_availability: Record<string, boolean>;
-};
 
 const PREFERENCES_KEY = ["notifications", "preferences"] as const;
 
