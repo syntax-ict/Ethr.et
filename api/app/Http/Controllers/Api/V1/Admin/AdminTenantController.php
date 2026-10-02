@@ -289,13 +289,27 @@ class AdminTenantController extends Controller
     }
 
     /**
-     * End an impersonation session and put the super admin back in their own.
+     * End an impersonation session and send the super admin back to their own.
+     *
+     * Routed at `POST /auth/impersonation/exit`, inside the ordinary
+     * authenticated group and *outside* `/admin`: the caller is the impersonated
+     * tenant admin on the tenant's own host, where `EnsurePlatformContext` 404s
+     * every `/admin` route (audit N19). The authority is the impersonation
+     * ability on the presented token — checked first, so an ordinary session
+     * gets a 403 and nothing else happens.
      *
      * Revoking the token is not enough on its own: the browser is holding that
      * token in its session cookie, so a bare revoke turns the next request into
-     * a 401 that reads as a random logout. The admin's original plaintext token
-     * is unrecoverable (it was overwritten in the cookie and only its hash is
-     * stored), so restoring them means minting a fresh session here.
+     * a 401 that reads as a random logout. What replaces it depends on the mode:
+     *
+     * - Hostname mode: this request is on {tenant}.ethr.et, and the operator's
+     *   own session lives on admin.ethr.et — impersonate() never touched it. A
+     *   super-admin session minted here would be a cookie for the wrong host,
+     *   refused by EnsureUserBelongsToTenant on its first use. So the tenant
+     *   host's cookie is cleared and the client is told where to go back to.
+     * - Single host: the admin's original plaintext token is unrecoverable (it
+     *   was overwritten in the cookie and only its hash is stored), so restoring
+     *   them means minting a fresh session here.
      */
     public function exitImpersonation(Request $request, SessionCookie $sessionCookie, AuthService $auth): JsonResponse
     {
@@ -304,24 +318,38 @@ class AdminTenantController extends Controller
 
         // Only an active impersonation session (token minted with the
         // 'impersonation' ability) may be ended here. No admin.manage gate:
-        // the caller is acting as the impersonated tenant admin, not a super admin.
+        // the caller is acting as the impersonated tenant admin, not a super
+        // admin. Read from the abilities list, never tokenCan(): an ordinary
+        // token holds '*', which tokenCan('impersonation') would match.
         if ($user === null || $token === null || ! in_array(ImpersonationToken::ABILITY, $token->abilities ?? [], true)) {
             return response()->json([
                 'type' => 'https://ethr.et/errors/not-impersonating',
                 'title' => 'Not Impersonating',
-                'status' => 409,
+                'status' => 403,
                 'detail' => __('auth.not_impersonating'),
-            ], 409)->header('Content-Type', 'application/problem+json');
+            ], 403)->header('Content-Type', 'application/problem+json');
         }
+
+        $impersonator = $this->resolveImpersonator($token->name);
 
         AuditLog::record('admin.tenant.impersonation_ended', null, [
             'impersonated_user_id' => $user->id,
+            'host' => $request->getHost(),
         ]);
 
         // Revoke the impersonation token so it can no longer be used.
         $token->delete();
 
-        $impersonator = $this->resolveImpersonator($token->name);
+        if (SessionHandoff::required()) {
+            $sessionCookie->clear();
+
+            return response()->json([
+                'message' => __('auth.impersonation_ended'),
+                'session_restored' => false,
+                'tenant' => null,
+                'return_url' => $impersonator !== null ? SessionHandoff::platformConsoleUrl() : null,
+            ]);
+        }
 
         if ($impersonator === null) {
             $sessionCookie->clear();
@@ -330,18 +358,22 @@ class AdminTenantController extends Controller
                 'message' => __('auth.impersonation_ended'),
                 'session_restored' => false,
                 'tenant' => null,
+                'return_url' => null,
             ]);
         }
 
         $auth->issueSession($impersonator);
 
+        // The subdomain the client should send as X-Tenant from here on.
+        // Server-authoritative, so exiting still works when the browser has lost
+        // whatever it stashed at the start of the session.
+        $restoredTenant = Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain;
+
         return response()->json([
             'message' => __('auth.impersonation_ended'),
             'session_restored' => true,
-            // The subdomain the client should send as X-Tenant from here on.
-            // Server-authoritative, so exiting still works when the browser has
-            // lost whatever it stashed at the start of the session.
-            'tenant' => Tenant::withoutGlobalScopes()->find($impersonator->tenant_id)?->subdomain,
+            'tenant' => $restoredTenant,
+            'return_url' => null,
         ]);
     }
 

@@ -219,7 +219,7 @@ test('an impersonated session can exit impersonation, revoking its token', funct
     $token = $tenantAdmin->createToken('impersonation:1', ['*', 'impersonation'], now()->addMinutes(30))->plainTextToken;
 
     test()->withToken($token)
-        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/admin/exit-impersonation")
+        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/auth/impersonation/exit")
         ->assertOk()
         ->assertJsonPath('message', 'Impersonation session ended.');
 
@@ -239,10 +239,13 @@ test('exiting impersonation restores the super admin to their own session', func
 
     $response = test()->withToken($token)
         ->withHeaders(fromSpaOrigin())
-        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/admin/exit-impersonation")
+        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/auth/impersonation/exit")
         ->assertOk()
         ->assertJsonPath('session_restored', true)
-        ->assertJsonPath('tenant', $adminTenant->subdomain);
+        ->assertJsonPath('tenant', $adminTenant->subdomain)
+        // Single host: the console is on this origin, so there is nowhere else
+        // to send the browser — the client navigates to /admin itself.
+        ->assertJsonPath('return_url', null);
 
     // A fresh session for the admin, not the revoked impersonation token: the
     // browser is holding that cookie, so leaving it stale would 401 on the very
@@ -267,7 +270,7 @@ test('exiting a token whose impersonator is no longer a super admin restores not
 
     test()->withToken($token)
         ->withHeaders(fromSpaOrigin())
-        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/admin/exit-impersonation")
+        ->postJson("http://{$target->subdomain}.ethr.test/api/v1/auth/impersonation/exit")
         ->assertOk()
         ->assertJsonPath('session_restored', false)
         ->assertCookieExpired(SessionCookie::NAME);
@@ -280,7 +283,14 @@ test('a normal (non-impersonation) session cannot exit impersonation', function 
     $user = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
     $token = $user->createToken('auth', ['*'])->plainTextToken;
 
+    // 403, not the 409 this used to answer: the endpoint now sits in the
+    // ordinary authenticated group, reachable by every tenant user, so refusing
+    // a session without the impersonation ability is an authorisation decision.
     test()->withToken($token)
-        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/exit-impersonation")
-        ->assertStatus(409);
+        ->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/impersonation/exit")
+        ->assertForbidden()
+        ->assertJsonPath('type', 'https://ethr.et/errors/not-impersonating');
+
+    // Refused before anything happened: the caller's own session survives.
+    expect($user->tokens()->count())->toBe(1);
 });

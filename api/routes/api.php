@@ -237,6 +237,13 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureUserBelongsT
         Route::post('/mfa/disable', [MfaSetupController::class, 'disable']);
         Route::post('/mfa/verify', MfaVerifyController::class);
 
+        // Ending an impersonation. Here, not under /admin: the caller is the
+        // impersonated tenant admin on the tenant's own host, where
+        // EnsurePlatformContext 404s every /admin route (audit N19). Authorised
+        // by the impersonation ability on the presented token, checked in the
+        // controller; an ordinary session gets 403.
+        Route::post('/impersonation/exit', [AdminTenantController::class, 'exitImpersonation']);
+
         // Active session management
         Route::get('/sessions', [SessionController::class, 'index']);
         Route::post('/sessions/revoke-all', [SessionController::class, 'revokeAll']);
@@ -674,7 +681,6 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnsureUserBelongsT
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
-            Route::post('/exit-impersonation', [AdminTenantController::class, 'exitImpersonation']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);

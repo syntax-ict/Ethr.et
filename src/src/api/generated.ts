@@ -3991,6 +3991,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/impersonation/exit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End an impersonation session and send the super admin back to their own
+         * @description Routed at `POST /auth/impersonation/exit`, inside the ordinary
+         *     authenticated group and *outside* `/admin`: the caller is the impersonated
+         *     tenant admin on the tenant's own host, where `EnsurePlatformContext` 404s
+         *     every `/admin` route (audit N19). The authority is the impersonation
+         *     ability on the presented token — checked first, so an ordinary session
+         *     gets a 403 and nothing else happens.
+         *
+         *     Revoking the token is not enough on its own: the browser is holding that
+         *     token in its session cookie, so a bare revoke turns the next request into
+         *     a 401 that reads as a random logout. What replaces it depends on the mode:
+         *
+         *     - Hostname mode: this request is on {tenant}.ethr.et, and the operator's
+         *       own session lives on admin.ethr.et — impersonate() never touched it. A
+         *       super-admin session minted here would be a cookie for the wrong host,
+         *       refused by EnsureUserBelongsToTenant on its first use. So the tenant
+         *       host's cookie is cleared and the client is told where to go back to.
+         *     - Single host: the admin's original plaintext token is unrecoverable (it
+         *       was overwritten in the cookie and only its hash is stored), so restoring
+         *       them means minting a fresh session here.
+         */
+        post: operations["adminTenant.exitImpersonation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants": {
         parameters: {
             query?: never;
@@ -4078,30 +4116,6 @@ export interface paths {
          *     left no exit path for the audit trail to close.
          */
         post: operations["adminTenant.impersonate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/exit-impersonation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * End an impersonation session and put the super admin back in their own
-         * @description Revoking the token is not enough on its own: the browser is holding that
-         *     token in its session cookie, so a bare revoke turns the next request into
-         *     a 401 that reads as a random logout. The admin's original plaintext token
-         *     is unrecoverable (it was overwritten in the cookie and only its hash is
-         *     stored), so restoring them means minting a fresh session here.
-         */
-        post: operations["adminTenant.exitImpersonation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -18403,6 +18417,61 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "adminTenant.exitImpersonation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: string | null;
+                        return_url: null;
+                    } | {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: null;
+                        return_url: null;
+                    } | {
+                        /** @constant */
+                        message: "Impersonation session ended.";
+                        session_restored: boolean;
+                        tenant: null;
+                        return_url: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/not-impersonating";
+                        /** @constant */
+                        title: "Not Impersonating";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "No active impersonation session.";
+                    };
+                };
+            };
+        };
+    };
     "adminTenant.index": {
         parameters: {
             query?: {
@@ -18649,58 +18718,6 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationException"];
-        };
-    };
-    "adminTenant.exitImpersonation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        message: "Impersonation session ended.";
-                        session_restored: boolean;
-                        /**
-                         * @description The subdomain the client should send as X-Tenant from here on.
-                         *     Server-authoritative, so exiting still works when the browser has
-                         *     lost whatever it stashed at the start of the session.
-                         */
-                        tenant: string | null;
-                    } | {
-                        /** @constant */
-                        message: "Impersonation session ended.";
-                        session_restored: boolean;
-                        tenant: null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/not-impersonating";
-                        /** @constant */
-                        title: "Not Impersonating";
-                        /** @constant */
-                        status: 409;
-                        /** @constant */
-                        detail: "No active impersonation session.";
-                    };
-                };
-            };
         };
     };
     "adminTenant.backup": {
