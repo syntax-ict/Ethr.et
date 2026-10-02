@@ -88,3 +88,19 @@ describe("<AppHeader> calendar toggle", () => {
     await waitFor(() => expect(body).toEqual({ calendar: "gregorian" }));
   });
 });
+
+describe("<AppHeader> organisation name", () => {
+  it("keeps a long name to one truncated line, with the full name as its title", async () => {
+    // Audit N34: at phone width the name wrapped over its own logo and crowded
+    // the header icons.
+    renderHeader();
+
+    const name = await screen.findByText(LONG_NAME);
+    expect(name).toHaveClass("truncate");
+    expect(name).toHaveAttribute("title", LONG_NAME);
+    // A flex child only truncates when every flex ancestor up to the
+    // constrained one may shrink below its content.
+    expect(name.parentElement).toHaveClass("min-w-0");
+    expect(name.parentElement?.parentElement).toHaveClass("min-w-0");
+  });
+});

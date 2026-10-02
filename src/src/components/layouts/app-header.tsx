@@ -115,7 +115,9 @@ export function AppHeader() {
             <Menu className="h-5 w-5" />
             <span className="sr-only">{t("nav.open_menu", "Open menu")}</span>
           </Button>
-          <div className="flex items-center gap-2 lg:hidden">
+          {/* min-w-0 lets a long organisation name truncate instead of
+              wrapping over the logo and pushing the icons aside (N34). */}
+          <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <TenantLogoBadge size="sm" />
           </div>
 
@@ -141,7 +143,7 @@ export function AppHeader() {
         </button>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           {/* Mobile search trigger (the full search box is desktop-only) */}
           <Button
             variant="ghost"

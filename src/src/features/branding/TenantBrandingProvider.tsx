@@ -100,10 +100,15 @@ export function TenantLogoBadge({
     size === "sm" ? "h-7 w-7 rounded-md text-xs" : "h-8 w-8 rounded-lg text-sm";
   const initial = (tenant?.name ?? "E").trim().charAt(0).toUpperCase();
 
+  const name = tenant?.name ?? "ETHR";
+
+  // One line, truncated: at phone width a long organisation name wrapped over
+  // its own logo and crowded the header icons (audit N34). The logo keeps its
+  // size (shrink-0) and the full name stays available as the tooltip.
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <div
-        className={`flex ${boxCls} items-center justify-center bg-primary text-primary-foreground font-bold overflow-hidden`}
+        className={`flex ${boxCls} shrink-0 items-center justify-center bg-primary text-primary-foreground font-bold overflow-hidden`}
       >
         {tenant?.logo_path ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -124,13 +129,14 @@ export function TenantLogoBadge({
       </div>
       {showName && (
         <span
-          className={
+          title={name}
+          className={`min-w-0 truncate ${
             size === "sm"
               ? "text-sm font-semibold"
               : "text-base font-bold tracking-tight"
-          }
+          }`}
         >
-          {tenant?.name ?? "ETHR"}
+          {name}
         </span>
       )}
     </div>
