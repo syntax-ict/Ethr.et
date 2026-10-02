@@ -5604,7 +5604,7 @@ export interface components {
             name: string;
             description: string;
             is_active: boolean;
-            permissions?: unknown[];
+            permissions?: string[];
             users_count?: number;
             /** Format: date-time */
             created_at: string | null;
@@ -6509,11 +6509,11 @@ export interface components {
              */
             old_value: string | null;
             new_value: string | null;
-            status: string;
-            employee_public_id: string;
-            employee_name: string;
-            requested_by_name: string;
-            reviewed_by_name: string;
+            status: components["schemas"]["ProfileUpdateStatus"];
+            employee_public_id: string | null;
+            employee_name: string | null;
+            requested_by_name: string | null;
+            reviewed_by_name: string | null;
             /** Format: date-time */
             reviewed_at: string | null;
             review_notes: string | null;
@@ -6522,6 +6522,17 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * ProfileUpdateStatus
+         * @description | |
+         *     |---|
+         *     | `pending` <br/>  |
+         *     | `approved` <br/>  |
+         *     | `rejected` <br/>  |
+         *     | `withdrawn` <br/> Retracted by the employee before anyone reviewed it. Distinct from REJECTED so HR's queue metrics do not count an employee changing their mind as a decision a reviewer made. |
+         * @enum {string}
+         */
+        ProfileUpdateStatus: "pending" | "approved" | "rejected" | "withdrawn";
         /** QrAttendanceRequest */
         QrAttendanceRequest: {
             idempotency_key: string;
@@ -7741,7 +7752,7 @@ export interface components {
             email: string;
             username: string | null;
             phone: string | null;
-            role: string;
+            role: components["schemas"]["UserRole"];
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -21564,7 +21575,7 @@ export interface operations {
                          *     returned here the edit form had nothing to prefill from — an employee
                          *     updating one emergency-contact field silently blanked the rest.
                          */
-                        emergency_contacts: unknown[];
+                        emergency_contacts: components["schemas"]["EmergencyContactResource"][];
                         bank_details: {
                             public_id: string;
                             bank_name: string;
@@ -21580,13 +21591,13 @@ export interface operations {
                          *     eager-loading them this 500s under `preventLazyLoading`, which is on
                          *     everywhere except production.
                          */
-                        pending_updates: unknown[];
+                        pending_updates: components["schemas"]["ProfileUpdateRequestResource"][];
                         /**
                          * @description Decided requests, so "HR rejected this and here is why" reaches the
                          *     employee on the page and not only in a notification they may have
                          *     dismissed. Capped — this is a recent-activity list, not an archive.
                          */
-                        recent_updates: unknown[];
+                        recent_updates: components["schemas"]["ProfileUpdateRequestResource"][];
                         /**
                          * @description Which side of the approval line each field falls on. Shipped rather
                          *     than hardcoded in the client so the two can never drift.
@@ -21597,7 +21608,7 @@ export interface operations {
                                 "marital_status",
                                 "nationality"
                             ];
-                            gated: unknown[];
+                            gated: string[];
                         };
                     };
                 };
@@ -21629,13 +21640,11 @@ export interface operations {
                         pending_approval: {
                             /** @constant */
                             status: "pending_approval";
-                            fields: {
-                                [key: string]: unknown;
-                            };
-                            requests: unknown[];
+                            fields: string[];
+                            requests: components["schemas"]["ProfileUpdateRequestResource"][];
                             /** @constant */
                             message: "Changes to sensitive fields require HR approval.";
-                        };
+                        } | null;
                         was_duplicate: boolean;
                     };
                 };
@@ -22050,7 +22059,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[][];
+                    "application/json": {
+                        [key: string]: {
+                            name: string;
+                            module: string;
+                            action: string;
+                            description: string;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -22078,7 +22094,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: (components["schemas"]["CustomRoleResource"] & {
-                            permissions: unknown[];
+                            permissions: string[];
                         })[];
                         links: {
                             first: string | null;
@@ -22132,7 +22148,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomRoleResource"] & {
-                        permissions: unknown[];
+                        permissions: string[];
                     };
                 };
             };
@@ -22160,7 +22176,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomRoleResource"] & {
-                        permissions: unknown[];
+                        permissions: string[];
                     };
                 };
             };
@@ -22192,7 +22208,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomRoleResource"] & {
-                        permissions: unknown[];
+                        permissions: string[];
                     };
                 };
             };

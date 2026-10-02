@@ -16,11 +16,9 @@ export type UserRole = Schemas["UserRole"];
 
 /**
  * Shapes come from the generated contract; `username` is the optional login
- * handle, usable when the tenant enables the `username` identifier. `role` is
- * the `UserRole` cast's value, which Scramble widens to `string`.
+ * handle, usable when the tenant enables the `username` identifier.
  */
-export type TenantUser = Omit<Schemas["UserResource"], "status" | "role"> & {
-  role: UserRole;
+export type TenantUser = Omit<Schemas["UserResource"], "status"> & {
   status: UserStatus;
 };
 

@@ -1,32 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { components } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
 type Schemas = components["schemas"];
 
 /**
- * `permissions` is `pluck('name')` over the loaded relation, which Scramble
- * publishes as `unknown[]`; it is the role's permission names. `index`, `show`,
- * `store` and `update` all load it.
+ * A custom role with its permission names. `index`, `show`, `store` and
+ * `update` all load the relation, which is why the contract marks
+ * `permissions` present here.
  */
-export type CustomRole = Omit<Schemas["CustomRoleResource"], "permissions"> & {
-  permissions: string[];
-};
+export type CustomRole =
+  operations["roles.show"]["responses"][200]["content"]["application/json"];
 
-/**
- * One row of `GET /permissions`: `Permission` rows selected as these four
- * columns and grouped by `module`. Scramble reads the `groupBy` as
- * `string[][]`, so the shape is stated here from CustomRoleController.
- */
-export interface PermissionEntry {
-  name: string;
-  module: string;
-  action: string;
-  description: string;
-}
+/** `GET /permissions`: every permission, keyed by module. */
+export type PermissionsByModule =
+  operations["customRole.permissions"]["responses"][200]["content"]["application/json"];
 
-export type PermissionsByModule = Record<string, PermissionEntry[]>;
+export type PermissionEntry = PermissionsByModule[string][number];
 
 export function useCustomRoles(params?: {
   page?: number;

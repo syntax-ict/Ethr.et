@@ -19,7 +19,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'username' => $this->username,
             'phone' => $this->phone,
-            'role' => $this->role?->value,
+            'role' => $this->role,
             'status' => $this->status,
             'locale' => $this->locale,
             'mfa_enabled' => (bool) $this->mfa_enabled,

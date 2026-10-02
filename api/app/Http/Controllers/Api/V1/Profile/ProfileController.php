@@ -34,6 +34,13 @@ class ProfileController extends Controller
         $employee?->loadMissing(['department', 'position', 'branch', 'grade', 'supervisor']);
         $photoPath = $employee?->photo_path;
 
+        // A plain list, so the API contract types it as one; `array_keys()`
+        // it publishes as `unknown[]`.
+        $gatedFields = [];
+        foreach (array_keys(ProfileUpdateRequest::GATED_FIELDS) as $field) {
+            $gatedFields[] = (string) $field;
+        }
+
         return response()->json([
             'user' => [
                 'public_id' => $user->public_id,
@@ -82,8 +89,8 @@ class ProfileController extends Controller
             'emergency_contacts' => $employee instanceof Employee
                 ? EmergencyContactResource::collection(
                     $employee->emergencyContacts()->orderBy('priority')->get()
-                )->resolve($request)
-                : [],
+                )
+                : EmergencyContactResource::collection([]),
             'bank_details' => $employee instanceof Employee
                 ? $employee->bankDetails()
                     ->orderByDesc('is_primary')
@@ -110,8 +117,8 @@ class ProfileController extends Controller
                         ->where('status', ProfileUpdateStatus::PENDING)
                         ->orderByDesc('created_at')
                         ->get()
-                )->resolve($request)
-                : [],
+                )
+                : ProfileUpdateRequestResource::collection([]),
             // Decided requests, so "HR rejected this and here is why" reaches the
             // employee on the page and not only in a notification they may have
             // dismissed. Capped — this is a recent-activity list, not an archive.
@@ -123,13 +130,13 @@ class ProfileController extends Controller
                         ->orderByDesc('reviewed_at')
                         ->limit(10)
                         ->get()
-                )->resolve($request)
-                : [],
+                )
+                : ProfileUpdateRequestResource::collection([]),
             // Which side of the approval line each field falls on. Shipped rather
             // than hardcoded in the client so the two can never drift.
             'editable_fields' => [
                 'self' => ProfileUpdateRequest::SELF_FIELDS,
-                'gated' => array_keys(ProfileUpdateRequest::GATED_FIELDS),
+                'gated' => $gatedFields,
             ],
         ]);
     }
@@ -216,19 +223,17 @@ class ProfileController extends Controller
         // Gated fields are staged for HR review rather than applied. Before the
         // profile_update_requests table existed this branch reported the change as
         // "pending approval" and then discarded the value entirely.
-        $pendingRequest = null;
-        if ($sensitiveChanges !== []) {
-            $staged = $this->profileUpdates->stage($employee, $user, $sensitiveChanges);
-
-            if ($staged->isNotEmpty()) {
-                $pendingRequest = [
-                    'status' => 'pending_approval',
-                    'fields' => $staged->pluck('field_name')->all(),
-                    'requests' => ProfileUpdateRequestResource::collection($staged)->resolve(),
-                    'message' => 'Changes to sensitive fields require HR approval.',
-                ];
-            }
-        }
+        // A ternary rather than null-then-assign, so the API contract sees that
+        // `pending_approval` can be null.
+        $staged = $sensitiveChanges !== []
+            ? $this->profileUpdates->stage($employee, $user, $sensitiveChanges)
+            : collect();
+        $pendingRequest = $staged->isEmpty() ? null : [
+            'status' => 'pending_approval',
+            'fields' => $staged->map(fn (ProfileUpdateRequest $request) => $request->field_name)->values()->all(),
+            'requests' => ProfileUpdateRequestResource::collection($staged),
+            'message' => 'Changes to sensitive fields require HR approval.',
+        ];
 
         return response()->json([
             'message' => 'Profile updated successfully.',

@@ -4,32 +4,13 @@ import type { components, operations } from "@/api/generated";
 
 type Schemas = components["schemas"];
 
-// Shapes come from the generated contract. GET /profile assembles nested
-// resources with `->resolve()`, which Scramble cannot follow, so those lists
-// are restated from the resources they resolve — each override says why.
+// Shapes come from the generated contract; the one override says why.
 
 /**
  * A change to an approval-gated field, staged until HR reviews it — name,
  * name_am, TIN, date of birth and bank details.
- *
- * The four names are `?->` reads (and `displayName()` is `?string`), so each
- * can be null; Scramble publishes them as plain strings. `status` is the
- * ProfileUpdateStatus enum's value.
  */
-export type ProfileUpdateRequest = Omit<
-  Schemas["ProfileUpdateRequestResource"],
-  | "status"
-  | "employee_public_id"
-  | "employee_name"
-  | "requested_by_name"
-  | "reviewed_by_name"
-> & {
-  status: "pending" | "approved" | "rejected" | "withdrawn";
-  employee_public_id: string | null;
-  employee_name: string | null;
-  requested_by_name: string | null;
-  reviewed_by_name: string | null;
-};
+export type ProfileUpdateRequest = Schemas["ProfileUpdateRequestResource"];
 
 export type EmergencyContact = Schemas["EmergencyContactResource"];
 
@@ -50,25 +31,9 @@ export type ProfilePreferences = Omit<
   calendar: NonNullable<Schemas["UpdateProfilePreferencesRequest"]["calendar"]>;
 };
 
-/**
- * Overrides: `emergency_contacts`, `pending_updates` and `recent_updates` are
- * resource collections `->resolve()`d inline (Scramble: `unknown[]`), and
- * `editable_fields` lists model constants it types as a tuple and `unknown[]`.
- * `recent_updates` is the last ten decided requests.
- */
-export type ProfileResponse = Omit<
-  ProfileContract,
-  | "preferences"
-  | "emergency_contacts"
-  | "pending_updates"
-  | "recent_updates"
-  | "editable_fields"
-> & {
+/** `recent_updates` is the last ten decided requests. */
+export type ProfileResponse = Omit<ProfileContract, "preferences"> & {
   preferences: ProfilePreferences;
-  emergency_contacts: EmergencyContact[];
-  pending_updates: ProfileUpdateRequest[];
-  recent_updates: ProfileUpdateRequest[];
-  editable_fields: { self: string[]; gated: string[] };
 };
 
 const PROFILE_KEY = ["profile", "me"] as const;
@@ -87,24 +52,9 @@ export function useMyProfile() {
 /** Gated fields in this body are staged for HR review, not applied. */
 export type UpdateProfilePayload = Schemas["UpdateProfileRequest"];
 
-type UpdateProfileContract =
+/** `pending_approval` is null when nothing was staged for review. */
+export type UpdateProfileResult =
   operations["profile.update"]["responses"][200]["content"]["application/json"];
-
-/**
- * `pending_approval` is null when nothing was staged, which Scramble misses;
- * its `fields` is a `pluck()->all()` list and `requests` a resolved collection.
- */
-export type UpdateProfileResult = Omit<
-  UpdateProfileContract,
-  "pending_approval"
-> & {
-  pending_approval:
-    | (Omit<
-        UpdateProfileContract["pending_approval"],
-        "fields" | "requests"
-      > & { fields: string[]; requests: ProfileUpdateRequest[] })
-    | null;
-};
 
 /** Everything the profile screens touch is derived from GET /profile. */
 function useProfileInvalidation() {
