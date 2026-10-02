@@ -60,6 +60,7 @@ import {
   useScheduleReport,
   useDeleteScheduledReport,
   type ReportConfig,
+  REPORT_FILTERS,
   type ReportResult,
   type ReportSourceKey,
   type ReportSources,
@@ -170,6 +171,8 @@ function BuilderTab() {
   const sources: Partial<ReportSources> = sourcesData?.sources ?? {};
   const sourceMeta = sources[config.source];
   const availableFields = sourceMeta?.fields ?? [];
+  // Filters are not columns: only these keys reach the query.
+  const filterFields = REPORT_FILTERS[config.source];
   const selectedColumns = config.columns ?? [];
 
   function toggleColumn(field: string) {
@@ -189,7 +192,8 @@ function BuilderTab() {
   }
 
   function addFilter() {
-    setFilters((p) => [...p, { field: availableFields[0] ?? "", value: "" }]);
+    if (filterFields.length === 0) return;
+    setFilters((p) => [...p, { field: filterFields[0], value: "" }]);
   }
 
   function updateFilter(i: number, patch: Partial<FilterRow>) {
@@ -329,13 +333,21 @@ function BuilderTab() {
               variant="ghost"
               className="h-6 px-2"
               onClick={addFilter}
+              disabled={filterFields.length === 0}
               aria-label={t("reports_page.add_filter", "Add filter")}
             >
               <Plus className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
-            {filters.length === 0 ? (
+            {filterFields.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "reports_page.source_not_filterable",
+                  "This data source cannot be filtered.",
+                )}
+              </p>
+            ) : filters.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 {t("reports_page.no_filters")}
               </p>
@@ -346,11 +358,17 @@ function BuilderTab() {
                     value={f.field}
                     onValueChange={(v) => updateFilter(i, { field: v })}
                   >
-                    <SelectTrigger className="h-8 flex-1">
+                    <SelectTrigger
+                      className="h-8 flex-1"
+                      aria-label={t(
+                        "reports_page.filter_field",
+                        "Filter field",
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableFields.map((field) => (
+                      {filterFields.map((field) => (
                         <SelectItem key={field} value={field}>
                           {field}
                         </SelectItem>

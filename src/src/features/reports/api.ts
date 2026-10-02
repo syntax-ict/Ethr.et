@@ -15,6 +15,21 @@ export type ReportSources = Ok<"sources">["sources"];
 export type ReportSourceKey = keyof ReportSources;
 
 /**
+ * The `filters` keys ReportEngine actually applies, per source; it ignores any
+ * other key without error. These are not the source's columns — offering the
+ * columns let a user filter on `gender` or `name` and get every row back.
+ * Employees' `department_id` is left out: it takes the internal numeric id,
+ * which the API never exposes. The contract does not publish this list, so it
+ * mirrors `ReportEngine::query*()` and must move with it.
+ */
+export const REPORT_FILTERS: Record<ReportSourceKey, readonly string[]> = {
+  employees: ["status"],
+  attendance: ["from", "to"],
+  leave: ["year"],
+  payroll: [],
+};
+
+/**
  * The body of `POST /reports/generate`. Scramble reads the `array` rule on
  * `filters` as a list; ReportEngine reads it as a field → value map.
  * `format` belongs to `/reports/export`, which the page does not call.
