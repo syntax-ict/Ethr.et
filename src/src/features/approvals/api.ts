@@ -9,21 +9,14 @@ export type BatchApprovalPayload =
   components["schemas"]["BatchApprovalRequest"];
 
 /**
- * Hand-written: the contract publishes `results` as `unknown[][]`. This mirrors
- * `ApprovalController::batch()`, which answers **200 for the batch** and
- * reports each item separately — an item that was already decided, or that the
- * caller may not review, comes back as `status: "error"` with a `detail`, not
- * as an HTTP error.
+ * `ApprovalController::batch()` answers **200 for the batch** and reports each
+ * item separately — an item that was already decided, or that the caller may
+ * not review, comes back as `status: "error"` with a `detail`, not as an HTTP
+ * error.
  */
-export interface BatchApprovalResult {
-  public_id: string;
-  status: "approved" | "rejected" | "error";
-  detail?: string;
-}
-
-export interface BatchApprovalResponse {
-  results: BatchApprovalResult[];
-}
+export type BatchApprovalResponse =
+  operations["approval.batch"]["responses"][200]["content"]["application/json"];
+export type BatchApprovalResult = BatchApprovalResponse["results"][number];
 
 /** The items in a batch response that were not carried out. */
 export function failedApprovals(

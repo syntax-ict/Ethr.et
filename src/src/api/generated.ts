@@ -15287,7 +15287,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        results: unknown[][];
+                        results: {
+                            public_id: string;
+                            /** @enum {string} */
+                            status: "approved" | "rejected" | "error";
+                            detail?: string;
+                        }[];
                     };
                 };
             };

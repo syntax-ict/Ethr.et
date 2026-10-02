@@ -133,10 +133,25 @@ class ApprovalController extends Controller
             throw new AuthorizationException;
         }
 
-        $user = $request->user();
+        return response()->json(['results' => $this->decideAll($request->input('actions'), $request->user())]);
+    }
+
+    /**
+     * One result per action, in order. The shape is stated for the API
+     * contract, which cannot follow the `array_merge` of the per-kind results
+     * (it published `unknown[][]`); every process*Action() below returns a
+     * `status` of approved, rejected or error, and a `detail` only with error.
+     *
+     * @param  array<int, array<string, mixed>>  $actions
+     * @return list<array<string, mixed>>
+     *
+     * @scramble-return list<array{public_id: string, status: 'approved'|'rejected'|'error', detail?: string}>
+     */
+    private function decideAll(array $actions, User $user): array
+    {
         $results = [];
 
-        foreach ($request->input('actions') as $action) {
+        foreach ($actions as $action) {
             $result = match ($action['type']) {
                 'leave' => $this->processLeaveAction($action, $user),
                 'correction' => $this->processCorrectionAction($action, $user),
@@ -147,7 +162,7 @@ class ApprovalController extends Controller
             $results[] = array_merge(['public_id' => $action['public_id']], $result);
         }
 
-        return response()->json(['results' => $results]);
+        return $results;
     }
 
     /**
