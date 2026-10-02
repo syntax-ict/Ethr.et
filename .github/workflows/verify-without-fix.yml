@@ -91,7 +91,7 @@ jobs:
           } 2>&1 | tee verify.log
           { echo '```'; cat verify.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: verify-log
           path: api/verify.log
