@@ -51,27 +51,27 @@ class SettingsController extends Controller
                 'locale' => $tenant->default_locale,
             ],
             'branding' => [
-                'logo_url' => $tenant->logo_path,
-                'theme' => $tenant->theme ?? [],
+                'logo_url' => $tenant->logo_path === null ? null : $tenant->logo_path,
+                'theme' => $this->brandTheme($tenant),
             ],
             // Attendance rules (grace period, OT cap, confidence threshold) live
             // on the AttendanceSetting model and are served by GET/PUT
             // /attendance/settings so all attendance configuration stays in one
             // place.
             'leave' => [
-                'working_days' => $tenant->settings['working_days'] ?? [1, 2, 3, 4, 5],
+                'working_days' => $this->workingDays($tenant),
             ],
             'payroll' => [
-                'pay_period' => $tenant->settings['pay_period'] ?? 'monthly',
-                'run_day' => $tenant->settings['run_day'] ?? 25,
-                'fiscal_year_start_month' => $tenant->settings['fiscal_year_start_month'] ?? 1,
-                'pagumen_proration_strategy' => $tenant->settings['pagumen_proration_strategy'] ?? 'full_month',
+                'pay_period' => (string) ($tenant->settings['pay_period'] ?? 'monthly'),
+                'run_day' => (int) ($tenant->settings['run_day'] ?? 25),
+                'fiscal_year_start_month' => (int) ($tenant->settings['fiscal_year_start_month'] ?? 1),
+                'pagumen_proration_strategy' => (string) ($tenant->settings['pagumen_proration_strategy'] ?? 'full_month'),
                 // Retirement-case eligibility dates are computed against this.
                 // No single figure is authoritative across every Ethiopian
                 // sector, so it defaults to 60 but stays tenant-overridable
                 // rather than hard-coded, the same treatment as the tax
                 // brackets and Pagumen strategy above.
-                'retirement_age' => $tenant->settings['retirement_age'] ?? 60,
+                'retirement_age' => (int) ($tenant->settings['retirement_age'] ?? 60),
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
@@ -213,6 +213,36 @@ class SettingsController extends Controller
             'expires_at' => $apiKey->fresh()->expires_at->toIso8601String(),
             'message' => 'Store this token securely — it will not be shown again.',
         ], 201);
+    }
+
+    /**
+     * ISO weekday numbers (1 = Monday) the tenant works, Monday to Friday
+     * unless it has said otherwise.
+     *
+     * @return list<int>
+     */
+    private function workingDays(Tenant $tenant): array
+    {
+        $days = [];
+        foreach ($tenant->settings['working_days'] ?? [1, 2, 3, 4, 5] as $day) {
+            $days[] = (int) $day;
+        }
+
+        return $days;
+    }
+
+    /**
+     * The colour map `updateBranding()` writes; a colour cleared there is null.
+     * Stated for the API contract, which types an `array`-cast column only as
+     * `unknown[]`.
+     *
+     * @return array<string, mixed>
+     *
+     * @scramble-return array{primary_color?: string|null, secondary_color?: string|null, accent_color?: string|null}
+     */
+    private function brandTheme(Tenant $tenant): array
+    {
+        return $tenant->theme ?? [];
     }
 
     private function ssoConfig(Tenant $tenant): array

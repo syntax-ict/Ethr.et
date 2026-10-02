@@ -2,42 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
-type SettingsContract =
+/** `GET /settings`. */
+export type TenantSettings =
   operations["settings.index"]["responses"][200]["content"]["application/json"];
 
-export type BrandColorKey =
-  "primary_color" | "secondary_color" | "accent_color";
-
-/**
- * `GET /settings`, from the generated contract except where Scramble guessed.
- *
- * Every `$tenant->settings['x'] ?? <default>` is published as
- * `string | <default literal>` and `$tenant->theme ?? []` as `string | string[]`.
- * Those groups mirror `SettingsController::index` instead: the settings JSON
- * stores numbers where the defaults are numbers, `logo_url` is the nullable
- * `tenants.logo_path`, and `theme` is the color map `updateBranding` writes.
- */
-export type TenantSettings = Omit<
-  SettingsContract,
-  "branding" | "leave" | "payroll" | "security"
-> & {
-  branding: {
-    logo_url: string | null;
-    theme: Partial<Record<BrandColorKey, string>>;
-  };
-  leave: { working_days: number[] };
-  payroll: {
-    pay_period: string;
-    run_day: number;
-    fiscal_year_start_month: number;
-    pagumen_proration_strategy: string;
-    retirement_age: number;
-  };
-  security: {
-    mfa_policy: string;
-    session_timeout_minutes: number;
-  };
-};
+/** The colours `updateBranding` writes into `theme`. */
+export type BrandColorKey = keyof TenantSettings["branding"]["theme"];
 
 export type SsoSettings = TenantSettings["sso"];
 

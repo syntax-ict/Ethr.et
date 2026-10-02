@@ -20035,8 +20035,12 @@ export interface operations {
                             locale: string;
                         };
                         branding: {
-                            logo_url: string;
-                            theme: string | string[];
+                            logo_url: string | null;
+                            theme: {
+                                primary_color?: string | null;
+                                secondary_color?: string | null;
+                                accent_color?: string | null;
+                            };
                         };
                         /**
                          * @description Attendance rules (grace period, OT cap, confidence threshold) live
@@ -20045,19 +20049,13 @@ export interface operations {
                          *     place.
                          */
                         leave: {
-                            working_days: string | [
-                                1,
-                                2,
-                                3,
-                                4,
-                                5
-                            ];
+                            working_days: number[];
                         };
                         payroll: {
-                            pay_period: string | "monthly";
-                            run_day: string | 25;
-                            fiscal_year_start_month: string | 1;
-                            pagumen_proration_strategy: string | "full_month";
+                            pay_period: string;
+                            run_day: number;
+                            fiscal_year_start_month: number;
+                            pagumen_proration_strategy: string;
                             /**
                              * @description Retirement-case eligibility dates are computed against this.
                              *     No single figure is authoritative across every Ethiopian
@@ -20065,7 +20063,7 @@ export interface operations {
                              *     rather than hard-coded, the same treatment as the tax
                              *     brackets and Pagumen strategy above.
                              */
-                            retirement_age: string | 60;
+                            retirement_age: number;
                         };
                         security: {
                             mfa_policy: string;

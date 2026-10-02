@@ -35,7 +35,8 @@ type ColorKey = BrandColorKey;
 
 export interface BrandingCardProps {
   logoUrl?: string | null;
-  theme?: Partial<Record<ColorKey, string>> | null;
+  /** A colour cleared through `PUT /settings/branding` is stored as null. */
+  theme?: Partial<Record<ColorKey, string | null>> | null;
 }
 
 export function BrandingCard({ logoUrl, theme }: BrandingCardProps) {
