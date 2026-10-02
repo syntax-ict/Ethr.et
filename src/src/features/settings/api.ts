@@ -43,16 +43,11 @@ export type SsoSettings = TenantSettings["sso"];
 
 /**
  * `PUT /settings` merges `settings` into the tenant's settings JSON
- * (`array_merge` in `SettingsController::update`). The contract types only the
- * three keys the FormRequest validates; the others here are keys `index` reads
- * back and this app writes, which the server accepts unvalidated.
+ * (`array_merge` in `SettingsController::update`). Every key it accepts is in
+ * the contract; any other is a 422 (audit N6).
  */
 export type SettingsUpdate =
-  components["schemas"]["UpdateSettingsRequest"]["settings"] & {
-    mfa_policy?: string;
-    session_timeout_minutes?: number;
-    run_day?: number;
-  };
+  components["schemas"]["UpdateSettingsRequest"]["settings"];
 
 export type SsoUpdate = components["schemas"]["UpdateSsoRequest"];
 export type OrganizationUpdate =

@@ -7,8 +7,10 @@ use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\RateLimitLoginAttempts;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
+use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
@@ -121,6 +123,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: SubstituteBindings::class,
             prepend: RejectUnverifiedMfaToken::class,
+        );
+
+        // The tenant security policy (audit N6), for the same two reasons: both
+        // read `$request->user()`, and both must answer before route-model
+        // binding can turn a refused request into a 404. The idle timeout goes
+        // ahead of BlockImpersonatedActions so an expired session is told so
+        // (401) rather than refused for something else; MFA enrolment goes
+        // after RejectUnverifiedMfaToken, which owns a sign-in still owing a code.
+        $middleware->prependToPriorityList(
+            before: BlockImpersonatedActions::class,
+            prepend: EnforceSessionIdleTimeout::class,
+        );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: RequireTenantMfaEnrolment::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {

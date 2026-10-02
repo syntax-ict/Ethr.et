@@ -7591,6 +7591,11 @@ export interface components {
                 /** @enum {string} */
                 pagumen_proration_strategy?: "full_month" | "daily_rate";
                 retirement_age?: number;
+                run_day?: number;
+                working_days?: number[];
+                /** @enum {string} */
+                mfa_policy?: "disabled" | "optional" | "required";
+                session_timeout_minutes?: number;
             };
         };
         /** UpdateShiftRequest */
@@ -10196,6 +10201,23 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-disabled-by-policy";
+                        /** @constant */
+                        title: "MFA Not Offered";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your organization does not offer two-factor authentication.";
+                    };
+                };
+            };
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10240,6 +10262,23 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/mfa-disabled-by-policy";
+                        /** @constant */
+                        title: "MFA Not Offered";
+                        /** @constant */
+                        status: 403;
+                        /** @constant */
+                        detail: "Your organization does not offer two-factor authentication.";
+                    };
+                };
+            };
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19626,8 +19665,8 @@ export interface operations {
                             retirement_age: string | 60;
                         };
                         security: {
-                            mfa_policy: string | "optional";
-                            session_timeout_minutes: string | 480;
+                            mfa_policy: string;
+                            session_timeout_minutes: number;
                         };
                         sso: {
                             is_enabled: boolean;

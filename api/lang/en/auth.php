@@ -54,4 +54,9 @@ return [
 
     // Platform console
     'platform_mfa_required' => 'Multi-factor authentication must be enabled on your account before you can make changes in the platform console. Set it up under Profile > Security.',
+
+    // Tenant security policy (audit N6)
+    'mfa_enrolment_required' => 'Your organization requires two-factor authentication. Set it up under Profile > Security to continue.',
+    'mfa_disabled_by_policy' => 'Your organization does not offer two-factor authentication.',
+    'session_idle_expired' => 'Your session ended after a period of inactivity. Sign in again.',
 ];

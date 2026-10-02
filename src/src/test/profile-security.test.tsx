@@ -1,10 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { server } from "./msw/server";
 import SecurityPage from "@/app/(dashboard)/profile/security/page";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -104,5 +109,44 @@ describe("Profile security — two-factor setup", () => {
         name: "Enter your current authenticator code to confirm:",
       }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Profile security — organization requires two-factor (audit N6)", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("explains why the user was sent here when enrolment is owed", async () => {
+    window.history.replaceState(null, "", "/profile/security?mfa=required");
+    renderPage(false);
+
+    expect(
+      await screen.findByText("Two-factor authentication is required"),
+    ).toBeInTheDocument();
+  });
+
+  it("offers the way back once two-factor is set up", async () => {
+    window.history.replaceState(null, "", "/profile/security?mfa=required");
+    renderPage(true);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue to ETHR" }),
+    );
+    expect(push).toHaveBeenCalledWith("/dashboard");
+    expect(
+      screen.queryByText("Two-factor authentication is required"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no notice to a user who came here on their own", async () => {
+    renderPage(false);
+
+    expect(
+      await screen.findByRole("button", { name: "Enable MFA" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Two-factor authentication is required"),
+    ).not.toBeInTheDocument();
   });
 });

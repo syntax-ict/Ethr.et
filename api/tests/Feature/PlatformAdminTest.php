@@ -345,13 +345,13 @@ test('tenant admin can update settings', function () {
 
     $response = test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/settings", [
         'settings' => [
-            'grace_period_minutes' => 10,
+            'session_timeout_minutes' => 30,
             'mfa_policy' => 'required',
         ],
     ]);
 
     $response->assertOk();
-    expect($response->json('settings.grace_period_minutes'))->toBe(10);
+    expect($response->json('settings.session_timeout_minutes'))->toBe(30);
 
     $this->assertDatabaseHas('audit_log', ['action' => 'settings.updated']);
 });

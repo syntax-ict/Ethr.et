@@ -15,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Support\TenantSecurityPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -26,6 +27,12 @@ class SettingsController extends Controller
         Gate::authorize('settings.manage');
 
         $tenant = app(CurrentTenant::class)->get();
+
+        // The values as enforced, not as stored: a value saved before
+        // PUT /settings validated these is normalised the same way the
+        // enforcement reads it, so this screen cannot show one thing while the
+        // middleware does another.
+        $security = TenantSecurityPolicy::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -67,8 +74,8 @@ class SettingsController extends Controller
                 'retirement_age' => $tenant->settings['retirement_age'] ?? 60,
             ],
             'security' => [
-                'mfa_policy' => $tenant->settings['mfa_policy'] ?? 'optional',
-                'session_timeout_minutes' => $tenant->settings['session_timeout_minutes'] ?? 480,
+                'mfa_policy' => $security->mfaPolicy(),
+                'session_timeout_minutes' => $security->idleTimeoutMinutes(),
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);
@@ -80,7 +87,9 @@ class SettingsController extends Controller
 
         $tenant = app(CurrentTenant::class)->get();
         $currentSettings = $tenant->settings ?? [];
-        $newSettings = array_merge($currentSettings, $request->input('settings'));
+        // validated(), not input(): only keys UpdateSettingsRequest names reach
+        // the JSON (an unknown key is a 422 there).
+        $newSettings = array_merge($currentSettings, $request->validated('settings'));
         $tenant->update(['settings' => $newSettings]);
 
         AuditLog::record('settings.updated', $tenant);

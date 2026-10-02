@@ -199,7 +199,7 @@ test('actions taken during impersonation are tagged with impersonated_by', funct
 
     test()->withToken($token)
         ->putJson("http://{$target->subdomain}.ethr.test/api/v1/settings", [
-            'settings' => ['grace_period_minutes' => 15],
+            'settings' => ['run_day' => 15],
         ])->assertOk();
 
     $entry = AuditLog::withoutGlobalScopes()

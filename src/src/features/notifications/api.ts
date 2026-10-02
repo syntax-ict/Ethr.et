@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { backgroundRequest } from "@/api/background";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
@@ -42,7 +43,12 @@ export function useUnreadCount() {
   return useQuery<UnreadCount>({
     queryKey: ["notifications", "unread-count"],
     queryFn: async () => {
-      const { data } = await apiClient.get("/notifications/unread-count");
+      // Background: it runs every 30 seconds on every page, and must not keep
+      // an unattended session alive past the tenant's idle timeout.
+      const { data } = await apiClient.get(
+        "/notifications/unread-count",
+        backgroundRequest(),
+      );
       return data;
     },
     refetchInterval: 30000,

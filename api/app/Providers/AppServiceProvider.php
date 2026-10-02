@@ -12,6 +12,7 @@ use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
 use App\Listeners\NotifyDeviceSyncFailed;
@@ -45,6 +46,7 @@ use App\Policies\PersonnelActionPolicy;
 use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\RetirementCasePolicy;
 use App\Policies\ShiftRotationPolicy;
+use App\Services\Auth\SessionIdleTimeout;
 use App\Services\Sms\EthioTelecomSmsSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sso\SamlProvider;
@@ -52,6 +54,7 @@ use App\Services\Sso\SsoProviderInterface;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
 use Dedoc\Scramble\Scramble;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -64,6 +67,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken as SanctumToken;
 use Laravel\Sanctum\Sanctum;
 use Sentry\Laravel\Integration;
 
@@ -120,6 +124,23 @@ class AppServiceProvider extends ServiceProvider
         JsonResource::withoutWrapping();
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        // The tenant's `session_timeout_minutes`, for bearer tokens. Inside the
+        // guard because that is the last point before Sanctum overwrites
+        // `last_used_at` with this request (audit N6).
+        Sanctum::authenticateAccessTokensUsing(
+            fn (SanctumToken $token, bool $isValid): bool => $isValid && ! SessionIdleTimeout::tokenIsIdle($token),
+        );
+
+        // A fresh sign-in starts the idle clock afresh. Without this a browser
+        // that signed out and back in kept its session's old activity stamp,
+        // and the new session could be expired by its first request.
+        Event::listen(Login::class, function (): void {
+            $request = request();
+            if ($request->hasSession()) {
+                $request->session()->put(EnforceSessionIdleTimeout::SESSION_KEY, now()->getTimestamp());
+            }
+        });
 
         // A failed queued job used to leave no trace outside the `failed_jobs`
         // table and the admin dashboard, so nothing announced it. That is how

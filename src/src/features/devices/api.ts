@@ -1,4 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { backgroundRequest } from "@/api/background";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
@@ -72,18 +79,39 @@ const keys = {
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
+/**
+ * A refetch of a polling query that already has data — the 30-second refresh
+ * on the device dashboard — rather than the page's first load. Marked as
+ * background so a dashboard left open does not hold the session past the
+ * tenant's idle timeout; the first load still counts as the user being there.
+ */
+function isPoll(
+  client: QueryClient,
+  queryKey: QueryKey,
+  options?: { refetchInterval?: number },
+): boolean {
+  return (
+    !!options?.refetchInterval && client.getQueryData(queryKey) !== undefined
+  );
+}
+
 export function useDevices(
   params?: DeviceListParams,
   options?: { refetchInterval?: number },
 ) {
   return useQuery<PaginatedResponse<Device>>({
     queryKey: keys.list(params),
-    queryFn: async () => {
+    queryFn: async ({ client, queryKey }) => {
       const query: Record<string, string | number> = {};
       if (params?.search) query.search = params.search;
       if (params?.status) query["filter[status]"] = params.status;
       if (params?.per_page) query.per_page = params.per_page;
-      return (await apiClient.get("/devices", { params: query })).data;
+      return (
+        await apiClient.get("/devices", {
+          params: query,
+          ...backgroundRequest(isPoll(client, queryKey, options)),
+        })
+      ).data;
     },
     refetchInterval: options?.refetchInterval,
   });
@@ -92,7 +120,13 @@ export function useDevices(
 export function useDeviceDashboard(options?: { refetchInterval?: number }) {
   return useQuery<DeviceDashboard>({
     queryKey: keys.dashboard,
-    queryFn: async () => (await apiClient.get("/devices/dashboard")).data,
+    queryFn: async ({ client, queryKey }) =>
+      (
+        await apiClient.get(
+          "/devices/dashboard",
+          backgroundRequest(isPoll(client, queryKey, options)),
+        )
+      ).data,
     refetchInterval: options?.refetchInterval,
   });
 }

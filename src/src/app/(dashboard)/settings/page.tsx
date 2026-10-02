@@ -49,9 +49,11 @@ import { toast } from "sonner";
 
 const VALID_TABS = ["general", "branding", "security", "sso"];
 
+type MfaPolicy = NonNullable<SettingsUpdate["mfa_policy"]>;
+
 /** The Security tab's fields, as edited (the timeout is the raw input text). */
 interface SecurityDraft {
-  mfa_policy?: string;
+  mfa_policy?: MfaPolicy;
   session_timeout_minutes?: string;
 }
 
@@ -277,7 +279,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 </Label>
                 <Select
                   value={getSecurityValue("mfa_policy")}
-                  onValueChange={(v) => updateField("mfa_policy", v)}
+                  onValueChange={(v) =>
+                    updateField("mfa_policy", v as MfaPolicy)
+                  }
                 >
                   <SelectTrigger id="mfa-policy" className="mt-1">
                     <SelectValue />
@@ -294,6 +298,12 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.mfa_policy_help",
+                    "Required: everyone must set up two-factor authentication before using ETHR. Disabled: no new set-ups; existing ones are kept.",
+                  )}
+                </p>
               </div>
               <div>
                 <Label htmlFor="session-timeout">
@@ -302,13 +312,20 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                 <Input
                   id="session-timeout"
                   type="number"
-                  min={1}
+                  min={5}
+                  max={480}
                   value={getSecurityValue("session_timeout_minutes")}
                   onChange={(e) =>
                     updateField("session_timeout_minutes", e.target.value)
                   }
                   className="mt-1"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    "settings.session_timeout_help",
+                    "Sign people out after this many minutes without activity (5 to 480).",
+                  )}
+                </p>
               </div>
             </CardContent>
           </Card>

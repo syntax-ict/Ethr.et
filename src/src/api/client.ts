@@ -50,10 +50,54 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+/**
+ * The `type` the API answers with when the tenant requires two-factor
+ * authentication and this user has not set it up
+ * (`RequireTenantMfaEnrolment`). Every endpoint outside the account-security
+ * screen refuses them until they enrol.
+ */
+export const MFA_ENROLMENT_REQUIRED =
+  "https://ethr.et/errors/mfa-enrolment-required";
+
+/** Where enrolment happens; the API leaves this screen's endpoints open. */
+export const MFA_ENROLMENT_PATH = "/profile/security";
+
+/**
+ * Where to send the browser for an enrolment refusal, or null when the error
+ * is something else or the user is already on the setup screen (whose own
+ * shell still makes requests the API refuses — redirecting from there would
+ * reload it forever).
+ */
+export function mfaEnrolmentRedirect(
+  error: Pick<AxiosError<ApiError>, "response">,
+  pathname: string,
+): string | null {
+  if (
+    error.response?.status !== 403 ||
+    error.response.data?.type !== MFA_ENROLMENT_REQUIRED
+  ) {
+    return null;
+  }
+  if (pathname.startsWith(MFA_ENROLMENT_PATH)) return null;
+  return `${MFA_ENROLMENT_PATH}?mfa=required`;
+}
+
+let redirectingToEnrolment = false;
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config;
+
+    if (typeof window !== "undefined" && !redirectingToEnrolment) {
+      const target = mfaEnrolmentRedirect(error, window.location.pathname);
+      if (target) {
+        // Several requests are refused at once on a page load; one navigation.
+        redirectingToEnrolment = true;
+        window.location.assign(target);
+        return Promise.reject(error);
+      }
+    }
 
     if (
       error.response?.status === 401 &&

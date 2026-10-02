@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck,
   ShieldOff,
@@ -15,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -38,9 +41,42 @@ import {
   TrustedDevicesCard,
 } from "@/features/auth/components/active-sessions-card";
 
+/** The URL never changes while this page is open, so there is nothing to subscribe to. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
+/**
+ * True when the API sent the user here because their organization requires
+ * two-factor authentication (`api/client.ts` adds `?mfa=required` on the
+ * `mfa-enrolment-required` refusal). Read from `window.location` rather than
+ * `useSearchParams`, which a statically exported page cannot render on the
+ * server without a Suspense boundary; the server snapshot is simply "no".
+ */
+function useEnrolmentRequired(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => new URLSearchParams(window.location.search).get("mfa") === "required",
+    () => false,
+  );
+}
+
 export default function SecurityPage() {
   const { t } = useT();
   const { data: user } = useCurrentUser();
+  const enrolmentRequired = useEnrolmentRequired();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  /**
+   * Every query the shell made while enrolment was owed failed with the
+   * enrolment refusal; reset them so the next screen fetches afresh rather
+   * than rendering those errors.
+   */
+  function continueAfterEnrolment() {
+    void queryClient.resetQueries();
+    router.push("/dashboard");
+  }
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupData, setSetupData] = useState<MfaSetup | null>(null);
   const [code, setCode] = useState("");
@@ -164,6 +200,37 @@ export default function SecurityPage() {
   return (
     <div className="space-y-6">
       {/* The profile layout renders the page title and the section tabs. */}
+      {enrolmentRequired && user && !user.mfa_enabled && (
+        <Alert variant="warning">
+          <AlertTitle>
+            {t(
+              "security_page.mfa_required_title",
+              "Two-factor authentication is required",
+            )}
+          </AlertTitle>
+          <AlertDescription>
+            {t(
+              "security_page.mfa_required_desc",
+              "Your organization requires two-factor authentication. Set it up below to continue using ETHR.",
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      {enrolmentRequired && user?.mfa_enabled && (
+        <Alert variant="success">
+          <AlertTitle>
+            {t(
+              "security_page.mfa_required_done",
+              "Two-factor authentication is set up",
+            )}
+          </AlertTitle>
+          <AlertDescription>
+            <Button className="mt-2" size="sm" onClick={continueAfterEnrolment}>
+              {t("security_page.mfa_required_continue", "Continue to ETHR")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
