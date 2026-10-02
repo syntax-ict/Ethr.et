@@ -34,6 +34,22 @@ it('links password reset mail to the configured frontend url', function () {
         ->and($url)->toContain('tenant=acme');
 });
 
+it('sends the reset link by mail only, with an encoded address and a real subject', function () {
+    // A `+` left raw in a query string arrives as a space, so the reset form
+    // would look up the wrong address and the link would fail for anyone using
+    // plus-addressing.
+    config(['app.frontend_url' => 'https://www.ethr.test']);
+    $user = User::factory()->make(['email' => 'abebe+hr@acme.test']);
+    $notification = new PasswordResetLinkNotification('tok123', 'acme');
+
+    $mail = $notification->toMail($user);
+
+    expect($notification->via($user))->toBe(['mail'])
+        ->and($mail->actionUrl)->toContain('email=abebe%2Bhr%40acme.test')
+        ->and($mail->actionUrl)->not->toContain('abebe+hr')
+        ->and($mail->subject)->toBe('Reset your ETHR password');
+});
+
 it('links activation mail to the configured frontend url', function () {
     config(['app.frontend_url' => 'https://www.ethr.test/']);
     $user = User::factory()->make(['email' => 'a@acme.test']);
