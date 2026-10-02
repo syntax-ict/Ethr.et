@@ -311,7 +311,7 @@ class PayrollController extends Controller
         return response()->json([
             'period' => $payrollRun->period_label,
             'total_entries' => $rows->count(),
-            'total_amount_cents' => $rows->sum('net_amount_cents'),
+            'total_amount_cents' => (int) $rows->sum('net_amount_cents'),
             'rows' => $rows,
         ]);
     }

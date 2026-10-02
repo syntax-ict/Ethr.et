@@ -51,13 +51,9 @@ export type CostSharingStatus = Schemas["CostSharingStatus"];
  *
  * `repaid_cents` is derived server-side rather than tracked here: a client-side
  * subtraction would go wrong for a cancelled obligation, where the balance stops
- * moving while money remains unpaid. Scramble types that subtraction of two
- * integer columns as `string`; it is an integer. `status` is the enum's value.
+ * moving while money remains unpaid.
  */
-export type CostSharing = Omit<
-  Schemas["EmployeeCostSharingResource"],
-  "repaid_cents" | "status"
-> & { repaid_cents: number; status: CostSharingStatus };
+export type CostSharing = Schemas["EmployeeCostSharingResource"];
 
 // ── Payroll Runs ──────────────────────────────────────────────────────────────
 

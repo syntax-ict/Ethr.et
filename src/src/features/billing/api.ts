@@ -70,12 +70,8 @@ type ChangePlanContract =
 /**
  * The contract's 200 also admits BillingService's `{ error }` array, but the
  * controller turns that into a 422 problem, so a 200 is always the result.
- * `proration_cents` is an integer difference that Scramble types as `string`.
  */
-export type PlanChangeResult = Omit<
-  Exclude<ChangePlanContract, { error: string }>,
-  "proration_cents"
-> & { proration_cents: number };
+export type PlanChangeResult = Exclude<ChangePlanContract, { error: string }>;
 
 export function useChangePlan() {
   const queryClient = useQueryClient();

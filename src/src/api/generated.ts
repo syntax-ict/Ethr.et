@@ -5249,7 +5249,7 @@ export interface components {
             subdomain: string;
             type: string | null;
             status: string;
-            employee_count: string;
+            employee_count: number;
             /** Format: date-time */
             trial_ends_at: string | null;
             /** Format: date-time */
@@ -5737,13 +5737,9 @@ export interface components {
             employee_public_id: string;
             total_obligation_cents: number;
             outstanding_cents: number;
-            /**
-             * @description Derived rather than stored: a stored copy would drift the moment
-             *     an obligation is cancelled with a balance outstanding.
-             */
-            repaid_cents: string;
+            repaid_cents: number;
             deduction_rate_percent: number;
-            status: string;
+            status: components["schemas"]["CostSharingStatus"];
             started_on: string;
             /** Format: date-time */
             completed_at: string | null;
@@ -10493,7 +10489,7 @@ export interface operations {
                     "application/json": {
                         old_plan: string;
                         new_plan: string;
-                        proration_cents: string;
+                        proration_cents: number;
                         effective_immediately: boolean;
                     } | {
                         /** @constant */
@@ -17685,7 +17681,7 @@ export interface operations {
                     "application/json": {
                         period: string;
                         total_entries: number;
-                        total_amount_cents: string;
+                        total_amount_cents: number;
                         rows: {
                             employee_name: string | null;
                             employee_code: string | null;
@@ -18390,19 +18386,14 @@ export interface operations {
                         period: string;
                         date: string | null;
                         reference: string;
-                        entries: ({
-                            account_code: string;
-                            account_name: string;
-                            debit_cents: string;
-                            credit_cents: number;
-                        } | {
+                        entries: {
                             account_code: string;
                             account_name: string;
                             debit_cents: number;
-                            credit_cents: string;
-                        })[];
-                        total_debits_cents: string;
-                        total_credits_cents: string;
+                            credit_cents: number;
+                        }[];
+                        total_debits_cents: number;
+                        total_credits_cents: number;
                         is_balanced: boolean;
                     };
                 };

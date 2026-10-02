@@ -50,12 +50,14 @@ final class AccountingExportService
             ->with('employee:id,name,employee_code')
             ->get();
 
-        $totalGross = $entries->sum('gross_cents');
-        $totalTax = $entries->sum('income_tax_cents');
-        $totalEmployeePension = $entries->sum('employee_pension_cents');
-        $totalEmployerPension = $entries->sum('employer_pension_cents');
-        $totalNet = $entries->sum('net_cents');
-        $totalOtherDeductions = $entries->sum('other_deductions_cents');
+        // Sums of `integer` casts, so integers; the casts say so to the contract,
+        // which cannot type a collection `sum()` and published them as strings.
+        $totalGross = (int) $entries->sum('gross_cents');
+        $totalTax = (int) $entries->sum('income_tax_cents');
+        $totalEmployeePension = (int) $entries->sum('employee_pension_cents');
+        $totalEmployerPension = (int) $entries->sum('employer_pension_cents');
+        $totalNet = (int) $entries->sum('net_cents');
+        $totalOtherDeductions = (int) $entries->sum('other_deductions_cents');
 
         $journal = [
             'period' => $run->period_label,
@@ -103,11 +105,11 @@ final class AccountingExportService
             'account_code' => $accounts['net_salary_payable']['code'],
             'account_name' => $accounts['net_salary_payable']['name'],
             'debit_cents' => 0,
-            'credit_cents' => $totalNet + $totalOtherDeductions,
+            'credit_cents' => (int) ($totalNet + $totalOtherDeductions),
         ];
 
-        $totalDebits = collect($journal['entries'])->sum('debit_cents');
-        $totalCredits = collect($journal['entries'])->sum('credit_cents');
+        $totalDebits = (int) collect($journal['entries'])->sum('debit_cents');
+        $totalCredits = (int) collect($journal['entries'])->sum('credit_cents');
 
         $journal['total_debits_cents'] = $totalDebits;
         $journal['total_credits_cents'] = $totalCredits;

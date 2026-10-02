@@ -138,7 +138,7 @@ final class BillingService
         return [
             'old_plan' => $oldPlan->name ?? 'Unknown',
             'new_plan' => $newPlan->name,
-            'proration_cents' => $prorationAmount,
+            'proration_cents' => (int) $prorationAmount,
             'effective_immediately' => true,
         ];
     }

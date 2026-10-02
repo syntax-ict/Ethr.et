@@ -14,28 +14,10 @@ export type ChartOfAccountsUpdate =
  */
 export type ChartAccountKey = ChartOfAccountsUpdate["accounts"][number]["key"];
 
-/**
- * `GET /accounting/journal/{run}`, mirroring
- * `AccountingExportService::journalEntries`. Scramble publishes the cents as
- * `string` (and each entry as a string/number union) because they come from
- * collection `sum()` calls; they are integer cents.
- */
-export interface PayrollJournal {
-  period: string;
-  date: string | null;
-  reference: string;
-  entries: JournalEntry[];
-  total_debits_cents: number;
-  total_credits_cents: number;
-  is_balanced: boolean;
-}
-
-export interface JournalEntry {
-  account_code: string;
-  account_name: string;
-  debit_cents: number;
-  credit_cents: number;
-}
+/** `GET /accounting/journal/{run}` (`AccountingExportService::journalEntries`). */
+export type PayrollJournal =
+  operations["accounting.journal"]["responses"][200]["content"]["application/json"];
+export type JournalEntry = PayrollJournal["entries"][number];
 
 const keys = {
   chartOfAccounts: ["accounting", "chart-of-accounts"] as const,
