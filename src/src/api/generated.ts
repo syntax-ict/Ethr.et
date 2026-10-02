@@ -16465,7 +16465,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        period: string | unknown[] | null;
+                        /** @enum {string} */
+                        period: "monthly" | "weekly";
                         from: string;
                         to: string;
                         team_size: number;

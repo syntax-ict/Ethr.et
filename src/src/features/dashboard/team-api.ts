@@ -10,15 +10,10 @@ type SummaryContract = Extract<
 export type TeamAttendanceDay = SummaryContract["data"][number];
 
 /**
- * A caller with no team gets `{ data: [] }` and nothing else. `period` echoes
- * the query string this hook sends, which Scramble cannot narrow.
+ * A caller with no team gets `{ data: [] }` and nothing else; the contract
+ * types that literal empty array as `string[]`, so this branch is stated here.
  */
-export type TeamAttendanceSummaryResponse =
-  | (Omit<SummaryContract, "period" | "data"> & {
-      period: "weekly" | "monthly";
-      data: TeamAttendanceDay[];
-    })
-  | { data: [] };
+export type TeamAttendanceSummaryResponse = SummaryContract | { data: [] };
 
 export function useTeamAttendanceSummary(
   period: "weekly" | "monthly" = "weekly",

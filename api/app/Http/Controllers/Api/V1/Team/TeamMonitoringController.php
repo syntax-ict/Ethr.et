@@ -125,7 +125,7 @@ class TeamMonitoringController extends Controller
         }
 
         return response()->json([
-            'period' => $period,
+            'period' => $period === 'monthly' ? 'monthly' : 'weekly',
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
             'team_size' => count($teamIds),
