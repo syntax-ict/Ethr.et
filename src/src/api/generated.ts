@@ -8613,24 +8613,18 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        rows: unknown[][];
+                        rows: {
+                            employee_code: string;
+                            date: string;
+                            check_in_time: string;
+                            check_out_time?: string;
+                            line: number;
+                            errors: string[];
+                            valid: boolean;
+                        }[];
                         valid: number;
                         invalid: number;
                         errors: string[];
-                    } | {
-                        rows: string[];
-                        valid: number;
-                        invalid: number;
-                        errors: [
-                            string
-                        ];
-                    } | {
-                        rows: string[];
-                        valid: number;
-                        invalid: number;
-                        errors: [
-                            "File must have a header row and at least one data row."
-                        ];
                     };
                 };
             };
@@ -12912,25 +12906,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        headers: unknown[];
-                        rows: unknown[][];
-                        errors: string;
-                    } | {
-                        headers: unknown[];
-                        rows: string[];
-                        errors: [
-                            [
-                                string
-                            ]
-                        ];
-                    } | {
                         headers: string[];
-                        rows: string[];
-                        errors: [
-                            [
-                                "CSV file must have a header row and at least one data row."
-                            ]
-                        ];
+                        rows: {
+                            [key: string]: string | null;
+                        }[];
+                        errors: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };
@@ -12962,7 +12944,9 @@ export interface operations {
                         skipped: number;
                         matched: number;
                         users_created: number;
-                        errors: string;
+                        errors: {
+                            [key: string]: string[];
+                        };
                     };
                 };
             };

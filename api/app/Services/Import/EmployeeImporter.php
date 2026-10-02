@@ -27,7 +27,16 @@ class EmployeeImporter
         private readonly CurrentTenant $currentTenant,
     ) {}
 
-    /** @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>} */
+    /**
+     * `errors` is keyed by CSV line number (the header is line 1); key 0 is a
+     * file-level error. The `@scramble-return` states the shape for the API
+     * contract, which cannot follow rows built from the file's own headers;
+     * it types the line-number keys as strings, which is what JSON makes them.
+     *
+     * @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>}
+     *
+     * @scramble-return array{headers: list<string>, rows: list<array<string, string|null>>, errors: array<string, list<string>>}
+     */
     public function preview(UploadedFile $file): array
     {
         // Csv::lines, as the attendance import uses: this split on "\n" after
@@ -77,6 +86,8 @@ class EmployeeImporter
 
     /**
      * @return array{created: int, skipped: int, matched: int, users_created: int, errors: array<int, string[]>}
+     *
+     * @scramble-return array{created: int, skipped: int, matched: int, users_created: int, errors: array<string, list<string>>}
      */
     public function commit(string $importKey, array $rows, bool $createLogins = false): array
     {

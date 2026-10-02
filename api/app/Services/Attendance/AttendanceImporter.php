@@ -21,6 +21,14 @@ final class AttendanceImporter
         return "employee_code,date,check_in_time,check_out_time\n";
     }
 
+    /**
+     * Each row is the CSV line keyed by its header, plus `line`, `errors` and
+     * `valid`; `check_out_time` is absent when the file has no such column.
+     * Stated for the API contract, which cannot follow rows keyed by the
+     * file's own header.
+     *
+     * @scramble-return array{rows: list<array{employee_code: string, date: string, check_in_time: string, check_out_time?: string, line: int, errors: list<string>, valid: bool}>, valid: int, invalid: int, errors: list<string>}
+     */
     public function preview(UploadedFile $file): array
     {
         $lines = Csv::lines((string) file_get_contents($file->getRealPath()));

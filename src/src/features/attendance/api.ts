@@ -65,27 +65,12 @@ export type AttendanceSettings = Omit<
 };
 
 /**
- * The contract publishes the preview rows as `unknown[][]`. Mirrors
- * AttendanceImporter::preview(): each row is the CSV line keyed by its header
- * plus `line`, `errors` and `valid`. `check_out_time` is absent when the file
- * has no such column.
+ * Each row is the CSV line keyed by its header, plus `line`, `errors` and
+ * `valid`. `check_out_time` is absent when the file has no such column.
  */
-export interface ImportPreviewRow {
-  employee_code: string;
-  date: string;
-  check_in_time: string;
-  check_out_time?: string;
-  line: number;
-  valid: boolean;
-  errors: string[];
-}
-
-export interface ImportPreview {
-  rows: ImportPreviewRow[];
-  valid: number;
-  invalid: number;
-  errors: string[];
-}
+export type ImportPreview =
+  operations["attendanceImport.preview"]["responses"][200]["content"]["application/json"];
+export type ImportPreviewRow = ImportPreview["rows"][number];
 
 /** A punch endpoint's record, plus whether the request was a replay. */
 export type PunchResult = components["schemas"]["AttendancePunchResource"];
