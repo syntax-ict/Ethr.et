@@ -98,6 +98,11 @@ final class ExecutiveDashboardService
         $headcount = $this->headcountTrend($tenantId, $branchId);
         $payroll = $this->monthlyPayrollTrend($tenantId, $branchId);
 
+        $payrollHistory = [];
+        foreach ($payroll as $run) {
+            $payrollHistory[] = ['month' => (string) $run['period'], 'value' => (int) $run['gross_cents']];
+        }
+
         return [
             'headcount' => [
                 'history' => $headcount,
@@ -108,10 +113,7 @@ final class ExecutiveDashboardService
                 ),
             ],
             'payroll_gross' => [
-                'history' => array_map(
-                    fn ($r) => ['month' => $r['period'], 'value' => $r['gross_cents']],
-                    $payroll,
-                ),
+                'history' => $payrollHistory,
                 'projected' => TrendForecaster::project(
                     array_column($payroll, 'gross_cents'),
                     array_column($payroll, 'period'),
@@ -149,22 +151,10 @@ final class ExecutiveDashboardService
 
         $total = $this->scopedEmployees($tenantId, $branchId)->count();
 
-        $byDepartment = $this->scopedEmployees($tenantId, $branchId)
-            ->whereIn('status', self::ACTIVE_STATUSES)
-            ->selectRaw('department_id, count(*) as count')
-            ->groupBy('department_id')
-            ->with('department:id,public_id,name')
-            ->get()
-            ->map(fn ($r) => [
-                'department' => $r->department?->name ?? 'Unassigned',
-                'department_public_id' => $r->department?->public_id,
-                'count' => $r->count,
-            ]);
-
         return [
             'total' => $total,
             'active' => $active,
-            'by_department' => $byDepartment,
+            'by_department' => $this->headcountByDepartment($tenantId, $branchId),
         ];
     }
 
@@ -175,7 +165,7 @@ final class ExecutiveDashboardService
             ->count();
 
         if ($activeCount === 0) {
-            return ['today' => 0, 'period' => 0];
+            return ['today' => 0.0, 'period' => 0.0];
         }
 
         $todayQuery = AttendanceRecord::withoutGlobalScope('tenant')
@@ -338,8 +328,10 @@ final class ExecutiveDashboardService
             ))
             ->get();
 
-        $totalEntitled = $balances->sum('entitled_days');
-        $totalUsed = $balances->sum('used_days');
+        // The columns are `decimal:1` casts, so each value is a numeric string;
+        // the sums are floats, stated so the contract says so too.
+        $totalEntitled = (float) $balances->sum('entitled_days');
+        $totalUsed = (float) $balances->sum('used_days');
         $rate = $totalEntitled > 0 ? round(($totalUsed / $totalEntitled) * 100, 1) : 0;
 
         return [
@@ -363,10 +355,10 @@ final class ExecutiveDashboardService
             ->orderBy('attendance_records.date')
             ->get()
             ->map(fn ($r) => [
-                'date' => $r->date instanceof Carbon ? $r->date->format('Y-m-d') : $r->date,
-                'present' => $r->present,
+                'date' => $r->date->toDateString(),
+                'present' => (int) $r->getAttribute('present'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function attendanceByDepartment(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -387,10 +379,10 @@ final class ExecutiveDashboardService
             ->groupBy('departments.name')
             ->get()
             ->map(fn ($r) => [
-                'department' => $r->department,
-                'present' => $r->present,
+                'department' => (string) $r->getAttribute('department'),
+                'present' => (int) $r->getAttribute('present'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function attendanceBySource(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -407,9 +399,9 @@ final class ExecutiveDashboardService
             ->get()
             ->map(fn ($r) => [
                 'source' => $r->source->value,
-                'count' => $r->count,
+                'count' => (int) $r->getAttribute('count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function topLateEmployees(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -431,9 +423,9 @@ final class ExecutiveDashboardService
             ->map(fn ($r) => [
                 'employee_name' => $r->employee?->name,
                 'employee_public_id' => $r->employee?->public_id,
-                'late_count' => $r->late_count,
+                'late_count' => (int) $r->getAttribute('late_count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function monthlyPayrollTrend(int $tenantId, ?int $branchId): array
@@ -451,7 +443,7 @@ final class ExecutiveDashboardService
                     'net_cents' => $r->net_total_cents,
                     'tax_cents' => $r->tax_total_cents,
                 ])
-                ->toArray();
+                ->all();
         }
 
         return PayrollEntry::withoutGlobalScope('tenant')
@@ -476,12 +468,12 @@ final class ExecutiveDashboardService
             // getAttribute() reads them without asserting a static property
             // that doesn't exist on the model's real schema.
             ->map(fn ($r) => [
-                'period' => $r->getAttribute('period'),
+                'period' => (string) $r->getAttribute('period'),
                 'gross_cents' => (int) $r->getAttribute('gross_cents'),
                 'net_cents' => (int) $r->getAttribute('net_cents'),
                 'tax_cents' => (int) $r->getAttribute('tax_cents'),
             ])
-            ->toArray();
+            ->all();
     }
 
     /**
@@ -540,12 +532,12 @@ final class ExecutiveDashboardService
             ->values()
             ->slice(-12)
             ->map(fn ($row) => [
-                'period' => $row['period'],
+                'period' => (string) $row['period'],
                 'overtime_cents' => $row['overtime_cents'],
                 'overtime_minutes' => $row['overtime_minutes'],
             ])
             ->values()
-            ->toArray();
+            ->all();
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -584,11 +576,11 @@ final class ExecutiveDashboardService
             ->groupBy('departments.name')
             ->get()
             ->map(fn ($r) => [
-                'department' => $r->department,
-                'total_gross_cents' => (int) $r->total_gross,
-                'employee_count' => $r->employee_count,
+                'department' => (string) $r->getAttribute('department'),
+                'total_gross_cents' => (int) $r->getAttribute('total_gross'),
+                'employee_count' => (int) $r->getAttribute('employee_count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function payrollByCostCenter(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -621,11 +613,11 @@ final class ExecutiveDashboardService
             ->groupBy(DB::raw("COALESCE(cost_centers.name, 'Unassigned')"))
             ->get()
             ->map(fn ($r) => [
-                'cost_center' => $r->cost_center,
-                'total_gross_cents' => (int) $r->total_gross,
-                'employee_count' => $r->employee_count,
+                'cost_center' => (string) $r->getAttribute('cost_center'),
+                'total_gross_cents' => (int) $r->getAttribute('total_gross'),
+                'employee_count' => (int) $r->getAttribute('employee_count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function payrollTotals(int $tenantId, Carbon $from, Carbon $to, ?int $branchId): array
@@ -638,9 +630,9 @@ final class ExecutiveDashboardService
                 ->get();
 
             return [
-                'total_gross_cents' => $runs->sum('gross_total_cents'),
-                'total_net_cents' => $runs->sum('net_total_cents'),
-                'total_tax_cents' => $runs->sum('tax_total_cents'),
+                'total_gross_cents' => (int) $runs->sum('gross_total_cents'),
+                'total_net_cents' => (int) $runs->sum('net_total_cents'),
+                'total_tax_cents' => (int) $runs->sum('tax_total_cents'),
                 'run_count' => $runs->count(),
             ];
         }
@@ -694,9 +686,9 @@ final class ExecutiveDashboardService
             ->map(fn ($r) => [
                 'department' => $r->department?->name ?? 'Unassigned',
                 'department_public_id' => $r->department?->public_id,
-                'count' => $r->count,
+                'count' => (int) $r->getAttribute('count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function genderDistribution(int $tenantId, ?int $branchId): array
@@ -708,9 +700,9 @@ final class ExecutiveDashboardService
             ->get()
             ->map(fn ($r) => [
                 'gender' => $r->gender,
-                'count' => $r->count,
+                'count' => (int) $r->getAttribute('count'),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function tenureDistribution(int $tenantId, ?int $branchId): array
@@ -737,7 +729,12 @@ final class ExecutiveDashboardService
             }
         }
 
-        return array_map(fn ($k, $v) => ['bucket' => $k, 'count' => $v], array_keys($buckets), array_values($buckets));
+        $rows = [];
+        foreach ($buckets as $bucket => $count) {
+            $rows[] = ['bucket' => $bucket, 'count' => (int) $count];
+        }
+
+        return $rows;
     }
 
     // ── Compliance ───────────────────────────────────────────────────────

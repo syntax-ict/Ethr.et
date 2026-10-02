@@ -54,17 +54,11 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
                   data={[
-                    ...data.monthly_trend.map(
-                      (m: {
-                        period: string;
-                        net_cents: number;
-                        gross_cents: number;
-                      }) => ({
-                        period: m.period,
-                        Net: m.net_cents / 100,
-                        Gross: m.gross_cents / 100,
-                      }),
-                    ),
+                    ...data.monthly_trend.map((m) => ({
+                      period: m.period,
+                      Net: m.net_cents / 100,
+                      Gross: m.gross_cents / 100,
+                    })),
                     ...(forecast.data?.payroll_gross.projected ?? []).map(
                       (p) => ({
                         period: p.label,
@@ -107,12 +101,10 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
             <ChartCard title={t("analytics_page.overtime_trend")}>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
-                  data={data.overtime_trend.map(
-                    (o: { period: string; overtime_cents: number }) => ({
-                      period: o.period,
-                      Overtime: o.overtime_cents / 100,
-                    }),
-                  )}
+                  data={data.overtime_trend.map((o) => ({
+                    period: o.period,
+                    Overtime: o.overtime_cents / 100,
+                  }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="period" tick={{ fontSize: 11 }} />
@@ -133,12 +125,10 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
                   layout="vertical"
-                  data={data.by_department.map(
-                    (d: { department: string; total_gross_cents: number }) => ({
-                      name: d.department,
-                      value: d.total_gross_cents / 100,
-                    }),
-                  )}
+                  data={data.by_department.map((d) => ({
+                    name: d.department,
+                    value: d.total_gross_cents / 100,
+                  }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />
@@ -164,15 +154,10 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
                   layout="vertical"
-                  data={data.by_cost_center.map(
-                    (c: {
-                      cost_center: string;
-                      total_gross_cents: number;
-                    }) => ({
-                      name: c.cost_center,
-                      value: c.total_gross_cents / 100,
-                    }),
-                  )}
+                  data={data.by_cost_center.map((c) => ({
+                    name: c.cost_center,
+                    value: c.total_gross_cents / 100,
+                  }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis type="number" tick={{ fontSize: 11 }} />

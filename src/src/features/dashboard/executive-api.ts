@@ -28,8 +28,18 @@ function toQueryParams({ from, to, branchPublicId }: DateRangeParams) {
   };
 }
 
+type ExecutiveOk<
+  Op extends "overview" | "attendance" | "payroll" | "workforce",
+> =
+  operations[`executiveDashboard.${Op}`]["responses"][200]["content"]["application/json"];
+
+export type ExecutiveOverview = ExecutiveOk<"overview">;
+export type ExecutiveAttendance = ExecutiveOk<"attendance">;
+export type ExecutivePayroll = ExecutiveOk<"payroll">;
+export type ExecutiveWorkforce = ExecutiveOk<"workforce">;
+
 export function useExecutiveOverview(params: DateRangeParams = {}) {
-  return useQuery({
+  return useQuery<ExecutiveOverview>({
     queryKey: ["dashboard", "executive", "overview", params],
     queryFn: async () => {
       const { data } = await apiClient.get("/dashboard/executive", {
@@ -41,7 +51,7 @@ export function useExecutiveOverview(params: DateRangeParams = {}) {
 }
 
 export function useExecutiveAttendance(params: DateRangeParams = {}) {
-  return useQuery({
+  return useQuery<ExecutiveAttendance>({
     queryKey: ["dashboard", "executive", "attendance", params],
     queryFn: async () => {
       const { data } = await apiClient.get("/dashboard/executive/attendance", {
@@ -53,7 +63,7 @@ export function useExecutiveAttendance(params: DateRangeParams = {}) {
 }
 
 export function useExecutivePayroll(params: DateRangeParams = {}) {
-  return useQuery({
+  return useQuery<ExecutivePayroll>({
     queryKey: ["dashboard", "executive", "payroll", params],
     queryFn: async () => {
       const { data } = await apiClient.get("/dashboard/executive/payroll", {
@@ -65,7 +75,7 @@ export function useExecutivePayroll(params: DateRangeParams = {}) {
 }
 
 export function useExecutiveWorkforce(branchPublicId?: string) {
-  return useQuery({
+  return useQuery<ExecutiveWorkforce>({
     queryKey: ["dashboard", "executive", "workforce", branchPublicId],
     queryFn: async () => {
       const { data } = await apiClient.get("/dashboard/executive/workforce", {
@@ -99,21 +109,10 @@ export function useExecutiveCompliance(branchPublicId?: string) {
   });
 }
 
-type ForecastContract =
+export type ExecutiveForecast =
   operations["executiveDashboard.forecast"]["responses"][200]["content"]["application/json"];
 
-export type ForecastPoint = ForecastContract["headcount"]["projected"][number];
-
-/**
- * `payroll_gross.history` is an `array_map` Scramble cannot type. Its `value`
- * is a run's integer `gross_total_cents` tenant-wide, but a `sum()` that the
- * driver returns as a numeric string when scoped to a branch (audit N13).
- */
-export type ExecutiveForecast = Omit<ForecastContract, "payroll_gross"> & {
-  payroll_gross: Omit<ForecastContract["payroll_gross"], "history"> & {
-    history: Array<{ month: string; value: number | string }>;
-  };
-};
+export type ForecastPoint = ExecutiveForecast["headcount"]["projected"][number];
 
 export function useExecutiveForecast(branchPublicId?: string) {
   return useQuery<ExecutiveForecast>({

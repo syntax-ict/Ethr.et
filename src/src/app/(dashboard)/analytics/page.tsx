@@ -31,11 +31,6 @@ const LazyWorkforceTab = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
-interface DepartmentHeadcount {
-  department: string;
-  count: number;
-}
-
 export default function AnalyticsPage() {
   const { t } = useT();
   const [branchPublicId, setBranchPublicId] = useState<string | undefined>();
@@ -51,37 +46,34 @@ export default function AnalyticsPage() {
     const data = overview.data;
     if (!data) return;
 
-    const byDepartment: DepartmentHeadcount[] =
-      data.headcount?.by_department ?? [];
-
     downloadCsv(
       `ethr-executive-summary-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         {
           metric: "Headcount (active)",
-          value: data.headcount?.active ?? 0,
+          value: data.headcount.active,
         },
         {
           metric: "Headcount (total)",
-          value: data.headcount?.total ?? 0,
+          value: data.headcount.total,
         },
         {
           metric: "Attendance rate today (%)",
-          value: data.attendance_rate?.today ?? 0,
+          value: data.attendance_rate.today,
         },
         {
           metric: "Payroll net (ETB cents)",
-          value: data.payroll_summary?.net_cents ?? 0,
+          value: data.payroll_summary.net_cents,
         },
         {
           metric: "Turnover rate (%)",
-          value: data.turnover?.rate ?? 0,
+          value: data.turnover.rate,
         },
         {
           metric: "Leave utilization (%)",
-          value: data.leave_utilization?.utilization_rate ?? 0,
+          value: data.leave_utilization.utilization_rate,
         },
-        ...byDepartment.map((d) => ({
+        ...data.headcount.by_department.map((d) => ({
           metric: `Headcount — ${d.department}`,
           value: d.count,
         })),

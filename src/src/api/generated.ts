@@ -10808,13 +10808,10 @@ export interface operations {
                             by_department: {
                                 department: string;
                                 department_public_id: string | null;
-                                count: string;
+                                count: number;
                             }[];
                         };
                         attendance_rate: {
-                            today: number;
-                            period: number;
-                        } | {
                             today: number;
                             period: number;
                         };
@@ -10834,8 +10831,8 @@ export interface operations {
                             hires: number;
                         }[];
                         leave_utilization: {
-                            entitled_days: string;
-                            used_days: string;
+                            entitled_days: number;
+                            used_days: number;
                             utilization_rate: number;
                         };
                     };
@@ -10859,10 +10856,23 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        daily_trend: unknown[];
-                        by_department: unknown[];
-                        by_source: unknown[];
-                        top_late: unknown[];
+                        daily_trend: {
+                            date: string;
+                            present: number;
+                        }[];
+                        by_department: {
+                            department: string;
+                            present: number;
+                        }[];
+                        by_source: {
+                            source: string;
+                            count: number;
+                        }[];
+                        top_late: {
+                            employee_name: string;
+                            employee_public_id: string;
+                            late_count: number;
+                        }[];
                     };
                 };
             };
@@ -10884,19 +10894,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        monthly_trend: unknown[];
-                        overtime_trend: unknown[];
-                        by_department: unknown[];
-                        by_cost_center: unknown[];
+                        monthly_trend: {
+                            period: string;
+                            gross_cents: number;
+                            net_cents: number;
+                            tax_cents: number;
+                        }[];
+                        overtime_trend: {
+                            period: string;
+                            overtime_cents: number;
+                            overtime_minutes: number;
+                        }[];
+                        by_department: {
+                            department: string;
+                            total_gross_cents: number;
+                            employee_count: number;
+                        }[];
+                        by_cost_center: {
+                            cost_center: string;
+                            total_gross_cents: number;
+                            employee_count: number;
+                        }[];
                         totals: {
                             total_gross_cents: number;
                             total_net_cents: number;
                             total_tax_cents: number;
-                            run_count: number;
-                        } | {
-                            total_gross_cents: string;
-                            total_net_cents: string;
-                            total_tax_cents: string;
                             run_count: number;
                         };
                     };
@@ -10924,9 +10946,19 @@ export interface operations {
                             month: string;
                             count: number;
                         }[];
-                        by_department: unknown[];
-                        by_gender: unknown[];
-                        by_tenure: unknown[];
+                        by_department: {
+                            department: string;
+                            department_public_id: string | null;
+                            count: number;
+                        }[];
+                        by_gender: {
+                            gender: string | null;
+                            count: number;
+                        }[];
+                        by_tenure: {
+                            bucket: string;
+                            count: number;
+                        }[];
                     };
                 };
             };
@@ -11011,7 +11043,10 @@ export interface operations {
                             }[];
                         };
                         payroll_gross: {
-                            history: unknown[];
+                            history: {
+                                month: string;
+                                value: number;
+                            }[];
                             projected: {
                                 label: string;
                                 /** @description Never project a negative headcount/currency value. */

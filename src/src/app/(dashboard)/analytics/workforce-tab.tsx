@@ -58,19 +58,13 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart
                   data={[
-                    ...data.headcount_trend.map(
-                      (
-                        h: { month: string; count: number },
-                        i: number,
-                        arr: Array<{ month: string; count: number }>,
-                      ) => ({
-                        month: h.month,
-                        count: h.count,
-                        // The projected line starts exactly at the last real
-                        // point, so the two segments read as one continuous line.
-                        Projected: i === arr.length - 1 ? h.count : undefined,
-                      }),
-                    ),
+                    ...data.headcount_trend.map((h, i, arr) => ({
+                      month: h.month,
+                      count: h.count,
+                      // The projected line starts exactly at the last real
+                      // point, so the two segments read as one continuous line.
+                      Projected: i === arr.length - 1 ? h.count : undefined,
+                    })),
                     ...(forecast.data?.headcount.projected ?? []).map((p) => ({
                       month: p.label,
                       Projected: p.value,
@@ -115,7 +109,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       label
                       outerRadius={80}
                     >
-                      {data.by_gender.map((_: unknown, i: number) => (
+                      {data.by_gender.map((_, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}

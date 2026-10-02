@@ -69,7 +69,7 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
                       label
                       outerRadius={80}
                     >
-                      {data.by_source.map((_: unknown, i: number) => (
+                      {data.by_source.map((_, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -92,24 +92,17 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {data.top_late
-                      .slice(0, 10)
-                      .map(
-                        (
-                          e: { employee_name: string; late_count: number },
-                          i: number,
-                        ) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between rounded-lg border p-2"
-                          >
-                            <span className="text-sm">{e.employee_name}</span>
-                            <span className="text-sm font-semibold text-destructive">
-                              {e.late_count}x
-                            </span>
-                          </div>
-                        ),
-                      )}
+                    {data.top_late.slice(0, 10).map((e, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-lg border p-2"
+                      >
+                        <span className="text-sm">{e.employee_name}</span>
+                        <span className="text-sm font-semibold text-destructive">
+                          {e.late_count}x
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
