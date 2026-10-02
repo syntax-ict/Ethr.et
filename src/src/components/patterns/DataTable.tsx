@@ -312,7 +312,7 @@ export function DataTable<TData>({
             className="mt-4"
             onClick={onRetry}
           >
-            {t("common.try_again_button", "Try Again")}
+            {t("common.try_again", "Try again")}
           </Button>
         )}
       </div>

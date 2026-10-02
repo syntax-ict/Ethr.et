@@ -9,6 +9,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Static, bilingual text (audit N38). This replaces the root layout, so the
+  // page locale is gone, and it is the screen nothing else catches: loading the
+  // i18n module here would add a localStorage read that can itself throw. The
+  // Amharic is copied from existing translations, pinned to them by
+  // global-error.test.tsx: error.title and common.try_again.
   useEffect(() => {
     console.error("Global error:", error);
   }, [error]);
@@ -51,16 +56,18 @@ export default function GlobalError({
               fontWeight: 700,
             }}
           >
-            Application Error
+            Something went wrong
           </h1>
           <p
+            lang="am"
             style={{
-              marginTop: "0.5rem",
-              color: "#64748B",
-              maxWidth: "24rem",
+              marginTop: "0.25rem",
+              fontSize: "1.125rem",
+              fontWeight: 600,
+              color: "#334155",
             }}
           >
-            A critical error occurred. Please refresh the page.
+            የሆነ ችግር ተፈጥሯል
           </p>
           {error.digest && (
             <p
@@ -88,7 +95,7 @@ export default function GlobalError({
               cursor: "pointer",
             }}
           >
-            Refresh Page
+            Try again · <span lang="am">እንደገና ሞክር</span>
           </button>
         </div>
       </body>

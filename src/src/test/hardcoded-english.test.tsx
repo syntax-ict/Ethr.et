@@ -68,7 +68,7 @@ describe("error and offline states render through t()", () => {
       await screen.findByText("⟦table.error_loading⟧"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "⟦common.try_again_button⟧" }),
+      screen.getByRole("button", { name: "⟦common.try_again⟧" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Something went wrong loading this data."),
@@ -92,7 +92,7 @@ describe("error and offline states render through t()", () => {
     // The thrown error's own message is shown as-is, as before.
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "⟦common.try_again_button⟧" }),
+      screen.getByRole("button", { name: "⟦common.try_again⟧" }),
     ).toBeInTheDocument();
   });
 
@@ -121,7 +121,7 @@ describe("error and offline states render through t()", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("⟦offline.page_body⟧")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "⟦common.try_again_button⟧" }),
+      screen.getByRole("button", { name: "⟦common.try_again⟧" }),
     ).toBeInTheDocument();
     // The static Amharic line is deliberately kept as it was.
     expect(

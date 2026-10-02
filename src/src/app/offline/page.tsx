@@ -26,7 +26,7 @@ export default function OfflinePage() {
       </p>
       <Button className="mt-6" onClick={() => window.location.reload()}>
         <RefreshCw className="mr-2 h-4 w-4" />{" "}
-        {t("common.try_again_button", "Try Again")}
+        {t("common.try_again", "Try again")}
       </Button>
     </div>
   );
