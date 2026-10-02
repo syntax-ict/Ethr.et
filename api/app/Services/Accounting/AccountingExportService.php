@@ -9,8 +9,15 @@ use App\Models\PayrollRun;
 
 final class AccountingExportService
 {
-    /** Default account codes and names (can be overridden per tenant via ChartOfAccount) */
-    private const DEFAULTS = [
+    /**
+     * Default account codes and names (can be overridden per tenant via ChartOfAccount).
+     *
+     * Public because these keys are also the only ones a tenant may override:
+     * `UpdateChartOfAccountsRequest` validates `accounts.*.key` against them, so
+     * a row saved under any other key — which the journal would never read —
+     * is refused instead of stored (audit N11).
+     */
+    public const DEFAULTS = [
         'salary_expense' => ['code' => '5100', 'name' => 'Salary Expense'],
         'pension_expense' => ['code' => '5200', 'name' => 'Pension Expense (Employer)'],
         'tax_payable' => ['code' => '2100', 'name' => 'Income Tax Payable'],

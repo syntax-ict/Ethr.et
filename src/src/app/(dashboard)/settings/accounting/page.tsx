@@ -30,6 +30,7 @@ import {
   useChartOfAccounts,
   usePayrollJournal,
   useUpdateChartOfAccounts,
+  type ChartAccountKey,
   type ChartOfAccountsEntry,
 } from "@/features/accounting/api";
 import { useAllPayrollRuns } from "@/features/payroll/api";
@@ -81,7 +82,7 @@ function ChartOfAccountsSection() {
     const changed = accounts
       .filter((a) => edits[a.key])
       .map((a) => ({
-        key: a.key,
+        key: a.key as ChartAccountKey,
         account_code: edits[a.key].account_code ?? a.account_code,
         account_name: edits[a.key].account_name ?? a.account_name,
       }));

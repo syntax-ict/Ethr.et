@@ -51,9 +51,12 @@ searching `api/app` for every call site:
 | `test` | You pressed *Send test* | `message`, `timestamp` | `WebhookDispatcher.php:67-73` |
 
 The settings page offers exactly the first nine (`src/src/features/webhooks/api.ts:31-41`).
-**The API does not check the list:** `events.*` accepts any string
-(`StoreWebhookRequest.php:22`), so a webhook subscribed to a misspelt event saves, shows as
-active, and never fires. Recorded as audit N11.
+**The API checks the list** *(since 2026-10-02, audit N11)*: `events.*` must be one of
+`App\Support\WebhookEvents::ALL`, and each at most once, on create and on update — anything
+else is a 422. Before that it accepted any string, so a webhook subscribed to a misspelt event
+saved, showed as active, and never fired. `WebhookEventValidationTest` fails if that list and
+the `$this->webhook(...)` call sites disagree. A webhook saved earlier with an unknown event
+keeps it until its events are next edited.
 
 A failure to queue a webhook never fails the business action that triggered it — it is logged
 and swallowed (`api/app/Traits/DispatchesWebhooks.php:14-28`).

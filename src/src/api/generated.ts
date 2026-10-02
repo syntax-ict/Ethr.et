@@ -6002,6 +6002,7 @@ export interface components {
                 email?: string | null;
                 phone?: string | null;
                 employee_code?: string | null;
+                national_id?: string | null;
                 /** @enum {string|null} */
                 gender?: "male" | "female" | null;
                 /** Format: date-time */
@@ -7185,7 +7186,7 @@ export interface components {
         StoreWebhookRequest: {
             /** Format: uri */
             url: string;
-            events: string[];
+            events: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed")[];
         };
         /** TaxBracketResource */
         TaxBracketResource: {
@@ -7298,7 +7299,8 @@ export interface components {
         /** UpdateChartOfAccountsRequest */
         UpdateChartOfAccountsRequest: {
             accounts: {
-                key: string;
+                /** @enum {string} */
+                key: "salary_expense" | "pension_expense" | "tax_payable" | "pension_payable_employee" | "pension_payable_employer" | "net_salary_payable";
                 account_code: string;
                 account_name: string;
             }[];
@@ -7658,7 +7660,7 @@ export interface components {
         UpdateWebhookRequest: {
             /** Format: uri */
             url?: string;
-            events?: string[];
+            events?: ("employee.created" | "employee.updated" | "leave.requested" | "leave.approved" | "leave.rejected" | "payroll.processed" | "payroll.approved" | "payroll.voided" | "payroll.reprocessed")[];
             is_active?: boolean;
         };
         /**
@@ -12563,6 +12565,7 @@ export interface operations {
                             "email",
                             "phone",
                             "employee_code",
+                            "national_id",
                             "gender",
                             "hire_date",
                             "department_code",
@@ -12597,7 +12600,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         headers: unknown[];
-                        rows: string[];
+                        rows: unknown[][];
                         errors: string;
                     } | {
                         headers: unknown[];

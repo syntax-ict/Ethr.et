@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Services\CurrentTenant;
 use App\Services\Import\EmployeeImporter;
 use App\Services\PlanLimitService;
+use App\Support\EmployeeImportRow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -25,9 +26,13 @@ class EmployeeImportController extends Controller
 
         $csv = $this->importer->templateCsv();
 
+        // From the same list as the template row: this was a second literal
+        // that had fallen behind it and omitted `national_id`.
+        $headers = EmployeeImportRow::COLUMNS;
+
         return response()->json([
             'template' => $csv,
-            'headers' => ['name', 'email', 'phone', 'employee_code', 'gender', 'hire_date', 'department_code', 'branch_code', 'position_code', 'salary_cents'],
+            'headers' => $headers,
         ]);
     }
 

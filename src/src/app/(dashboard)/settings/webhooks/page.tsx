@@ -32,6 +32,7 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   WEBHOOK_EVENTS,
+  type WebhookEvent,
   useCreateWebhook,
   useDeleteWebhook,
   useTestWebhook,
@@ -51,7 +52,9 @@ const webhookSchema = z.object({
   // A webhook subscribed to nothing is silently inert: it is created, listed as
   // Active, and never fires. The server rejects an empty list; without this the
   // user only found out via a toast that named no field.
-  events: z.array(z.string()).min(1, "webhooks_page.events_required"),
+  events: z
+    .array(z.enum(WEBHOOK_EVENTS))
+    .min(1, "webhooks_page.events_required"),
 });
 type WebhookValues = z.infer<typeof webhookSchema>;
 
@@ -115,7 +118,7 @@ export default function WebhooksPage() {
     });
   }
 
-  function toggleEvent(event: string) {
+  function toggleEvent(event: WebhookEvent) {
     const next = selectedEvents.includes(event)
       ? selectedEvents.filter((e) => e !== event)
       : [...selectedEvents, event];

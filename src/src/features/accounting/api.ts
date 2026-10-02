@@ -7,6 +7,12 @@ export type ChartOfAccountsEntry =
   operations["accounting.chartOfAccounts"]["responses"][200]["content"]["application/json"]["accounts"][number];
 export type ChartOfAccountsUpdate =
   components["schemas"]["UpdateChartOfAccountsRequest"];
+/**
+ * The six keys the journal reads; the server refuses any other (audit N11).
+ * `GET /accounting/chart-of-accounts` returns exactly these, but Scramble types
+ * that response's `key` as a plain string.
+ */
+export type ChartAccountKey = ChartOfAccountsUpdate["accounts"][number]["key"];
 
 /**
  * `GET /accounting/journal/{run}`, mirroring

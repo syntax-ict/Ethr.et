@@ -23,10 +23,9 @@ export type WebhookTestResult =
 /**
  * Exactly the events the API dispatches — every `$this->webhook(...)` call
  * site (`DispatchesWebhooks`): EmployeeController, LeaveRequestController,
- * PayrollController and ProcessPayrollJob. The server accepts any string in
- * `events`, so offering a name nothing dispatches creates a webhook that is
- * listed as Active and never fires. Add an event here only together with the
- * call site that sends it.
+ * PayrollController and ProcessPayrollJob — and the list the server accepts,
+ * `App\Support\WebhookEvents::ALL` (`events.*` is validated against it, audit
+ * N11). Add an event there, with the call site that sends it, and here.
  */
 export const WEBHOOK_EVENTS = [
   "employee.created",
@@ -39,6 +38,8 @@ export const WEBHOOK_EVENTS = [
   "payroll.voided",
   "payroll.reprocessed",
 ] as const;
+
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 const keys = {
   all: ["webhooks"] as const,
