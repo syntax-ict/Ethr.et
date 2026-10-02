@@ -12,6 +12,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use Carbon\Carbon;
 
 // ── Executive Dashboard Overview ──
 
@@ -169,6 +170,33 @@ test('overtime trend sums overtime pay from the calculation log, not a stored co
     $trend = collect($response->json('overtime_trend'))->keyBy('period');
     expect($trend->get('August 2026')['overtime_cents'])->toBe(22500);
     expect($trend->get('August 2026')['overtime_minutes'])->toBe(180);
+});
+
+test('the payroll forecast names the months it projects', function () {
+    // Audit N34: runs carry the label PayrollEngine writes ("September 2026"),
+    // and the projected bars came back as "September 2026 +1", "+2", "+3".
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    foreach (['2026-07-01', '2026-08-01', '2026-09-01'] as $i => $start) {
+        $month = Carbon::parse($start);
+        PayrollRun::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'completed',
+            'period_label' => $month->format('F Y'),
+            'period_start' => $month->toDateString(),
+            'period_end' => $month->copy()->endOfMonth()->toDateString(),
+            'gross_total_cents' => 100000 * ($i + 1),
+        ]);
+    }
+
+    $labels = collect(
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/forecast")
+            ->assertOk()
+            ->json('payroll_gross.projected'),
+    )->pluck('label')->all();
+
+    expect($labels)->toBe(['October 2026', 'November 2026', 'December 2026']);
 });
 
 test('monthly payroll trend shows the latest twelve runs, oldest first', function () {

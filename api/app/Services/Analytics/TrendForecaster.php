@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Analytics;
 
+use DateTimeImmutable;
+
 /**
  * A plain ordinary-least-squares linear regression over an evenly-spaced
  * historical series, projected forward N points. Deliberately not a
@@ -67,9 +69,14 @@ final class TrendForecaster
     }
 
     /**
-     * Advances a "YYYY-MM" label by $step months. Any other label shape
-     * (e.g. a payroll period name that isn't a plain year-month) is returned
-     * with a generic "+N" suffix instead of guessing its format.
+     * Advances a "YYYY-MM" or a "September 2026" label by $step months, in the
+     * same shape. Any other label is returned with a generic "+N" suffix
+     * instead of guessing its format.
+     *
+     * The month-name shape is what `PayrollEngine` writes as every run's
+     * `period_label` (`$periodStart->format('F Y')`), so it is the shape the
+     * payroll forecast always receives — and with only "YYYY-MM" recognised,
+     * every projected payroll bar read "September 2026 +1" (audit N34).
      */
     private static function nextLabel(string $lastLabel, int $step): string
     {
@@ -81,6 +88,14 @@ final class TrendForecaster
             $month = (($month - 1) % 12) + 1;
 
             return sprintf('%04d-%02d', $year, $month);
+        }
+
+        // PHP parses and prints `F` in English whatever the locale, so this
+        // round-trips exactly what PayrollEngine wrote. The round-trip check
+        // refuses anything createFromFormat() merely tolerated.
+        $month = DateTimeImmutable::createFromFormat('!F Y', $lastLabel);
+        if ($month !== false && $month->format('F Y') === $lastLabel) {
+            return $month->modify("+{$step} months")->format('F Y');
         }
 
         return "{$lastLabel} +{$step}";

@@ -66,3 +66,37 @@ it('handles a flat (zero-slope) series without error', function () {
         ['label' => '2026-05', 'value' => 10.0],
     ]);
 });
+
+// Audit N34: PayrollEngine labels every run `$periodStart->format('F Y')`, so
+// the payroll forecast only ever sees this shape — and projected it as
+// "September 2026 +1", "+2", "+3".
+it('projects a month-name label as the following months', function () {
+    $projected = TrendForecaster::project(
+        [100, 200],
+        ['August 2026', 'September 2026'],
+        3,
+    );
+
+    expect(array_column($projected, 'label'))
+        ->toBe(['October 2026', 'November 2026', 'December 2026']);
+});
+
+it('rolls a month-name label over the year', function () {
+    $projected = TrendForecaster::project(
+        [100, 200],
+        ['November 2026', 'December 2026'],
+        2,
+    );
+
+    expect(array_column($projected, 'label'))->toBe(['January 2027', 'February 2027']);
+});
+
+it('does not take a label that merely resembles a month for one', function () {
+    $projected = TrendForecaster::project(
+        [100, 200],
+        ['Q2 2026', 'Septembre 2026'],
+        1,
+    );
+
+    expect($projected[0]['label'])->toBe('Septembre 2026 +1');
+});
