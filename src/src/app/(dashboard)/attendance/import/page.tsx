@@ -237,7 +237,7 @@ export default function AttendanceImportPage() {
               <h3 className="text-sm font-semibold text-foreground">
                 {t("attendance.import_page.expected_format")}
               </h3>
-              <code className="mt-2 block rounded bg-background p-3 text-xs font-mono text-muted-foreground">
+              <code className="mt-2 block overflow-x-auto rounded bg-background p-3 font-mono text-xs whitespace-pre text-muted-foreground">
                 employee_code,date,check_in_time,check_out_time{"\n"}
                 EMP001,2026-07-01,08:30,17:00{"\n"}
                 EMP002,2026-07-01,09:00,17:30

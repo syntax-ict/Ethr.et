@@ -106,16 +106,16 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
             {data.range.from} to {data.range.to}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <DualCalendarDateInput
             value={range.from}
             onChange={(v) => setRange((r) => ({ ...r, from: v }))}
-            className="w-36"
+            className="w-80 max-w-full"
           />
           <DualCalendarDateInput
             value={range.to}
             onChange={(v) => setRange((r) => ({ ...r, to: v }))}
-            className="w-36"
+            className="w-80 max-w-full"
           />
         </div>
       </CardHeader>

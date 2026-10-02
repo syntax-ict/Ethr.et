@@ -74,7 +74,7 @@ export default function TeamAttendancePage() {
               <DualCalendarDateInput
                 value={date}
                 onChange={(v) => setDate(v || todayStr())}
-                className="w-40"
+                className="max-w-80 min-w-0 flex-1"
                 aria-label={t(
                   "attendance.team_page.select_date",
                   "Select date",

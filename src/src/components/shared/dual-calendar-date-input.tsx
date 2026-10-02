@@ -177,7 +177,10 @@ export function DualCalendarDateInput({
 
   return (
     <div className={className}>
-      <div className="flex gap-2">
+      {/* Wraps rather than overflows (audit N36): year and day are fixed, and
+          a caller narrower than the three parts squeezed the month to an
+          unreadable sliver and pushed the day out of the box. */}
+      <div className="flex flex-wrap gap-2">
         <Input
           id={fieldId}
           type="number"
@@ -192,7 +195,7 @@ export function DualCalendarDateInput({
           aria-required={ariaRequired}
           aria-describedby={ariaDescribedBy}
           placeholder={t("calendar.year", "Year")}
-          className="w-24"
+          className="w-20"
           value={currentYear}
           onChange={(e) => {
             const year = Number(e.target.value);
@@ -212,7 +215,7 @@ export function DualCalendarDateInput({
           }
         >
           <SelectTrigger
-            className="min-w-0 flex-1"
+            className="min-w-28 flex-1"
             aria-label={partLabel(
               t("calendar.ethiopian_month", "Ethiopian month"),
             )}

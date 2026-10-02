@@ -42,14 +42,14 @@ export default function AttendanceIntelligencePage() {
           title={t("attendance.intelligence_page.title")}
           description={t("attendance.intelligence_page.description")}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Label className="text-xs">
                 {t("attendance.intelligence_page.date_label")}:
               </Label>
               <DualCalendarDateInput
                 value={date}
                 onChange={setDate}
-                className="w-44"
+                className="max-w-80 min-w-0 flex-1"
               />
             </div>
           }

@@ -40,6 +40,18 @@ function renderPage() {
 }
 
 describe("<AttendanceImportPage>", () => {
+  it("shows the expected format one CSV row per line", () => {
+    // `<code>` collapses newlines by default, so the header and both sample
+    // rows rendered as one line — copied, that is not a valid CSV (audit N36).
+    // jsdom has no layout; the text always held the newlines, the CSS is what
+    // dropped them.
+    renderPage();
+
+    const sample = screen.getByText(/^employee_code,date,/);
+    expect(sample.textContent?.split("\n")).toHaveLength(3);
+    expect(sample).toHaveClass("whitespace-pre", "overflow-x-auto");
+  });
+
   it("retries a failed commit under the same import key", async () => {
     // The commit is idempotent on import_key, but the page minted a fresh key
     // on every click — so retrying a commit whose response was lost imported
