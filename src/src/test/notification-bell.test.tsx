@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 
 // Mock the API hooks
-vi.mock("@/features/notifications/api", () => ({
+vi.mock("@/features/notifications/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/notifications/api")>()),
   useUnreadCount: vi.fn(() => ({ data: { count: 0 } })),
   useNotifications: vi.fn(() => ({ data: { data: [] } })),
   useMarkAsRead: vi.fn(() => ({ mutate: vi.fn() })),

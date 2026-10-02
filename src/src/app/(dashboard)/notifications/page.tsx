@@ -10,6 +10,7 @@ import {
   useNotifications,
   useMarkAsRead,
   useMarkAllAsRead,
+  notificationText,
   type Notification,
 } from "@/features/notifications/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -101,7 +102,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={cn("text-sm", !n.read_at && "font-medium")}>
-                    {(n.data?.message as string) ?? n.type}
+                    {notificationText(n) ?? n.type}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {timeAgo(n.created_at)}

@@ -14,6 +14,7 @@ import {
   useUnreadCount,
   useMarkAsRead,
   useMarkAllAsRead,
+  notificationText,
   type Notification,
 } from "../api";
 import { cn } from "@/lib/utils";
@@ -95,7 +96,7 @@ export function NotificationBell() {
                       !n.read_at && "font-medium",
                     )}
                   >
-                    {(n.data?.message as string) ?? "New notification"}
+                    {notificationText(n) ?? "New notification"}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {formatTimeAgo(n.created_at)}

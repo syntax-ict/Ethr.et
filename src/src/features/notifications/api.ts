@@ -14,6 +14,17 @@ export type Notification = Omit<
   "data" | "created_at"
 > & { data: Record<string, unknown>; created_at: string };
 
+/**
+ * The line a list shows for a notification. Every database notification sends
+ * `message` except DashboardDigestNotification, which sends `title`.
+ */
+export function notificationText(n: Notification): string | undefined {
+  const { message, title } = n.data;
+  if (typeof message === "string") return message;
+  if (typeof title === "string") return title;
+  return undefined;
+}
+
 type UnreadCount =
   operations["notification.unreadCount"]["responses"][200]["content"]["application/json"];
 
