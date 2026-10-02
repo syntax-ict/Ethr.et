@@ -102,11 +102,11 @@ final class EmployeeDashboardService
             ->get()
             ->map(fn ($b) => [
                 'type' => $b->leaveType?->name,
-                'entitled' => $b->entitled_days,
-                'used' => $b->used_days,
+                'entitled' => (float) $b->entitled_days,
+                'used' => (float) $b->used_days,
                 'remaining' => $b->remainingDays(),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function latestPayslip($employee): ?array
@@ -154,6 +154,6 @@ final class EmployeeDashboardService
                 'name_am' => $h->name_am,
                 'date' => $h->date->format('Y-m-d'),
             ])
-            ->toArray();
+            ->all();
     }
 }

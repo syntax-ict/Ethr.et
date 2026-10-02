@@ -84,11 +84,7 @@ export function LeaveOverview() {
         ) : (
           <div className="space-y-4">
             {balances.map((b, i) => {
-              // `entitled` and `used` are `decimal:1` casts, sent as "16.0";
-              // `remaining` is a float. Normalise so all three print alike.
-              const entitled = Number(b.entitled);
-              const used = Number(b.used);
-              const remaining = Number(b.remaining);
+              const { entitled, used, remaining } = b;
               // Null once the leave type has been deleted.
               const type = b.type ?? "—";
               const pct =

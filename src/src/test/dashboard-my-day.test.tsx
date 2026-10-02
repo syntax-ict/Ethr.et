@@ -121,9 +121,7 @@ describe("Dashboard — leave balance tile", () => {
   it("does not print 'null' for a balance whose leave type was deleted", async () => {
     renderWith(<DashboardPage />, {
       ...DASHBOARD,
-      leave_balances: [
-        { type: null, entitled: "5.0", used: "0.0", remaining: 5 },
-      ],
+      leave_balances: [{ type: null, entitled: 5, used: 0, remaining: 5 }],
     });
 
     expect(await screen.findByText("5 days")).toBeInTheDocument();

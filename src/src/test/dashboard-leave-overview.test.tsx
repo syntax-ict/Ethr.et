@@ -8,15 +8,16 @@ import { LeaveOverview } from "@/features/dashboard/components/leave-overview";
 
 /**
  * `GET /dashboard/employee`, as EmployeeDashboardService::assemble builds it.
- * `entitled` and `used` are LeaveBalance's `decimal:1` casts, so they arrive as
- * strings; `remaining` is `remainingDays()`, a float. `type` is
- * `leaveType?->name`, null once the leave type has been soft-deleted.
+ * `entitled` and `used` are LeaveBalance's `decimal:1` casts, sent as numbers
+ * since audit N13 (they were strings such as "16.0"); `remaining` is
+ * `remainingDays()`. `type` is `leaveType?->name`, null once the leave type
+ * has been soft-deleted.
  */
 const DASHBOARD = {
   attendance_today: null,
   leave_balances: [
-    { type: "Annual", entitled: "16.0", used: "4.5", remaining: 11.5 },
-    { type: null, entitled: "5.0", used: "0.0", remaining: 5 },
+    { type: "Annual", entitled: 16, used: 4.5, remaining: 11.5 },
+    { type: null, entitled: 5, used: 0, remaining: 5 },
   ],
   latest_payslip: null,
   upcoming_holidays: [],

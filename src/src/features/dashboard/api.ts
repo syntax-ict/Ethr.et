@@ -2,45 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { operations } from "@/api/generated";
 
-// Shapes come from the generated contract. The dashboard services build their
-// lists with `->map()`, which Scramble publishes as `unknown[]`; those rows are
-// restated from EmployeeDashboardService / ManagerDashboardService.
-
-type EmployeeContract =
-  operations["dashboard.employee"]["responses"][200]["content"]["application/json"];
+// Shapes come from the generated contract.
 
 /**
- * `entitled` and `used` are LeaveBalance's `decimal:1` casts and arrive as
- * strings ("16.0"); `remaining` is `remainingDays()`, a float. `type` is
- * `leaveType?->name`, null once the leave type has been soft-deleted.
+ * A leave balance's `type` is null once its leave type has been soft-deleted;
+ * a holiday's `name_am` is null for holidays created before bilingual names.
  */
-export interface DashboardLeaveBalance {
-  type: string | null;
-  entitled: string;
-  used: string;
-  remaining: number;
-}
-
-export interface DashboardHoliday {
-  name: string;
-  /** Amharic name; null for holidays created before bilingual names existed. */
-  name_am: string | null;
-  date: string;
-}
-
-/** `latest_payslip.period` is `payrollRun?->period_label`, so nullable. */
-export type EmployeeDashboard = Omit<
-  EmployeeContract,
-  "leave_balances" | "upcoming_holidays" | "latest_payslip"
-> & {
-  leave_balances: DashboardLeaveBalance[];
-  upcoming_holidays: DashboardHoliday[];
-  latest_payslip:
-    | (Omit<NonNullable<EmployeeContract["latest_payslip"]>, "period"> & {
-        period: string | null;
-      })
-    | null;
-};
+export type EmployeeDashboard =
+  operations["dashboard.employee"]["responses"][200]["content"]["application/json"];
 
 export function useEmployeeDashboard() {
   return useQuery<EmployeeDashboard>({

@@ -10812,13 +10812,22 @@ export interface operations {
                             /** @constant */
                             status: "not_checked_in";
                         } | null;
-                        leave_balances: unknown[];
+                        leave_balances: {
+                            type: string | null;
+                            entitled: number;
+                            used: number;
+                            remaining: number;
+                        }[];
                         latest_payslip: {
                             period: string;
                             net_cents: number;
                             gross_cents: number;
                         } | null;
-                        upcoming_holidays: unknown[];
+                        upcoming_holidays: {
+                            name: string;
+                            name_am: string | null;
+                            date: string;
+                        }[];
                         pending_approvals: number;
                         tenant_summary: {
                             employee_count: number;
