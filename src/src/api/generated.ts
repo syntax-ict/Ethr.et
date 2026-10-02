@@ -11367,7 +11367,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        departments: unknown[];
+                        departments: {
+                            public_id: string;
+                            name: string;
+                            headcount: number;
+                            attendance_rate: number;
+                            avg_salary_cents: number;
+                        }[];
                     };
                 };
             };
@@ -11422,7 +11428,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        branches: unknown[];
+                        branches: {
+                            public_id: string;
+                            name: string;
+                            headcount: number;
+                            department_count: number;
+                        }[];
                     };
                 };
             };

@@ -57,7 +57,7 @@ final class DepartmentAnalyticsService
                 'attendance_rate' => $attendanceRate,
                 'avg_salary_cents' => (int) round($avgSalary),
             ];
-        })->toArray();
+        })->all();
     }
 
     public function detail(int $tenantId, Department $department, Carbon $from, Carbon $to): array

@@ -126,20 +126,15 @@ export function useExecutiveForecast(branchPublicId?: string) {
   });
 }
 
-/**
- * One row of `GET /analytics/branches` (BranchAnalyticsService::compare),
- * which the contract publishes as `unknown[]`; stated from the PHP.
- */
-export interface BranchSummary {
-  public_id: string;
-  name: string;
-  headcount: number;
-  department_count: number;
-}
+type BranchComparison =
+  operations["analytics.branches"]["responses"][200]["content"]["application/json"];
+
+/** One row of `GET /analytics/branches` (BranchAnalyticsService::compare). */
+export type BranchSummary = BranchComparison["branches"][number];
 
 /** Powers the branch selector — reuses the existing branch-comparison endpoint. */
 export function useBranchList(enabled: boolean) {
-  return useQuery<{ branches: BranchSummary[] }>({
+  return useQuery<BranchComparison>({
     queryKey: ["analytics", "branches"],
     enabled,
     queryFn: async () => {
