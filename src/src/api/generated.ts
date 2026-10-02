@@ -5386,6 +5386,38 @@ export interface components {
              */
             file: string;
         };
+        /** AttendancePunchResource */
+        AttendancePunchResource: {
+            public_id: string;
+            employee?: components["schemas"]["EmployeeResource"];
+            employee_public_id: string;
+            shift?: components["schemas"]["ShiftResource"] | null;
+            date: string | null;
+            check_in: string | null;
+            check_out: string | null;
+            source: string;
+            /** @enum {string} */
+            source_label: "Biometric Device" | "Mobile App" | "Web Portal" | "Manual Entry" | "CSV Import" | "Kiosk" | "QR Code" | "Offline Mobile";
+            confidence_score: number;
+            latitude: string | null;
+            longitude: string | null;
+            geofence_verified: boolean | null;
+            status: string;
+            /** @enum {string} */
+            status_label: "Pending" | "Present" | "Late" | "Absent" | "Early Leave" | "On Leave" | "Holiday" | "Voided";
+            worked_minutes: number;
+            overtime_minutes: number;
+            conflict: {
+                action: string;
+                with_record_public_id: string | null;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+            was_duplicate: boolean;
+            employee_name?: string;
+        };
         /** AttendanceRecordResource */
         AttendanceRecordResource: {
             public_id: string;
@@ -8049,7 +8081,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        session: unknown[];
+                        session: components["schemas"]["KioskSessionResource"] & {
+                            branch: {
+                                public_id: string;
+                                name: string;
+                            };
+                        };
                         tenant: {
                             name: string;
                             subdomain: string;
@@ -8095,12 +8132,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: {
@@ -8188,12 +8235,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8415,12 +8472,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             /** @description `AttendanceRecordResource` */
@@ -8450,12 +8508,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8654,12 +8722,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8811,12 +8889,22 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendancePunchResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": components["schemas"]["AttendancePunchResource"];
+                };
+            };
+            /** @description `AttendancePunchResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendancePunchResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9659,12 +9747,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description `KioskSessionResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["KioskSessionResource"] & {
+                        branch: {
+                            public_id: string;
+                            name: string;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

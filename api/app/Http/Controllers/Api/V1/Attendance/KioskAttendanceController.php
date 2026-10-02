@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\KioskAttendanceRequest;
-use App\Http\Resources\AttendanceRecordResource;
+use App\Http\Resources\AttendancePunchResource;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
@@ -58,13 +58,12 @@ class KioskAttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $resource = new AttendanceRecordResource($result->record);
-        $data = $resource->resolve();
-        $data['was_duplicate'] = $result->wasDuplicate;
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate);
 
-        $isCheckOut = $request->validated('type') === 'check_out';
-        $statusCode = $result->wasDuplicate || $isCheckOut ? 200 : 201;
+        if ($result->wasDuplicate || $request->validated('type') === 'check_out') {
+            return $punch->response()->setStatusCode(200);
+        }
 
-        return response()->json($data, $statusCode);
+        return $punch->response()->setStatusCode(201);
     }
 }

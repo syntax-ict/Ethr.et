@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ManualAttendanceRequest;
+use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
@@ -48,10 +49,7 @@ class ManualAttendanceController extends Controller
         if ($result->wasDuplicate) {
             $result->record->load('employee', 'shift');
 
-            $data = (new AttendanceRecordResource($result->record))->resolve();
-            $data['was_duplicate'] = true;
-
-            return response()->json($data, 200);
+            return (new AttendancePunchResource($result->record, true))->response()->setStatusCode(200);
         }
 
         // The times are what HR read off a sheet or a clock in the tenant's

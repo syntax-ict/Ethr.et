@@ -62,7 +62,7 @@ class KioskSessionController extends Controller
 
         $session = KioskSession::where('public_id', $publicId)->with('branch')->firstOrFail();
 
-        return response()->json((new KioskSessionResource($session))->resolve());
+        return (new KioskSessionResource($session))->response();
     }
 
     public function deactivate(string $publicId): JsonResponse
@@ -141,7 +141,7 @@ class KioskSessionController extends Controller
         $settings = $tenant->attendanceSetting;
 
         return response()->json([
-            'session' => (new KioskSessionResource($session))->resolve(),
+            'session' => new KioskSessionResource($session),
             'tenant' => [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,

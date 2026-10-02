@@ -87,8 +87,8 @@ export interface ImportPreview {
   errors: string[];
 }
 
-/** A punch endpoint's record, plus the replay flag check-in endpoints add. */
-export type PunchResult = AttendanceRecord & { was_duplicate?: boolean };
+/** A punch endpoint's record, plus whether the request was a replay. */
+export type PunchResult = components["schemas"]["AttendancePunchResource"];
 
 export interface AttendanceFilters {
   page?: number;
