@@ -77,9 +77,9 @@ const ME = {
   },
 };
 
-function renderWith(ui: ReactNode) {
+function renderWith(ui: ReactNode, dashboard: object = DASHBOARD) {
   server.use(
-    http.get("*/api/v1/dashboard/employee", () => HttpResponse.json(DASHBOARD)),
+    http.get("*/api/v1/dashboard/employee", () => HttpResponse.json(dashboard)),
     http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
   );
   const queryClient = new QueryClient({
@@ -110,5 +110,23 @@ describe("Dashboard — today's check-in time", () => {
 
     expect(await screen.findByText("Since 08:30")).toBeInTheDocument();
     expect(screen.queryByText(/05:30:00/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Dashboard — leave balance tile", () => {
+  /**
+   * `type` is `leaveType?->name`, null once the leave type has been
+   * soft-deleted; `String(type)` put the word "null" under the balance.
+   */
+  it("does not print 'null' for a balance whose leave type was deleted", async () => {
+    renderWith(<DashboardPage />, {
+      ...DASHBOARD,
+      leave_balances: [
+        { type: null, entitled: "5.0", used: "0.0", remaining: 5 },
+      ],
+    });
+
+    expect(await screen.findByText("5 days")).toBeInTheDocument();
+    expect(screen.queryByText("null")).not.toBeInTheDocument();
   });
 });

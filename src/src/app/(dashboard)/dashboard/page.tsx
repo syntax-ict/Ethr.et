@@ -154,7 +154,8 @@ function SelfServiceKpis() {
         }
         sub={
           balances.length > 0
-            ? String(balances[0].type)
+            ? // Null once the leave type has been deleted.
+              (balances[0].type ?? "—")
             : t("dashboard.no_leave_configured", "No leave configured")
         }
       />
