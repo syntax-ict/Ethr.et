@@ -19,6 +19,7 @@ import {
   Legend,
 } from "recharts";
 import { CHART_COLORS, ChartCard, KpiBoxCurrency } from "./chart-helpers";
+import { birrTick, birrTooltip } from "./axis-format";
 
 export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t } = useT();
@@ -69,8 +70,8 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <YAxis tickFormatter={birrTick} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={birrTooltip} />
                   <Legend />
                   <Bar
                     dataKey="Gross"
@@ -108,8 +109,8 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <YAxis tickFormatter={birrTick} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={birrTooltip} />
                   <Bar
                     dataKey="Overtime"
                     fill={CHART_COLORS[3]}
@@ -131,14 +132,18 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
                   }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={birrTick}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis
                     type="category"
                     dataKey="name"
                     tick={{ fontSize: 11 }}
                     width={100}
                   />
-                  <Tooltip />
+                  <Tooltip formatter={birrTooltip} />
                   <Bar
                     dataKey="value"
                     fill={CHART_COLORS[4]}
@@ -160,14 +165,18 @@ export function PayrollTab({ branchPublicId }: { branchPublicId?: string }) {
                   }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={birrTick}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis
                     type="category"
                     dataKey="name"
                     tick={{ fontSize: 11 }}
                     width={100}
                   />
-                  <Tooltip />
+                  <Tooltip formatter={birrTooltip} />
                   <Bar
                     dataKey="value"
                     fill={CHART_COLORS[2]}

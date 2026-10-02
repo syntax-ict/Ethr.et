@@ -7,6 +7,7 @@ import {
   useExecutiveForecast,
 } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
+import { monthKeyLabel } from "./axis-format";
 import {
   BarChart,
   Bar,
@@ -25,7 +26,7 @@ import {
 import { CHART_COLORS, ChartCard } from "./chart-helpers";
 
 export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const query = useExecutiveWorkforce(branchPublicId);
   const forecast = useExecutiveForecast(branchPublicId);
 
@@ -72,9 +73,15 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                   ]}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="month"
+                    tickFormatter={(value) => monthKeyLabel(value, locale)}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <Tooltip
+                    labelFormatter={(label) => monthKeyLabel(label, locale)}
+                  />
                   <Line
                     type="monotone"
                     dataKey="count"

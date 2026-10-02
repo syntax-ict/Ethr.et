@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { CalendarX } from "lucide-react";
 import { useExecutiveAttendance } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dayKeyLabel } from "./axis-format";
 import {
   LineChart,
   Line,
@@ -23,7 +25,8 @@ import {
 import { CHART_COLORS, ChartCard } from "./chart-helpers";
 
 export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar } = useCalendar();
   const query = useExecutiveAttendance({ branchPublicId });
 
   // Every section below hides itself when it has no rows, so with no
@@ -63,9 +66,19 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={data.daily_trend}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) =>
+                      dayKeyLabel(value, calendar, locale)
+                    }
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <Tooltip
+                    labelFormatter={(label) =>
+                      dayKeyLabel(label, calendar, locale)
+                    }
+                  />
                   <Line
                     type="monotone"
                     dataKey="present"

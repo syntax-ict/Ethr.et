@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { OverviewTab } from "@/app/(dashboard)/analytics/overview-tab";
 import { WorkforceTab } from "@/app/(dashboard)/analytics/workforce-tab";
 import { AttendanceTab } from "@/app/(dashboard)/analytics/attendance-tab";
@@ -58,7 +59,9 @@ function renderTab(tab: ReactNode) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{tab}</QueryClientProvider>,
+    <QueryClientProvider client={client}>
+      <CalendarProvider>{tab}</CalendarProvider>
+    </QueryClientProvider>,
   );
 }
 

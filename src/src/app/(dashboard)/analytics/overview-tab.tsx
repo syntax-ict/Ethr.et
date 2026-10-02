@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useT } from "@/lib/i18n/useT";
+import { monthKeyLabel } from "./axis-format";
 import { Users, TrendingUp, Wallet, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
@@ -28,7 +29,7 @@ import { ComplianceCard } from "@/features/dashboard/components/compliance-card"
 import { DepartmentDrillDownDialog } from "@/features/dashboard/components/department-drilldown-dialog";
 
 export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const query = useExecutiveOverview({ branchPublicId });
   const [drilldownDept, setDrilldownDept] = useState<string | null>(null);
 
@@ -122,9 +123,15 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
                       strokeDasharray="3 3"
                       className="opacity-30"
                     />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <XAxis
+                      dataKey="month"
+                      tickFormatter={(value) => monthKeyLabel(value, locale)}
+                      tick={{ fontSize: 11 }}
+                    />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <Tooltip
+                      labelFormatter={(label) => monthKeyLabel(label, locale)}
+                    />
                     <Line
                       type="monotone"
                       dataKey="hires"
