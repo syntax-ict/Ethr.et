@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { operations } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 
 /**
  * Shared data layer for the persona-scoped executive dashboards (CEO / HR
@@ -76,20 +76,16 @@ export function useExecutiveWorkforce(branchPublicId?: string) {
   });
 }
 
-export interface ComplianceItem {
-  employee_name: string | null;
-  employee_public_id: string | null;
-  department?: string | null;
-  document_type?: string | null;
-  expiry_date?: string | null;
-  probation_end_date?: string | null;
-}
-
-export interface ComplianceSnapshot {
-  expiring_documents: { count: number; items: ComplianceItem[] };
-  probation_overdue: { count: number; items: ComplianceItem[] };
-  unused_leave: { count: number; applicable: boolean };
-}
+/**
+ * From the contract. The two lists carry different rows — a document has a
+ * type and an expiry, a probation a department and an end date — which the
+ * hand-written single `ComplianceItem` blurred into all-optional fields.
+ */
+export type ComplianceSnapshot =
+  operations["executiveDashboard.compliance"]["responses"][200]["content"]["application/json"];
+export type ComplianceItem =
+  | ComplianceSnapshot["expiring_documents"]["items"][number]
+  | ComplianceSnapshot["probation_overdue"]["items"][number];
 
 export function useExecutiveCompliance(branchPublicId?: string) {
   return useQuery<ComplianceSnapshot>({
@@ -103,21 +99,21 @@ export function useExecutiveCompliance(branchPublicId?: string) {
   });
 }
 
-export interface ForecastPoint {
-  label: string;
-  value: number;
-}
+type ForecastContract =
+  operations["executiveDashboard.forecast"]["responses"][200]["content"]["application/json"];
 
-export interface ExecutiveForecast {
-  headcount: {
-    history: Array<{ month: string; count: number }>;
-    projected: ForecastPoint[];
+export type ForecastPoint = ForecastContract["headcount"]["projected"][number];
+
+/**
+ * `payroll_gross.history` is an `array_map` Scramble cannot type. Its `value`
+ * is a run's integer `gross_total_cents` tenant-wide, but a `sum()` that the
+ * driver returns as a numeric string when scoped to a branch (audit N13).
+ */
+export type ExecutiveForecast = Omit<ForecastContract, "payroll_gross"> & {
+  payroll_gross: Omit<ForecastContract["payroll_gross"], "history"> & {
+    history: Array<{ month: string; value: number | string }>;
   };
-  payroll_gross: {
-    history: Array<{ month: string; value: number }>;
-    projected: ForecastPoint[];
-  };
-}
+};
 
 export function useExecutiveForecast(branchPublicId?: string) {
   return useQuery<ExecutiveForecast>({
@@ -131,6 +127,10 @@ export function useExecutiveForecast(branchPublicId?: string) {
   });
 }
 
+/**
+ * One row of `GET /analytics/branches` (BranchAnalyticsService::compare),
+ * which the contract publishes as `unknown[]`; stated from the PHP.
+ */
 export interface BranchSummary {
   public_id: string;
   name: string;
@@ -189,16 +189,18 @@ export function useDepartmentDetail(departmentPublicId: string | null) {
 // (mirrors every read endpoint on this page: dashboard.executive picks a
 // branch or none, dashboard.regional is always forced to its own).
 
-export type DigestFrequency = "daily" | "weekly" | "monthly";
+type DigestBody = components["schemas"]["ScheduleDashboardDigestRequest"];
+export type DigestFrequency = DigestBody["frequency"];
 
-export interface DashboardDigest {
-  public_id: string;
-  branch_name: string | null;
-  frequency: DigestFrequency;
-  recipients: string[];
-  next_run_at: string;
-  last_run_at: string | null;
-}
+/**
+ * `frequency` and `recipients` are columns ScheduleDashboardDigestRequest
+ * constrains to its enum and to email strings; Scramble sees `string` and
+ * `unknown[]`.
+ */
+export type DashboardDigest = Omit<
+  operations["dashboardDigest.index"]["responses"][200]["content"]["application/json"]["digests"][number],
+  "frequency" | "recipients"
+> & { frequency: DigestFrequency; recipients: string[] };
 
 export function useDashboardDigests() {
   return useQuery<{ digests: DashboardDigest[] }>({
@@ -212,15 +214,7 @@ export function useDashboardDigests() {
 
 export function useScheduleDashboardDigest() {
   const qc = useQueryClient();
-  return useMutation<
-    DashboardDigest,
-    unknown,
-    {
-      frequency: DigestFrequency;
-      recipients: string[];
-      branch_public_id?: string;
-    }
-  >({
+  return useMutation<DashboardDigest, unknown, DigestBody>({
     mutationFn: async (payload) =>
       (await apiClient.post("/dashboard/digests", payload)).data,
     onSuccess: () => {
@@ -246,32 +240,27 @@ export function useDeleteDashboardDigest() {
 // wide policy decision, mirroring AlertThresholdController's authorization.
 // `triggered` is readable by dashboard.regional too, scoped to their branch.
 
-export type AlertMetric =
-  | "turnover_rate"
-  | "attendance_rate_today"
-  | "expiring_documents_count"
-  | "probation_overdue_count"
-  | "unused_leave_count";
+type AlertThresholdBody = components["schemas"]["StoreAlertThresholdRequest"];
+export type AlertMetric = AlertThresholdBody["metric"];
+export type AlertOperator = AlertThresholdBody["operator"];
+export type AlertSeverity = AlertThresholdBody["severity"];
 
-export type AlertOperator = "gt" | "lt";
-export type AlertSeverity = "warning" | "critical";
+/**
+ * The stored columns, typed by the request that wrote them: Scramble sees the
+ * three enums as plain strings.
+ */
+export type AlertThreshold = Omit<
+  operations["alertThreshold.index"]["responses"][200]["content"]["application/json"]["thresholds"][number],
+  "metric" | "operator" | "severity"
+> &
+  Pick<AlertThresholdBody, "metric" | "operator" | "severity">;
 
-export interface AlertThreshold {
-  public_id: string;
-  metric: AlertMetric;
-  operator: AlertOperator;
-  threshold_value: number;
-  severity: AlertSeverity;
-}
-
-export interface TriggeredAlert {
-  public_id: string;
-  metric: AlertMetric;
-  operator: AlertOperator;
-  threshold_value: number;
-  current_value: number;
-  severity: AlertSeverity;
-}
+/**
+ * From AlertEvaluator::evaluate: `threshold_value` is the model's `float` cast
+ * (Scramble: `string`), and a metric whose current value is null is skipped
+ * before a row is built, so `current_value` is never null here.
+ */
+export type TriggeredAlert = AlertThreshold & { current_value: number };
 
 export function useAlertThresholds() {
   return useQuery<{ thresholds: AlertThreshold[] }>({
@@ -299,16 +288,7 @@ export function useTriggeredAlerts(branchPublicId?: string) {
 
 export function useCreateAlertThreshold() {
   const qc = useQueryClient();
-  return useMutation<
-    AlertThreshold,
-    unknown,
-    {
-      metric: AlertMetric;
-      operator: AlertOperator;
-      threshold_value: number;
-      severity: AlertSeverity;
-    }
-  >({
+  return useMutation<AlertThreshold, unknown, AlertThresholdBody>({
     mutationFn: async (payload) =>
       (await apiClient.post("/dashboard/alert-thresholds", payload)).data,
     onSuccess: () => {

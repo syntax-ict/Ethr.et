@@ -231,7 +231,9 @@ export function DashboardDigestDialog({
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarClock className="h-3 w-3" />{" "}
-                            {formatDateTime(d.next_run_at)}
+                            {d.next_run_at
+                              ? formatDateTime(d.next_run_at)
+                              : "—"}
                           </span>
                         </div>
                       </div>
