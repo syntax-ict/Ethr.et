@@ -84,9 +84,16 @@ export function LeaveOverview() {
         ) : (
           <div className="space-y-4">
             {balances.map((b, i) => {
+              // `entitled` and `used` are `decimal:1` casts, sent as "16.0";
+              // `remaining` is a float. Normalise so all three print alike.
+              const entitled = Number(b.entitled);
+              const used = Number(b.used);
+              const remaining = Number(b.remaining);
+              // Null once the leave type has been deleted.
+              const type = b.type ?? "—";
               const pct =
-                b.entitled > 0 ? Math.round((b.used / b.entitled) * 100) : 0;
-              const isLow = b.remaining <= 3 && b.entitled > 0;
+                entitled > 0 ? Math.round((used / entitled) * 100) : 0;
+              const isLow = remaining <= 3 && entitled > 0;
 
               return (
                 <div
@@ -95,7 +102,7 @@ export function LeaveOverview() {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">
-                      {String(b.type)}
+                      {type}
                     </span>
                     <div className="flex items-center gap-2">
                       {isLow && (
@@ -104,9 +111,9 @@ export function LeaveOverview() {
                         </span>
                       )}
                       <span className="text-xs font-semibold tabular-nums text-foreground">
-                        {b.remaining}
+                        {remaining}
                         <span className="font-normal text-muted-foreground">
-                          /{b.entitled}
+                          /{entitled}
                         </span>
                       </span>
                     </div>
@@ -117,14 +124,14 @@ export function LeaveOverview() {
                       "h-1.5 transition-all",
                       isLow && "[&>div]:bg-status-warning",
                     )}
-                    aria-label={`${String(b.type)} leave: ${pct}% used`}
+                    aria-label={`${type} leave: ${pct}% used`}
                   />
                   <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
                     <span>
-                      {b.used} {t("dashboard.used", "used")}
+                      {used} {t("dashboard.used", "used")}
                     </span>
                     <span>
-                      {b.remaining} {t("dashboard.remaining", "remaining")}
+                      {remaining} {t("dashboard.remaining", "remaining")}
                     </span>
                   </div>
                 </div>
