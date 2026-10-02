@@ -70,10 +70,22 @@ trait ValidatesRelationTenancy
         ];
     }
 
+    /**
+     * Which of the seven fields this request accepts — all of them for create and
+     * update. `BulkUpdateRequest` narrows it to the two it writes, so a field it
+     * would ignore anyway is not validated either.
+     *
+     * @return array<string, class-string>
+     */
+    protected function tenancyCheckedRelations(): array
+    {
+        return EmployeeRelations::MAP;
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            foreach (EmployeeRelations::MAP as $field => $modelClass) {
+            foreach ($this->tenancyCheckedRelations() as $field => $modelClass) {
                 $publicId = $this->input($field);
 
                 // Absent or null is allowed — every one of these fields is
