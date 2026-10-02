@@ -1,18 +1,21 @@
 import { apiClient } from "@/api/client";
-import type { components } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 
 /**
  * The shared kiosk terminal's two calls. They authenticate with the kiosk's
- * session token, not a user login. Responses are typed to the fields the
- * terminal reads, from KioskSessionController::authenticate and
- * KioskCheckInController.
+ * session token, not a user login. Shapes come from the contract, corrected
+ * where Scramble cannot follow KioskSessionController::authenticate and
+ * KioskCheckInController, which each `->resolve()` a resource into a plain
+ * array.
  */
 
-export interface KioskAuthentication {
-  session: { branch?: { name: string } | null };
-  tenant: { name: string; subdomain: string; logo_path: string | null };
-  settings: { pin_required: boolean; auto_reset_seconds: number };
-}
+type AuthenticationContract =
+  operations["kioskSession.authenticate"]["responses"][200]["content"]["application/json"];
+
+/** `session` is a resolved KioskSessionResource (Scramble: `unknown[]`). */
+export type KioskAuthentication = Omit<AuthenticationContract, "session"> & {
+  session: components["schemas"]["KioskSessionResource"];
+};
 
 export async function authenticateKiosk(
   token: string,
@@ -22,10 +25,15 @@ export async function authenticateKiosk(
   ).data;
 }
 
-export interface KioskPunchResult {
-  employee_name?: string;
-  employee?: { name: string };
-}
+/**
+ * A resolved AttendanceRecordResource plus two keys the controller appends;
+ * the contract publishes the whole body as `string`.
+ */
+export type KioskPunchResult =
+  components["schemas"]["AttendanceRecordResource"] & {
+    was_duplicate: boolean;
+    employee_name: string;
+  };
 
 export async function kioskPunch(
   token: string,
