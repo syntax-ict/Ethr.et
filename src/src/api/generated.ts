@@ -20081,7 +20081,7 @@ export interface operations {
                         };
                         display: {
                             /** @enum {string} */
-                            calendar: "ethiopian" | "gregorian";
+                            calendar: "gregorian" | "ethiopian";
                         };
                         sso: {
                             is_enabled: boolean;
