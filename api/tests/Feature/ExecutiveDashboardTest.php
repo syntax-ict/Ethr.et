@@ -8,8 +8,11 @@ use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\LeaveBalance;
+use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
+use Carbon\Carbon;
 
 // ── Executive Dashboard Overview ──
 
@@ -47,6 +50,32 @@ test('headcount returns correct numbers', function () {
     $response->assertOk();
     expect($response->json('headcount.total'))->toBe(4);
     expect($response->json('headcount.active'))->toBe(3);
+});
+
+test('leave utilization totals are tenths of a day, not float sums', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Accrual writes balances in tenths (16 days / 12 months = 1.3 a month).
+    // Summed as floats, 1.1 + 2.2 is 3.3000000000000003 and 0.1 + 0.2 is
+    // 0.30000000000000004 — which the Overview tab printed verbatim.
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    foreach ([[1.1, 0.1], [2.2, 0.2]] as [$entitled, $used]) {
+        LeaveBalance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => now()->year,
+            'entitled_days' => $entitled,
+            'used_days' => $used,
+        ]);
+    }
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive");
+
+    $response->assertOk();
+    expect($response->json('leave_utilization.entitled_days'))->toBe(3.3);
+    expect($response->json('leave_utilization.used_days'))->toBe(0.3);
 });
 
 test('executive dashboard supports date range', function () {
@@ -141,6 +170,79 @@ test('overtime trend sums overtime pay from the calculation log, not a stored co
     $trend = collect($response->json('overtime_trend'))->keyBy('period');
     expect($trend->get('August 2026')['overtime_cents'])->toBe(22500);
     expect($trend->get('August 2026')['overtime_minutes'])->toBe(180);
+});
+
+test('the payroll forecast names the months it projects', function () {
+    // Audit N34: runs carry the label PayrollEngine writes ("September 2026"),
+    // and the projected bars came back as "September 2026 +1", "+2", "+3".
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    foreach (['2026-07-01', '2026-08-01', '2026-09-01'] as $i => $start) {
+        $month = Carbon::parse($start);
+        PayrollRun::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'completed',
+            'period_label' => $month->format('F Y'),
+            'period_start' => $month->toDateString(),
+            'period_end' => $month->copy()->endOfMonth()->toDateString(),
+            'gross_total_cents' => 100000 * ($i + 1),
+        ]);
+    }
+
+    $labels = collect(
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/forecast")
+            ->assertOk()
+            ->json('payroll_gross.projected'),
+    )->pluck('label')->all();
+
+    expect($labels)->toBe(['October 2026', 'November 2026', 'December 2026']);
+});
+
+test('monthly payroll trend shows the latest twelve runs, oldest first', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Thirteen months of completed runs: the trend's window is twelve, so
+    // exactly one must fall off — and it has to be the oldest one. Each run
+    // pays one employee of a branch, so the branch-scoped query (summed from
+    // entries rather than read from the run) is held to the same window.
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    foreach (range(12, 0) as $monthsAgo) {
+        $month = now()->startOfMonth()->subMonths($monthsAgo);
+        $run = PayrollRun::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'completed',
+            'period_label' => $month->format('Y-m'),
+            'period_start' => $month->toDateString(),
+            'period_end' => $month->copy()->endOfMonth()->toDateString(),
+            'gross_total_cents' => 100000,
+        ]);
+        PayrollEntry::factory()->create([
+            'tenant_id' => $tenant->id,
+            'payroll_run_id' => $run->id,
+            'employee_id' => $employee->id,
+        ]);
+    }
+
+    foreach (['', "?branch={$branch->public_id}"] as $scope) {
+        $periods = collect(
+            test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/payroll{$scope}")
+                ->assertOk()
+                ->json('monthly_trend'),
+        )->pluck('period');
+
+        expect($periods)->toHaveCount(12)
+            ->and($periods->first())->toBe(now()->startOfMonth()->subMonths(11)->format('Y-m'))
+            ->and($periods->last())->toBe(now()->format('Y-m'));
+    }
+
+    $forecast = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/forecast")
+        ->assertOk()
+        ->json('payroll_gross.history');
+
+    expect(collect($forecast)->pluck('month')->last())->toBe(now()->format('Y-m'));
 });
 
 test('overtime trend excludes draft payroll runs', function () {

@@ -13,6 +13,7 @@ return [
     'mfa_disabled' => 'Two-factor authentication has been disabled.',
     'token_refreshed' => 'Token refreshed successfully.',
     'unauthorized' => 'You are not authorized to perform this action.',
+    'account_inactive' => 'Your account is not active.',
     'tenant_inactive' => 'Your organization account is not active.',
     'account_suspended' => 'Your account has been suspended.',
     'impersonation_restricted' => 'This action is not allowed while impersonating a tenant.',
@@ -53,4 +54,9 @@ return [
 
     // Platform console
     'platform_mfa_required' => 'Multi-factor authentication must be enabled on your account before you can make changes in the platform console. Set it up under Profile > Security.',
+
+    // Tenant security policy (audit N6)
+    'mfa_enrolment_required' => 'Your organization requires two-factor authentication. Set it up under Profile > Security to continue.',
+    'mfa_disabled_by_policy' => 'Your organization does not offer two-factor authentication.',
+    'session_idle_expired' => 'Your session ended after a period of inactivity. Sign in again.',
 ];

@@ -5,8 +5,13 @@ Ordered to minimise navigation, not by gate number: the subscription page first 
 questions read off one screen, then domains, then File Manager, then the database, then the
 decisions that need no panel at all.
 
-**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `ethret` ·
-`213.55.96.154` · `ethr.et`
+**Target:** Ethio Telecom Linux shared hosting (Plesk) · account `<ACCOUNT_USER>` ·
+`<ACCOUNT_IP>` · `<APP_DOMAIN>`
+
+> **Placeholders — HARD RULE 2**,
+> [`deployment/SHARED-HOSTING-CONTRACT.md`](deployment/SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* Fill these from the panel before the session; they are not recorded
+> in this repository.
 
 **Who:** the owner. None of this can be run from the repository — no SSH (B-1), and the
 egress proxy in the agent environment returns 403 for `ethr.et`, so a result cannot even be
@@ -177,9 +182,11 @@ what the second fetch was added to find.
   only one that counts for that row.
 - **Score G0-B.5 from `shadow.js`, not `shadow.txt`.** The two can legitimately disagree.
   `.js`, `.css` and `.woff2` are what the deployment actually ships; `.txt` never is.
-- **Pin the fetches to the Plesk host.** DNS already points at `213.55.96.154`, but pinning
-  removes the doubt: `curl --resolve www.ethr.et:443:213.55.96.154 …`, or the run sheet's
-  browser equivalent.
+- **Pin the fetches to the Plesk host.** DNS already resolves there, but pinning removes the
+  doubt: `curl --resolve www.<APP_DOMAIN>:443:<ACCOUNT_IP> …`, or the run sheet's browser
+  equivalent. *(Phase 1 used exactly this form on 2026-09-25 — see
+  [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md), where the
+  addresses appear literally because that document is evidence.)*
 
 **The single most important line:** `curl -i https://www.ethr.et/.env` — or the browser
 equivalent — must return **403**. [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md)
@@ -234,7 +241,7 @@ Three options, traded in full in `deployment/SHARED_HOSTING_PLAN.md` §5.3a:
 | Option | For | Against |
 |---|---|---|
 | **GitHub Actions** | no new vendor | 5-minute documented minimum, best-effort delivery |
-| **The existing VPS** | perfect cadence | makes this Option C, and `SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better |
+| **The existing VPS** | perfect cadence | makes this Option C, and `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better |
 | **Third-party cron service** | good cadence | a stranger holds a key that can drain your queues and reads up to 2000 characters of Artisan output |
 
 **Copy back:** which one, and where the token should live.
@@ -253,7 +260,7 @@ the deploy path at step 3 of §5.5** — nothing past installation proceeds with
 
 ### The No-Go re-take
 
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** fired on **G0-D**, and stands
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** fired on **G0-D**, and stands
 until someone re-takes it deliberately. Note what it does *not* turn on: `httpdocs/` being
 clean now does not move it, and neither does B-3. **G0-D was answered FAIL on 2026-09-18** —
 there is no Scheduled Tasks section — so the thing the No-Go fired on has not changed.

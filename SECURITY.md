@@ -31,7 +31,7 @@ minimum needed to demonstrate the finding.
 ## Scope
 
 In scope: the Laravel API (`api/`), the Next.js frontend (`src/`), the
-deployment and operational scripts (`scripts/`, `docker/`, `infrastructure/`),
+deployment and operational scripts (`scripts/`),
 and any running ETHR instance the reporter is authorised to test.
 
 Out of scope: findings in third-party dependencies that are already public and

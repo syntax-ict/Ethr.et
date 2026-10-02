@@ -7,11 +7,14 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ManualAttendanceRequest;
+use App\Http\Resources\AttendancePunchResource;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
+use App\Services\CurrentTenant;
+use App\Support\TenantTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -46,15 +49,18 @@ class ManualAttendanceController extends Controller
         if ($result->wasDuplicate) {
             $result->record->load('employee', 'shift');
 
-            $data = (new AttendanceRecordResource($result->record))->resolve();
-            $data['was_duplicate'] = true;
-
-            return response()->json($data, 200);
+            return (new AttendancePunchResource($result->record, true))->response()->setStatusCode(200);
         }
 
+        // The times are what HR read off a sheet or a clock in the tenant's
+        // own timezone. Written as "{date} {H:i}:00" they were stored as UTC
+        // wall-clock, so 09:00 in Addis Ababa came back as 12:00.
+        $zone = TenantTime::zone(app(CurrentTenant::class)->get());
         $date = $request->validated('date');
-        $checkIn = "{$date} {$request->validated('check_in')}:00";
-        $checkOut = $request->validated('check_out') ? "{$date} {$request->validated('check_out')}:00" : null;
+        $checkIn = TenantTime::wallClockToUtc($date, $request->validated('check_in'), $zone);
+        $checkOut = $request->validated('check_out')
+            ? TenantTime::wallClockToUtc($date, $request->validated('check_out'), $zone)
+            : null;
 
         $result->record->update([
             'date' => $date,

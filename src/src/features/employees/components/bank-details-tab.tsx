@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -16,22 +17,19 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { Controller } from "react-hook-form";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
-
-interface BankDetail {
-  public_id: string;
-  bank_name: string;
-  branch_name?: string;
-  account_number: string;
-  account_holder_name?: string;
-  is_primary?: boolean;
-}
+import { toastError } from "@/lib/errors";
+import {
+  useAddBankDetail,
+  useDeleteBankDetail,
+  useEmployeeBankDetails,
+} from "../api";
 
 const bankSchema = z.object({
   bank_name: rules.requiredText(255),
@@ -46,7 +44,10 @@ const bankSchema = z.object({
     .min(5, "employee.bank.account_number_short")
     .max(34, "validation.too_long")
     .regex(/^[0-9][0-9\s-]*$/, "employee.bank.account_number_format"),
-  account_holder_name: rules.text(255),
+  // No account-holder field: `employee_bank_details` has no column for one and
+  // StoreBankDetailRequest does not accept it, so whatever was typed there was
+  // dropped by `validated()` behind a success toast. The holder is the
+  // employee whose record this is.
   is_primary: z.boolean(),
 });
 type BankValues = z.infer<typeof bankSchema>;
@@ -55,17 +56,16 @@ const EMPTY_BANK: BankValues = {
   bank_name: "",
   branch_name: "",
   account_number: "",
-  account_holder_name: "",
   is_primary: true,
 };
 
 export function BankDetailsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
     register,
+    control,
     submit,
     reset,
     rootError,
@@ -75,47 +75,46 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
     defaultValues: EMPTY_BANK,
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "bank-details"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/bank-details`,
-      );
-      return data;
-    },
-  });
+  // Through QueryBoundary: a failed load used to fall through to the empty
+  // state, telling HR an employee had "No bank accounts" when the request had
+  // been refused (the tab is shown to users without employee.viewFinancial).
+  const query = useEmployeeBankDetails(employeeId);
+  const addBank = useAddBankDetail(employeeId);
+  const deleteBank = useDeleteBankDetail(employeeId);
 
-  const addBank = useMutation({
-    mutationFn: async (values: BankValues) => {
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/bank-details`,
-        values,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "bank-details"],
-      });
-      toast.success(t("employee.bank.added", "Bank details added"));
-      setAddOpen(false);
-      reset(EMPTY_BANK);
-    },
-  });
+  async function onAdd(values: BankValues) {
+    await addBank.mutateAsync(values);
+    toast.success(t("employee.bank.added", "Bank details added"));
+    setAddOpen(false);
+    reset(EMPTY_BANK);
+  }
 
-  const deleteBank = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/employees/${employeeId}/bank-details/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "bank-details"],
-      });
-      toast.success(t("employee.bank.deleted", "Bank deleted"));
-    },
-  });
+  function onDelete(id: string) {
+    deleteBank.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.bank.deleted", "Bank deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t("employee.bank.delete_failed", "Could not delete the bank account"),
+        ),
+    });
+  }
 
-  const banks: BankDetail[] = data?.data ?? [];
+  /**
+   * `is_primary` is the account `BankExportService` pays salary into, and
+   * storing a new primary demotes the old one. It used to be hard-wired to
+   * true with no control, so adding a second account — a savings account, a
+   * spouse's — silently redirected the next payroll into it. It now defaults
+   * on only for the first account and is otherwise the user's explicit choice.
+   * An unknown list (still loading, or failed) is not evidence of "no
+   * accounts", so it defaults off then too.
+   */
+  function openAdd() {
+    const knownEmpty = query.isSuccess && query.data.length === 0;
+    reset({ ...EMPTY_BANK, is_primary: knownEmpty });
+    setAddOpen(true);
+  }
 
   return (
     <Card>
@@ -123,61 +122,66 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
         <CardTitle className="text-base">
           {t("employee.bank.title", "Bank Details")}
         </CardTitle>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
+        <Button size="sm" onClick={openAdd}>
           <Plus className="mr-2 h-3 w-3" /> {t("common.add", "Add")}
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : banks.length === 0 ? (
-          <EmptyState
-            icon={CreditCard}
-            title={t("employee.bank.empty_title", "No bank accounts")}
-            description={t(
-              "employee.bank.empty_desc",
-              "Add bank details for salary deposits",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {banks.map((b) => (
-              <div
-                key={b.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {b.bank_name}{" "}
-                      {b.is_primary && (
-                        <span className="ml-1 text-[10px] text-primary">
-                          {t("employee.bank.primary", "PRIMARY")}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {b.account_number}
-                    </p>
-                    {b.branch_name && (
-                      <p className="text-xs text-muted-foreground">
-                        {b.branch_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteBank.mutate(b.public_id)}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={CreditCard}
+              title={t("employee.bank.empty_title", "No bank accounts")}
+              description={t(
+                "employee.bank.empty_desc",
+                "Add bank details for salary deposits",
+              )}
+            />
+          }
+        >
+          {(banks) => (
+            <div className="space-y-2">
+              {banks.map((b) => (
+                <div
+                  key={b.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {b.bank_name}{" "}
+                        {b.is_primary && (
+                          <span className="ml-1 text-[10px] text-primary">
+                            {t("employee.bank.primary", "PRIMARY")}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {b.account_number_masked}
+                      </p>
+                      {b.branch_name && (
+                        <p className="text-xs text-muted-foreground">
+                          {b.branch_name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(b.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${b.bank_name}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -189,7 +193,7 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addBank.mutateAsync(values),
+              onAdd,
               t("employee.bank.add_failed", "Failed to add bank account"),
             )}
             className="space-y-4"
@@ -227,13 +231,43 @@ export function BankDetailsTab({ employeeId }: { employeeId: string }) {
               />
             </FormField>
 
-            <FormField
-              id="bank_holder"
-              label={t("employee.bank.holder_name", "Account Holder Name")}
-              error={fieldMessage(t, errors.account_holder_name?.message)}
-            >
-              <Input {...register("account_holder_name")} className="mt-1" />
-            </FormField>
+            <Controller
+              name="is_primary"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="bank_is_primary"
+                    checked={field.value}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked === true)
+                    }
+                    aria-describedby="bank_is_primary_hint"
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <label
+                      htmlFor="bank_is_primary"
+                      className="cursor-pointer text-sm font-medium"
+                    >
+                      {t(
+                        "employee.bank.is_primary",
+                        "Pay salary into this account",
+                      )}
+                    </label>
+                    <p
+                      id="bank_is_primary_hint"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t(
+                        "employee.bank.is_primary_hint",
+                        "Payroll pays into one account. Choosing this one replaces the current salary account.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            />
 
             <DialogFooter>
               <Button

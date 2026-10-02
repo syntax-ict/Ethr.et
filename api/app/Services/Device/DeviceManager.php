@@ -28,9 +28,4 @@ final class DeviceManager
 
         return app($this->adapters[$type]);
     }
-
-    public function supportedTypes(): array
-    {
-        return array_keys($this->adapters);
-    }
 }

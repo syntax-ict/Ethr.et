@@ -17,7 +17,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiClient } from "@/api/client";
+import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { tenantHostUrl } from "@/lib/auth/tenant-host";
@@ -95,7 +95,7 @@ export function LoginForm() {
     }
 
     try {
-      await apiClient.get("/sanctum/csrf-cookie", { baseURL: "" });
+      await prepareCsrfCookie();
     } catch {
       setServerError(
         t(
@@ -107,7 +107,7 @@ export function LoginForm() {
     }
 
     try {
-      const response = await apiClient.post("/auth/login", {
+      const result = await login({
         email: data.email,
         password: data.password,
         tenant: effectiveTenant,
@@ -121,7 +121,7 @@ export function LoginForm() {
         localStorage.removeItem("tenant");
       }
 
-      if (response.data.mfa_required) {
+      if (result.mfa_required) {
         sessionStorage.setItem("mfa_pending", "true");
         router.push("/login/mfa");
         return;
@@ -201,13 +201,13 @@ export function LoginForm() {
     setServerError("");
 
     try {
-      const response = await apiClient.get(`/sso/saml/${tenant}/initiate`);
+      const redirectUrl = await initiateSso(tenant);
       localStorage.setItem("tenant", tenant);
       // `assign()` rather than `location.href = …`: identical behaviour, but an
       // assignment to a global reads as a mutation to the compiler
       // (react-hooks/immutability). A full navigation is required here — this
       // leaves the app for the identity provider, so the router cannot serve.
-      window.location.assign(response.data.redirect_url);
+      window.location.assign(redirectUrl);
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { status?: number; data?: { detail?: string } };

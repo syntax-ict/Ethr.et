@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { branchesApi, departmentsApi } from "@/features/organization/api";
 import Link from "next/link";
 import { CalendarSync, Plus, Loader2, Moon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,14 +28,14 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { SimpleTable } from "@/components/shared/simple-table";
+import { SimpleTable, TableRowActions } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
-import { useShifts } from "@/features/shifts/api";
+import { useAssignableEmployees, useShifts } from "@/features/shifts/api";
+import { addDaysIso, todayIso, toHHMM } from "@/features/shifts/dates";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   useShiftRotations,
   useCreateShiftRotation,
@@ -70,26 +71,20 @@ const EMPTY_FORM: RotationForm = {
   steps: resizeSteps([], DEFAULT_CYCLE),
 };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function ShiftRotationsPage() {
   const { t } = useT();
+  const { hasPermission } = usePermissions();
+  // ShiftRotationPolicy::delete checks `shift.delete`, a tenant-admin grant;
+  // HR admins reach this page but cannot delete, so they are not offered it.
+  const canDelete = hasPermission("shift.delete");
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<ShiftRotation | null>(null);
   const [form, setForm] = useState<RotationForm>(EMPTY_FORM);
   const [previewOf, setPreviewOf] = useState<ShiftRotation | null>(null);
   const [assigning, setAssigning] = useState<ShiftRotation | null>(null);
 
-  const rotationsQuery = useShiftRotations({ per_page: 100 });
-  const { data: shiftsData } = useShifts({ per_page: 100 });
+  const rotationsQuery = useShiftRotations();
+  const { data: shiftsData } = useShifts();
   const shifts = useMemo(() => shiftsData?.data ?? [], [shiftsData]);
 
   const create = useCreateShiftRotation();
@@ -141,7 +136,7 @@ export default function ShiftRotationsPage() {
     }));
   }
 
-  async function save() {
+  function save() {
     const payload = {
       name: form.name,
       name_am: form.name_am || null,
@@ -151,33 +146,42 @@ export default function ShiftRotationsPage() {
       steps: form.steps,
     };
 
-    try {
-      if (editing) {
-        await update.mutateAsync(payload);
-        toast.success(t("rotations_page.updated", "Rotation updated"));
-      } else {
-        await create.mutateAsync(payload);
-        toast.success(t("rotations_page.created", "Rotation created"));
-      }
-      setShowDialog(false);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        e.response?.data?.detail ??
-          t("rotations_page.save_failed", "Could not save rotation"),
-      );
-    }
+    const callbacks = {
+      onSuccess: () => {
+        toast.success(
+          editing
+            ? t("rotations_page.updated", "Rotation updated")
+            : t("rotations_page.created", "Rotation created"),
+        );
+        setShowDialog(false);
+      },
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { detail?: string } } };
+        toast.error(
+          e.response?.data?.detail ??
+            t("rotations_page.save_failed", "Could not save rotation"),
+        );
+      },
+    };
+
+    if (editing) update.mutate(payload, callbacks);
+    else create.mutate(payload, callbacks);
   }
 
-  async function remove(rotation: ShiftRotation) {
-    try {
-      await destroy.mutateAsync(rotation.public_id);
-      toast.success(t("rotations_page.deleted", "Rotation deleted"));
-    } catch {
-      toast.error(
-        t("rotations_page.delete_failed", "Could not delete rotation"),
-      );
-    }
+  function remove(rotation: ShiftRotation) {
+    destroy.mutate(rotation.public_id, {
+      onSuccess: () =>
+        toast.success(t("rotations_page.deleted", "Rotation deleted")),
+      // A 409 means the rotation still has a current or upcoming assignment;
+      // the API's `detail` says how many, which the generic line cannot.
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { detail?: string } } };
+        toast.error(
+          e.response?.data?.detail ??
+            t("rotations_page.delete_failed", "Could not delete rotation"),
+        );
+      },
+    });
   }
 
   // Gated at the same tier as the shifts page it sits beside: a rotation is a
@@ -288,10 +292,18 @@ export default function ShiftRotationsPage() {
                         >
                           {t("rotations_page.assign", "Assign")}
                         </Button>
+                        {/* Rendered here, not as the row's onEdit/onDelete:
+                            SimpleTable shows `actions` *instead of* those, so
+                            passing both left a rotation impossible to edit or
+                            delete from this page. */}
+                        <TableRowActions
+                          onEdit={() => openEdit(rotation)}
+                          onDelete={
+                            canDelete ? () => remove(rotation) : undefined
+                          }
+                        />
                       </div>
                     ),
-                    onEdit: () => openEdit(rotation),
-                    onDelete: () => remove(rotation),
                   }))}
                 />
               </CardContent>
@@ -461,23 +473,11 @@ function RotationAssignDialog({
   // Only the list actually being chosen from is fetched, matching the shift
   // assignments page — three eager lists would be three requests for two the
   // user will never open.
-  const { data: employees } = useQuery({
-    queryKey: ["employees", "list"],
-    queryFn: async () => (await apiClient.get("/employees?per_page=200")).data,
-    enabled: rotation !== null && type === "employee",
-  });
-  const { data: departments } = useQuery({
-    queryKey: ["departments"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/departments?per_page=100")).data,
-    enabled: rotation !== null && type === "department",
-  });
-  const { data: branches } = useQuery({
-    queryKey: ["branches"],
-    queryFn: async () =>
-      (await apiClient.get("/organization/branches?per_page=100")).data,
-    enabled: rotation !== null && type === "branch",
-  });
+  const { data: employees } = useAssignableEmployees(
+    rotation !== null && type === "employee",
+  );
+  const { data: departments } = departmentsApi.useList();
+  const { data: branches } = branchesApi.useList();
 
   const options: { public_id: string; name: string }[] =
     type === "employee"
@@ -486,11 +486,11 @@ function RotationAssignDialog({
         ? (departments?.data ?? [])
         : (branches?.data ?? []);
 
-  async function submit() {
+  function submit() {
     if (!rotation) return;
 
-    try {
-      await assign.mutateAsync({
+    assign.mutate(
+      {
         rotation_id: rotation.public_id,
         assignable_type: type,
         assignable_id: targetId,
@@ -500,23 +500,28 @@ function RotationAssignDialog({
         // defaults it, and sending it explicitly would hide a later change to
         // that default.
         anchor_date: anchorDate || null,
-      });
-      toast.success(t("rotations_page.assigned", "Rotation assigned"));
-      setTargetId("");
-      setAnchorDate("");
-      onClose();
-    } catch (err: unknown) {
-      const e = err as {
-        response?: {
-          data?: { detail?: string; errors?: Record<string, string[]> };
-        };
-      };
-      toast.error(
-        e.response?.data?.detail ??
-          Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
-          t("rotations_page.assign_failed", "Could not assign rotation"),
-      );
-    }
+      },
+      {
+        onSuccess: () => {
+          toast.success(t("rotations_page.assigned", "Rotation assigned"));
+          setTargetId("");
+          setAnchorDate("");
+          onClose();
+        },
+        onError: (err: unknown) => {
+          const e = err as {
+            response?: {
+              data?: { detail?: string; errors?: Record<string, string[]> };
+            };
+          };
+          toast.error(
+            e.response?.data?.detail ??
+              Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
+              t("rotations_page.assign_failed", "Could not assign rotation"),
+          );
+        },
+      },
+    );
   }
 
   return (
@@ -717,7 +722,8 @@ function RotationPreviewDialog({
                       <span key="s">
                         {day.shift?.name}{" "}
                         <span className="text-xs text-muted-foreground">
-                          {day.shift?.start_time}–{day.shift?.end_time}
+                          {toHHMM(day.shift?.start_time)}–
+                          {toHHMM(day.shift?.end_time)}
                         </span>
                       </span>
                     ),

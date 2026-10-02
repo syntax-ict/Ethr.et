@@ -1,0 +1,59 @@
+ETHR host verification — M1 / G0-B, measured 2026-09-28
+Target: www.ethr.et pinned to 213.55.96.154 (curl --resolve), per RUN-SHEET.md 2
+DNS at time of measurement: www.ethr.et -> 213.55.96.154 ; ethr.et -> 213.55.96.154
+
+== Revision confirmation (RUN-SHEET 0 step 1: 7 headers required, 3 = stale 2026-09-18) ==
+HTTP/1.1 200 OK
+Server: nginx
+Date: Mon, 28 Sep 2026 16:33:20 GMT
+Content-Type: text/plain; charset=utf-8
+Connection: keep-alive
+X-Powered-By: PHP/8.3.33
+X-Ethr-Canary: headers-ok
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(self), microphone=(), geolocation=(self)
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+Strict-Transport-Security: max-age=15768000; includeSubDomains
+X-Powered-By: PleskLin
+
+
+== G0-B.1  mod_rewrite  (GET /REWRITE_OK) ==
+[ PASS ] G0-B.1  mod_rewrite honoured
+
+== G0-B.3(b)  secret.env.probe  RewriteRule [F,L]   403=PASS 200=BLOCKS 404=NOT RUN ==
+HTTP 403
+== G0-B.3(a)  secret.txt.probe  <FilesMatch> + Require all denied ==
+HTTP 403
+
+== G0-B.4  Authorization reaches PHP ==
+[ PASS ] G0-B.4  Authorization header reaches PHP
+
+== G0-B.5  static shadowing — shadow.js is authoritative ==
+shadow.js  first line: ETHR WEB-SERVER CANARY
+shadow.txt first line: ETHR WEB-SERVER CANARY
+(canary report text = REWRITE WON ; 'NOT-A-SECRET' = the file won)
+
+== Served-root path probe ==
+/                                  403
+/favicon.ico                       404
+/index.html                        404
+/index.php                         404
+/README.md                         404
+/css/                              404
+/cgi-bin/                          404
+/.well-known/                      404
+/.well-known/acme-challenge/       403
+/httpdocs/favicon.ico              404
+/canary.php                        404
+/ethr-canary/                      200
+/ethr-canary/canary.php            200
+/ethr-canary/README.md             200
+/ethr-canary/RUN-SHEET.md          200
+/ethr-canary/.htaccess             403
+/ethr.et/                          404
+/logs/                             404
+/ethr/                             404

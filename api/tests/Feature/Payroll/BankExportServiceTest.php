@@ -91,24 +91,3 @@ describe('generateCsv', function () {
         expect($csv)->toContain('"Kebede, Abebe"');
     });
 });
-
-describe('generateCbeFormat', function () {
-    it('pads the account number to 13 digits and includes the employee name', function () {
-        $entry = makeEntryWithBank(
-            ['name' => 'Tigist Alemu'],
-            ['bank_name' => 'CBE', 'account_number' => '12345', 'is_primary' => true],
-        );
-
-        $cbe = app(BankExportService::class)->generateCbeFormat($entry->payrollRun);
-
-        expect($cbe)->toContain('0000000012345|15000.00|Tigist Alemu');
-    });
-
-    it('skips an employee with no bank account rather than emitting a malformed row', function () {
-        $entry = makeEntryWithBank(['name' => 'Unbanked Employee'], bankDetail: null);
-
-        $cbe = app(BankExportService::class)->generateCbeFormat($entry->payrollRun);
-
-        expect($cbe)->toBe('');
-    });
-});

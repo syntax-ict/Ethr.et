@@ -490,7 +490,7 @@ test('employee can view own payslips', function () {
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     test()->actingAs($user);
 
-    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id]);
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'status' => 'approved']);
     PayrollEntry::factory()->create([
         'tenant_id' => $tenant->id,
         'payroll_run_id' => $run->id,

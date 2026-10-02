@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Services\FileStorageService;
+use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -12,9 +14,11 @@ use Illuminate\Support\Facades\Storage;
  * "whatever this deployment is configured to use".
  *
  * That distinction is invisible in an environment whose config happens to match
- * the literal, which is why it survived: production sets FILESYSTEM_DISK=minio
- * and CACHE_STORE=redis, so the two agreed and the bug had no symptom. It only
- * appears on a deployment that configures something else — and then it appears
+ * the literal, which is why it survived: the VPS stack these were written
+ * against set FILESYSTEM_DISK=minio and CACHE_STORE=redis, so the two agreed and
+ * the bug had no symptom. (Production today runs `local` and `database`, which is
+ * the configuration that exposed it.) It only appears on a deployment that
+ * configures something else — and then it appears
  * as file storage silently ignoring FILESYSTEM_DISK, and as the health endpoint
  * reporting a permanently dead cache while the real cache is fine.
  *
@@ -23,11 +27,30 @@ use Illuminate\Support\Facades\Storage;
  * config at a *different* value and check the code follows it.
  */
 test('file storage resolves the configured disk rather than a hardcoded one', function () {
-    // Deliberately not the suite's own FILESYSTEM_DISK (pinned to `minio` in
+    // Deliberately not the suite's own FILESYSTEM_DISK (pinned to `local` in
     // phpunit.xml). If the service still hardcoded a disk name, it would write
-    // to that one and this fake would see nothing.
+    // to that one and this fake would see nothing. `s3` is the other disk that
+    // exists; `minio`, which this used until 2026-09-30, no longer does.
+    config(['filesystems.default' => 's3']);
+    Storage::fake('s3');
+    Storage::fake('local');
+
+    // Sets CurrentTenant, which the service reads for its tenant path prefix.
+    createTenant();
+
+    $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
+
+    Storage::disk('s3')->assertExists($stored['path']);
+    Storage::disk('local')->assertMissing($stored['path']);
+});
+
+test('file storage follows the disk when the configuration changes', function () {
+    // The mirror of the test above: same call, different configured disk, and
+    // the bytes must land on the other one. A hardcoded literal cannot pass
+    // both.
     config(['filesystems.default' => 'local']);
     Storage::fake('local');
+    Storage::fake('s3');
 
     // Sets CurrentTenant, which the service reads for its tenant path prefix.
     createTenant();
@@ -35,23 +58,7 @@ test('file storage resolves the configured disk rather than a hardcoded one', fu
     $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
 
     Storage::disk('local')->assertExists($stored['path']);
-});
-
-test('file storage follows the disk when the configuration changes', function () {
-    // The mirror of the test above: same call, different configured disk, and
-    // the bytes must land on the other one. A hardcoded literal cannot pass
-    // both.
-    config(['filesystems.default' => 'minio']);
-    Storage::fake('local');
-    Storage::fake('minio');
-
-    // Sets CurrentTenant, which the service reads for its tenant path prefix.
-    createTenant();
-
-    $stored = app(FileStorageService::class)->uploadDataUrlImage(selfieDataUrl(120, 120), 'selfies');
-
-    Storage::disk('minio')->assertExists($stored['path']);
-    Storage::disk('local')->assertMissing($stored['path']);
+    Storage::disk('s3')->assertMissing($stored['path']);
 });
 
 /**
@@ -106,4 +113,39 @@ test('read replica probe inspects the connection actually in use', function () {
 
     expect(test()->getJson('/api/v1/health')->json('services.database_read'))
         ->toBe('not_configured');
+});
+
+/*
+ * A probe that throws reports `unavailable`, and the status used to degrade only
+ * on `unhealthy` — so a storage disk or cache store that raised an exception left
+ * /health at 200, while one that merely answered wrong returned 503.
+ */
+test('a storage disk that throws degrades the health endpoint', function () {
+    Storage::shouldReceive('disk')->andThrow(new RuntimeException('disk gone'));
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->status())->toBe(503)
+        ->and($response->json('services.storage'))->toBe('unavailable')
+        ->and($response->json('status'))->toBe('degraded');
+});
+
+test('a cache store that throws degrades the health endpoint', function () {
+    $store = Mockery::mock(Repository::class);
+    $store->shouldReceive('put')->andThrow(new RuntimeException('cache gone'));
+    Cache::shouldReceive('store')->andReturn($store);
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->status())->toBe(503)
+        ->and($response->json('services.cache'))->toBe('unavailable');
+});
+
+test('an unconfigured read replica does not degrade the health endpoint', function () {
+    config(['database.connections.mariadb.read' => null]);
+
+    $response = test()->getJson('/api/v1/health');
+
+    expect($response->json('services.database_read'))->not->toBe('unhealthy')
+        ->and($response->status())->toBe(200);
 });

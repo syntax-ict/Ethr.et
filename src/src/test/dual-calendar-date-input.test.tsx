@@ -132,3 +132,80 @@ describe("<DualCalendarDateInput>", () => {
     });
   });
 });
+
+describe("<DualCalendarDateInput> names", () => {
+  beforeEach(() => {
+    localStorage.removeItem("ethr.calendar");
+  });
+
+  /**
+   * The year input's own aria-label overrode the form's <label for>, so an
+   * Ethiopian date field announced "Ethiopian year" and never "Hire date" —
+   * and two date fields side by side were indistinguishable.
+   */
+  it("names each Ethiopian part after the field's label", async () => {
+    render(
+      <>
+        <label htmlFor="from">Effective From *</label>
+        <DualCalendarDateInput
+          id="from"
+          value="2026-10-02"
+          onChange={vi.fn()}
+        />
+        <label htmlFor="to">Effective To</label>
+        <DualCalendarDateInput id="to" value="" onChange={vi.fn()} />
+      </>,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    expect(
+      await screen.findByRole("spinbutton", {
+        name: "Effective From — Ethiopian year",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", {
+        name: "Effective From — Ethiopian month",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Effective To — Ethiopian day" }),
+    ).toBeInTheDocument();
+  });
+
+  it("prefers an explicit aria-label over the label element", async () => {
+    render(
+      <DualCalendarDateInput
+        value=""
+        onChange={vi.fn()}
+        aria-label="Hire date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    expect(
+      await screen.findByRole("spinbutton", {
+        name: "Hire date — Ethiopian year",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("wraps rather than crushing the month when the caller is narrow", () => {
+    // Callers fixed widths of 144-176px, narrower than year + month + day.
+    // The month was `min-w-0`, so it shrank to 25px and showed nothing, and
+    // the day spilled 33px out of the box (audit N36).
+    render(
+      <DualCalendarDateInput
+        value="2026-09-11"
+        onChange={vi.fn()}
+        aria-label="Date"
+      />,
+      { wrapper: withCalendar("ethiopian") },
+    );
+
+    const month = screen.getByRole("combobox", { name: /Ethiopian month/ });
+    expect(month).toHaveClass("min-w-28");
+    expect(month).not.toHaveClass("min-w-0");
+    expect(month.parentElement).toHaveClass("flex-wrap");
+  });
+});

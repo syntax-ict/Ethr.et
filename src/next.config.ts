@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 import { withSentryConfig } from "@sentry/nextjs";
 
+import { IS_STATIC_EXPORT } from "./src/lib/build-target";
+
 /**
  * The origin of the self-hosted Sentry instance, derived from the DSN.
  *
@@ -21,7 +23,40 @@ const sentryOrigin = (() => {
 })();
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  /**
+   * `export` for Bronze shared hosting, `standalone` everywhere else.
+   *
+   * See `src/lib/build-target.ts` for why this is a switch rather than a flip.
+   *
+   * That file and this comment disagreed for a day and this is the half that was
+   * wrong: it read "the Docker/VPS stack is still the documented rollback path and
+   * it runs the `server.js` that `export` does not emit". The VPS was
+   * decommissioned in `3db9904` (2026-09-27), before a verified cutover, so there
+   * is nothing to roll back *to* — `build-target.ts` was updated in that same
+   * commit and this was not.
+   *
+   * The switch stays, for the reason that survived: `standalone` is what a
+   * plain `next build` produces here, locally and in CI's frontend job, and
+   * changing the default would change what every developer and every gate
+   * builds. (It also argued from `docker/frontend/Dockerfile` running the
+   * `server.js` only `standalone` emits; that file went with the Docker
+   * development stack on 2026-09-30.)
+   *
+   * Two things stop working under `export`, both by design rather than
+   * oversight, and both already have a replacement in
+   * `docs/deployment/shared-hosting/.htaccess`:
+   *
+   * - `headers()` below is not applied — there is no server to apply it. The
+   *   `.htaccess` `mod_headers` block is the authority on that target, and its
+   *   CSP has to allow the inline scripts this build emits or nothing hydrates.
+   * - `rewrites()` is not applied, which is why it is skipped outright below
+   *   rather than left to warn on every build.
+   *
+   * `middleware.ts` is *not* deleted for this target. Measured 2026-09-26: Next
+   * 16.3.5 builds an export with it present and simply never runs it. What each
+   * of its responsibilities falls back to is written up in that file.
+   */
+  output: IS_STATIC_EXPORT ? "export" : "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
@@ -60,10 +95,10 @@ const nextConfig: NextConfig = {
               // <img src>). Without it the browser blocks the image and the
               // whole feature is inert while appearing to save correctly.
               // Widening img-src is the low-risk direction: images execute
-              // nothing, and the alternative (uploading logos to MinIO) needs
-              // every one of those consumers to resolve a storage key to a URL
-              // first. 127.0.0.1:9000 stays for local MinIO over plain http.
-              "img-src 'self' data: blob: https: http://127.0.0.1:9000",
+              // nothing, and the alternative (uploading logos to object storage)
+              // needs every one of those consumers to resolve a storage key to
+              // a URL first.
+              "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               `connect-src 'self' ws: wss:${sentryOrigin}`,
               "frame-ancestors 'none'",
@@ -74,16 +109,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "9000",
-        pathname: "/ethr/**",
-      },
-    ],
   },
   async rewrites() {
     const backend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -99,6 +124,38 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
+/**
+ * `headers` and `rewrites` belong to the Node targets only.
+ *
+ * Both are ignored under `output: "export"` — correctly; there is no server to
+ * apply them — and Next warns about each on every build while the key is merely
+ * *present*, whatever it returns. Removing them is what silences that, and a
+ * build which always prints two warnings is a build whose warnings stop being
+ * read. `gates.sh`'s `security` gate is this repository's standing example of
+ * what that costs.
+ *
+ * They are deleted rather than declared conditionally so the object above stays
+ * one literal: the CSP is the most consequential thing in this file, and moving
+ * it to make a conditional read nicely is not a trade worth taking.
+ *
+ * What owns them on shared hosting is
+ * `docs/deployment/shared-hosting/.htaccess`:
+ *
+ * - **Headers** — its `mod_headers` block is the authority there, and it is
+ *   deliberately *not* a copy of the CSP above: no `wss:`, because Reverb is not
+ *   deployed on that target. What it does have to carry is `'unsafe-inline'` in
+ *   `script-src`, because this build emits inline bootstrap scripts with no
+ *   nonce — measured 2026-09-26, three of them, ~13 KB. Without it the browser
+ *   blocks them and the application never hydrates, while the HTML still renders.
+ * - **Rewrites** — Apache routes `/api` and `/sanctum` to `index.php` in the same
+ *   document root, so the SPA's relative `/api/v1/...` calls reach Laravel with
+ *   no proxy directive at all. Measured working in Phase 1.
+ */
+if (IS_STATIC_EXPORT) {
+  delete nextConfig.headers;
+  delete nextConfig.rewrites;
+}
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",

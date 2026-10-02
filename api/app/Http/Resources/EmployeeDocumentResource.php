@@ -32,12 +32,12 @@ class EmployeeDocumentResource extends JsonResource
             'file_size' => $this->file_size,
             'mime_type' => $this->mime_type,
             'expiry_date' => $expiry?->format('Y-m-d'),
-            'is_expired' => $expiry !== null && $expiry->isPast(),
+            'is_expired' => (bool) ($expiry !== null && $expiry->isPast()),
             // Drives the S12 badge rule: amber within 30 days, red once expired.
             // Mutually exclusive with is_expired so the UI never has to choose.
-            'expires_soon' => $expiry !== null
+            'expires_soon' => (bool) ($expiry !== null
                 && $expiry->isFuture()
-                && $expiry->lessThanOrEqualTo(now()->addDays(30)),
+                && $expiry->lessThanOrEqualTo(now()->addDays(30))),
             'days_until_expiry' => $expiry === null
                 ? null
                 : (int) now()->startOfDay()->diffInDays($expiry, false),

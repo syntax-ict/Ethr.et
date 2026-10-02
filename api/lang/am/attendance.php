@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
     'no_employee_linked' => 'ከመለያዎ ጋር የተገናኘ የሰራተኛ መገለጫ የለም።',
+    'employee_has_left' => 'ይህ ሰራተኛ ከስራ ስለለቀቀ መገኘት መመዝገብ አይችልም።',
+    'no_open_check_in' => 'የሚዘጋ ክፍት የመግቢያ መዝገብ የለም።',
     'employee_not_found' => 'በተሰጠው ኮድ ሰራተኛ አልተገኘም።',
     'qr_invalid_or_expired' => 'QR ኮድ ልክ ያልሆነ ወይም ጊዜው ያለፈበት ነው።',
     'method_disabled' => 'ይህ የመገኘት ዘዴ ለድርጅትዎ አልተንቃ።',

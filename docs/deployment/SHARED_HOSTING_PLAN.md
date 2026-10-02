@@ -139,7 +139,7 @@ Counting by symptom it is four (#8, #9, #10, #17, #21 → five entries, three of
 G0-D). **Counting by what must actually be solved: three.**
 
 > **#9/#10/#21 are one problem, and it is the pre-registered one.**
-> `SHARED_HOSTING_MIGRATION_PLAN.md` §4's decision rule already fired on G0-D and returned
+> `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's decision rule already fired on G0-D and returned
 > **No-Go → Option A**. Nothing in this analysis reverses that; a PostgreSQL backend does
 > not give the host a cron runner.
 
@@ -210,7 +210,7 @@ port 5432, and nobody has ever asked. Shared hosts commonly restrict outbound po
 
 > **The letters A, B and C below are local to this section.** They answer *which
 > frontend, given shared hosting*. In
-> [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) §4 the same
+> [`../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`](../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md) §4 the same
 > letters answer a different question — **Option A** there is *stay on the VPS* and
 > **Option B** is *everything on shared hosting*. Neither set is renamed, because both are
 > cited by date elsewhere. §5's naming warning has the full picture; where a reader needs
@@ -273,7 +273,7 @@ holds no pricing data and no latency measurement of any kind, and none was inven
 
 | Concern | What the repo shows today | What C needs |
 |---|---|---|
-| **API base URL** | `src/api/client.ts:14` — `baseURL: "/api/v1"`, **relative**. There is **no `NEXT_PUBLIC_API_URL`** among the ten `NEXT_PUBLIC_*` vars in use | Introduce an absolute, env-driven base URL. Small and mechanical |
+| **API base URL** | `src/api/client.ts:14` *(the path is `src/src/api/client.ts`, line 13 as of 2026-10-01)* — `baseURL: "/api/v1"`, **relative**. There is **no `NEXT_PUBLIC_API_URL`** among the ten `NEXT_PUBLIC_*` vars in use | Introduce an absolute, env-driven base URL. Small and mechanical |
 | **CORS** | `config/cors.php` already has `'supports_credentials' => true`, origins from `CORS_ALLOWED_ORIGINS`, and `X-Tenant` in `allowed_headers` | **Configuration only.** Set the origin list. No code change |
 | **Auth transport** | `client.ts:19` — `withCredentials: true` and **no `Authorization` header**. Auth is an httpOnly cookie (`SESSION_HTTP_ONLY` default true, `SESSION_SAME_SITE` default `lax`, Secure in production) carrying an opaque Sanctum token, read by `AuthenticateFromCookie` | **Nothing, if the frontend is served under `ethr.et`.** See below |
 | **Sanctum** | `bootstrap/app.php:50` — `statefulApi()` enabled; `SANCTUM_STATEFUL_DOMAINS` is env-driven | Add the frontend host to the env list. Configuration only |
@@ -511,7 +511,7 @@ Real, and worth weighing against the above:
   (**ASSUMED**; Q9). A platform tier with wildcard
   custom domains is an additional recurring subscription in the low tens of USD per month,
   plus bandwidth. **Confirm current pricing before relying on any figure** — none is
-  recorded in this repository, including in `TCO_COMPARISON.md`.
+  recorded in this repository, including in `docs/archive/migration/TCO_COMPARISON.md`.
 
 ### Comparison
 
@@ -580,7 +580,7 @@ still stands, because it fired on G0-D.
 ## 4. What this document does not do
 
 No gate status changes. No architecture is adopted — this is analysis, and
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** stands until G0-D moves.
+`docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A** stands until G0-D moves.
 `SHARED-HOSTING-CONTRACT.md` is untouched.
 
 **This applies to §5 below as well**, which was added later and under a different premise.
@@ -623,7 +623,7 @@ downstream of it inherits that. Individual facts are marked:
 
 > **Naming warning, because three different things are now called "B".** In §3A of this
 > document **B** is *Node on Plesk*. In
-> [`../SHARED_HOSTING_MIGRATION_PLAN.md`](../SHARED_HOSTING_MIGRATION_PLAN.md) §4 **Option
+> [`../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`](../archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md) §4 **Option
 > B** is *everything on shared hosting* and **Option A** is *stay on the VPS*. This section
 > is **"Plan B"** in the owner's sense — *the fallback if nobody answers* — and it is none
 > of those three. Where it needs them it names them in full.
@@ -657,7 +657,7 @@ Three outcomes: **RESOLVED ANOTHER WAY** (a route exists that needs nothing from
 #### The headline
 
 **The blocker that fired the pre-registered No-Go is the one that now has a route.**
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's rule fired on **B3 — cron**, and the reason it gave
+`docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's rule fired on **B3 — cron**, and the reason it gave
 was *"Leave accrual, invoicing, anomaly scanning, cleanup and every queued email stop."*
 Those do not stop any more. An external caller drives `schedule:run` and `queue:work` over
 HTTP, and `ethr:backup` rides the scheduler with them.
@@ -737,7 +737,7 @@ measurement of any of them, and none was invented.**
 | Caller | Cadence | Token lives | For | Against |
 |---|---|---|---|---|
 | **GitHub Actions `schedule:`** | 5 min documented minimum; delivery best-effort, commonly late, runs droppable under load *(ASSUMED, from GitHub's published behaviour)* | an Actions secret, in the account that already holds the repository | No new vendor, no new bill, every run logged and attributable | Private-repo minutes are billed; runner egress is GitHub's shared ranges; and "late or skipped" quietly redefines every `dailyAt` in `routes/console.php` |
-| **The VPS already in hand** (`91.99.81.71`) | real `crontab`, 1 minute, reliable | a host the owner controls | Highest fidelity to what the scheduler was designed for | **It keeps the VPS.** `SHARED_HOSTING_MIGRATION_PLAN.md` §5's own argument then applies verbatim — *"once a VPS is in the picture, Option A is strictly better"* — and this is its **Option C** (shared + small VPS) under another name |
+| **The VPS already in hand** (`91.99.81.71`) | real `crontab`, 1 minute, reliable | a host the owner controls | Highest fidelity to what the scheduler was designed for | **It keeps the VPS.** `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §5's own argument then applies verbatim — *"once a VPS is in the picture, Option A is strictly better"* — and this is its **Option C** (shared + small VPS) under another name |
 | **A third-party cron service** | 1-minute offered by some; free-tier limits **unverified** | a third party's dashboard | Nothing to run or patch | A third party can drain your queues on demand, and its outage stops all background work **silently** |
 | **A laptop** | whenever it is on | locally | Named in `config/cron.php` for completeness | Not a production answer |
 
@@ -947,7 +947,7 @@ Four things. The first two are the ones that decide whether Plan B ships at all.
 
 1. **Subdomain tenancy.** `*.ethr.et` has no certificate and no route to one from this
    panel. `SESSION_SECURE_COOKIE=true` means tenants on an untrusted connection cannot log
-   in — this is `SHARED_HOSTING_MIGRATION_PLAN.md` §4's **B2 = No-Go**, and it is untouched
+   in — this is `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's **B2 = No-Go**, and it is untouched
    by everything above. The CNAME-delegation workaround (§5.3d) is the only route and is
    **ASSUMED**, not known. **Without it, Plan B delivers a single-tenant-hostname product.**
 2. **Database-enforced audit-log immutability.** Without `TRIGGER` the migration aborts, by
@@ -984,7 +984,7 @@ Deliberately not answered. Each would have had to be invented.
 
 It does not claim the denial happened — no reply is not a refusal, and the ticket was never
 sent. It does not move a gate. It does not re-take
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A**, which fired on G0-D and stands
+`docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's **No-Go → Option A**, which fired on G0-D and stands
 until someone re-takes it deliberately — though §5.1 gives the first substantive reason to.
 And it does not claim any of these routes works: **every one of them is a mechanism that
 exists in code or in the panel, and not one has ever been executed on this account.**

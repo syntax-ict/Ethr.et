@@ -8,8 +8,36 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 157 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-02, later: **158 across 57 files**. `DispatchWebhookJob::failed()` now
+ * counts an exhausted delivery against its webhook (audit N18), so it looks the
+ * webhook up the way `handle()` does — `tenant_id` from the job, stated in the
+ * same statement.)
+ *
+ * (2026-10-02: **157 across 57 files**. `Support/AuditSubjects` names the actor
+ * and subject of audit rows by public id (audit N12), including in the platform
+ * audit view, which resolves no tenant. Its three lookups — users, their
+ * employees, and the audited models — each drop the tenant scope and state
+ * `tenant_id` in the same statement, taken from the audit row.)
+ *
+ * (2026-10-01, later: **154 across 56 files**. `DeviceController`'s three
+ * identical per-vendor webhook employee lookups became one method, audit B9 —
+ * no bypass removed in substance, two duplicate call sites gone.)
+ *
+ * (2026-10-01: **156 across 56 files**. Three left with dead code, audit B1/B2 —
+ * `LoginAttemptService` (1, the whole file) and `HolidayService::getHolidays()` /
+ * `isHoliday()` (one each), none of which had a caller.)
+ *
+ * (Corrected 2026-09-27: this said **157**, which was the figure before
+ * `NotifyPayrollRunFailed` and `NotifyDeviceSyncFailed` joined the inventory on
+ * 2026-09-25. The data below has summed to **159 across 57 files** since then, and
+ * the root `CLAUDE.md` has said 159/57 throughout — so the docblock disagreed with
+ * the array it introduces, in a file whose entire purpose is to be the one place
+ * this number lives. `CODE-VS-DOCUMENTATION.md` had flagged it as deliberately
+ * deferred because it sits in `api/`, outside that pass's write scope. Verified by
+ * summing the array, not by grep.)
  *
  * What it does is make adding a bypass a deliberate act. `BelongsToTenant` is
  * fail-closed — no tenant context yields no rows — and that is the property the
@@ -70,7 +98,12 @@ return [
     'Http/Controllers/Api/V1/Auth/OtpController.php' => 1,
     'Http/Controllers/Api/V1/Auth/PasswordResetController.php' => 2,
     'Http/Controllers/Api/V1/Auth/SubdomainCheckController.php' => 1,
-    'Http/Controllers/Api/V1/Device/DeviceController.php' => 5,
+    // Two device lookups in resolveWebhookDevice() (token; serial + IP
+    // allowlist) and one employee lookup in webhookEmployee(), which states
+    // `tenant_id` from the authenticated device. The employee lookup was written
+    // out three times, once per vendor handler, until audit B9 (2026-10-01) made
+    // it one method: 5 -> 3, the same query at fewer call sites.
+    'Http/Controllers/Api/V1/Device/DeviceController.php' => 3,
     'Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     'Http/Middleware/ScimAuth.php' => 1,
@@ -84,7 +117,7 @@ return [
     // read, and the message names nothing. BASELINE.md §11h.
     'Http/Requests/Device/Concerns/ValidatesSerialUniqueness.php' => 1,
     'Jobs/BackupTenantJob.php' => 3,
-    'Jobs/DispatchWebhookJob.php' => 3,
+    'Jobs/DispatchWebhookJob.php' => 4,
     'Jobs/GenerateMonthlyInvoicesJob.php' => 2,
     'Jobs/HandleOverdueInvoicesJob.php' => 6,
     'Jobs/NotifyAnnouncementAudienceJob.php' => 2,
@@ -110,12 +143,11 @@ return [
     'Services/Auth/AuthIdentifierResolver.php' => 7,
     'Services/Billing/BillingService.php' => 5,
     'Services/Dashboard/EmployeeDashboardService.php' => 1,
-    'Services/Holiday/HolidayService.php' => 4,
+    'Services/Holiday/HolidayService.php' => 2,
     'Services/Identity/IdentityResolver.php' => 2,
     'Services/Import/EmployeeImporter.php' => 1,
     'Services/Leave/LeaveBalanceService.php' => 5,
     'Services/Leave/LeaveDayCalculator.php' => 1,
-    'Services/LoginAttemptService.php' => 1,
     'Services/Migration/WorkforceMigrationService.php' => 1,
     'Services/Onboarding/OrganizationProvisioner.php' => 2,
     'Services/Onboarding/ReadinessScorer.php' => 10,
@@ -126,4 +158,5 @@ return [
     'Services/Report/ReportEngine.php' => 4,
     'Services/UserProvisioningService.php' => 1,
     'Services/Webhook/WebhookDispatcher.php' => 1,
+    'Support/AuditSubjects.php' => 3,
 ];

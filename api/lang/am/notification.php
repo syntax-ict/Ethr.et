@@ -3,24 +3,11 @@
 declare(strict_types=1);
 
 return [
-    // Leave notifications
-    'leave_requested_subject' => 'አዲስ የፈቃድ ጥያቄ — :name',
-    'leave_requested_body' => ':name የፈቃድ ጥያቄ አቅርቧል። ፈቃድዎ ያስፈልጋል።',
-    'leave_approved_subject' => 'የፈቃድ ጥያቄ ተፈቅዷል',
-    'leave_approved_body' => 'የፈቃድ ጥያቄዎ ተፈቅዷል።',
-    'leave_rejected_subject' => 'የፈቃድ ጥያቄ ውድቅ ተደርጓል',
-    'leave_rejected_body' => 'የፈቃድ ጥያቄዎ ውድቅ ተደርጓል።',
+    // The leave, payslip, missing-punch and trial e-mails take their subject and
+    // body from App\Support\NotificationTemplates, which tenants can edit.
 
     // Payroll notifications
-    'payslip_available_subject' => 'የደመወዝ ሰነድዎ ዝግጁ ነው — :period',
-    'payslip_available_body' => 'ለ :period ጊዜ የደመወዝ ሰነድዎ አሁን ዝግጁ ነው። ለማየት እና ለማውረድ ይግቡ።',
     'view_payslip' => 'ደመወዝ ሰነድ ይመልከቱ',
-
-    // Attendance — missing punch
-    'missing_check_out_subject' => 'የፈቃድ ምዝገባ ጉድለት — :date',
-    'missing_check_out_body' => ':name ቀኑን :date ተገኝቶ ወጣ ብሎ አልተመዘገበም። እባክዎ የታዳሚ መዝገቡን ያርሙ።',
-    'missing_check_in_subject' => 'የገቢ ምዝገባ ጉድለት — :date',
-    'missing_check_in_body' => ':name ለ :date ቀን ወጣ ብሎ ተመዝግቧል ነገርግን ገቢ ምዝገባ የለም። እባክዎ የታዳሚ መዝገቡን ያርሙ።',
 
     // Attendance corrections
     'correction_submitted_subject' => 'የታዳሚ እርማት ጥያቄ — :name',
@@ -46,4 +33,7 @@ return [
     'device_sync_failed_subject' => 'የባዮሜትሪክ መሣሪያ ማመሳሰል አልተሳካም፦ :name',
     'device_sync_failed_body' => 'የመሣሪያ ":name" ማመሳሰል ከሁሉም ሙከራዎች በኋላ አልተሳካም፤ ከእሱ ምንም የመገኘት መዝገቦች እየተሰበሰቡ አይደሉም። መሣሪያው ያሳወቀው፦ :reason',
     'device_action' => 'የመሣሪያ ሁኔታ ይመልከቱ',
+
+    // Billing
+    'trial_expiring_subject' => 'የETHR የሙከራ ጊዜዎ በቅርቡ ያበቃል',
 ];

@@ -37,21 +37,21 @@ export function ProductStoryAnimation() {
         return (
           <div key={step.key} className="flex gap-3">
             <div className="flex flex-col items-center">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15 text-primary-foreground ring-1 ring-primary-foreground/25">
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
               {!isLast && (
                 <div
-                  className="my-1 w-px flex-1 bg-white/20 animate-pulse-subtle"
+                  className="my-1 w-px flex-1 bg-primary-foreground/20 animate-pulse-subtle"
                   aria-hidden="true"
                 />
               )}
             </div>
             <div className={isLast ? "pb-0 text-left" : "pb-5 text-left"}>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-primary-foreground">
                 {t(`auth.story_${step.key}_title`)}
               </p>
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-primary-foreground/60">
                 {t(`auth.story_${step.key}_desc`)}
               </p>
             </div>

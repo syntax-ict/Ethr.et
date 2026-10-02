@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Events\TenantCreated;
@@ -71,7 +72,7 @@ class AuthService
                     // customers without re-pricing this one. See
                     // Subscription::effectivePriceCents().
                     'price_cents' => $starterPlan->price_cents,
-                    'status' => 'trial',
+                    'status' => SubscriptionStatus::TRIAL,
                     'current_period_start' => now(),
                     'current_period_end' => $tenant->trial_ends_at,
                 ]);

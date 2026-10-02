@@ -29,55 +29,84 @@ trait ScopesEmployeeAccess
 
     public function canAccessEmployee(Employee $employee): bool
     {
-        return match ($this->orgScope()) {
-            OrgScope::ALL => true,
-            OrgScope::BRANCH => $this->employee_id
-                && $this->employee?->branch_id === $employee->branch_id,
-            OrgScope::DEPARTMENT => $this->employee_id
-                && $this->employee?->department_id === $employee->department_id,
-            OrgScope::TEAM => $this->employee_id
-                && $this->employee?->team_id !== null
-                && $this->employee?->team_id === $employee->team_id,
-            OrgScope::DIRECT_REPORTS => $this->employee_id
-                && ($employee->supervisor_id === $this->employee_id
-                    || $employee->id === $this->employee_id),
-            OrgScope::SELF => $this->employee_id
-                && $employee->id === $this->employee_id,
-        };
-    }
+        $scope = $this->orgScope();
 
-    public function scopeAccessibleEmployees(Builder $query): Builder
-    {
-        return match ($this->orgScope()) {
-            OrgScope::ALL => $query,
-            OrgScope::BRANCH => $query->where(
-                'branch_id',
-                $this->employee?->branch_id,
-            ),
-            OrgScope::DEPARTMENT => $query->where(
-                'department_id',
-                $this->employee?->department_id,
-            ),
-            OrgScope::TEAM => $query->where(
-                'team_id',
-                $this->employee?->team_id,
-            ),
-            OrgScope::DIRECT_REPORTS => $query->where(function (Builder $q) {
-                $q->where('supervisor_id', $this->employee_id)
-                    ->orWhere('id', $this->employee_id);
-            }),
-            OrgScope::SELF => $query->where('id', $this->employee_id),
-        };
-    }
-
-    public function accessibleEmployeeIds(): array
-    {
-        if ($this->orgScope() === OrgScope::ALL) {
-            return [];
+        if ($scope === OrgScope::ALL) {
+            return true;
         }
 
-        return $this->scopeAccessibleEmployees(Employee::query())
-            ->pluck('id')
-            ->all();
+        $anchor = $this->orgScopeAnchor($scope);
+
+        if ($anchor === null) {
+            return false;
+        }
+
+        return match ($scope) {
+            OrgScope::BRANCH => $employee->branch_id === $anchor,
+            OrgScope::DEPARTMENT => $employee->department_id === $anchor,
+            OrgScope::TEAM => $employee->team_id === $anchor,
+            OrgScope::DIRECT_REPORTS => $employee->supervisor_id === $anchor
+                || $employee->id === $anchor,
+            OrgScope::SELF => $employee->id === $anchor,
+        };
+    }
+
+    /**
+     * The query counterpart of canAccessEmployee(), and it must fail closed the
+     * same way.
+     *
+     * `where('supervisor_id', null)` is not "matches nothing": Laravel turns a
+     * null value into `IS NULL`. So a supervisor-role login with no employee
+     * record was scoped to every employee who has no supervisor, a branch- or
+     * department-scoped login with no branch or department to every employee
+     * with none, and a team-scoped employee outside any team to every teamless
+     * employee. canAccessEmployee() refused the supervisor and team cases one
+     * row at a time but matched null to null for branch and department. Both
+     * now read the same anchor, and a missing anchor reaches no one.
+     */
+    public function scopeAccessibleEmployees(Builder $query): Builder
+    {
+        $scope = $this->orgScope();
+
+        if ($scope === OrgScope::ALL) {
+            return $query;
+        }
+
+        $anchor = $this->orgScopeAnchor($scope);
+
+        if ($anchor === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return match ($scope) {
+            OrgScope::BRANCH => $query->where('branch_id', $anchor),
+            OrgScope::DEPARTMENT => $query->where('department_id', $anchor),
+            OrgScope::TEAM => $query->where('team_id', $anchor),
+            OrgScope::DIRECT_REPORTS => $query->where(function (Builder $q) use ($anchor) {
+                $q->where('supervisor_id', $anchor)
+                    ->orWhere('id', $anchor);
+            }),
+            OrgScope::SELF => $query->where('id', $anchor),
+        };
+    }
+
+    /**
+     * The value a non-ALL scope is measured from: the caller's branch,
+     * department or team, or their own employee id. Null when the caller has
+     * no employee record or that employee has no such unit.
+     */
+    private function orgScopeAnchor(OrgScope $scope): ?int
+    {
+        if (! $this->employee_id) {
+            return null;
+        }
+
+        return match ($scope) {
+            OrgScope::ALL => null,
+            OrgScope::BRANCH => $this->employee?->branch_id,
+            OrgScope::DEPARTMENT => $this->employee?->department_id,
+            OrgScope::TEAM => $this->employee?->team_id,
+            OrgScope::DIRECT_REPORTS, OrgScope::SELF => $this->employee_id,
+        };
     }
 }

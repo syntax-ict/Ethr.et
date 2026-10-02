@@ -13,6 +13,7 @@ return [
     'mfa_disabled' => 'ባለ ሁለት ደረጃ ማረጋገጫ ተሰናክሏል።',
     'token_refreshed' => 'ቶከን በተሳካ ሁኔታ ታድሷል።',
     'unauthorized' => 'ይህን ተግባር ለማከናወን ስልጣን የለዎትም።',
+    'account_inactive' => 'መለያዎ ንቁ አይደለም።',
     'tenant_inactive' => 'የድርጅትዎ መለያ ንቁ አይደለም።',
     'account_suspended' => 'መለያዎ ታግዷል።',
     'impersonation_restricted' => 'ተከራይን በመወከል ላይ ሳሉ ይህን ተግባር ማከናወን አይቻልም።',
@@ -53,4 +54,9 @@ return [
 
     // Platform console
     'platform_mfa_required' => 'በመድረክ ኮንሶል ውስጥ ለውጥ ከማድረግዎ በፊት በመለያዎ ላይ ባለ ሁለት ደረጃ ማረጋገጫ (MFA) መንቃት አለበት። በመገለጫ > ደህንነት ስር ያዋቅሩት።',
+
+    // Tenant security policy (audit N6)
+    'mfa_enrolment_required' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ ይፈልጋል። ለመቀጠል በመገለጫ > ደህንነት ስር ያዋቅሩት።',
+    'mfa_disabled_by_policy' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ አያቀርብም።',
+    'session_idle_expired' => 'ለተወሰነ ጊዜ እንቅስቃሴ ስላልነበረ ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።',
 ];

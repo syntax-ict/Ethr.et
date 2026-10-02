@@ -97,7 +97,7 @@ test('mobile check-in outside geofence has confidence 88', function () {
 });
 
 test('mobile check-in with selfie has confidence 95', function () {
-    Storage::fake('minio');
+    Storage::fake('local');
 
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);

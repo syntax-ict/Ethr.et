@@ -8,4 +8,5 @@ return [
     'approved' => 'Attendance correction approved.',
     'rejected' => 'Attendance correction rejected.',
     'applied' => 'Correction applied to attendance record.',
+    'cannot_approve_own' => 'You cannot approve a correction to your own attendance.',
 ];

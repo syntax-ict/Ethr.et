@@ -99,6 +99,7 @@ use App\Http\Controllers\Api\V1\Scim\ScimUserController;
 use App\Http\Controllers\Api\V1\Settings\AuditLogController;
 use App\Http\Controllers\Api\V1\Settings\NotificationTemplateController;
 use App\Http\Controllers\Api\V1\Settings\SettingsController;
+use App\Http\Controllers\Api\V1\Shift\ShiftAssignmentController;
 use App\Http\Controllers\Api\V1\Shift\ShiftController;
 use App\Http\Controllers\Api\V1\Shift\ShiftRotationController;
 use App\Http\Controllers\Api\V1\SiteContentController;
@@ -107,11 +108,14 @@ use App\Http\Controllers\Api\V1\TemplateController;
 use App\Http\Controllers\Api\V1\User\UserController;
 use App\Http\Controllers\Api\V1\Webhook\WebhookController;
 use App\Http\Middleware\BlockImpersonatedActions;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsurePlatformContext;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
+use App\Http\Middleware\RejectInactiveUser;
 use App\Http\Middleware\RejectUnverifiedMfaToken;
 use App\Http\Middleware\RequirePlatformMfa;
 use App\Http\Middleware\RequiresPlanFeature;
+use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ScimAuth;
 use App\Http\Middleware\VerifyCronToken;
 use Illuminate\Http\Request;
@@ -143,15 +147,15 @@ Route::prefix('cron')
     });
 
 // Public endpoints
-Route::get('/plans', [PlanController::class, 'index']);
+Route::get('/plans', [PlanController::class, 'index'])->middleware('throttle:public-catalogue');
 
 // Contact details, brand and published figures for the marketing site.
 // Unauthenticated and deliberately NOT behind EnsurePlatformContext, which
 // 404s whenever a tenant is resolved — the marketing pages are served from
 // tenant subdomains too. See SiteContentResource for what is published.
-Route::get('/site-content', [SiteContentController::class, 'index']);
-Route::get('/templates', [TemplateController::class, 'index']);
-Route::get('/templates/{slug}', [TemplateController::class, 'show']);
+Route::get('/site-content', [SiteContentController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates', [TemplateController::class, 'index'])->middleware('throttle:public-catalogue');
+Route::get('/templates/{slug}', [TemplateController::class, 'show'])->middleware('throttle:public-catalogue');
 Route::post('/contact', ContactController::class)->middleware('throttle:auth');
 
 // Public auth routes
@@ -216,7 +220,7 @@ Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
 });
 
 // Authenticated routes
-Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, BlockImpersonatedActions::class])->group(function () {
+Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdleTimeout::class, EnsureUserBelongsToTenant::class, RejectUnverifiedMfaToken::class, RequireTenantMfaEnrolment::class, BlockImpersonatedActions::class])->group(function () {
     // Broadcasting (Reverb) private-channel auth. Registered here — inside the
     // api/v1 group — so the httpOnly `access_token` cookie (path=/api) is sent and
     // AuthenticateFromCookie can resolve the user. The framework default lives at
@@ -234,6 +238,13 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::post('/mfa/enable', [MfaSetupController::class, 'enable']);
         Route::post('/mfa/disable', [MfaSetupController::class, 'disable']);
         Route::post('/mfa/verify', MfaVerifyController::class);
+
+        // Ending an impersonation. Here, not under /admin: the caller is the
+        // impersonated tenant admin on the tenant's own host, where
+        // EnsurePlatformContext 404s every /admin route (audit N19). Authorised
+        // by the impersonation ability on the presented token, checked in the
+        // controller; an ordinary session gets 403.
+        Route::post('/impersonation/exit', [AdminTenantController::class, 'exitImpersonation']);
 
         // Active session management
         Route::get('/sessions', [SessionController::class, 'index']);
@@ -316,6 +327,7 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
         Route::prefix('corrections')->group(function () {
             Route::get('/', [AttendanceCorrectionController::class, 'index']);
             Route::get('/pending', [AttendanceCorrectionController::class, 'pending']);
+            Route::get('/my', [AttendanceCorrectionController::class, 'my']);
             Route::post('/', [AttendanceCorrectionController::class, 'store']);
             Route::get('/{correction}/payroll-impact', [AttendanceCorrectionController::class, 'payrollImpact']);
             Route::put('/{correction}/approve', [AttendanceCorrectionController::class, 'approve']);
@@ -335,6 +347,8 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
     Route::prefix('shifts')->group(function () {
         Route::post('/assign', [ShiftController::class, 'assign']);
         Route::get('/schedule', [ShiftController::class, 'schedule']);
+        Route::patch('/assignments/{assignment}', [ShiftAssignmentController::class, 'update']);
+        Route::delete('/assignments/{assignment}', [ShiftAssignmentController::class, 'destroy']);
     });
 
     // Shift rotations (multi-week / non-weekly repeating patterns).
@@ -669,7 +683,6 @@ Route::middleware(['auth:sanctum', EnsureUserBelongsToTenant::class, RejectUnver
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
-            Route::post('/exit-impersonation', [AdminTenantController::class, 'exitImpersonation']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);

@@ -12,7 +12,15 @@ import type { DepartmentTreeNode } from "@/features/organization/api";
 function node(
   partial: Partial<DepartmentTreeNode> & { public_id: string; name: string },
 ): DepartmentTreeNode {
-  return { is_active: true, employees_count: 0, ...partial };
+  return {
+    name_am: null,
+    code: null,
+    is_active: true,
+    employees_count: 0,
+    created_at: null,
+    updated_at: null,
+    ...partial,
+  };
 }
 
 // Engineering(2) → Backend(3), Frontend(1) → Web(4);  HR(5)

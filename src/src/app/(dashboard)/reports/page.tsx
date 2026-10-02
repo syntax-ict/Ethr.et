@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import {
+  formatReportCell,
+  reportFieldLabel,
+} from "@/features/reports/field-labels";
 import {
   Download,
   Loader2,
@@ -60,6 +65,9 @@ import {
   useScheduleReport,
   useDeleteScheduledReport,
   type ReportConfig,
+  REPORT_FILTERS,
+  type ReportResult,
+  type ReportSourceKey,
   type ReportSources,
   type SavedReport,
 } from "@/features/reports/api";
@@ -68,9 +76,16 @@ import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 
-const prebuilt = [
+const prebuilt: Array<{
+  key: ReportSourceKey;
+  icon: typeof Users;
+  titleKey: string;
+  descKey: string;
+  color: string;
+}> = [
   {
     key: "employees",
     icon: Users,
@@ -158,9 +173,11 @@ function BuilderTab() {
   const [filters, setFilters] = useState<FilterRow[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
 
-  const sources: ReportSources = sourcesData?.sources ?? {};
+  const sources: Partial<ReportSources> = sourcesData?.sources ?? {};
   const sourceMeta = sources[config.source];
   const availableFields = sourceMeta?.fields ?? [];
+  // Filters are not columns: only these keys reach the query.
+  const filterFields = REPORT_FILTERS[config.source];
   const selectedColumns = config.columns ?? [];
 
   function toggleColumn(field: string) {
@@ -180,7 +197,8 @@ function BuilderTab() {
   }
 
   function addFilter() {
-    setFilters((p) => [...p, { field: availableFields[0] ?? "", value: "" }]);
+    if (filterFields.length === 0) return;
+    setFilters((p) => [...p, { field: filterFields[0], value: "" }]);
   }
 
   function updateFilter(i: number, patch: Partial<FilterRow>) {
@@ -191,8 +209,9 @@ function BuilderTab() {
     setFilters((p) => p.filter((_, idx) => idx !== i));
   }
 
+  // The Select only offers the keys of `sources`.
   function changeSource(source: string) {
-    setConfig({ source });
+    setConfig({ source: source as ReportSourceKey });
     setFilters([]);
   }
 
@@ -222,28 +241,10 @@ function BuilderTab() {
   function downloadCsv() {
     const result = generate.data;
     if (!result?.data?.length) return;
-    const headers = Object.keys(result.data[0]);
-    const csv = [
-      headers.join(","),
-      ...result.data.map((row) =>
-        headers
-          .map((h) => {
-            const v = row[h];
-            const s = v == null ? "" : String(v);
-            return s.includes(",") || s.includes('"') || s.includes("\n")
-              ? `"${s.replace(/"/g, '""')}"`
-              : s;
-          })
-          .join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(
+      `${config.source}-report-${new Date().toISOString().split("T")[0]}.csv`,
+      buildCsv(result.data),
+    );
   }
 
   if (sourcesLoading) return <Skeleton className="h-96 w-full" />;
@@ -320,7 +321,7 @@ function BuilderTab() {
                     onChange={() => toggleColumn(field)}
                     className="h-3.5 w-3.5 rounded"
                   />
-                  <span className="font-mono text-xs">{field}</span>
+                  <span className="text-xs">{reportFieldLabel(t, field)}</span>
                 </label>
               ))}
             </div>
@@ -337,13 +338,21 @@ function BuilderTab() {
               variant="ghost"
               className="h-6 px-2"
               onClick={addFilter}
+              disabled={filterFields.length === 0}
               aria-label={t("reports_page.add_filter", "Add filter")}
             >
               <Plus className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
-            {filters.length === 0 ? (
+            {filterFields.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "reports_page.source_not_filterable",
+                  "This data source cannot be filtered.",
+                )}
+              </p>
+            ) : filters.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 {t("reports_page.no_filters")}
               </p>
@@ -354,13 +363,19 @@ function BuilderTab() {
                     value={f.field}
                     onValueChange={(v) => updateFilter(i, { field: v })}
                   >
-                    <SelectTrigger className="h-8 flex-1">
+                    <SelectTrigger
+                      className="h-8 flex-1"
+                      aria-label={t(
+                        "reports_page.filter_field",
+                        "Filter field",
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableFields.map((field) => (
+                      {filterFields.map((field) => (
                         <SelectItem key={field} value={field}>
-                          {field}
+                          {reportFieldLabel(t, field)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -376,8 +391,14 @@ function BuilderTab() {
                     variant="ghost"
                     className="h-8 w-8 p-0"
                     onClick={() => removeFilter(i)}
+                    aria-label={[
+                      t("reports_page.remove_filter", "Remove filter"),
+                      f.field ? reportFieldLabel(t, f.field) : "",
+                    ]
+                      .filter(Boolean)
+                      .join(": ")}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </div>
               ))
@@ -410,7 +431,7 @@ function BuilderTab() {
                 </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
-                    {field}
+                    {reportFieldLabel(t, field)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -443,7 +464,7 @@ function BuilderTab() {
                 </SelectItem>
                 {availableFields.map((field) => (
                   <SelectItem key={field} value={field}>
-                    {field}
+                    {reportFieldLabel(t, field)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -539,21 +560,15 @@ function BuilderTab() {
   );
 }
 
-function PreviewResult({
-  result,
-}: {
-  result: {
-    source: string;
-    total: number;
-    data: Array<Record<string, unknown>>;
-    summary: {
-      grouped_by?: string;
-      groups?: Record<string, number>;
-      group_sums?: Record<string, Record<string, number>>;
-    };
+function PreviewResult({ result }: { result: ReportResult }) {
+  const { t, locale } = useT();
+  const { formatDate: formatCalendarDate } = useCalendar();
+  // Built from parts: `new Date(iso)` is UTC midnight, the previous day west
+  // of UTC.
+  const showDate = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return formatCalendarDate(new Date(y, m - 1, d), locale);
   };
-}) {
-  const { t } = useT();
   const headers = useMemo(
     () => (result.data.length > 0 ? Object.keys(result.data[0]) : []),
     [result.data],
@@ -627,15 +642,13 @@ function PreviewResult({
               caption={t("reports_page.title", "Report results")}
               maxHeight="calc(100vh - 280px)"
               headers={headers.map((col) => (
-                <span key={col} className="capitalize">
-                  {col.replace(/_/g, " ").replace(/cents/i, "(¢)")}
-                </span>
+                <span key={col}>{reportFieldLabel(t, col)}</span>
               ))}
               rows={result.data.slice(0, 200).map((row, i) => ({
                 key: String(i),
                 cells: headers.map((h) => (
                   <span key={h} className="whitespace-nowrap">
-                    {row[h] == null ? "—" : String(row[h])}
+                    {formatReportCell(h, row[h], showDate)}
                   </span>
                 )),
               }))}
@@ -775,7 +788,7 @@ function QuickTab() {
   const { t } = useT();
   const generate = useGenerateReport();
 
-  function handleGenerate(source: string) {
+  function handleGenerate(source: ReportSourceKey) {
     generate.mutate(
       { source },
       {
@@ -791,28 +804,10 @@ function QuickTab() {
   function downloadCsv() {
     const result = generate.data;
     if (!result?.data?.length) return;
-    const headers = Object.keys(result.data[0]);
-    const csv = [
-      headers.join(","),
-      ...result.data.map((row) =>
-        headers
-          .map((h) => {
-            const v = row[h];
-            const s = v == null ? "" : String(v);
-            return s.includes(",") || s.includes('"')
-              ? `"${s.replace(/"/g, '""')}"`
-              : s;
-          })
-          .join(","),
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${result.source}-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveCsv(
+      `${result.source}-${new Date().toISOString().split("T")[0]}.csv`,
+      buildCsv(result.data),
+    );
   }
 
   return (
@@ -952,7 +947,8 @@ function SavedTab() {
                       </span>
                     )}
                     <span>
-                      · {t("reports_page.saved_lc")} {formatDate(r.created_at)}
+                      · {t("reports_page.saved_lc")}{" "}
+                      {r.created_at ? formatDate(r.created_at) : "—"}
                     </span>
                   </div>
                 </div>
@@ -977,8 +973,12 @@ function SavedTab() {
                     size="sm"
                     variant="ghost"
                     onClick={() => handleDelete(r)}
+                    aria-label={`${t("common.delete", "Delete")} ${r.name}`}
                   >
-                    <Trash2 className="h-3 w-3 text-destructive" />
+                    <Trash2
+                      className="h-3 w-3 text-destructive"
+                      aria-hidden="true"
+                    />
                   </Button>
                 </div>
               </CardContent>
@@ -1108,12 +1108,14 @@ function ScheduleDialog({
                   >
                     <Mail className="h-3 w-3" /> {r}
                     <button
+                      type="button"
                       onClick={() =>
                         setRecipients((p) => p.filter((x) => x !== r))
                       }
                       className="ml-1 hover:text-destructive"
+                      aria-label={`${t("common.remove", "Remove")} ${r}`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3" aria-hidden="true" />
                     </button>
                   </Badge>
                 ))}
@@ -1202,7 +1204,8 @@ function ScheduledTab() {
                     </span>
                     <span className="flex items-center gap-1">
                       <CalendarClock className="h-3 w-3" />{" "}
-                      {t("reports_page.next")}: {formatDateTime(s.next_run_at)}
+                      {t("reports_page.next")}:{" "}
+                      {s.next_run_at ? formatDateTime(s.next_run_at) : "—"}
                     </span>
                     {s.last_run_at && (
                       <span>
@@ -1223,8 +1226,12 @@ function ScheduledTab() {
                   size="sm"
                   variant="ghost"
                   onClick={() => handleDelete(s.public_id, s.report_name)}
+                  aria-label={`${t("common.delete", "Delete")} ${s.report_name}`}
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash2
+                    className="h-4 w-4 text-destructive"
+                    aria-hidden="true"
+                  />
                 </Button>
               </CardContent>
             </Card>

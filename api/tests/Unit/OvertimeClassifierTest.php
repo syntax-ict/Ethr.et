@@ -37,7 +37,7 @@ test('daytime non-holiday overtime is all normal', function () {
         isHoliday: false,
     );
 
-    expect($buckets)->toBe(['normal' => 120, 'night' => 0, 'holiday' => 0, 'holiday_night' => 0]);
+    expect($buckets)->toBe(['normal' => 120, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0]);
 });
 
 test('overtime running into the night splits normal and night', function () {
@@ -52,22 +52,25 @@ test('overtime running into the night splits normal and night', function () {
     expect($buckets['holiday'])->toBe(0);
 });
 
-test('daytime holiday overtime is holiday', function () {
+// Art. 68(1)(d) pays work *on* a public holiday, so the whole span worked
+// counts — not only what ran past the shift's end, which is all these paid
+// until 2026-10-01 (120 and 270 minutes here, of 660 and 900 worked).
+test('a day worked on a public holiday is holiday time from check-in', function () {
     $buckets = (new OvertimeClassifier)->classify(
         makeOtRecord('2026-06-15 08:30', '2026-06-15 19:30'),
         isHoliday: true,
     );
 
-    expect($buckets)->toBe(['normal' => 0, 'night' => 0, 'holiday' => 120, 'holiday_night' => 0]);
+    expect($buckets)->toBe(['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 660, 'holiday_night' => 0]);
 });
 
-test('holiday overtime into the night splits holiday and holiday_night', function () {
+test('holiday work into the night splits holiday and holiday_night', function () {
     $buckets = (new OvertimeClassifier)->classify(
         makeOtRecord('2026-06-15 08:30', '2026-06-15 23:30'),
         isHoliday: true,
     );
 
-    expect($buckets['holiday'])->toBe(270);
+    expect($buckets['holiday'])->toBe(810);
     expect($buckets['holiday_night'])->toBe(90);
     expect($buckets['normal'])->toBe(0);
     expect($buckets['night'])->toBe(0);
@@ -90,5 +93,52 @@ test('no overtime yields all zero buckets', function () {
         isHoliday: false,
     );
 
-    expect($buckets)->toBe(['normal' => 0, 'night' => 0, 'holiday' => 0, 'holiday_night' => 0]);
+    expect($buckets)->toBe(['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0]);
+});
+
+// Art. 68(1)(c): work on a weekly rest day is paid at 2x for the whole span.
+// No rest-day rate existed before 2026-10-01; this was paid as weekday
+// overtime past the shift's end, or not at all.
+test('a day worked on a weekly rest day is rest-day time from check-in', function () {
+    $buckets = (new OvertimeClassifier)->classify(
+        makeOtRecord('2026-06-14 08:30', '2026-06-14 15:30'),
+        isHoliday: false,
+        isRestDay: true,
+    );
+
+    expect($buckets)->toBe(['normal' => 0, 'night' => 0, 'rest_day' => 420, 'holiday' => 0, 'holiday_night' => 0]);
+});
+
+test('rest-day night hours stay at the rest-day rate, which exceeds the night rate', function () {
+    $buckets = (new OvertimeClassifier)->classify(
+        makeOtRecord('2026-06-14 20:00', '2026-06-14 23:30'),
+        isHoliday: false,
+        isRestDay: true,
+    );
+
+    expect($buckets['rest_day'])->toBe(210)
+        ->and($buckets['night'])->toBe(0);
+});
+
+test('a public holiday on a rest day pays the higher holiday rate', function () {
+    $buckets = (new OvertimeClassifier)->classify(
+        makeOtRecord('2026-06-14 08:30', '2026-06-14 12:30'),
+        isHoliday: true,
+        isRestDay: true,
+    );
+
+    expect($buckets['holiday'])->toBe(240)
+        ->and($buckets['rest_day'])->toBe(0);
+});
+
+test('rest-day work needs no shift', function () {
+    $record = new AttendanceRecord([
+        'check_in' => Carbon::parse('2026-06-14 09:00'),
+        'check_out' => Carbon::parse('2026-06-14 13:00'),
+    ]);
+    $record->setRelation('shift', null);
+
+    $buckets = (new OvertimeClassifier)->classify($record, isHoliday: false, isRestDay: true);
+
+    expect($buckets['rest_day'])->toBe(240);
 });

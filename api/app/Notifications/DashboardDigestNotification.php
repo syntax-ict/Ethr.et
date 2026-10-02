@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Services\Analytics\AlertEvaluator;
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -109,7 +110,7 @@ class DashboardDigestNotification extends Notification
 
         return $message->action(
             __('dashboard.digest_view_dashboard'),
-            url('/analytics'),
+            FrontendUrl::to('/analytics'),
         );
     }
 }

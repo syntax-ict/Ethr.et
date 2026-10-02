@@ -12,7 +12,10 @@ use Carbon\Carbon;
 
 // ── HolidayService ──
 
-test('holiday service detects holidays for tenant', function () {
+// getHolidays() and isHoliday() had no caller (audit B2); payroll reads
+// holidays through getHolidayDates(), which nothing tested until these.
+
+test('holiday service lists a tenant\'s holidays in a range', function () {
     $tenant = createTenant();
 
     Holiday::factory()->count(3)->sequence(
@@ -21,25 +24,20 @@ test('holiday service detects holidays for tenant', function () {
         ['date' => '2026-09-27'],
     )->create(['tenant_id' => $tenant->id, 'is_active' => true]);
 
-    $service = app(HolidayService::class);
-    $holidays = $service->getHolidays($tenant->id, 2026);
+    $dates = app(HolidayService::class)->getHolidayDates($tenant->id, Carbon::parse('2026-01-01'), Carbon::parse('2026-12-31'));
 
-    expect($holidays)->toHaveCount(3);
+    expect(array_keys($dates))->toBe(['2026-01-01', '2026-09-11', '2026-09-27']);
 });
 
-test('holiday service checks if date is holiday', function () {
+test('holiday service leaves out inactive holidays and dates outside the range', function () {
     $tenant = createTenant();
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'date' => '2026-09-11', 'is_active' => true]);
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'date' => '2026-09-12', 'is_active' => false]);
+    Holiday::factory()->create(['tenant_id' => $tenant->id, 'date' => '2026-10-11', 'is_active' => true]);
 
-    Holiday::factory()->create([
-        'tenant_id' => $tenant->id,
-        'date' => '2026-09-11',
-        'is_active' => true,
-    ]);
+    $dates = app(HolidayService::class)->getHolidayDates($tenant->id, Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
 
-    $service = app(HolidayService::class);
-
-    expect($service->isHoliday($tenant->id, Carbon::parse('2026-09-11')))->toBeTrue();
-    expect($service->isHoliday($tenant->id, Carbon::parse('2026-09-12')))->toBeFalse();
+    expect(array_keys($dates))->toBe(['2026-09-11']);
 });
 
 test('branch-specific holiday only applies to that branch', function () {
@@ -55,9 +53,12 @@ test('branch-specific holiday only applies to that branch', function () {
     ]);
 
     $service = app(HolidayService::class);
+    $from = Carbon::parse('2026-03-01');
+    $to = Carbon::parse('2026-03-31');
 
-    expect($service->isHoliday($tenant->id, Carbon::parse('2026-03-15'), $branch->id))->toBeTrue();
-    expect($service->isHoliday($tenant->id, Carbon::parse('2026-03-15'), $otherBranch->id))->toBeFalse();
+    expect($service->getHolidayDates($tenant->id, $from, $to, $branch->id))->toHaveKey('2026-03-15')
+        ->and($service->getHolidayDates($tenant->id, $from, $to, $otherBranch->id))->not->toHaveKey('2026-03-15')
+        ->and($service->getHolidayDates($tenant->id, $from, $to))->not->toHaveKey('2026-03-15');
 });
 
 // ── Ethiopian Holiday Auto-Detection ──

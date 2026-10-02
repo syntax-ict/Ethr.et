@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\ConflictType;
 use App\Models\AttendanceConflict;
 use App\Models\AttendanceRecord;
@@ -36,7 +37,7 @@ final class ConflictResolver
             ->whereDate('date', $newRecord->date->format('Y-m-d'))
             ->where('id', '!=', $newRecord->id)
             ->whereNotNull('check_in')
-            ->where('status', '!=', 'voided')
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->get()
             ->sortBy(fn (AttendanceRecord $r) => abs($r->check_in->diffInSeconds($newRecord->check_in)))
             ->first();
@@ -101,7 +102,7 @@ final class ConflictResolver
         ]);
 
         $loser->update([
-            'status' => 'voided',
+            'status' => AttendanceStatus::VOIDED,
             'metadata' => array_merge($loser->metadata ?? [], [
                 'voided_reason' => 'conflict_merge',
                 'merged_into' => $survivor->public_id,

@@ -3,6 +3,15 @@
 Three scenarios, ordered by how much has actually happened — read down to the one that
 matches reality, not from the top unconditionally.
 
+> ## SUPERSEDED 2026-09-30 — the VPS rollback target no longer exists
+>
+> Every scenario below ends in "repoint DNS at the VPS". The VPS, its
+> `docker-compose.prod.yml` and `scripts/rollback.sh` were removed on 2026-09-26/27
+> (`docs/deployment/VPS-DECOMMISSION.md`: *"There is no rollback path now"*), and the Docker
+> development stack on 2026-09-30. **Do not follow this file in an incident.** The current
+> procedure is `docs/deployment/shared-hosting/rollback.md`: redeploy an earlier commit for
+> code, `ethr:restore` for data. What follows is kept as the record of the cutover reasoning.
+
 > ## ⚠ READ FIRST — corrected 2026-09-18
 >
 > This runbook says to *"read down to the one that matches reality."* **Scenario A below
@@ -113,7 +122,7 @@ rollback above — reverting the driver-swap commits (`CACHE_STORE=database` etc
 matters if going back to needing the VPS's Redis/MinIO/Reverb, and even then those
 commits made the code *support* either configuration via `.env`, not *require* the
 non-VPS one — so a VPS rollback needs no code revert at all, only pointing `.env` back
-at the VPS's own values. See `docs/SHARED_HOSTING_AUDIT.md` §D: none of the changed
+at the VPS's own values. See `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §D: none of the changed
 code became VPS-incompatible, it became configuration-driven.
 
 ## What is deliberately not automated

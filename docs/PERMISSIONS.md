@@ -6,7 +6,7 @@ Permissions are **additive**: a user has the union of all permissions from all a
 
 Permissions are checked via `$user->hasPermission('module.action')` — never by comparing role strings.
 
-Permissions are cached in Redis (`user:{id}:permissions`, 15-min TTL) and invalidated on role/permission changes.
+Permissions are cached per role through the Laravel cache (`role_permissions:{role}`, 1 h; the `database` store on the target) and invalidated on role/permission changes.
 
 ---
 

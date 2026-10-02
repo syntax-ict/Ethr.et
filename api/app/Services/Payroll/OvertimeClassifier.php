@@ -25,13 +25,20 @@ final class OvertimeClassifier
     private const NIGHT_END_HOUR = 6;
 
     /**
-     * @return array{normal: int, night: int, holiday: int, holiday_night: int}
+     * Work on a public holiday or a weekly rest day is paid at its Art. 68(1)
+     * rate for the whole time worked — there are no scheduled hours on those
+     * days to be "over". Only an ordinary working day counts from the shift's
+     * end. Until 2026-10-01 every day counted from the shift's end, so a full
+     * day worked on a holiday paid only what ran past 17:30, and rest days
+     * were not recognised at all.
+     *
+     * @return array{normal: int, night: int, rest_day: int, holiday: int, holiday_night: int}
      */
-    public function classify(AttendanceRecord $record, bool $isHoliday): array
+    public function classify(AttendanceRecord $record, bool $isHoliday, bool $isRestDay = false): array
     {
-        $buckets = ['normal' => 0, 'night' => 0, 'holiday' => 0, 'holiday_night' => 0];
+        $buckets = ['normal' => 0, 'night' => 0, 'rest_day' => 0, 'holiday' => 0, 'holiday_night' => 0];
 
-        $window = $record->overtimeWindow();
+        $window = ($isHoliday || $isRestDay) ? $record->workedWindow() : $record->overtimeWindow();
         if ($window === null) {
             return $buckets;
         }
@@ -45,6 +52,10 @@ final class OvertimeClassifier
         if ($isHoliday) {
             $buckets['holiday_night'] = $nightMinutes;
             $buckets['holiday'] = $dayMinutes;
+        } elseif ($isRestDay) {
+            // 2x already exceeds the 1.75x night rate, so a rest day's night
+            // hours are rest-day hours too.
+            $buckets['rest_day'] = $totalMinutes;
         } else {
             $buckets['night'] = $nightMinutes;
             $buckets['normal'] = $dayMinutes;

@@ -6,6 +6,8 @@ namespace App\Notifications;
 
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\FrontendUrl;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -50,12 +52,15 @@ class MissingPunchNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $label = $this->type === 'missing_check_out' ? 'check-out' : 'check-in';
+        $checkOut = $this->type === 'missing_check_out';
+        $label = app()->getLocale() === 'am'
+            ? ($checkOut ? 'መውጫ' : 'መግቢያ')
+            : ($checkOut ? 'check-out' : 'check-in');
 
-        return (new MailMessage)
-            ->subject(__('notification.missing_punch_subject'))
-            ->line("{$this->employee->name} is missing a {$label} for {$this->date}.")
-            ->line('Review their attendance record and request a correction if needed.')
-            ->action('View Attendance', url('/attendance'));
+        return NotificationTemplates::mail('missing_punch', $this->employee->tenant_id, [
+            'employee_name' => $this->employee->name,
+            'date' => $this->date,
+            'punch_type' => $label,
+        ])->action('View Attendance', FrontendUrl::to('/attendance'));
     }
 }

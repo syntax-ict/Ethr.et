@@ -13,18 +13,19 @@ use App\Models\Branch;
 use App\Models\KioskSession;
 use App\Services\CurrentTenant;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 
 class KioskSessionController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('attendance.manage');
 
         $sessions = KioskSession::with('branch')
             ->orderByDesc('created_at')
-            ->paginate(25);
+            ->paginate($request->integer('per_page', 25));
 
         return KioskSessionResource::collection($sessions)->response();
     }
@@ -61,7 +62,7 @@ class KioskSessionController extends Controller
 
         $session = KioskSession::where('public_id', $publicId)->with('branch')->firstOrFail();
 
-        return response()->json((new KioskSessionResource($session))->resolve());
+        return (new KioskSessionResource($session))->response();
     }
 
     public function deactivate(string $publicId): JsonResponse
@@ -140,7 +141,7 @@ class KioskSessionController extends Controller
         $settings = $tenant->attendanceSetting;
 
         return response()->json([
-            'session' => (new KioskSessionResource($session))->resolve(),
+            'session' => new KioskSessionResource($session),
             'tenant' => [
                 'name' => $tenant->name,
                 'subdomain' => $tenant->subdomain,

@@ -2,140 +2,79 @@
 
 declare(strict_types=1);
 
-use App\Enums\AttendanceStatus;
 use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Holiday;
-use App\Models\Shift;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Services\Attendance\AttendanceIntelligence;
+use App\Services\CurrentTenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Notification;
 
-// ── Intelligence: Late Detection ──
+/**
+ * A supervisor signed in, and one employee who reports to them.
+ *
+ * The approval tests below used a supervisor with no employee record deciding
+ * for an employee nobody supervised — which passed only because corrections
+ * were not limited to the approver's team (audit N3). The approver now needs
+ * the employee inside their org scope, as `LeaveRequestPolicy::approve` always has.
+ *
+ * @param  array<string, mixed>  $employeeAttributes
+ * @return array{0: User, 1: Employee}
+ */
+function intelligenceCorrectionSupervisorWithReport(Tenant $tenant, array $employeeAttributes = []): array
+{
+    $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+    $employee = Employee::factory()->create([
+        'tenant_id' => $tenant->id,
+        'supervisor_id' => $supervisor->id,
+        ...$employeeAttributes,
+    ]);
 
-test('intelligence service detects late arrival', function () {
+    return [$user, $employee];
+}
+
+// ── Intelligence: Missing punches ──
+// Late, early-leave and overtime detection live in the attendance engine and
+// the record model, and are tested there (AttendanceEngineTest,
+// NightShiftAttendanceTest). The four AttendanceIntelligence methods these
+// tests used to call had no caller (audit B2) and are gone; the missing-punch
+// tests now drive getMissingPunches(), which the nightly scan really calls.
+
+test('the missing-punch scan finds a check-in with no check-out', function () {
     $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'grace_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(9, 0),
-        'status' => AttendanceStatus::LATE,
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectLate($record))->toBeTrue();
-});
-
-test('intelligence service does not flag on-time arrival as late', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'grace_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'status' => AttendanceStatus::PRESENT,
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectLate($record))->toBeFalse();
-});
-
-// ── Intelligence: Early Leave ──
-
-test('intelligence service detects early departure', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'end_time' => '17:30',
-        'early_departure_minutes' => 15,
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
-        'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'check_out' => Carbon::today()->setTime(16, 0),
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->detectEarlyLeave($record))->toBeTrue();
-});
-
-// ── Intelligence: Missing Punch ──
-
-test('intelligence detects missing check-out', function () {
-    $tenant = createTenant();
+    app(CurrentTenant::class)->set($tenant);
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
 
-    AttendanceRecord::factory()->checkInOnly()->create([
+    $open = AttendanceRecord::factory()->checkInOnly()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
-        'date' => now()->format('Y-m-d'),
-        'check_in' => now()->subHours(4),
+        'date' => '2026-10-05',
+        'check_in' => Carbon::parse('2026-10-05 08:30'),
     ]);
 
-    $intelligence = app(AttendanceIntelligence::class);
-    $result = $intelligence->detectMissingPunch($employee, now());
+    $missing = app(AttendanceIntelligence::class)->getMissingPunches($tenant->id, '2026-10-05');
 
-    expect($result)->toBe('missing_check_out');
+    expect($missing->pluck('id')->all())->toBe([$open->id]);
 });
 
-test('intelligence returns null when punch complete', function () {
+test('the missing-punch scan ignores a completed day', function () {
     $tenant = createTenant();
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    app(CurrentTenant::class)->set($tenant);
 
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
-        'employee_id' => $employee->id,
-        'date' => now()->format('Y-m-d'),
-    ]);
-
-    $intelligence = app(AttendanceIntelligence::class);
-    $result = $intelligence->detectMissingPunch($employee, now());
-
-    expect($result)->toBeNull();
-});
-
-// ── Intelligence: Overtime ──
-
-test('intelligence calculates overtime correctly', function () {
-    $tenant = createTenant();
-    $shift = Shift::factory()->create([
-        'tenant_id' => $tenant->id,
-        'start_time' => '08:30',
-        'end_time' => '17:30',
-    ]);
-
-    $record = AttendanceRecord::factory()->create([
-        'tenant_id' => $tenant->id,
         'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
-        'shift_id' => $shift->id,
-        'check_in' => Carbon::today()->setTime(8, 30),
-        'check_out' => Carbon::today()->setTime(19, 30),
+        'date' => '2026-10-05',
     ]);
 
-    $intelligence = app(AttendanceIntelligence::class);
-    expect($intelligence->calculateOvertime($record))->toBe(120);
+    expect(app(AttendanceIntelligence::class)->getMissingPunches($tenant->id, '2026-10-05'))->toBeEmpty();
 });
-
-// ── Intelligence Dashboard Endpoint ──
 
 test('hr admin can view intelligence dashboard', function () {
     $tenant = createTenant();
@@ -276,9 +215,7 @@ test('correction requires reason', function () {
 
 test('supervisor can approve correction', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -304,9 +241,7 @@ test('supervisor can approve correction', function () {
 
 test('supervisor can preview payroll impact of a pending correction', function () {
     $tenant = createTenant();
-    actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'salary_cents' => 1_760_000]);
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant, ['salary_cents' => 1_760_000]);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -379,9 +314,7 @@ test('cannot approve already approved correction', function () {
 
 test('supervisor can reject correction with reason', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -402,11 +335,62 @@ test('supervisor can reject correction with reason', function () {
         ->assertJsonPath('status', 'rejected');
 });
 
+// ── A failed notification does not fail the correction ──
+// The controller wrote the correction (and, on approval, the attendance record)
+// and then called ->notify() bare. When delivery threw (the broadcast channel
+// talks to Reverb over cURL), the request returned 500 for a write that had
+// committed, and a retried approval was refused as "not pending".
+// ApprovalController approves the same corrections through
+// SendsNotifications::notify(), which logs and carries on. Now both paths do.
+
+test('submitting a correction succeeds when the supervisor notification fails', function () {
+    $tenant = createTenant();
+    $supervisorEmployee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    createUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisorEmployee->id], $tenant);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisorEmployee->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $record = AttendanceRecord::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id]);
+
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Pusher error: cURL error 7'));
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections", [
+        'attendance_record_public_id' => $record->public_id,
+        'reason' => 'Check-in time was wrong, I arrived earlier',
+        'proposed_check_in' => Carbon::today()->setTime(8, 15)->toIso8601String(),
+    ])->assertStatus(201);
+
+    expect(AttendanceCorrection::where('attendance_record_id', $record->id)->count())->toBe(1);
+});
+
+test('approving or rejecting a correction succeeds when the employee notification fails', function (string $action, CorrectionStatus $expected) {
+    $tenant = createTenant();
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
+    createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    $record = AttendanceRecord::factory()->create(['tenant_id' => $tenant->id, 'employee_id' => $employee->id]);
+    $correction = AttendanceCorrection::factory()->create([
+        'tenant_id' => $tenant->id,
+        'attendance_record_id' => $record->id,
+        'employee_id' => $employee->id,
+        'status' => CorrectionStatus::PENDING,
+    ]);
+
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('Pusher error: cURL error 7'));
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/{$action}", [
+        'reason' => 'Insufficient evidence',
+    ])->assertOk()->assertJsonPath('status', $expected->value);
+
+    expect($correction->fresh()->status)->toBe($expected);
+})->with([
+    'approve' => ['approve', CorrectionStatus::APPROVED],
+    'reject' => ['reject', CorrectionStatus::REJECTED],
+]);
+
 test('rejection requires reason', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -448,9 +432,7 @@ test('hr admin can list all corrections', function () {
 
 test('supervisor can view pending corrections', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,
@@ -499,9 +481,7 @@ test('correction submission is audit logged', function () {
 
 test('correction approval is audit logged', function () {
     $tenant = createTenant();
-    $user = actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
-
-    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$user, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
     $record = AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id,
         'employee_id' => $employee->id,

@@ -19,13 +19,16 @@ class AttendanceSettingController extends Controller
     {
         Gate::authorize('attendance.manage');
 
+        // The first read creates the defaults. The status is set to 200 below
+        // because a resource wrapping a model created in this request would
+        // otherwise answer that GET with 201.
         $tenant = app(CurrentTenant::class)->get();
         $setting = AttendanceSetting::firstOrCreate(
             ['tenant_id' => $tenant->id],
             AttendanceSetting::defaults()
         );
 
-        return response()->json((new AttendanceSettingResource($setting))->resolve());
+        return (new AttendanceSettingResource($setting))->response()->setStatusCode(200);
     }
 
     public function update(UpdateAttendanceSettingRequest $request): JsonResponse
@@ -42,6 +45,6 @@ class AttendanceSettingController extends Controller
 
         AuditLog::record('attendance.settings_updated', $setting, $request->validated());
 
-        return response()->json((new AttendanceSettingResource($setting->fresh()))->resolve());
+        return (new AttendanceSettingResource($setting->fresh()))->response()->setStatusCode(200);
     }
 }

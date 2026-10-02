@@ -54,7 +54,8 @@ class MfaService
 
     public function disable(User $user, string $code): bool
     {
-        if (! $this->verify(decrypt($user->mfa_secret), $code)) {
+        // Plaintext already — the `encrypted` cast decrypts on read.
+        if (! $this->verify((string) $user->mfa_secret, $code)) {
             return false;
         }
 

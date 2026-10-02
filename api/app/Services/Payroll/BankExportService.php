@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
 use App\Models\PayrollRun;
+use App\Support\Csv;
 
 /**
  * Bank name / account number live on `EmployeeBankDetail` (an employee can
@@ -23,7 +24,7 @@ final class BankExportService
         $entries = $run->entries()->with(['employee.bankDetails'])->get();
 
         $lines = [];
-        $lines[] = implode(',', [
+        $lines[] = Csv::row([
             'Employee Code',
             'Employee Name',
             'Bank Name',
@@ -40,41 +41,13 @@ final class BankExportService
 
             $bank = $this->primaryBankDetail($employee);
 
-            $lines[] = implode(',', [
-                $this->csvEscape($employee->employee_code ?? ''),
-                $this->csvEscape($employee->name ?? ''),
-                $this->csvEscape($bank?->bank_name ?? ''),
-                $this->csvEscape($bank?->account_number ?? ''),
-                number_format($entry->net_cents / 100, 2, '.', ''),
-                'ETB',
-            ]);
-        }
-
-        return implode("\r\n", $lines);
-    }
-
-    public function generateCbeFormat(PayrollRun $run): string
-    {
-        $entries = $run->entries()->with(['employee.bankDetails'])->get();
-
-        $lines = [];
-        foreach ($entries as $entry) {
-            $employee = $entry->employee;
-            if (! $employee) {
-                continue;
-            }
-
-            $bank = $this->primaryBankDetail($employee);
-            if (! $bank?->account_number) {
-                continue;
-            }
-
-            $lines[] = implode('|', [
-                str_pad($bank->account_number, 13, '0', STR_PAD_LEFT),
-                number_format($entry->net_cents / 100, 2, '.', ''),
+            $lines[] = Csv::row([
+                $employee->employee_code ?? '',
                 $employee->name ?? '',
-                $run->period_label,
-                'SALARY',
+                $bank?->bank_name ?? '',
+                $bank?->account_number ?? '',
+                Csv::amount($entry->net_cents),
+                'ETB',
             ]);
         }
 
@@ -97,14 +70,5 @@ final class BankExportService
         }
 
         return $details->isEmpty() ? null : $details->first();
-    }
-
-    private function csvEscape(string $value): string
-    {
-        if (str_contains($value, ',') || str_contains($value, '"') || str_contains($value, "\n")) {
-            return '"'.str_replace('"', '""', $value).'"';
-        }
-
-        return $value;
     }
 }

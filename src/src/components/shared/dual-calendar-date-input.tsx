@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useSyncExternalStore } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -69,6 +69,25 @@ function toIso(year: number, month: number, day: number): string {
   return `${p(year, 4)}-${p(month)}-${p(day)}`;
 }
 
+const noSubscription = () => () => {};
+
+/**
+ * The visible text of the `<label for>` pointing at `id`, minus a required
+ * marker. Read through useSyncExternalStore because the label commits in the
+ * same pass as this input: the store re-checks after mount, when it exists.
+ */
+function useLabelText(id: string): string {
+  return useSyncExternalStore(
+    noSubscription,
+    () =>
+      document
+        .querySelector(`label[for="${CSS.escape(id)}"]`)
+        ?.textContent?.replace(/\*/g, "")
+        .trim() ?? "",
+    () => "",
+  );
+}
+
 export function DualCalendarDateInput({
   value,
   onChange,
@@ -87,6 +106,14 @@ export function DualCalendarDateInput({
   const { t, locale } = useT();
   const generatedId = useId();
   const fieldId = id ?? generatedId;
+  // The year input carries `fieldId`, so the form's <label> should name it —
+  // but its own aria-label overrode that, and every Ethiopian date field
+  // announced only "Ethiopian year / month / day", never "Hire date". Each
+  // part now says which field it belongs to.
+  const labelText = useLabelText(fieldId);
+  const fieldName = ariaLabel ?? labelText;
+  const partLabel = (part: string) =>
+    fieldName ? `${fieldName} — ${part}` : part;
 
   const parsed = parseIso(value);
 
@@ -150,14 +177,17 @@ export function DualCalendarDateInput({
 
   return (
     <div className={className}>
-      <div className="flex gap-2">
+      {/* Wraps rather than overflows (audit N36): year and day are fixed, and
+          a caller narrower than the three parts squeezed the month to an
+          unreadable sliver and pushed the day out of the box. */}
+      <div className="flex flex-wrap gap-2">
         <Input
           id={fieldId}
           type="number"
           inputMode="numeric"
           required={required}
           disabled={disabled}
-          aria-label={t("calendar.ethiopian_year", "Ethiopian year")}
+          aria-label={partLabel(t("calendar.ethiopian_year", "Ethiopian year"))}
           // The label from FormField points at this control (it carries
           // `fieldId`), so the invalid/described wiring belongs here rather
           // than on the month or day selects beside it.
@@ -165,7 +195,7 @@ export function DualCalendarDateInput({
           aria-required={ariaRequired}
           aria-describedby={ariaDescribedBy}
           placeholder={t("calendar.year", "Year")}
-          className="w-24"
+          className="w-20"
           value={currentYear}
           onChange={(e) => {
             const year = Number(e.target.value);
@@ -185,8 +215,10 @@ export function DualCalendarDateInput({
           }
         >
           <SelectTrigger
-            className="flex-1"
-            aria-label={t("calendar.ethiopian_month", "Ethiopian month")}
+            className="min-w-28 flex-1"
+            aria-label={partLabel(
+              t("calendar.ethiopian_month", "Ethiopian month"),
+            )}
           >
             <SelectValue placeholder={t("calendar.month", "Month")} />
           </SelectTrigger>
@@ -211,7 +243,7 @@ export function DualCalendarDateInput({
         >
           <SelectTrigger
             className="w-20"
-            aria-label={t("calendar.ethiopian_day", "Ethiopian day")}
+            aria-label={partLabel(t("calendar.ethiopian_day", "Ethiopian day"))}
           >
             <SelectValue placeholder={t("calendar.day", "Day")} />
           </SelectTrigger>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import {
   Monitor,
   Plus,
@@ -44,29 +45,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import {
+  useDeleteKiosk,
+  useKioskSessions,
+  useRegenerateKioskToken,
+  useRegisterKiosk,
+  useSetKioskActive,
+} from "@/features/attendance/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 
-interface KioskSession {
-  public_id: string;
-  name: string;
-  branch?: { public_id: string; name: string } | null;
-  device_identifier: string | null;
-  status: "active" | "inactive";
-  token?: string;
-  last_activity_at: string | null;
-  activated_at: string | null;
-  deactivated_at: string | null;
-  created_at: string;
-}
-
 export default function KioskSessionsPage() {
   const { t } = useT();
   const { formatDate, formatDateTime } = useDateFormatters();
-  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [showRegister, setShowRegister] = useState(false);
   const [showToken, setShowToken] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
@@ -77,88 +71,78 @@ export default function KioskSessionsPage() {
   const [regPin, setRegPin] = useState("");
   const [regDevice, setRegDevice] = useState("");
 
-  const { data: sessions, isLoading } = useQuery({
-    queryKey: ["kiosk-sessions"],
-    queryFn: async () => (await apiClient.get("/kiosk-sessions")).data,
-  });
+  // KioskSessionController::index pages by 25; the page read only the first,
+  // so a 26th kiosk could be neither seen nor deactivated.
+  const { data: sessions, isLoading } = useKioskSessions({ page });
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["kiosk-sessions"] });
-  }, [queryClient]);
+  const register = useRegisterKiosk();
+  const setActive = useSetKioskActive();
+  const regenerate = useRegenerateKioskToken();
+  const remove = useDeleteKiosk();
 
-  const register = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/kiosk-sessions", {
+  function handleRegister() {
+    register.mutate(
+      {
         name: regName,
         branch_public_id: regBranch,
         admin_pin: regPin,
         device_identifier: regDevice || undefined,
-      });
-      return data;
-    },
-    onSuccess: (data) => {
-      invalidate();
-      setShowRegister(false);
-      setRegName("");
-      setRegBranch("");
-      setRegPin("");
-      setRegDevice("");
-      if (data.token) {
-        setShowToken(data.token);
-      }
-      toast.success(t("attendance.kiosks_page.registered"));
-    },
-    onError: () => toast.error(t("attendance.kiosks_page.register_failed")),
-  });
+      },
+      {
+        onSuccess: (data) => {
+          setShowRegister(false);
+          setRegName("");
+          setRegBranch("");
+          setRegPin("");
+          setRegDevice("");
+          if (data.token) {
+            setShowToken(data.token);
+          }
+          toast.success(t("attendance.kiosks_page.registered"));
+        },
+        onError: () => toast.error(t("attendance.kiosks_page.register_failed")),
+      },
+    );
+  }
 
-  const deactivate = useMutation({
-    mutationFn: async (id: string) =>
-      apiClient.post(`/kiosk-sessions/${id}/deactivate`),
-    onSuccess: () => {
-      invalidate();
-      toast.success(t("attendance.kiosks_page.deactivated"));
-    },
-    onError: () => toast.error(t("attendance.kiosks_page.deactivate_failed")),
-  });
+  function handleSetActive(publicId: string, active: boolean) {
+    setActive.mutate(
+      { publicId, active },
+      {
+        onSuccess: () =>
+          toast.success(
+            active
+              ? t("attendance.kiosks_page.activated")
+              : t("attendance.kiosks_page.deactivated"),
+          ),
+        onError: () =>
+          toast.error(
+            active
+              ? t("attendance.kiosks_page.activate_failed")
+              : t("attendance.kiosks_page.deactivate_failed"),
+          ),
+      },
+    );
+  }
 
-  const activate = useMutation({
-    mutationFn: async (id: string) =>
-      apiClient.post(`/kiosk-sessions/${id}/activate`),
-    onSuccess: () => {
-      invalidate();
-      toast.success(t("attendance.kiosks_page.activated"));
-    },
-    onError: () => toast.error(t("attendance.kiosks_page.activate_failed")),
-  });
+  function handleRegenerate(publicId: string) {
+    regenerate.mutate(publicId, {
+      onSuccess: (data) => {
+        if (data.token) setShowToken(data.token);
+        toast.success(t("attendance.kiosks_page.token_regenerated"));
+      },
+      onError: () => toast.error(t("attendance.kiosks_page.regenerate_failed")),
+    });
+  }
 
-  const regenerate = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await apiClient.post(
-        `/kiosk-sessions/${id}/regenerate-token`,
-      );
-      return data;
-    },
-    onSuccess: (data) => {
-      invalidate();
-      if (data.token) setShowToken(data.token);
-      toast.success(t("attendance.kiosks_page.token_regenerated"));
-    },
-    onError: () => toast.error(t("attendance.kiosks_page.regenerate_failed")),
-  });
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/kiosk-sessions/${id}`),
-    onSuccess: () => {
-      invalidate();
-      toast.success(t("attendance.kiosks_page.deleted"));
-    },
-    onError: () => toast.error(t("attendance.kiosks_page.delete_failed")),
-  });
+  function handleDelete(publicId: string) {
+    remove.mutate(publicId, {
+      onSuccess: () => toast.success(t("attendance.kiosks_page.deleted")),
+      onError: () => toast.error(t("attendance.kiosks_page.delete_failed")),
+    });
+  }
 
   function copyToken(token: string) {
     navigator.clipboard.writeText(token);
@@ -166,10 +150,11 @@ export default function KioskSessionsPage() {
     setTimeout(() => setCopiedToken(false), 2000);
   }
 
-  const list: KioskSession[] = sessions?.data ?? [];
+  const list = sessions?.data ?? [];
 
   return (
-    <RoleGate minRole="hr_admin">
+    // Every kiosk-session endpoint checks attendance.manage.
+    <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.kiosks_page.title")}
@@ -225,7 +210,9 @@ export default function KioskSessionsPage() {
                           k.status === "active" ? "success" : "secondary"
                         }
                       >
-                        {k.status}
+                        {k.status === "active"
+                          ? t("common.active", "Active")
+                          : t("common.inactive", "Inactive")}
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -244,21 +231,23 @@ export default function KioskSessionsPage() {
                         <DropdownMenuContent align="end">
                           {k.status === "active" ? (
                             <DropdownMenuItem
-                              onClick={() => deactivate.mutate(k.public_id)}
+                              onClick={() =>
+                                handleSetActive(k.public_id, false)
+                              }
                             >
                               <PowerOff className="mr-2 h-3.5 w-3.5" />{" "}
                               {t("attendance.kiosks_page.deactivate")}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
-                              onClick={() => activate.mutate(k.public_id)}
+                              onClick={() => handleSetActive(k.public_id, true)}
                             >
                               <Power className="mr-2 h-3.5 w-3.5" />{" "}
                               {t("attendance.kiosks_page.activate")}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
-                            onClick={() => regenerate.mutate(k.public_id)}
+                            onClick={() => handleRegenerate(k.public_id)}
                           >
                             <RefreshCw className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("attendance.kiosks_page.regenerate_token")}
@@ -266,7 +255,7 @@ export default function KioskSessionsPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={() => remove.mutate(k.public_id)}
+                            onClick={() => handleDelete(k.public_id)}
                           >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("common.delete")}
@@ -291,13 +280,14 @@ export default function KioskSessionsPage() {
                   )}
                   <p>
                     {t("attendance.kiosks_page.created")}:{" "}
-                    {formatDate(k.created_at)}
+                    {k.created_at ? formatDate(k.created_at) : "—"}
                   </p>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+        <PaginationControls meta={sessions?.meta} onPageChange={setPage} />
 
         {/* Register Dialog */}
         <Dialog open={showRegister} onOpenChange={setShowRegister}>
@@ -336,13 +326,11 @@ export default function KioskSessionsPage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches?.data?.map(
-                      (b: { public_id: string; name: string }) => (
-                        <SelectItem key={b.public_id} value={b.public_id}>
-                          {b.name}
-                        </SelectItem>
-                      ),
-                    )}
+                    {branches?.data?.map((b) => (
+                      <SelectItem key={b.public_id} value={b.public_id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -384,7 +372,7 @@ export default function KioskSessionsPage() {
                 {t("common.cancel")}
               </Button>
               <Button
-                onClick={() => register.mutate()}
+                onClick={handleRegister}
                 disabled={
                   !regName ||
                   !regBranch ||

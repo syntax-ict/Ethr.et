@@ -65,9 +65,15 @@ test.describe('public site, anonymous visitor', () => {
     expect(hrefs.length).toBeGreaterThan(0);
     expect(hrefs.filter((h) => h === '#' || h === '')).toHaveLength(0);
 
+    // Fetched from inside the page, not with page.request: that runs in Node,
+    // and Node on Windows cannot resolve *.localhost (getaddrinfo ENOTFOUND),
+    // while the browser treats it as loopback like the rest of the suite does.
     for (const href of [...new Set(hrefs)]) {
-      const response = await page.request.get(href);
-      expect(response.status(), `${href} should not 404`).toBeLessThan(400);
+      const status = await page.evaluate(
+        async (url) => (await fetch(url, { redirect: 'follow' })).status,
+        href,
+      );
+      expect(status, `${href} should not 404`).toBeLessThan(400);
     }
   });
 

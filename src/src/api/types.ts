@@ -40,6 +40,15 @@ export interface User {
   status: string;
   mfa_enabled: boolean;
   locale: string;
+  /**
+   * `ProfilePreferencesController::present()`. `calendar` is the one in force:
+   * the user's own choice, else the organisation's default, else Ethiopian.
+   */
+  preferences?: {
+    locale: string;
+    theme: string;
+    calendar: string;
+  };
   last_login_at: string | null;
   employee_code: string | null;
   photo_thumb_url: string | null;

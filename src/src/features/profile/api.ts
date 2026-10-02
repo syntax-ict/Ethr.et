@@ -1,95 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
+
+type Schemas = components["schemas"];
+
+// Shapes come from the generated contract; the one override says why.
 
 /**
- * A change to an approval-gated field, staged until HR reviews it.
- *
- * These are the fields an employee may propose but not apply — name, name_am,
- * TIN, date of birth and bank details.
+ * A change to an approval-gated field, staged until HR reviews it — name,
+ * name_am, TIN, date of birth and bank details.
  */
-export interface ProfileUpdateRequest {
-  public_id: string;
-  field_name: string;
-  old_value: string | null;
-  new_value: string | null;
-  status: "pending" | "approved" | "rejected" | "withdrawn";
-  employee_public_id: string | null;
-  employee_name: string | null;
-  requested_by_name: string | null;
-  reviewed_by_name: string | null;
-  reviewed_at: string | null;
-  review_notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
+export type ProfileUpdateRequest = Schemas["ProfileUpdateRequestResource"];
 
-export interface EmergencyContact {
-  public_id: string;
-  name: string;
-  relationship: string;
-  phone: string;
-  email: string | null;
-  priority: number | null;
-}
+export type EmergencyContact = Schemas["EmergencyContactResource"];
 
-export interface ProfileBankDetail {
-  public_id: string;
-  bank_name: string;
-  branch_name: string | null;
-  /** Tail four characters only — the full number is never sent to the browser. */
-  account_number_masked: string | null;
-  is_primary: boolean;
-}
+type ProfileContract =
+  operations["profile.show"]["responses"][200]["content"]["application/json"];
 
-export interface ProfilePreferences {
-  locale: string;
-  theme: string;
-  calendar: "gregorian" | "ethiopian" | "dual";
-}
+/** `account_number_masked` is the tail four characters only. */
+export type ProfileBankDetail = ProfileContract["bank_details"][number];
 
-export interface ProfileResponse {
-  user: {
-    public_id: string;
-    email: string;
-    phone: string | null;
-    locale: string;
-    role: string | null;
-    status: string | null;
-    mfa_enabled: boolean;
-    email_verified_at: string | null;
-    last_login_at: string | null;
-  };
-  employee: {
-    public_id: string;
-    name: string;
-    name_am: string | null;
-    employee_code: string | null;
-    phone: string | null;
-    gender: string | null;
-    date_of_birth: string | null;
-    nationality: string | null;
-    marital_status: string | null;
-    hire_date: string | null;
-    status: string | null;
-    tin_masked: string | null;
-    photo_path: string | null;
-    photo_url: string | null;
-    photo_thumb_url: string | null;
-    department: string | null;
-    position: string | null;
-    branch: string | null;
-    grade: string | null;
-    supervisor: string | null;
-  } | null;
+/**
+ * `present()` returns stored strings; only values UpdateProfilePreferencesRequest
+ * admitted are ever stored, so the calendar is that request's enum.
+ */
+export type ProfilePreferences = Omit<
+  ProfileContract["preferences"],
+  "calendar"
+> & {
+  calendar: NonNullable<Schemas["UpdateProfilePreferencesRequest"]["calendar"]>;
+};
+
+/** `recent_updates` is the last ten decided requests. */
+export type ProfileResponse = Omit<ProfileContract, "preferences"> & {
   preferences: ProfilePreferences;
-  emergency_contacts: EmergencyContact[];
-  bank_details: ProfileBankDetail[];
-  pending_updates: ProfileUpdateRequest[];
-  /** Last ten decided requests — approved, rejected or withdrawn. */
-  recent_updates: ProfileUpdateRequest[];
-  /** Which fields apply immediately and which are staged for HR review. */
-  editable_fields: { self: string[]; gated: string[] };
-}
+};
 
 const PROFILE_KEY = ["profile", "me"] as const;
 
@@ -104,32 +49,12 @@ export function useMyProfile() {
   });
 }
 
-export interface UpdateProfilePayload {
-  phone?: string;
-  marital_status?: string;
-  nationality?: string;
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
-  emergency_contact_relationship?: string;
-  // Gated — these are staged for HR review, not applied.
-  name?: string;
-  name_am?: string;
-  tin?: string;
-  date_of_birth?: string;
-  bank_account_number?: string;
-  bank_name?: string;
-}
+/** Gated fields in this body are staged for HR review, not applied. */
+export type UpdateProfilePayload = Schemas["UpdateProfileRequest"];
 
-export interface UpdateProfileResult {
-  message: string;
-  pending_approval: {
-    status: string;
-    fields: string[];
-    requests: ProfileUpdateRequest[];
-    message: string;
-  } | null;
-  was_duplicate: boolean;
-}
+/** `pending_approval` is null when nothing was staged for review. */
+export type UpdateProfileResult =
+  operations["profile.update"]["responses"][200]["content"]["application/json"];
 
 /** Everything the profile screens touch is derived from GET /profile. */
 function useProfileInvalidation() {
@@ -137,8 +62,7 @@ function useProfileInvalidation() {
 
   return () => {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
-    // A staged change also lands in the HR review queue.
-    queryClient.invalidateQueries({ queryKey: ["profile-update-requests"] });
+    // A staged change also lands in the HR review queue (/approvals).
     queryClient.invalidateQueries({ queryKey: ["approvals"] });
   };
 }
@@ -158,11 +82,8 @@ export function useUpdateProfile() {
   });
 }
 
-export interface ProfilePhotoResult {
-  photo_path: string;
-  photo_url: string | null;
-  photo_thumb_url: string | null;
-}
+export type ProfilePhotoResult =
+  operations["profilePhoto.store"]["responses"][201]["content"]["application/json"];
 
 /**
  * The photo goes to its own POST endpoint: a multipart body cannot ride on a
@@ -206,11 +127,14 @@ export function useRemoveProfilePhoto() {
   });
 }
 
+export type ProfilePreferencesPayload =
+  Schemas["UpdateProfilePreferencesRequest"];
+
 export function useUpdatePreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: Partial<ProfilePreferences>) => {
+    mutationFn: async (payload: ProfilePreferencesPayload) => {
       const { data } = await apiClient.put<ProfilePreferences>(
         "/profile/preferences",
         payload,
@@ -224,13 +148,9 @@ export function useUpdatePreferences() {
   });
 }
 
-export interface EmergencyContactPayload {
-  name: string;
-  relationship: string;
-  phone: string;
-  email?: string | null;
-  priority?: number;
-}
+/** Store and update both validate with StoreProfileEmergencyContactRequest. */
+export type EmergencyContactPayload =
+  Schemas["StoreProfileEmergencyContactRequest"];
 
 export function useCreateEmergencyContact() {
   const invalidate = useProfileInvalidation();
@@ -288,42 +208,5 @@ export function useWithdrawProfileUpdate() {
       return data;
     },
     onSuccess: invalidate,
-  });
-}
-
-/** HR review queue. Requires `employee.update`. */
-export function useProfileUpdateRequests(status = "pending") {
-  return useQuery<{ data: ProfileUpdateRequest[] }>({
-    queryKey: ["profile-update-requests", status],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/profile-update-requests", {
-        params: { status },
-      });
-      return data;
-    },
-  });
-}
-
-export function useReviewProfileUpdate() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (vars: {
-      publicId: string;
-      action: "approve" | "reject";
-      notes?: string;
-    }) => {
-      const { data } = await apiClient.post<ProfileUpdateRequest>(
-        `/profile-update-requests/${vars.publicId}/review`,
-        { action: vars.action, notes: vars.notes },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-update-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-    },
   });
 }

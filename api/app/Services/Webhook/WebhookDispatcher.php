@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Webhook;
 
 use App\Jobs\DispatchWebhookJob;
+use App\Models\Tenant;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 
@@ -25,10 +26,13 @@ final class WebhookDispatcher
 
     public function queue(Webhook $webhook, string $event, array $data): WebhookDelivery
     {
+        // The tenant's public id (convention 4); this was the numeric key.
+        $tenantPublicId = Tenant::query()->whereKey($webhook->tenant_id)->value('public_id');
+
         $payload = [
             'event' => $event,
             'timestamp' => now()->toIso8601String(),
-            'tenant_id' => $webhook->tenant_id,
+            'tenant_id' => $tenantPublicId,
             'data' => $data,
         ];
 

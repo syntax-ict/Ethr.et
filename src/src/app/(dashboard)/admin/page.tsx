@@ -777,7 +777,7 @@ function ServiceIcon({ name }: { name: string }) {
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     api: Server,
     database: Database,
-    redis: Gauge,
+    cache: Gauge,
     storage: HardDrive,
     reverb: Radio,
   };

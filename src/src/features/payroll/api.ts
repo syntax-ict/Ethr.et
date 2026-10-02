@@ -1,33 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { csvAmount, csvFromRows } from "@/lib/utils/csv-export";
+
+type Schemas = components["schemas"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// Shapes come from the generated contract, so a renamed resource field fails
+// tsc here instead of rendering blank. The hand-written types these replace had
+// drifted: a payslip `period_label` and loan `employee_name`/`disbursed_at`
+// that no resource has ever sent, and a loan create body without the `reason`
+// StoreLoanRequest accepts.
 
-export interface PayrollRun {
-  public_id: string;
-  period_label: string;
-  period_start: string;
-  period_end: string;
-  status: string;
-  employee_count: number;
-  gross_total_cents: number;
-  net_total_cents: number;
-  tax_total_cents: number;
-  processed_at: string | null;
-  approved_at: string | null;
-  approved_by?: number | null;
-  voided_at: string | null;
-  void_reason: string | null;
-  reprocessed_from_public_id?: string | null;
+/** `entries` carry the corrected `PayrollEntry` below. */
+export type PayrollRun = Omit<Schemas["PayrollRunResource"], "entries"> & {
   entries?: PayrollEntry[];
-}
+};
 
 export interface CalculationLogStep {
   step: string;
   [key: string]: unknown;
 }
 
+/** The `PayrollEngine` trace stored on each entry (Convention #11). */
 export interface CalculationLog {
   version: string;
   calculated_at: string;
@@ -36,38 +33,18 @@ export interface CalculationLog {
   outputs: Record<string, number>;
 }
 
-export interface PayrollEntry {
-  public_id: string;
-  employee_public_id: string;
-  employee_name?: string;
-  basic_salary_cents: number;
-  gross_cents: number;
-  income_tax_cents: number;
-  employee_pension_cents: number;
-  employer_pension_cents: number;
-  other_deductions_cents: number;
-  net_cents: number;
-  period_label?: string;
-  calculation_log?: CalculationLog;
-}
+/**
+ * Scramble publishes the `array`-cast `calculation_log` as `unknown[]`; it is
+ * the object `PayrollEngine` writes, and is sent only with `?include_log=1`.
+ */
+export type PayrollEntry = Omit<
+  Schemas["PayrollEntryResource"],
+  "calculation_log"
+> & { calculation_log?: CalculationLog | null };
 
-export interface Loan {
-  public_id: string;
-  employee_public_id: string;
-  employee_name?: string;
-  /** Nested employee object — present when API includes the relation */
-  employee?: { name: string; public_id: string } | null;
-  amount_cents: number;
-  remaining_cents: number;
-  monthly_deduction_cents: number;
-  reason?: string | null;
-  status: string;
-  disbursed_at: string | null;
-  created_at: string;
-}
+export type Loan = Schemas["EmployeeLoanResource"];
 
-export type CostSharingStatus =
-  "active" | "suspended" | "completed" | "cancelled";
+export type CostSharingStatus = Schemas["CostSharingStatus"];
 
 /**
  * An Ethiopian higher-education cost-sharing obligation.
@@ -76,21 +53,7 @@ export type CostSharingStatus =
  * subtraction would go wrong for a cancelled obligation, where the balance stops
  * moving while money remains unpaid.
  */
-export interface CostSharing {
-  public_id: string;
-  employee_public_id: string;
-  /** Nested employee object — present when API includes the relation */
-  employee?: { name: string; public_id: string } | null;
-  total_obligation_cents: number;
-  outstanding_cents: number;
-  repaid_cents: number;
-  deduction_rate_percent: number;
-  status: CostSharingStatus;
-  started_on: string;
-  completed_at: string | null;
-  notes?: string | null;
-  created_at: string;
-}
+export type CostSharing = Schemas["EmployeeCostSharingResource"];
 
 // ── Payroll Runs ──────────────────────────────────────────────────────────────
 
@@ -124,6 +87,18 @@ export function usePayrollRuns(params?: { page?: number }) {
   });
 }
 
+/**
+ * Every run, newest period first — for pickers. `GET /payroll/runs` pages at
+ * 25, so a picker fed the first page loses every run older than two years.
+ */
+export function useAllPayrollRuns() {
+  return useQuery<PayrollRun[]>({
+    queryKey: ["payroll", "runs", "all"],
+    queryFn: () => fetchAllPages<PayrollRun>("/payroll/runs"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function usePayrollRun(publicId: string) {
   return useQuery<PayrollRun>({
     queryKey: ["payroll", "runs", publicId],
@@ -145,11 +120,7 @@ export function useProcessPayroll() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      period_start: string;
-      period_end: string;
-      idempotency_key: string;
-    }) => {
+    mutationFn: async (payload: Schemas["ProcessPayrollRequest"]) => {
       const { data } = await apiClient.post("/payroll/process", payload, {
         headers: { "Idempotency-Key": payload.idempotency_key },
       });
@@ -234,24 +205,6 @@ export function useMyPayslips(params?: { page?: number }) {
   });
 }
 
-export function useEmployeePayslips(
-  employeePublicId: string,
-  params?: { page?: number },
-) {
-  return useQuery<PaginatedResponse<PayrollEntry>>({
-    queryKey: ["payroll", "payslips", employeePublicId, params],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/payroll/payslips/${employeePublicId}`,
-        { params },
-      );
-      return data;
-    },
-    enabled: !!employeePublicId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
 // ── Loans ─────────────────────────────────────────────────────────────────────
 
 export function useLoans(params?: { page?: number }) {
@@ -265,75 +218,11 @@ export function useLoans(params?: { page?: number }) {
   });
 }
 
-export function useLoan(publicId: string) {
-  return useQuery<Loan>({
-    queryKey: ["payroll", "loans", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/payroll/loans/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useUpdateLoan() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      publicId,
-      ...payload
-    }: {
-      publicId: string;
-      monthly_deduction_cents?: number;
-      reason?: string | null;
-    }) => {
-      const { data } = await apiClient.put(
-        `/payroll/loans/${publicId}`,
-        payload,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "loans"] });
-    },
-  });
-}
-
-export function useCancelLoan() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      publicId,
-      reason,
-    }: {
-      publicId: string;
-      reason: string;
-    }) => {
-      const { data } = await apiClient.put(
-        `/payroll/loans/${publicId}/cancel`,
-        { reason },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payroll", "loans"] });
-    },
-  });
-}
-
 export function useCreateLoan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      employee_public_id: string;
-      amount_cents: number;
-      monthly_deduction_cents: number;
-      disbursed_at?: string;
-    }) => {
+    mutationFn: async (payload: Schemas["StoreLoanRequest"]) => {
       const { data } = await apiClient.post("/payroll/loans", payload);
       return data;
     },
@@ -369,13 +258,7 @@ export function useCreateCostSharing() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      employee_public_id: string;
-      total_obligation_cents: number;
-      deduction_rate_percent: number;
-      started_on: string;
-      notes?: string | null;
-    }) => {
+    mutationFn: async (payload: Schemas["StoreCostSharingRequest"]) => {
       const { data } = await apiClient.post("/payroll/cost-sharing", payload);
       return data;
     },
@@ -397,12 +280,7 @@ export function useUpdateCostSharing() {
     mutationFn: async ({
       publicId,
       ...payload
-    }: {
-      publicId: string;
-      deduction_rate_percent?: number;
-      status?: CostSharingStatus;
-      notes?: string | null;
-    }) => {
+    }: Schemas["UpdateCostSharingRequest"] & { publicId: string }) => {
       const { data } = await apiClient.put(
         `/payroll/cost-sharing/${publicId}`,
         payload,
@@ -417,52 +295,31 @@ export function useUpdateCostSharing() {
 
 // ── Payroll Configuration ─────────────────────────────────────────────────────
 
-export type AllowanceRuleType = "fixed" | "percentage";
+export type AllowanceRulePayload = Schemas["StorePayrollRuleRequest"];
+export type AllowanceRuleType = AllowanceRulePayload["type"];
 
-export interface AllowanceRule {
-  public_id: string;
-  name: string;
+/**
+ * `type` and `formula` are free columns to Scramble (`string`, an `array` cast).
+ * `/payroll/rules` lists allowance rules only, and StorePayrollRuleRequest
+ * admits nothing but these two types and their one-key formulas:
+ * `{ amount_cents }` for a fixed rule, `{ percent }` for a percentage one.
+ */
+export type AllowanceRule = Omit<
+  Schemas["PayrollRuleResource"],
+  "type" | "formula"
+> & {
   type: AllowanceRuleType;
-  category: string;
-  /** `{ amount_cents }` for a fixed rule, `{ percent }` for a percentage one. */
-  formula: { amount_cents?: number; percent?: number };
-  is_taxable: boolean;
-  is_active: boolean;
-  sort_order: number;
-}
+  formula: AllowanceRulePayload["formula"];
+};
 
-export interface AllowanceRulePayload {
-  name: string;
-  type: AllowanceRuleType;
-  formula: { amount_cents?: number; percent?: number };
-  is_taxable: boolean;
-  is_active: boolean;
-  sort_order: number;
-}
+/** `max_amount_cents` is null on the final, open-ended band. */
+export type TaxBracket = Schemas["TaxBracketResource"];
 
-export interface TaxBracket {
-  public_id?: string;
-  min_amount_cents: number;
-  /** null on the final, open-ended band. */
-  max_amount_cents: number | null;
-  rate: number;
-  deduction_cents: number;
-  effective_from?: string;
-  effective_to?: string | null;
-}
+/** `rates` carries the same five multipliers as `defaults`. */
+export type OvertimeRatesResponse =
+  operations["overtimeRate.show"]["responses"][200]["content"]["application/json"];
 
-export interface OvertimeRates {
-  normal: number;
-  night: number;
-  holiday: number;
-  holiday_night: number;
-}
-
-export interface OvertimeRatesResponse {
-  rates: OvertimeRates;
-  defaults: OvertimeRates;
-  is_customized: boolean;
-}
+export type OvertimeRates = OvertimeRatesResponse["defaults"];
 
 export function useAllowanceRules() {
   return useQuery<PaginatedResponse<AllowanceRule>>({
@@ -535,10 +392,7 @@ export function useReplaceTaxBrackets() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      effective_from: string;
-      brackets: TaxBracket[];
-    }) => {
+    mutationFn: async (payload: Schemas["ReplaceTaxBracketsRequest"]) => {
       const { data } = await apiClient.put("/payroll/tax-brackets", payload);
       return data;
     },
@@ -562,7 +416,7 @@ export function useUpdateOvertimeRates() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: OvertimeRates) => {
+    mutationFn: async (payload: Schemas["UpdateOvertimeRatesRequest"]) => {
       const { data } = await apiClient.put("/payroll/overtime-rates", payload);
       return data;
     },
@@ -574,37 +428,43 @@ export function useUpdateOvertimeRates() {
   });
 }
 
-// ── Bank Export ───────────────────────────────────────────────────────────────
+// ── Bank transfer file ────────────────────────────────────────────────────────
 
-export function downloadBankExport(publicId: string) {
-  const url = `/api/v1/payroll/runs/${publicId}/export/bank`;
-  window.open(url, "_blank");
+export type BankTransferExport =
+  operations["payroll.bankExport"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The run's net pay per employee with their primary bank account, from
+ * `GET /payroll/runs/{run}/export/bank` (audit-logged as `payroll.bank_export`).
+ *
+ * The file is built from this JSON rather than downloaded from `/export/bank-csv`:
+ * that CSV has no branch column, and its `csvEscape` quotes delimiters but does
+ * not neutralise formulas, so an employee named `=HYPERLINK(...)` is evaluated
+ * by the spreadsheet a finance officer opens it in. `csvFromRows` does both.
+ */
+export async function fetchBankTransferExport(
+  publicId: string,
+): Promise<BankTransferExport> {
+  return (await apiClient.get(`/payroll/runs/${publicId}/export/bank`)).data;
 }
 
-export async function downloadBankExportCsv(publicId: string) {
-  const { data } = await apiClient.get(
-    `/payroll/runs/${publicId}/export/bank-csv`,
-    { responseType: "blob" },
+export function bankTransferCsv(file: BankTransferExport): string {
+  return csvFromRows(
+    [
+      "Employee Name",
+      "Employee Code",
+      "Bank",
+      "Branch",
+      "Account Number",
+      "Net Amount (ETB)",
+    ],
+    file.rows.map((r) => [
+      r.employee_name,
+      r.employee_code,
+      r.bank_name,
+      r.branch_name,
+      r.account_number,
+      csvAmount(r.net_amount_cents),
+    ]),
   );
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `bank-export-${publicId}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ── Payslip PDF ──────────────────────────────────────────────────────────────
-
-export async function downloadPayslipPdf(entryPublicId: string) {
-  const { data } = await apiClient.get(
-    `/payroll/payslips/${entryPublicId}/pdf`,
-    { responseType: "blob" },
-  );
-  const url = URL.createObjectURL(data);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `payslip-${entryPublicId}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
 }

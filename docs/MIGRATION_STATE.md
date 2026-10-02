@@ -6,6 +6,30 @@ Working file for the migration. Updated at the end of each phase.
 
 ## CURRENT PHASE
 
+> # ⚠ THE BLOCK BELOW IS SUPERSEDED — read this first
+>
+> **Moved to the top on 2026-09-25**, because it was at the *bottom* of this file while the
+> paragraph beneath it said the migration was paused and code frozen. A reader who stopped
+> after the first screen concluded the work had halted. **It had not.**
+>
+> **The migration is not paused, and code has not been frozen since at least 2026-09-22.**
+> Measured from `git log` on 2026-09-25:
+>
+> | Landed | What |
+> |---|---|
+> | **2026-09-22** (`b61cb05`) | `CronRunController` — `schedule:run` and `queue:work` over an authenticated HTTP route |
+> | **2026-09-23** (`03cefb8`) | `BACKUP_KEEP` lowered to 2 and made settable at all |
+> | **2026-09-25** (`1edaad4`) | Canary corrected — it was testing two mechanisms the deployment does not use |
+>
+> **Phase 1 host verification completed 2026-09-25** — see
+> [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md). Five host
+> capabilities moved from `NOT VERIFIED` to `VERIFIED`, and **no confirmed technical
+> incompatibility with Bronze was found.**
+>
+> **Read NEXT ACTION at the end of this file** for where the work actually stands.
+
+**The original 2026-08-31 text follows, preserved as the historical record:**
+
 **Hosting migration: PAUSED at hosting verification, since 2026-08-29, at the owner's
 request.** Unchanged as of this update (2026-08-31) — no new hosting-side facts have
 come in. Migration *code* changes (the deployment-target-specific ones — driver swaps,
@@ -227,16 +251,16 @@ Owner said "decide for me". These are settled; they are not open questions.
 **Hosting migration:**
 
 - **Phase 0** — Read-only discovery. No file modified.
-- **Phase 1** — Architecture audit → `docs/SHARED_HOSTING_AUDIT.md`
+- **Phase 1** — Architecture audit → `docs/archive/migration/SHARED_HOSTING_AUDIT.md`
 - **Phase 2** — Capability matrix → `docs/ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`
-- **Phase 3** — Options and recommendation → `docs/SHARED_HOSTING_MIGRATION_PLAN.md`
+- **Phase 3** — Options and recommendation → `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 - **Phase A** — Config changes: implemented, tested, **committed and merged** (`12f53de`).
 - **Gate review** — →
-  `docs/PHASE_A_CHANGE_REVIEW.md`,
+  `docs/archive/migration/PHASE_A_CHANGE_REVIEW.md`,
   `docs/AUDIT_LOG_INTEGRITY_DECISION.md`,
   `docs/HOSTING_VERIFICATION_CHECKLIST.md`,
   `docs/B1-B5_GATE_REPORT.md`,
-  `docs/TCO_COMPARISON.md`
+  `docs/archive/migration/TCO_COMPARISON.md`
 - **Verification tooling** — `scripts/hosting-verification/ethr-hosting-check.php`,
   self-tested against the dev stack.
 - **External DNS/TLS/host probing** — done without needing account access; see the
@@ -259,7 +283,7 @@ did not. Written as **step 4a**, plus an enforceable control and one new canary 
 | **Status** | **Merged 2026-09-18 as `e7e0199`.** PR #19, branch `claude/ethr-migration-continue-0xhhnt`. |
 | **Gates moved** | **None.** G0-A and every G0-B row remain `NOT VERIFIED` and require the Plesk account. `G0-B.5` is new and equally unverified. |
 | **Freeze** | One narrow exception taken and recorded at `deployment/GATE-0-RESULT.md` → *After the run* item 5. The freeze otherwise stands. |
-| **Detail** | `MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
+| **Detail** | `archive/migration/MIGRATION_CHANGELOG.md` → 2026-09-17. Four defects, what each would have done, and what was checked and found *not* to be a defect. |
 | **Enforcement** | `api/tests/Feature/DocumentRootInventoryTest.php` pins `api/public/` against a manifest, so a file cannot arrive in the document-root decision set unnoticed. It found one of the four defects on its first run. |
 
 **PR #17 (tenant public pages) untouched.** Open, unmerged, separate workstream, and it
@@ -274,7 +298,7 @@ copy of its rows — one table authoritative per vhost.
 **The rest of the deployment package is built and merged** —
 `docs/deployment/shared-hosting/` (runbook, env reference, `.htaccess`, checklists) plus
 `docs/DATABASE_MIGRATION_PLAN.md`, `docs/ROLLBACK_RUNBOOK.md`,
-`docs/PRODUCTION_CHECKLIST.md`, `docs/MIGRATION_CHANGELOG.md`. Built ahead of the
+`docs/PRODUCTION_CHECKLIST.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`. Built ahead of the
 remaining B3/B5 answers deliberately, as explicit branches rather than waiting — see
 each file's own "branch on B3/B5" sections for exactly what changes once those answers
 land. Hosting migration *execution* (upload, migrate, cutover) has not started and is
@@ -1237,7 +1261,7 @@ App pages cannot use both "use client" and export function "generateStaticParams
 
 ### Why that matters
 
-`SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
+`archive/migration/SHARED_HOSTING_AUDIT.md` §E and D6 cost Branch B as, among other items,
 *"`generateStaticParams` on four dynamic routes"* — four one-line additions. **That is not
 implementable as written.** `app/(dashboard)/{admin/tenants,devices,employees,payroll}/[id]/page.tsx`
 all open with `"use client"`, so the compiler rejects the addition outright.
@@ -1269,14 +1293,14 @@ before the thing works.
 
 Until a deployment architecture is selected. It is gated on G0-A (`NOT VERIFIED`) and G0-G
 (`PARTIAL` as of 2026-09-22 — this read "both `NOT VERIFIED`"), and
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has returned No-Go on B3. The
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4's pre-registered rule has returned No-Go on B3. The
 conclusion stands: PARTIAL is not PASS.
 
 **The "four small route changes" framing is withdrawn everywhere it appeared.** On measured
 evidence Branch B is an **architectural frontend deployment change**: a rendering-strategy
 switch, four component splits, and a routing rearchitecture for entity pages. Corrected at
-source in `SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
-`GATE-0-RESULT.md` (×3), `TCO_COMPARISON.md`, `SHARED_HOSTING_MIGRATION_PLAN.md`,
+source in `archive/migration/SHARED_HOSTING_AUDIT.md` §E and in every document that had compressed it —
+`GATE-0-RESULT.md` (×3), `archive/migration/TCO_COMPARISON.md`, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`,
 `B1-B5_GATE_REPORT.md`, `shared-hosting/DEPLOYMENT.md` step 4, and this file's queue row 3.
 
 ### What was NOT done, deliberately
@@ -1296,7 +1320,7 @@ rewriting first, and the new blocker (`manifest.ts`) needs adding.
 |---|---|
 | **Backend** — PHP version, extensions, env template, paths, config defaults, Horizon, health checks | **Code compatible; deployment assets were not.** Verified by CI and by reading the code — but CI never starts a worker and the reading stopped at `app/`. On 2026-09-19 every deployment asset was found to start its queue worker with `artisan horizon`, a command removed in `cdf85d1`. See *NO DEPLOYMENT PATH HAS A WORKING QUEUE WORKER* below |
 | **Frontend** — Branch A (`standalone`, Node server) | Builds, **but the account cannot run it** |
-| **Frontend** — Branch B (static export) | **Does not build** — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
+| **Frontend** — Branch B (static export) | **Builds (superseded 2026-09-30: the three blockers are closed and `out/` exports; see `docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`).** Was: does not build — three blockers, one of which invalidates the costing. **And fixing all three would not make it work:** the `[id]` routes resolve tenant data, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s. Build feasibility and runtime feasibility are separate questions; see the section above |
 
 The backend half of "shared-hosting compatible by default" is done. **The frontend half is
 not, and now has a measured gap rather than an assumed one.**
@@ -1307,7 +1331,7 @@ not, and now has a measured gap rather than an assumed one.**
 
 Recorded because the owner asked for a decision, and one was already committed to in
 writing before any evidence existed. This is not a new judgement; it is reading the rule
-that `SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
+that `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4 set down and applying the measurement.
 
 ### The rule
 
@@ -1729,9 +1753,9 @@ rather than an error: `ethr:backup` (line 103), the `QueueHealth::beat()` heartb
 (line 117), and one of the `Schedule::call` closures. The documents were written before
 them and never re-counted.
 
-Corrected in the eight editable occurrences across `SHARED_HOSTING_AUDIT.md`,
+Corrected in the eight editable occurrences across `archive/migration/SHARED_HOSTING_AUDIT.md`,
 `PRODUCTION_CHECKLIST.md`, `B1-B5_GATE_REPORT.md`,
-`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` and
+`ETHIO_TELECOM_SHARED_HOSTING_COMPATIBILITY.md`, `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` and
 this file.
 
 **Three occurrences remain wrong, all inside the frozen directory** — and one of them is
@@ -1824,7 +1848,7 @@ so rather than less. Every other consequence was "the product runs badly". That 
 
 ### The plan's own position on this
 
-`SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
+`archive/migration/SHARED_HOSTING_AUDIT.md` §"the two questions": *"Is there **cron**? Without it, 14
 scheduled entries and all 16 queued jobs stop."* `ETHIO_TELECOM_…_COMPATIBILITY.md` B3
 lists the same, ending *"**and no queued email is ever sent**."* `GATE-0-RESULT.md`'s
 consequence column said the scheduler and queue *"move behind an authenticated HTTP
@@ -1868,7 +1892,7 @@ which is the sendable text and carries all four.
 
 Either of the first two alone substantially unblocks the migration. None is a code change.
 
-**3 — If both are refused, the architecture decision reopens.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+**3 — If both are refused, the architecture decision reopens.** `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 already costed the alternatives: **Option A** (stay on the VPS) and **Option C** (shared
 hosting plus a small VPS for cron and queue only). Option C is the cheaper of those and
 exists in the plan precisely for this outcome. That is an owner decision and nothing here
@@ -2600,6 +2624,13 @@ on the word "docker".
 
 ### Definitely VPS-only
 
+> **Every row below has been removed from the repository — 2026-09-26 and 2026-09-27.**
+> The classification was right; the files are gone. See
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) for the
+> 22-path manifest, what was deliberately **held** (`scripts/{backup,restore,seed}.sh`,
+> pending the Stage 6 host rehearsal) and what `docker/nginx/default.conf` turned out
+> to be. This table is kept as the reasoning, not as an inventory.
+
 | Artifact | Note |
 | --- | --- |
 | `infrastructure/nginx.conf` | **The second trap.** VPS-only as *configuration*, but it is the live evidence base for the current document-root and public-routing architecture: it roots three server blocks at `api/public`, which is *why* `api/public/robots.txt` exists and why copying it into the merged shared-hosting document root is wrong. Cited by `DEPLOYMENT.md` step 4a and by `api/tests/Feature/document-root-inventory.php`. Do not remove it without first relocating that evidence, or those two artifacts lose their justification. |
@@ -2788,7 +2819,7 @@ were left broken **on purpose**: choosing the replacement worker topology was an
 decision, and at the time the VPS was the thing this project was migrating *away* from.
 
 **What changed is which path is live.** The pre-registered rule in
-`SHARED_HOSTING_MIGRATION_PLAN.md` §4 fired on **G0-D** and returned **No-Go → Option A**
+`archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §4 fired on **G0-D** and returned **No-Go → Option A**
 — and Option A is *"stay on the VPS"*. That made `docker-compose.prod.yml` the production
 path rather than a fallback, so a stack that cannot start a worker stopped being a
 recorded curiosity and became a live gap.
@@ -2892,6 +2923,68 @@ shared-hosting compatible; the *deployment assets* were not, on any path.
 
 ## NEXT ACTION
 
+> # ⚠ UPDATED 2026-09-25 — item 1 has been executed, and two of its premises no longer hold
+>
+> **The canary was run** — eight fetches, `curl` pinned to `213.55.96.154`. Full evidence:
+> [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md). This banner records
+> only what changes the priority order below; the text beneath it is preserved as written.
+>
+> **What came back:**
+>
+> | Gate | Result |
+> |---|---|
+> | **G0-B.1** `mod_rewrite` | **PASS** — `/REWRITE_OK` → 200, `[ PASS ]` in the report |
+> | **G0-B.2 (a)** `mod_headers` | **PASS** — marker header present |
+> | **G0-B.3 (a)** `<FilesMatch>` deny | **PASS** — 403 on the bait |
+> | **G0-B.4** `Authorization` → PHP | **PASS** |
+> | **G0-B.5** static-file shadowing | **PASS — REWRITE WINS** on `.js`, the favourable answer |
+> | **G0-B.3 (b)** `[F,L]` deny | **NOT ANSWERED** — see below |
+> | **G0-B.2 (b)** CSP survival | **NOT ANSWERED** — see below |
+>
+> **Item 1's own stated purpose is discharged.** It existed to find out *"before the eight days
+> are spent"* whether B.1 fails and leaves static export unbounded. **B.1 passes**, so that
+> outcome is retired.
+>
+> **Two premises in item 1's reasoning are now wrong, and they point opposite ways:**
+>
+> 1. *"G0-A's denial forecloses the Node branch, which makes static export the only frontend
+>    path."* **No.** G0-A asked about a *reverse-proxy directive*, and serving `/api` needs
+>    none — `mod_rewrite` + PHP-FPM + `Authorization` passthrough are all measured working, so
+>    `.htaccess` routes `/api` and `/sanctum` to `index.php` unaided. The Node branch remains
+>    the owner's choice (2026-09-24) and is **not** foreclosed. What survives of G0-A is the
+>    narrower question of **which process owns `/`** once the Node app is enabled.
+> 2. *"Two blockers remain and neither is G0-D: **G0-C** and **G0-F**."* **G0-C splits into four
+>    answers that do not agree**, which is why the compatibility matrix now carries four rows:
+>    wildcard **DNS PASSES**; a valid `*.ethr.et` **certificate already exists** (Let's Encrypt,
+>    2026-09-16 → 2026-12-15 — this *contradicts* the register's *"wildcard blocked, needs
+>    DNS-01"*); but **no wildcard vhost is configured**, so every tenant hostname — including
+>    `admin.ethr.et` — currently serves the **Plesk panel login**. **The owner states wildcard is
+>    enabled on payment of the subscription fee**, which makes this a commercial precondition
+>    rather than a technical blocker. Owner testimony, not panel output: re-measure after
+>    activation.
+>
+> ### Manual queue — host-side items, named once
+>
+> > **M1 is CLOSED — `PASS`, both parts, measured 2026-09-28.** `secret.env.probe` → **403**;
+> > the CSP arrives untruncated. Evidence:
+> > [`deployment/host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](deployment/host-evidence/session-2026-09-28/M1-EVIDENCE.txt);
+> > reasoning and one corrected scare in [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md)
+> > → *Update — 2026-09-28*. **Do not re-run it.** The M1 row below is left as written, like
+> > the rest of this banner. **M5 is now unblocked** and is the cheapest remaining host item;
+> > **M2 is the highest-value one.**
+>
+> | # | Item | Why it is here |
+> |---|---|---|
+> | M1 | **Re-upload the canary directory and fetch two URLs** — `secret.env.probe` and `canary.php`'s headers. **Step-by-step: [`../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md`](../scripts/hosting-verification/htaccess-canary/RUN-SHEET.md) §0**, added 2026-09-27 for exactly this item | The canary on the host is the **2026-09-18 revision** (`eb239f2`), byte-matched by its three-header response. `secret.env.probe` 404s because it joined in `1edaad4`. **The two baits that are missing are the two added to close a known false-pass.** B.3(b) tests `RewriteRule … [F,L]` — the mechanism the deployment actually uses to block `api/.env` — and a 200 there blocks deployment on **every** branch. **A 404 is NOT a pass**; record it as `NOT RUN` |
+> | M2 | **Run `ethr-hosting-check.php`** with database credentials | Closes `CREATE TRIGGER` (**G0-F**), the 18 extensions, `memory_limit`, `max_execution_time`, SMTP, DB version and charset — **seven unknowns in one run.** Its `CREATE TRIGGER` test is safe and reversible: scratch table → trigger → `DROP TRIGGER` → `DROP TABLE` |
+> | M3 | **Re-measure the wildcard after subscription activation** | Two commands, in `audit/BRONZE-BLOCKER-RESOLUTION.md` §5, with what a real PASS looks like — both the status *and* the served certificate, since DNS and the certificate already pass and either alone would be a false positive |
+> | ~~M4~~ | ~~**Enable the Plesk Node app, then fetch one API route and one frontend route**~~ **DROPPED 2026-09-27 — not deferred, dropped.** | **C-5 was decided: static export.** ([`decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md).) This item existed to settle who owns `/` under the Node branch. Under static export there is one server — `.htaccess` routes `/api` and `/sanctum` to `index.php` and serves everything else from files — so nothing contends for `/` and the question does not arise. **Do not enable the Plesk Node application**; it is an extension, which hard rule 2 excludes, and the decision agrees with that rule. The row is struck rather than deleted because three documents cited M4 by number |
+> | M5 | **Delete the canary directory from the document root** | `RUN-SHEET.md` §9 (or §0 step 4). It discloses nothing by design, but it is a loose end and its `.htaccess` is not the one the deployment wants. **Do this after M1, not before** — M1 needs the directory |
+> | M6 | **Rehearse a full `ethr:restore` on the Ethio Telecom host** — **NEW 2026-09-27, and it is now blocking rather than confirmatory** | Stage 6 of the authoritative plan. The backup path is rehearsed in CI against MariaDB and **never on this host**, and `audit/BASELINE.md` §15f/§15g record that it already carried a defect making a dump replayable only on a permissive engine **while every test of it was green**. It is promoted here because `3db9904` removed the VPS rollback path before a verified cutover, so **this rehearsal is the only recovery evidence this project will have.** Do it before cutover, not after |
+>
+> **M1 is the cheapest and the highest-value**: one upload, two fetches, and it closes the only
+> outstanding result that could block deployment on every branch.
+
 **Rewritten 2026-09-23 for Plan B.** The 2026-09-19 text below the line is kept because its
 corrections are still right; what it got wrong is the *shape* of the wait. It said the
 workstream was blocked on Ethio Telecom and ranked **sending the support request** first.
@@ -2906,7 +2999,7 @@ is the result.
 | *"With no cron and no shell there is no route on this account that runs `artisan`"* | **Still true for `artisan` as a command**, and **no longer true for the work it was needed for.** `POST /api/v1/cron/{schedule,queue}` (built `b61cb05`) drive the scheduler and the queue, and `ethr:backup` rides the scheduler. Install commands still need Plesk Git *additional deployment actions* |
 | *"4. Upload the probe … Do not. Nothing on the account can run it"* | **Wrong, and it was wrong when written.** The probe has a deliberate **web-execution mode** — 403 by default, unlocked by setting `ETHR_PROBE_WEB_TOKEN` in the uploaded copy (`ethr-hosting-check.php:35-38`). It needs no shell and no cron. See item 2, and read it with the containment question, not instead of it |
 
-**The headline, and the reason this section is reordered.** `SHARED_HOSTING_MIGRATION_PLAN.md`
+**The headline, and the reason this section is reordered.** `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md`
 §4's decision rule fired on **B3 — cron**, and the reason it gave was *"Leave accrual,
 invoicing, anomaly scanning, cleanup and every queued email stop."* That reason no longer
 holds. **G0-D = FAIL is still true and is no longer fatal.** No gate moved, and the
@@ -2962,7 +3055,7 @@ unverified workaround; the other is an owner decision. Both are below.
    - **Q6 — which external caller drives the cron endpoints, and where does `CRON_TOKEN`
      live?** GitHub Actions (no new vendor, 5-minute documented minimum and best-effort
      delivery), the VPS you already have (perfect cadence — **but it makes this Option C,
-     and `SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better**), or
+     and `archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` §5 then says Option A is strictly better**), or
      a third-party cron service (good cadence, a stranger holds a key that can drain your
      queues and reads up to 2000 characters of Artisan output). §5.3a lays out the trade in
      full.
@@ -3011,6 +3104,32 @@ gated rows are 0.5 + 0.5 + 1.0 = 2.0.)* And the failure case is **larger** than 
 rows, not equal to them: if item 1 comes back negative on **B.1**, the **whole ≈8-day
 estimate is void** — with no rewrite there is no mechanism to serve entity routes at all, so
 there is nothing left to re-cost. Do not start it before item 1.
+
+> **Updated 2026-09-26 — the gate opened and part of the task is done.** *"Do not start it
+> before item 1"* was conditional on **G0-B.1**, and Phase 1 answered B.1 **PASS**:
+> `mod_rewrite` is honoured and a rewrite wins over a real static file. So the precondition
+> this paragraph names is met, and the `≈8-day estimate is void` branch did not fire.
+>
+> **What was done:** the entity-route defect — `DEPLOYMENT.md` §5 step 4, *"does not work as
+> written"* since 2026-09-18 — is closed. Four server-component wrappers, one sentinel shell
+> per route, the id read from `usePathname()`, and a **rewritten BRANCH B rule set**, because
+> the one that shipped would have 404'd every page on the site rather than only entity routes.
+> Measured against the pinned Next 16.3.5; see [`audit/BASELINE.md`](audit/BASELINE.md) §19.
+>
+> ~~**What was deliberately not done:** `next.config.ts` is untouched and `output` is still
+> `"standalone"`. Steps 1–3 — the `output` switch, deleting `middleware.ts`, the
+> `(auth)/layout.tsx` `headers()` read — are the branch decision and are unchanged.~~
+> **Superseded later the same day — steps 1–3 were done.** `next.config.ts` now selects
+> `output` from `ETHR_TARGET`; `standalone` is still the **default**, so the sentence's
+> intent survives even though its wording does not. `middleware.ts` was **not** deleted —
+> Next exports with it present and disables it. See [`audit/BASELINE.md`](audit/BASELINE.md)
+> §20. The refactor is correct under both modes and was verified not to regress the current
+> one.
+>
+> **Do not re-read the remaining estimate as ≈8 days minus what was spent.** §3A's rows are
+> not separable that way, and the two gated line items this paragraph counts were about the
+> rewrite mechanism, which is now measured rather than assumed. Re-cost it against §5 steps
+> 1–3 if a number is needed.
 
 Two items from the old list survive unchanged. **B1b is answered** — the owner confirmed
 Plesk accepts the literal name `*` for *Add Subdomain*; do not put that question again —

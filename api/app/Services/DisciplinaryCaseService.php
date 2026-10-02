@@ -239,7 +239,7 @@ class DisciplinaryCaseService
         ]);
 
         $employee->status = $target;
-        $employee->termination_date = $effectiveDate;
+        $employee->termination_date = Carbon::parse($effectiveDate);
         $employee->save();
 
         AuditLog::record('employee.transitioned', $employee, [

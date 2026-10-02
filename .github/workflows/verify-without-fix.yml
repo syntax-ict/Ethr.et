@@ -39,8 +39,8 @@ on:
         description: "Commit whose app/ changes to revert"
         required: true
       filter:
-        description: "Pest --filter"
-        default: "attendance"
+        description: "Pest --filter (the tests that should fail without the fix)"
+        required: true
 
 permissions:
   contents: read
@@ -59,7 +59,9 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          # 8.2, like every other job: a revert-and-retest that runs on a newer
+          # PHP than CI can disagree with CI for reasons that are not the fix.
+          php-version: "8.2"
           extensions: gd, pdo, pdo_mysql, pdo_sqlite, mbstring, zip
           coverage: none
 

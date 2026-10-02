@@ -9,7 +9,12 @@ use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ */
 class DeviceSyncLog extends Model
 {
     use BelongsToTenant, HasAuditLog, HasPublicId;

@@ -22,22 +22,22 @@ import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
-import { apiClient } from "@/api/client";
+import {
+  useAutoDetectHolidays,
+  useCreateHoliday,
+  useDeleteHoliday,
+  useHolidays,
+} from "@/features/holidays/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
-
-interface Holiday {
-  public_id: string;
-  name: string;
-  date: string;
-  recurring: boolean;
-}
 
 const holidaySchema = z.object({
   name: rules.requiredText(255),
@@ -48,7 +48,13 @@ type HolidayValues = z.infer<typeof holidaySchema>;
 
 export default function HolidaysPage() {
   const { t } = useT();
-  const queryClient = useQueryClient();
+  const { formatDate } = useDateFormatters();
+  const { hasPermission } = usePermissions();
+  // Deleting is tenant-admin only (`holiday.delete`) while adding is HR
+  // (`holiday.create`). The page offered delete to everyone it admits, so an
+  // HR admin's click always came back 403 as "delete failed".
+  const canCreate = hasPermission("holiday.create");
+  const canDelete = hasPermission("holiday.delete");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const {
@@ -63,57 +69,33 @@ export default function HolidaysPage() {
     defaultValues: { name: "", date: "", recurring: false },
   });
 
-  const { data, isLoading } = useQuery<{ data: Holiday[] }>({
-    queryKey: ["holidays"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/holidays");
-      return data;
-    },
-  });
+  const holidaysQuery = useHolidays();
+  const createHoliday = useCreateHoliday();
+  const deleteHoliday = useDeleteHoliday();
+  const autoDetect = useAutoDetectHolidays();
 
-  const createHoliday = useMutation({
-    mutationFn: async (payload: {
-      name: string;
-      date: string;
-      recurring: boolean;
-    }) => {
-      const { data } = await apiClient.post("/holidays", payload);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success(t("holidays_page.added"));
-      setDialogOpen(false);
-      reset();
-    },
-    // No `onError` toast — a duplicate date or a rejected name is now shown on
-    // the field inside the still-open dialog, where it can be corrected.
-  });
+  // No `onError` toast — `submit` shows a duplicate date or a rejected name on
+  // the field inside the still-open dialog, where it can be corrected.
+  async function addHoliday(values: HolidayValues) {
+    await createHoliday.mutateAsync(values);
+    toast.success(t("holidays_page.added"));
+    setDialogOpen(false);
+    reset();
+  }
 
-  const deleteHoliday = useMutation({
-    mutationFn: async (publicId: string) => {
-      await apiClient.delete(`/holidays/${publicId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success(t("holidays_page.deleted"));
-    },
-    onError: () => toast.error(t("holidays_page.delete_failed")),
-  });
+  function removeHoliday(publicId: string) {
+    deleteHoliday.mutate(publicId, {
+      onSuccess: () => toast.success(t("holidays_page.deleted")),
+      onError: () => toast.error(t("holidays_page.delete_failed")),
+    });
+  }
 
-  const autoDetect = useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post("/holidays/auto-detect");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["holidays"] });
-      toast.success(t("holidays_page.auto_detected"));
-    },
-    onError: () => toast.error(t("holidays_page.auto_detect_failed")),
-  });
-
-  const holidays = data?.data ?? [];
+  function runAutoDetect() {
+    autoDetect.mutate(undefined, {
+      onSuccess: () => toast.success(t("holidays_page.auto_detected")),
+      onError: () => toast.error(t("holidays_page.auto_detect_failed")),
+    });
+  }
 
   return (
     <RoleGate minRole="hr_admin">
@@ -122,100 +104,108 @@ export default function HolidaysPage() {
           title={t("holidays_page.title")}
           description={t("holidays_page.description")}
           actions={
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => autoDetect.mutate()}
-                disabled={autoDetect.isPending}
-              >
-                {autoDetect.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                {t("holidays_page.auto_detect")}
-              </Button>
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("holidays_page.add_holiday")}
-              </Button>
-            </div>
+            canCreate && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={runAutoDetect}
+                  disabled={autoDetect.isPending}
+                >
+                  {autoDetect.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-2 h-4 w-4" />
+                  )}
+                  {t("holidays_page.auto_detect")}
+                </Button>
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("holidays_page.add_holiday")}
+                </Button>
+              </div>
+            )
           }
         />
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : holidays.length === 0 ? (
-          <EmptyState
-            icon={CalendarDays}
-            title={t("holidays_page.no_holidays")}
-            description={t("holidays_page.no_holidays_desc")}
-          />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("holidays_page.title")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <SimpleTable
-                caption={t("holidays_page.title")}
-                headers={[
-                  t("common.name"),
-                  t("common.date"),
-                  t("holidays_page.recurring"),
-                ]}
-                rows={holidays.map((holiday) => ({
-                  key: holiday.public_id,
-                  cells: [
-                    <span key="n" className="font-medium">
-                      {holiday.name}
-                    </span>,
-                    <span key="d" className="text-muted-foreground">
-                      {holiday.date}
-                    </span>,
-                    holiday.recurring ? (
-                      <Badge
-                        key="r"
-                        variant="outline"
-                        className={statusBadgeClass("active")}
+        <QueryBoundary
+          query={holidaysQuery}
+          loading={
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          }
+          empty={
+            <EmptyState
+              icon={CalendarDays}
+              title={t("holidays_page.no_holidays")}
+              description={t("holidays_page.no_holidays_desc")}
+            />
+          }
+        >
+          {(holidays) => (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t("holidays_page.title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <SimpleTable
+                  caption={t("holidays_page.title")}
+                  headers={[
+                    t("common.name"),
+                    t("common.date"),
+                    t("holidays_page.recurring"),
+                  ]}
+                  rows={holidays.map((holiday) => ({
+                    key: holiday.public_id,
+                    cells: [
+                      <span key="n" className="font-medium">
+                        {holiday.name}
+                      </span>,
+                      <span key="d" className="text-muted-foreground">
+                        {formatDate(holiday.date)}
+                      </span>,
+                      holiday.recurring ? (
+                        <Badge
+                          key="r"
+                          variant="outline"
+                          className={statusBadgeClass("active")}
+                        >
+                          {t("holidays_page.recurring")}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          key="r"
+                          variant="outline"
+                          className={statusBadgeClass("offline")}
+                        >
+                          {t("holidays_page.one_time")}
+                        </Badge>
+                      ),
+                    ],
+                    actions: canDelete ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive-on-soft hover:bg-destructive-soft"
+                        onClick={() => removeHoliday(holiday.public_id)}
+                        disabled={deleteHoliday.isPending}
                       >
-                        {t("holidays_page.recurring")}
-                      </Badge>
-                    ) : (
-                      <Badge
-                        key="r"
-                        variant="outline"
-                        className={statusBadgeClass("offline")}
-                      >
-                        {t("holidays_page.one_time")}
-                      </Badge>
-                    ),
-                  ],
-                  actions: (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive-on-soft hover:bg-destructive-soft"
-                      onClick={() => deleteHoliday.mutate(holiday.public_id)}
-                      disabled={deleteHoliday.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">
-                        {t("common.delete", "Delete")}
-                      </span>
-                    </Button>
-                  ),
-                }))}
-              />
-            </CardContent>
-          </Card>
-        )}
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">
+                          {t("common.delete", "Delete")}
+                        </span>
+                      </Button>
+                    ) : undefined,
+                  }))}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </QueryBoundary>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
@@ -223,10 +213,7 @@ export default function HolidaysPage() {
               <DialogTitle>{t("holidays_page.add_holiday")}</DialogTitle>
             </DialogHeader>
             <form
-              onSubmit={submit(
-                (values) => createHoliday.mutateAsync(values),
-                t("holidays_page.add_failed"),
-              )}
+              onSubmit={submit(addHoliday, t("holidays_page.add_failed"))}
               className="space-y-4"
               noValidate
             >

@@ -25,6 +25,6 @@ trait HasPublicId
 
     public static function findByPublicId(string $publicId): ?static
     {
-        return static::where('public_id', $publicId)->first();
+        return static::query()->where('public_id', $publicId)->first();
     }
 }

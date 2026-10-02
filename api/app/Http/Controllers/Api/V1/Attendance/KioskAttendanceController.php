@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Enums\AttendanceSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\KioskAttendanceRequest;
-use App\Http\Resources\AttendanceRecordResource;
+use App\Http\Resources\AttendancePunchResource;
 use App\Models\Employee;
 use App\Services\Attendance\AttendanceEngine;
 use App\Services\Attendance\AttendanceInput;
@@ -35,6 +35,18 @@ class KioskAttendanceController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
+        // Punching for someone else is manual attendance and takes the same
+        // ability. This gated on attendance.checkIn alone — granted to every
+        // role, so that people can punch themselves — and then recorded for
+        // whatever employee_code the body named: any employee could clock a
+        // colleague in or out, straight into payroll. The shared kiosk
+        // terminal is unaffected: it authenticates with a kiosk token on the
+        // /kiosk routes, not here.
+        $user = $request->user();
+        if ($employee->id !== $user->employee_id && ! $user->hasPermission('attendance.manage')) {
+            abort(403);
+        }
+
         $result = $this->engine->record(new AttendanceInput(
             employeeId: $employee->id,
             tenantId: $employee->tenant_id,
@@ -46,13 +58,12 @@ class KioskAttendanceController extends Controller
 
         $result->record->load('employee', 'shift');
 
-        $resource = new AttendanceRecordResource($result->record);
-        $data = $resource->resolve();
-        $data['was_duplicate'] = $result->wasDuplicate;
+        $punch = new AttendancePunchResource($result->record, $result->wasDuplicate);
 
-        $isCheckOut = $request->validated('type') === 'check_out';
-        $statusCode = $result->wasDuplicate || $isCheckOut ? 200 : 201;
+        if ($result->wasDuplicate || $request->validated('type') === 'check_out') {
+            return $punch->response()->setStatusCode(200);
+        }
 
-        return response()->json($data, $statusCode);
+        return $punch->response()->setStatusCode(201);
     }
 }

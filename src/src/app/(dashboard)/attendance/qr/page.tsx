@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { branchesApi } from "@/features/organization/api";
 import { QRCodeSVG } from "qrcode.react";
 import {
   QrCode,
@@ -24,22 +25,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/shared/page-header";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import {
+  useGenerateQr,
+  useShiftOptions,
+  type QrCode as QrResult,
+} from "@/features/attendance/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface QrResult {
-  token: string;
-  branch_name?: string;
-  shift_name?: string | null;
-  expires_at: string;
-  generated_at: string;
-  expiry_minutes: number;
-  auto_refresh?: boolean;
-}
 
 export default function QrGeneratorPage() {
   const { t } = useT();
@@ -52,42 +46,12 @@ export default function QrGeneratorPage() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: branches } = useQuery({
-    queryKey: ["org", "branches"],
-    queryFn: async () => (await apiClient.get("/organization/branches")).data,
-  });
+  const { data: branches } = branchesApi.useList();
 
-  const { data: shifts } = useQuery({
-    queryKey: ["shifts"],
-    queryFn: async () => (await apiClient.get("/shifts")).data,
-  });
+  // Every shift, not the first 25: the picker took one page as the whole list.
+  const { data: shifts } = useShiftOptions();
 
-  const generate = useMutation({
-    mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        branch_public_id: branchId,
-        expiry_minutes: expiry,
-      };
-      if (shiftId !== "none") payload.shift_public_id = shiftId;
-      const { data } = await apiClient.get("/attendance/qr/generate", {
-        params: payload,
-      });
-      return data as QrResult;
-    },
-    onSuccess: (data) => {
-      setResult(data);
-      if (data.auto_refresh !== undefined) setAutoRefresh(data.auto_refresh);
-      startCountdown(data.expires_at);
-      toast.success(t("attendance.qr_page.generated"));
-    },
-    onError: (err: unknown) => {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      toast.error(
-        axiosErr.response?.data?.detail ??
-          t("attendance.qr_page.generate_failed"),
-      );
-    },
-  });
+  const generateQr = useGenerateQr();
 
   const startCountdown = useCallback((expiresAt: string) => {
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -110,11 +74,39 @@ export default function QrGeneratorPage() {
     }, 1000);
   }, []);
 
+  function generate() {
+    generateQr.mutate(
+      {
+        branch_public_id: branchId,
+        expiry_minutes: expiry,
+        ...(shiftId !== "none" ? { shift_public_id: shiftId } : {}),
+      },
+      {
+        onSuccess: (data) => {
+          setResult(data);
+          if (data.auto_refresh !== undefined)
+            setAutoRefresh(Boolean(data.auto_refresh));
+          startCountdown(data.expires_at);
+          toast.success(t("attendance.qr_page.generated"));
+        },
+        onError: (err: unknown) => {
+          const axiosErr = err as {
+            response?: { data?: { detail?: string } };
+          };
+          toast.error(
+            axiosErr.response?.data?.detail ??
+              t("attendance.qr_page.generate_failed"),
+          );
+        },
+      },
+    );
+  }
+
   // Auto-refresh when expired
   useEffect(() => {
     if (secondsLeft === 0 && result && autoRefresh && branchId) {
       const timeout = setTimeout(() => {
-        generate.mutate();
+        generate();
       }, 1000);
       return () => clearTimeout(timeout);
     }
@@ -138,7 +130,8 @@ export default function QrGeneratorPage() {
   const isLow = secondsLeft > 0 && secondsLeft <= 60;
 
   return (
-    <RoleGate minRole="hr_admin">
+    // QrAttendanceController::generate checks attendance.manage.
+    <RoleGate anyPermission={["manageAttendance"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.qr_page.title")}
@@ -165,13 +158,11 @@ export default function QrGeneratorPage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches?.data?.map(
-                      (b: { public_id: string; name: string }) => (
-                        <SelectItem key={b.public_id} value={b.public_id}>
-                          {b.name}
-                        </SelectItem>
-                      ),
-                    )}
+                    {branches?.data?.map((b) => (
+                      <SelectItem key={b.public_id} value={b.public_id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -187,13 +178,11 @@ export default function QrGeneratorPage() {
                     <SelectItem value="none">
                       {t("attendance.qr_page.any_shift")}
                     </SelectItem>
-                    {shifts?.data?.map(
-                      (s: { public_id: string; name: string }) => (
-                        <SelectItem key={s.public_id} value={s.public_id}>
-                          {s.name}
-                        </SelectItem>
-                      ),
-                    )}
+                    {shifts?.map((s) => (
+                      <SelectItem key={s.public_id} value={s.public_id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -230,11 +219,11 @@ export default function QrGeneratorPage() {
                 />
               </div>
               <Button
-                onClick={() => generate.mutate()}
-                disabled={!branchId || generate.isPending}
+                onClick={generate}
+                disabled={!branchId || generateQr.isPending}
                 className="w-full"
               >
-                {generate.isPending ? (
+                {generateQr.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <QrCode className="mr-2 h-4 w-4" />
@@ -256,13 +245,13 @@ export default function QrGeneratorPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => generate.mutate()}
-                      disabled={generate.isPending}
+                      onClick={generate}
+                      disabled={generateQr.isPending}
                     >
                       <RefreshCw
                         className={cn(
                           "mr-2 h-3 w-3",
-                          generate.isPending && "animate-spin",
+                          generateQr.isPending && "animate-spin",
                         )}
                       />{" "}
                       {t("attendance.qr_page.refresh")}

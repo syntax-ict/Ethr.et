@@ -32,14 +32,14 @@ it('logs an error when a queued job fails', function () {
     // the point — but it also means the mock has to satisfy all of them.
     $job->shouldReceive('getJobId')->andReturn('job-uuid-1');
     $job->shouldReceive('getRawBody')->andReturn('{}');
-    $job->shouldReceive('getConnectionName')->andReturn('redis');
+    $job->shouldReceive('getConnectionName')->andReturn('database');
     $job->shouldReceive('uuid')->andReturn('job-uuid-1');
 
     // Dispatch the framework's own event rather than calling the closure, so the
     // test fails if the listener is ever unregistered — the registration is the
     // part that silently disappears.
     Event::dispatch(new JobFailed(
-        'redis',
+        'database',
         $job,
         new RuntimeException('Attempted to lazy load [shift]'),
     ));
@@ -50,7 +50,7 @@ it('logs an error when a queued job fails', function () {
             return $message === 'Queued job failed'
                 && $context['job'] === 'App\Jobs\ScanAttendanceAnomaliesJob'
                 && $context['queue'] === 'attendance'
-                && $context['connection'] === 'redis'
+                && $context['connection'] === 'database'
                 && $context['attempts'] === 3
                 && str_contains($context['exception'], 'lazy load');
         });

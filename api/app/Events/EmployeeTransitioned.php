@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events;
 
+use App\Events\Concerns\BroadcastsWhenEnabled;
 use App\Models\Employee;
 use App\Models\EmployeeTransition;
 use Illuminate\Broadcasting\Channel;
@@ -14,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 
 class EmployeeTransitioned implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use BroadcastsWhenEnabled, Dispatchable, SerializesModels;
 
     public function __construct(
         public readonly Employee $employee,

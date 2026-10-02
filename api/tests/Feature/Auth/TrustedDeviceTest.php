@@ -30,7 +30,7 @@ function mfaUser(): array
         'employee_id' => $employee->id,
         'password' => bcrypt('password'),
         'mfa_enabled' => true,
-        'mfa_secret' => encrypt($secret),
+        'mfa_secret' => $secret,
     ], $tenant);
 
     app(CurrentTenant::class)->set($tenant);
@@ -168,7 +168,7 @@ test('a device trusted by one user does not exempt another user', function () {
         'role' => UserRole::EMPLOYEE,
         'employee_id' => $employeeB->id,
         'mfa_enabled' => true,
-        'mfa_secret' => encrypt(app(MfaService::class)->generateSecret()),
+        'mfa_secret' => app(MfaService::class)->generateSecret(),
     ], $tenant);
 
     // Same physical browser, two different people.

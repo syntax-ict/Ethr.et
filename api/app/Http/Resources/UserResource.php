@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin User */
 class UserResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -17,7 +19,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'username' => $this->username,
             'phone' => $this->phone,
-            'role' => $this->role?->value,
+            'role' => $this->role,
             'status' => $this->status,
             'locale' => $this->locale,
             'mfa_enabled' => (bool) $this->mfa_enabled,

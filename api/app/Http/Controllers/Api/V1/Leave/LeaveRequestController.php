@@ -15,11 +15,10 @@ use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
-use App\Notifications\LeaveApprovedNotification;
-use App\Notifications\LeaveRejectedNotification;
 use App\Notifications\LeaveRequestedNotification;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveDayCalculator;
+use App\Services\Leave\LeaveDecisionService;
 use App\Traits\DispatchesWebhooks;
 use App\Traits\SendsNotifications;
 use Carbon\Carbon;
@@ -34,6 +33,7 @@ class LeaveRequestController extends Controller
     public function __construct(
         private readonly LeaveBalanceService $balanceService,
         private readonly LeaveDayCalculator $dayCalculator,
+        private readonly LeaveDecisionService $decisions,
     ) {}
 
     public function store(StoreLeaveRequestRequest $request): JsonResponse
@@ -250,62 +250,16 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('approve', $leaveRequest);
 
-        if ($leaveRequest->status !== LeaveStatus::PENDING) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/invalid-state',
-                'title' => 'Invalid State',
-                'status' => 422,
-                'detail' => __('leave.not_pending'),
-            ], 422)->header('Content-Type', 'application/problem+json');
-        }
-
         $user = $request->user();
 
-        if ($user->employee_id && $user->employee_id === $leaveRequest->employee_id) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/self-approval',
-                'title' => 'Self-Approval Forbidden',
-                'status' => 403,
-                'detail' => __('leave.cannot_approve_own'),
-            ], 403)->header('Content-Type', 'application/problem+json');
-        }
-        $chain = $leaveRequest->approved_by ?? [];
-        $chain[] = [
-            'user_id' => $user->id,
-            'role' => $user->role?->value,
-            'at' => now()->toIso8601String(),
-        ];
-
-        $leaveRequest->update([
-            'approved_by' => $chain,
-            'status' => LeaveStatus::APPROVED,
-        ]);
-
-        $balance = LeaveBalance::query()
-            ->where('employee_id', $leaveRequest->employee_id)
-            ->where('leave_type_id', $leaveRequest->leave_type_id)
-            ->where('year', $leaveRequest->start_date->year)
-            ->first();
-
-        if ($balance) {
-            $balance->decrement('pending_days', (float) $leaveRequest->days);
-            $balance->increment('used_days', (float) $leaveRequest->days);
+        $refusal = $this->decisions->refusal($leaveRequest, $user, approving: true);
+        if ($refusal !== null) {
+            return $refusal->toResponse();
         }
 
-        AuditLog::record('leave.approved', $leaveRequest, [
-            'approved_by' => $user->id,
-        ]);
-        $this->webhook($leaveRequest->employee->tenant_id, 'leave.approved', [
-            'public_id' => $leaveRequest->public_id,
-            'employee_name' => $leaveRequest->employee->name,
-        ]);
+        $this->decisions->approve($leaveRequest, $user);
 
         $leaveRequest->load('employee', 'leaveType');
-
-        $this->notify(
-            $this->userOf($leaveRequest->employee),
-            new LeaveApprovedNotification($leaveRequest),
-        );
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }
@@ -314,49 +268,16 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('approve', $leaveRequest);
 
-        if ($leaveRequest->status !== LeaveStatus::PENDING) {
-            return response()->json([
-                'type' => 'https://ethr.et/errors/invalid-state',
-                'title' => 'Invalid State',
-                'status' => 422,
-                'detail' => __('leave.not_pending'),
-            ], 422)->header('Content-Type', 'application/problem+json');
-        }
-
         $user = $request->user();
 
-        $leaveRequest->update([
-            'status' => LeaveStatus::REJECTED,
-            'rejected_by' => $user->id,
-            'rejected_reason' => $request->input('reason'),
-        ]);
-
-        $balance = LeaveBalance::query()
-            ->where('employee_id', $leaveRequest->employee_id)
-            ->where('leave_type_id', $leaveRequest->leave_type_id)
-            ->where('year', $leaveRequest->start_date->year)
-            ->first();
-
-        if ($balance) {
-            $balance->decrement('pending_days', (float) $leaveRequest->days);
+        $refusal = $this->decisions->refusal($leaveRequest, $user, approving: false);
+        if ($refusal !== null) {
+            return $refusal->toResponse();
         }
 
-        AuditLog::record('leave.rejected', $leaveRequest, [
-            'rejected_by' => $user->id,
-            'reason' => $request->input('reason'),
-        ]);
-        $this->webhook($leaveRequest->employee->tenant_id, 'leave.rejected', [
-            'public_id' => $leaveRequest->public_id,
-            'employee_name' => $leaveRequest->employee->name,
-            'reason' => $request->input('reason'),
-        ]);
+        $this->decisions->reject($leaveRequest, $user, (string) $request->input('reason'));
 
         $leaveRequest->load('employee', 'leaveType');
-
-        $this->notify(
-            $this->userOf($leaveRequest->employee),
-            new LeaveRejectedNotification($leaveRequest),
-        );
 
         return response()->json(new LeaveRequestResource($leaveRequest));
     }

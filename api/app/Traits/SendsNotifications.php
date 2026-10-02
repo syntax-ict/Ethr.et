@@ -22,6 +22,32 @@ use Illuminate\Support\Facades\Notification as NotificationFacade;
  * profile-update 500).
  *
  * The record of what happened is the database row; delivery is a courtesy on top.
+ *
+ * ## Which pattern to use (audit B10)
+ *
+ * There are two ways to send in this codebase, and the choice depends on where
+ * the send runs, not on taste:
+ *
+ * - **In an HTTP request, after a write: use this trait's `notify()`.** A throw
+ *   there would report failure for a change that has already committed.
+ *   `AttendanceCorrectionController` called `->notify()` bare and returned 500
+ *   for committed corrections until 2026-10-01. A request path that already
+ *   wraps the send in its own try/catch (password reset, account activation,
+ *   the contact form, `ProfileUpdateRequestService::deliver()`) is equivalent,
+ *   and is left as it is.
+ * - **In a queued job or listener, decide by what a throw would do.** A direct
+ *   `$user->notify(...)` lets the throw fail the job, and the worker retries
+ *   it. That is right when the job is safe to run again and the notification
+ *   is the point (device alerts, approval reminders). Use this trait when the
+ *   send follows state the job has already persisted, or when one recipient
+ *   must not stop the rest. `RunScheduledReportsJob` and
+ *   `RunDashboardDigestsJob` write `last_error` first and must not lose it.
+ *   The announcement and payroll fan-outs must reach everyone else.
+ *
+ * Neither pattern filters anything. Per-user channel preferences are applied
+ * by each notification's `via()` (`filterChannels()`), so both paths respect
+ * them. And neither sets tenant context: a notification carries what it needs
+ * in its constructor.
  */
 trait SendsNotifications
 {

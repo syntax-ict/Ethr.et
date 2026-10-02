@@ -14,6 +14,8 @@ const GRADE: Grade = {
   min_salary_cents: 1_000_000,
   max_salary_cents: 2_000_000,
   sort_order: 5,
+  created_at: null,
+  updated_at: null,
 };
 
 const STEPS_URL = `*/api/v1/organization/grades/${GRADE.public_id}/salary-steps`;

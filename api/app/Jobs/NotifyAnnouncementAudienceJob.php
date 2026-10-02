@@ -122,7 +122,6 @@ class NotifyAnnouncementAudienceJob implements ShouldQueue
                 'employee',
                 fn ($q) => $q->where('branch_id', $announcement->target_id)
             )->get(),
-            'role' => $query->where('role', $announcement->target_id)->get(),
             default => $query->get(),
         };
     }

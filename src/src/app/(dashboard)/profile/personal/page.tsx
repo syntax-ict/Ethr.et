@@ -28,6 +28,7 @@ import {
   useUpdateProfile,
   type EmergencyContact,
   type ProfileResponse,
+  type UpdateProfilePayload,
 } from "@/features/profile/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -102,7 +103,9 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
     try {
       await updateProfile.mutateAsync({
         phone: values.phone || undefined,
-        marital_status: values.marital_status || undefined,
+        // The select offers only MARITAL_STATUSES, the request's own enum.
+        marital_status: (values.marital_status ||
+          undefined) as UpdateProfilePayload["marital_status"],
         nationality: values.nationality || undefined,
       });
       toast.success(t("profile.updated", "Profile updated successfully."));
@@ -208,7 +211,10 @@ function PersonalDetails({ profile }: { profile: ProfileResponse }) {
                 </Label>
                 <Input
                   id="nationality"
-                  placeholder="Ethiopian"
+                  placeholder={t(
+                    "employee.detail.nationality_placeholder",
+                    "Ethiopian",
+                  )}
                   {...register("nationality")}
                 />
               </div>

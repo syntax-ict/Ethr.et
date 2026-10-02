@@ -32,8 +32,7 @@ export default defineConfig({
       // called "chromium-mobile" — and when the WebKit binary was missing, all 83
       // mobile cases failed with "Executable doesn't exist at .../webkit-2311"
       // while the name sent everyone looking at a Chromium install that was fine.
-      // Needs `npx playwright install webkit` (58.8 MiB) — not to be confused with
-      // the 2 GB mcr.microsoft.com/playwright image the Dockerised path needs.
+      // Needs `npx playwright install webkit` (58.8 MiB).
       name: "webkit-mobile",
       use: { ...devices["iPhone 14"], channel: process.env.PW_CHANNEL || undefined },
     },

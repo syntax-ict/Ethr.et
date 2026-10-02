@@ -10,36 +10,20 @@ import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
-
-interface DirectoryEntry {
-  public_id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  department: string | null;
-  position: string | null;
-  branch: string | null;
-  photo_url: string | null;
-  photo_thumb_url: string | null;
-}
+import { PaginationControls } from "@/components/shared/pagination-controls";
+import { useDirectory } from "@/features/directory/api";
 
 export default function DirectoryPage() {
   const { t } = useT();
   const [search, setSearch] = useState("");
+  // The directory is paginated server-side and the page asked for 50 with no
+  // way past them: in a tenant of 51 people the 51st could be found only by
+  // already knowing their name.
+  const [page, setPage] = useState(1);
 
-  const query = useQuery({
-    queryKey: ["directory", search],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/directory", {
-        params: { search: search || undefined, per_page: 50 },
-      });
-      return data;
-    },
-  });
+  const query = useDirectory({ search, page, per_page: 50 });
 
-  const entries: DirectoryEntry[] = query.data?.data ?? [];
+  const entries = query.data?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -54,7 +38,10 @@ export default function DirectoryPage() {
       <div className="w-full max-w-sm">
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
           placeholder={t(
             "directory.search_placeholder",
             "Search by name, email, or phone...",
@@ -140,6 +127,12 @@ export default function DirectoryPage() {
           </div>
         )}
       </QueryBoundary>
+
+      <PaginationControls
+        meta={query.data?.meta}
+        onPageChange={setPage}
+        disabled={query.isFetching}
+      />
     </div>
   );
 }

@@ -5,11 +5,10 @@ name: Quality gates
 # locally, so there is exactly one definition of "does this pass" and no way for
 # the two to drift.
 #
-# Note for anyone reading this after a confusing local failure: the elaborate
-# pest-isolated.sh / phpstan-isolated.sh workarounds exist because PHP's
-# recursive directory scan returns partial results over a Docker Desktop Windows
-# bind mount. On a Linux runner with native PHP, gates.sh takes the have_php
-# branch and none of that applies.
+# Note for anyone reading this after a confusing local failure: gates.sh runs
+# PHP natively, here and locally alike. The container fallbacks it once carried
+# (pest-isolated.sh / phpstan-isolated.sh, for a lossy Docker Desktop bind
+# mount) went with the Docker development stack on 2026-09-30.
 
 # `push` is the default branch only, deliberately.
 #
@@ -24,6 +23,15 @@ name: Quality gates
 # `pull_request` covers every branch that matters; `push` covers main after a
 # merge. A branch with no PR gets no run, which is the intended trade —
 # `workflow_dispatch` is there for the exception.
+#
+# DO NOT ADD `migration/bronze-plesk` TO THE `push` LIST. The 2026-09-27 forensic
+# audit found that none of that branch's seven commits had ever been evaluated by
+# Actions, and the cause was not this trigger: the branch had no remote
+# counterpart and no PR, so there was nothing for `pull_request` to fire on. The
+# fix is the PR, and it is the reason the branch was pushed. Naming the branch
+# here instead would reintroduce exactly the double-run defect the paragraphs
+# above document, and would still not have covered the branch before it was
+# pushed.
 on:
   push:
     branches: [main]
@@ -53,7 +61,7 @@ concurrency:
 # is deliberate: kept, it would silently mask a regression of the default, and
 # its comment would assert a `reverb` default that no longer exists.
 #
-# Nothing that runs is affected either way — docker-compose.yml, .env.example,
+# Nothing that runs is affected either way — .env.example,
 # .env.shared-hosting.example and phpunit.xml all set the value explicitly.
 
 jobs:
@@ -219,6 +227,96 @@ jobs:
       - name: Run frontend gates
         run: ./scripts/gates.sh frontend
 
+  static-export:
+    name: Static export (Bronze shared hosting)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # A SEPARATE JOB, not a step on `frontend`, for two reasons. It runs in
+    # parallel so it adds no wall-clock to the existing gate, and when it fails
+    # the job name says which artifact broke — "Frontend" going red tells you
+    # nothing about whether the deployment target still builds.
+    #
+    # WHY IT EXISTS AT ALL. Until 2026-09-27 nothing in CI ran `next build`, for
+    # either target. The Bronze production artifact — `output: "export"`, the one
+    # Apache serves — had been verified exactly once, by hand, on one Windows
+    # machine (docs/audit/BASELINE.md §20g), while src/lib/build-target.ts claimed
+    # the ETHR_TARGET switch made it "runnable in CI, which is what turns
+    # 'verified once by hand' into something a gate can check". Nothing did.
+    #
+    # It earned the job on its first run: it found that `.htaccess` group 1 served
+    # the entity-detail shell for six static sibling routes (/employees/new,
+    # /employees/import, /payroll/{cost-sharing,loans,payslips},
+    # /devices/dashboard), because the rule's only guard was `!-f` and the
+    # exporter writes `new.html` while the request is for `new`. The 20-of-20
+    # Apache matrix in §21d missed it because it never fetched a static sibling
+    # under a dynamic prefix.
+    #
+    # This is a BUILD-ARTIFACT gate. It is not host verification: whether Ethio
+    # Telecom's Apache honours `[F,L]` is M1 and still open.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src
+        run: npm ci
+
+      # gates.sh export -> npm run build:shared-hosting -> next build + verify.
+      # The env var is set by the build script rather than here, so a developer
+      # on any platform runs the identical thing; see that script's header for
+      # why `ETHR_TARGET=... npm run build` cannot be the documented form.
+      - name: Build and verify the shared-hosting artifact
+        run: ./scripts/gates.sh export
+
+      # Uploaded so a human can inspect what the host would actually serve
+      # without rebuilding it. Short retention: it is a build output, not a
+      # release, and it is ~690 files.
+      - name: Upload the export for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bronze-static-export
+          path: src/out
+          retention-days: 7
+          if-no-files-found: warn
+
+  htaccess-rules:
+    name: Deployment rules (.htaccess render + validate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # The rendered .htaccess is validated inside the Pest suite
+    # (SharedHostingHtaccessTest), so the `backend` job already covers it. This
+    # job exists for the case where the backend suite cannot run — it needs only
+    # PHP and no vendor/ — because the deployment rules are the one artifact
+    # whose failure is silent on the host: a dropped deny rule leaves APP_KEY
+    # web-readable while the application works normally.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      # The renderer refuses to emit an artifact missing any required directive,
+      # so this is a real check and not a smoke test. Output discarded: the
+      # assertions are the point, and the file belongs in <DOCROOT>, not here.
+      # --admin-host is required and has no default: the platform console's hostname
+      # was a hardcoded literal until 2026-09-28, which denied /admin on the REAL
+      # admin host for any other domain. A throwaway value here — this job checks the
+      # rules' structure, not a deployment.
+      - name: Render the BRANCH B deployment rules
+        run: |
+          php scripts/shared-hosting/render-htaccess.php \
+            --target=static-export --admin-host=admin.ci.invalid > /dev/null
+
   docs:
     name: Documentation integrity
     runs-on: ubuntu-latest
@@ -329,13 +427,13 @@ jobs:
           DB_DATABASE: ethr_rehearsal
           DB_USERNAME: ethr
           DB_PASSWORD: ethr
-          # .env.example selects redis for all three, which is right for the
-          # local Docker stack and wrong here: this job runs no Redis service.
-          # The phpunit configs `force` exactly these values, which is why the
-          # test suites never hit it — and why `migrate` in the api-contract job
-          # does not either, since migrations touch no cache. `db:seed` does:
-          # PermissionSeeder calls Permission::clearCache(), and the first run of
-          # this job died on `RedisException: Connection refused` there.
+          # Pinned to the cheapest in-process drivers for a throwaway run.
+          # Originally added because .env.example selected redis and this job
+          # runs no Redis service: `db:seed` reaches the cache through
+          # PermissionSeeder's Permission::clearCache(), and the first run died
+          # on `RedisException: Connection refused` there. .env.example has used
+          # the `database` drivers since 2026-09-30; the pin stays so this job
+          # does not depend on what the template happens to select.
           CACHE_STORE: array
           QUEUE_CONNECTION: sync
           SESSION_DRIVER: array
@@ -360,13 +458,13 @@ jobs:
           DB_DATABASE: ethr_rehearsal
           DB_USERNAME: ethr
           DB_PASSWORD: ethr
-          # .env.example selects redis for all three, which is right for the
-          # local Docker stack and wrong here: this job runs no Redis service.
-          # The phpunit configs `force` exactly these values, which is why the
-          # test suites never hit it — and why `migrate` in the api-contract job
-          # does not either, since migrations touch no cache. `db:seed` does:
-          # PermissionSeeder calls Permission::clearCache(), and the first run of
-          # this job died on `RedisException: Connection refused` there.
+          # Pinned to the cheapest in-process drivers for a throwaway run.
+          # Originally added because .env.example selected redis and this job
+          # runs no Redis service: `db:seed` reaches the cache through
+          # PermissionSeeder's Permission::clearCache(), and the first run died
+          # on `RedisException: Connection refused` there. .env.example has used
+          # the `database` drivers since 2026-09-30; the pin stays so this job
+          # does not depend on what the template happens to select.
           CACHE_STORE: array
           QUEUE_CONNECTION: sync
           SESSION_DRIVER: array
@@ -449,9 +547,12 @@ jobs:
   # slows every run it is loaded into. Its own job so the other four keep
   # `coverage: none` and stay as quick as they are.
   #
-  # No threshold, deliberately. Nobody knows what the number is yet, and choosing
-  # a floor before measuring one would be picking it out of the air. This prints
-  # what it measured; a floor can follow once there is a baseline to set it from.
+  # The floor is `--min=85` (in gates.sh), set 2026-09-23 by the owner against
+  # a measured 86.7% — BASELINE §12e. (This comment said "no threshold,
+  # deliberately" for the week before that decision and was not updated with
+  # it; corrected 2026-10-01, audit I10.) It re-runs the whole suite on purpose:
+  # coverage needs PCOV loaded, and loading it into the Backend job would slow
+  # the gate every push waits on.
   backend-coverage:
     name: Backend coverage (PCOV)
     runs-on: ubuntu-latest

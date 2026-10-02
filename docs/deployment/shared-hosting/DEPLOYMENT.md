@@ -1,7 +1,19 @@
 # ETHR — Shared Hosting Deployment Runbook
 
-Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethiotelecom.et`
-(`213.55.96.154`).
+Target: Ethio Telecom Linux Bronze (Plesk), account `<ACCOUNT_USER>` @ `<PANEL_HOST>`
+(`<ACCOUNT_IP>`), serving `<APP_DOMAIN>`.
+
+> **Placeholders — HARD RULE 2**, [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25; this line previously named the account, host and IP literally.*
+> This runbook is a **procedure**, so account-specific values are placeholders throughout:
+> `<APP_DOMAIN>`, `<PANEL_HOST>`, `<ACCOUNT_IP>`, `<ACCOUNT_USER>`, `<DOCROOT>`, `<APP_ROOT>`,
+> `<DB_NAME>`, `<DB_USER>`. **Fill them from the panel before running anything.** The real
+> values are not recorded in this repository — the one place they are named is
+> [`../../MIGRATION_STATE.md`](../../MIGRATION_STATE.md)'s manual queue.
+>
+> Evidence documents cited below — `GATE-0-RESULT.md`, `B1-B5_GATE_REPORT.md`,
+> `audit/BRONZE-BLOCKER-RESOLUTION.md` — keep their literals on purpose. A measurement without
+> its actual values is not a measurement.
 
 > **STATUS BANNER — added 2026-09-18. Read before running anything below.**
 >
@@ -31,6 +43,11 @@ Target: Ethio Telecom Linux Bronze (Plesk), account `ethret` @ `lin6.ethioteleco
 >   instruction, and flagged again in `../PLESK-SETUP.md` §2 — and the body was left saying
 >   it anyway, for as long as both notes existed. A warning above a runbook does not correct
 >   the runbook; readers follow the commands.
+>
+> *(The username below is the one literal HARD RULE 2 deliberately leaves in this file: it is a
+> **history** row recording a typo that was fixed, and the literal is the content. Replacing it
+> with `<ACCOUNT_USER>` would erase what the sentence says. Do not "complete" the conversion
+> here.)*
 >
 > What *has* been corrected here is factual only — the account username (`ethret`, not
 > `etrhet`), the server name, the scheduler entry count (14, not 11, which is an
@@ -216,9 +233,9 @@ support *before* step 4, not after a failed deploy.
 # Everything except node_modules/vendor/tests — those are rebuilt or excluded below.
 rsync -avz --exclude='.git' --exclude='node_modules' --exclude='vendor' \
   --exclude='.env*' --exclude='tests' \
-  ./api/ ethret@213.55.96.154:~/ethr/api/
+  ./api/ <ACCOUNT_USER>@<ACCOUNT_IP>:<APP_ROOT>/api/
 
-rsync -avz api/vendor/ ethret@213.55.96.154:~/ethr/api/vendor/
+rsync -avz api/vendor/ <ACCOUNT_USER>@<ACCOUNT_IP>:<APP_ROOT>/api/vendor/
 ```
 
 If SSH shell access turns out to be disabled for this account despite port 22 being
@@ -363,8 +380,8 @@ document root would make `storage:link` look runnable again.
 ### What is deliberately not copied
 
 `api/public/` contains three other files: `.htaccess`, `robots.txt` and `favicon.ico`.
-On the VPS all three serve the **API vhost** (`infrastructure/nginx.conf` roots three
-server blocks at `api/public`) — a different origin from the marketing site. This
+On the VPS all three served the **API vhost** (`infrastructure/nginx.conf`, removed
+2026-09-26, rooted three server blocks at `api/public`) — a different origin from the marketing site. This
 deployment merges the API and the public site into one document root, so copying them
 changes what they mean.
 
@@ -463,9 +480,38 @@ each row of this table into a check that fails loudly.
 
 ## 5. Deploy the frontend
 
-**Node.js is the chosen branch — owner decision 2026-09-24.** The static-export branch is
-retained below as the fallback, not deleted: it is what this step reverts to if the routing
-question in *One thing must be verified* comes back wrong.
+> # ✅ RESOLVED 2026-09-27 — **STATIC EXPORT. Owner decision.**
+>
+> **The frontend deploys as a static export served by Apache/Plesk. Do not enable the
+> Plesk Node.js application.** Full record, including the owner's reasons:
+> [`../../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md).
+>
+> **Go to *§5b — Static export (THE PRODUCTION PATH)* below.** The Node material in §5a
+> is retained as a documented alternative that was considered and not selected; it is not
+> a step in this deployment.
+>
+> **What this replaced.** This section carried a `PRECEDENCE CONFLICT` banner from
+> 2026-09-25 to 2026-09-27, because it said *"Node.js is the chosen branch — owner
+> decision 2026-09-24"* while
+> [`../SHARED-HOSTING-CONTRACT.md`](../SHARED-HOSTING-CONTRACT.md) hard rule 2 —
+> restated 2026-09-25, the later date — excludes the Plesk Node extension. The owner
+> decision fell *between* the contract's setting and its restatement, so dates could not
+> settle it and this runbook correctly declined to try. The 2026-09-27 decision settles
+> it in the contract's direction, so **rule 2 needed no amendment.**
+>
+> **One consequence worth carrying forward:** *One thing must be verified* below asked who
+> owns `/` under the Node branch, and that was manual-queue item **M4**. Under static
+> export **the question does not arise** — there is only one server, nothing contends for
+> `/`, and `.htaccess` serves everything. M4 is **dropped, not deferred.**
+
+### 5a. Node.js — considered, NOT SELECTED
+
+**Retained for the record, and as the costing if the decision is ever revisited. Do not
+follow this subsection.** It would require amending hard rule 2, enabling a Plesk
+extension, and answering the who-owns-`/` question first.
+
+~~**Node.js is the chosen branch — owner decision 2026-09-24.**~~ Superseded 2026-09-27.
+The static-export branch below is **the production path**, not a fallback.
 
 ### The two Node versions, and why neither moves
 
@@ -476,6 +522,11 @@ them as one number is how the host's 22.23.2 gets mistaken for a blocker.
 |---|---|---|---|
 | CI build, gates, test suite | **24** | `.nvmrc` | does **not** satisfy — and **is not relaxed to fit the host** |
 | Frontend application runtime | **22** | `docker/frontend/Dockerfile` (`FROM node:22-alpine`, which both builds and runs `server.js`) | **satisfies exactly** |
+
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30, so nothing in the repository declares the 22 runtime any more — `.nvmrc` (24) is
+> the only Node pin. Under the static-export decision (C-5) the host runs no Node at all; this
+> subsection is the record of the Node branch.
 
 **The host never runs the gates**, so the 24 pin is not a hosting requirement and nothing
 here asks you to weaken it. The host runs a built artifact, and 22 is the runtime the
@@ -505,7 +556,13 @@ SSH is Forbidden (**B-1**) and Scheduled Tasks offers no command-type task (**G0
 the step most likely to hit a memory or time limit, and **G0-J**'s CPU and memory rows are
 `NOT VERIFIED`.
 
-### One thing must be verified before this branch is committed to
+### ~~One thing must be verified before this branch is committed to~~ — MOOT under static export
+
+> **This question belonged to the Node branch only, and that branch was not selected.**
+> Under static export there is one server: `.htaccess` routes `/api` and `/sanctum` to
+> `index.php` and serves everything else from files, so nothing contends for `/`. This was
+> manual-queue item **M4**; it is **dropped, not deferred**. Kept below because it is the
+> cost that would return if the decision were ever revisited.
 
 **Who serves `/` — Node or PHP?** The panel read *Application URL* `http://ethr.et` and
 *Document Root* `/ethr` on 2026-09-22. If Plesk mounts the Node application at the domain
@@ -519,33 +576,147 @@ frontend route and see which process answers. Until it is answered, treat the No
 question, because there is only one server.
 
 `middleware.ts` and the `headers()`-reading `(auth)/layout.tsx` need **zero code
-changes** in this branch — see `docs/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
+changes** in this branch — see `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E. Delete the entire
 "Everything else → frontend, BRANCH B" block from `docs/deployment/shared-hosting/.htaccess`
 before deploying it (leave BRANCH A as a comment for documentation, per that file's own
 instructions).
 
-### Fallback — static export (B5 = no, or the routing question above comes back wrong)
+### 5b. Static export — **THE PRODUCTION PATH** (owner decision, 2026-09-27)
 
-Requires the code changes named in `docs/SHARED_HOSTING_AUDIT.md` §E and
-`docs/MIGRATION_STATE.md` D6 — **not yet made**, because making them before knowing B5
-risks doing frontend work that turns out to be unnecessary. When B5 resolves negative:
+*Was headed "Fallback — static export (B5 = no, or the routing question above comes back
+wrong)". It is not a fallback and there is no routing question: it is what ships.*
 
-1. `next.config.ts`: add `output: "export"`, remove `rewrites()` (nothing to proxy to
-   locally once nginx/nginx-dev is gone — the SPA already calls the relative
-   `/api/v1/...`), move the CSP block into `.htaccess`'s `mod_headers` section (already
-   present in this package, currently duplicated from the VPS nginx config — keep it in
-   sync if this branch is taken).
-2. Delete `middleware.ts`; its host-based `/admin` rule is reimplemented in
-   `docs/deployment/shared-hosting/.htaccess`'s commented BRANCH B block — uncomment it.
-3. `(auth)/layout.tsx`: replace the `headers()` read with a client-side
-   `window.location.host` read. Accepts a first-paint flash on the tenant login page
-   (React hydration error #418's original cause) in exchange for removing the last SSR
-   dependency — documented trade-off, not an oversight.
-4. Add `generateStaticParams` returning `[]` to the four dynamic routes — **this step does not work as written.** All four are `"use client"` and Next rejects the combination; each needs a server-component wrapper first, and `[]` still 404s every real id because those ids are tenant data. Measured 2026-09-18, `7aed9d2`; see `SHARED_HOSTING_AUDIT.md` §E
-   (`employees/[id]`, `payroll/[id]`, `devices/[id]`, `admin/tenants/[id]`) — each is
-   already a client component that fetches by id, so this only satisfies the exporter.
-5. `npm run build`, upload the exported `out/` directory into `<DOCROOT>/`, alongside
-   `index.php`. Uncomment BRANCH B's two rewrite rules in `.htaccess`.
+> **Steps 1–4 are DONE — 2026-09-26.** They are kept struck rather than deleted because
+> three of the four were prescribed wrongly, and a reader who follows them as written will
+> undo work. Full measurements in [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20.
+>
+> **Build it with `npm run build:shared-hosting`** (from `src/`), which sets
+> `ETHR_TARGET=shared-hosting` itself and then verifies the artifact. Do **not** write
+> `ETHR_TARGET=shared-hosting npm run build` in cmd.exe or PowerShell — neither accepts
+> that prefix, so you silently get a `standalone` build. `./scripts/gates.sh export` runs
+> the same thing, and CI's `static-export` job runs it on every pull request.
+>
+> **What CI measured on 2026-09-27**, on Ubuntu 24.04 / Node 24, identical to the local
+> run: **689 files total, 186 under `_next`, 4 sentinel shells, no `server.js`.** That is
+> the artifact this section deploys.
+>
+> `standalone` remains the *default* build, because it is what local development and the
+> gates use and what `docker/frontend/Dockerfile` runs. It is **not** a rollback path —
+> the VPS was decommissioned in `3db9904`. *(`docker/frontend/Dockerfile` itself was removed
+> on 2026-09-30.)*
+
+1. ~~`next.config.ts`: add `output: "export"`, remove `rewrites()`, move the CSP into
+   `.htaccess`.~~ **DONE, as a switch rather than a flip.** `src/lib/build-target.ts` reads
+   `ETHR_TARGET`; `output` follows it. An unconditional flip emits no `server.js`, which is
+   what `docker/frontend/Dockerfile` runs — it would have deleted the rollback path before
+   the cutover that triggers its removal. `headers` and `rewrites` are deleted from the
+   config object on that target, because Next warns while the key is merely present whatever
+   it returns.
+
+   **The CSP was already in `.htaccess` and it was wrong.** `script-src 'self'` blocks the
+   three un-nonced inline scripts this build emits: measured, 3 violations and React error
+   #412 per page, and **nothing hydrates while the HTML still renders**. It now carries
+   `'unsafe-inline'`, and deliberately not `'unsafe-eval'` — measured unnecessary, so that
+   policy is tighter than the VPS's.
+2. ~~Delete `middleware.ts`.~~ **NOT DONE, and it should not be.** Measured: Next 16.3.5
+   builds a static export with the file present and simply disables it, saying so —
+   *"Statically exporting a Next.js application via `next export` disables API routes and
+   middleware."* Deleting it would cost the VPS path and local development a working control
+   for no gain. Its `/admin` host rule **is** reimplemented in the `.htaccess` BRANCH B
+   block, which still has to be uncommented at deploy time.
+
+   **That block did not work as ordered.** It sat *after* the SPA fallback, which ends in
+   `[L]`, so `/admin` on a tenant host measured **200, not 403** — a deny rule placed after
+   a catch-all is not a deny rule. It has been moved above the fallbacks and is now group 0.
+3. ~~`(auth)/layout.tsx`: replace the `headers()` read with a client-side read.~~ **DONE,
+   but narrowed to the export target only.** Replacing it outright would have given the VPS
+   rollback path this target's first-paint flash for nothing. That one line is why the seven
+   `(auth)` routes were the only dynamic routes in the application; they now export as
+   static HTML.
+
+   The client-side half it hands off to **was already unsafe** and is fixed in the same
+   pass: `useHost()` read `window.location.host` during the first render, which is exactly
+   the hydration error #418 this step's parenthesis names. It now waits for hydration.
+4. ~~Add `generateStaticParams` returning `[]` to the four dynamic routes.~~ **DONE
+   2026-09-26 — nothing to do here any more, and the step as written was wrong in three
+   ways.** It is kept struck rather than deleted because the reasoning matters:
+
+   > **What it said:** add `generateStaticParams` returning `[]` to `employees/[id]`,
+   > `payroll/[id]`, `devices/[id]` and `admin/tenants/[id]`, *"each is already a client
+   > component that fetches by id, so this only satisfies the exporter."*
+   >
+   > **What was measured 2026-09-18 (`7aed9d2`):** all four are `"use client"` and Next
+   > rejects the combination; each needs a server-component wrapper first, and `[]` still
+   > 404s every real id because those ids are tenant data.
+   >
+   > **What was measured 2026-09-26** ([`../../audit/BASELINE.md`](../../audit/BASELINE.md) §19):
+   > both of the above are correct, and there was a **third** defect nobody had named — the
+   > generic BRANCH B rewrite in `.htaccess` would have 404'd *every page on the site*,
+   > entity routes or not, because it rewrote to `$1/index.html` and this exporter writes
+   > `features.html`. All three are now closed.
+
+   The routes are exportable as they stand. Each `page.tsx` is a server component that
+   returns `staticExportIdParams()` — **one** sentinel id, not `[]` — and renders the client
+   component beside it; `src/src/lib/hooks/useRouteId.ts` reads the real id back out of the
+   URL, because on a shell served for another id `useParams()` returns the **sentinel** and
+   only `usePathname()` has the truth. That asymmetry is the trap: trusting `useParams()`
+   gives you an application that renders *"not found"* on every entity page and looks like a
+   data problem.
+
+   **This landed under `output: "standalone"` and changed nothing there** — an arbitrary ULID
+   still returns 200 and still server-renders with the real param, verified. So steps 1–3
+   remain the decision; step 4 is no longer part of it.
+5. **Build, render, upload — three commands, and none of them is a hand edit.**
+
+   ```bash
+   cd src && npm run build:shared-hosting          # sets ETHR_TARGET, builds, verifies
+   php scripts/shared-hosting/render-htaccess.php \
+       --target=static-export --admin-host=admin.<APP_DOMAIN> \
+       -o <DOCROOT>/.htaccess
+   # then upload src/out/* into <DOCROOT>/, alongside index.php
+   ```
+
+   **`--admin-host` is required and has no default.** It was the literal
+   `admin.ethr.et` until 2026-09-28, and on any other domain that is a silent
+   defect: the deny predicate then reads *"refuse `/admin` unless the host is
+   admin.ethr.et"*, so it refuses on the **real** admin host and the platform
+   console is unreachable while the rest of the site works perfectly. Include the
+   port if requests carry one — the predicate anchors on the whole `Host` header —
+   and the value is regex-escaped for you.
+
+   **`--target=static-export`, not `--branch=a`.** The branch letters run backwards in
+   this repository — **A is the Plesk Node application, B is the static export** — and a
+   2026-09-27 directive was worded *"use Branch A: static-export"*, which are two
+   different things. The renderer refuses `--branch=a` with an error that says so.
+
+   ~~Uncomment BRANCH B's directives in `.htaccess` — four groups, numbered 0 to 3, and
+   the order is load-bearing.~~ **Superseded 2026-09-27: do not uncomment anything by
+   hand.** The reasoning is kept because it is why the renderer exists:
+
+   > **Uncomment the non-`Rewrite` lines too.** Group 2 needs `Options -Indexes` and
+   > `DirectorySlash Off`, and group 3 is a single `ErrorDocument 404 /404.html`.
+   > Skipping them because they do not start with `Rewrite` leaves most of the site
+   > 404ing and every unknown URL answering 200 — both measured, see
+   > [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §21.
+   >
+   > **Uncomment only lines that are exactly a directive.** The explanatory comments
+   > around them are prose; one of them used to begin with the word `Options`, and a
+   > script that matched on the directive name uncommented the sentence. Apache 500s on
+   > that, and **`httpd -t` will not warn you — it does not read `.htaccess` at all.**
+   > The check that does catch it is fetching a page.
+
+   All three hazards are now structural rather than remembered: the template marks
+   directives with a `#@ ` sentinel, the renderer strips exactly that and nothing else,
+   it refuses to emit an artifact missing any required directive, and
+   `SharedHostingHtaccessTest` asserts the result — including that group 0's `/admin`
+   deny precedes the fallbacks, which is ordering rather than presence. The last one
+   still matters: **a deny rule placed after a catch-all is not a deny rule.**
+
+   **A real export was built and served under these exact rules and headers on 2026-09-26**
+   — see [`../../audit/BASELINE.md`](../../audit/BASELINE.md) §20g for what that did and did
+   not establish. It is `LOCAL VERIFIED` only: that Apache honours `[F,L]` at all is still
+   **M1**, and if it does not, `/admin` is served from every tenant host with the API's
+   `EnsurePlatformContext`, `admin.manage` and `RequirePlatformMfa` as the whole boundary.
 
 **Cost of this branch, stated plainly:** marketing pages (`/`, `/features`, `/pricing`,
 `/faq`, `/contact`) lose server-side rendering — an SEO consideration worth flagging to
@@ -553,9 +724,128 @@ whoever owns that decision, not something to absorb silently.
 
 ## 6. Cron
 
-**Branch on B3.**
+> # ⚠ THIS SECTION WAS REWRITTEN 2026-09-27. Its previous version was wrong in the
+> # two ways that mattered most.
+>
+> It said the URL-fetch branch was **"Not built."** It has been built since
+> **2026-09-22 (`b61cb05`)** — `POST /api/v1/cron/schedule` and
+> `POST /api/v1/cron/queue`, with `CronRunController`, `VerifyCronToken`,
+> `config/cron.php` and `CronEndpointTest`. And it named the token
+> **`SCHEDULER_HTTP_TOKEN`**, which exists nowhere in the application; the
+> variable is **`CRON_TOKEN`**.
+>
+> It also presented the *command-type task* branch as **"expected — most Plesk
+> plans offer this"**, while **G0-D is FAIL on this subscription**: there is no
+> Scheduled Tasks / Task Scheduler / Cron Jobs section at all (owner-read
+> 2026-09-18), and Dev Tools has no Terminal. The branch that was labelled
+> unlikely is the only one available here, and it was the one described as
+> unbuilt.
+>
+> Read [`cron-caller.md`](cron-caller.md) alongside this. It was already correct
+> and is the procedure; this section is the deployment-time summary.
 
-### If command-type tasks are available (expected — most Plesk plans offer this)
+**There is no cron on this account.** That is a measurement, not a caution:
+**G0-D = FAIL**, and SSH is Forbidden (**B-1**), so nothing *on the host* can
+start `schedule:run` or `queue:work`. The application ships the replacement, and
+it needs one thing from outside.
+
+### 6.1 What exists in the application
+
+| | |
+|---|---|
+| `POST /api/v1/cron/schedule` | runs `schedule:run` — the 14 entries in `routes/console.php` |
+| `POST /api/v1/cron/queue` | runs `queue:work --stop-when-empty`, bounded by `CRON_QUEUE_MAX_SECONDS` (default **50s**) |
+| Auth | `CRON_TOKEN`, presented as the `X-Cron-Token` header **or** a `?token=` query parameter |
+| Route group | `throttle:cron` **then** `VerifyCronToken` — *that order is load-bearing* |
+| Overlap | a `Cache::lock` held for `CRON_LOCK_SECONDS` (default 110s); a second caller gets **409**, not a second worker |
+
+**Call BOTH endpoints. Not one.** Eleven of the fourteen `Schedule::` entries do
+nothing but insert rows into `jobs`, and all 16 classes in `app/Jobs` are
+`ShouldQueue`. A caller wired only to `/cron/schedule` leaves every queued job
+unrun **while looking perfectly healthy** — the schedule fires, the rows
+accumulate, nothing processes them.
+
+**The middleware order is not stylistic.** `VerifyCronToken` `abort(404)`s a bad
+token, and middleware runs in the order listed — so with the token check first the
+rate limiter would never see a rejected request. It would throttle only legitimate
+callers and give an attacker unlimited guesses.
+
+### 6.2 Fail-closed behaviour — what a misconfiguration looks like
+
+`VerifyCronToken` returns **404, never 401**, in all three failure cases, so an
+unconfigured deployment does not advertise that these routes exist:
+
+| Condition | Result |
+|---|---|
+| `CRON_TOKEN` unset or empty | **404.** The routes are effectively absent |
+| `CRON_TOKEN` shorter than `cron.min_token_length` (**32**) | **404**, plus `Log::error` *"CRON_TOKEN is shorter than the configured minimum; cron routes disabled."* — the length is logged, never the value |
+| Wrong or missing presented token | **404**, plus `Log::warning` with the IP and path |
+
+Consequence worth stating plainly: **a 404 from these endpoints does not tell you
+whether you got the token wrong or never configured one.** Check the application
+log, not the status code. A short token is worse than no token because it looks
+configured — which is why it is refused rather than accepted.
+
+Generate one with:
+
+```bash
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+```
+
+`api/.env.shared-hosting.example` ships `CRON_TOKEN=` **empty on purpose**. Fill it
+in the deployed `.env`; it is a secret and never belongs in the repository.
+
+### 6.3 What is still required, and who owns it
+
+**An external caller — chosen 2026-09-27: GitHub Actions scheduled workflows.**
+Q6 is answered. The caller is `.github/workflows/cron.yml`, committed here;
+[`cron-caller.md`](cron-caller.md) is the procedure and carries the secret-name
+mapping, the platform limitations and how the response handling was verified.
+
+The operator's whole task is two GitHub secrets in the `production` environment:
+
+| Secret | Value |
+|---|---|
+| `ETHR_CRON_TOKEN` | the same string as the host's `CRON_TOKEN` |
+| `ETHR_CRON_BASE_URL` | `https://<APP_DOMAIN>` — no trailing slash, no path |
+
+Then *Actions → ETHR scheduler → Run workflow* once, by hand, rather than waiting
+for a tick.
+
+It **need not be this host**, which was the whole point of the design — and the
+caller being off-host is why G0-D staying FAILED does not block the deployment.
+
+**Status, stated so it cannot be misread:**
+
+| | |
+|---|---|
+| Endpoints implemented and tested | ✅ `CronEndpointTest` |
+| External caller chosen | ✅ **GitHub Actions — Q6 decided 2026-09-27** |
+| Caller committed and its logic verified | ✅ `cron.yml`; `CronCallerWorkflowTest`, mutation-checked |
+| **GitHub secrets configured** | ❌ **HOST/OWNER ACTION REQUIRED** — the workflow refuses to run until both exist |
+| **Endpoints ever called on the Ethio Telecom account** | ❌ **never** |
+| **Scheduler observed running in production** | ❌ and it must not be claimed until measured |
+
+**Choosing the caller is not the same as the caller working.** Nothing has called
+these endpoints on the target account, and until a tick is observed the
+asynchronous half must be treated as inert. Two platform caveats belong in that
+judgement: GitHub's schedule floor is 5 minutes with best-effort delivery, and it
+**disables scheduled workflows after 60 days of repository inactivity** — silently.
+That is what `QueueHealth::beat()` and `ethr:queue:check` are for.
+
+**Until a caller is wired and observed, the asynchronous half of ETHR is inert,
+and the failure is silent.** No payroll completion notice, no invoicing, no
+backups, no leave accrual, no digests — with every HTTP request still returning
+200. That is why `QueueHealth::beat()` and `ethr:queue:check` exist, and why they
+are the first thing to check after cutover rather than the last.
+
+### 6.4 If Ethio Telecom ever enables Scheduled Tasks
+
+That is **upside, not a prerequisite** — `SHARED-HOSTING-CONTRACT.md` hard rule 4.
+The ask is in [`../ETHIO-TELECOM-SUPPORT-REQUEST.md`](../ETHIO-TELECOM-SUPPORT-REQUEST.md)
+as ask 1. If it arrives, Q6 disappears along with the token someone has to hold,
+and the two commands below are what to enter. **Nothing may be designed to wait
+for it.**
 
 Plesk → *Scheduled Tasks* → add:
 
@@ -577,15 +867,27 @@ other three. See `ENVIRONMENT.md` "Queue and scheduler" for the measurement. If 
 interval is coarser than 1 minute (5 minutes is common and tolerable), no code change —
 Laravel's scheduler is idempotent about "was this due since last checked".
 
-### If only URL-fetch tasks are available (B3 = no)
+### ~~If only URL-fetch tasks are available (B3 = no)~~ — superseded by §6.1
 
-**Not built.** This needs an authenticated HTTP endpoint accepting a shared secret
-(`SCHEDULER_HTTP_TOKEN` in `ENVIRONMENT.md`, currently a placeholder) that runs
-`schedule:run` and `queue:work --stop-when-empty --max-time=50` on request, with the
-fetch interval as the trigger. This is real, scoped work — new attack surface on a
-route that can trigger payroll-adjacent jobs — and deliberately **not implemented
-speculatively**; build it only once B3 confirms it's actually needed, sized to the
-panel's actual fetch-interval floor.
+> **This subsection said "Not built." It was built on 2026-09-22 (`b61cb05`), and the
+> sentence stood for five days after that.** It is struck rather than deleted because
+> the reasoning it carried is worth reading: it argued against building
+> speculatively, noted the endpoints would be *"new attack surface on a route that
+> can trigger payroll-adjacent jobs"*, and asked for the work to be *"sized to the
+> panel's actual fetch-interval floor"*.
+>
+> All three concerns were answered in the implementation rather than waved away.
+> The attack surface is why `VerifyCronToken` fails closed with 404 rather than 401,
+> why the throttle runs **before** the token check, and why the token has a 32-char
+> minimum enforced at boot. The interval floor is why `CRON_QUEUE_MAX_SECONDS`
+> defaults to 50 — under a typical 60-second HTTP timeout and under the one-minute
+> tick — and why a `Cache::lock` returns 409 instead of starting a second worker.
+>
+> **What it got wrong was the token name**, `SCHEDULER_HTTP_TOKEN`: the variable is
+> `CRON_TOKEN`. `ENVIRONMENT.md:135` still carries the commented-out placeholder
+> under the old name and is annotated there.
+>
+> The live procedure is **§6.1–§6.3 above** and [`cron-caller.md`](cron-caller.md).
 
 ## 6a. What a full disk actually looks like
 
@@ -661,10 +963,10 @@ Then work through `docs/deployment/shared-hosting/deploy-checklist.md` and
 `ethr.et` currently resolves to a dormant Hetzner VPS with every port closed (verified
 — see `docs/B1-B5_GATE_REPORT.md`), so **there is no live traffic to protect**; this is
 not a blue-green cutover with real risk of dropped requests. Repoint the `A`/`AAAA`
-records for `ethr.et`/`www` (and the wildcard, once the vhost from step "wildcard
-subdomain" below exists) to `213.55.96.154` when steps 1–7 are verified.
+records for `<APP_DOMAIN>`/`www` (and the wildcard, once the vhost from step "wildcard
+subdomain" below exists) to `<ACCOUNT_IP>` when steps 1–7 are verified.
 
-**Before cutover:** create the wildcard subdomain in Plesk (`* .ethr.et` → same
+**Before cutover:** create the wildcard subdomain in Plesk (`*.<APP_DOMAIN>` → same
 document root as `www`) — confirmed accepted by the panel but deliberately not yet
 created (owner's choice, `docs/B1-B5_GATE_REPORT.md`). Tenant subdomains resolve to
 nothing until this exists.

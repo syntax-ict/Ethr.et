@@ -9,13 +9,17 @@ use Illuminate\Console\Command;
 use Throwable;
 
 /**
- * Runs from Plesk Scheduled Tasks as a PHP CLI job — no shell, no mysqldump.
+ * Runs as a PHP job with no shell and no mysqldump. That constraint is the whole
+ * design: scripts/backup.sh, the only backup this project had, is
+ * `docker compose exec mariadb mysqldump` — meaningless on the target host.
+ *
+ * It reaches the host as a Laravel scheduled entry (`dailyAt('01:00')`, see
+ * routes/console.php) driven by whatever invokes `schedule:run`. On this account
+ * that is an external caller POSTing to /api/v1/cron/schedule, **not** a Plesk
+ * Scheduled Task — G0-D measured that section as absent. The equivalent CLI
+ * invocation, for a host that does offer one:
  *
  *   php /home/<user>/ethr/api/artisan ethr:backup --off-host --keep=2
- *
- * That constraint is the whole design. scripts/backup.sh, the only backup this
- * project had, is `docker compose exec mariadb mysqldump` — meaningless on the
- * target host.
  */
 class BackupCommand extends Command
 {
@@ -23,7 +27,7 @@ class BackupCommand extends Command
         {--label= : Suffix for the backup directory name}
         {--keep= : How many backups to retain locally; defaults to config backup.keep}
         {--off-host : Also copy an archive to the configured off-host disk}
-        {--disk=s3 : Which disk to copy to}';
+        {--disk= : Which disk to copy to; defaults to config backup.off_host_disk}';
 
     protected $description = 'Back up the database and employee documents';
 
@@ -49,8 +53,9 @@ class BackupCommand extends Command
             $this->line('  path      '.$result['path']);
 
             if ($this->option('off-host')) {
-                $key = $backups->copyOffHost($result['path'], (string) $this->option('disk'));
-                $this->line('  off-host  '.$this->option('disk').':'.$key);
+                $disk = (string) ($this->option('disk') ?: config('backup.off_host_disk'));
+                $key = $backups->copyOffHost($result['path'], $disk);
+                $this->line('  off-host  '.$disk.':'.$key);
             } else {
                 // Warned on every run, not once in a README. A backup that only
                 // ever exists on the machine it protects does not survive the

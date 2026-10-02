@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Services\Auth\LockoutAlert;
 use Closure;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,10 @@ class RateLimitLoginAttempts
 
     private const LOCKOUT_DECAY = 900; // 15 minutes
 
-    public function __construct(private RateLimiter $limiter) {}
+    public function __construct(
+        private RateLimiter $limiter,
+        private LockoutAlert $lockoutAlert,
+    ) {}
 
     public function handle(Request $request, Closure $next): mixed
     {
@@ -50,7 +54,16 @@ class RateLimitLoginAttempts
         // 3. Count failed logins (401 = unauthenticated, 422 = validation/credentials fail)
         if ($status === 401 || $status === 422) {
             $this->limiter->hit($burstKey, self::BURST_DECAY);
-            $this->limiter->hit($lockoutKey, self::LOCKOUT_DECAY);
+            // hit() returns the new count, so equality is the transition into
+            // lockout: the admins hear once, not on every attempt a running
+            // brute force makes while locked.
+            if ($this->limiter->hit($lockoutKey, self::LOCKOUT_DECAY) === self::LOCKOUT_MAX) {
+                $this->lockoutAlert->send(
+                    $this->submittedIdentifier($request),
+                    $request->ip() ?? '0.0.0.0',
+                    intdiv(self::LOCKOUT_DECAY, 60),
+                );
+            }
         } elseif ($status === 200 || $status === 204) {
             // Successful login: clear counters
             $this->limiter->clear($burstKey);
@@ -70,11 +83,16 @@ class RateLimitLoginAttempts
         ], 429)->header('Retry-After', $retryAfter);
     }
 
-    private function identifier(Request $request): string
+    private function submittedIdentifier(Request $request): string
     {
         // Login accepts `identifier` (email, phone, or employee number) with
         // `email` as a legacy alias — throttle on whichever was sent.
-        $value = mb_strtolower(trim($request->input('identifier') ?? $request->input('email') ?? 'unknown'));
+        return mb_strtolower(trim($request->input('identifier') ?? $request->input('email') ?? 'unknown'));
+    }
+
+    private function identifier(Request $request): string
+    {
+        $value = $this->submittedIdentifier($request);
         $ip = $request->ip() ?? '0.0.0.0';
 
         return "{$value}:{$ip}";

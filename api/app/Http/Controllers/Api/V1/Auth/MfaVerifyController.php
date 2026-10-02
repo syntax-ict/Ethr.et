@@ -34,7 +34,10 @@ class MfaVerifyController extends Controller
             ], 409);
         }
 
-        $secret = decrypt($user->mfa_secret);
+        // The `encrypted` cast has already decrypted it. This called decrypt()
+        // a second time, which throws on plaintext, so any user who enabled MFA
+        // through the API got a 500 at this step of their next sign-in.
+        $secret = (string) $user->mfa_secret;
 
         if (! $this->mfaService->verify($secret, $request->input('code'))) {
             AuditLog::record('user.mfa_failed', $user);

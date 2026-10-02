@@ -23,6 +23,7 @@ const InteractiveCharts = dynamic(
 );
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
@@ -102,6 +103,7 @@ export default function DashboardPage() {
 function SelfServiceKpis() {
   const { t, locale } = useT();
   const { data, isLoading } = useEmployeeDashboard();
+  const { formatTime } = useDateFormatters();
 
   if (isLoading) {
     return (
@@ -114,6 +116,11 @@ function SelfServiceKpis() {
   }
 
   const attendance = data?.attendance_today;
+  // `not_checked_in` carries no times at all.
+  const checkIn =
+    attendance && attendance.status !== "not_checked_in"
+      ? attendance.check_in
+      : null;
   const balances = data?.leave_balances ?? [];
   const payslip = data?.latest_payslip;
   const holidays = data?.upcoming_holidays ?? [];
@@ -132,11 +139,12 @@ function SelfServiceKpis() {
               : t("dashboard.not_checked_in", "Not Checked In")
         }
         sub={
-          attendance?.check_in
+          checkIn
             ? // t() has no interpolation: passing a template string as the
               // fallback returns the bare translation ("Since") whenever the
               // key exists, dropping the time. Compose outside the call.
-              `${t("dashboard.since", "Since")} ${attendance.check_in}`
+              // `check_in` is a UTC instant; print the tenant's wall clock.
+              `${t("dashboard.since", "Since")} ${formatTime(checkIn)}`
             : t("dashboard.no_record_today", "No record today")
         }
       />
@@ -151,7 +159,8 @@ function SelfServiceKpis() {
         }
         sub={
           balances.length > 0
-            ? String(balances[0].type)
+            ? // Null once the leave type has been deleted.
+              (balances[0].type ?? "—")
             : t("dashboard.no_leave_configured", "No leave configured")
         }
       />

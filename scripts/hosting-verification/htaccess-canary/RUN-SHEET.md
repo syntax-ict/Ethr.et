@@ -19,6 +19,71 @@ fails.
 
 ---
 
+## 0 · M1 — if you are here to do just the one outstanding task
+
+**This is the whole of manual-queue item M1: one upload and two fetches.** Added
+2026-09-27 because the 2026-09-25 session ran the other six successfully and these
+two came back as non-answers, so the remaining work is a strict subset of the sheet
+below and does not need the whole sheet re-run.
+
+**What happened on 2026-09-25, because it decides step 1.** Six of eight fetches
+answered. The other two returned **404** and **2-of-7-headers** — not failures, *non-
+answers*: the host was serving the **2026-09-18** revision of the canary, which does
+not contain the two baits that were added on 2026-09-25 to close a known false pass.
+The revision was identified by byte-matching the three headers it does set. **A stale
+canary produces confident wrong answers, which is worse than no answer.**
+
+### Step 1 — replace the whole directory, then prove you did
+
+Delete `httpdocs/ethr-canary/` and upload all six files fresh. Do not upload
+selectively; the point is to eliminate the possibility that you are testing a mixture
+of revisions.
+
+**Then confirm the revision before trusting anything.** Open
+`https://<APP_DOMAIN>/ethr-canary/canary.php` and check both:
+
+| Check | Required |
+|---|---|
+| `secret.env.probe` is listed in the File Manager | it must exist — it is the bait for the gate that matters most |
+| The response carries **7** security headers, not 3 | the 2026-09-18 revision sets exactly `X-Ethr-Canary`, `X-Content-Type-Options`, `X-Frame-Options` |
+
+If you see three headers, you are still looking at the old file. Stop and re-upload.
+
+### Step 2 — fetch these two URLs
+
+| # | URL | Records | PASS | FAIL | NOT RUN |
+|---|---|---|---|---|---|
+| 1 | `https://<APP_DOMAIN>/ethr-canary/secret.env.probe` | **G0-B.3(b)** — `RewriteRule … [F,L]` | **403** | **200** — and this blocks deployment on every branch | **404**, or anything else. A 404 means the bait is absent, i.e. you are testing the old revision. **A 404 IS NOT A PASS** |
+| 2 | `https://<APP_DOMAIN>/ethr-canary/canary.php`, response headers in DevTools → Network | **G0-B.2(b)** — does the CSP survive nginx/Imunify | `Content-Security-Policy` present **and untruncated** | header absent, or its value cut short | fewer than 7 headers overall → old revision, re-upload |
+
+**Why fetch 1 is the highest-value single request in this migration.** The deployment
+protects `api/.env`, `.git/` and `composer.json` with `RewriteRule … [F,L]`. The
+canary has already proved the *other* deny form works — `<FilesMatch>` +
+`Require all denied` returned 403 — and the deployment does not use that form. So the
+one mechanism the deployment relies on is the one mechanism still unmeasured. A 200
+means `APP_KEY` and the database password are web-readable **while the application
+works normally**, which is the failure shape this whole workstream keeps finding.
+
+### Step 3 — record, and do not round up
+
+Write the two results into
+[`../../../docs/deployment/GATE-0-RESULT.md`](../../../docs/deployment/GATE-0-RESULT.md)
+→ *Gate status reconciliation*, replacing `HOSTING ACTION REQUIRED` on those two rows
+with `VERIFIED` or `FAILED` **and the date**. Use exactly those words.
+
+- **Do not record `NOT RUN` as a pass**, and do not record a 404 at all except as
+  `NOT RUN`.
+- **Do not change the application's security rules to make this easier to pass.** If
+  `[F,L]` is ignored, that is a finding about the host, and the response is a support
+  request or a layout change — not a weaker deny rule.
+
+### Step 4 — delete the directory
+
+§9 below. It discloses nothing by design, but it is a loose end, and its `.htaccess`
+is not the one the deployment wants.
+
+---
+
 ## 1 · Upload
 
 Create `httpdocs/ethr-canary/` and upload **exactly these six files** from

@@ -117,7 +117,7 @@ test('tenant admin can create webhook', function () {
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/webhooks", [
         'url' => 'https://example.com/webhook',
-        'events' => ['employee.created', 'attendance.recorded'],
+        'events' => ['employee.created', 'leave.approved'],
     ]);
 
     $response->assertStatus(201)

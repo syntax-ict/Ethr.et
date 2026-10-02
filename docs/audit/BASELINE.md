@@ -86,7 +86,7 @@ Measured inventory **[verified]**:
 | Queued job classes (`api/app/Jobs/*.php`) | **15** |
 | PHP test files (`api/tests/**/*Test.php`) | **141** |
 | Vitest files (`src/src/test/**`) | **70** |
-| Playwright specs (`src/e2e/*.spec.ts`) | **12** |
+| Playwright specs (`src/e2e/*.spec.ts`) | **13** *(was 12; re-counted 2026-09-30. First measured run the same day: the functional suite, 125 tests, all passed on desktop Chromium — `./scripts/gates.sh e2e`)* |
 | Markdown docs (`docs/**/*.md`) | **53** |
 
 > These differ from figures circulating in the repo's own documents (which variously say 67 models, ~92 controllers, 144 tests). The numbers above are from `find`/`ls` in this tree today.
@@ -206,7 +206,9 @@ Horizon: see §3a. Removal is a package change plus one line in `bootstrap/provi
 
 ## 7. Queue architecture
 
-**15 job classes.** Declared timeouts **[verified]**:
+**16 job classes**, all of them `ShouldQueue` **[re-measured 2026-09-25]**. *(Read **15** until
+then — accurate when written; a sixteenth has since landed. The timeout table below was not
+re-derived and still lists 15.)* Declared timeouts **[verified]**:
 
 | Job | Timeout |
 |---|---|
@@ -246,7 +248,18 @@ This is a live correctness defect on any host using `QUEUE_CONNECTION=database`,
 
 ## 8. Scheduled tasks
 
-**12 entries** in `api/routes/console.php` **[verified]**: `devices:sync` every 5 min; missing-punch scan 15:30; anomaly scan 15:45; leave accrual monthly 1st 00:30; carry-forward yearly 1 Jan; expiring-trial notices 05:00; scheduled reports hourly; dashboard digests hourly; approval reminders 06:00; invoice generation monthly 1st 03:00; overdue invoices 04:00; cleanup 02:00.
+**14 entries** in `api/routes/console.php` **[re-measured 2026-09-25: 6 `Schedule::call`, 6
+`Schedule::job`, 2 `Schedule::command`]**: `devices:sync` every 5 min; missing-punch scan 15:30;
+anomaly scan 15:45; leave accrual monthly 1st 00:30; carry-forward yearly 1 Jan; expiring-trial
+notices 05:00; scheduled reports hourly; dashboard digests hourly; approval reminders 06:00;
+invoice generation monthly 1st 03:00; overdue invoices 04:00; cleanup 02:00; **`ethr:backup`
+daily 01:00**; **the minute scheduler heartbeat** (`QueueHealth::beat()`).
+
+> *Read **12** until 2026-09-25.* The two missing were the backup and the heartbeat — and the
+> heartbeat is the one that makes the other thirteen observable, since it is what lets
+> `ethr:queue:check` and `/api/v1/health` tell **quiet** from **dead**. `CronRunController`'s
+> own docblock already said *"fourteen entries"*, so the two in-repo sources disagreed; 14 is
+> the measurement.
 
 Eight use `->withoutOverlapping()`, which is cache-lock backed. The `cache_locks` table exists, and `CACHE_STORE=database` locking was live-verified against real MariaDB **[documented-done]**, commit `7e31519`.
 
@@ -257,7 +270,7 @@ Eight use `->withoutOverlapping()`, which is cache-lock backed. The `cache_locks
 **[verified]**
 
 - `api/app/Services/FileStorageService.php:64` resolves `config('filesystems.default')` — previously the literal `'minio'`, fixed in `80cac67`. **Storage backend is now a pure config switch**; preserve that property, it is the escape hatch if local disk proves too small.
-- `api/app/Services/Admin/SystemHealthService.php:66` **still hardcodes `Storage::disk('minio')`** — missed by `80cac67`. It sits inside `try/catch`, so it degrades to "unhealthy" rather than 500: the admin health page will show storage permanently red on any non-MinIO deployment. That page is the first thing an operator checks.
+- ~~`api/app/Services/Admin/SystemHealthService.php:66` **still hardcodes `Storage::disk('minio')`** — missed by `80cac67`.~~ **FIXED — re-measured 2026-09-25.** It now reads `Storage::disk(config('filesystems.default'))` at **`:95`**. The original finding is struck rather than deleted because it was correct when written and the consequence it named was real: the call sits inside `try/catch`, so it degraded to "unhealthy" rather than 500, and the admin health page — *the first thing an operator checks* — would have shown storage permanently red on any non-MinIO deployment. **Leaving it listed as broken would have misdirected the first hour of a shared-hosting deployment**, which is why this line was corrected rather than left to age.
 - `api/public/storage` is a symlink to the Docker-absolute `/var/www/api/storage/app/public`. **It is not tracked in git** (`git ls-files` returns nothing), so it will not ship broken — but `storage:link` must run on the host.
 - No writes outside `storage/` and `bootstrap/cache`. No `exec`, `shell_exec`, `proc_open`, `symlink` or `putenv` anywhere in `app/`.
 
@@ -424,7 +437,71 @@ $ php -d memory_limit=-1 vendor/bin/pest --compact
 
 This is the first measured backend figure in the repository. The seven documents listed in §12b carry six different numbers (954 / 1328 / 1330 / 1647 / 1652 / 1669), none of them dated to a run. **1673 / 4966 is the one with a command and an exit code attached.**
 
-### 12c. PHPStan disagrees between this machine and CI, and the reason is unknown **[open]**
+### 12c. PHPStan disagrees between this machine and CI — **CLOSED 2026-09-28: it was never the OS, it is `.env` presence**
+
+> **Read this box first; the investigation below is kept because four of its hypotheses
+> were wrong in instructive ways, but its central framing — "this machine versus CI" —
+> was the wrong axis.**
+>
+> Measured by `.github/workflows/phpstan-divergence-probe.yml` (deleted 2026-09-30 — it
+> only re-fired on edits to itself and its result is recorded here), which ran the
+> `dumpType()` probe on the runner that produced the original errors, in two shapes:
+>
+> | Condition | Dumped type | `createToken()` |
+> |---|---|---|
+> | **A** — no `.env` | `Illuminate\Contracts\Auth\PasswordBroker` | **flagged** |
+> | **B** — with `.env` | `Illuminate\Contracts\Auth\PasswordBroker` — *identical* | **not flagged** |
+>
+> Same runner, same PHP 8.2, same `composer.lock` (larastan v3.10.0, phpstan 2.2.2).
+> Reproduced on both trigger paths (push and `workflow_dispatch`), runs `36412606831`
+> and `36412639271`.
+>
+> **And this Windows machine reproduces condition A exactly** — hide `.env`, clear the
+> result cache, and it reports
+> `Call to an undefined method Illuminate\Contracts\Auth\PasswordBroker::createToken()`.
+> So there is no cross-platform disagreement to explain. **`Windows vs Linux` and
+> `the PHP patch build`, listed above as "still untested", are answered: neither is the
+> variable.**
+>
+> **It is not `APP_KEY` either.** `.env` present with `APP_KEY=` empty: not flagged. The
+> variable is the *file existing*, not any value in it.
+>
+> **Why run #56 and nothing since.** `gates.yml`'s `backend` job gained
+> `cp .env.example .env` + `key:generate` **on 2026-09-16** — the fix for cause 4, 156
+> tests dying on `MissingAppKeyException`. Run #56 was that same day and had no `.env`.
+> Every run since has had one. The fix for a test failure silently changed what static
+> analysis reports, which is why this looked like a platform mystery for twelve days.
+>
+> **The consequence is the opposite of reassuring, and is the reason this section
+> mattered.** The four findings were *true* — `Illuminate\Contracts\Auth\PasswordBroker`
+> genuinely declares only `sendResetLink()` and `reset()`, confirmed by direct
+> reflection. The configuration that **hides** them is the one with `.env`, which is
+> both this machine's shape and CI's shape today. So the gate as configured suppresses a
+> whole class of true positive: **any method called on a facade-returned contract whose
+> real implementation is reached through the container.** Deleting `.env` makes PHPStan
+> stricter, not more broken. Nothing here is a reason to relax the gate; it is a reason
+> to know what the gate does not see.
+>
+> **Mechanism — now strongly supported rather than hypothesised, with one gap stated.**
+> The dumped type is the *interface* in both conditions, so this is not a return-type
+> swap; §12c refuted that on 2026-09-17 and the probe agrees. What changes is whether a
+> *call* on that interface-typed value is accepted. That asymmetry is exactly the
+> signature predicted for `larastan/src/Methods/ManagersMethodsExtension.php`, which
+> grants a manager's methods by resolving the value **through the live container** — it
+> can only do that when the application boots, and the boot needs `.env`. What was
+> **not** done: instrumenting that extension to observe it firing. The prediction and
+> the observation match; the causal link is inferred from that match.
+>
+> **One contradiction left standing rather than tidied away.** The hypothesis table
+> below records *"hid `.env`, set `BROADCAST_CONNECTION=null`, re-ran → `[OK] No
+> errors`"*. Today, hiding `.env` flags the call — on this same machine. Since
+> `config/broadcasting.php` has defaulted to `null` since 2026-09-25, that variable
+> should no longer change anything. Either that measurement was mistaken or something
+> else moved with it; it is **not resolved**, and it is recorded as a discrepancy rather
+> than overwritten, because a measurement that contradicts a later one is evidence about
+> the method, not noise.
+>
+> No PHPStan configuration was changed, and no error was suppressed, to close this.
 
 CI run #56 (2026-09-16, commit `49e2ee9`) was the **first run in which PHPStan had ever executed** — until `phpstan_gate` stopped requiring a Docker container it had never run there at all. It reported exactly four errors, all the same shape:
 
@@ -487,7 +564,7 @@ Suites: `api/tests/{Unit,Feature,Performance}` — `phpunit.xml` declares only U
 
 **[verified]** — Phase 1 consumes this directly.
 
-1. **Nine stale `deployment/shared-hosting/` references** survive the move, in `docs/ROLLBACK_RUNBOOK.md`, `PRODUCTION_CHECKLIST.md`, `DATABASE_MIGRATION_PLAN.md`, `MIGRATION_STATE.md`, `MIGRATION_CHANGELOG.md`, `SHARED_HOSTING_MIGRATION_PLAN.md` — **and five inside the moved files themselves**, including `docs/deployment/shared-hosting/DEPLOYMENT.md:24`, a literal copy instruction naming a directory that no longer exists.
+1. **Nine stale `deployment/shared-hosting/` references** survive the move, in `docs/ROLLBACK_RUNBOOK.md`, `PRODUCTION_CHECKLIST.md`, `DATABASE_MIGRATION_PLAN.md`, `MIGRATION_STATE.md`, `docs/archive/migration/MIGRATION_CHANGELOG.md`, `docs/archive/migration/SHARED_HOSTING_MIGRATION_PLAN.md` — **and five inside the moved files themselves**, including `docs/deployment/shared-hosting/DEPLOYMENT.md:24`, a literal copy instruction naming a directory that no longer exists.
 2. **`docs/AGENTS.md` is a 236-line-divergent fork of `docs/CLAUDE.md`**, still carrying the "Ignore ALL Git-related functionality" ban that commit `0997faa` explicitly retired. Two rule files, one corrected, one not.
 3. **Four documents assert CI that does not exist** — `docs/CLAUDE.md:269,716`, `docs/AGENTS.md:227,604`, `docs/SECURITY.md:298`, `docs/security-audit.md:84`.
 4. **Six different test counts across seven documents** — 954 / 1328 / 1330 / 1647 / 1652 / 1669. Only `docs/security-audit.md` carries a `Last reviewed:` stamp, and it is the most stale.
@@ -2770,21 +2847,111 @@ found at all.
    language" — WCAG 2.5.3, and a voice-control user could not say what they could
    see.
 
-### Three findings left open, deliberately
+### Three findings left open, deliberately — **all three closed 2026-09-28**
 
-- **`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
+Two were closed by deciding them; the third turned out not to need a decision at all,
+because it had already been fixed and the entry had outlived the defect.
+
+- ~~**`--text-secondary` (#6c7b91) is 4.3:1 on white.** AA needs 4.5:1 for text
   below 18.66px bold / 24px, so *every* `text-sm text-muted-foreground` on a white
   surface is marginally under. Lighthouse flags it intermittently, which is what a
   4.3 against a 4.5 threshold looks like. Fixing it means darkening the token and
   repainting the whole product — a Phase 8 decision, not a landing-page one. One
   10px label in `product-flow.tsx` was moved to `text-foreground` because 10px is
-  the worst case; nothing else was touched.
-- **`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
+  the worst case; nothing else was touched.~~
+  **CLOSED 2026-09-28 — the finding was stale, not deferred.**
+
+  `globals.css` declares `--text-secondary: #64748b`, which is **4.76:1** on
+  `--surface-primary`. The `#6c7b91` recorded here has not been in the file for some
+  time; the token had already been brought in line with the design system's own
+  `#64748B` (`docs/CLAUDE.md` → Semantic Color Tokens). Every pair measures clear:
+
+  | Pair (light) | Ratio | AA |
+  |---|---|---|
+  | `--text-secondary` on `--surface-primary` | 4.76:1 | pass |
+  | `--text-secondary` on `--surface-secondary` | **4.55:1** | pass, barely |
+  | `--text-primary` on `--surface-primary` | 17.85:1 | pass |
+  | `--text-on-sidebar` on `--surface-sidebar` | 10.9:1 | pass |
+
+  **The reason this became a test rather than a doc edit** is the second row. 4.55
+  is six hundredths over the line: a barely-perceptible change to either token drops
+  it under AA with nothing visible to review against, and Lighthouse reports that
+  band intermittently — which is exactly what a reviewer learns to ignore.
+  `src/src/test/design-token-contrast.test.ts` computes the ratios from
+  `globals.css` on every run. A measurement written in prose goes stale silently;
+  this entry is the proof of that, having outlived its own defect.
+
+  The test reads tokens from a named block, because the file declares these names
+  three times over (light, dark, high-contrast) and a file-wide regex would return
+  whichever came first and silently test the wrong theme. It also asserts
+  `contrast('#000','#fff') === 21` and that the old `#6c7b91` still computes to
+  4.30, so the arithmetic itself is not taken on trust.
+- ~~**`/icons/badge-72.png` does not exist**, and both `public/manifest.json` and
   `public/sw.js:110` reference it. Push-notification badges are therefore broken
-  app-wide. Not touched: it is service-worker behaviour, not the public site.
-- **Two manifests.** `public/manifest.json` is the one linked from every page;
+  app-wide. Not touched: it is service-worker behaviour, not the public site.~~
+  **CLOSED 2026-09-28 — and it was three icons, not one.**
+
+  Writing the guard is what found the other two. `src/src/test/pwa-assets.test.ts`
+  sweeps every `/icons/…` path either file references and asserts it exists; on its
+  first run it reported **`checkin-96.png` and `calendar-96.png`** as well — the two
+  PWA *shortcut* icons, for "Check In" and "My Attendance". Nothing had ever looked,
+  and that is the argument for a sweep over a fix: a missing icon is not a type
+  error, not a lint error, not a broken markdown link and not a failing request in
+  any test. The browser asks for it on a device, in production, and renders the
+  shortcut or notification without it — which reads as a design choice rather than
+  a defect.
+
+  All three are generated by `scripts/icons/generate-pwa-icons.php`, not drawn, so
+  the assets have a source: a binary nobody can regenerate is one the next person
+  has to trace by eye. `--check` re-renders and compares, so a gate can assert they
+  still match.
+
+  **The badge is the "E" glyph, not the app icon**, and the distinction is the
+  whole defect rather than a nicety. Its manifest entry declares
+  `"purpose": "monochrome"`, and Android renders a badge as an **alpha mask** —
+  colour is discarded and every opaque pixel filled with a system accent. Pointing
+  the entry at `icon-72.png`, whose artwork is a filled rounded square, would have
+  satisfied "the file exists" and rendered as a solid blob with an E-shaped hole at
+  ~24px. So the glyph is extracted from `icon-512.png` ("the pixels that are white
+  and opaque") rather than re-drawn, which also means a redrawn brand mark carries
+  through. The test pins that entry as *not* one of the `icon-NN.png` files, so the
+  cheap wrong fix cannot pass it.
+
+  Mutation-checked: deleting the badge from disk, and repointing the monochrome
+  entry at the colour icon, each turn the guard red; restored byte-exact.
+- ~~**Two manifests.** `public/manifest.json` is the one linked from every page;
   `app/manifest.ts` generates `/manifest.webmanifest`, which nothing references.
-  Both serve 200. One of them is dead, and deciding which is a PWA question.
+  Both serve 200. One of them is dead, and deciding which is a PWA question.~~
+  **CLOSED 2026-09-28 — `app/manifest.ts` deleted.**
+
+  The evidence settles which is live: `root-shell.tsx:73` sets
+  `manifest: "/manifest.json"`, and the built HTML carries
+  `<link rel="manifest" href="/manifest.json">`. Nothing anywhere references
+  `/manifest.webmanifest`.
+
+  **The dead one was not inert, which is what made it worth deleting rather than
+  leaving.** In the App Router, Next auto-links a generated manifest when no
+  explicit one is set — so removing that single line from `root-shell.tsx`, for any
+  unrelated reason, would have silently promoted `app/manifest.ts`. And the two
+  disagreed on things nobody would look for afterwards:
+
+  | | `public/manifest.json` (live) | `app/manifest.ts` (deleted) |
+  |---|---|---|
+  | `theme_color` | `#0F4C75` — ETHR Primary | `#2563eb` — stock Tailwind blue |
+  | `background_color` | `#ffffff` | `#0f172a` |
+  | shortcuts | 2 | none |
+  | monochrome badge | yes | none |
+
+  A file that is dead until an unrelated edit makes it live, and then serves the
+  wrong brand colour without the notification badge, is worse than no file.
+  Deleting it also retires one of the three build-stopping blockers the static
+  export hit (`docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E, `GATE-0-RESULT.md` G0-A): the
+  `force-static` directive that file needed is moot now there is no metadata route.
+  Those entries are left as written — they record what the export attempt found.
+
+  `pwa-assets.test.ts` now asserts `app/manifest.ts` does not exist and that
+  `theme_color` is `#0F4C75`, so the second manifest cannot return quietly and the
+  colour cannot drift back. Both mutation-checked.
 
 ### The 403s in the report are not a defect
 
@@ -2805,3 +2972,785 @@ CHROME_PATH=/path/to/chrome LHCI_BASE_URL=http://localhost:3000 \
 The gate refuses rather than skips when nothing is serving. A Lighthouse run that
 silently measures nothing is worse than no run, because the report still renders
 and still looks like evidence — which is precisely how defect 1 above survived.
+
+---
+
+## 19. Static export — **measured 2026-09-26**
+
+Closes the *"does not work as written"* annotation on
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 step 4, open since 2026-09-18 (`7aed9d2`) and promoted to the critical path on
+2026-09-25 once the Node branch was correctly re-read as foreclosed by
+`SHARED-HOSTING-CONTRACT.md` rule 2.
+
+Measured against the pinned versions — **Next 16.3.5, React 19.2.7** — in an isolated
+four-route probe served by an emulation of the BRANCH B rule set, then re-checked against
+the real application's build. Everything below is an observation, not an inference.
+
+### 19a. What step 4 actually got wrong — three things, not one
+
+| # | The step said | Measured |
+|---|---|---|
+| 1 | Add `generateStaticParams` to the four dynamic routes | Rejected: all four are `"use client"`. **Confirmed** — a server-component wrapper is required, and one works |
+| 2 | Return `[]` | Emits **no file** for the route, so every real id 404s. `[]` is a valid answer to *"which pages exist"* and the answer it gives is *none* |
+| 3 | *(not mentioned)* | **The generic BRANCH B rewrite was also wrong, and it would have 404'd every page on the site** — see §19c |
+
+The third was not in the annotation and is the one that would have cost the most, because
+it fails on `/features` and `/pricing`, not only on entity routes — so it would have
+presented as *"the static export does not work at all"* rather than as a routing bug.
+
+### 19b. The sentinel, and the one finding that decides the design
+
+Ids are tenant data — `char('public_id', 26)` ULIDs created after the build — so there is no
+set of values to enumerate. The mechanism is therefore **one shell per route, built under a
+sentinel id**, handed to every id by the web server, with the real id read back out of the
+URL.
+
+Which leaves the question of where the client gets the id from. Measured on a shell served
+for a *different* id — `/employees/real-42` answered by `employees/__id__.html`:
+
+| Source | Returns | Usable |
+|---|---|---|
+| The `params` prop the server resolved | `__id__` | **No** — it is the build's id |
+| `useParams()` | `__id__` | **No** — params come from the prerendered payload, not from the URL |
+| `usePathname()` | `/employees/real-42` | **Yes** |
+
+`useParams()` returning the sentinel is the finding worth carrying: it is the API whose name
+suggests it is the right one, and it silently reports the placeholder. A first version that
+trusted it would have made every entity page fetch `/employees/__id__` and render *"not
+found"* — a failure that looks like missing data rather than like a routing defect.
+
+**Deriving the id during the first client render raises React hydration error #418**, because
+the shell's HTML was rendered for the sentinel and a first render that already knows the real
+id disagrees with it. `src/src/lib/hooks/useRouteId.ts` uses `useSyncExternalStore` with a
+`getServerSnapshot` for exactly this: it hydrates against the sentinel, then re-renders with
+the real id, and no mismatch is possible. Measured — the error appears with the naive version
+and is absent with this one.
+
+### 19c. How the exporter names files
+
+| Route | File emitted |
+|---|---|
+| `/` | `out/index.html` |
+| `/features` | `out/features.html` |
+| `/employees/[id]` | `out/employees/__id__.html` plus `out/employees/__id__.txt` |
+
+**Not `out/features/index.html`.** The `/index.html` form is what `trailingSlash: true`
+produces, and `next.config.ts` does not set it. The BRANCH B rule that shipped tested
+`%{REQUEST_FILENAME}/index.html` and rewrote to `$1/index.html`, which matches nothing this
+exporter writes. Rewritten in
+[`../deployment/shared-hosting/.htaccess`](../deployment/shared-hosting/.htaccess).
+
+### 19d. Verified over HTTP, in a browser
+
+Against the emulated rule set, with `employees` and the nested `admin/tenants` both present:
+
+| Case | Result |
+|---|---|
+| Deep link to an entity route | 200, real id resolved |
+| Deep link to a **nested** entity route (`/admin/tenants/<id>`) | 200, real id resolved |
+| Client-side `Link` navigation to an entity route | real id resolved |
+| Browser back, then forward | real id resolved |
+| A route with no file behind it | 404 |
+| Hydration and page errors | **none** |
+
+### 19e. One cost, measured and deliberately not worked around
+
+A client-side navigation to an entity route also prefetches the page's segment-cache file
+under `/employees/<id>/`, and **that 404s**: Next asks for it with dots where the exporter
+wrote it with slashes. Navigation is unaffected — Next falls back to the full RSC payload,
+which the `.txt` rule serves.
+
+The cost is one failed request per navigation. Closing it would mean hardcoding a
+Next-internal filename per route in `.htaccess`, which breaks silently on the next Next
+upgrade; the 404 is the cheaper failure because it is visible. **Do not close it by pointing
+the 404 fallback at an entity shell** — that turns every genuine 404 into a page that looks
+like it loaded.
+
+### 19f. What this does *not* change
+
+`output` is still `"standalone"`. Nothing here flips the branch — steps 1–3 of §5's fallback
+(the `output` switch, deleting `middleware.ts`, the `(auth)/layout.tsx` `headers()` read)
+remain undone, and `middleware.ts` is still what enforces the `/admin` host boundary.
+
+> **True of this pass, and superseded by §20 later the same day.** Steps 1–3 were then done:
+> `output` follows `ETHR_TARGET` with `standalone` as the default, `middleware.ts` was kept
+> rather than deleted, and the `/admin` boundary moved to `.htaccess` at the routing layer.
+> Read §20 before acting on this paragraph.
+
+The refactor is correct under **both** modes, which is why it can land before that decision.
+Verified against the real application on `standalone`:
+
+- `next build` exits 0 and prerenders `/employees/__id__`, `/payroll/__id__`,
+  `/devices/__id__` and `/admin/tenants/__id__` as SSG.
+- `next start` serves an **arbitrary** ULID at each of those routes with **200**, and the
+  SSR'd HTML carries the **real** id — `dynamicParams` defaults to `true`, so an id outside
+  `generateStaticParams` is still server-rendered on demand and `useRouteId` returns the
+  param untouched. **No regression to the deployment that exists today.**
+- 86 Vitest files / 591 tests pass, `tsc --noEmit` clean, ESLint 0 errors,
+  `prettier --check src/` clean.
+
+### 19g. What is still a decision, not a measurement
+
+The sentinel serves an entity route to anyone who requests one, and the **authorisation**
+boundary is unchanged — `AuthGuard` and the API's tenant scope both still apply, and the
+shell carries no tenant data: it is the loading skeleton, verified in the emitted HTML.
+What changes is that a wrong id now reaches the client shell and fails at the API instead of
+failing at the web server. That is the same behaviour `standalone` already has.
+
+**Still open, and outside this pass:** `middleware.ts`'s `/admin` host rule has no
+replacement under a static export other than the commented BRANCH B block, which has never
+been run. That is tracked as its own MEDIUM risk in
+[`../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md`](../migration/AUTHORITATIVE-BRONZE-MIGRATION-PLAN.md)
+§7 and is not closed here.
+
+### 19h. How to reproduce
+
+```bash
+cd src && npx next build            # the four [id] routes should prerender as SSG
+npx next start -p 3000
+curl -o /dev/null -w '%{http_code}\n' localhost:3000/employees/01J8ZQ9K0000000000000000AA
+node node_modules/vitest/vitest.mjs run src/test/static-export-route-id.test.tsx
+```
+
+The export-mode half cannot be reproduced from this repository yet, because `output: "export"`
+also requires steps 1–3. It was measured in a standalone probe built on the same pinned
+versions; the rule set it verified is the one now in
+[`../deployment/shared-hosting/.htaccess`](../deployment/shared-hosting/.htaccess), and the
+id-resolution half is pinned by `src/src/test/static-export-route-id.test.tsx`.
+
+### 19i. Verification pass — **2026-09-26, and it found a defect in §19's own work**
+
+§19 was written from the measurements above and then verified against the shipped files. The
+verification is recorded separately from the implementation because **it did not agree with
+it**, and the disagreement is the useful part.
+
+**Two regex escapes were lost writing the rules into `.htaccess`.** The rules that shipped
+read `(__next..*)` and `[^/]+.txt$` where the measured ones were `(__next\..*)` and
+`[^/]+\.txt$`. An unescaped `.` matches any character, so `/employees/<ULID>Xtxt` would have
+been rewritten to the RSC payload instead of the document. Fixed, and the fix is the reason
+for the check below.
+
+**How it was caught, and what that does not buy.** The rules were not retyped into a
+checker — the checker parsed the `RewriteCond`/`RewriteRule` lines **out of the shipped
+`.htaccess`** and replayed them, with `-f` and `-d` modelled, against the exact `out/`
+listing a real export produced. **12 of 12 cases route as measured**, including the two
+negative cases the lost escapes had made wrong.
+
+> **That checker is not in the repository and is not a gate.** It was a one-off script, so
+> what is recorded here is a *measurement*, not a control: nothing stops the same escape
+> being lost again, and `gates.sh` does not read `.htaccess` at all. Wiring it in is a
+> reasonable follow-up and is deliberately not done here — it would be a new gate, which is
+> outside closing this blocker. **Until then, treat the rules as verified-once rather than
+> pinned**, and re-run the replay by hand if they are edited.
+
+> **The first version of that checker was itself wrong**, and reported `/` as a 404. It
+> ignored the `!-f` / `!-d` conditions. `REQUEST_FILENAME` for `/` is the document root — a
+> **directory** — so the fallback's `!-d` fails, the rule does not fire, and `mod_dir` serves
+> `DirectoryIndex index.html`. Three layers of "measured" in a row each had a defect the next
+> one found; none of them were in the application code.
+
+**The `.html` naming is now confirmed from the real application, not only from the probe.**
+`next build` writes `.next/server/app/am/features.html`, `admin/tenants.html`, `admin.html` —
+flat, every one. The **only** `index.html` in the whole tree is the root. So the rewrite that
+shipped (`$1/index.html`) would have matched the apex and nothing else, which is §19c's claim
+evidenced against ETHR itself rather than a four-route probe.
+
+**All four shells exist in the real build**, each with `.html`, `.rsc`, `.meta` and
+`.segments`, and `prerender-manifest.json` lists all four under `routes` with the four
+`[id]` routes under `dynamicRoutes` — which is what makes an unlisted id server-render
+rather than 404.
+
+**The shells carry no tenant data.** Stripped of markup, all four render the same thing: the
+product name and `በመጫን ላይ...` — the loading state. The sentinel does not appear in visible
+text.
+
+**Authorization and tenant isolation were re-checked rather than assumed:**
+
+| Check | Result |
+|---|---|
+| Files changed under `api/` | **0** — the tenant scope, the policies and route-model binding are untouched |
+| `useParams()` called anywhere in the frontend | **Never** — it appears only in explanatory comments |
+| `usePathname()` read for an id | Only in `src/src/lib/hooks/useRouteId.ts` |
+| Authorization lines added/removed/changed in the diff | **None** — no `AuthGuard`, `RoleGate` or `minRole` line appears in it |
+| The gate in front of these routes | `(dashboard)/layout.tsx` → `DashboardShell` → `AuthGuard`, unchanged; the new `page.tsx` files are its children |
+| Where a foreign id fails | `EmployeeController::show(Employee $employee)` — route-model binding resolves through `BelongsToTenant`'s global scope, so another tenant's `public_id` 404s **before** `authorize('view', …)` runs |
+
+The routing change cannot weaken any of that, because routing never decides what data comes
+back — it decides which shell is served, and the shell is a skeleton.
+
+**A regression test was added for the one property nothing covered.** The existing tests
+exercise the resolved *value*; none exercised *when* it resolves, which is the half that
+raises hydration error #418. `useRouteId under a real hydration` renders the shell with
+`renderToString` on the sentinel path, hydrates it on a real id, and asserts the exported
+HTML is the loading state, that the real id appears after hydration, and that nothing
+matching `/hydrat|did not match|418/` reached `console.error`.
+
+**It was mutation-checked, because a test that cannot fail is not evidence.** Replacing the
+hook's body with the naive `return routeIdFromPathname(pathname)` — the version that looks
+like a simplification — **fails it**. The hook was restored and the suite re-run.
+
+### 19j. Unknown 3b — **CLOSED**
+
+**Cause.** `output: "export"` builds one HTML file per value `generateStaticParams()` returns.
+ETHR's ids are ULIDs created after the build, so there is nothing to enumerate; `[]` emitted
+no file and 404'd every id, and the four routes were `"use client"`, which Next refuses
+`generateStaticParams` on. Separately, the rewrite meant to serve the result targeted
+`$1/index.html`, which this exporter never writes.
+
+**Solution.** One server-component `page.tsx` per route returning a single **sentinel** id;
+the existing screen moved beside it as a client component; `useRouteId` reading the real id
+from `usePathname()` after hydration — never from `useParams()`, which on such a shell
+returns the sentinel; and a BRANCH B rule set rewritten to the artifacts the exporter
+actually produces.
+
+**Scope.** `next.config.ts` is untouched and `output` is still `"standalone"`. Steps 1–3 of
+`shared-hosting/DEPLOYMENT.md` §5 — the `output` switch, `middleware.ts`, the
+`(auth)/layout.tsx` `headers()` read — are unchanged and remain the branch decision.
+
+> **That was the scope of *this* pass. §20, later the same day, did steps 1–3** —
+> `next.config.ts` is no longer untouched. `standalone` remains the default, so nothing
+> about 3b's conclusions changes; the sentence above is a record, not the current state.
+
+---
+
+## 20. The rest of the frontend conversion — **measured 2026-09-26**
+
+§19 closed unknown 3b, the entity-route half. This is the other three items
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 names — the `output` switch, `middleware.ts`, and the `(auth)/layout.tsx` `headers()` read
+— plus the `/admin` boundary that had no tested replacement.
+
+**Everything below is `LOCAL VERIFIED`.** A real `output: "export"` build, served by an
+emulator that reads its rewrite rules *and* its response headers out of the shipped
+`.htaccess`, driven in a real browser. **Nothing here is `HOST VERIFIED`** — no request has
+been made to the Ethio Telecom account in this pass, and the two findings below that matter
+most both depend on Apache behaving as modelled, which is M1's job to confirm.
+
+### 20a. Three defects found, none of them in the item being worked on
+
+| Found in | Defect | Consequence if shipped |
+|---|---|---|
+| `.htaccess` rule order | The `/admin` host deny sat **after** the SPA fallback, which ends with `[L]` | **`/admin` on a tenant host returned 200, not 403** — measured. The replacement for middleware's boundary never fired |
+| `.htaccess` CSP | `script-src 'self'` | **The application never hydrates.** 3 blocked inline scripts and React error #412 on every page, while the HTML still renders |
+| `host-provider.tsx` | `useHost()`'s browser fallback was read during the first render | Hydration error #418 on every auth page under export — the exact error that file exists to remove |
+
+None was in `output`, `middleware.ts` or the `headers()` read. The work the audit named was
+comparatively mechanical; what it did not name was where the failures were.
+
+### 20b. `output` — a switch, not a flip
+
+`src/lib/build-target.ts` reads `ETHR_TARGET`; `next.config.ts` selects `export` for
+`shared-hosting` and `standalone` otherwise.
+
+**It is not flipped unconditionally, deliberately.** `VPS-DECOMMISSION.md` is `NOT TRIGGERED`
+and `VPS_DEPLOYMENT.md` is the rollback path. `next build` under `export` emits **no
+`server.js`**, which is precisely what `docker/frontend/Dockerfile` runs — so flipping it
+would delete the rollback before there is anything to roll back *to*, against the migration
+plan's own rule that nothing irreversible happens before a verified cutover. The switch also
+makes the export build runnable in CI, which is what turns "verified once by hand" into
+something a gate can check.
+
+`headers` and `rewrites` are **deleted** from the config on the export target rather than
+made to return nothing: Next warns while the key is merely present, whatever it returns, and
+a build that always prints two warnings is a build whose warnings stop being read.
+
+### 20c. `middleware.ts` — kept, because the measurement says it can be
+
+**Next 16.3.5 builds a static export with `middleware.ts` present.** It does not reject it;
+it says so and moves on: *"Statically exporting a Next.js application via `next export`
+disables API routes and middleware."* §5 step 2's instruction to delete the file is therefore
+**not required**, and deleting it would cost the VPS rollback path and local development a
+working control for nothing.
+
+| Responsibility | Required? | Can static hosting replace it? | Safe replacement | Evidence |
+|---|---|---|---|---|
+| **Locale negotiation** on the seven unprefixed public routes | No — it is an optimisation | n/a | `(root)/locale-redirect.tsx` does the same negotiation in the browser, with a `<noscript>` fallback | Its own docblock: *"middleware does not run under `output: "export"` … so correctness cannot depend on it."* Measured: `/` → `/en` in the browser on the real export |
+| **`/admin` refused off the platform host** | **Yes** | **Yes, at the same layer** — this is routing, not authorization | `.htaccess` `RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$` → `RewriteRule ^admin(/|$) - [F,L]` | Measured after reordering: tenant host **403**, apex **403**, admin host **200** |
+| **Tenant routes on the platform host → `/admin`** | No — a convenience for stale bookmarks | Yes | Same block's `[L,R=302]` rule | Measured: `admin.ethr.et/dashboard` → **302** |
+| **Authentication** | — | — | **Middleware never did this.** It reads no cookie and no token | Read in full; there is no auth logic in the file |
+| **Headers** | — | — | Never did this either; `next.config.ts` did, and `.htaccess` does now | — |
+| **Route filtering / API exclusions / static assets** | No | n/a | Its `matcher` excludes `api`, `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest` — all of which Apache serves directly | — |
+
+**One thing the export ships that is worth knowing:**
+`out/_next/static/*/_clientMiddlewareManifest.js` contains `__MIDDLEWARE_MATCHERS` covering
+almost every route. It is inert — measured: client-side navigation between static pages works
+and every route renders — but it is a file describing a control that cannot run, and anyone
+auditing the output will find it.
+
+### 20d. `headers()` — narrowed, not replaced
+
+`(auth)/layout.tsx` reads `headers().get("host")` so the login page knows which organisation
+it is for on the first render. **That one line is why `/login`, its four sub-pages,
+`/register` and `/impersonate/claim` are the only dynamic routes in the whole application** —
+measured; every other route was already static.
+
+Under export there is no request, and `next build` stops: *"Route /login with
+`dynamic = "error"` couldn't be rendered statically because it used `headers()`"*. The read
+is now skipped on that target only. All seven routes export as static HTML.
+
+**§5 step 3 said to *replace* the read with a client-side `window.location.host`.** That
+would have given the VPS rollback path the export target's first-paint flash for no benefit.
+Keeping the read where there is a server to read from is strictly narrower and costs nothing.
+
+**The client half was already wrong, and that is the find worth carrying.** `useHost()` fell
+back to `typeof window !== "undefined" ? window.location.host : null`, with a comment
+asserting the fallback *"is only reached after hydration, so it cannot reintroduce a
+mismatch."* True while the provider supplies a host — the `fromServer !== null` line returns
+first — and **false the moment it does not**, which is exactly the export case:
+`typeof window !== "undefined"` is already true *during* hydration. It now goes through
+`useHydrated()`, the same primitive `useRouteId` uses, extracted so the two cannot drift.
+
+Cost on that target: one render with no host, so the login page shows its generic heading
+before resolving. That is §5 step 3's accepted trade. **Nothing about authorization depends
+on this value** — it decides which heading and whether to show the organisation field; the
+API decides what data exists.
+
+### 20e. `/admin` — where the boundary actually is
+
+Traced end to end, because "the UI hides the route" is not security:
+
+| Layer | Control | Under static export |
+|---|---|---|
+| Web server | `.htaccess` host rule → **403** | **Present.** Reordered so it fires; `LOCAL VERIFIED`, `[F,L]` itself is **M1** |
+| Frontend routing | `middleware.ts` redirect | **Gone** — middleware does not run. Replaced by the row above |
+| Frontend session | `AuthGuard` → `/login` | **Unchanged.** Measured on the real export: an unauthenticated request to `/employees/<ULID>` ends at `/login` |
+| Frontend role | `RoleGate minRole="super_admin"` | **Unchanged**, on all five admin screens |
+| **API context** | **`EnsurePlatformContext` → 404 whenever a tenant resolves** | **Unchanged.** Server-side, untouched by this migration |
+| **API authorization** | **`Gate::authorize('admin.manage')` on every action** | **Unchanged** |
+| **API step-up** | **`RequirePlatformMfa` on the route group** | **Unchanged** |
+
+**The bottom three are the boundary.** The console's data lives behind `/api/v1/admin`, and
+`EnsurePlatformContext` is explicit about why it exists: the nginx rule *"deliberately does
+not match"* the admin API, so a future admin endpoint added without a gate still cannot be
+called from a tenant host. Losing middleware removes a **routing** control and replaces it
+with an equivalent one a layer lower. It removes no authorization.
+
+**Measured on the real export**, with the shipped rules:
+
+| Host | Path | Result |
+|---|---|---|
+| `habru.ethr.et` | `/admin`, `/admin/tenants` | **403** |
+| `ethr.et` (apex) | `/admin` | **403** |
+| `admin.ethr.et` | `/admin`, `/admin/tenants` | **200** |
+| `admin.ethr.et` | `/dashboard` | **302 → `/admin/`** |
+| `habru.ethr.et` | `/dashboard`, `/employees/<ULID>` | **200** |
+| `admin.ethr.et` | `/robots.txt` | **200** — the `!-f` condition added with the reorder |
+
+### 20f. The CSP, and the one directive that decides whether anything works
+
+Served under the CSP as it stood, on a real export:
+
+| `script-src` | Result |
+|---|---|
+| `'self'` | **3 CSP violations per page, React error #412, nothing hydrates.** `/employees/<id>` sits on the loading skeleton forever; `/` never negotiates a language |
+| `'self' 'unsafe-inline'` | **0 violations, 0 hydration errors**, every route renders and navigates |
+
+The build emits three inline `<script>` blocks — ~13 KB, the theme bootstrap plus the RSC
+payload — and **Next does not nonce them**. A nonce needs a server to mint one per response,
+which is the thing this target does not have.
+
+**`'unsafe-eval'` is not needed** — zero violations without it, though `next.config.ts` grants
+it on the Node targets. The shared-hosting policy is therefore *tighter* than the VPS's, and
+should stay that way.
+
+`connect-src 'self'` is correct while the SPA calls only same-origin `/api/v1/...`. **A Sentry
+DSN would need its origin added**, as `next.config.ts` does for the Node targets; none is
+configured for this target today.
+
+### 20g. What was verified, and what was not
+
+**`LOCAL VERIFIED`** — export build exit 0 (689 files); all four entity shells and all seven
+auth routes emitted; `/admin` boundary as tabulated in §20e; 0 CSP violations and 0 hydration
+errors on `/login`, an entity route and `/`; client locale negotiation `/` → `/en`;
+client-side navigation between static pages; `AuthGuard` redirecting an unauthenticated
+visitor away from an entity route; the served entity HTML **byte-identical** to
+`out/employees/__id__.html`; and the `standalone` target unchanged — exit 0, `server.js`
+emitted, arbitrary ULID 200 with the real id, `/login` still reading the host server-side,
+`/` still 307ing through middleware.
+
+Gates: `tsc` 0, ESLint 0 errors, `prettier --check src/` clean, i18n OK, **594 Vitest tests /
+87 files**, docs link integrity clean.
+
+**`HOST VERIFIED`: nothing.** Specifically still unproven on the real host: that `[F,L]`
+denies rather than being ignored (**M1** — and if it is ignored, `/admin` is served from every
+tenant host, with the API's three server-side controls as the only remaining boundary); that
+`mod_headers` applies the CSP at all; and that Apache's rule evaluation matches the emulator's.
+
+**Not covered by any automated test:** browser behaviour of the export. The hydration
+properties are pinned by `static-export-route-id.test.tsx` and `static-export-host.test.tsx`
+(both mutation-checked — reverting either fix fails its test), but the `.htaccess` replay and
+the browser run are one-off measurements, not gates.
+
+---
+
+## 21. The `.htaccess` on a real Apache — **measured 2026-09-26**
+
+§19 and §20 verified the shared-hosting rewrite rules by *emulating* them in Node. This pass
+ran them against **Apache 2.4.58**, serving the real 689-file export, with the `.htaccess`
+generated from the repository file by uncommenting BRANCH B exactly as
+[`../deployment/shared-hosting/DEPLOYMENT.md`](../deployment/shared-hosting/DEPLOYMENT.md)
+§5 step 5 instructs.
+
+**The emulator passed 13 of 13. The real Apache failed immediately, on most of the site.**
+That gap is the finding; the three defects below are what it was hiding.
+
+### 21a. `DirectorySlash` — most top-level routes were dead
+
+Next emits **both** `admin.html` **and** an `admin/` directory (for `admin/tenants`), and the
+same for `dashboard`, `employees`, `login`, `en`, `am`, `settings`, `shifts` — **20+
+top-level routes**. `mod_dir` answers `/admin` with a **301 to `/admin/`** before the SPA
+group is reached, and `/admin/` then matched `^(.+)$` as `admin/`, looked for `admin/.html`,
+found nothing, and fell through to the 404.
+
+Measured: **`/admin` → 301 → `/admin/` → 404.** Every route with a subdirectory was dead.
+
+Fixed with `DirectorySlash Off` (so `/admin` reaches the group and resolves to `admin.html`)
+and `^(.+?)/?$` (so an explicit `/admin/` resolves too). `Options -Indexes` is required
+alongside, not decorative: with `DirectorySlash` off, a directory request Apache cannot
+otherwise resolve becomes eligible for an index listing.
+
+**The emulator could not have caught this — it did not model `mod_dir`.**
+
+### 21b. The 404 rule served a 404 page with HTTP 200
+
+`RewriteRule ^ /404.html [L]` is an internal substitution, and a substitution does not change
+the status. Measured: every unknown URL returned **200** with the 404 page in the body — a
+soft 404, invisible to monitoring and wrong to any crawler.
+
+Replaced with `ErrorDocument 404 /404.html`, which needs no conditions because it only runs
+once nothing else has matched. Measured after: `/nope` → **404**, body is the 404 page.
+
+### 21c. `httpd -t` does not validate `.htaccess`
+
+While building the harness, a script uncommented the *sentence* "Options -Indexes is
+REQUIRED, not decorative…" because it began with a directive name. That file is invalid and
+Apache 500s on it — and **`httpd -t` reported `Syntax OK`**, because it parses the main
+configuration and never reads `.htaccess`.
+
+Two consequences, both recorded in §5 step 5: uncomment only lines that are *exactly* a
+directive, and **the check that catches a broken `.htaccess` is fetching a page**, not a
+syntax check. The repository's prose was also reworded so no comment line begins with a
+directive name.
+
+### 21d. What passed, after the fixes — 20 of 20
+
+| Host | Path | Result |
+|---|---|---|
+| tenant | `/`, `/en/pricing`, `/en/pricing/` | 200 |
+| tenant | `/dashboard`, `/dashboard/`, `/login`, `/login/forgot` | 200 |
+| tenant | `/employees/<ULID>` | 200, **byte-identical** to `employees/__id__.html` |
+| tenant | `/admin`, `/admin/tenants/<ULID>` | **403** |
+| apex | `/admin` | **403** |
+| admin host | `/admin`, `/admin/`, `/admin/tenants/<ULID>` | 200 |
+| admin host | `/dashboard` | 302 → `/admin/` |
+| tenant | `/nope`, `/_next` | **404** |
+| tenant | `/.env`, `/composer.json`, `/storage/secret.txt` | **403** |
+
+Zero 500s in the error log. All seven security headers delivered on PHP, on static `.js`, and
+on a 403 response, with the CSP untruncated.
+
+### 21e. What this is and is not
+
+**`LOCAL VERIFIED`.** It establishes that the shipped rules are *correct as written* — the
+syntax parses, `[F,L]` yields 403, `mod_headers` delivers the full CSP, the `/admin` ordering
+fires, and the SPA fallback resolves every route shape the export produces.
+
+**It is not `HOST VERIFIED`, and does not close M1.** Three things remain answerable only on
+Ethio Telecom's host: whether its Apache grants the `AllowOverride` classes these rules need
+(`FileInfo` for `mod_rewrite`, `Limit` for `Require all denied`, `Options` for the two new
+directives — **`AllowOverride Options` is a new requirement this pass introduces**), whether
+Imunify or the nginx front end alters headers in transit, and whether `mod_dir` behaves as it
+does here. This harness used `AllowOverride All`, which is the permissive case.
+
+**M1 remains NOT VERIFIED.** G0-B.3(b) and G0-B.2(b) are unchanged.
+
+### 21f. How to reproduce
+
+Needs any Apache with `mod_rewrite`, `mod_headers` and `mod_dir`. Serve the export with a
+`.htaccess` derived from the repository file by uncommenting BRANCH B's directive lines
+(`RewriteCond`/`RewriteRule`, plus `Options -Indexes`, `DirectorySlash Off` and
+`ErrorDocument 404 /404.html`), under `AllowOverride All`, then run the matrix in §21d with
+`curl -H 'Host: …'`. Do not trust `httpd -t`; fetch pages.
+
+### 21g. The `/api` and ACME rules — verified the same way, and they hold
+
+§21a–§21f covered BRANCH B. Two rules that sit *above* it had never been tested at all, only
+inferred from Phase 1's header readings: the front-controller rule that sends `/api` and
+`/sanctum` to `index.php`, and the ACME passthrough the certificate renewal depends on.
+
+Same harness, with a stub `index.php` carrying a recognisable marker, `.well-known/acme-challenge/`
+populated, and BRANCH B active so the interaction between the two is exercised rather than
+assumed:
+
+| Request | Result |
+|---|---|
+| `/api/v1/health`, `/api/v1/employees`, `/api` | **reach `index.php`** |
+| `/sanctum/csrf-cookie`, `/sanctum` | **reach `index.php`** |
+| `/apixyz` | **404** — the rule requires `/` or end-of-string after `api`, so it does not over-match |
+| `/.well-known/acme-challenge/testtoken` | **200, serves the token** — not rewritten |
+
+**18 of 18** with the full BRANCH B regression re-run alongside, and no `.htaccess` error in
+the Apache log. This is the first direct measurement that *"serving `/api` needs no proxy
+directive"* — until now that rested on Phase 1 observing PHP-FPM answer `.php` at the document
+root, which is a different claim from this rule doing the routing.
+
+**One limit, stated because the result reads stronger than it is.** `mod_php` would not load
+on this XAMPP build (`VirtualProtect() failed`), so `index.php` was served as text rather than
+executed. That means **routing is verified and execution is not** — the rewrite demonstrably
+lands on `index.php`, and whether PHP then runs it is a separate question already answered on
+the real host, where `canary.php` executes under `fpm-fcgi`.
+
+No defect was found in this round, which is worth recording as much as a defect would be: it
+is the only part of the file that has been measured and needed no change.
+
+---
+
+## 22. Gating the deployment artifacts — **measured 2026-09-27**
+
+§19–§21 verified the static export and its Apache rules by building and serving them **once,
+by hand, on one Windows machine**. This section is what happened when those measurements were
+turned into gates, and the headline is that the first run of the first gate found a defect
+on the mandated production path.
+
+### 22a. No gate built the frontend, for either target
+
+`gates.sh frontend` runs i18n, Prettier, ESLint, `tsc --noEmit` and Vitest. **None of them
+invokes `next build`.** `grep -rn ETHR_TARGET .github/workflows/` returned nothing.
+
+So the artifact Apache serves had no automated coverage at all, while
+`src/src/lib/build-target.ts` asserted the opposite in its own docblock:
+
+> *"That also makes the static-export build runnable in CI, which is what turns 'verified
+> once by hand' into something a gate can check."*
+
+Nothing checked it. Two gates now do:
+
+| Gate | Runs | Catches |
+|---|---|---|
+| `./scripts/gates.sh export` → `npm run build:shared-hosting` | `next build` with `ETHR_TARGET=shared-hosting`, then `src/scripts/verify-static-export.mjs` | a build that silently produced a server target, a missing `404.html`, a missing entity shell, a prerendered ULID, a truncated export |
+| `SharedHostingHtaccessTest` (in the `backend` suite) | renders `.htaccess` through `scripts/shared-hosting/render-htaccess.php` and asserts the result | a dropped deny rule, the `/admin` deny ordered after a catch-all, a `RewriteRule` 404 instead of `ErrorDocument`, a missing CSP directive, prose promoted to a directive |
+
+Both are in `all`, unlike `security` and `performance`. The distinction `gates.sh` already
+draws is the right one: those two go red when a third party publishes an advisory or a
+machine is loaded — reasons that are not your change — and a permanently red gate stops being
+read. These go red only when the production artifact is broken.
+
+### 22b. The export gate's first run: six routes were serving the wrong page
+
+**`.htaccess` group 1's entity-shell rule matched static sibling routes.** It read:
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(employees|payroll|devices|admin/tenants)/[^/]+$ /$1/__id__.html [L]
+```
+
+For `/employees/new`, `REQUEST_FILENAME` is `<DOCROOT>/employees/new`. The exporter writes
+`employees/new.html`, so that path is **not** a file, `!-f` passed, and the rule served the
+employee-**detail** shell for the "Add employee" page. `useRouteId` then read `new` out of the
+URL and fetched employee `new`.
+
+Six routes, all of them real pages:
+
+| Route | Was served |
+|---|---|
+| `/employees/new` | the employee detail shell |
+| `/employees/import` | the employee detail shell |
+| `/payroll/cost-sharing` | the payroll-run detail shell |
+| `/payroll/loans` | the payroll-run detail shell |
+| `/payroll/payslips` | the payroll-run detail shell |
+| `/devices/dashboard` | the device detail shell |
+
+**Why §21d's 20-of-20 matrix missed it.** That matrix fetched `/employees/<ULID>` and never a
+static sibling under a dynamic prefix. It is the same shape as the emulator passing 13/13 in
+§21 while real Apache failed on most of the site: the test set did not contain the case.
+Twenty of twenty is a count, not a coverage claim.
+
+**The fix mirrors group 2's own proven form** — ask whether the real `.html` exists before
+falling back to the shell:
+
+```apache
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
+RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]
+```
+
+An `-f` test rather than an exclusion list, deliberately: a new static sibling then needs no
+rule change and cannot be forgotten. RewriteRule patterns are matched before the conditions
+are evaluated, which is what makes `$2` available in the condition — group 2 has relied on
+exactly that since 2026-09-26.
+
+Rules 1 and 2 of that group were **already safe** and were not changed: their target filename
+equals the request path (`…/__next.*`, `….txt`), so `!-f` alone rejects a sibling correctly.
+Only the `.html` rule differed from its request by an extension.
+
+**Found by the assertion that was too strict.** `verify-static-export.mjs`'s first draft
+asserted that no HTML under those prefixes may be anything but the sentinel, which flagged all
+six siblings. That draft was wrong — they are legitimate routes — but it is what surfaced the
+`.htaccess` defect. The assertion now matches the ULID shape, which is the property actually
+worth holding, plus a check that every static sibling directory has its `.html` beside it.
+
+### 22c. The `.htaccess` is generated now, not hand-edited
+
+§21c records a script that uncommented the sentence *"ErrorDocument, not a rewrite. Measured
+2026-09-26: …"* because it matched on directive names, and Apache 500'd the vhost while
+`httpd -t` reported "Syntax OK" — it does not read `.htaccess` at all.
+
+**Three lines inside BRANCH B begin with a real Apache directive name:**
+
+| Line | Text | Directive it looks like |
+|---|---|---|
+| prose | `Ordering is therefore load-bearing here, not stylistic.` | `Order` (mod_access_compat) |
+| prose | `Order matters. ^…/[^/]+$ also matches …` | `Order` |
+| prose | `ErrorDocument, not a rewrite. Measured 2026-09-26: …` | `ErrorDocument` |
+
+No regex over directive names can separate those from configuration. So the template stops
+asking: the 20 lines that are directives carry a **`#@ ` sentinel**, and
+`render-htaccess.php` strips exactly that prefix and nothing else. Prose cannot be promoted,
+because prose does not carry the sentinel.
+
+The renderer also refuses to emit an artifact missing any of nine required directives, so a
+botched render fails at render time rather than at the first request on the host.
+
+**Mutation-checked, 2026-09-27.** Each of the three recorded defects was reintroduced and the
+suite caught all three. Two of them trip the renderer's own floor check first, which masks the
+targeted assertion — noted rather than fixed, because failing earlier is the better behaviour.
+The `/admin` ordering defect is caught by the test alone, since order is not in the floor
+list: moving the deny below the fallback failed exactly one test, with the message naming the
+200-instead-of-403 measurement.
+
+### 22d. What none of this establishes
+
+**`HOST VERIFIED`: still nothing.** These are gates over generated text and a local build.
+Specifically unchanged:
+
+- **M1** — whether Ethio Telecom's Apache honours `[F,L]` at all. `<FilesMatch>` is proven
+  and the deployment does not use it.
+- **G0-B.6** — `AllowOverride Options`, a requirement the 2026-09-26 rules introduced. The
+  harness used `AllowOverride All`.
+- Whether `mod_dir` there behaves as it does here.
+- Whether PHP **executes** the routed `index.php`. §21g measured routing with `mod_php`
+  unloaded, so the rewrite demonstrably lands on the file and execution is a separate claim.
+
+A green `static-export` job means the artifact is correct as written. That is what §21e calls
+`LOCAL VERIFIED`, and it is still all this is.
+
+---
+
+## 23. The Bronze procedure executed end to end — **measured 2026-09-27 / 2026-09-28**
+
+§21 tested the `.htaccess` on a real Apache and §22 gated the artifacts. Neither ran the
+**procedure**: copy the application above the document root, create the database, write the
+environment, migrate, export the frontend, assemble the document root, repoint `index.php`,
+render the rules, start, and serve. `DEPLOYMENT.md` §4a had never been executed anywhere,
+by anyone, in full.
+
+`scripts/local-production/{up,verify,down}.sh` do that on XAMPP. Reproduce with
+`docs/deployment/LOCAL-PRODUCTION-SETUP.md`.
+
+### 23a. What it measures
+
+| | Result |
+|---|---|
+| `verify.sh` — the path matrix | **36 passed, 0 failed** |
+| The 22 documented routes | **200**, every one |
+| `/admin` from a tenant host / from the admin host | **403 / 200** — the boundary works |
+| `/nope` | **404**, not a rewritten 200 |
+| `../app/api/.env` by traversal | **404** — the app root is not web-reachable |
+| `migrate` | clean; **both** `audit_log` triggers created on MariaDB 10.4.32 |
+| Cron: no token / wrong token / correct token | **404 / 404 / 200** — fail-closed |
+| `queue_detail` after driving both endpoints | `healthy`, `problems: []`, 0 failed jobs |
+| Apache `error.log`, anything above notice | **0** |
+| Laravel log | **no file written** — nothing logged an error |
+
+### 23b. Five defects it found, four of them in our own tooling
+
+Stated individually because the pattern matters more than any one of them: **every single
+one was invisible to inspection and visible on the first execution.**
+
+1. **`admin.ethr.et` was a literal in the `.htaccess` template** — a production defect, and
+   the only one here that would have shipped. Rendered for any other domain, the deny
+   predicate reads *"refuse `/admin` unless the host is `admin.ethr.et`"*, so it refuses on
+   the **real** admin host too and the platform console is unreachable — silently, because
+   every tenant route is fine. `--admin-host` is now required, with no default.
+2. **The rehearsal adopted the developer's database and reset its password.** The worst of
+   the five, and the subject of §23c.
+3. **`set -euo pipefail` plus a `grep` that matches nothing exits with no message.**
+   `pipefail` carries grep's 1 through `cut` and `tr`, the assignment fails, and `set -e`
+   exits — so an `api/.env` without a `DB_DATABASE=` line killed `up.sh` immediately after a
+   step header, printing nothing. `|| true` is the fix, and it is invisible on inspection:
+   it looks like defensive noise and is the difference between a guard and a mystery.
+4. **"Listening" is not "serving."** After the machine slept, `httpd` held port 8081 and
+   answered nothing. The readiness check tested the socket, called that healthy, and the
+   rehearsal was reported *down* when it was merely broken. It now fetches `/` and requires
+   a real status.
+5. **`$!` in Git Bash is an MSYS job id, not a Windows pid.** `down.sh` recorded it, handed
+   it to `taskkill`, reported success — and both servers kept running and holding their
+   ports. It now resolves the pid from the LISTENING socket.
+
+A sixth belongs here for symmetry, because it was a defect in the **check**: `verify.sh`
+first compared `head -c 400` of each sibling route against the entity shell. Every Next.js
+export shares that `<head>`, so it reported all six routes as regressions when all six were
+correct. Byte-exact `cmp` against the files on disk replaced it. **Distinguishing "the test
+is wrong" from "the code is wrong" was needed in both directions in the same afternoon** —
+§22b is the case where the code was.
+
+### 23c. The dev-database incident, and the guard that now prevents it
+
+`up.sh` defaulted to `DB_NAME=ethr` / `DB_USER=ethr` because those are what
+`api/.env.example` documents — which is exactly why they were the wrong choice: the
+documented default is the name **most likely to already exist**. On this machine both did.
+
+```
+CREATE DATABASE IF NOT EXISTS ethr   -> created nothing; ADOPTED a schema holding
+                                        2 tenants, 151 employees, 5 users
+ALTER USER 'ethr'@... IDENTIFIED BY  -> CHANGED the password api/.env uses, which is empty
+```
+
+Every local MariaDB command then failed with
+`ERROR 1045 (28000) Access denied ... (using password: NO)` — which reads like a wrong
+password, not like something a setup script did. Five pending migrations were also applied
+to that database as batch 2. **Nothing was lost, and that was luck rather than design**: the
+script's own header claimed an isolation it did not have.
+
+Restored the same day — `ALTER USER` back to an empty password for **both**
+`'ethr'@'localhost'` and `'ethr'@'127.0.0.1'`, then `FLUSH PRIVILEGES`; both grant hosts
+verified connecting, and the data re-counted at 2 / 151 / 5. The five migrations were
+legitimately pending and are left applied.
+
+Three things are now true, and the third is the only one that is enforcement:
+
+- The rehearsal owns `ethr_local_prod` and `ethr_localprod`, which nothing else uses.
+- `up.sh` **refuses** if `DB_NAME` or `DB_USER` matches what `api/.env` holds — read out of
+  that file, not compared against a hardcoded name, so a renamed dev database is still
+  protected.
+- `tests/Feature/LocalProductionRehearsalScriptTest.php` pins all of it, including the
+  `|| true` from defect 3. Each of its five assertions was mutation-checked: the default
+  put back to `ethr`, both `die` guards deleted, `|| true` stripped, `DROP DATABASE ethr`
+  re-added as cleanup advice, and the default drifted away from the documentation — five
+  separate mutations, five reds, then restored byte-exact and green.
+
+**`IF NOT EXISTS` is the trap worth carrying elsewhere.** It makes "create" silently mean
+"adopt", so a name collision is indistinguishable from a fresh start. Any script that
+creates a named resource on a developer's machine has this defect until it refuses.
+
+### 23d. What none of this establishes
+
+**`HOST VERIFIED`: still nothing.** This is `LOCAL VERIFIED` in the §21e sense and no more.
+It is our Apache, our MariaDB and our grants, under `AllowOverride All` — the permissive
+case:
+
+- **G0-B.6** — `AllowOverride Options` is untested by construction here.
+- **M1** — the deny rules are correct *as written*; whether Ethio Telecom's Apache honours
+  `[F,L]` is unmeasured.
+- **G0-F** — `migrate` created both triggers against a `GRANT ALL` user. That says nothing
+  about the grant on the host's account.
+- **G0-I** — MariaDB 10.4.32 here; the host's engine and version are unread.
+- **`fpm-fcgi`** — this is `mod_cgi` + `Action`, one process per request. Request-level
+  behaviour is exercised; process-lifecycle behaviour is not. The host measured
+  `fpm-fcgi`, and PHP execution under it is a separate claim.
+- **M6, M3, M2, G0-H, G0-J, quotas** — untouched.
+
+`CUTOVER-CHECKLIST.md` is unchanged by anything in this section and
+`./scripts/gates.sh evidence` still lists all eleven host gates as outstanding. What this
+section buys is narrower and real: **the procedure runs, and five defects in it are gone.**

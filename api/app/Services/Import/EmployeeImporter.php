@@ -14,6 +14,8 @@ use App\Services\CurrentTenant;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Services\UserProvisioningService;
+use App\Support\Csv;
+use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
 use Illuminate\Http\UploadedFile;
 
@@ -25,11 +27,23 @@ class EmployeeImporter
         private readonly CurrentTenant $currentTenant,
     ) {}
 
-    /** @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>} */
+    /**
+     * `errors` is keyed by CSV line number (the header is line 1); key 0 is a
+     * file-level error. The `@scramble-return` states the shape for the API
+     * contract, which cannot follow rows built from the file's own headers;
+     * it types the line-number keys as strings, which is what JSON makes them.
+     *
+     * @return array{headers: string[], rows: array<int, array<string, mixed>>, errors: array<int, string[]>}
+     *
+     * @scramble-return array{headers: list<string>, rows: list<array<string, string|null>>, errors: array<string, list<string>>}
+     */
     public function preview(UploadedFile $file): array
     {
-        $content = $file->getContent();
-        $lines = array_filter(explode("\n", str_replace("\r\n", "\n", $content)));
+        // Csv::lines, as the attendance import uses: this split on "\n" after
+        // folding CRLF, so a UTF-8 BOM (Excel's "CSV UTF-8") glued itself to the
+        // first header — "name" was reported missing from a file that had it —
+        // and a classic-Mac CR-only file was one line.
+        $lines = Csv::lines((string) $file->getContent());
 
         if (count($lines) < 2) {
             return ['headers' => [], 'rows' => [], 'errors' => [0 => ['CSV file must have a header row and at least one data row.']]];
@@ -49,18 +63,17 @@ class EmployeeImporter
         $errors = [];
 
         foreach ($lines as $i => $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-
             $values = str_getcsv($line);
             $row = [];
             foreach ($headers as $j => $header) {
                 $row[$header] = $values[$j] ?? null;
             }
 
-            $rowErrors = $this->validateRow($row, $i + 2);
+            // As the commit endpoint will receive it, so the shared rules see
+            // the same values in both places.
+            $row = EmployeeImportRow::normalize($row);
+
+            $rowErrors = EmployeeImportRow::errors($row, $i + 2);
             if (! empty($rowErrors)) {
                 $errors[$i + 2] = $rowErrors;
             }
@@ -73,6 +86,8 @@ class EmployeeImporter
 
     /**
      * @return array{created: int, skipped: int, matched: int, users_created: int, errors: array<int, string[]>}
+     *
+     * @scramble-return array{created: int, skipped: int, matched: int, users_created: int, errors: array<string, list<string>>}
      */
     public function commit(string $importKey, array $rows, bool $createLogins = false): array
     {
@@ -116,7 +131,7 @@ class EmployeeImporter
                 continue;
             }
 
-            $rowErrors = $this->validateRow($row, $i);
+            $rowErrors = EmployeeImportRow::errors($row, $i);
             if (! empty($rowErrors)) {
                 $errors[$i] = $rowErrors;
 
@@ -180,36 +195,8 @@ class EmployeeImporter
         return ['created' => $created, 'skipped' => $skipped, 'matched' => $matched, 'users_created' => $usersCreated, 'errors' => $errors];
     }
 
-    /** @return string[] */
-    private function validateRow(array $row, int $rowNumber): array
-    {
-        $errors = [];
-
-        if (empty($row['name'])) {
-            $errors[] = "Row {$rowNumber}: name is required.";
-        }
-
-        if (empty($row['hire_date'])) {
-            $errors[] = "Row {$rowNumber}: hire_date is required.";
-        } elseif (! strtotime($row['hire_date'])) {
-            $errors[] = "Row {$rowNumber}: hire_date is not a valid date.";
-        }
-
-        if (! empty($row['email']) && ! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = "Row {$rowNumber}: email is not valid.";
-        }
-
-        if (! empty($row['gender']) && ! in_array($row['gender'], ['male', 'female'], true)) {
-            $errors[] = "Row {$rowNumber}: gender must be male or female.";
-        }
-
-        return $errors;
-    }
-
     public function templateCsv(): string
     {
-        $headers = ['name', 'email', 'phone', 'employee_code', 'national_id', 'gender', 'hire_date', 'department_code', 'branch_code', 'position_code', 'salary_cents'];
-
-        return implode(',', $headers)."\n";
+        return implode(',', EmployeeImportRow::COLUMNS)."\n";
     }
 }

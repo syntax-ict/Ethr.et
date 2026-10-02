@@ -10,7 +10,12 @@ use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
+ */
 class EmployeeLoan extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId;

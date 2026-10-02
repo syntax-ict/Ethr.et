@@ -1,6 +1,12 @@
 # ETHR on Plesk shared hosting — the owner's guide
 
-**Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · PHP 8.3.33 · Node 22.23.2
+**Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · PHP 8.3.33 · Node 22.23.2
+
+> **Placeholders — HARD RULE 2**, [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* Fill `<APP_DOMAIN>`, `<ACCOUNT_USER>`, `<PANEL_HOST>` from the panel;
+> the real values are not recorded in this repository. **The two version numbers above are
+> measurements, not settings** — PHP 8.3.33 was read from a live response header and Node
+> 22.23.2 from the panel, so they stay literal and are there to be *checked*, not filled in.
 
 This is the single entry point for putting ETHR on the Ethio Telecom Plesk account. It is
 written for the person with the panel open. Everything it asks you to do is a panel action
@@ -145,6 +151,10 @@ repository pins two versions for two jobs:
 | Frontend application runtime | 22 | `docker/frontend/Dockerfile` | **satisfies exactly** |
 
 The host never runs the gates.
+
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30; `.nvmrc` (24) is now the only Node pin. Under the static-export decision (C-5,
+> 2026-09-27) the host runs no Node application, so the runtime row no longer applies.
 
 ### A4. Document root — **DO NOTHING. Do not change this field.**
 

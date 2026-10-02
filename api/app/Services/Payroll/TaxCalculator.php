@@ -149,31 +149,6 @@ final class TaxCalculator
     }
 
     /**
-     * Drops the memoized ladder — call after persisting a bracket change so a
-     * calculator instance reused within the same request sees the new values.
-     */
-    public function forgetCachedBrackets(?int $tenantId = null): void
-    {
-        if ($tenantId === null) {
-            $this->bracketCache = [];
-
-            return;
-        }
-
-        // Every as-of date for this tenant, not one key. The cache is keyed
-        // "{tenantId}@{Y-m-d}" since the ladder became date-dependent, so
-        // unsetting by the bare tenant id — which is what this did — silently
-        // matched nothing and left a stale ladder in place after a bracket edit.
-        $prefix = $tenantId.'@';
-
-        foreach (array_keys($this->bracketCache) as $key) {
-            if (str_starts_with($key, $prefix)) {
-                unset($this->bracketCache[$key]);
-            }
-        }
-    }
-
-    /**
      * @return list<array{min: int, max: int|null, rate: float, deduction: int}>
      */
     private function effectiveBrackets(?int $tenantId, CarbonInterface $asOf): array

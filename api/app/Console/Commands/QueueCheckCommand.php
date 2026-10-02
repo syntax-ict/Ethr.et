@@ -75,8 +75,13 @@ class QueueCheckCommand extends Command
         }
 
         $this->newLine();
-        $this->line('If the scheduler has stopped, check Plesk -> Scheduled Tasks for:');
-        $this->line('  * * * * *  cd ~/ethr/api && php artisan schedule:run');
+        // The host has no Scheduled Tasks section and no shell (G0-D), so
+        // nothing on it runs schedule:run. The GitHub Actions workflow is the
+        // caller; this used to send operators to a panel that does not exist.
+        $this->line('If the scheduler has stopped, check the external cron caller:');
+        $this->line('  GitHub Actions -> "ETHR scheduler (external cron caller)" (.github/workflows/cron.yml)');
+        $this->line('  It POSTs /api/v1/cron/schedule and /api/v1/cron/queue every 5 minutes;');
+        $this->line('  a DORMANT run means ETHR_CRON_TOKEN or ETHR_CRON_BASE_URL is not set.');
 
         return self::FAILURE;
     }

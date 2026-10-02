@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Admin\PlatformAnalyticsService;
 use App\Services\Admin\SystemHealthService;
+use App\Support\AuditSubjects;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -53,9 +54,10 @@ class AdminDashboardController extends Controller
             $query->whereDate('created_at', '<=', $request->input('filter.to'));
         }
 
-        return AuditLogResource::collection(
-            $query->paginate($request->integer('per_page', 50))
-        );
+        $logs = $query->paginate($request->integer('per_page', 50));
+        AuditSubjects::attach($logs->getCollection());
+
+        return AuditLogResource::collection($logs);
     }
 
     public function failedJobs(Request $request): AnonymousResourceCollection

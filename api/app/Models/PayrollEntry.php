@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read Employee|null $employee
+ */
 class PayrollEntry extends Model
 {
     use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
@@ -63,6 +66,7 @@ class PayrollEntry extends Model
         });
     }
 
+    /** @return BelongsTo<PayrollRun, $this> */
     public function payrollRun(): BelongsTo
     {
         return $this->belongsTo(PayrollRun::class);

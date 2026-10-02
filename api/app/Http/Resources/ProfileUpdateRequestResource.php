@@ -16,6 +16,11 @@ class ProfileUpdateRequestResource extends JsonResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
+        // Null once the employee is soft-deleted. Spelled as a ternary, not
+        // `?->`, because the API contract reads only the former as nullable.
+        $employee = $this->employee;
+        $employee = $employee instanceof Employee ? $employee : null;
+
         return [
             'public_id' => $this->public_id,
             'field_name' => $this->field_name,
@@ -26,9 +31,9 @@ class ProfileUpdateRequestResource extends JsonResource
             // does not by itself carry the right to read bank details in full.
             'old_value' => $this->maskIfNeeded($request, $this->old_value),
             'new_value' => $this->maskIfNeeded($request, $this->new_value),
-            'status' => $this->status->value,
-            'employee_public_id' => $this->employee?->public_id,
-            'employee_name' => $this->employee?->name,
+            'status' => $this->status,
+            'employee_public_id' => $employee === null ? null : $employee->public_id,
+            'employee_name' => $employee === null ? null : $employee->name,
             'requested_by_name' => $this->displayName($this->requester),
             'reviewed_by_name' => $this->displayName($this->reviewer),
             'reviewed_at' => $this->reviewed_at,
@@ -48,10 +53,14 @@ class ProfileUpdateRequestResource extends JsonResource
         // loadMissing rather than a bare relation read: `preventLazyLoading` is on
         // outside production, so a caller that forgot to eager-load would 500 here
         // instead of just costing a query.
-        $user?->loadMissing('employee');
-        $employee = $user?->employee;
+        if ($user === null) {
+            return null;
+        }
 
-        return $employee instanceof Employee ? $employee->name : $user?->email;
+        $user->loadMissing('employee');
+        $employee = $user->employee;
+
+        return $employee instanceof Employee ? $employee->name : $user->email;
     }
 
     /**

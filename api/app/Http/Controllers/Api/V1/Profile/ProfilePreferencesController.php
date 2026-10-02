@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Profile\UpdateProfilePreferencesRequest;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\CalendarPreference;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -16,13 +17,17 @@ use Illuminate\Http\JsonResponse;
  * Language lives on `users.locale` rather than only in the browser because the
  * server renders payslips, emails and SMS in the employee's language too — a
  * localStorage-only switcher leaves every one of those in English.
+ *
+ * The calendar read back is the one in force, not only the one stored: a user
+ * who has not chosen inherits their organisation's (`CalendarPreference`). It
+ * used to fall back to "gregorian" while the app displayed Ethiopian (N33).
  */
 class ProfilePreferencesController extends Controller
 {
     /** @var array{theme: string, calendar: string} */
     private const DEFAULTS = [
         'theme' => 'system',
-        'calendar' => 'gregorian',
+        'calendar' => CalendarPreference::DEFAULT,
     ];
 
     public function update(UpdateProfilePreferencesRequest $request): JsonResponse
@@ -63,7 +68,7 @@ class ProfilePreferencesController extends Controller
         return [
             'locale' => $user->locale ?? 'en',
             'theme' => is_string($stored['theme'] ?? null) ? $stored['theme'] : self::DEFAULTS['theme'],
-            'calendar' => is_string($stored['calendar'] ?? null) ? $stored['calendar'] : self::DEFAULTS['calendar'],
+            'calendar' => CalendarPreference::forUser($user),
         ];
     }
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { PaginatedResponse } from "@/api/types";
-import type { Shift } from "./api";
+import { fetchAllPages } from "@/api/fetch-all-pages";
+import type { components, operations } from "@/api/generated";
 
 /**
  * Shift rotations — repeating multi-day patterns.
@@ -12,81 +12,33 @@ import type { Shift } from "./api";
  * the pattern rather than missing data.
  */
 
-export interface ShiftRotationStep {
-  day_offset: number;
-  shift: Shift | null;
-  is_rest_day: boolean;
-}
+export type ShiftRotation = components["schemas"]["ShiftRotationResource"];
+export type ShiftRotationInput =
+  components["schemas"]["StoreShiftRotationRequest"];
+export type AssignShiftRotationPayload =
+  components["schemas"]["AssignShiftRotationRequest"];
+export type RotationPreview =
+  operations["shiftRotation.preview"]["responses"][200]["content"]["application/json"];
 
-export interface ShiftRotation {
-  public_id: string;
-  name: string;
-  name_am: string | null;
-  description: string | null;
-  cycle_days: number;
-  is_active: boolean;
-  steps?: ShiftRotationStep[];
-  assignments_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-/** What the form sends: a shift's public_id, or null for a rest day. */
+/**
+ * What the form holds per step: a shift's public_id, or null for a rest day.
+ * Narrower than the request's `shift_id?: string | null` on purpose — every
+ * step the form sends states its choice.
+ */
 export interface ShiftRotationStepInput {
   day_offset: number;
   shift_id: string | null;
 }
 
-export interface ShiftRotationInput {
-  name: string;
-  name_am?: string | null;
-  description?: string | null;
-  cycle_days: number;
-  is_active?: boolean;
-  steps: ShiftRotationStepInput[];
-}
-
-export interface RotationPreviewDay {
-  date: string;
-  shift: {
-    public_id: string;
-    name: string;
-    start_time: string;
-    end_time: string;
-  } | null;
-  is_rest_day: boolean;
-}
-
-export interface RotationPreview {
-  rotation: ShiftRotation;
-  anchor_date: string;
-  days: RotationPreviewDay[];
-}
-
-export function useShiftRotations(params?: {
-  page?: number;
-  per_page?: number;
-}) {
-  return useQuery<PaginatedResponse<ShiftRotation>>({
-    queryKey: ["shift-rotations", params],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/shift-rotations", { params });
-      return data;
-    },
+/** Every rotation, not the first page — the list has no pager. */
+export function useShiftRotations() {
+  return useQuery<{ data: ShiftRotation[] }>({
+    queryKey: ["shift-rotations", "list"],
+    queryFn: async () => ({
+      data: await fetchAllPages<ShiftRotation>("/shift-rotations"),
+    }),
     // Matches useShifts: rotation patterns change rarely, so a long stale time
     // avoids refetching a definition that is effectively static.
-    staleTime: 30 * 60 * 1000,
-  });
-}
-
-export function useShiftRotation(publicId: string) {
-  return useQuery<ShiftRotation>({
-    queryKey: ["shift-rotations", publicId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/shift-rotations/${publicId}`);
-      return data;
-    },
-    enabled: !!publicId,
     staleTime: 30 * 60 * 1000,
   });
 }
@@ -160,14 +112,8 @@ export function useAssignShiftRotation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      rotation_id: string;
-      assignable_type: "employee" | "department" | "branch";
-      assignable_id: string;
-      effective_from: string;
-      effective_to?: string | null;
-      anchor_date?: string | null;
-    }) => (await apiClient.post("/shift-rotations/assign", payload)).data,
+    mutationFn: async (payload: AssignShiftRotationPayload) =>
+      (await apiClient.post("/shift-rotations/assign", payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shift-rotations"] });
       // The schedule is derived from assignments, so it is stale the moment one

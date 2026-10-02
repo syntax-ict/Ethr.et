@@ -24,24 +24,22 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { Controller } from "react-hook-form";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
+import { toastError } from "@/lib/errors";
+import {
+  useDeleteEmployeeDocument,
+  useEmployeeDocuments,
+  useUploadEmployeeDocument,
+  type DocumentUpload,
+} from "../api";
 
-interface Doc {
-  public_id: string;
-  filename: string;
-  mime_type?: string;
-  document_type?: string;
-  uploaded_at?: string;
-}
-
-/** Mirrors `StoreDocumentRequest::rules()['type']`. */
+/** Mirrors `StoreDocumentRequest::rules()['type']`; tsc fails if it drifts. */
 const DOCUMENT_TYPES = [
   "contract",
   "certificate",
@@ -49,7 +47,7 @@ const DOCUMENT_TYPES = [
   "academic",
   "medical",
   "other",
-] as const;
+] as const satisfies readonly DocumentUpload["type"][];
 
 /** `max:10240` in the FormRequest is kilobytes. */
 const MAX_FILE_BYTES = 10240 * 1024;
@@ -84,7 +82,6 @@ type DocumentValues = z.infer<typeof documentSchema>;
 
 export function DocumentsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -132,69 +129,44 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
     return null;
   }
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "documents"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/documents`,
-      );
-      return data;
-    },
-  });
-
-  const uploadDoc = useMutation({
-    mutationFn: async (values: DocumentValues) => {
-      const fd = new FormData();
-      fd.append("file", file!);
-      fd.append("title", values.title);
-      fd.append("type", values.type);
-      if (values.expiry_date) fd.append("expiry_date", values.expiry_date);
-
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/documents`,
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "documents"],
-      });
-      toast.success(t("employee.documents.uploaded", "Document uploaded"));
-      setUploadOpen(false);
-      setFile(null);
-      setFileError(null);
-      reset();
-    },
-  });
+  // Through QueryBoundary: a failed load used to fall through to "No
+  // documents", which is a claim about the employee, not about the request.
+  const query = useEmployeeDocuments(employeeId);
+  const uploadDoc = useUploadEmployeeDocument(employeeId);
+  const deleteDoc = useDeleteEmployeeDocument(employeeId);
 
   async function onSubmit(values: DocumentValues) {
     const problem = validateFile(file);
     setFileError(problem);
-    if (problem) {
+    if (problem || !file) {
       // Not a schema field, so it cannot block submit on its own — surface it
       // in the summary too, otherwise a valid-looking form appears to do
       // nothing when only the file is missing.
       setRootError(problem);
       return;
     }
-    await uploadDoc.mutateAsync(values);
+    await uploadDoc.mutateAsync({ ...values, file });
+    toast.success(t("employee.documents.uploaded", "Document uploaded"));
+    setUploadOpen(false);
+    setFile(null);
+    setFileError(null);
+    reset();
   }
 
-  const deleteDoc = useMutation({
-    mutationFn: async (docId: string) => {
-      await apiClient.delete(`/employees/${employeeId}/documents/${docId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "documents"],
-      });
-      toast.success(t("employee.documents.deleted", "Document deleted"));
-    },
-  });
-
-  const docs: Doc[] = data?.data ?? [];
+  function onDelete(docId: string) {
+    deleteDoc.mutate(docId, {
+      onSuccess: () =>
+        toast.success(t("employee.documents.deleted", "Document deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t(
+            "employee.documents.delete_failed",
+            "Could not delete the document",
+          ),
+        ),
+    });
+  }
 
   return (
     <Card>
@@ -207,44 +179,49 @@ export function DocumentsTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : docs.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={t("employee.documents.empty_title", "No documents")}
-            description={t(
-              "employee.documents.empty_desc",
-              "Upload contracts, IDs, and other documents",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {docs.map((d) => (
-              <div
-                key={d.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{d.filename}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {d.document_type ?? "document"}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteDoc.mutate(d.public_id)}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={FileText}
+              title={t("employee.documents.empty_title", "No documents")}
+              description={t(
+                "employee.documents.empty_desc",
+                "Upload contracts, IDs, and other documents",
+              )}
+            />
+          }
+        >
+          {(docs) => (
+            <div className="space-y-2">
+              {docs.map((d) => (
+                <div
+                  key={d.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{d.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t(`employee.documents.type_${d.type}`, d.type)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(d.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${d.title}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

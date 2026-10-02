@@ -7,6 +7,7 @@ import {
   useExecutiveForecast,
 } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
+import { monthKeyLabel } from "./axis-format";
 import {
   BarChart,
   Bar,
@@ -25,7 +26,7 @@ import {
 import { CHART_COLORS, ChartCard } from "./chart-helpers";
 
 export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const query = useExecutiveWorkforce(branchPublicId);
   const forecast = useExecutiveForecast(branchPublicId);
 
@@ -58,19 +59,13 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart
                   data={[
-                    ...data.headcount_trend.map(
-                      (
-                        h: { month: string; count: number },
-                        i: number,
-                        arr: Array<{ month: string; count: number }>,
-                      ) => ({
-                        month: h.month,
-                        count: h.count,
-                        // The projected line starts exactly at the last real
-                        // point, so the two segments read as one continuous line.
-                        Projected: i === arr.length - 1 ? h.count : undefined,
-                      }),
-                    ),
+                    ...data.headcount_trend.map((h, i, arr) => ({
+                      month: h.month,
+                      count: h.count,
+                      // The projected line starts exactly at the last real
+                      // point, so the two segments read as one continuous line.
+                      Projected: i === arr.length - 1 ? h.count : undefined,
+                    })),
                     ...(forecast.data?.headcount.projected ?? []).map((p) => ({
                       month: p.label,
                       Projected: p.value,
@@ -78,9 +73,15 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                   ]}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <XAxis
+                    dataKey="month"
+                    tickFormatter={(value) => monthKeyLabel(value, locale)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    labelFormatter={(label) => monthKeyLabel(label, locale)}
+                  />
                   <Line
                     type="monotone"
                     dataKey="count"
@@ -115,7 +116,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       label
                       outerRadius={80}
                     >
-                      {data.by_gender.map((_: unknown, i: number) => (
+                      {data.by_gender.map((_, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -138,7 +139,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       className="opacity-30"
                     />
                     <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Bar
                       dataKey="count"

@@ -10,10 +10,13 @@ const TabsList = React.forwardRef<
   React.ComponentRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
+  // Wraps (audit N36): one line of twelve tabs made the employee page 1163px
+  // wide, so on a phone the whole page scrolled sideways. min-h-10, not h-10,
+  // so a wrapped second row sits inside the box; one row is unchanged.
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+      "inline-flex min-h-10 max-w-full flex-wrap items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
       className,
     )}
     {...props}

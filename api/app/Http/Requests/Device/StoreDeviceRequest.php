@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Device;
 
 use App\Http\Requests\Device\Concerns\ValidatesSerialUniqueness;
+use App\Rules\DeviceConnectionConfig;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDeviceRequest extends FormRequest
@@ -28,7 +29,7 @@ class StoreDeviceRequest extends FormRequest
             'serial_number' => ['nullable', 'string', 'max:255'],
             'auto_sync' => ['sometimes', 'boolean'],
             'sync_interval_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
-            'connection_config' => ['required', 'array'],
+            'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based
             // and needs base_url instead; mock needs neither.
             'connection_config.ip' => ['required_unless:adapter_type,mock,generic', 'nullable', 'string'],

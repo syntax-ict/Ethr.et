@@ -357,16 +357,20 @@ function TeamLeaveTab() {
             size="sm"
             className="h-7 px-2"
             onClick={() => setView("list")}
+            aria-label={t("leave_page.view_list", "List view")}
+            aria-pressed={view === "list"}
           >
-            <List className="h-3 w-3" />
+            <List className="h-3 w-3" aria-hidden="true" />
           </Button>
           <Button
             variant={view === "calendar" ? "secondary" : "ghost"}
             size="sm"
             className="h-7 px-2"
             onClick={() => setView("calendar")}
+            aria-label={t("leave_page.view_calendar", "Calendar view")}
+            aria-pressed={view === "calendar"}
           >
-            <LayoutGrid className="h-3 w-3" />
+            <LayoutGrid className="h-3 w-3" aria-hidden="true" />
           </Button>
         </div>
       </div>

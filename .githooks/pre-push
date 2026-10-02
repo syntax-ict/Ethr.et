@@ -64,7 +64,7 @@ if [[ -n "$RANGE_BASE" ]]; then
     if git diff "$RANGE_BASE"..HEAD -- . ':!*.example' ':!docs/*' ':!CHANGELOG.md' \
         | grep -qE '^\+.*base64:[A-Za-z0-9+/]{40,}'; then
         printf '\n\033[31mpre-push: an APP_KEY literal is being added.\033[0m\n'
-        printf 'Generate one at runtime instead — see START_BACKEND.ps1.\n'
+        printf 'Generate one at runtime instead: php artisan key:generate.\n'
         exit 1
     fi
 fi

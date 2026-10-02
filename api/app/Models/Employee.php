@@ -31,6 +31,11 @@ use Illuminate\Support\Carbon;
  * @property-read Branch|null $branch
  * @property-read Grade|null $grade
  * @property-read Employee|null $supervisor
+ * @property-read User|null $user
+ * @property EmployeeStatus $status
+ * @property Carbon|null $probation_end_date
+ * @property Carbon|null $confirmation_date
+ * @property Carbon|null $termination_date
  */
 class Employee extends Model
 {

@@ -1,14 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { backgroundRequest } from "@/api/background";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export interface Notification {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-  read_at: string | null;
-  created_at: string;
+/**
+ * From the contract, with two fields corrected: `data` is the notification's
+ * `array`-cast payload — an object keyed by field — which Scramble publishes
+ * as `unknown[]`; and `created_at` is stamped by the database channel's
+ * Eloquent insert, so never null, though Scramble types any timestamp so.
+ */
+export type Notification = Omit<
+  components["schemas"]["NotificationResource"],
+  "data" | "created_at"
+> & { data: Record<string, unknown>; created_at: string };
+
+/**
+ * The line a list shows for a notification. Every database notification sends
+ * `message` except DashboardDigestNotification, which sends `title`.
+ */
+export function notificationText(n: Notification): string | undefined {
+  const { message, title } = n.data;
+  if (typeof message === "string") return message;
+  if (typeof title === "string") return title;
+  return undefined;
 }
+
+type UnreadCount =
+  operations["notification.unreadCount"]["responses"][200]["content"]["application/json"];
 
 export function useNotifications(params?: { page?: number }) {
   return useQuery<PaginatedResponse<Notification>>({
@@ -21,10 +40,15 @@ export function useNotifications(params?: { page?: number }) {
 }
 
 export function useUnreadCount() {
-  return useQuery<{ count: number }>({
+  return useQuery<UnreadCount>({
     queryKey: ["notifications", "unread-count"],
     queryFn: async () => {
-      const { data } = await apiClient.get("/notifications/unread-count");
+      // Background: it runs every 30 seconds on every page, and must not keep
+      // an unattended session alive past the tenant's idle timeout.
+      const { data } = await apiClient.get(
+        "/notifications/unread-count",
+        backgroundRequest(),
+      );
       return data;
     },
     refetchInterval: 30000,
@@ -70,7 +94,7 @@ export function useMarkAsRead() {
       );
 
       if (wasUnread) {
-        queryClient.setQueryData<{ count: number }>(
+        queryClient.setQueryData<UnreadCount>(
           ["notifications", "unread-count"],
           (old) => (old ? { count: Math.max(0, old.count - 1) } : old),
         );
@@ -85,6 +109,37 @@ export function useMarkAsRead() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// ── Preferences (type × channel opt-in matrix) ───────────────────
+
+/** A boolean per notification type per channel, and a boolean per channel. */
+export type NotificationPreferences =
+  operations["notificationPreferences.index"]["responses"][200]["content"]["application/json"];
+
+const PREFERENCES_KEY = ["notifications", "preferences"] as const;
+
+export function useNotificationPreferences() {
+  return useQuery<NotificationPreferences>({
+    queryKey: PREFERENCES_KEY,
+    queryFn: async () =>
+      (await apiClient.get("/notifications/preferences")).data,
+  });
+}
+
+/** The server answers with the whole merged matrix, so it replaces the cache. */
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      preferences: NotificationPreferences["preferences"],
+    ): Promise<NotificationPreferences> =>
+      (await apiClient.put("/notifications/preferences", { preferences })).data,
+    onSuccess: (result) => {
+      queryClient.setQueryData(PREFERENCES_KEY, result);
     },
   });
 }

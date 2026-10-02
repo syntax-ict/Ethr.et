@@ -346,13 +346,16 @@ describe('permissions and isolation', function () {
         ])->assertForbidden();
     });
 
-    it('lets a supervisor view cases but not open one', function () {
+    it('lets a supervisor view their report\'s cases but not open one', function () {
+        // The supervisor is the employee's own. With no employee record a
+        // supervisor reaches no one (DisciplinaryCaseSecurityTest).
         $tenant = createTenant();
-        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $boss = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $boss->id]);
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
         openCase($employee);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $boss->id], $tenant);
         $this->getJson(casesUrl($employee))->assertOk()->assertJsonCount(1);
 
         $this->postJson(casesUrl($employee), [

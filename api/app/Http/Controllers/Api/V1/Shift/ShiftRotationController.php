@@ -11,14 +11,12 @@ use App\Http\Requests\Shift\StoreShiftRotationRequest;
 use App\Http\Resources\ShiftAssignmentResource;
 use App\Http\Resources\ShiftRotationResource;
 use App\Models\AuditLog;
-use App\Models\Branch;
-use App\Models\Department;
-use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
 use App\Models\ShiftRotationStep;
 use App\Services\Shift\ShiftRotationResolver;
+use App\Support\ShiftAssignables;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -104,6 +102,25 @@ class ShiftRotationController extends Controller
     {
         Gate::authorize('delete', $rotation);
 
+        // Same refusal as ShiftController::destroy, for the same reason: a
+        // soft-deleted rotation leaves its current and upcoming assignments
+        // pointing at something nothing can load.
+        $inForce = $rotation->assignments()
+            ->inForceOnOrAfter(ShiftAssignment::tenantToday())
+            ->count();
+
+        if ($inForce > 0) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/rotation-in-use',
+                'title' => 'Rotation In Use',
+                'status' => 409,
+                'detail' => 'This rotation cannot be deleted: '.($inForce === 1
+                    ? '1 assignment is current or upcoming'
+                    : "{$inForce} assignments are current or upcoming")
+                    .'. End or reassign those first, or mark the rotation inactive.',
+            ], 409)->header('Content-Type', 'application/problem+json');
+        }
+
         $rotation->delete();
 
         AuditLog::record('shift_rotation.deleted', $rotation);
@@ -122,16 +139,12 @@ class ShiftRotationController extends Controller
 
         $rotation = ShiftRotation::where('public_id', $request->validated('rotation_id'))->firstOrFail();
 
-        // The default arm is unreachable while the FormRequest's `in:` rule
-        // holds, which is the point: if that rule is ever widened without this
-        // match being updated, an UnhandledMatchError here is a loud failure
-        // rather than a silently unassigned rotation.
-        $assignableType = match ($request->validated('assignable_type')) {
-            'employee' => Employee::class,
-            'department' => Department::class,
-            'branch' => Branch::class,
-            default => throw new \InvalidArgumentException('Unsupported assignable type.'),
-        };
+        // The throw is unreachable while the FormRequest's `in:` rule holds,
+        // which is the point: if that rule is ever widened without the map
+        // being updated, this is a loud failure rather than a silently
+        // unassigned rotation.
+        $assignableType = ShiftAssignables::modelFor($request->validated('assignable_type'))
+            ?? throw new \InvalidArgumentException('Unsupported assignable type.');
 
         $assignable = $assignableType::where('public_id', $request->validated('assignable_id'))->firstOrFail();
 
@@ -151,7 +164,9 @@ class ShiftRotationController extends Controller
             'assignable_public_id' => $request->validated('assignable_id'),
         ]);
 
-        return (new ShiftAssignmentResource($assignment->load('rotation.steps.shift')))
+        $assignment->load(ShiftAssignment::resourceRelations())->loadMissing('rotation.steps.shift');
+
+        return (new ShiftAssignmentResource($assignment))
             ->response()
             ->setStatusCode(201);
     }

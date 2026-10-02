@@ -10,8 +10,8 @@ import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
-import { useCurrentUser } from "@/features/auth/api";
 import { useT } from "@/lib/i18n/useT";
+import { escapeHtml } from "@/lib/utils/escape-html";
 
 function formatCents(cents: number): string {
   return (cents / 100).toLocaleString("en-ET", {
@@ -37,11 +37,19 @@ interface PayslipLabels {
 
 function printPayslip(
   entry: PayrollEntry,
-  employeeName: string,
-  labels: PayslipLabels,
+  rawEmployeeName: string,
+  rawLabels: PayslipLabels,
 ) {
   const w = window.open("", "_blank", "width=600,height=800");
   if (!w) return;
+
+  // The window is written with document.write and inherits this origin, so
+  // every interpolated value is escaped: the employee name is editable by HR
+  // and the labels come from translation files.
+  const employeeName = escapeHtml(rawEmployeeName);
+  const labels = Object.fromEntries(
+    Object.entries(rawLabels).map(([key, value]) => [key, escapeHtml(value)]),
+  ) as unknown as PayslipLabels;
 
   const html = `<!DOCTYPE html>
 <html><head><title>${labels.title}</title>
@@ -89,7 +97,6 @@ export default function MyPayslipsPage() {
   const { t } = useT();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMyPayslips({ page });
-  const { data: user } = useCurrentUser();
 
   const labels: PayslipLabels = {
     title: t("payroll_page.payslips_page.payslip_title"),
@@ -132,7 +139,8 @@ export default function MyPayslipsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {t("payroll_page.payslips_page.payslip_title")}
+                    {entry.period_label ??
+                      t("payroll_page.payslips_page.payslip_title")}
                   </CardTitle>
                   <Button
                     variant="ghost"
@@ -140,14 +148,13 @@ export default function MyPayslipsPage() {
                     onClick={() =>
                       printPayslip(
                         entry,
-                        user?.email ?? t("attendance.employee"),
+                        entry.employee?.name ?? t("attendance.employee"),
                         labels,
                       )
                     }
                     // Every payslip card renders this button, so a bare
-                    // "Download" would announce identically N times. Naming the
-                    // period makes each one distinguishable in a screen
-                    // reader's element list.
+                    // "Download" announces identically N times; the run's
+                    // period tells them apart.
                     aria-label={[
                       t(
                         "payroll_page.payslips_page.download",

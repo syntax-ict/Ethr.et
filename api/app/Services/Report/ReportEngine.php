@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
+use App\Support\Csv;
 use Carbon\Carbon;
 
 final class ReportEngine
@@ -36,6 +37,13 @@ final class ReportEngine
         return self::SOURCES;
     }
 
+    /**
+     * Rows are the source's column map. `summary` is empty when ungrouped, else
+     * per-group row counts and, when any `*_cents` column is present, per-group
+     * sums. Stated for the API contract, which cannot follow maps built by key.
+     *
+     * @scramble-return array{source: string, total: int, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int>>}}
+     */
     public function generate(int $tenantId, array $config): array
     {
         $source = $config['source'] ?? 'employees';
@@ -116,12 +124,9 @@ final class ReportEngine
             return '';
         }
 
-        $lines = [implode(',', array_keys($rows[0]))];
+        $lines = [Csv::row(array_keys($rows[0]))];
         foreach ($rows as $row) {
-            $lines[] = implode(',', array_map(
-                fn ($value) => '"'.str_replace('"', '""', (string) $value).'"',
-                $row
-            ));
+            $lines[] = Csv::row($row);
         }
 
         return implode("\r\n", $lines);

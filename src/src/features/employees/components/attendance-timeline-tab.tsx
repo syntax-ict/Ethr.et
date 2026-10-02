@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
 import { useT } from "@/lib/i18n/useT";
+import {
+  useEmployeeAttendanceTimeline,
+  type AttendanceTimelineDay as TimelineDay,
+} from "../api";
 
 const STATUS_BG: Record<string, string> = {
   present: "bg-success hover:bg-success",
@@ -18,27 +21,17 @@ const STATUS_BG: Record<string, string> = {
   weekend: "bg-muted hover:bg-muted-foreground/20",
 };
 
-interface TimelineResponse {
-  employee: { public_id: string; name: string };
-  range: { from: string; to: string };
-  totals: {
-    present: number;
-    late: number;
-    absent: number;
-    total_minutes_worked: number;
-  };
-  days: TimelineDay[];
-}
-
-interface TimelineDay {
-  date: string;
-  status: "present" | "late" | "absent" | "weekend" | string;
-  check_in: string | null;
-  check_out: string | null;
-  worked_minutes: number | null;
-  source: string | null;
-  is_weekend: boolean;
-}
+/** A blank cell padding the grid out to whole Monday-to-Sunday weeks. */
+const PADDING_DAY: TimelineDay = {
+  date: "",
+  status: "weekend",
+  check_in: null,
+  check_out: null,
+  worked_minutes: null,
+  source: null,
+  late_minutes: null,
+  is_weekend: true,
+};
 
 export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
@@ -51,25 +44,28 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   });
   const [selectedDay, setSelectedDay] = useState<TimelineDay | null>(null);
 
-  const { data, isLoading } = useQuery<TimelineResponse>({
-    queryKey: ["employee", employeeId, "timeline", range],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/attendance/timeline`,
-        {
-          params: { from: range.from, to: range.to },
-        },
-      );
-      return data;
-    },
-  });
+  const query = useEmployeeAttendanceTimeline(employeeId, range);
+  const { data } = query;
 
-  if (isLoading || !data) {
+  // Until there is data, QueryBoundary decides between the skeleton and an
+  // error with a retry. This used to be `isLoading || !data` → skeleton, so a
+  // failed request (or a range the server rejected) was a skeleton forever,
+  // with the range pickers that could have undone it no longer on screen.
+  if (!data) {
     return (
       <Card>
         <CardContent className="p-6">
-          <Skeleton className="h-8 w-48 mb-4" />
-          <Skeleton className="h-40 w-full" />
+          <QueryBoundary
+            query={query}
+            loading={
+              <>
+                <Skeleton className="h-8 w-48 mb-4" />
+                <Skeleton className="h-40 w-full" />
+              </>
+            }
+          >
+            {() => null}
+          </QueryBoundary>
         </CardContent>
       </Card>
     );
@@ -80,15 +76,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   const firstDate = new Date(data.days[0]?.date ?? range.from);
   const firstDow = (firstDate.getDay() + 6) % 7;
   for (let i = 0; i < firstDow; i++) {
-    currentWeek.push({
-      date: "",
-      status: "weekend",
-      check_in: null,
-      check_out: null,
-      worked_minutes: null,
-      source: null,
-      is_weekend: true,
-    });
+    currentWeek.push(PADDING_DAY);
   }
   for (const day of data.days) {
     currentWeek.push(day);
@@ -99,15 +87,7 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
   }
   if (currentWeek.length > 0) {
     while (currentWeek.length < 7) {
-      currentWeek.push({
-        date: "",
-        status: "weekend",
-        check_in: null,
-        check_out: null,
-        worked_minutes: null,
-        source: null,
-        is_weekend: true,
-      });
+      currentWeek.push(PADDING_DAY);
     }
     weeks.push(currentWeek);
   }
@@ -126,16 +106,16 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
             {data.range.from} to {data.range.to}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <DualCalendarDateInput
             value={range.from}
             onChange={(v) => setRange((r) => ({ ...r, from: v }))}
-            className="w-36"
+            className="w-80 max-w-full"
           />
           <DualCalendarDateInput
             value={range.to}
             onChange={(v) => setRange((r) => ({ ...r, to: v }))}
-            className="w-36"
+            className="w-80 max-w-full"
           />
         </div>
       </CardHeader>
@@ -243,8 +223,9 @@ export function AttendanceTimelineTab({ employeeId }: { employeeId: string }) {
                 size="sm"
                 variant="ghost"
                 onClick={() => setSelectedDay(null)}
+                aria-label={t("common.close", "Close")}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3" aria-hidden="true" />
               </Button>
             </div>
             {selectedDay.check_in && (

@@ -1156,7 +1156,10 @@ function GradesTab() {
                   setForm((p) => ({ ...p, name: e.target.value }))
                 }
                 required
-                placeholder="G1, Manager I, Level 5..."
+                placeholder={t(
+                  "org.field.grade_name_placeholder",
+                  "G1, Manager I, Level 5...",
+                )}
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">

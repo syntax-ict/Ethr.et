@@ -3,8 +3,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { EmptyState } from "@/components/shared/empty-state";
+import { CalendarX } from "lucide-react";
 import { useExecutiveAttendance } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
+import { useCalendar } from "@/lib/calendar/calendar-context";
+import { dayKeyLabel } from "./axis-format";
 import {
   LineChart,
   Line,
@@ -21,11 +25,13 @@ import {
 import { CHART_COLORS, ChartCard } from "./chart-helpers";
 
 export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { calendar } = useCalendar();
   const query = useExecutiveAttendance({ branchPublicId });
 
-  // isEmpty is disabled: each chart below hides itself when it has no rows, so
-  // the tab as a whole is never "empty".
+  // Every section below hides itself when it has no rows, so with no
+  // attendance in the period the tab rendered an empty grid and nothing else.
+  // Empty means all of them are.
   return (
     <QueryBoundary
       query={query}
@@ -34,7 +40,24 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
           <Skeleton className="h-80 w-full" />
         </div>
       }
-      isEmpty={() => false}
+      isEmpty={(data) =>
+        !data.daily_trend?.length &&
+        !data.by_source?.length &&
+        !data.top_late?.length
+      }
+      empty={
+        <EmptyState
+          icon={CalendarX}
+          title={t(
+            "analytics_page.no_attendance_title",
+            "No attendance in this period",
+          )}
+          description={t(
+            "analytics_page.no_attendance_desc",
+            "Charts appear here once employees check in.",
+          )}
+        />
+      }
     >
       {(data) => (
         <div className="space-y-6">
@@ -43,9 +66,19 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={data.daily_trend}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(value) =>
+                      dayKeyLabel(value, calendar, locale)
+                    }
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    labelFormatter={(label) =>
+                      dayKeyLabel(label, calendar, locale)
+                    }
+                  />
                   <Line
                     type="monotone"
                     dataKey="present"
@@ -69,7 +102,7 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
                       label
                       outerRadius={80}
                     >
-                      {data.by_source.map((_: unknown, i: number) => (
+                      {data.by_source.map((_, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -92,24 +125,17 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {data.top_late
-                      .slice(0, 10)
-                      .map(
-                        (
-                          e: { employee_name: string; late_count: number },
-                          i: number,
-                        ) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between rounded-lg border p-2"
-                          >
-                            <span className="text-sm">{e.employee_name}</span>
-                            <span className="text-sm font-semibold text-destructive">
-                              {e.late_count}x
-                            </span>
-                          </div>
-                        ),
-                      )}
+                    {data.top_late.slice(0, 10).map((e, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-lg border p-2"
+                      >
+                        <span className="text-sm">{e.employee_name}</span>
+                        <span className="text-sm font-semibold text-destructive">
+                          {e.late_count}x
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

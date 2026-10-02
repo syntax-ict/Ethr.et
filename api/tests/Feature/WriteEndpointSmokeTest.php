@@ -27,6 +27,7 @@ use App\Models\PayrollRun;
 use App\Models\Position;
 use App\Models\SavedReport;
 use App\Models\Shift;
+use App\Models\ShiftAssignment;
 use App\Models\Team;
 use App\Models\Webhook;
 use Illuminate\Support\Facades\Route;
@@ -72,6 +73,11 @@ test('write api/v1 endpoints never return 5xx', function () {
     $webhook = Webhook::factory()->create(['tenant_id' => $tenant->id]);
     $apiKey = ApiKey::factory()->create(['tenant_id' => $tenant->id]);
     $shift = Shift::factory()->create(['tenant_id' => $tenant->id]);
+    $shiftAssignment = ShiftAssignment::factory()->create([
+        'tenant_id' => $tenant->id, 'shift_id' => $shift->id,
+        'assignable_type' => Employee::class, 'assignable_id' => $employee->id,
+        'effective_from' => now()->addMonth()->format('Y-m-d'),
+    ]);
     $position = Position::factory()->create(['tenant_id' => $tenant->id]);
     $grade = Grade::factory()->create(['tenant_id' => $tenant->id]);
     $team = Team::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $dept->id]);
@@ -110,6 +116,7 @@ test('write api/v1 endpoints never return 5xx', function () {
         'customRole' => $customRole->public_id, 'shift' => $shift->public_id, 'webhook' => $webhook->public_id,
         'apiKey' => $apiKey->public_id, 'savedReport' => $savedReport->public_id,
         'leaveRequest' => $leaveRequest->public_id,
+        'assignment' => $shiftAssignment->public_id,
     ];
 
     // Prefixes whose side effects would corrupt the run or reach out to the network.

@@ -6,16 +6,17 @@ use App\Enums\UserRole;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\SystemAlertNotification;
-use App\Services\LoginAttemptService;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 
 /**
  * PHASE_00 S02 — "Account lockout after 10 failed attempts (15-min cooldown,
  * notify tenant admin)".
  *
- * The lockout itself was implemented; the notification half was not —
- * `lockoutAccount()` wrote a cache key and nothing else, so the admins who most
- * needed to know about a brute-force attempt were never told.
+ * RateLimitLoginAttempts enforces the lockout. The "notify" half lived in
+ * LoginAttemptService, which nothing on the login path ever called: these
+ * tests drove that service directly and passed for an alert that never ran.
+ * They now drive the real login endpoint.
  */
 function lockoutFixture(): array
 {
@@ -29,90 +30,86 @@ function lockoutFixture(): array
     return [$tenant, $admin];
 }
 
-function failUntilLockout(Tenant $tenant, string $email = 'victim@test.com'): void
+function failedLogin(Tenant $tenant, string $email = 'victim@test.com'): TestResponse
 {
-    $service = app(LoginAttemptService::class);
+    return test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/login", [
+        'email' => $email,
+        'password' => 'definitely-not-the-password',
+    ], ['REMOTE_ADDR' => '10.0.0.9']);
+}
 
-    for ($i = 0; $i < 10; $i++) {
-        $service->recordFailedAttempt($email, '10.0.0.9', $tenant);
+/** $count failed logins, stepping past the 5-per-minute burst window. */
+function failLogins(Tenant $tenant, int $count): void
+{
+    for ($i = 1; $i <= $count; $i++) {
+        failedLogin($tenant);
+        if ($i % 5 === 0) {
+            test()->travel(61)->seconds();
+        }
     }
 }
 
 test('the tenant admin is notified when an account locks out', function () {
     Notification::fake();
-
     [$tenant, $admin] = lockoutFixture();
 
-    failUntilLockout($tenant);
+    failLogins($tenant, 10);
 
     Notification::assertSentTo($admin, SystemAlertNotification::class);
+    failedLogin($tenant)->assertStatus(429);
 });
 
 test('the alert fires once, not on every further failed attempt', function () {
     Notification::fake();
-
     [$tenant, $admin] = lockoutFixture();
 
     // Well past the threshold — a running attack must not become a mail flood
     // aimed at the very admins who need to read the first alert.
-    $service = app(LoginAttemptService::class);
-    for ($i = 0; $i < 25; $i++) {
-        $service->recordFailedAttempt('victim@test.com', '10.0.0.9', $tenant);
-    }
+    failLogins($tenant, 25);
 
     Notification::assertSentToTimes($admin, SystemAlertNotification::class, 1);
 });
 
 test('no alert is sent before the threshold is reached', function () {
     Notification::fake();
-
     [$tenant] = lockoutFixture();
 
-    $service = app(LoginAttemptService::class);
-    for ($i = 0; $i < 9; $i++) {
-        $service->recordFailedAttempt('victim@test.com', '10.0.0.9', $tenant);
-    }
+    failLogins($tenant, 9);
 
     Notification::assertNothingSent();
 });
 
 test('another tenant admin is not notified', function () {
     Notification::fake();
-
     [$tenant] = lockoutFixture();
-    $otherTenant = createTenant();
     $otherAdmin = User::factory()->create([
-        'tenant_id' => $otherTenant->id,
+        'tenant_id' => createTenant()->id,
         'role' => UserRole::TENANT_ADMIN,
         'status' => 'active',
     ]);
 
-    failUntilLockout($tenant);
+    failLogins($tenant, 10);
 
     Notification::assertNotSentTo($otherAdmin, SystemAlertNotification::class);
 });
 
 test('a lockout with no active admin does not raise', function () {
     Notification::fake();
-
     $tenant = createTenant();
 
-    // No admin exists for this tenant — the lockout must still be applied.
-    failUntilLockout($tenant);
+    failLogins($tenant, 10);
 
-    expect(app(LoginAttemptService::class)->isLockedOut('victim@test.com', '10.0.0.9', $tenant))
-        ->toBeTrue();
+    failedLogin($tenant)->assertStatus(429);
 });
 
 test('a notification failure does not break the lockout itself', function () {
     [$tenant] = lockoutFixture();
 
     // Not faked: with no mail transport reachable the send throws, and the
-    // lockout must still take effect rather than surfacing as a login-path error.
+    // lockout must still take effect rather than surfacing as a login error.
     config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
 
-    failUntilLockout($tenant);
+    failLogins($tenant, 10);
 
-    expect(app(LoginAttemptService::class)->isLockedOut('victim@test.com', '10.0.0.9', $tenant))
-        ->toBeTrue();
+    failedLogin($tenant)->assertStatus(429);
 });

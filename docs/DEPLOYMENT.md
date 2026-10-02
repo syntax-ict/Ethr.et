@@ -1,5 +1,32 @@
 # ETHR — Deployment Guide (v2.0)
 
+> **The stack this guide deploys no longer exists in the repository — removed 2026-09-26.**
+>
+> `docker-compose.prod.yml`, `api/Dockerfile.prod`, `infrastructure/nginx.conf`,
+> `infrastructure/supervisor.conf`, `docker/php/{php.prod.ini,www.prod.conf}`,
+> `docker/mariadb/*.cnf`, both `.env.production.example` templates and
+> `scripts/{deploy,rollback,init-storage,prod-build-test,setup-replication}.sh`
+> were deleted with the VPS stack — see
+> [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md). **Every
+> `docker compose -f docker-compose.prod.yml` and `./scripts/deploy.sh` command
+> below now refers to a file that is not there.** The way back is `git revert` of
+> the removal commit.
+>
+> **What survives and is still authoritative:** *Draining the queue before an
+> upgrade* — the root `CLAUDE.md` cites it as a deploy precondition, and it is
+> about job serialization, not about Docker. The readiness checklist, the tax
+> schedule and the environment-variable *reasoning* are target-independent too.
+>
+> **The live procedure is
+> [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md).**
+> This file is kept as the record of how the VPS was run, not as instructions.
+>
+> **2026-09-30:** the Docker *development* stack (compose files, `docker/`, the container-only
+> scripts — `seed.sh`, `pest-isolated.sh`, `phpstan-isolated.sh`, `api-reload.sh`, `run-e2e.sh`)
+> was removed as well. Of the scripts this guide names, only `backup.sh` and `restore.sh` remain,
+> and both are retired: they refuse to run. Nothing in this repository runs under Docker now; local
+> development is XAMPP — [`LOCAL_SETUP.md`](LOCAL_SETUP.md).
+
 ## Pre-Deployment Readiness Checklist
 
 Read this before the Quick Start below. These are gaps a full
@@ -52,7 +79,7 @@ no open gap. See `docs/ENTERPRISE_ROADMAP.md` for the full itemized audit.
 Below the 8 GB minimum above, use `docker-compose.lowmem.yml` instead of
 `docker-compose.prod.yml` — same application, a different container topology
 sized for 4 GB: one MariaDB (no replica), one Redis (no cache split), one
-Horizon worker running every queue instead of three. Read the header comment
+`queue:work` container draining all four queues instead of two. Read the header comment
 in that file for exactly what changes and the capacity trade-off it accepts
 (a payroll run can occupy half the worker pool for up to 30 minutes). It is a
 standalone compose file, not an overlay — use exactly one of the two.
@@ -94,6 +121,7 @@ cd /opt/ethr
 #    credentials and the NEXT_PUBLIC_* frontend BUILD args).
 #    api/.env.production is injected into api, worker-*, scheduler and reverb.
 #    Both are gitignored; the .example files are the committed templates.
+# BOTH TEMPLATES WERE DELETED 2026-09-26 — see the banner at the top of this file.
 cp .env.production.example .env
 cp api/.env.production.example api/.env.production
 
@@ -180,15 +208,14 @@ is a map, not a duplicate.
 |---|---|---|---|
 | `nginx` | TLS termination, static assets, routing | 1 cpu / 256M | Only service on the public `ethr` network |
 | `api` | PHP-FPM, the Laravel application | 2 cpu / 1G | `replicas: 1` — see below |
-| `worker-realtime` | Queues: attendance, devices, sync | 2 cpu / 2G | `horizon --environment=production-realtime` |
-| `worker-notifications` | Queues: notifications, mail, sms, default | 1 cpu / 1.5G | `horizon --environment=production-notifications` |
-| `worker-heavy` | Queues: payroll, exports | 2 cpu / 2.25G | `horizon --environment=production-heavy` |
+| `worker-realtime` | Queues: attendance, notifications, default | 2 cpu / 384M × 4 replicas | `queue:work --queue=attendance,notifications,default --tries=3 --backoff=10 --max-time=3600 --memory=256` |
+| `worker-exports` | Queue: exports | 2 cpu / 768M × 2 replicas | `queue:work --queue=exports --tries=3 --backoff=10 --max-time=3600 --memory=512` |
 | `scheduler` | `schedule:run` every 60s | 0.5 cpu / 256M | Singleton by `container_name`; never scale it |
 | `reverb` | WebSocket server | 0.5 cpu / 256M | `replicas: 1` — see below |
 | `frontend` | Next.js standalone server | 1 cpu / 512M | `NEXT_PUBLIC_*` are baked in at build time |
 | `mariadb` | Primary database | 2 cpu / 2G | |
 | `mariadb-replica` | Read replica | 2 cpu / 1G | Needs `scripts/setup-replication.sh` once |
-| `redis` | Queue, sessions, cache locks, Horizon, Reverb pub/sub | 1 cpu / 768M | `noeviction` + AOF — nothing here is safe to drop |
+| `redis` | Queue, sessions, cache locks, Reverb pub/sub | 1 cpu / 768M | `noeviction` + AOF — nothing here is safe to drop |
 | `redis-cache` | Application cache only | 1 cpu / 640M | `allkeys-lru`, no persistence |
 | `minio` | S3-compatible object storage | 1 cpu / 512M | |
 
@@ -196,39 +223,42 @@ Note that the `memory` values are *limits*, not reservations — they cap a
 misbehaving service, and their sum deliberately exceeds host RAM. Only `api`,
 `mariadb` and `mariadb-replica` declare reservations (512M each).
 
-#### Three worker containers, not one
+#### Two worker containers, not three
 
-`config/horizon.php` defines six supervisors totalling 23 processes. Running
-all of them in one container put `supervisor-payroll`'s 1800-second jobs in the
-same cgroup as `supervisor-attendance`, whose whole purpose is the 30-second
-wait threshold in that same file — so a month-end payroll run delayed live
-check-ins, and the combined process ceiling far exceeded the container's memory
-limit.
+> **Corrected 2026-09-25 (Phase 2 documentation reconciliation).** This section described a
+> three-container split derived from `config/horizon.php`. **Horizon was removed in `cdf85d1`**
+> — it is absent from `composer.json` and `composer.lock`, and **`api/config/horizon.php` does
+> not exist**. `docker-compose.prod.yml` was fixed on 2026-09-22 and now runs two `queue:work`
+> containers. The sizing arithmetic below is rewritten from that file rather than adjusted,
+> because it no longer follows the old formula. The original Horizon text is preserved in
+> `CHANGELOG.md` and in the compose file's own header comment, which explains what changed and
+> why.
 
-Each supervisor now declares an explicit per-worker `memory`, and each
-container's limit is derived from it (supervisor memory x maxProcesses, plus
-~256 MB for the master supervisor process):
+Split by **latency**, not by queue name: an export that runs for minutes must not share a
+cgroup with `attendance`, whose whole value is being picked up promptly.
 
-| container | ceiling | limit | slack |
-|---|---|---|---|
-| `worker-realtime` | 6x128 + 4x192 + 256 = 1792 MB | 2048 MB | 256 MB |
-| `worker-notifications` | 5x128 + 3x128 + 256 = 1280 MB | 1536 MB | 256 MB |
-| `worker-heavy` | 3x384 + 2x256 + 256 = 1920 MB | 2304 MB | 384 MB |
+| container | queues | concurrency | `--memory` | container limit | slack |
+|---|---|---|---|---|---|
+| `worker-realtime` | `attendance,notifications,default` | 4 replicas × 1 process | 256 MB | 384 MB | 128 MB |
+| `worker-exports` | `exports` | 2 replicas × 1 process | 512 MB | 768 MB | 256 MB |
 
-Change one and you must change the other: Docker OOM-kills the container before
-Horizon's per-worker cap can recycle anything, so a limit below its ceiling
-kills the container instead of one worker. Note that `horizon.memory_limit`
-(256) is **not** that cap — it applies to the master supervisor process alone
-and only logs when exceeded. Reading it as a worker limit is what mis-sized
-these containers originally; supervisors that omit `memory` silently run at
-Horizon's 128 MB default, which payroll had been doing.
+**The sizing rule changed with the topology, and this is the part to read twice.** Horizon ran
+*N* worker processes per container under one master, so each limit was
+`per-supervisor-memory × maxProcesses + ~256 MB`. A plain `queue:work` is **one process per
+container**, so concurrency comes from `replicas` and each limit covers a single worker plus
+headroom.
 
-Each worker selects its supervisor set with `--environment`. **A name that
-matches no key in `config/horizon.php` starts cleanly and processes nothing** —
-Horizon returns silently rather than erroring. Each worker's healthcheck greps
-`horizon:supervisors` for a supervisor unique to it, which is what turns that
-silence into an unhealthy container. Rename a Horizon environment and you must
-change three places: the config key, the `--environment` flag, and the grep.
+What has *not* changed: `--memory` and the container limit must still move together. Docker
+OOM-kills the container before Laravel's own cap can apply, so a limit set at or under
+`--memory` dies instead of recycling the worker. Every limit above sits over its `--memory`,
+and the gap is the slack a job can grow into between the between-jobs checks.
+
+Each worker's healthcheck greps **its own process table** for `queue:wor[k]`. Two details are
+load-bearing: it checks *this* container rather than a cluster-wide registry — the former
+`horizon:status` inspected every master in Redis, so one healthy container made them all report
+healthy — and **the bracket in `queue:wor[k]` is required**, because without it the probe's own
+shell carries the pattern in its argv and the check passes with no worker running. Both forms
+were verified against a container with and without a worker.
 
 #### Two Redis containers, not one
 
@@ -276,6 +306,9 @@ from `.env.production.example` rather than left as a trap.
 ---
 
 ## Environment Variables
+
+**Both templates were deleted on 2026-09-26** with the VPS stack. The table is the
+record of which file fed which container; neither `.example` is in the tree.
 
 Two files, both gitignored, each with a committed template:
 
@@ -350,10 +383,10 @@ Set in the root `.env`: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_APP_URL`,
   signing in on the apex (the session cookie is host-only and would not survive
   the hop), and the SPA stops sending `X-Tenant`, which the API refuses outside
   local/testing anyway. Leave it unset only for single-host local development.
-- `NEXT_PUBLIC_REVERB_APP_KEY` has no default, deliberately: `src/lib/echo.ts`
+- `NEXT_PUBLIC_REVERB_APP_KEY` has no default, deliberately: `src/src/lib/echo.ts`
   falls back to the literal `ethr-key`, so a default here would make an unset
   value look intentional while every handshake fails against the real server key.
-- `NEXT_PUBLIC_WS_URL` is read by nothing — `src/lib/echo.ts` builds the
+- `NEXT_PUBLIC_WS_URL` is read by nothing — `src/src/lib/echo.ts` builds the
   connection from the three `REVERB` variables. It also carried the wrong path:
   Reverb's client path is `/app`, which is what `infrastructure/nginx.conf`
   proxies; `/ws` has no location and 404s.
@@ -444,9 +477,18 @@ Every script honours `COMPOSE_FILE` (default `docker-compose.prod.yml`; set
 cd /opt/ethr && ./scripts/deploy.sh
 ```
 
-Pulls, rebuilds `api`+`frontend`, `up -d`, migrates `--force`, rebuilds the
-config/route/view/event caches, `horizon:terminate` so workers reload code, then
-health-checks. Reads `HEALTH_URL` (default `https://localhost/api/v1/health`,
+Pulls, rebuilds `api`+`frontend`, rebuilds the config/route/view/event caches,
+migrates `--force`, `up -d --remove-orphans`, restarts `nginx`, then
+health-checks.
+
+> **Corrected 2026-09-25.** This previously said the script runs `horizon:terminate`
+> "so workers reload code". It does not, and cannot — Horizon was removed in `cdf85d1`.
+> Read `scripts/deploy.sh`: the artisan calls are `config:cache`, `route:cache`,
+> `view:cache`, `event:cache` and `migrate --force`, and **nothing else**. Workers pick up
+> new code because `up -d` recreates their containers from the rebuilt image; `--max-time=3600`
+> is the backstop, since a long-lived worker holds the code it booted with.
+
+Reads `HEALTH_URL` (default `https://localhost/api/v1/health`,
 hit with `-k`) with 10 retries. Auto-rollback is opt-in — `ROLLBACK_ON_FAIL=true`
 invokes `rollback.sh` on a failed health check; leave it off until the check is
 trusted, since a false negative reverts a good release. `DEPLOY_NOTIFY_EMAIL`
@@ -607,27 +649,31 @@ follows only one of them:
 
 ### Queue and worker monitoring
 
-`/horizon` is **not exposed in production**, and two independent things stop it:
-`infrastructure/nginx-common.conf` routes only `/api`, `/sanctum` and `*.php` to
-PHP-FPM, so `/horizon` falls through `location /` to the Next.js container and
-404s; and Horizon's default gate authorises the `local` environment only, so it
-would return 403 even if routed. Use the CLI on any worker container instead:
+> **Rewritten 2026-09-25.** This section described the `/horizon` dashboard and the
+> `horizon:status` / `horizon:supervisors` commands. **None of them exist** — Horizon was
+> removed in `cdf85d1`. There is no queue dashboard to expose, so the "open item" this
+> section used to carry (an nginx `location /horizon` plus a `Horizon::auth` gate) is not
+> deferred work; it is moot.
+
+**`ethr:queue:check` is the supported check** — *"Check that the scheduler is running and no
+queue is starving"*. It reads the minute heartbeat `QueueHealth::beat()` writes, which is what
+distinguishes a **quiet** queue from a **dead** one; depth alone cannot.
 
 ```bash
 dcp() { docker compose -f docker-compose.prod.yml "$@"; }
 
-dcp exec worker-realtime php artisan horizon:status        # cluster-wide
-dcp exec worker-heavy    php artisan horizon:supervisors   # per-container
+dcp exec api             php artisan ethr:queue:check   # scheduler alive + per-queue starvation
 dcp exec api             php artisan queue:failed
+dcp exec worker-realtime pgrep -af 'queue:wor[k]'       # is this container's worker up?
 ```
+
+The bracket in `queue:wor[k]` is load-bearing — see *Two worker containers, not three* above.
 
 Failed jobs also surface on the Super Admin dashboard with retry/dismiss
 actions, and every failure goes through the `Queue::failing` hook in
 `AppServiceProvider` (a `Log::error`, plus Sentry when `SENTRY_LARAVEL_DSN` is
-set). **Open item:** exposing the dashboard needs both an nginx `location
-/horizon` pointing at `api_backend` and a `Horizon::auth` gate restricted to
-super admins — it is a deliberate change to the platform's auth surface, not a
-config toggle.
+set). **That dashboard, plus `ethr:queue:check`, is the whole of queue observability** —
+there is no second surface waiting to be switched on.
 
 ### Slow Query Log
 
@@ -723,8 +769,8 @@ docker compose -f docker-compose.prod.yml exec api php artisan queue:retry {id}
 # Retry all failed
 docker compose -f docker-compose.prod.yml exec api php artisan queue:retry all
 
-# Check Horizon status
-docker compose -f docker-compose.prod.yml exec api php artisan horizon:status
+# Is the scheduler alive and is any queue starving? (not `horizon:status`, which does not exist)
+docker compose -f docker-compose.prod.yml exec api php artisan ethr:queue:check
 ```
 
 ### Slow performance
@@ -744,7 +790,8 @@ docker compose -f docker-compose.prod.yml exec redis-cache \
   redis-cli -a "$REDIS_PASSWORD" info memory
 
 # Check queue depth and worker health
-docker compose -f docker-compose.prod.yml exec worker-realtime php artisan horizon:status
+docker compose -f docker-compose.prod.yml exec api php artisan ethr:queue:check
+docker compose -f docker-compose.prod.yml exec worker-realtime pgrep -af 'queue:wor[k]'
 ```
 
 ### SSL certificate renewal failed

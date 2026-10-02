@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\DashboardDigest;
 use App\Services\CurrentTenant;
+use App\Support\StringList;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -74,7 +75,7 @@ class DashboardDigestController extends Controller
             'public_id' => $digest->public_id,
             'branch_name' => $digest->branch?->name,
             'frequency' => $digest->frequency,
-            'recipients' => $digest->recipients,
+            'recipients' => StringList::of($digest->recipients),
             'next_run_at' => $digest->next_run_at,
             'last_run_at' => $digest->last_run_at,
         ];

@@ -23,11 +23,13 @@ declare(strict_types=1);
  *   `composer.lock` only under `suggest` and which the application never calls,
  *   and carried `zip` as mandatory when the requirement is `phar` OR `zip`.
  *
- * - `.env.production.example` is a docker-compose artifact selecting redis,
- *   minio and reverb, and `DEPLOYMENT.md` step 4 says to copy it. On Plesk that
+ * - `.env.production.example` was a docker-compose artifact selecting redis,
+ *   minio and reverb, and `DEPLOYMENT.md` step 4 said to copy it. On Plesk that
  *   yields an application that cannot boot, which is why the shared-hosting
- *   template exists — and why it must not silently lose a key the VPS template
- *   has, or silently regain a driver that target cannot run.
+ *   template exists. That file went with the VPS on 2026-09-26; the key-parity
+ *   check it used to anchor is now pinned against an explicit list, for the same
+ *   reason — the template must not silently lose a key, or silently regain a
+ *   driver this target cannot run.
  *
  * These assertions are cheap and need no database, no network and no vendor
  * beyond Pest itself.
@@ -111,17 +113,79 @@ it('keeps the probe mandatory list free of extensions nothing requires', functio
     expect($mandatory)->toHaveCount(18);
 });
 
-it('keeps the shared-hosting env template key-identical to the VPS template', function () {
-    $vps = ethrEnvKeys(base_path('.env.production.example'));
-    $shared = ethrEnvKeys(base_path('.env.shared-hosting.example'));
+it('keeps the shared-hosting env template from dropping a key', function () {
+    // Until the VPS decommission (2026-09-26) this compared the template against
+    // `.env.production.example`, which is gone. That file was never the point — it
+    // was the reference list. The property being protected is unchanged, and is why
+    // this test was re-baselined rather than deleted: losing a key here is how a
+    // deployment ends up missing a variable that config/ reads with no default —
+    // the CONTACT_INBOX class of defect, found once already.
+    //
+    // The baseline is explicit now. That makes ADDING a key a deliberate act —
+    // update this list in the same change — which is what the VPS file used to
+    // provide for free.
+    $expected = [
+        'APP_DEBUG',
+        'APP_DOMAIN',
+        'APP_ENV',
+        'APP_FALLBACK_LOCALE',
+        'APP_KEY',
+        'APP_LOCALE',
+        'APP_NAME',
+        'APP_URL',
+        'BACKUP_KEEP',
+        'BCRYPT_ROUNDS',
+        'BROADCAST_CONNECTION',
+        'CACHE_STORE',
+        'CORS_ALLOWED_ORIGINS',
+        'CORS_ALLOWED_ORIGINS_PATTERNS',
+        'CRON_LOCK_SECONDS',
+        'CRON_QUEUE_MAX_SECONDS',
+        'CRON_TOKEN',
+        'DB_CONNECTION',
+        'DB_DATABASE',
+        'DB_HOST',
+        'DB_PASSWORD',
+        'DB_PORT',
+        'DB_READ_PASSWORD',
+        'DB_READ_USERNAME',
+        'DB_USERNAME',
+        'ETHIOTELECOM_SMS_ENDPOINT',
+        'ETHIOTELECOM_SMS_PASSWORD',
+        'ETHIOTELECOM_SMS_SENDER_ID',
+        'ETHIOTELECOM_SMS_USERNAME',
+        'FILESYSTEM_DISK',
+        'LOG_CHANNEL',
+        'LOG_DAILY_DAYS',
+        'LOG_LEVEL',
+        'LOG_STACK',
+        'MAIL_FROM_ADDRESS',
+        'MAIL_FROM_NAME',
+        'MAIL_HOST',
+        'MAIL_MAILER',
+        'MAIL_PASSWORD',
+        'MAIL_PORT',
+        'MAIL_USERNAME',
+        'QUEUE_CONNECTION',
+        'REVERB_APP_ID',
+        'REVERB_APP_KEY',
+        'REVERB_APP_SECRET',
+        'REVERB_HOST',
+        'REVERB_PORT',
+        'SANCTUM_STATEFUL_DOMAINS',
+        'SESSION_DOMAIN',
+        'SESSION_DRIVER',
+        'SESSION_LIFETIME',
+        'SESSION_SECURE_COOKIE',
+        'SMS_DAILY_LIMIT_PER_USER',
+        'SMS_DRIVER',
+    ];
 
-    // Losing a key here is how a production deployment ends up missing a
-    // variable that config/ reads with no default — the CONTACT_INBOX class of
-    // defect, found once already.
-    expect($shared)->toBe(
-        $vps,
-        'The shared-hosting template must carry exactly the VPS template keys. '
-        .'Conversions change VALUES and are marked # [shared-hosting]; they never drop a key.'
+    expect(ethrEnvKeys(base_path('.env.shared-hosting.example')))->toBe(
+        $expected,
+        'The shared-hosting template must carry exactly these keys. Conversions change '
+        .'VALUES and are marked # [shared-hosting]; they never drop a key. If you added '
+        .'one deliberately, add it here too.'
     );
 });
 

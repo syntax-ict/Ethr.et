@@ -65,5 +65,15 @@ export default async function globalSetup(config: FullConfig) {
   // Stale state from a previous run would let the admin specs "pass" against an
   // expired cookie or the wrong host, so clear it before attempting a new one.
   await fs.rm(SUPER_ADMIN_STATE, { force: true });
-  await mintSuperAdminSession();
+  const superAdminSignedIn = await mintSuperAdminSession();
+
+  // Locally a failed super-admin sign-in SKIPS the admin specs and prints why,
+  // which is right for a person reading the output. In CI nobody reads it and a
+  // skip is a pass, so E2E_REQUIRE_SUPER_ADMIN turns it into a hard failure.
+  if (!superAdminSignedIn && process.env.E2E_REQUIRE_SUPER_ADMIN) {
+    throw new Error(
+      'E2E_REQUIRE_SUPER_ADMIN is set and the super admin could not sign in; ' +
+        'the admin specs would have been skipped. See the warning above.',
+    );
+  }
 }

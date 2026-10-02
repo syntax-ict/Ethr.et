@@ -15,15 +15,22 @@ use App\Services\CurrentTenant;
 
 describe('employee CRUD', function () {
     it('lists employees for supervisor', function () {
+        // This used a supervisor login with no employee record and expected
+        // every employee in the tenant — which it got only because the org
+        // scope matched `supervisor_id IS NULL` for a null anchor. A
+        // supervisor lists their direct reports and themselves.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
 
-        Employee::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+        $reports = Employee::factory()->count(3)->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+        Employee::factory()->create(['tenant_id' => $tenant->id]);
 
         $response = $this->getJson('/api/v1/employees');
 
         $response->assertOk();
-        expect($response->json('data'))->toHaveCount(3);
+        expect(collect($response->json('data'))->pluck('public_id')->sort()->values()->all())
+            ->toBe($reports->push($supervisor)->pluck('public_id')->sort()->values()->all());
     });
 
     it('creates an employee as hr_admin', function () {
@@ -193,7 +200,7 @@ describe('employee CRUD', function () {
 describe('employee search and filter', function () {
     it('searches employees by name', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Abebe Kebede']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Tigist Hailu']);
@@ -219,7 +226,7 @@ describe('employee search and filter', function () {
         // SQLite always used LIKE. It is meaningful on MySQL, which is the point
         // of `phpunit.mysql.xml` — see CONTRIBUTING.md.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1234']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-5678']);
@@ -235,7 +242,7 @@ describe('employee search and filter', function () {
         // `name_am` is half the name search in a product whose first-class
         // languages are en and am, and nothing covered it on any driver.
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create([
             'tenant_id' => $tenant->id,
@@ -257,7 +264,7 @@ describe('employee search and filter', function () {
 
     it('searches employees by employee code', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-1234']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-5678']);
@@ -270,7 +277,7 @@ describe('employee search and filter', function () {
 
     it('filters employees by status', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->count(2)->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::CONFIRMED]);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'status' => EmployeeStatus::PROBATION, 'probation_end_date' => now()->addMonths(3)]);
@@ -284,7 +291,7 @@ describe('employee search and filter', function () {
 
     it('filters employees by department', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         $deptA = Department::factory()->create(['tenant_id' => $tenant->id]);
         $deptB = Department::factory()->create(['tenant_id' => $tenant->id]);
@@ -300,7 +307,7 @@ describe('employee search and filter', function () {
 
     it('sorts employees by hire_date descending', function () {
         $tenant = createTenant();
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenant);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Old Hire', 'hire_date' => '2020-01-01']);
         Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'New Hire', 'hire_date' => '2024-06-01']);
@@ -688,7 +695,7 @@ describe('employee tenant isolation', function () {
         Employee::factory()->count(3)->create(['tenant_id' => $tenantB->id]);
         app(CurrentTenant::class)->set($tenantA);
 
-        actingAsUser(['role' => UserRole::SUPERVISOR], $tenantA);
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenantA);
 
         $response = $this->getJson('/api/v1/employees');
 

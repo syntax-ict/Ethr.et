@@ -1,5 +1,14 @@
 # ETHR — Product Requirements Document (v2.0)
 
+> **2026-10-01: the deployment rows of this document describe the VPS/Docker stack, which no
+> longer exists in the repository** — the production set was removed in `3db9904`
+> (2026-09-26/27) and the Docker development stack on 2026-09-30. Production is Ethio Telecom
+> shared hosting under Plesk: no Docker, no Redis, no MinIO, no Horizon, no Supervisor, no
+> shell. The functional requirements stand; where a row names one of those components, read
+> the correction beside it. Live procedure:
+> [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md);
+> what to do when something breaks: [`operations/ON-CALL.md`](operations/ON-CALL.md).
+
 ## Document Control
 
 | Field | Value |
@@ -117,7 +126,7 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 | FR-04.4 | Encrypted sensitive data | P0 | Bank account, TIN encrypted at rest (AES-256). |
 | FR-04.5 | CSV import with preview | P1 | Upload, validate, preview errors per row, commit. Idempotent. |
 | FR-04.6 | Bulk update | P1 | Update department/branch/status for selected employees. |
-| FR-04.7 | Document management | P1 | Upload to MinIO with content verification. Expiry tracking. |
+| FR-04.7 | Document management | P1 | Upload to MinIO with content verification. Expiry tracking. *(2026-10-01: the `local` disk (`config/filesystems.php:16`), served through signed temporary URLs — MinIO was removed 2026-09-30.)* |
 | FR-04.8 | Self-service profile | P1 | Employee edits own allowed fields. Sensitive changes need approval. |
 
 ### FR-05: Attendance Platform
@@ -203,7 +212,7 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 | ID | Requirement | Priority | Acceptance Criteria |
 |---|---|---|---|
 | FR-11.1 | In-app notifications | P0 | 15+ types. Bell icon with unread count. Mark as read. |
-| FR-11.2 | Real-time via WebSocket | P0 | Reverb broadcast. Live badge update. Reconnect with backoff. |
+| FR-11.2 | Real-time via WebSocket | P0 | Reverb broadcast. Live badge update. Reconnect with backoff. *(2026-10-01: Reverb is opt-in and off in production — `BROADCAST_CONNECTION=null`; the client connects only when `NEXT_PUBLIC_REVERB_APP_KEY` is set (`src/src/lib/echo.ts:24`) and otherwise polls.)* |
 | FR-11.3 | Email notifications | P0 | Branded, bilingual templates. Customizable per tenant. |
 | FR-11.4 | User preferences | P1 | Toggle per type per channel. In-app always on. |
 | FR-11.5 | SMS for critical | P2 | OTP, payroll ready. Rate limited 5/day. |
@@ -325,10 +334,10 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 | Browsers | Chrome 90+, Firefox 90+, Safari 15+, Edge 90+ |
 | Mobile | iOS 15+ (Safari), Android 10+ (Chrome) |
 | PWA | Installable, offline attendance, background sync |
-| Server OS | Ubuntu 22.04+ |
-| Container | Docker Engine 24+, Docker Compose v2 |
+| Server OS | ~~Ubuntu 22.04+~~ Plesk shared hosting on Linux *(2026-10-01)* |
+| Container | ~~Docker Engine 24+, Docker Compose v2~~ none — removed 2026-09-30 |
 | Database | MariaDB 10.11+ |
-| Runtime | PHP 8.2+, Node.js 20 LTS |
+| Runtime | PHP 8.2+ (`api/composer.json`). ~~Node.js 20 LTS~~ — Node is a build-time tool only, pinned to 24 in `.nvmrc`; the production frontend is a static export with no Node runtime (C-5) |
 
 ---
 
@@ -363,12 +372,12 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 
 | Requirement | Detail |
 |---|---|
-| Self-hosted | Must run on Ethiopian VPS without cloud vendor dependency |
-| Docker-based | Single `docker compose up` to start all services |
-| SSL/TLS | Let's Encrypt auto-renewal via certbot |
-| Backup | Automated daily backup script (database + files) |
-| Monitoring | Health endpoint, Horizon dashboard, slow query log |
-| Zero-downtime deploy | Deploy script with migration + cache clear + restart |
+| Self-hosted | Must run on Ethiopian ~~VPS~~ hosting without cloud vendor dependency — the target is Ethio Telecom Plesk shared hosting |
+| ~~Docker-based~~ | ~~Single `docker compose up` to start all services~~ — *2026-10-01: there is no Docker. Locally: XAMPP ([`LOCAL_SETUP.md`](LOCAL_SETUP.md)); the production shape on `:8081` with `scripts/local-production/up.sh`* |
+| SSL/TLS | ~~Let's Encrypt auto-renewal via certbot~~ certificate managed by Plesk |
+| Backup | Automated daily backup (database + files): `php artisan ethr:backup` at 01:00 UTC through the scheduler (`api/routes/console.php:109`) — [`deployment/BACKUP-RESTORE.md`](deployment/BACKUP-RESTORE.md). `scripts/backup.sh` is retired and refuses to run |
+| Monitoring | Health endpoint (`GET /api/v1/health`), ~~Horizon dashboard~~ (removed, `cdf85d1`) the platform-admin failed-jobs view, slow query log — [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md) |
+| Zero-downtime deploy | ~~Deploy script with migration + cache clear + restart~~ `scripts/shared-hosting/deploy.sh` builds here and ships artifacts; there is no long-running process to restart. Drain the queue first — [`DEPLOYMENT.md`](DEPLOYMENT.md) → *Draining the queue before an upgrade* |
 
 ---
 

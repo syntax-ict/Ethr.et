@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Payroll;
 
+use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payroll\ProcessPayrollRequest;
@@ -130,6 +131,7 @@ class PayrollController extends Controller
         ]);
 
         AuditLog::record('payroll.approved', $payrollRun);
+        PayrollApproved::dispatch($payrollRun);
         $this->webhook($payrollRun->tenant_id, 'payroll.approved', [
             'public_id' => $payrollRun->public_id,
             'period' => $payrollRun->period_label,
@@ -214,8 +216,12 @@ class PayrollController extends Controller
 
         $user = $request->user();
 
+        // Approved runs only. A completed run is still finance's draft — a
+        // void and reprocess can change every figure on it — and this listed
+        // those payslips to employees before anyone had approved them.
         $entries = PayrollEntry::query()
             ->where('employee_id', $user->employee_id)
+            ->whereHas('payrollRun', fn ($q) => $q->where('status', 'approved'))
             ->with('payrollRun', 'employee')
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 25));
@@ -238,9 +244,20 @@ class PayrollController extends Controller
         return PayrollEntryResource::collection($entries);
     }
 
-    public function downloadPayslip(PayrollEntry $payrollEntry, PayslipPdfService $pdfService): Response
+    public function downloadPayslip(Request $request, PayrollEntry $payrollEntry, PayslipPdfService $pdfService): Response
     {
-        $this->authorize('viewAny', PayrollRun::class);
+        // Payroll staff may download any payslip; an employee their own, once
+        // the run is approved. This authorised `viewAny` alone, so the one
+        // person a payslip is for could not download it.
+        $user = $request->user();
+        $ownReleased = $user->hasPermission('payroll.viewOwnPayslip')
+            && $user->employee_id !== null
+            && $payrollEntry->employee_id === $user->employee_id
+            && $payrollEntry->payrollRun?->status === 'approved';
+
+        if (! $ownReleased) {
+            $this->authorize('viewAny', PayrollRun::class);
+        }
 
         $pdf = $pdfService->generate($payrollEntry);
 
@@ -294,7 +311,7 @@ class PayrollController extends Controller
         return response()->json([
             'period' => $payrollRun->period_label,
             'total_entries' => $rows->count(),
-            'total_amount_cents' => $rows->sum('net_amount_cents'),
+            'total_amount_cents' => (int) $rows->sum('net_amount_cents'),
             'rows' => $rows,
         ]);
     }

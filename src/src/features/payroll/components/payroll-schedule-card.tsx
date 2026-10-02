@@ -7,17 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
-
-interface SettingsResponse {
-  payroll?: {
-    pay_period?: string;
-    run_day?: number;
-  };
-}
 
 /**
  * Payroll schedule (run day + read-only pay period). These live on the tenant
@@ -27,12 +19,8 @@ interface SettingsResponse {
  */
 export function PayrollScheduleCard() {
   const { t } = useT();
-  const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<SettingsResponse>({
-    queryKey: ["settings"],
-    queryFn: async () => (await apiClient.get("/settings")).data,
-  });
+  const { data, isLoading } = useSettings();
 
   const persistedRunDay = data?.payroll?.run_day ?? 25;
   const payPeriod = data?.payroll?.pay_period ?? "monthly";
@@ -48,23 +36,25 @@ export function PayrollScheduleCard() {
     setRunDay(persistedRunDay);
   }
 
-  const save = useMutation({
-    mutationFn: async (payload: { run_day: number }) => {
-      const { data } = await apiClient.put("/settings", { settings: payload });
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      setTouched(false);
-      toast.success(
-        t("payroll_config.schedule_saved", "Payroll schedule saved"),
-      );
-    },
-    onError: () =>
-      toast.error(
-        t("payroll_config.schedule_save_failed", "Failed to save schedule"),
-      ),
-  });
+  const save = useUpdateSettings();
+
+  function saveRunDay() {
+    save.mutate(
+      { run_day: runDay },
+      {
+        onSuccess: () => {
+          setTouched(false);
+          toast.success(
+            t("payroll_config.schedule_saved", "Payroll schedule saved"),
+          );
+        },
+        onError: () =>
+          toast.error(
+            t("payroll_config.schedule_save_failed", "Failed to save schedule"),
+          ),
+      },
+    );
+  }
 
   const isDirty = touched && runDay !== persistedRunDay;
 
@@ -84,11 +74,7 @@ export function PayrollScheduleCard() {
           </p>
         </div>
         {isDirty && (
-          <Button
-            onClick={() => save.mutate({ run_day: runDay })}
-            disabled={save.isPending}
-            size="sm"
-          >
+          <Button onClick={saveRunDay} disabled={save.isPending} size="sm">
             {save.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

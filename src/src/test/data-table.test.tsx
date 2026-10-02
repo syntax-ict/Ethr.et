@@ -80,7 +80,7 @@ describe("DataTable", () => {
         onRetry={onRetry}
       />,
     );
-    await userEvent.click(screen.getByText("Try Again"));
+    await userEvent.click(screen.getByText("Try again"));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 

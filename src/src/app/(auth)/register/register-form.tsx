@@ -18,7 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiClient } from "@/api/client";
+import {
+  checkSubdomain as fetchSubdomainAvailability,
+  prepareCsrfCookie,
+  registerTenant,
+} from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
 
 const orgTypeKeys = [
@@ -174,10 +178,7 @@ export function RegisterForm() {
     }
     setCheckingSubdomain(true);
     try {
-      const response = await apiClient.get("/register/check-subdomain", {
-        params: { subdomain: value },
-      });
-      setSubdomainAvailable(response.data.available);
+      setSubdomainAvailable(await fetchSubdomainAvailability(value));
     } catch {
       setSubdomainAvailable(null);
     } finally {
@@ -255,7 +256,7 @@ export function RegisterForm() {
     setFieldErrors({});
 
     try {
-      await apiClient.get("/sanctum/csrf-cookie", { baseURL: "" });
+      await prepareCsrfCookie();
     } catch {
       setServerError(
         t(
@@ -267,7 +268,7 @@ export function RegisterForm() {
     }
 
     try {
-      await apiClient.post("/auth/register", {
+      await registerTenant({
         organization_name: data.organization_name,
         organization_type: data.organization_type,
         subdomain: data.subdomain,

@@ -317,4 +317,62 @@ describe("Preferences", () => {
       }),
     );
   });
+
+  // Audit N33: the calendar card is shown only inside an organisation.
+  function mockGetWithTenant(calendar: string) {
+    vi.mocked(apiClient.get).mockImplementation((url: string) => {
+      if (url === "/profile")
+        return Promise.resolve({
+          data: {
+            ...profile,
+            preferences: { locale: "en", theme: "system", calendar },
+          },
+        });
+      if (url === "/auth/me")
+        return Promise.resolve({
+          data: {
+            user: profile.user,
+            tenant: { public_id: "T1", name: "Abay", subdomain: "abay" },
+            permissions: [],
+          },
+        });
+      return Promise.resolve({ data: {} });
+    });
+  }
+
+  it("offers only the calendars the app can display, and shows a stored dual as Ethiopian", async () => {
+    // "Dual" promised both dates side by side, which nothing implements.
+    mockGetWithTenant("dual");
+    render(<ProfilePreferencesPage />, { wrapper });
+
+    const select = await screen.findByLabelText(/date display/i);
+    expect(select).toHaveTextContent("Ethiopian");
+
+    fireEvent.click(select);
+    expect(
+      await screen.findByRole("option", { name: "Gregorian" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.queryByRole("option", { name: "Both" })).toBeNull();
+  });
+
+  it("applies a calendar choice as well as storing it", async () => {
+    // It was stored and never applied: dates kept the browser's calendar.
+    // (The wrapper starts this browser on Gregorian.)
+    mockGetWithTenant("gregorian");
+    vi.mocked(apiClient.put).mockResolvedValue({
+      data: { locale: "en", theme: "system", calendar: "ethiopian" },
+    });
+    render(<ProfilePreferencesPage />, { wrapper });
+
+    fireEvent.click(await screen.findByLabelText(/date display/i));
+    fireEvent.click(await screen.findByRole("option", { name: "Ethiopian" }));
+
+    await waitFor(() =>
+      expect(apiClient.put).toHaveBeenCalledWith("/profile/preferences", {
+        calendar: "ethiopian",
+      }),
+    );
+    expect(localStorage.getItem("ethr.calendar")).toBe("ethiopian");
+  });
 });

@@ -1,5 +1,13 @@
 # ETHR v1.0 — Product Vision (v2.0)
 
+> **2026-10-01: where this vision names infrastructure, it names the VPS/Docker stack, which no
+> longer exists in the repository** — removed in `3db9904` (2026-09-26/27) and, for
+> development, on 2026-09-30. Production is Ethio Telecom shared hosting under Plesk: no
+> Redis, no MinIO, no Horizon, no Reverb in production. The product scope stands; the four
+> lines that name a component carry a dated correction. Architecture as built:
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) (itself bannered) and
+> [`deployment/shared-hosting/DEPLOYMENT.md`](deployment/shared-hosting/DEPLOYMENT.md).
+
 ## Product Position
 
 > **ETHR — Ethiopian Workforce Operating System**
@@ -152,7 +160,7 @@ Built from day one, not bolted on.
 - Personal information (name in English + Amharic, DOB, gender, marital status, nationality, religion, photo)
 - Employment information (employee code, hire date, probation end, confirmation date, status)
 - Organization assignment (department, branch, position, grade, team, cost center, supervisor)
-- Documents (contracts, certificates, ID copies — uploaded to MinIO, expiry tracking)
+- Documents (contracts, certificates, ID copies — uploaded to ~~MinIO~~ the `local` disk *(2026-10-01)*, expiry tracking)
 - Emergency contacts (multiple, with relationship)
 - Education history
 - Bank details (encrypted: bank name, branch, account number, TIN)
@@ -376,7 +384,7 @@ Executives see:
 
 ### Channels
 
-- In-app (always on, real-time via Reverb WebSocket)
+- In-app (always on, real-time via Reverb WebSocket) *(2026-10-01: Reverb is opt-in and off in production — `BROADCAST_CONNECTION=null`; without it the client polls)*
 - Email (branded, bilingual templates)
 - SMS (adapter-based: LogSms for dev, EthioTelecom for prod, rate-limited)
 - Push notifications (via PWA service worker)
@@ -483,7 +491,7 @@ Every critical function gracefully degrades when connectivity is lost:
 
 - Permissions checked via `$user->hasPermission('module.action')`
 - Never compare role strings directly
-- Cached in Redis (15-min TTL, invalidated on change)
+- ~~Cached in Redis (15-min TTL, invalidated on change)~~ *(2026-10-01, from the code:)* cached for one hour in the default cache store — `database` in production (`api/config/cache.php:18`) — and invalidated on change (`api/app/Models/Permission.php:48`, `:59`, `:70-83`)
 
 ---
 
@@ -511,7 +519,7 @@ Every critical function gracefully degrades when connectivity is lost:
 - Accessibility (WCAG 2.1 AA: keyboard navigation, screen reader, color contrast, focus visible)
 - Comprehensive error handling (QueryBoundary pattern: loading/empty/error/success states)
 - Retry and recovery mechanisms (queue failure recovery, offline retry)
-- Background job processing (Horizon, per-queue workers)
+- Background job processing (~~Horizon, per-queue workers~~ *2026-10-01:* the `database` queue, drained over HTTP by the GitHub Actions cron caller — Horizon was removed in `cdf85d1`; see [`operations/QUEUE-MONITORING.md`](operations/QUEUE-MONITORING.md))
 - Optimistic UI where safe (per documented policy)
 - Full audit logging (immutable, tenant-scoped)
 - Performance monitoring (Lighthouse > 80 perf, > 90 a11y, Core Web Vitals)
@@ -557,5 +565,5 @@ ETHR v1.0 succeeds when:
 2. Attendance works reliably with spotty internet connectivity.
 3. Payroll calculates correctly with full audit trail, and no employee disputes a payslip without resolution.
 4. The product feels distinctly Ethiopian — not a generic SaaS template with Amharic bolted on.
-5. IT administrators can deploy on an Ethiopian VPS without cloud vendor lock-in.
+5. IT administrators can deploy on Ethiopian hosting without cloud vendor lock-in. *(2026-10-01: this read "an Ethiopian VPS"; the target is Ethio Telecom Plesk shared hosting.)*
 6. The free trial converts to paid subscriptions because the product is genuinely better than the alternatives.

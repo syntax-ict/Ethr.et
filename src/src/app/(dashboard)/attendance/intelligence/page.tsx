@@ -19,52 +19,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { useAttendanceIntelligence } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
-
-interface IntelligenceResponse {
-  date: string;
-  anomalies: {
-    count: number;
-    thresholds: {
-      excessive_hours_minutes: number;
-      excessive_overtime_minutes: number;
-    };
-    records: Array<{
-      employee_public_id: string;
-      employee_name: string;
-      types: string[];
-      worked_minutes: number;
-      overtime_minutes: number;
-    }>;
-  };
-  late_arrivals: {
-    count: number;
-    records: Array<{
-      employee_name: string;
-      minutes_late: number;
-      check_in: string;
-      shift_start: string;
-    }>;
-  };
-  early_departures: {
-    count: number;
-    records: Array<{
-      public_id: string;
-      employee?: { name: string };
-      check_out: string;
-    }>;
-  };
-  missing_punches: {
-    count: number;
-    records: Array<{
-      public_id: string;
-      employee?: { name: string };
-      date: string;
-    }>;
-  };
-}
 
 export default function AttendanceIntelligencePage() {
   // Punch times render in the tenant's timezone, not the browser's — see
@@ -73,33 +29,27 @@ export default function AttendanceIntelligencePage() {
   const { t } = useT();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
-  const query = useQuery<IntelligenceResponse>({
-    queryKey: ["attendance", "intelligence", date],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/attendance/intelligence", {
-        params: { date },
-      });
-      return data;
-    },
-  });
+  const query = useAttendanceIntelligence(date);
 
   const data = query.data;
 
   return (
-    <RoleGate minRole="hr_admin">
+    // AttendanceIntelligenceController checks attendance.viewAll, which a
+    // custom role can hold without the HR-admin tier (or lack within it).
+    <RoleGate anyPermission={["viewAllAttendance"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("attendance.intelligence_page.title")}
           description={t("attendance.intelligence_page.description")}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Label className="text-xs">
                 {t("attendance.intelligence_page.date_label")}:
               </Label>
               <DualCalendarDateInput
                 value={date}
                 onChange={setDate}
-                className="w-44"
+                className="max-w-80 min-w-0 flex-1"
               />
             </div>
           }

@@ -51,8 +51,10 @@
  *
  *   php ethr-hosting-check.php --db-host=localhost --db-name=X --db-user=Y --db-pass=Z
  *
- *   Over the web, append the same as query parameters. Prefer SSH: a browser
- *   request puts the password in the access log.
+ *   Over the web, send the same keys (db-host, db-name, db-user, db-pass, and
+ *   token) as a POST body, which the access log does not record. db-pass in the
+ *   query string is refused with 400. Connect as the APPLICATION's own database
+ *   user: DB3, DB4 and DB6 measure the connecting user, not the server.
  */
 
 declare(strict_types=1);
@@ -75,8 +77,16 @@ declare(strict_types=1);
 const ETHR_PROBE_WEB_TOKEN = '';
 
 $isCli = PHP_SAPI === 'cli';
+
+// Web options come from the POST body first, then the query string. A POST body
+// is not written to the access log; a query string is, and on this account the
+// log cannot be purged. Added 2026-09-29 so the database checks — DB4 in
+// particular, which no other live route can reach — can run over the web
+// without leaking the password.
+$webInput = $isCli ? [] : $_POST + $_GET;
+
 if (! $isCli) {
-    $suppliedToken = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+    $suppliedToken = isset($webInput['token']) && is_string($webInput['token']) ? $webInput['token'] : '';
 
     if (ETHR_PROBE_WEB_TOKEN === '' || ! hash_equals(ETHR_PROBE_WEB_TOKEN, $suppliedToken)) {
         http_response_code(403);
@@ -86,6 +96,18 @@ if (! $isCli) {
     }
 
     header('Content-Type: text/plain; charset=utf-8');
+
+    // Refused rather than honoured. The request is already logged by the time PHP
+    // sees it, so this cannot un-leak anything — it makes the unsafe form fail
+    // every time, so nobody relies on it twice. After the token check, so an
+    // unauthenticated request still learns nothing.
+    if (isset($_GET['db-pass'])) {
+        http_response_code(400);
+        echo "400 Bad Request: db-pass arrived in the query string, which the access log records.\n"
+            ."Nothing was measured. Send the credentials as a POST body instead, and change this\n"
+            ."database user's password in Plesk - this request has already logged it.\n";
+        exit;
+    }
 }
 
 $results = [];
@@ -355,10 +377,18 @@ if ($isCli) {
     foreach (array_slice($argv, 1) as $arg) {
         if (preg_match('/^--([a-z-]+)=(.*)$/', $arg, $m)) {
             $opt[$m[1]] = $m[2];
+
+            continue;
+        }
+
+        // Bare flags (`--json`) as well as `--key=value`, so the reporting switch
+        // below does not have to be spelled `--json=1` to be recognised.
+        if (preg_match('/^--([a-z-]+)$/', $arg, $m)) {
+            $opt[$m[1]] = '1';
         }
     }
 } else {
-    $opt = array_map('strval', $_GET);
+    $opt = array_map('strval', $webInput);
 }
 
 $dbHost = $opt['db-host'] ?? null;
@@ -545,11 +575,77 @@ if (isset($pdo) && $pdo instanceof PDO) {
         record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN', $e->getMessage());
     }
 } else {
+    // Two different reasons, and the host run of 2026-09-29 printed the wrong one:
+    // credentials WERE passed, the login was refused, and this said they were not.
     record($results, 'Performance', 'P4', 'database benchmark', 'UNKNOWN',
-        'skipped - no database credentials passed');
+        $dbHost === null || $dbName === null || $dbUser === null
+            ? 'skipped - no database credentials passed'
+            : 'skipped - the database connection failed; see the Database section');
 }
 
 // ── Report ───────────────────────────────────────────────────────────────────
+
+/**
+ * `--json` — machine-readable output, so probe results are INGESTED rather than
+ * transcribed.
+ *
+ * Added 2026-09-27. The human-readable report below is still the default and is
+ * unchanged; this exists because the probe runs **once**, on a host nobody has
+ * shell access to, and its findings then have to reach `GATE-0-RESULT.md` and the
+ * cutover register. Retyping them is where a `UNSUPPORTED` becomes a `VERIFIED` —
+ * and this repository has already recorded a 404 being read as a pass once.
+ *
+ * Feed it to `scripts/hosting-verification/validate-host-evidence.php`, which
+ * refuses the specific mistakes on record.
+ *
+ * The database password is NEVER included: `$opt` is not serialised, only
+ * `$results`, and nothing writes a credential into a `record()` detail.
+ */
+if (! empty($opt['json'])) {
+    $flat = [];
+
+    foreach ($results as $section => $rows) {
+        foreach ($rows as $r) {
+            $flat[] = [
+                'section' => $section,
+                'id' => $r['id'],
+                'item' => $r['item'],
+                'status' => $r['status'],
+                'detail' => $r['detail'],
+            ];
+        }
+    }
+
+    $counts = ['VERIFIED' => 0, 'UNSUPPORTED' => 0, 'UNKNOWN' => 0, 'other' => 0];
+
+    foreach ($flat as $r) {
+        $key = array_key_exists($r['status'], $counts) ? $r['status'] : 'other';
+        $counts[$key]++;
+    }
+
+    echo json_encode([
+        'probe' => 'ethr-hosting-check',
+        'generated_at' => date('c'),
+        'host' => $_SERVER['HTTP_HOST'] ?? php_uname('n'),
+        'php_version' => PHP_VERSION,
+        'php_sapi' => PHP_SAPI,
+        // The SAPI matters when reading limits: the CLI values are not the web
+        // values, and the probe says so in its own Limits section.
+        'counts' => $counts,
+        'results' => $flat,
+        'reminder' => 'DELETE THIS FILE FROM THE SERVER NOW.',
+        'cannot_answer' => [
+            'cron type and interval',
+            'wildcard DNS / TLS / vhost binding',
+            'reverse-proxy directives',
+            'document-root configuration',
+            'plan quotas',
+            '.htaccess being honoured (use htaccess-canary/)',
+        ],
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+
+    exit($counts['UNSUPPORTED'] > 0 ? 1 : 0);
+}
 
 $line = str_repeat('=', 78);
 echo "$line\nETHR SHARED-HOSTING CAPABILITY PROBE\n";

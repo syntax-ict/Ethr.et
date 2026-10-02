@@ -16,9 +16,10 @@
  * produced.
  */
 // Base origin under test. Defaults to the single-host dev URL so nothing
-// changes for existing local/CI use; the reproducible Docker E2E harness sets
-// LHCI_BASE_URL=http://demo.ethr.test so Lighthouse hits the same production-like
-// subdomain path (through nginx) that the Playwright suite does.
+// changes for existing local/CI use. For a production-shaped run, point it at
+// the shared-hosting rehearsal (scripts/local-production/), e.g.
+// LHCI_BASE_URL=http://localhost:8081, which serves the static export through
+// the same Apache rules the host uses.
 const BASE = process.env.LHCI_BASE_URL || "http://demo.localhost:3000";
 
 module.exports = {

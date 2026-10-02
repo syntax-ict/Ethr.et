@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components } from "@/api/generated";
 
 /**
  * The facts the public site states about ETHR, owned by the platform admin.
@@ -105,4 +106,14 @@ export function pickLocalised(
   en: string | null,
 ): string | null {
   return locale === "am" && am ? am : en;
+}
+
+/**
+ * The public contact form. `website` is the honeypot: empty for a person,
+ * filled by a form-filler bot; the API answers 201 either way.
+ */
+export async function sendContactMessage(
+  payload: components["schemas"]["ContactRequest"] & { website?: string },
+): Promise<void> {
+  await apiClient.post("/contact", payload);
 }

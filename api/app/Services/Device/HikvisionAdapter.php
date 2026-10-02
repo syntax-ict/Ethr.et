@@ -171,8 +171,12 @@ final class HikvisionAdapter implements DeviceAdapter
 
     private function request(Device $device, string $method, string $path, ?array $body = null): Response
     {
-        $config = $device->connection_config;
-        $baseUrl = "http://{$config['ip']}:{$config['port']}";
+        // encrypted:array, but typed as string without a model @property; narrow
+        // it the way GenericHttpAdapter::config() does.
+        $config = $device->getAttribute('connection_config');
+        $config = is_array($config) ? $config : [];
+        DeviceHost::assertAllowed((string) ($config['ip'] ?? ''));
+        $baseUrl = DeviceHost::baseUrl('http', (string) $config['ip'], (string) $config['port']);
 
         // connectTimeout bounds the TCP connect phase so an unreachable device fails fast
         // (Http::timeout only caps the request once connected) — keeps status checks from

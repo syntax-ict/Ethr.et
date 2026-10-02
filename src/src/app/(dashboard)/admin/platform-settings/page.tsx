@@ -125,7 +125,10 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
             label={t("billing.bank", "Bank")}
             value={form.bank_name}
             onChange={set("bank_name")}
-            placeholder="Commercial Bank of Ethiopia"
+            placeholder={t(
+              "billing.bank_placeholder",
+              "Commercial Bank of Ethiopia",
+            )}
           />
           <Field
             label={t("billing.account_number", "Account Number")}

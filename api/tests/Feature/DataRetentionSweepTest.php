@@ -72,7 +72,10 @@ function insertNotification(string $id, CarbonInterface $createdAt): void
  */
 function insertDelivery(int $tenantId, int $webhookId, CarbonInterface $createdAt): int
 {
+    // `public_id` is NOT NULL since 2026_10_02_000001 (audit N18); the model
+    // fills it, a raw insert has to.
     return (int) DB::table('webhook_deliveries')->insertGetId([
+        'public_id' => (string) Str::ulid(),
         'tenant_id' => $tenantId,
         'webhook_id' => $webhookId,
         'event' => 'employee.created',

@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\PayrollEntry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin PayrollEntry */
 class PayrollEntryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         return [
             'public_id' => $this->public_id,
+            'period_label' => $this->whenLoaded('payrollRun', fn () => $this->payrollRun?->period_label),
             'employee' => new EmployeeResource($this->whenLoaded('employee')),
             'employee_public_id' => $this->employee?->public_id,
             'basic_salary_cents' => $this->basic_salary_cents,

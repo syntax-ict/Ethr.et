@@ -6,6 +6,8 @@ namespace App\Notifications;
 
 use App\Models\PayrollEntry;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
+use App\Support\FrontendUrl;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -44,9 +46,11 @@ class PayslipAvailableNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject(__('notification.payslip_available_subject'))
-            ->line(__('notification.payslip_available_body'))
-            ->action(__('notification.view_payslip'), url('/payslips'));
+        return NotificationTemplates::mail('payslip_available', $this->entry->tenant_id, [
+            'employee_name' => $this->entry->employee?->name,
+            'period' => $this->entry->payrollRun?->period_label,
+            // Convention 3's display format, `X,XXX.XX ETB`.
+            'net_amount' => number_format(((int) $this->entry->net_cents) / 100, 2).' ETB',
+        ])->action(__('notification.view_payslip'), FrontendUrl::to('/payroll/payslips'));
     }
 }

@@ -1,8 +1,14 @@
 # Plesk setup — what the repository handles, and what you configure
 
-**Target:** `ethr.et` · account `ethret` @ `lin6.ethiotelecom.et` · app at `~/ethr/` ·
-document root **`httpdocs/`** — Plesk's default, target chosen 2026-09-24.
-Measured today it is still `ethr.et/`; moving it is a panel action, see §5
+**Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · app at `<APP_ROOT>` ·
+document root **`<DOCROOT>`** — Plesk's default, target chosen 2026-09-24.
+**Measured 2026-09-17 the served directory was still `ethr.et/`**, not `httpdocs/`; moving it
+is a panel action, see §5
+
+> **Placeholders — HARD RULE 2**, [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
+> *Converted 2026-09-25.* The sentence above keeps its literal directory name deliberately:
+> that is a **measurement** of what the panel showed, and `<DOCROOT>` is the *target*. The whole
+> point of §5 is that the two differ, so templatising the reading would erase the finding.
 
 This document exists to keep one distinction sharp: **leaving something for you to
 configure in Plesk does not mean the repository is unprepared for it.** Each section below
@@ -270,6 +276,10 @@ Node versions are in play and **neither moves to fit the host**:
 The host never runs the gates, so 22.23.2 is not a blocker for this branch. Build the
 artifact on Node 22 to match the runtime.
 
+> **2026-10-01:** `docker/frontend/Dockerfile` was removed with the Docker development stack on
+> 2026-09-30; `.nvmrc` (24) is now the only Node pin. Under the static-export decision (C-5,
+> 2026-09-27) the host runs no Node application, so the runtime row no longer applies.
+
 ### Plesk — *Node.js*
 
 Read 2026-09-22: version **22.23.2**, npm, *Enable Node.js* and *Run Node.js commands* both
@@ -277,12 +287,23 @@ offered. ~~Set **Application Startup File to `server.js`**~~ — **do not**; rec
 Plesk's default and wrong for a Next standalone build. A mismatched entry point fails at
 start, loudly, which is the good kind.
 
-> **One thing is unverified and it decides the branch.** *Application URL* read
-> `http://ethr.et` — the domain root. If Plesk mounts the Node application there, requests
-> for `/api/v1/...` may never reach `index.php`, and the same-origin arrangement this layout
-> depends on does not exist. **Do not infer the answer from Plesk's documentation.** Enable
-> the app, fetch one API route and one frontend route, and see which process replies. The
-> static-export fallback in `DEPLOYMENT.md` step 5 has no such question.
+> # ✅ SETTLED 2026-09-27 — **DO NOT ENABLE NODE.JS ON THIS ACCOUNT.**
+>
+> The owner decided the **static export** ([`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md)).
+> There is no Node runtime on the host: Apache serves the exported files and `.htaccess`
+> sends `/api` and `/sanctum` to `index.php`. **This section is a panel reading, not an
+> instruction** — nothing in the deployment touches the *Node.js* page.
+>
+> The question below is kept because it is the cost that returns if the decision is ever
+> revisited, and because it was manual-queue item **M4**, now dropped.
+>
+> ~~**One thing is unverified and it decides the branch.**~~ *Application URL* read
+> `http://ethr.et` — the domain root. If Plesk mounted the Node application there, requests
+> for `/api/v1/...` might never reach `index.php`, and the same-origin arrangement this layout
+> depends on would not exist. ~~Enable the app, fetch one API route and one frontend route,
+> and see which process replies.~~ **Do not.** The static export in `DEPLOYMENT.md` §5b — now
+> the production path rather than a fallback — has no such question, because there is only one
+> server.
 
 ---
 

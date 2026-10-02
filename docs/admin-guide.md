@@ -220,7 +220,7 @@ Save a report and schedule it for automatic email delivery — daily, weekly, or
 | Attendance | Grace period, OT caps, confidence threshold |
 | Leave | Working days, default approval chain |
 | Payroll | Pay period, payroll run day |
-| Security | MFA policy (optional/required), session timeout |
+| Security | MFA policy — *required*: anyone without two-factor is sent to set it up and can use nothing else until they do; *disabled*: no new set-ups, existing ones kept. Session timeout (5–480 minutes without activity; background refreshes do not count) |
 | Notifications | Email template customization (EN + AM) |
 | Data | Full data export, retention settings |
 | Audit Log | View all actions with before/after comparison |

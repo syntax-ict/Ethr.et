@@ -8,12 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:a11y": "playwright test accessibility.spec.ts",
     "test:e2e:offline": "playwright test offline.spec.ts",
     "test:e2e:responsive": "playwright test responsive.spec.ts",
-    "docker:refresh": "node scripts/docker-refresh.mjs",
     "test:e2e:theme": "playwright test theme-switching.spec.ts",
     "test:e2e:amharic": "playwright test amharic-layout.spec.ts",
     "test:e2e:ux": "playwright test ux-audit.spec.ts",
@@ -21,7 +21,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "generate:api": "node scripts/generate-api.mjs"
+    "generate:api": "node scripts/generate-api.mjs",
+    "build:shared-hosting": "node scripts/build-shared-hosting.mjs",
+    "verify:static-export": "node scripts/verify-static-export.mjs"
   },
   "type": "module",
   "dependencies": {
@@ -60,7 +62,6 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
-    "@eslint/eslintrc": "^3.3.5",
     "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.47.0",
@@ -72,7 +73,6 @@
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.5",

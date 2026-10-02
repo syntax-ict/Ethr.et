@@ -31,8 +31,8 @@
 
         ## Not a replacement for phpunit.xml
 
-        This is slower, needs a running server, and is not wired into
-        scripts/gates.sh. A gate that cannot run on a developer's machine
+        This is slower, needs a running server, and is deliberately outside
+        the full `scripts/gates.sh` sweep (run it with `./scripts/gates.sh mysql`). A gate that cannot run on a developer's machine
         without a service is a gate that gets skipped, and a skipped gate
         reports success. Run it deliberately: before a release, after touching
         anything that writes dates or raw SQL, and when a test behaves
@@ -78,6 +78,9 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
         <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <env name="FRONTEND_URL" value="" force="true"/>
+        <!-- On: adapter tests address fake devices at private hosts. DeviceHostPolicyTest turns it off to test the production shape. -->
+        <env name="DEVICE_ALLOW_PRIVATE_HOSTS" value="true" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>
 
         <!-- The only lines that differ from phpunit.xml. -->
@@ -90,12 +93,9 @@
         <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value="" force="true"/>
 
-        <env name="FILESYSTEM_DISK" value="minio" force="true"/>
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
-        <env name="PULSE_ENABLED" value="false" force="true"/>
-        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
-        <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
     </php>
 </phpunit>

@@ -214,6 +214,23 @@ performance rows and keeps everything before them:
 Do not re-upload and retry more than once on a truncation. A second identical truncation
 is a result, not a flake.
 
+> **Corrected 2026-09-29: there is no partial report, and the table above describes
+> output that cannot occur.** Section order is as stated, but the probe *records* each
+> row into `$results` and prints nothing until the last section has run. Text mode and
+> `json=1` both render at the very end of `ethr-hosting-check.php`. A run cut off by a
+> time limit therefore returns an **empty body or a proxy 5xx**. It never returns
+> "everything before Performance". Nothing noticed, because every run so far completed.
+>
+> **The timing argument above needs a second correction.** On Linux, `max_execution_time`
+> counts the script's own execution. Time blocked on a socket or a database call does not
+> count; PHP's manual notes this is *"not true on Windows where the measured time is
+> real"*. So on the host, the six-second network timeouts barely touch it. What can cut a
+> web run off is a **wall-clock** limit: PHP-FPM's `request_terminate_timeout` or the
+> proxy's read timeout.
+>
+> The last paragraph survives: re-run once, and read a second identical *empty* result as
+> the answer. It means a wall-clock limit is below the probe's runtime.
+
 | Route C answers | Route C defers |
 |---|---|
 | **G0-E** — PHP version, all 18 mandatory extensions, `memory_limit`, `max_execution_time` | **G0-F** — `CREATE TRIGGER` (`DB4`) |
@@ -224,6 +241,19 @@ is a result, not a flake.
 So Route C closes G0-E, G0-H and the storage rows outright, and half of G0-J. **G0-F and
 G0-I stay open** — and G0-F is the one that aborts `migrate` by design, so it must be
 answered before any deployment, by Route A or B with credentials.
+
+> **Amendment, 2026-09-29 — Route C can now carry credentials, so G0-F and G0-I have a
+> route.** The paragraph above sends them to Route A or B, and neither exists on this
+> account: A is Forbidden, and B is absent (G0-D). The only obstacle was *where* the
+> password travelled. Web mode used to read its options from the query string. It now
+> reads a POST body first, which the access log does not record, and refuses `db-pass` in
+> the query string with 400. So the right-hand column of the table above is now
+> answerable over Route C, **provided the run connects as the application's own database
+> user**, because `DB3`, `DB4` and `DB6` measure the connecting user. Step 3's *"pass no
+> other query parameters"* still holds, because the credentials go in the body. `DB4` is
+> the first of G0-F's three readings; the other two still come after `migrate`. The
+> procedure, and the web-SAPI verification of all five request shapes, are in
+> [`host-evidence/README.md`](host-evidence/README.md) §2.
 
 Answers (all routes): G0-E, G0-F, G0-H, G0-I, G0-J, and the storage rows.
 
@@ -460,7 +490,7 @@ reason the conclusion survives.*
 
 *B-5 and B-6 were added to this table on 2026-09-19. They were recorded in
 `MIGRATION_STATE.md` on 2026-09-17/18 and this register — the one that governs — still
-listed four. `MIGRATION_CHANGELOG.md` has said "six blockers" since.* **B-7 was added
+listed four. `docs/archive/migration/MIGRATION_CHANGELOG.md` has said "six blockers" since.* **B-7 was added
 2026-09-23.**
 
 #### B-7 — what is known, and the two traps around it
@@ -749,6 +779,20 @@ stop condition if it holds the certificate or is the live site. **The canary lan
 is evidence for that stop condition**, and the runbook's own instruction is therefore now the
 risky one. **Do not remove `ethr.et/` until the fetch above resolves the root.** Deleting the
 live document root takes the site down and breaks ACME renewal.
+
+> # ⚠ SUPERSEDED FOR G0-B BY THE 2026-09-25 FETCH — see the reconciliation section
+> # at the end of this file, added 2026-09-27.
+>
+> The bullet below (*"no fetch has been performed"*) was true when written on
+> 2026-09-24 and stopped being true the next day. **Eight fetches were performed on
+> 2026-09-25** and five G0-B rows moved to VERIFIED. This paragraph and the
+> `NOT VERIFIED` rows in the *Results* table were left standing deliberately — the
+> authoritative plan §8 states it *"does not re-score a single G0 gate"* and that
+> folding the readings in was *"the register owner's call"* — with the consequence
+> that a reader of this file alone got a picture five gates out of date for two days.
+>
+> **Nothing in the historical text below or in the Results table has been altered.**
+> The current status of every gate is in *§ Gate status reconciliation* at the end.
 
 ### What these readings do not settle
 
@@ -1129,7 +1173,7 @@ Then the one that matters most:
 
 > **What is the actual price, and is it per month or per year?**
 
-`docs/TCO_COMPARISON.md` opens by flagging that the portal quotes ETB 452–1,009 with the period unstated, while a third-party directory says Bronze is ETB 650/month and Silver 2,000/month — and warns: *"If the monthly reading is right … the migration costs more money, loses functionality, and adds risk."* One question, and it decides whether this migration has a rationale at all.
+`docs/archive/migration/TCO_COMPARISON.md` opens by flagging that the portal quotes ETB 452–1,009 with the period unstated, while a third-party directory says Bronze is ETB 650/month and Silver 2,000/month — and warns: *"If the monthly reading is right … the migration costs more money, loses functionality, and adds risk."* One question, and it decides whether this migration has a rationale at all.
 
 ---
 
@@ -1142,11 +1186,11 @@ Written now, before any number exists, so a disappointing result cannot be argue
 | **G0-E** | **Terminal.** Laravel 12 requires PHP `^8.2`. If the host caps at 8.1 with no upgrade path, it cannot run ETHR at any tier. Stop and re-evaluate the target. Do not attempt a framework downgrade. |
 | **G0-B.2** | **The silent one.** CSP, HSTS, X-Frame-Options and Permissions-Policy stop being sent and nothing reports it. ~~Paste `nginx-directives.conf` §1~~ — **forbidden by the hard rule**; that field does not exist here. Verify the headers arrive on **three** path types — an HTML route, a static asset, an API response. **Expect the API response to pass regardless**: `SecurityHeaders` middleware sends them from PHP (`bootstrap/app.php:38`, api group). A pass there says nothing about the other two, which is the whole point of testing three. nginx `add_header` does not inherit into a location that has one of its own, so one passing URL proves nothing about the others. |
 | **G0-B.3** | ~~Paste `nginx-directives.conf` §2~~ — **forbidden by the hard rule.** Do not deploy until `/.env` returns **403**. A 404 is not a pass. Lower severity than it reads: in this layout `.env` sits outside the document root, so the deny rules are the second line, not the first. But a host that ignores them ignores G0-B.2 as well, which is the real damage. |
-| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It would also reduce this repository's *use* of Node to build-only — ~~and so **G0-G to build-only Node**~~ **withdrawn 2026-09-22**: the panel shows a startable Node application (startup file, application mode, application URL), so G0-G is not a build-only gate whatever Branch is chosen; choosing Branch B would leave that capability unused, not absent. Cross-origin remains the cost only if Branch A is chosen anyway. |
+| **G0-A** | **Amended 2026-09-17 — the original text was overstated.** It read *"frontend goes cross-origin; ~1 day becomes ~2 weeks plus an auth-security review"*, which is true **only if the Node server stays** (B5 = yes). Under B5 = no the frontend is static files in the *same* document root as `index.php`, and `shared-hosting/.htaccess` already routes `^/(api\|sanctum)` to the front controller — **same-origin, no nginx directives required**. `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E says so itself about `rewrites()`: *"In production nginx already routes `/api` to PHP before the SPA sees it… `.htaccess` must reproduce this."* So a FAIL does not force cross-origin; it forecloses Branch A and makes **static export the way to stay same-origin** — **an architectural frontend deployment change — re-costed 2026-09-18 (`7aed9d2`) after the export was actually attempted, and the earlier "bounded change already scoped in §E and D6" wording is withdrawn.** The export **does not build**: `app/manifest.ts` needs a `force-static` directive (§E missed it), and the four `[id]` routes are `"use client"`, which Next forbids combining with `generateStaticParams` — so the prescribed one-line addition is not implementable and each route needs a server-component split. Beyond the build, those ids are **tenant data**, so `generateStaticParams` can only return `[]` and every real `/employees/123` 404s; the routes need client-side routing. Still true and unchanged: delete `middleware.ts`, client-side host read in `(auth)/layout.tsx`, marketing pages lose SSR. It would also reduce this repository's *use* of Node to build-only — ~~and so **G0-G to build-only Node**~~ **withdrawn 2026-09-22**: the panel shows a startable Node application (startup file, application mode, application URL), so G0-G is not a build-only gate whatever Branch is chosen; choosing Branch B would leave that capability unused, not absent. Cross-origin remains the cost only if Branch A is chosen anyway. |
 | **G0-C** | Per-tier subdomain cap becomes a hard tenant cap — **but only if the provider counts a wildcard host-by-host.** That counting rule is an **OPEN QUESTION**, asked in the higher-plans ask of the support request; the published number is not by itself the tenant ceiling. Settle it before purchasing a tier. |
 | **G0-D** | Scheduler and queue move behind an authenticated HTTP endpoint. **Built and merged 2026-09-22 (`b61cb05`)** — `POST /api/v1/cron/schedule` and `/cron/queue`. There is no longer a cost to estimate; what remains is choosing a driver, and it need not be this host. **The gate still reads FAIL** — it measures the host, and the host is unchanged — so the No-Go → Option A decision it fired is untouched. |
 | **G0-F** | `migrate` aborts by design (`2026_07_22_000001`). Raise a support request for the `TRIGGER` grant — it is not a code change. Note the separate `DEFINER` hazard in `docs/audit/BASELINE.md` §13b. **Less likely to fail than it looks — see below.** |
-| **G0-G** | Frontend must ship as static files. **Not bounded work** — measured 2026-09-18 (`7aed9d2`): the export does not build, and making it build still leaves entity routes 404ing because their ids are tenant data. See `SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18*. |
+| **G0-G** | Frontend must ship as static files. **Not bounded work** — measured 2026-09-18 (`7aed9d2`): the export does not build, and making it build still leaves entity routes 404ing because their ids are tenant data. See `docs/archive/migration/SHARED_HOSTING_AUDIT.md` §E *MEASURED 2026-09-18*. |
 | **G0-H** | Mail may cap tenant count before CPU or storage does, and the queue dead-man's-switch needs a non-email alert path. |
 | **G0-I** | Below the floor, `migrate` fails on the *first* migrations (255-char `utf8mb4` primary keys at 1020 bytes vs the old 767-byte limit). |
 | **G0-J** | Payroll already runs synchronously in the request (`PayrollController.php:38`) against a documented *dedicated-hardware* budget of 30s for 500 employees. A slow shared CPU makes queueing it mandatory rather than advisable. |
@@ -1189,3 +1233,129 @@ Evidence: `.github/workflows/gates.yml`, job `backend-mysql`, which connects as 
    - No gate row was filled, and no gate moved.
 
    **This is not a general unfreeze.** `ENVIRONMENT.md`, `nginx-directives.conf`, `.htaccess`, `health-check.md` and `rollback.md` remain frozen. A further exception needs the same test this one passed: *is the defect branch-independent, and does leaving it block Gate 0 itself?* If the answer to either is no, wait for the facts.
+
+---
+
+## Gate status reconciliation — 2026-09-27
+
+**Why this section exists.** This register was deliberately not re-scored after the
+2026-09-25 host verification. The authoritative plan §8 says so in terms — it
+*"does not re-score a single G0 gate"*, the readings live in
+[`../audit/BRONZE-BLOCKER-RESOLUTION.md`](../audit/BRONZE-BLOCKER-RESOLUTION.md),
+and folding them in was *"the register owner's call"*. That was a defensible
+division of labour and it had a cost: for two days the *Results* table above
+reported `NOT VERIFIED` for five rows that had been measured, and the *"no fetch
+has been performed"* line was contradicted by eight fetches.
+
+**This section is that fold-in. Nothing above it has been altered** — the tables,
+the readings and the dated narrative are the historical record, and rewriting them
+would destroy the audit trail this repository keeps warning about.
+
+**One status vocabulary, no ambiguous language.** Every gate below carries exactly
+one of: `VERIFIED` · `FAILED` · `NOT VERIFIED` · `HOSTING ACTION REQUIRED` ·
+`OWNER DECISION REQUIRED`.
+
+### The register
+
+| Gate | Status | Measured | Evidence | What is still missing |
+|---|---|---|---|---|
+| **G0-B.1** `mod_rewrite` honoured | **VERIFIED** | 2026-09-25 | `GET /REWRITE_OK` → 200; canary prints `[ PASS ] G0-B.1`. Report header: `server software: Apache`, `php sapi: fpm-fcgi` | — |
+| **G0-B.2 (a)** `mod_headers` runs | **VERIFIED** | 2026-09-25 | `X-Ethr-Canary: headers-ok` on `/canary.php` and on a PHP 404 | — |
+| **G0-B.2 (b)** the CSP survives in transit | **VERIFIED** | 2026-09-28 | `Content-Security-Policy` present and **untruncated** on `/ethr-canary/canary.php`, byte-identical to the canary's own `.htaccess` (ends `form-action 'self'`). All 8 canary headers returned, so the current revision is what answered — the 2-of-7 reading was the stale 2026-09-18 file, as recorded. [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | — |
+| **G0-B.3 (a)** `<FilesMatch>` + `Require all denied` | **VERIFIED** | 2026-09-25 | `GET /secret.txt.probe` → **403** | — |
+| **G0-B.3 (b)** `RewriteRule … [F,L]` — *the mechanism the deployment actually uses* | **VERIFIED** | 2026-09-28 | `GET /ethr-canary/secret.env.probe` → **403**. The deny form the deployment actually uses to protect `api/.env`, `.git/` and `composer.json` is honoured on this host. The 2026-09-25 **404** was the bait's absence from the deployed set (`1edaad4`), not a host answer — recorded then as `NOT RUN`, and it stayed that way until a bait existed to answer it. [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt) | — |
+| **G0-B.4** `Authorization` reaches PHP | **VERIFIED** | 2026-09-25 | `curl -H 'Authorization: Bearer probe'` → `[ PASS ] G0-B.4` | — |
+| **G0-B.5** a real file shadows the rewrite | **VERIFIED — REWRITE WINS** | 2026-09-25 | `GET /shadow.js` returns the canary report, not the bait file; `/shadow.txt` agrees. The favourable outcome: `.htaccess` runs for static assets | — |
+| **G0-B.6** `AllowOverride Options` *(new gate, added 2026-09-26)* | **NOT VERIFIED** | — | `Options -Indexes` and `DirectorySlash Off` entered the rule set on 2026-09-26 and need an `AllowOverride` class the previous rules did not. The Apache harness used `AllowOverride All` — the permissive case. `BASELINE.md` §21e | A host measurement. **This gate did not exist before 2026-09-26 and has no row in the table above** |
+| **G0-A** reverse proxy for `/api/` | **NOT VERIFIED**, and **no longer load-bearing** | — | Neither directive textarea on the settings page, read twice. But `/api` needs no proxy directive: `mod_rewrite` ✅, PHP-FPM answers `.php` ✅, `Authorization` ✅ — and `BASELINE.md` §21g measured the front-controller rule itself, 18 of 18 | Nothing. Retained as a reading, not a blocker |
+| **G0-C** wildcard DNS | **VERIFIED** | 2026-08-29, re-confirmed 2026-09-17 | — | — |
+| **G0-C** wildcard TLS — *issuance* | **VERIFIED** | 2026-09-25 | A valid `*.ethr.et` Let's Encrypt certificate exists, `SAN: DNS:*.ethr.et`, 2026-09-16 → **2026-12-15**, already served for the apex. **This contradicts the row above, which reads "wildcard blocked, needs DNS-01"** | — |
+| **G0-C** wildcard TLS — *binding* | **HOSTING ACTION REQUIRED** | 2026-09-25 | No vhost configured: `admin.ethr.et` and a random label both **303 → `/login.php`** under the `lin6.ethiotelecom.et` certificate. Owner states it activates on subscription payment — testimony, not panel output | **M3** — pay, then re-measure **status *and* served certificate**; either alone is a false positive |
+| **G0-C** subdomain quota | **HOSTING ACTION REQUIRED** | — | Bronze publishes 5 subdomains; whether a wildcard counts host-by-host is an **open question**, asked in the support request | Panel, or a written answer |
+| **G0-D** cron / Scheduled Tasks | **FAILED** | 2026-09-18 | No Scheduled Tasks / Task Scheduler / Cron Jobs section on the subscription. Dev Tools has PHP, Git, Composer, **no Terminal** | Nothing repository-side. **The runner is built** (`CronRunController`, `b61cb05`); what is missing is an external caller — **Q6, `OWNER DECISION REQUIRED`** |
+| **G0-E** PHP version | **VERIFIED — 8.3.33** | 2026-09-25 | `X-Powered-By: PHP/8.3.33` on a live response. Upgrades the 2026-09-17 panel reading to a measurement | — |
+| **G0-E** 18 extensions, `memory_limit`, `max_execution_time` | **HOSTING ACTION REQUIRED** | — | The probe could not be placed: no shell, no FTP, no panel in that session | **M2** — run `ethr-hosting-check.php`. Note `.htaccess`'s `php_value max_execution_time` is **inert under `fpm-fcgi`**, which is the measured SAPI; set it in Plesk → PHP Settings instead |
+| **G0-F** `CREATE TRIGGER` | **HOSTING ACTION REQUIRED** | — | Favourable prior only — `TRIGGER` is part of `ALL PRIVILEGES`, needs no `SUPER`, Plesk's default is `ALL`. This register already calls that *"an argument about priors, not a measurement"* | **M2**, probe `DB4` (scratch table → trigger → `DROP TRIGGER` → `DROP TABLE`). If denied: request the grant. **Do not soften the migration** — `migrate` aborts by design and that is a safety property, not an obstacle |
+| **G0-G** Node.js | **OWNER DECISION REQUIRED** | panel 2026-09-22 | The panel offers a startable application (startup file, application mode, application URL) at Node **22.23.2**. Two pins, deliberately different: `.nvmrc` **24** for CI and the gates, `docker/frontend/Dockerfile` **22** for the app runtime *(that file was removed 2026-09-30, and under C-5 the host runs no Node application)*. 22.23.2 satisfies the runtime pin and not the CI pin — and the host never runs the gates | Not a measurement. Whether Node is used at all is **C-5**: [`../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](../decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md). **Do not relax `.nvmrc` to fit the host** |
+| **G0-H** outbound SMTP 587/465, mailbox send cap | **HOSTING ACTION REQUIRED** | — | — | **M2** for the ports; panel for the cap. Nothing in the code respects a send cap, and `NotifyAnnouncementAudienceJob` / `SendApprovalRemindersJob` both fan out |
+| **G0-I** MySQL version, `DB_CONNECTION`, version floor, charset | **HOSTING ACTION REQUIRED** | — | — | **M2**, probes `DB1`, `DB1b`, `DB1c`, `DB10`. The VIRTUAL generated column on `devices` needs 5.7.6+ / 10.2.1+ |
+| **G0-J** CPU and database performance | **NOT VERIFIED** | — | — | **M2**. Related but separate: payroll runs inside the 50-second `queue:work` window, against a budget of *"500 employees < 30s"* measured on dedicated hardware |
+| **Web stack identity** | **VERIFIED** | 2026-09-25 | `Server: nginx` + `X-Powered-By: PleskLin` at the edge; canary reports Apache + `fpm-fcgi` → **nginx → Apache → PHP-FPM** | — |
+| **Document root** | **VERIFIED (behaviourally)** | 2026-09-25 | The canary files answer at `/`, so the served directory is the one they were uploaded into. The panel *path* remains unread | Nothing. **Do not change the Document root field** — the default is already correct, and a value resolving to the home directory web-serves `~/ethr/api/.env` |
+| **Application deployed** | **VERIFIED — NO** | 2026-09-25 | `/` serves Plesk's *Domain Default page*; `/index.php` → PHP-FPM `File not found.` | Everything downstream |
+| `symlink()` / probe `ST5` | **NOT VERIFIED — and not a dependency** | — | Carried as a storage row in the table above | Nothing. ETHR serves files through signed `temporaryUrl()`; there is **no `storage:link` step**. Informational only — see [`../audit/REPOSITORY-INVENTORY.md`](../audit/REPOSITORY-INVENTORY.md) §4 |
+
+### What this reconciliation does not do
+
+- **It scores no gate from a document.** Every `VERIFIED` above cites a fetch, a
+  header or a panel reading, with a date.
+- **It does not convert a non-answer into a pass.** G0-B.2(b) and G0-B.3(b) both
+  returned results, and both are recorded as `HOSTING ACTION REQUIRED`, because a 404
+  on an absent bait is evidence about the canary rather than about the host.
+- **It adds one gate** — **G0-B.6**, `AllowOverride Options` — because the rule set
+  acquired a requirement on 2026-09-26 that no existing row covers. A new requirement
+  with no gate is how something ships unmeasured.
+- **It leaves the `Results` table above untouched**, including the rows it supersedes.
+  Where the two disagree, this section is current and that one is dated.
+
+---
+
+## Update — 2026-09-28 · M1 closed, and a document-root scare that was not one
+
+**M1 is `PASS`, both parts.** Measured against `www.ethr.et` pinned to `213.55.96.154`,
+transcript in [`host-evidence/session-2026-09-28/M1-EVIDENCE.txt`](host-evidence/session-2026-09-28/M1-EVIDENCE.txt).
+`secret.env.probe` → **403**; the CSP arrives untruncated. Two rows above moved from
+`HOSTING ACTION REQUIRED` to `VERIFIED` and nothing else in this register changed:
+`CUTOVER READY` stays **NO** on eleven other gates, and **G0-B.6 is still unmeasured** —
+it needs the deployed rule set, which the canary does not carry.
+
+**The revision was confirmed before anything was believed**, which is the only reason these
+readings count. Eight canary headers came back, not the three the 2026-09-18 file sets. Had
+that check been skipped, the 403 would have been indistinguishable from a 403 produced by
+the older `<FilesMatch>` bait — a pass on the wrong mechanism.
+
+### The reachability scare, recorded because the reasoning was wrong before the data was
+
+The session opened with a report that `https://www.ethr.et/ethr-canary/canary.php` returned
+**404**, alongside 404s on `/index.html`, `/favicon.ico` and `/README.md` — files confirmed
+present in the directory the owner was reading in File Manager. That was analysed at length
+as a vhost, document-root or DNS fault. **Every one of those hypotheses was wrong**, and the
+first pinned request disproved the premise: the canary answers **200**.
+
+What had actually happened is visible in one number. `/ethr-canary/favicon.ico` returns
+**200, 113 459 bytes** — the same byte count this register measured at `/favicon.ico` on
+2026-09-24 — and `/ethr-canary/css/` and `/ethr-canary/cgi-bin/` both return **403**, the
+same two Plesk defaults that answered at `/css/` and `/cgi-bin/` then. **Plesk's default
+files had been moved down into `ethr-canary/` along with the upload**, leaving the served
+root's top level bare. The directory the owner was reading as `httpdocs` was
+`httpdocs/ethr-canary`.
+
+**The document root never moved.** `/.well-known/acme-challenge/` still answers **403** from
+the served root and **404** from inside `ethr-canary/`, which is the same evidence that
+re-confirmed the root on 2026-09-17 and 2026-09-24. **ACME renewal is not at risk** — which
+matters, because the wildcard certificate expires 2026-12-15 and this register records that
+renewal fails *silently*. DNS is also clear: both names resolve to `213.55.96.154`, and the
+pinned and unpinned responses were byte-identical, so no intermediary was involved.
+
+**Three lessons, in the order they cost time:**
+
+- **A reported 404 is a claim about a request, not about a host.** `RUN-SHEET.md` §2 already
+  says to treat one as *"which server answered?"* first. The pinned fetch that settles it is
+  one command, and it was available before any of the analysis.
+- **File Manager shows where a file went; it does not show what Apache serves.** This
+  register learned that on 2026-09-24 and wrote it down. The same trap caught the same
+  question again four days later, from the other direction — last time the files were
+  unreachable and looked fine, this time they were fine and looked unreachable.
+- **The 403-vs-404 signature is weaker than this register assumed.** It reads
+  `/.well-known/` as 404 while `/.well-known/acme-challenge/` is 403, so "403 means present"
+  does not hold uniformly — some paths are answered by an nginx rule rather than by the
+  filesystem. Use it to generate hypotheses, not to settle them.
+
+### One loose end, for M5
+
+`README.md` and `RUN-SHEET.md` were uploaded with the six baits and are **web-readable** at
+`/ethr-canary/`. Neither holds a secret, and both name every bait and describe the strategy —
+`htaccess-canary/README.md` says in terms that they stay in the repository. **M5 removes
+them**, and M5 is now unblocked. Note that deleting that directory also deletes the Plesk
+defaults now sitting inside it; losing them is harmless, since the deployment ships its own
+front controller and favicon and nothing uses `cgi-bin/`.

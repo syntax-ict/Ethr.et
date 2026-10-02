@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use App\Rules\DeviceConnectionConfig;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
@@ -155,7 +156,17 @@ final class GenericHttpAdapter implements DeviceAdapter
         $base = rtrim((string) ($config['base_url'] ?? ''), '/');
         $path = (string) ($config[$key] ?? $default);
 
-        return $base.'/'.ltrim($path, '/');
+        $host = parse_url($base, PHP_URL_HOST);
+        DeviceHost::assertAllowed(is_string($host) ? trim($host, '[]') : '');
+
+        // A stored path predating DeviceConnectionConfig could still smuggle a
+        // host in (`@evil.test/x`), so the joined URL must name the same host.
+        $url = $base.'/'.ltrim($path, '/');
+        if (! DeviceConnectionConfig::isSafePath('/'.ltrim($path, '/')) || parse_url($url, PHP_URL_HOST) !== $host) {
+            throw new \RuntimeException(__('device.path_invalid', ['key' => $key]));
+        }
+
+        return $url;
     }
 
     /**

@@ -13,6 +13,10 @@ interface CurrencyInputProps {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  // FormField clones these onto its child; dropping them silenced the error.
+  "aria-invalid"?: boolean;
+  "aria-required"?: boolean;
+  "aria-describedby"?: string;
 }
 
 function centsToDisplay(cents: number): string {
@@ -33,6 +37,7 @@ export function CurrencyInput({
   disabled,
   required,
   className,
+  ...aria
 }: CurrencyInputProps) {
   const [text, setText] = useState(() => centsToDisplay(value));
   const [isFocused, setIsFocused] = useState(false);
@@ -74,6 +79,7 @@ export function CurrencyInput({
         placeholder={placeholder ?? "0.00"}
         disabled={disabled}
         required={required}
+        {...aria}
         className={cn("pr-12", className)}
       />
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">

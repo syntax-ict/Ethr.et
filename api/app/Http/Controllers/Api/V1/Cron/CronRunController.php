@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Cache;
  * asynchronous half of the product is inert, silently.
  *
  * It is NOT a replacement for real cron where real cron exists. The VPS keeps
- * infrastructure/supervisor.conf and the compose worker services; this is the
+ * the VPS's supervisor program and compose worker services; this is the
  * shared-hosting fallback the register has called "unbuilt" since 2026-09-18.
  */
 class CronRunController

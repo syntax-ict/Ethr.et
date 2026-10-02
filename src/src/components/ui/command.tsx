@@ -5,6 +5,7 @@ import { type DialogProps } from "@radix-ui/react-dialog";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
 const Command = React.forwardRef<
@@ -26,10 +27,14 @@ function CommandDialog({
   children,
   ...props
 }: DialogProps & { children: React.ReactNode }) {
+  const { t } = useT();
+
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 shadow-lg">
-        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogTitle className="sr-only">
+          {t("command.palette_title", "Command palette")}
+        </DialogTitle>
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>

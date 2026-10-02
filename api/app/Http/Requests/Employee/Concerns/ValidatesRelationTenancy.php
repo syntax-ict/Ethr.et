@@ -36,16 +36,56 @@ use Illuminate\Validation\Validator;
  * byte-identical and the contract cannot move.
  *
  * Shared by `StoreEmployeeRequest` and `UpdateEmployeeRequest` rather than
- * copied into each, so the two cannot drift apart.
+ * copied into each, so the two cannot drift apart — and so are the seven
+ * unscoped `exists` rules this hook backs, in `relationRules()`. The rest of
+ * the two requests' rules stay written out in each: they differ in six places
+ * interleaved through the array, and Store's `national_id` comment is
+ * published to the contract while Update's key has none.
  *
  * @mixin FormRequest
  */
 trait ValidatesRelationTenancy
 {
+    /**
+     * The seven relation fields, keyed as in `EmployeeRelations::MAP`.
+     *
+     * Scramble evaluates `rules()` at runtime, so spreading this array into it
+     * publishes the same contract as spelling it out — `api/openapi.json` and
+     * `src/src/api/generated.ts` were regenerated and are byte-identical. Keep
+     * explanatory comments off these keys: Scramble publishes them as OpenAPI
+     * descriptions.
+     *
+     * @return array<string, list<string>>
+     */
+    protected function relationRules(): array
+    {
+        return [
+            'department_id' => ['nullable', 'exists:departments,public_id'],
+            'branch_id' => ['nullable', 'exists:branches,public_id'],
+            'position_id' => ['nullable', 'exists:positions,public_id'],
+            'grade_id' => ['nullable', 'exists:grades,public_id'],
+            'team_id' => ['nullable', 'exists:teams,public_id'],
+            'cost_center_id' => ['nullable', 'exists:cost_centers,public_id'],
+            'supervisor_id' => ['nullable', 'exists:employees,public_id'],
+        ];
+    }
+
+    /**
+     * Which of the seven fields this request accepts — all of them for create and
+     * update. `BulkUpdateRequest` narrows it to the two it writes, so a field it
+     * would ignore anyway is not validated either.
+     *
+     * @return array<string, class-string>
+     */
+    protected function tenancyCheckedRelations(): array
+    {
+        return EmployeeRelations::MAP;
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            foreach (EmployeeRelations::MAP as $field => $modelClass) {
+            foreach ($this->tenancyCheckedRelations() as $field => $modelClass) {
                 $publicId = $this->input($field);
 
                 // Absent or null is allowed — every one of these fields is

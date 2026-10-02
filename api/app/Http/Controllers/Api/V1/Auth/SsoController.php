@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
+use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -12,6 +13,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AuthService;
 use App\Services\CurrentTenant;
+use App\Services\PlanLimitService;
 use App\Services\Sso\SsoProviderInterface;
 use App\Services\Sso\SsoUser;
 use App\Support\EthiopianPhone;
@@ -53,6 +55,18 @@ class SsoController extends Controller
     {
         $tenant = Tenant::where('subdomain', $subdomain)->firstOrFail();
         $this->currentTenant->set($tenant);
+
+        // The callback runs on the API host, where ResolveTenant's suspension
+        // check does not apply, so a suspended tenant's users still got
+        // sessions — and auto-provisioning still wrote into the tenant.
+        if (! $tenant->isActive()) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/tenant-inactive',
+                'title' => 'Organization Inactive',
+                'status' => 403,
+                'detail' => __('auth.tenant_inactive'),
+            ], 403)->header('Content-Type', 'application/problem+json');
+        }
 
         if (! $this->sso->isConfigured($tenant)) {
             return response()->json([
@@ -141,6 +155,9 @@ class SsoController extends Controller
             return null;
         }
 
+        // The plan's seat cap applies however an employee arrives.
+        app(PlanLimitService::class)->assertCanAdd($tenant, 'employees');
+
         return DB::transaction(function () use ($tenant, $ssoUser, $ssoSettings) {
             $defaultRole = UserRole::tryFrom($ssoSettings->default_role) ?? UserRole::EMPLOYEE;
 
@@ -149,7 +166,9 @@ class SsoController extends Controller
                 'name' => $ssoUser->fullName(),
                 'email' => $ssoUser->email,
                 'phone' => EthiopianPhone::canonicalOrRaw($ssoUser->phone),
-                'status' => 'active',
+                // 'active' is not an EmployeeStatus: every auto-provisioned
+                // first sign-in failed with a 500 here. HIRED, as SCIM uses.
+                'status' => EmployeeStatus::HIRED,
                 'hire_date' => now(),
             ]);
 

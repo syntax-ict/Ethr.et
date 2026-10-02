@@ -26,6 +26,7 @@ use App\Traits\DispatchesWebhooks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Collection;
 
 class EmployeeController extends Controller
 {
@@ -238,24 +239,24 @@ class EmployeeController extends Controller
         $baseQuery = Employee::query();
         $request->user()->scopeAccessibleEmployees($baseQuery);
 
-        $byStatus = (clone $baseQuery)
+        $byStatus = $this->countsByKey((clone $baseQuery)
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
-            ->pluck('count', 'status');
+            ->pluck('count', 'status'));
 
-        $byDepartment = (clone $baseQuery)
+        $byDepartment = $this->countsByKey((clone $baseQuery)
             ->join('departments', 'employees.department_id', '=', 'departments.id')
             ->selectRaw('departments.name as department, count(*) as count')
             ->groupBy('departments.name')
-            ->pluck('count', 'department');
+            ->pluck('count', 'department'));
 
-        $byBranch = (clone $baseQuery)
+        $byBranch = $this->countsByKey((clone $baseQuery)
             ->join('branches', 'employees.branch_id', '=', 'branches.id')
             ->selectRaw('branches.name as branch, count(*) as count')
             ->groupBy('branches.name')
-            ->pluck('count', 'branch');
+            ->pluck('count', 'branch'));
 
-        $total = (clone $baseQuery)->count();
+        $total = (int) (clone $baseQuery)->count();
 
         return response()->json([
             'total' => $total,
@@ -263,6 +264,22 @@ class EmployeeController extends Controller
             'by_department' => $byDepartment,
             'by_branch' => $byBranch,
         ]);
+    }
+
+    /**
+     * A `pluck('count', <label>)` as a label => count map.
+     *
+     * @param  Collection<array-key, mixed>  $counts
+     * @return array<string, int>
+     */
+    private function countsByKey(Collection $counts): array
+    {
+        $map = [];
+        foreach ($counts as $label => $count) {
+            $map[(string) $label] = (int) $count;
+        }
+
+        return $map;
     }
 
     /** @param array<string, mixed> $data

@@ -6,10 +6,9 @@ declare(strict_types=1);
  * Automated performance benchmarks (CLAUDE.md "Performance Targets" / PHASE_09 S37).
  * Not part of the default test run — invoke explicitly with:
  *   ./scripts/gates.sh performance
- * which delegates to `scripts/pest-isolated.sh tests/Performance`. Do NOT run this
- * as `php artisan test tests/Performance` inside `et-api-1`: over the Windows bind
- * mount PHP's recursive directory scan collects only a fraction of what is on disk
- * and still exits 0, so the run reports green while measuring almost nothing.
+ * which runs `vendor/bin/pest tests/Performance` on native PHP. (It once ran inside
+ * a Docker container, where a lossy bind mount collected only a fraction of the
+ * suite and still exited 0; the Docker stack was removed on 2026-09-30.)
  * Seeds realistic data volumes and asserts response times as a regression guard,
  * not a precise production benchmark (this runs against SQLite in CI, not MariaDB).
  */

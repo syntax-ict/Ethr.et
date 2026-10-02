@@ -17,13 +17,20 @@ this file is about working the repository.
 
 ## Running it locally
 
-Four processes, not two. The README is emphatic about this and it is right:
-without the queue worker no job ever runs, and without Reverb a broadcast throws
-so a *successful* write can still return 500 under `QUEUE_CONNECTION=sync`.
+Local development is the production shape — XAMPP's Apache, PHP and MariaDB,
+no Docker (the Docker stack was removed on 2026-09-30). The full procedure is in
+[`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md); the short form:
 
 ```bash
-docker compose up -d
+scripts/local-production/up.sh        # the Bronze deployment on :8081
+scripts/local-production/verify.sh    # must end "36 passed, 0 failed"
 ```
+
+For hot reload, run `php artisan serve` in `api/` and `npm run dev` in `src/`.
+Queued jobs run only when drained — `php artisan queue:work --stop-when-empty`
+locally, the GitHub Actions cron caller in production. Do not switch to
+`QUEUE_CONNECTION=sync` to avoid that: it hides every bug that only a real
+worker shows.
 
 **Node comes from `.nvmrc`** — currently 24, which `nvm use` / `fnm use` picks
 up from the repository root and which CI reads via `node-version-file`. It is
@@ -32,11 +39,9 @@ as well, for reasons that have nothing to do with the application code; that
 pin is what kept `Frontend (i18n, Prettier, ESLint, tsc, Vitest)` red on every
 CI run until 2026-09-16. `docs/audit/BASELINE.md` §12d has the measurements.
 
-`RUN_ALL.ps1`, `START_BACKEND.ps1` and `START_FRONTEND.ps1` are older
-Windows-only launchers that predate the Docker setup. `RUN_ALL.ps1` in
-particular prints "SQLite" while the documented stack is MariaDB on port 3307,
-and it starts neither the worker nor Reverb. Prefer Docker Compose unless you
-know why you want otherwise.
+The old Windows launchers `RUN_ALL.ps1`, `START_BACKEND.ps1` and
+`START_FRONTEND.ps1` were removed on 2026-09-29: `RUN_ALL.ps1` printed
+"SQLite" against a MariaDB stack, and none started the worker or Reverb.
 
 ### `composer install` needs a GitHub token
 
@@ -140,13 +145,32 @@ One entry point, for people and for CI alike:
 ./scripts/gates.sh frontend   # i18n, Prettier, ESLint, tsc, Vitest
 ```
 
-Two more scopes exist:
+More scopes exist:
 
 ```bash
 ./scripts/gates.sh quick      # everything except the test suites — for the hook
 ./scripts/gates.sh docs       # markdown links resolve
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
+./scripts/gates.sh export     # the Bronze shared-hosting production build
 ```
+
+**`export` is the one to know about if you touch the frontend or `.htaccess`.** It
+runs `ETHR_TARGET=shared-hosting next build` and then asserts the artifact is really
+a static export — the four `__id__` shells, `404.html`, the `_next` bundle, and no
+`server.js`. It is part of `./scripts/gates.sh`, unlike `security` and
+`performance`, because it goes red only when you break the production artifact rather
+than when a third party publishes an advisory.
+
+It exists because until 2026-09-27 **no gate ran `next build` at all**, for either
+target, so the artifact the deployment target actually serves had been verified once
+by hand on one machine. Its first run found that six real routes —
+`/employees/new`, `/employees/import`, `/payroll/{cost-sharing,loans,payslips}` and
+`/devices/dashboard` — were being served the entity-detail shell. See
+`docs/audit/BASELINE.md` §22.
+
+Use `npm run build:shared-hosting` from `src/` for the same thing directly. Do **not**
+write `ETHR_TARGET=shared-hosting npm run build` in a Windows shell: neither cmd.exe
+nor PowerShell accepts that prefix, so you silently get a `standalone` build.
 
 ### Enable the pre-push hook
 
@@ -272,19 +296,19 @@ from inside that sandbox. And protection does **not** cover branch deletion of
 ordinary pushes succeed, that is a credential or egress limitation, not this
 ruleset; the two were confusable enough here to be worth separating.
 
-### Do not run `vendor/bin/pest` directly over a Docker bind mount
+### Check the collected test count, not only the colour
 
-This is the trap worth knowing. PHP's recursive directory scan returns
+This is the trap worth knowing. PHP's recursive directory scan returned
 incomplete results over a Docker Desktop Windows bind mount. Measured
 2026-08-21: `pest` collected 21 of 132 test classes, ran them, and **exited 0
 with a green summary** — so the suite reported success while proving almost
-nothing, and did so for weeks.
+nothing, and did so for weeks. Larastan failed the same way (990 phantom errors
+on the mount, 0 off it).
 
-`scripts/pest-isolated.sh` copies `api/` off the mount first and carries a
-collection guard that fails loudly on an undercount. `scripts/gates.sh`
-delegates to it automatically when there is no native PHP. Larastan has the same
-problem for the same reason (990 phantom errors on the mount, 0 off it), hence
-`scripts/phpstan-isolated.sh`.
+The Docker stack, and the `pest-isolated.sh` / `phpstan-isolated.sh` scripts
+that worked around it, were removed on 2026-09-30. `scripts/gates.sh` keeps the
+collection guard, which fails loudly on an undercount: any lossy filesystem
+produces the same silent green, so keep the checkout on a plain local disk.
 
 **A native PHP run on a local disk does not have this problem.** If you have PHP
 8.2+ with `pdo_sqlite`, `mbstring`, `gd`, `dom` and `fileinfo`, the full suite

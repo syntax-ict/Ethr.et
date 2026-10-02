@@ -44,7 +44,17 @@ function ethrControllerFiles(): array
 
     foreach ($dir as $file) {
         if ($file->isFile() && $file->getExtension() === 'php') {
-            $files[] = $file->getPathname();
+            // Normalise separators. RecursiveDirectoryIterator::getPathname()
+            // returns the OS separator for every component it walked, so on
+            // Windows this comes back as
+            //   F:/ethr.et/api/app/Http/Controllers\Api\V1\...
+            // - forward slashes down to the directory it was handed, backslashes
+            // below it. The guard test below builds its expected path with
+            // forward slashes, so its toContain() failed on Windows only. That is
+            // the worst shape for this particular test: it is the one that proves
+            // the sweep is not scanning zero files, and CI runs Linux, so nothing
+            // caught it. Measured 2026-09-27.
+            $files[] = str_replace('\\', '/', $file->getPathname());
         }
     }
 
@@ -141,5 +151,11 @@ test('the sweep actually reads controllers, so an empty pass means something', f
     $files = ethrControllerFiles();
 
     expect(count($files))->toBeGreaterThan(50);
-    expect($files)->toContain(dirname(base_path()).'/api/app/Http/Controllers/Api/V1/Shift/ShiftRotationController.php');
+
+    // Same normalisation as ethrControllerFiles(). base_path() is OS-shaped too,
+    // so comparing a raw one against a normalised list is what broke here.
+    $expected = str_replace('\\', '/', dirname(base_path()))
+        .'/api/app/Http/Controllers/Api/V1/Shift/ShiftRotationController.php';
+
+    expect($files)->toContain($expected);
 });

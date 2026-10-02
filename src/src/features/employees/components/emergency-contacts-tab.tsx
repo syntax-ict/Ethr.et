@@ -16,20 +16,18 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/api/client";
+import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { toast } from "sonner";
-
-interface EmergencyContact {
-  public_id: string;
-  name: string;
-  relationship: string;
-  phone: string;
-}
+import { toastError } from "@/lib/errors";
+import {
+  useAddEmergencyContact,
+  useDeleteEmergencyContact,
+  useEmployeeEmergencyContacts,
+} from "../api";
 
 const contactSchema = z.object({
   name: rules.requiredText(255),
@@ -44,7 +42,6 @@ type ContactValues = z.infer<typeof contactSchema>;
 
 export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
-  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
@@ -58,49 +55,30 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
     defaultValues: { name: "", relationship: "", phone: "" },
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["employee", employeeId, "emergency-contacts"],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/employees/${employeeId}/emergency-contacts`,
-      );
-      return data;
-    },
-  });
+  // Through QueryBoundary: "No emergency contacts" after a failed load is a
+  // false statement on the one screen opened in an emergency.
+  const query = useEmployeeEmergencyContacts(employeeId);
+  const addContact = useAddEmergencyContact(employeeId);
+  const deleteContact = useDeleteEmergencyContact(employeeId);
 
-  const addContact = useMutation({
-    mutationFn: async (values: ContactValues) => {
-      const { data } = await apiClient.post(
-        `/employees/${employeeId}/emergency-contacts`,
-        values,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "emergency-contacts"],
-      });
-      toast.success(t("employee.emergency.added", "Contact added"));
-      setAddOpen(false);
-      reset();
-    },
-  });
+  async function onAdd(values: ContactValues) {
+    await addContact.mutateAsync(values);
+    toast.success(t("employee.emergency.added", "Contact added"));
+    setAddOpen(false);
+    reset();
+  }
 
-  const deleteContact = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(
-        `/employees/${employeeId}/emergency-contacts/${id}`,
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employee", employeeId, "emergency-contacts"],
-      });
-      toast.success(t("employee.emergency.deleted", "Contact deleted"));
-    },
-  });
-
-  const contacts: EmergencyContact[] = data?.data ?? [];
+  function onDelete(id: string) {
+    deleteContact.mutate(id, {
+      onSuccess: () =>
+        toast.success(t("employee.emergency.deleted", "Contact deleted")),
+      onError: (error) =>
+        toastError(
+          error,
+          t("employee.emergency.delete_failed", "Could not delete the contact"),
+        ),
+    });
+  }
 
   return (
     <Card>
@@ -113,44 +91,52 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : contacts.length === 0 ? (
-          <EmptyState
-            icon={Heart}
-            title={t("employee.emergency.empty_title", "No emergency contacts")}
-            description={t(
-              "employee.emergency.empty_desc",
-              "Add people to contact in case of emergency",
-            )}
-          />
-        ) : (
-          <div className="space-y-2">
-            {contacts.map((c) => (
-              <div
-                key={c.public_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <Heart className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.relationship} · {c.phone}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteContact.mutate(c.public_id)}
+        <QueryBoundary
+          query={query}
+          loading={<Skeleton className="h-20 w-full" />}
+          empty={
+            <EmptyState
+              icon={Heart}
+              title={t(
+                "employee.emergency.empty_title",
+                "No emergency contacts",
+              )}
+              description={t(
+                "employee.emergency.empty_desc",
+                "Add people to contact in case of emergency",
+              )}
+            />
+          }
+        >
+          {(contacts) => (
+            <div className="space-y-2">
+              {contacts.map((c) => (
+                <div
+                  key={c.public_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    <Heart className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.relationship} · {c.phone}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(c.public_id)}
+                    aria-label={`${t("common.delete", "Delete")} ${c.name}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </QueryBoundary>
       </CardContent>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -162,7 +148,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
           </DialogHeader>
           <form
             onSubmit={submit(
-              (values) => addContact.mutateAsync(values),
+              onAdd,
               t("employee.emergency.add_failed", "Failed to add contact"),
             )}
             className="space-y-4"
@@ -187,7 +173,10 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
             >
               <Input
                 {...register("relationship")}
-                placeholder="Spouse, Parent..."
+                placeholder={t(
+                  "employee.emergency.relationship_placeholder",
+                  "Spouse, Parent...",
+                )}
                 className="mt-1"
               />
             </FormField>

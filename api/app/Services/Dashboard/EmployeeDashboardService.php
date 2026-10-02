@@ -102,11 +102,11 @@ final class EmployeeDashboardService
             ->get()
             ->map(fn ($b) => [
                 'type' => $b->leaveType?->name,
-                'entitled' => $b->entitled_days,
-                'used' => $b->used_days,
+                'entitled' => (float) $b->entitled_days,
+                'used' => (float) $b->used_days,
                 'remaining' => $b->remainingDays(),
             ])
-            ->toArray();
+            ->all();
     }
 
     private function latestPayslip($employee): ?array
@@ -115,8 +115,12 @@ final class EmployeeDashboardService
             return null;
         }
 
+        // Approved runs only, as /payslips/my (audit N8): a calculated run is
+        // finance's draft — a void and reprocess can change every figure — and
+        // this tile showed its net pay to the employee before approval.
         $entry = PayrollEntry::query()
             ->where('employee_id', $employee->id)
+            ->whereHas('payrollRun', fn ($query) => $query->where('status', 'approved'))
             ->with('payrollRun')
             ->orderByDesc('created_at')
             ->first();
@@ -154,6 +158,6 @@ final class EmployeeDashboardService
                 'name_am' => $h->name_am,
                 'date' => $h->date->format('Y-m-d'),
             ])
-            ->toArray();
+            ->all();
     }
 }

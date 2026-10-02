@@ -6,8 +6,8 @@ declare(strict_types=1);
  * Every file in `api/public/`, and the one fact that matters about each:
  * does it belong in the shared-hosting document root?
  *
- * On the VPS these three files are the API vhost's — `infrastructure/nginx.conf`
- * roots three server blocks at `api/public`, on an origin of its own. The Plesk
+ * On the VPS these three files were the API vhost's — its nginx config rooted
+ * three server blocks at `api/public`, on an origin of its own. The Plesk
  * target has no separate API origin: `docs/deployment/shared-hosting/DEPLOYMENT.md`
  * step 4a merges the API and the public marketing site into ONE document root,
  * `~/httpdocs/`. That merge is what turns an innocuous file into a shadow.
