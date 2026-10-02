@@ -1,62 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
 
-export interface BillingInvoice {
-  public_id: string;
-  total_cents: number;
-  status: string;
-  due_date: string | null;
-  paid_at: string | null;
-}
+// Shapes come from the generated contract, so a renamed field fails tsc here
+// instead of rendering blank.
 
-/** Where tenants pay ETHR. Set by the super admin, null until configured. */
-export interface PaymentDetails {
-  bank_name: string;
-  account_number: string;
-  account_name: string;
-  instructions: string | null;
-  instructions_am: string | null;
-}
+export type BillingDashboard =
+  operations["billing.dashboard"]["responses"][200]["content"]["application/json"];
+export type BillingInvoice = BillingDashboard["invoices"][number];
 
-export interface BillingDashboard {
-  plan: string | null;
-  plan_price_cents: number | null;
-  subscription_status: string | null;
-  current_period_end: string | null;
-  invoices: BillingInvoice[];
-  tenant_status: string;
-  trial_ends_at: string | null;
-  trial_days_remaining: number | null;
-  /** Null while the platform operator has not finished configuring the account. */
-  payment_details: PaymentDetails | null;
-}
+/**
+ * Where tenants pay ETHR. Set by the super admin; the dashboard carries null
+ * while the platform operator has not finished configuring the account.
+ */
+export type PaymentDetails = NonNullable<BillingDashboard["payment_details"]>;
 
 /**
  * The public plan catalog row, exactly as `GET /api/v1/plans` sends it.
  *
- * Mirrors `PlanResource`, which exists so the generated contract stops
- * promising `is_active`, `created_at` and `updated_at` that the endpoint never
- * carried. Anything absent from that resource is absent here on purpose — the
- * admin-only fields live on `AdminPlan` in `features/admin/api.ts`.
+ * `PlanResource` exists so the contract stops promising `is_active`,
+ * `created_at` and `updated_at` that the endpoint never carried. The admin-only
+ * fields live on `AdminPlan` in `features/admin/api.ts`.
  */
-export interface Plan {
-  public_id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  description_am: string | null;
-  price_cents: number;
-  currency: string;
-  billing_interval: string;
-  max_employees: number | null;
-  max_branches: number | null;
-  max_devices: number | null;
-  features: string[] | null;
-  marketing_features: string[] | null;
-  marketing_features_am: string[] | null;
-  is_popular: boolean;
-  sort_order: number;
-}
+export type Plan = components["schemas"]["PlanResource"];
 
 export function useBillingDashboard() {
   return useQuery<BillingDashboard>({
@@ -98,17 +64,27 @@ export function usePlans(options?: {
   });
 }
 
-export interface PlanChangeResult {
-  old_plan: string;
-  new_plan: string;
-  proration_cents: number;
-  effective_immediately: boolean;
-}
+type ChangePlanContract =
+  operations["billing.changePlan"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The contract's 200 also admits BillingService's `{ error }` array, but the
+ * controller turns that into a 422 problem, so a 200 is always the result.
+ * `proration_cents` is an integer difference that Scramble types as `string`.
+ */
+export type PlanChangeResult = Omit<
+  Exclude<ChangePlanContract, { error: string }>,
+  "proration_cents"
+> & { proration_cents: number };
 
 export function useChangePlan() {
   const queryClient = useQueryClient();
 
-  return useMutation<PlanChangeResult, unknown, { plan_public_id: string }>({
+  return useMutation<
+    PlanChangeResult,
+    unknown,
+    components["schemas"]["ChangePlanRequest"]
+  >({
     mutationFn: async (payload) => {
       const { data } = await apiClient.post("/billing/change-plan", payload);
       return data;
