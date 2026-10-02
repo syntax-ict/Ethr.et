@@ -23,6 +23,7 @@ const InteractiveCharts = dynamic(
 );
 import { useEmployeeDashboard } from "@/features/dashboard/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { localizedName } from "@/lib/i18n/localizedName";
 import { formatETB } from "@/lib/utils/currency";
@@ -102,6 +103,7 @@ export default function DashboardPage() {
 function SelfServiceKpis() {
   const { t, locale } = useT();
   const { data, isLoading } = useEmployeeDashboard();
+  const { formatTime } = useDateFormatters();
 
   if (isLoading) {
     return (
@@ -136,7 +138,8 @@ function SelfServiceKpis() {
             ? // t() has no interpolation: passing a template string as the
               // fallback returns the bare translation ("Since") whenever the
               // key exists, dropping the time. Compose outside the call.
-              `${t("dashboard.since", "Since")} ${attendance.check_in}`
+              // `check_in` is a UTC instant; print the tenant's wall clock.
+              `${t("dashboard.since", "Since")} ${formatTime(attendance.check_in)}`
             : t("dashboard.no_record_today", "No record today")
         }
       />

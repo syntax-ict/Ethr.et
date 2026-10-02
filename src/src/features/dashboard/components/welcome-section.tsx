@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { Clock, Users, Building2, GitBranch } from "lucide-react";
 import { useCalendar } from "@/lib/calendar/calendar-context";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { cn } from "@/lib/utils";
 import { QuickActions } from "./quick-actions";
 
@@ -33,6 +34,7 @@ export function WelcomeSection() {
   const { data: dashData } = useEmployeeDashboard();
   const { can } = usePermissions();
   const { formatDate } = useCalendar();
+  const { formatTime } = useDateFormatters();
 
   const greeting = t(getGreetingKey(), "Welcome back");
   const displayName =
@@ -138,7 +140,8 @@ export function WelcomeSection() {
                 : t("dashboard.not_checked_in", "Not Checked In")}
               {isCheckedIn && attendance.check_in && (
                 <span className="tabular-nums opacity-70">
-                  {attendance.check_in}
+                  {/* A UTC instant from the datetime cast; show wall-clock time. */}
+                  {formatTime(attendance.check_in)}
                 </span>
               )}
             </div>
