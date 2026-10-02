@@ -23,6 +23,7 @@ import {
   useMyProfile,
   useUpdatePreferences,
   type ProfilePreferences,
+  type ProfilePreferencesPayload,
   type ProfileResponse,
 } from "@/features/profile/api";
 import { useCurrentTenant } from "@/features/auth/api";
@@ -92,7 +93,14 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
               // Applied locally at once, then stored: the server renders payslips,
               // emails and SMS in this language too, which a localStorage-only
               // switcher never reached.
-              void persist({ locale: value }, () => setLocale(value))
+              void persist(
+                {
+                  locale: value as NonNullable<
+                    ProfilePreferencesPayload["locale"]
+                  >,
+                },
+                () => setLocale(value),
+              )
             }
           >
             <SelectTrigger id="locale" className="w-full sm:w-64">
@@ -127,7 +135,14 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
           <Select
             value={prefs?.theme ?? theme ?? "system"}
             onValueChange={(value) =>
-              void persist({ theme: value }, () => setTheme(value))
+              void persist(
+                {
+                  theme: value as NonNullable<
+                    ProfilePreferencesPayload["theme"]
+                  >,
+                },
+                () => setTheme(value),
+              )
             }
           >
             <SelectTrigger id="theme" className="w-full sm:w-64">

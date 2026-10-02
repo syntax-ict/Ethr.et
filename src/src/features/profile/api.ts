@@ -1,95 +1,75 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { components, operations } from "@/api/generated";
+
+type Schemas = components["schemas"];
+
+// Shapes come from the generated contract. GET /profile assembles nested
+// resources with `->resolve()`, which Scramble cannot follow, so those lists
+// are restated from the resources they resolve — each override says why.
 
 /**
- * A change to an approval-gated field, staged until HR reviews it.
+ * A change to an approval-gated field, staged until HR reviews it — name,
+ * name_am, TIN, date of birth and bank details.
  *
- * These are the fields an employee may propose but not apply — name, name_am,
- * TIN, date of birth and bank details.
+ * The four names are `?->` reads (and `displayName()` is `?string`), so each
+ * can be null; Scramble publishes them as plain strings. `status` is the
+ * ProfileUpdateStatus enum's value.
  */
-export interface ProfileUpdateRequest {
-  public_id: string;
-  field_name: string;
-  old_value: string | null;
-  new_value: string | null;
+export type ProfileUpdateRequest = Omit<
+  Schemas["ProfileUpdateRequestResource"],
+  | "status"
+  | "employee_public_id"
+  | "employee_name"
+  | "requested_by_name"
+  | "reviewed_by_name"
+> & {
   status: "pending" | "approved" | "rejected" | "withdrawn";
   employee_public_id: string | null;
   employee_name: string | null;
   requested_by_name: string | null;
   reviewed_by_name: string | null;
-  reviewed_at: string | null;
-  review_notes: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
+};
 
-export interface EmergencyContact {
-  public_id: string;
-  name: string;
-  relationship: string;
-  phone: string;
-  email: string | null;
-  priority: number | null;
-}
+export type EmergencyContact = Schemas["EmergencyContactResource"];
 
-export interface ProfileBankDetail {
-  public_id: string;
-  bank_name: string;
-  branch_name: string | null;
-  /** Tail four characters only — the full number is never sent to the browser. */
-  account_number_masked: string | null;
-  is_primary: boolean;
-}
+type ProfileContract =
+  operations["profile.show"]["responses"][200]["content"]["application/json"];
 
-export interface ProfilePreferences {
-  locale: string;
-  theme: string;
-  calendar: "gregorian" | "ethiopian" | "dual";
-}
+/** `account_number_masked` is the tail four characters only. */
+export type ProfileBankDetail = ProfileContract["bank_details"][number];
 
-export interface ProfileResponse {
-  user: {
-    public_id: string;
-    email: string;
-    phone: string | null;
-    locale: string;
-    role: string | null;
-    status: string | null;
-    mfa_enabled: boolean;
-    email_verified_at: string | null;
-    last_login_at: string | null;
-  };
-  employee: {
-    public_id: string;
-    name: string;
-    name_am: string | null;
-    employee_code: string | null;
-    phone: string | null;
-    gender: string | null;
-    date_of_birth: string | null;
-    nationality: string | null;
-    marital_status: string | null;
-    hire_date: string | null;
-    status: string | null;
-    tin_masked: string | null;
-    photo_path: string | null;
-    photo_url: string | null;
-    photo_thumb_url: string | null;
-    department: string | null;
-    position: string | null;
-    branch: string | null;
-    grade: string | null;
-    supervisor: string | null;
-  } | null;
+/**
+ * `present()` returns stored strings; only values UpdateProfilePreferencesRequest
+ * admitted are ever stored, so the calendar is that request's enum.
+ */
+export type ProfilePreferences = Omit<
+  ProfileContract["preferences"],
+  "calendar"
+> & {
+  calendar: NonNullable<Schemas["UpdateProfilePreferencesRequest"]["calendar"]>;
+};
+
+/**
+ * Overrides: `emergency_contacts`, `pending_updates` and `recent_updates` are
+ * resource collections `->resolve()`d inline (Scramble: `unknown[]`), and
+ * `editable_fields` lists model constants it types as a tuple and `unknown[]`.
+ * `recent_updates` is the last ten decided requests.
+ */
+export type ProfileResponse = Omit<
+  ProfileContract,
+  | "preferences"
+  | "emergency_contacts"
+  | "pending_updates"
+  | "recent_updates"
+  | "editable_fields"
+> & {
   preferences: ProfilePreferences;
   emergency_contacts: EmergencyContact[];
-  bank_details: ProfileBankDetail[];
   pending_updates: ProfileUpdateRequest[];
-  /** Last ten decided requests — approved, rejected or withdrawn. */
   recent_updates: ProfileUpdateRequest[];
-  /** Which fields apply immediately and which are staged for HR review. */
   editable_fields: { self: string[]; gated: string[] };
-}
+};
 
 const PROFILE_KEY = ["profile", "me"] as const;
 
@@ -104,32 +84,27 @@ export function useMyProfile() {
   });
 }
 
-export interface UpdateProfilePayload {
-  phone?: string;
-  marital_status?: string;
-  nationality?: string;
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
-  emergency_contact_relationship?: string;
-  // Gated — these are staged for HR review, not applied.
-  name?: string;
-  name_am?: string;
-  tin?: string;
-  date_of_birth?: string;
-  bank_account_number?: string;
-  bank_name?: string;
-}
+/** Gated fields in this body are staged for HR review, not applied. */
+export type UpdateProfilePayload = Schemas["UpdateProfileRequest"];
 
-export interface UpdateProfileResult {
-  message: string;
-  pending_approval: {
-    status: string;
-    fields: string[];
-    requests: ProfileUpdateRequest[];
-    message: string;
-  } | null;
-  was_duplicate: boolean;
-}
+type UpdateProfileContract =
+  operations["profile.update"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `pending_approval` is null when nothing was staged, which Scramble misses;
+ * its `fields` is a `pluck()->all()` list and `requests` a resolved collection.
+ */
+export type UpdateProfileResult = Omit<
+  UpdateProfileContract,
+  "pending_approval"
+> & {
+  pending_approval:
+    | (Omit<
+        UpdateProfileContract["pending_approval"],
+        "fields" | "requests"
+      > & { fields: string[]; requests: ProfileUpdateRequest[] })
+    | null;
+};
 
 /** Everything the profile screens touch is derived from GET /profile. */
 function useProfileInvalidation() {
@@ -157,11 +132,8 @@ export function useUpdateProfile() {
   });
 }
 
-export interface ProfilePhotoResult {
-  photo_path: string;
-  photo_url: string | null;
-  photo_thumb_url: string | null;
-}
+export type ProfilePhotoResult =
+  operations["profilePhoto.store"]["responses"][201]["content"]["application/json"];
 
 /**
  * The photo goes to its own POST endpoint: a multipart body cannot ride on a
@@ -205,11 +177,14 @@ export function useRemoveProfilePhoto() {
   });
 }
 
+export type ProfilePreferencesPayload =
+  Schemas["UpdateProfilePreferencesRequest"];
+
 export function useUpdatePreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: Partial<ProfilePreferences>) => {
+    mutationFn: async (payload: ProfilePreferencesPayload) => {
       const { data } = await apiClient.put<ProfilePreferences>(
         "/profile/preferences",
         payload,
@@ -223,13 +198,9 @@ export function useUpdatePreferences() {
   });
 }
 
-export interface EmergencyContactPayload {
-  name: string;
-  relationship: string;
-  phone: string;
-  email?: string | null;
-  priority?: number;
-}
+/** Store and update both validate with StoreProfileEmergencyContactRequest. */
+export type EmergencyContactPayload =
+  Schemas["StoreProfileEmergencyContactRequest"];
 
 export function useCreateEmergencyContact() {
   const invalidate = useProfileInvalidation();
