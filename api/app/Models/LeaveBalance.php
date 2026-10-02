@@ -54,9 +54,17 @@ class LeaveBalance extends Model
         return $this->belongsTo(LeaveType::class);
     }
 
+    /**
+     * Rounded to the columns' one decimal: they are `decimal:1`, and the float
+     * arithmetic drifts (4.6 - 3.6 is 0.99999999999999956), which refused a
+     * one-day request against a one-day balance and printed the long decimal.
+     */
     public function remainingDays(): float
     {
-        return (float) $this->entitled_days + (float) $this->carried_days
-            - (float) $this->used_days - (float) $this->pending_days;
+        return round(
+            (float) $this->entitled_days + (float) $this->carried_days
+                - (float) $this->used_days - (float) $this->pending_days,
+            1,
+        );
     }
 }

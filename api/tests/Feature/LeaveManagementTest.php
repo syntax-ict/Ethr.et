@@ -187,6 +187,47 @@ test('leave request checks insufficient balance', function () {
         ->assertJsonPath('title', 'Insufficient Leave Balance');
 });
 
+test('a balance of exactly one day, kept in tenths, still covers a one-day request', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+    test()->actingAs($user);
+
+    $leaveType = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id,
+        'code' => 'tenths',
+        'default_days' => 5,
+        'min_notice_days' => 0,
+    ]);
+
+    // 4.6 - 3.6 in floats is 0.99999999999999956, so the remaining balance
+    // read as just under one day: a one-day request was refused as
+    // "insufficient", and the dashboard printed the long decimal.
+    LeaveBalance::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => $leaveType->id,
+        'year' => now()->year,
+        'entitled_days' => 4.6,
+        'used_days' => 3.6,
+    ]);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/employee")
+        ->assertOk()
+        ->assertJsonPath('leave_balances.0.remaining', 1);
+
+    $day = now()->addDay()->startOfDay();
+    while ($day->isWeekend()) {
+        $day->addDay();
+    }
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
+        'leave_type_public_id' => $leaveType->public_id,
+        'start_date' => $day->format('Y-m-d'),
+        'end_date' => $day->format('Y-m-d'),
+    ])->assertStatus(201);
+});
+
 test('leave request detects overlap', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
