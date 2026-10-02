@@ -11561,13 +11561,21 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        source: string | "employees";
+                        source: string;
                         total: number;
-                        data: unknown[];
+                        data: {
+                            [key: string]: unknown;
+                        }[];
                         summary: {
-                            grouped_by: string | null;
-                            groups: string;
-                            group_sums: string;
+                            grouped_by?: string;
+                            groups?: {
+                                [key: string]: number;
+                            };
+                            group_sums?: {
+                                [key: string]: {
+                                    [key: string]: number;
+                                };
+                            };
                         };
                     };
                 };

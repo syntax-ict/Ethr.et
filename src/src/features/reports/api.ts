@@ -39,21 +39,12 @@ export type ReportConfig = Omit<
   "filters" | "format"
 > & { filters?: Record<string, string> };
 
-type GenerateContract = Ok<"generate">;
-
 /**
  * Rows are the source's column map. `summary` is `[]` when ungrouped, else
  * per-group row counts plus, when any `*_cents` column is present, per-group
- * sums — Scramble types both maps as `string`.
+ * sums.
  */
-export type ReportResult = Omit<GenerateContract, "data" | "summary"> & {
-  data: Array<Record<string, unknown>>;
-  summary: {
-    grouped_by?: string | null;
-    groups?: Record<string, number>;
-    group_sums?: Record<string, Record<string, number>>;
-  };
-};
+export type ReportResult = Ok<"generate">;
 
 /** `config` is the stored (array-cast) generate body, published as `unknown[]`. */
 export type SavedReport = Omit<Ok<"savedList">["reports"][number], "config"> & {
