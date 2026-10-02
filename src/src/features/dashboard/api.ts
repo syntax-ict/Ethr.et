@@ -53,25 +53,8 @@ export function useEmployeeDashboard() {
   });
 }
 
-type ManagerContract =
+export type ManagerDashboard =
   operations["dashboard.manager"]["responses"][200]["content"]["application/json"];
-
-/**
- * `team_attendance.absent` is `count($teamIds) - $present`, an integer Scramble
- * types as `string` on one branch. `team_on_leave` rows are mapped inline;
- * `employee_name` is `employee?->name`.
- */
-export type ManagerDashboard = Omit<
-  ManagerContract,
-  "team_attendance" | "team_on_leave"
-> & {
-  team_attendance: { present: number; absent: number; late: number };
-  team_on_leave: Array<{
-    employee_name: string | null;
-    start_date: string;
-    end_date: string;
-  }>;
-};
 
 /**
  * @param enabled Gate the request on the caller's role. Consumers render null

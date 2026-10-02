@@ -339,10 +339,10 @@ class DeviceController extends Controller
             'events_today' => $totalEvents,
             'last_sync_at' => $lastSync?->created_at?->toIso8601String(),
             'sync_stats_24h' => [
-                'success' => $recentSyncs->get('success', 0),
-                'partial' => $recentSyncs->get('partial', 0),
-                'failed' => $recentSyncs->get('failed', 0),
-                'offline' => $recentSyncs->get('offline', 0),
+                'success' => (int) $recentSyncs->get('success', 0),
+                'partial' => (int) $recentSyncs->get('partial', 0),
+                'failed' => (int) $recentSyncs->get('failed', 0),
+                'offline' => (int) $recentSyncs->get('offline', 0),
             ],
         ]);
     }

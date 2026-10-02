@@ -22,16 +22,8 @@ export type DeviceStatusResult =
 export type SyncAllResult =
   operations["device.syncAll"]["responses"][200]["content"]["application/json"];
 
-type DashboardContract =
+export type DeviceDashboard =
   operations["device.dashboard"]["responses"][200]["content"]["application/json"];
-
-/**
- * Scramble cannot infer the values of the `pluck('count', 'status')` map behind
- * `sync_stats_24h` and publishes them as `unknown`; they are row counts.
- */
-export type DeviceDashboard = Omit<DashboardContract, "sync_stats_24h"> & {
-  sync_stats_24h: Record<keyof DashboardContract["sync_stats_24h"], number>;
-};
 
 /**
  * `GET /devices/{id}/events` returns a bare `LengthAwarePaginator`, not a

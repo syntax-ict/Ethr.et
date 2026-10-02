@@ -62,8 +62,8 @@ class DeviceEnrollmentController extends Controller
                 'name' => $enrollment['name'] ?? null,
                 'card_number' => $enrollment['card_number'] ?? null,
                 'department' => $enrollment['department'] ?? null,
-                'fingerprint_count' => $enrollment['fingerprint_count'] ?? null,
-                'face_registered' => $enrollment['face_registered'] ?? null,
+                'fingerprint_count' => isset($enrollment['fingerprint_count']) ? (int) $enrollment['fingerprint_count'] : null,
+                'face_registered' => isset($enrollment['face_registered']) ? (bool) $enrollment['face_registered'] : null,
                 'match' => $match->toArray(),
             ];
         }

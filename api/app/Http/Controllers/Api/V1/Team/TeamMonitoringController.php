@@ -116,7 +116,7 @@ class TeamMonitoringController extends Controller
             $data[] = [
                 'date' => $day->format('Y-m-d'),
                 'present' => $dayRecords->count(),
-                'absent' => count($teamIds) - $dayRecords->count(),
+                'absent' => (int) (count($teamIds) - $dayRecords->count()),
                 'late' => $dayRecords->where('status', 'late')->count(),
                 'rate' => count($teamIds) > 0
                     ? round(($dayRecords->count() / count($teamIds)) * 100, 1)

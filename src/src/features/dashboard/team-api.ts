@@ -7,11 +7,7 @@ type SummaryContract = Extract<
   { team_size: number }
 >;
 
-/** `absent` is a head count less the present; Scramble types it `string`. */
-export type TeamAttendanceDay = Omit<
-  SummaryContract["data"][number],
-  "absent"
-> & { absent: number };
+export type TeamAttendanceDay = SummaryContract["data"][number];
 
 /**
  * A caller with no team gets `{ data: [] }` and nothing else. `period` echoes

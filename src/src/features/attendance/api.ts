@@ -73,19 +73,8 @@ export interface OvertimeSummary {
   }>;
 }
 
-/**
- * The contract types the three money/minute fields as strings; the controller
- * (AttendanceCorrectionController::payrollImpact) returns integers.
- */
-export interface CorrectionPayrollImpact {
-  original_hours: number;
-  proposed_hours: number;
-  difference_minutes: number;
-  estimated_impact_cents: number;
-  hourly_rate_cents: number;
-  in_open_payroll_period: boolean;
-  currency: "ETB";
-}
+export type CorrectionPayrollImpact =
+  operations["attendanceCorrection.payrollImpact"]["responses"][200]["content"]["application/json"];
 
 /**
  * `GET /attendance/settings` is published as `unknown[]`. Mirrors

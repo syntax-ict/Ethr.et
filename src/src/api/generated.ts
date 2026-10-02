@@ -8361,7 +8361,7 @@ export interface operations {
                         date: string;
                         total_employees: number;
                         present: number;
-                        absent: string;
+                        absent: number;
                         late: number;
                         early_leave: number;
                         on_leave: number;
@@ -9195,9 +9195,9 @@ export interface operations {
                     "application/json": {
                         original_hours: number;
                         proposed_hours: number;
-                        difference_minutes: string;
-                        estimated_impact_cents: string;
-                        hourly_rate_cents: string;
+                        difference_minutes: number;
+                        estimated_impact_cents: number;
+                        hourly_rate_cents: number;
                         in_open_payroll_period: boolean;
                         /** @constant */
                         currency: "ETB";
@@ -10763,7 +10763,7 @@ export interface operations {
                     "application/json": {
                         team_attendance: {
                             present: number;
-                            absent: string;
+                            absent: number;
                             late: number;
                         } | {
                             present: number;
@@ -10774,7 +10774,11 @@ export interface operations {
                             leave: number;
                             total: number;
                         };
-                        team_on_leave: unknown[];
+                        team_on_leave: {
+                            employee_name: string | null;
+                            start_date: string;
+                            end_date: string;
+                        }[];
                         team_size: number;
                     };
                 };
@@ -11702,10 +11706,10 @@ export interface operations {
                         events_today: number;
                         last_sync_at: string | null;
                         sync_stats_24h: {
-                            success: unknown;
-                            partial: unknown;
-                            failed: unknown;
-                            offline: unknown;
+                            success: number;
+                            partial: number;
+                            failed: number;
+                            offline: number;
                         };
                     };
                 };
@@ -11974,8 +11978,8 @@ export interface operations {
                             name: string | null;
                             card_number: string | null;
                             department: string | null;
-                            fingerprint_count: string | null;
-                            face_registered: string | null;
+                            fingerprint_count: number | null;
+                            face_registered: boolean | null;
                             match: {
                                 /** @enum {string} */
                                 outcome: "ambiguous" | "probable";
@@ -12427,10 +12431,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        total: string;
-                        by_status: string;
-                        by_department: string;
-                        by_branch: string;
+                        total: number;
+                        by_status: {
+                            [key: string]: number;
+                        };
+                        by_department: {
+                            [key: string]: number;
+                        };
+                        by_branch: {
+                            [key: string]: number;
+                        };
                     };
                 };
             };
@@ -16163,7 +16173,7 @@ export interface operations {
                         data: {
                             date: string;
                             present: number;
-                            absent: string;
+                            absent: number;
                             late: number;
                             rate: number;
                         }[];

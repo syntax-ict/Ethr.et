@@ -55,7 +55,7 @@ final class ManagerDashboardService
 
         return [
             'present' => $present,
-            'absent' => count($teamIds) - $present,
+            'absent' => (int) (count($teamIds) - $present),
             'late' => $late,
         ];
     }
@@ -98,6 +98,6 @@ final class ManagerDashboardService
                 'start_date' => $lr->start_date->format('Y-m-d'),
                 'end_date' => $lr->end_date->format('Y-m-d'),
             ])
-            ->toArray();
+            ->all();
     }
 }

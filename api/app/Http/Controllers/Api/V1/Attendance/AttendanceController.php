@@ -218,7 +218,7 @@ class AttendanceController extends Controller
             'date' => $today,
             'total_employees' => $totalEmployees,
             'present' => $records->whereIn('status', [AttendanceStatus::PRESENT, AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE])->count(),
-            'absent' => $totalEmployees - $records->whereNotNull('check_in')->unique('employee_id')->count(),
+            'absent' => (int) ($totalEmployees - $records->whereNotNull('check_in')->unique('employee_id')->count()),
             'late' => $records->where('status', AttendanceStatus::LATE)->count(),
             'early_leave' => $records->where('status', AttendanceStatus::EARLY_LEAVE)->count(),
             'on_leave' => $records->where('status', AttendanceStatus::ON_LEAVE)->count(),

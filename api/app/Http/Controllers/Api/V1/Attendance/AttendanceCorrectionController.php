@@ -204,15 +204,18 @@ class AttendanceCorrectionController extends Controller
         $salaryCents = $employee !== null ? $employee->salary_cents : 0;
         $minuteRateCents = (int) round($salaryCents / $monthlyMinutes);
 
-        $diffMinutes = $proposedMinutes - $originalMinutes;
-        $impactCents = $minuteRateCents * $diffMinutes;
+        // Integers, but the API contract cannot type arithmetic and published
+        // all three as strings until the casts said otherwise.
+        $diffMinutes = (int) ($proposedMinutes - $originalMinutes);
+        $impactCents = (int) ($minuteRateCents * $diffMinutes);
+        $hourlyRateCents = (int) ($minuteRateCents * 60);
 
         return response()->json([
             'original_hours' => round($originalMinutes / 60, 2),
             'proposed_hours' => round($proposedMinutes / 60, 2),
             'difference_minutes' => $diffMinutes,
             'estimated_impact_cents' => $impactCents,
-            'hourly_rate_cents' => $minuteRateCents * 60,
+            'hourly_rate_cents' => $hourlyRateCents,
             'in_open_payroll_period' => true,
             'currency' => 'ETB',
         ]);
