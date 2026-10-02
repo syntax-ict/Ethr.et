@@ -73,7 +73,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                 >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -132,7 +132,7 @@ export function WorkforceTab({ branchPublicId }: { branchPublicId?: string }) {
                       className="opacity-30"
                     />
                     <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Bar
                       dataKey="count"

@@ -95,7 +95,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
                       className="opacity-30"
                     />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Bar
                       dataKey="value"
@@ -123,7 +123,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
                       className="opacity-30"
                     />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Line
                       type="monotone"

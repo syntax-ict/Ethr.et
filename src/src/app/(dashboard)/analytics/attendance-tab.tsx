@@ -64,7 +64,7 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
                 <LineChart data={data.daily_trend}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Line
                     type="monotone"
