@@ -18445,7 +18445,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         rates: {
-                            [key: string]: number;
+                            normal: number;
+                            night: number;
+                            rest_day: number;
+                            holiday: number;
+                            holiday_night: number;
                         };
                         defaults: {
                             normal: number;
@@ -18482,7 +18486,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         rates: {
-                            [key: string]: number;
+                            normal: number;
+                            night: number;
+                            rest_day: number;
+                            holiday: number;
+                            holiday_night: number;
                         };
                         defaults: {
                             normal: number;

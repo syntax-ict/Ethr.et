@@ -315,18 +315,11 @@ export type AllowanceRule = Omit<
 /** `max_amount_cents` is null on the final, open-ended band. */
 export type TaxBracket = Schemas["TaxBracketResource"];
 
-type OvertimeRatesContract =
+/** `rates` carries the same five multipliers as `defaults`. */
+export type OvertimeRatesResponse =
   operations["overtimeRate.show"]["responses"][200]["content"]["application/json"];
 
-export type OvertimeRates = OvertimeRatesContract["defaults"];
-
-/**
- * `rates` is `ratesFor()`'s array, which Scramble widens to a string map; it
- * carries the same five multipliers as `defaults`.
- */
-export type OvertimeRatesResponse = Omit<OvertimeRatesContract, "rates"> & {
-  rates: OvertimeRates;
-};
+export type OvertimeRates = OvertimeRatesResponse["defaults"];
 
 export function useAllowanceRules() {
   return useQuery<PaginatedResponse<AllowanceRule>>({

@@ -69,8 +69,12 @@ final class OvertimeCalculator
     /**
      * The rates a tenant's overtime is actually paid at, falling back to
      * {@see self::DEFAULT_RATES} for any rate the tenant has not overridden.
+     * Always the same five keys; stated for the API contract, which cannot
+     * follow the overrides assigned by key and published a string map.
      *
      * @return array<string, float>
+     *
+     * @scramble-return array{normal: float, night: float, rest_day: float, holiday: float, holiday_night: float}
      */
     public function ratesFor(?int $tenantId): array
     {
