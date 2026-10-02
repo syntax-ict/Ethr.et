@@ -1,15 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
-import type { operations } from "@/api/generated";
+import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 
-export interface Notification {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-  read_at: string | null;
-  created_at: string;
-}
+/**
+ * From the contract, with two fields corrected: `data` is the notification's
+ * `array`-cast payload — an object keyed by field — which Scramble publishes
+ * as `unknown[]`; and `created_at` is stamped by the database channel's
+ * Eloquent insert, so never null, though Scramble types any timestamp so.
+ */
+export type Notification = Omit<
+  components["schemas"]["NotificationResource"],
+  "data" | "created_at"
+> & { data: Record<string, unknown>; created_at: string };
+
+type UnreadCount =
+  operations["notification.unreadCount"]["responses"][200]["content"]["application/json"];
 
 export function useNotifications(params?: { page?: number }) {
   return useQuery<PaginatedResponse<Notification>>({
@@ -22,7 +28,7 @@ export function useNotifications(params?: { page?: number }) {
 }
 
 export function useUnreadCount() {
-  return useQuery<{ count: number }>({
+  return useQuery<UnreadCount>({
     queryKey: ["notifications", "unread-count"],
     queryFn: async () => {
       const { data } = await apiClient.get("/notifications/unread-count");
@@ -71,7 +77,7 @@ export function useMarkAsRead() {
       );
 
       if (wasUnread) {
-        queryClient.setQueryData<{ count: number }>(
+        queryClient.setQueryData<UnreadCount>(
           ["notifications", "unread-count"],
           (old) => (old ? { count: Math.max(0, old.count - 1) } : old),
         );
