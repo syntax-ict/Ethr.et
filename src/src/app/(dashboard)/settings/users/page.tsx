@@ -37,6 +37,8 @@ import {
   useDeleteUser,
   useResendInvite,
   type TenantUser,
+  type UpdateUserPayload,
+  type UserRole,
   type UserStatus,
 } from "@/features/users/api";
 
@@ -49,7 +51,10 @@ const ROLES = [
   "employee",
 ] as const;
 
-const STATUSES: UserStatus[] = ["active", "inactive", "suspended"];
+// What an admin may set; `invited` is written only by an invitation.
+type EditableStatus = NonNullable<UpdateUserPayload["status"]>;
+
+const STATUSES: EditableStatus[] = ["active", "inactive", "suspended"];
 
 function statusTone(status: UserStatus | string): string {
   switch (status) {
@@ -79,19 +84,19 @@ export default function UsersSettingsPage() {
   const [form, setForm] = useState({
     email: "",
     username: "",
-    role: "employee",
+    role: "employee" as UserRole,
   });
   const [editForm, setEditForm] = useState({
     username: "",
-    role: "employee",
-    status: "active" as UserStatus,
+    role: "employee" as UserRole,
+    status: "active" as EditableStatus,
   });
 
   function openEdit(u: TenantUser) {
     setEditForm({
       username: u.username ?? "",
       role: u.role,
-      status: (u.status === "invited" ? "active" : u.status) as UserStatus,
+      status: u.status === "invited" ? "active" : u.status,
     });
     setEditUser(u);
   }
@@ -315,7 +320,9 @@ export default function UsersSettingsPage() {
                 <Label>{t("common.role", "Role")}</Label>
                 <Select
                   value={form.role}
-                  onValueChange={(v) => setForm({ ...form, role: v })}
+                  onValueChange={(v) =>
+                    setForm({ ...form, role: v as UserRole })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -375,7 +382,9 @@ export default function UsersSettingsPage() {
                 <Label>{t("common.role", "Role")}</Label>
                 <Select
                   value={editForm.role}
-                  onValueChange={(v) => setEditForm({ ...editForm, role: v })}
+                  onValueChange={(v) =>
+                    setEditForm({ ...editForm, role: v as UserRole })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -394,7 +403,7 @@ export default function UsersSettingsPage() {
                 <Select
                   value={editForm.status}
                   onValueChange={(v) =>
-                    setEditForm({ ...editForm, status: v as UserStatus })
+                    setEditForm({ ...editForm, status: v as EditableStatus })
                   }
                 >
                   <SelectTrigger className="mt-1">
