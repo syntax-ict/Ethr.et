@@ -139,7 +139,8 @@ export default function MyPayslipsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {t("payroll_page.payslips_page.payslip_title")}
+                    {entry.period_label ??
+                      t("payroll_page.payslips_page.payslip_title")}
                   </CardTitle>
                   <Button
                     variant="ghost"
@@ -152,14 +153,17 @@ export default function MyPayslipsPage() {
                       )
                     }
                     // Every payslip card renders this button, so a bare
-                    // "Download" announces identically N times. This read a
-                    // `period_label` to tell them apart, but PayrollEntryResource
-                    // has never sent the run's period — that needs the resource
-                    // to carry it (audit F3), not a field the client invents.
-                    aria-label={t(
-                      "payroll_page.payslips_page.download",
-                      "Download payslip",
-                    )}
+                    // "Download" announces identically N times; the run's
+                    // period tells them apart.
+                    aria-label={[
+                      t(
+                        "payroll_page.payslips_page.download",
+                        "Download payslip",
+                      ),
+                      entry.period_label,
+                    ]
+                      .filter(Boolean)
+                      .join(" — ")}
                   >
                     <Download className="h-4 w-4" aria-hidden="true" />
                   </Button>

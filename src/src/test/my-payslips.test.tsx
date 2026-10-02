@@ -97,3 +97,37 @@ describe("My Payslips — printed payslip", () => {
     expect(html).not.toContain("abebe@acme.et");
   });
 });
+
+describe("My Payslips — telling payslips apart", () => {
+  /**
+   * PayrollEntryResource never sent the run's period, so every card was titled
+   * "ETHR Payslip" and every download button announced the same name.
+   */
+  it("titles each payslip and its download with the run's period", async () => {
+    const twoMonths = {
+      ...PAYSLIPS,
+      data: [
+        { ...PAYSLIPS.data[0], period_label: "Meskerem 2019" },
+        {
+          ...PAYSLIPS.data[0],
+          public_id: "01HZENTRY00000000000000002",
+          period_label: "Tikimt 2019",
+        },
+      ],
+    };
+    server.use(
+      http.get("*/api/v1/payroll/payslips/my", () =>
+        HttpResponse.json(twoMonths),
+      ),
+      http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Meskerem 2019")).toBeInTheDocument();
+    expect(screen.getByText("Tikimt 2019")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download payslip — Tikimt 2019" }),
+    ).toBeInTheDocument();
+  });
+});

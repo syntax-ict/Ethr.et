@@ -6249,6 +6249,7 @@ export interface components {
         /** PayrollEntryResource */
         PayrollEntryResource: {
             public_id: string;
+            period_label?: string;
             employee?: components["schemas"]["EmployeeResource"] | null;
             employee_public_id: string | null;
             basic_salary_cents: number;

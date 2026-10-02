@@ -115,3 +115,16 @@ test('an employee cannot download a colleague\'s payslip', function () {
     test()->get("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/payslips/{$entry->public_id}/pdf")
         ->assertForbidden();
 });
+
+test("an employee's payslip names its period", function () {
+    // PayrollEntryResource never sent the run's period, so My Payslips had no
+    // way to tell one month's payslip from the next (found by audit F3).
+    [$tenant, $staff, $run] = payslipFixture('approved');
+    test()->actingAs($staff);
+
+    test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/payroll/payslips/my")
+        ->assertOk()
+        ->assertJsonPath('data.0.period_label', $run->period_label);
+
+    expect($run->period_label)->toBeString()->not->toBe('');
+});
