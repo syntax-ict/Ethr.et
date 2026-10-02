@@ -20,7 +20,14 @@ const TEMPLATE = {
     "Your {leave_type} request from {start_date} to {end_date} has been approved.",
   body_am: "ከ{start_date} እስከ {end_date} {leave_type} ጥያቄዎ ፀድቋል።",
   is_customized: false,
-  variables: ["leave_type", "start_date", "end_date"],
+  variables: [
+    "employee_name",
+    "leave_type",
+    "start_date",
+    "end_date",
+    "days",
+    "organization_name",
+  ],
 };
 
 function me(permissions: string[], role = "tenant_admin") {
@@ -90,6 +97,71 @@ describe("<NotificationTemplatesPage>", () => {
 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(sent).toMatchObject({ subject_en: "Leave approved" });
+  });
+
+  it("lists the variables the template can use in the edit dialog", async () => {
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings/notification-templates", () =>
+        HttpResponse.json({ templates: [TEMPLATE] }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Leave Approved");
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+
+    for (const name of TEMPLATE.variables) {
+      expect(within(dialog).getByText(`{${name}}`)).toBeInTheDocument();
+    }
+  });
+
+  it("shows the server's refusal of an unknown variable under that field", async () => {
+    // The API refuses a {placeholder} the template does not provide (it would
+    // reach employees verbatim). The page used to drop the 422 into a generic
+    // "Failed to update template" toast, so the admin could not tell why.
+    const message =
+      "This template cannot use {employe_name}. Available variables: {employee_name}, {leave_type}.";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings/notification-templates", () =>
+        HttpResponse.json({ templates: [TEMPLATE] }),
+      ),
+      http.put("*/api/v1/settings/notification-templates/leave_approved", () =>
+        HttpResponse.json(
+          {
+            type: "validation_error",
+            title: "Validation Failed",
+            status: 422,
+            detail: "The given data was invalid.",
+            errors: { body_en: [message] },
+          },
+          {
+            status: 422,
+            headers: { "Content-Type": "application/problem+json" },
+          },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Leave Approved");
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    const body = within(dialog).getByRole("textbox", {
+      name: "Body (English)",
+    });
+
+    await user.clear(body);
+    await user.type(body, "Dear {{employe_name}");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    expect(body).toHaveAttribute("aria-invalid", "true");
+    expect(body).toHaveValue("Dear {employe_name}");
   });
 
   it("says the templates failed to load", async () => {

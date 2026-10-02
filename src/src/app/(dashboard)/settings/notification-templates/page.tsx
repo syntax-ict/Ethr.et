@@ -26,11 +26,13 @@ import {
   type NotificationTemplate,
 } from "@/features/settings/api";
 import { toast } from "sonner";
+import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useT } from "@/lib/i18n/useT";
 
+type TemplateField = "subject_en" | "subject_am" | "body_en" | "body_am";
+
 /**
- * Template type → label. Four reuse the notification-preference labels; the
- * other two have no translation key yet and stay English.
+ * Template type → label. Four reuse the notification-preference labels.
  */
 function useTypeLabel() {
   const { t } = useT();
@@ -46,24 +48,38 @@ function useTypeLabel() {
       case "payslip_available":
         return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
-        return "Missing Punch";
+        return t("settings.template_type_missing_punch", "Missing Punch");
       case "trial_expiring":
-        return "Trial Expiring";
+        return t("settings.template_type_trial_expiring", "Trial Expiring");
       default:
         return type;
     }
   };
 }
 
+/** The variables a template may use, as the `{name}` an admin types. */
+function VariableList({ variables }: { variables: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {variables.map((v) => (
+        <Badge key={v} variant="secondary" className="font-mono text-[10px]">
+          {`{${v}}`}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 export default function NotificationTemplatesPage() {
   const { t } = useT();
   const [editing, setEditing] = useState<NotificationTemplate | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<TemplateField, string>>({
     subject_en: "",
     subject_am: "",
     body_en: "",
     body_am: "",
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const templatesQuery = useNotificationTemplates();
   const update = useUpdateNotificationTemplate();
@@ -76,7 +92,12 @@ export default function NotificationTemplatesPage() {
       body_en: template.body_en,
       body_am: template.body_am,
     });
+    setErrors({});
     setEditing(template);
+  }
+
+  function setField(field: TemplateField, value: string) {
+    setForm((p) => ({ ...p, [field]: value }));
   }
 
   function handleSave() {
@@ -88,11 +109,54 @@ export default function NotificationTemplatesPage() {
           setEditing(null);
           toast.success(t("settings.template_updated", "Template updated"));
         },
-        onError: () =>
-          toast.error(
+        onError: (err) => {
+          // An unknown {placeholder} comes back as a 422 on the field that
+          // carries it; show it there rather than in a toast that vanishes.
+          setErrors(fieldErrors(err));
+          toastError(
+            err,
             t("settings.template_update_failed", "Failed to update template"),
-          ),
+            { skipValidation: true },
+          );
+        },
       },
+    );
+  }
+
+  /** Label, input and server error for one of the four fields. */
+  function field(name: TemplateField, label: string, multiline: boolean) {
+    const id = `template-${name.replace("_", "-")}`;
+    const error = errors[name];
+    const common = {
+      id,
+      value: form[name],
+      "aria-invalid": error ? true : undefined,
+      "aria-describedby": error ? `${id}-error` : undefined,
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={id}>{label}</Label>
+        {multiline ? (
+          <Textarea
+            {...common}
+            maxLength={2000}
+            rows={4}
+            onChange={(e) => setField(name, e.target.value)}
+          />
+        ) : (
+          <Input
+            {...common}
+            maxLength={200}
+            onChange={(e) => setField(name, e.target.value)}
+          />
+        )}
+        {error && (
+          <p id={`${id}-error`} className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -101,7 +165,10 @@ export default function NotificationTemplatesPage() {
       <div className="space-y-6">
         <PageHeader
           title={t("nav.notification_templates")}
-          description="Customize the content of notification emails sent to employees and managers"
+          description={t(
+            "settings.templates_description",
+            "Customize the content of notification emails sent to employees and managers",
+          )}
         />
 
         <QueryBoundary
@@ -131,7 +198,7 @@ export default function NotificationTemplatesPage() {
                             className="text-[10px] text-status-success"
                           >
                             <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Customized
+                            {t("settings.template_customized", "Customized")}
                           </Badge>
                         )}
                       </div>
@@ -139,16 +206,8 @@ export default function NotificationTemplatesPage() {
                         {template.subject_en}
                       </p>
                       {template.variables.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {template.variables.map((v) => (
-                            <Badge
-                              key={v}
-                              variant="secondary"
-                              className="font-mono text-[10px]"
-                            >
-                              {`{${v}}`}
-                            </Badge>
-                          ))}
+                        <div className="mt-2">
+                          <VariableList variables={template.variables} />
                         </div>
                       )}
                     </div>
@@ -174,63 +233,44 @@ export default function NotificationTemplatesPage() {
                 {t("common.edit")}: {editing ? typeLabel(editing.type) : ""}
               </DialogTitle>
               <DialogDescription>
-                Customize the notification content. Use variables like{" "}
-                {editing?.variables.map((v) => `{${v}}`).join(", ")} in the
-                body.
+                {t(
+                  "settings.template_variables_help",
+                  "Use these variables in the subject or the body. Each is replaced when the email is sent, as plain text.",
+                )}
               </DialogDescription>
             </DialogHeader>
 
+            {editing && <VariableList variables={editing.variables} />}
+
             <div className="space-y-4 py-2">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="template-subject-en">Subject (English)</Label>
-                  <Input
-                    id="template-subject-en"
-                    maxLength={200}
-                    value={form.subject_en}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, subject_en: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="template-subject-am">Subject (Amharic)</Label>
-                  <Input
-                    id="template-subject-am"
-                    maxLength={200}
-                    value={form.subject_am}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, subject_am: e.target.value }))
-                    }
-                  />
-                </div>
+                {field(
+                  "subject_en",
+                  t("settings.template_subject_en", "Subject (English)"),
+                  false,
+                )}
+                {field(
+                  "subject_am",
+                  t("settings.template_subject_am", "Subject (Amharic)"),
+                  false,
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="template-body-en">Body (English)</Label>
-                <Textarea
-                  id="template-body-en"
-                  maxLength={2000}
-                  rows={4}
-                  value={form.body_en}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, body_en: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="template-body-am">Body (Amharic)</Label>
-                <Textarea
-                  id="template-body-am"
-                  maxLength={2000}
-                  rows={4}
-                  value={form.body_am}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, body_am: e.target.value }))
-                  }
-                />
-              </div>
+              {field(
+                "body_en",
+                t("settings.template_body_en", "Body (English)"),
+                true,
+              )}
+              {field(
+                "body_am",
+                t("settings.template_body_am", "Body (Amharic)"),
+                true,
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "settings.template_empty_hint",
+                  "Leave a field empty to send the built-in text.",
+                )}
+              </p>
             </div>
 
             <DialogFooter>
