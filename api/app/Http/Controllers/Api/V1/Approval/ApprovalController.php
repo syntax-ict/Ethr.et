@@ -6,11 +6,11 @@ namespace App\Http\Controllers\Api\V1\Approval;
 
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\OrgScope;
 use App\Enums\ProfileUpdateStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approval\BatchApprovalRequest;
 use App\Models\AttendanceCorrection;
-use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
@@ -18,6 +18,7 @@ use App\Services\Attendance\CorrectionDecisionService;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Profile\ProfileUpdateRequestService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -35,13 +36,16 @@ class ApprovalController extends Controller
         Gate::authorize('leave.viewTeam');
 
         $user = $request->user();
-        $employee = $user->employee;
-        $teamIds = $this->getTeamIds($employee);
 
         $items = [];
 
-        $leaveRequests = LeaveRequest::query()
-            ->whereIn('employee_id', $teamIds)
+        // Each kind lists exactly what the caller may decide: the approve
+        // permission, the subject inside the caller's org scope (the rule
+        // LeaveRequestPolicy::approve and AttendanceCorrectionPolicy::decide
+        // apply), and never the caller's own request, which they cannot
+        // approve. It used to list direct reports only, so HR and branch- or
+        // department-scoped approvers saw a fraction of what they could decide.
+        $leaveRequests = $this->decidable(LeaveRequest::query(), $user, 'leave.approve')
             ->where('status', LeaveStatus::PENDING)
             ->with('employee:id,name,public_id', 'leaveType:id,name')
             ->orderByDesc('created_at')
@@ -59,8 +63,7 @@ class ApprovalController extends Controller
         }
 
         if (class_exists(AttendanceCorrection::class)) {
-            $corrections = AttendanceCorrection::query()
-                ->whereIn('employee_id', $teamIds)
+            $corrections = $this->decidable(AttendanceCorrection::query(), $user, 'correction.approve')
                 ->where('status', CorrectionStatus::PENDING)
                 ->with('employee:id,name,public_id', 'attendanceRecord:id,date')
                 ->orderByDesc('created_at')
@@ -84,8 +87,8 @@ class ApprovalController extends Controller
         }
 
         // Profile-update requests are reviewed by HR (`employee.update`), not by the
-        // submitter's supervisor, so they are not filtered to $teamIds — a reviewer
-        // without that permission simply sees none.
+        // submitter's supervisor, so they are not filtered by org scope — a
+        // reviewer without that permission simply sees none.
         if ($user->hasPermission('employee.update')) {
             $profileUpdates = ProfileUpdateRequest::query()
                 ->where('status', ProfileUpdateStatus::PENDING)
@@ -270,15 +273,29 @@ class ApprovalController extends Controller
         return ['status' => 'rejected'];
     }
 
-    private function getTeamIds($employee): array
+    /**
+     * The list counterpart of the decide-side policies: nothing without the
+     * permission, the caller's org scope below ALL, never their own.
+     *
+     * @template TModel of LeaveRequest|AttendanceCorrection
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    private function decidable(Builder $query, User $user, string $permission): Builder
     {
-        if (! $employee) {
-            return [];
+        if (! $user->hasPermission($permission)) {
+            return $query->whereRaw('1 = 0');
         }
 
-        return Employee::query()
-            ->where('supervisor_id', $employee->id)
-            ->pluck('id')
-            ->toArray();
+        if ($user->orgScope() !== OrgScope::ALL) {
+            $query->whereHas('employee', fn (Builder $q) => $user->scopeAccessibleEmployees($q));
+        }
+
+        if ($user->employee_id !== null) {
+            $query->where('employee_id', '!=', $user->employee_id);
+        }
+
+        return $query;
     }
 }

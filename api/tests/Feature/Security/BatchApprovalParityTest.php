@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\CustomRole;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
@@ -260,4 +261,68 @@ test('the approvals summary lists a pending correction instead of failing', func
 
     expect($response->json('items.0.type'))->toBe('correction');
     expect($response->json('items.0.summary'))->toBe('Attendance correction for Sep 29');
+});
+
+/** @return list<string> the public ids the pending list returns, of one type */
+function batchParityPendingIds(Tenant $tenant, string $type): array
+{
+    return collect(test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending")->assertOk()->json('items'))
+        ->where('type', $type)->pluck('public_id')->sort()->values()->all();
+}
+
+test('HR sees every pending leave and correction it may decide, not only its direct reports', function () {
+    // pending() listed direct reports only (getTeamIds), while the decide side
+    // goes through LeaveRequestPolicy / AttendanceCorrectionPolicy and lets an
+    // ALL-scoped approver decide anyone's. HR with no reports saw an empty
+    // queue it could have cleared.
+    $tenant = createTenant();
+    $hr = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $a = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $b = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    actingAsUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hr->id], $tenant);
+
+    $leaves = [batchParityPendingLeave($tenant, $a)->public_id, batchParityPendingLeave($tenant, $b)->public_id];
+    $corrections = [batchParityPendingCorrection($tenant, $a)->public_id, batchParityPendingCorrection($tenant, $b)->public_id];
+    batchParityPendingLeave($tenant, $hr);
+    batchParityPendingCorrection($tenant, $hr);
+
+    sort($leaves);
+    sort($corrections);
+
+    expect(batchParityPendingIds($tenant, 'leave'))->toBe($leaves)
+        ->and(batchParityPendingIds($tenant, 'correction'))->toBe($corrections);
+});
+
+test('a department-scoped approver sees its department\'s pending requests and nobody else\'s', function () {
+    $tenant = createTenant();
+    $mine = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $theirs = Department::factory()->create(['tenant_id' => $tenant->id]);
+    $head = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id]);
+    $inside = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $mine->id]);
+    $outside = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $theirs->id]);
+    actingAsUser(['role' => UserRole::DEPT_ADMIN, 'employee_id' => $head->id], $tenant);
+
+    $insideLeave = batchParityPendingLeave($tenant, $inside);
+    batchParityPendingLeave($tenant, $outside);
+    $insideCorrection = batchParityPendingCorrection($tenant, $inside);
+    batchParityPendingCorrection($tenant, $outside);
+
+    expect(batchParityPendingIds($tenant, 'leave'))->toBe([$insideLeave->public_id])
+        ->and(batchParityPendingIds($tenant, 'correction'))->toBe([$insideCorrection->public_id]);
+});
+
+test('the pending list leaves out a kind the caller cannot decide', function () {
+    // leave.viewTeam opens the endpoint; deciding needs leave.approve or
+    // correction.approve. A role able to read the team but decide neither
+    // used to get an approval queue it could not act on.
+    $tenant = createTenant();
+    $lead = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $report = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $lead->id]);
+    batchParityCustomRoleUser($tenant, $lead, ['leave.viewTeam', 'correction.approve']);
+
+    batchParityPendingLeave($tenant, $report);
+    $correction = batchParityPendingCorrection($tenant, $report);
+
+    expect(batchParityPendingIds($tenant, 'leave'))->toBe([])
+        ->and(batchParityPendingIds($tenant, 'correction'))->toBe([$correction->public_id]);
 });

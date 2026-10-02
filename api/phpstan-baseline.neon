@@ -43,12 +43,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Admin/AdminTenantController.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Api\\V1\\Approval\\ApprovalController\:\:getTeamIds\(\) has parameter \$employee with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Http/Controllers/Api/V1/Approval/ApprovalController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
