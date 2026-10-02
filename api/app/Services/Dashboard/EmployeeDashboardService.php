@@ -115,8 +115,12 @@ final class EmployeeDashboardService
             return null;
         }
 
+        // Approved runs only, as /payslips/my (audit N8): a calculated run is
+        // finance's draft — a void and reprocess can change every figure — and
+        // this tile showed its net pay to the employee before approval.
         $entry = PayrollEntry::query()
             ->where('employee_id', $employee->id)
+            ->whereHas('payrollRun', fn ($query) => $query->where('status', 'approved'))
             ->with('payrollRun')
             ->orderByDesc('created_at')
             ->first();

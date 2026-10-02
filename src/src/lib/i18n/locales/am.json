@@ -210,6 +210,8 @@
   "analytics_page.hires_over_time": "ቅጥሮች በጊዜ ሂደት (ያለፉት 6 ወራት)",
   "analytics_page.leave_utilization": "የፈቃድ አጠቃቀም",
   "analytics_page.monthly_payroll_cost": "ወርሃዊ የደመወዝ ወጪ (ተጣራ)",
+  "analytics_page.no_attendance_desc": "ሠራተኞች መግባት ሲጀምሩ ገበታዎቹ እዚህ ይታያሉ።",
+  "analytics_page.no_attendance_title": "በዚህ ጊዜ ውስጥ የተመዘገበ ሰዓት የለም",
   "analytics_page.overtime_trend": "የትርፍ ሰዓት አዝማሚያ",
   "analytics_page.overview": "አጠቃላይ እይታ",
   "analytics_page.payroll_by_cost_center": "ደመወዝ በወጪ ማዕከል",

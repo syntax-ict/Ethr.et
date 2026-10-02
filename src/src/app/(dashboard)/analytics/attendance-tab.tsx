@@ -3,6 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
+import { EmptyState } from "@/components/shared/empty-state";
+import { CalendarX } from "lucide-react";
 import { useExecutiveAttendance } from "@/features/dashboard/executive-api";
 import { useT } from "@/lib/i18n/useT";
 import {
@@ -24,8 +26,9 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
   const { t } = useT();
   const query = useExecutiveAttendance({ branchPublicId });
 
-  // isEmpty is disabled: each chart below hides itself when it has no rows, so
-  // the tab as a whole is never "empty".
+  // Every section below hides itself when it has no rows, so with no
+  // attendance in the period the tab rendered an empty grid and nothing else.
+  // Empty means all of them are.
   return (
     <QueryBoundary
       query={query}
@@ -34,7 +37,24 @@ export function AttendanceTab({ branchPublicId }: { branchPublicId?: string }) {
           <Skeleton className="h-80 w-full" />
         </div>
       }
-      isEmpty={() => false}
+      isEmpty={(data) =>
+        !data.daily_trend?.length &&
+        !data.by_source?.length &&
+        !data.top_late?.length
+      }
+      empty={
+        <EmptyState
+          icon={CalendarX}
+          title={t(
+            "analytics_page.no_attendance_title",
+            "No attendance in this period",
+          )}
+          description={t(
+            "analytics_page.no_attendance_desc",
+            "Charts appear here once employees check in.",
+          )}
+        />
+      }
     >
       {(data) => (
         <div className="space-y-6">

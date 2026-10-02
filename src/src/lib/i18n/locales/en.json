@@ -210,6 +210,8 @@
   "analytics_page.hires_over_time": "Hires Over Time (Last 6 Months)",
   "analytics_page.leave_utilization": "Leave Utilization",
   "analytics_page.monthly_payroll_cost": "Monthly Payroll Cost (Net)",
+  "analytics_page.no_attendance_desc": "Charts appear here once employees check in.",
+  "analytics_page.no_attendance_title": "No attendance in this period",
   "analytics_page.overtime_trend": "Overtime Trend",
   "analytics_page.overview": "Overview",
   "analytics_page.payroll_by_cost_center": "Payroll by Cost Center",

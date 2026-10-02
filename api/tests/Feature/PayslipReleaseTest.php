@@ -128,3 +128,21 @@ test("an employee's payslip names its period", function () {
 
     expect($run->period_label)->toBeString()->not->toBe('');
 });
+
+test("the employee dashboard's latest payslip is the latest approved one", function (string $status, bool $shown) {
+    // Found browser-testing N13: /payslips/my lists approved runs only (N8),
+    // but the dashboard tile took the newest entry with no status check, so
+    // an employee saw a calculated run's net pay before finance approved it.
+    [$tenant, $staff, $run, $entry] = payslipFixture($status);
+    test()->actingAs($staff);
+
+    $payslip = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/employee")
+        ->assertOk()
+        ->json('latest_payslip');
+
+    expect($payslip === null ? null : $payslip['net_cents'])->toBe($shown ? $entry->net_cents : null);
+})->with([
+    'approved' => ['approved', true],
+    'calculated, awaiting approval' => ['completed', false],
+    'voided' => ['voided', false],
+]);
