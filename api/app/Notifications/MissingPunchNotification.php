@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -51,16 +52,15 @@ class MissingPunchNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        // The subject asked for `notification.missing_punch_subject`, which no
-        // locale defines, so every one of these emails went out with that raw
-        // key as its subject. The per-type keys below were already in both
-        // lang files, unused.
-        $type = $this->type === 'missing_check_out' ? 'missing_check_out' : 'missing_check_in';
-        $replace = ['name' => $this->employee->name, 'date' => $this->date];
+        $checkOut = $this->type === 'missing_check_out';
+        $label = app()->getLocale() === 'am'
+            ? ($checkOut ? 'መውጫ' : 'መግቢያ')
+            : ($checkOut ? 'check-out' : 'check-in');
 
-        return (new MailMessage)
-            ->subject(__("notification.{$type}_subject", $replace))
-            ->line(__("notification.{$type}_body", $replace))
-            ->action('View Attendance', FrontendUrl::to('/attendance'));
+        return NotificationTemplates::mail('missing_punch', $this->employee->tenant_id, [
+            'employee_name' => $this->employee->name,
+            'date' => $this->date,
+            'punch_type' => $label,
+        ])->action('View Attendance', FrontendUrl::to('/attendance'));
     }
 }

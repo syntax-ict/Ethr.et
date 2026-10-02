@@ -17,4 +17,5 @@ return [
     'calendar_updated' => 'የቀን መቁጠሪያ ምርጫዎች ተዘምነዋል።',
     'work_week_updated' => 'የስራ ሳምንት ውቅር ተዘምኗል።',
     'timezone_note' => 'ሁሉም ጊዜዎች በUTC ይቀመጣሉ በEAT (UTC+3) ይታያሉ።',
+    'template_unknown_variables' => 'ይህ አብነት :variables መጠቀም አይችልም። ሊጠቀሙባቸው የሚችሉ ተለዋዋጮች፦ :allowed።',
 ];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Support\FrontendUrl;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -34,10 +35,13 @@ class TrialExpiringNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
-            ->subject(__('notification.trial_expiring_subject'))
-            ->line("Your ETHR trial will expire in {$this->daysRemaining} day(s) on {$this->trialEndsAt}.")
-            ->line('Upgrade now to ensure uninterrupted access for your team.')
-            ->action('Upgrade Plan', FrontendUrl::to('/billing'));
+        // Sent to the tenant's own admins, so the recipient's tenant is the one
+        // whose template applies. A notifiable without one gets the built-in text.
+        $tenantId = $notifiable->tenant_id ?? null;
+
+        return NotificationTemplates::mail('trial_expiring', is_int($tenantId) || is_string($tenantId) ? $tenantId : null, [
+            'days_remaining' => $this->daysRemaining,
+            'trial_ends_at' => $this->trialEndsAt,
+        ])->action('Upgrade Plan', FrontendUrl::to('/billing'));
     }
 }

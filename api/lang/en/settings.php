@@ -17,4 +17,5 @@ return [
     'calendar_updated' => 'Calendar preferences updated.',
     'work_week_updated' => 'Work week configuration updated.',
     'timezone_note' => 'All times are stored in UTC and displayed in EAT (UTC+3).',
+    'template_unknown_variables' => 'This template cannot use :variables. Available variables: :allowed.',
 ];

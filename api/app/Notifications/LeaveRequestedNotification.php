@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\LeaveRequest;
+use App\Notifications\Concerns\LeaveTemplateValues;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
+use App\Support\NotificationTemplates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class LeaveRequestedNotification extends Notification
 {
-    use Queueable, RespectsNotificationPreferences;
+    use LeaveTemplateValues, Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly LeaveRequest $leaveRequest,
@@ -49,15 +51,10 @@ class LeaveRequestedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        // Both lines carry a :name placeholder. They were called without it,
-        // so the subject read "New Leave Request — :name" and the body
-        // "Abebe :name has submitted…".
-        $replace = ['name' => (string) $this->leaveRequest->employee?->name];
-
-        return (new MailMessage)
-            ->subject(__('notification.leave_requested_subject', $replace))
-            ->line(__('notification.leave_requested_body', $replace))
-            ->line($this->leaveRequest->leaveType?->name.': '.$this->leaveRequest->start_date->format('M d').' - '.$this->leaveRequest->end_date->format('M d'))
-            ->action(__('notification.review_request'), FrontendUrl::to('/approvals'));
+        return NotificationTemplates::mail(
+            'leave_requested',
+            $this->leaveRequest->tenant_id,
+            $this->leaveTemplateValues($this->leaveRequest),
+        )->action(__('notification.review_request'), FrontendUrl::to('/approvals'));
     }
 }

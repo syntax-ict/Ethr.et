@@ -82,7 +82,7 @@ it('words a missing check-in differently from a missing check-out', function () 
     $notification = new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in');
 
     expect($notification->toArray($to)['message'])->toBe('Abebe Kebede did not check in on 2026-10-05')
-        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('no check-in on 2026-10-05');
+        ->and(implode(' ', $notification->toMail($to)->introLines))->toContain('missing a check-in for 2026-10-05');
 });
 
 // ── Channels and preferences ────────────────────────────────────────────────
@@ -185,10 +185,10 @@ it('links the email to the frontend, not to the API host', function () {
 });
 
 it('gives the email a real subject line in every locale', function () {
-    // toMail() asked for notification.missing_punch_subject, which exists in
+    // toMail() asked for notification.missing_punch_subject, which existed in
     // neither lang/en/notification.php nor lang/am/notification.php, so every
-    // one of these emails went out with the raw key as its subject. Both lang
-    // files already carried per-type keys, which it now uses.
+    // one of these emails went out with the raw key as its subject. The subject
+    // now comes from App\Support\NotificationTemplates (audit N7).
     $tenant = createTenant();
     ['employee' => $employee, 'employeeUser' => $user] = missingPunchOpenDay($tenant);
 
@@ -200,14 +200,14 @@ it('gives the email a real subject line in every locale', function () {
 
             expect($mail->subject)->not->toStartWith('notification.')
                 ->and($mail->subject)->toContain('2026-10-05')
-                ->and($mail->introLines[0])->toContain('Abebe Kebede')
-                ->and($mail->introLines[0])->toContain('2026-10-05');
+                ->and(implode(' ', $mail->introLines))->toContain('Abebe Kebede')
+                ->and(implode(' ', $mail->introLines))->toContain('2026-10-05');
         }
     }
 
     app()->setLocale('en');
     expect((new MissingPunchNotification($employee, '2026-10-05', 'missing_check_in'))->toMail($user)->subject)
-        ->toBe('Missing Check-In — 2026-10-05');
+        ->toBe('Missing check-in — 2026-10-05');
 });
 
 it('uses only translation keys that exist in both locales, in every notification', function () {
