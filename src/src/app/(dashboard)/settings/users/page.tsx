@@ -86,17 +86,20 @@ export default function UsersSettingsPage() {
     username: "",
     role: "employee" as UserRole,
   });
-  const [editForm, setEditForm] = useState({
-    username: "",
-    role: "employee" as UserRole,
-    status: "active" as EditableStatus,
-  });
+  // `status` is null for an invitee until the admin picks one: the form used
+  // to open them as `active` and send it back, so any edit activated the
+  // account and took the Resend invite action with it.
+  const [editForm, setEditForm] = useState<{
+    username: string;
+    role: UserRole;
+    status: EditableStatus | null;
+  }>({ username: "", role: "employee", status: "active" });
 
   function openEdit(u: TenantUser) {
     setEditForm({
       username: u.username ?? "",
       role: u.role,
-      status: u.status === "invited" ? "active" : u.status,
+      status: u.status === "invited" ? null : u.status,
     });
     setEditUser(u);
   }
@@ -124,7 +127,9 @@ export default function UsersSettingsPage() {
         payload: {
           username: editForm.username || null,
           role: editForm.role,
-          status: editForm.status,
+          ...(editForm.status !== null && editForm.status !== editUser.status
+            ? { status: editForm.status }
+            : {}),
         },
       });
       toast.success(t("users_page.updated", "User updated"));
@@ -401,13 +406,13 @@ export default function UsersSettingsPage() {
               <div>
                 <Label>{t("common.status", "Status")}</Label>
                 <Select
-                  value={editForm.status}
+                  value={editForm.status ?? ""}
                   onValueChange={(v) =>
                     setEditForm({ ...editForm, status: v as EditableStatus })
                   }
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue />
+                    <SelectValue placeholder={t("status.invited", "Invited")} />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((s) => (
