@@ -77,26 +77,16 @@ export type CorrectionPayrollImpact =
   operations["attendanceCorrection.payrollImpact"]["responses"][200]["content"]["application/json"];
 
 /**
- * `GET /attendance/settings` is published as `unknown[]`. Mirrors
- * AttendanceSettingResource::toArray.
+ * `GET /attendance/settings`. `enabled_methods` is an `array`-cast column,
+ * which Scramble can only publish as `unknown[]`; the request that writes it
+ * admits nothing but these method names.
  */
-export interface AttendanceSettings {
-  public_id: string;
+export type AttendanceSettings = Omit<
+  components["schemas"]["AttendanceSettingResource"],
+  "enabled_methods"
+> & {
   enabled_methods: NonNullable<AttendanceSettingsUpdate["enabled_methods"]>;
-  geofence_required: boolean;
-  mobile_photo_required: boolean;
-  kiosk_pin_required: boolean;
-  qr_expiry_minutes: number;
-  qr_auto_refresh: boolean;
-  qr_single_use_limit: number;
-  mobile_accuracy_threshold_meters: number;
-  offline_sync_enabled: boolean;
-  kiosk_auto_reset_seconds: number;
-  grace_period_minutes: number;
-  ot_daily_cap_minutes: number;
-  confidence_threshold: number;
-  updated_at: string | null;
-}
+};
 
 /**
  * The contract publishes the preview rows as `unknown[][]`. Mirrors

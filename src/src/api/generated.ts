@@ -5410,6 +5410,24 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /** AttendanceSettingResource */
+        AttendanceSettingResource: {
+            public_id: string;
+            enabled_methods: unknown[];
+            geofence_required: boolean;
+            mobile_photo_required: boolean;
+            kiosk_pin_required: boolean;
+            qr_expiry_minutes: number;
+            qr_auto_refresh: boolean;
+            qr_single_use_limit: number;
+            mobile_accuracy_threshold_meters: number;
+            offline_sync_enabled: boolean;
+            kiosk_auto_reset_seconds: number;
+            grace_period_minutes: number;
+            ot_daily_cap_minutes: number;
+            confidence_threshold: number;
+            updated_at: string | null;
+        };
         /** AuditLogResource */
         AuditLogResource: {
             action: string;
@@ -8955,12 +8973,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description `AttendanceSettingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendanceSettingResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -8980,12 +8999,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `AttendanceSettingResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown[];
+                    "application/json": components["schemas"]["AttendanceSettingResource"];
                 };
             };
             401: components["responses"]["AuthenticationException"];
