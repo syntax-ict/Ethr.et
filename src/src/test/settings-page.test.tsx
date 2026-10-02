@@ -38,6 +38,7 @@ const SETTINGS = {
     retirement_age: 60,
   },
   security: { mfa_policy: "required", session_timeout_minutes: 30 },
+  display: { calendar: "gregorian" },
   sso: {
     is_enabled: true,
     provider: "saml",
@@ -165,6 +166,51 @@ describe("<SettingsPage> security tab", () => {
 
     expect(await screen.findByRole("spinbutton")).toBeInTheDocument();
     expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
+  });
+});
+
+describe("<SettingsPage> general tab — organisation calendar", () => {
+  // Audit N33: "Calendar System" read as an organisation setting but called
+  // the browser-local setCalendar() and nothing else — it showed this
+  // browser's calendar, and saving it reached nobody else.
+  beforeEach(() => {
+    tab = "general";
+    localStorage.setItem("ethr.calendar", "ethiopian");
+  });
+
+  it("shows the organisation's calendar, not this browser's", async () => {
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+    );
+    renderPage();
+
+    expect(await screen.findByLabelText("Calendar System")).toHaveTextContent(
+      "Gregorian Calendar (GC)",
+    );
+  });
+
+  it("saves a new choice to the organisation through PUT /settings", async () => {
+    let body: unknown = null;
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+      http.put("*/api/v1/settings", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ message: "Settings updated", settings: {} });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByLabelText("Calendar System"));
+    await user.click(
+      await screen.findByRole("option", { name: "Ethiopian Calendar (EC)" }),
+    );
+
+    await waitFor(() =>
+      expect(body).toEqual({ settings: { calendar: "ethiopian" } }),
+    );
   });
 });
 

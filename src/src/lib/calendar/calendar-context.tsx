@@ -14,6 +14,17 @@ export type CalendarSystem = "ethiopian" | "gregorian";
 
 const STORAGE_KEY = "ethr.calendar";
 
+/**
+ * The display mode for a stored calendar preference.
+ *
+ * The API still accepts `dual`, which a user could choose before the option was
+ * withdrawn (audit N33); no display implements it, so it — like anything else
+ * unrecognised — shows as Ethiopian, the app's default.
+ */
+export function toCalendarSystem(value: unknown): CalendarSystem {
+  return value === "gregorian" ? "gregorian" : "ethiopian";
+}
+
 interface CalendarContextValue {
   calendar: CalendarSystem;
   setCalendar: (system: CalendarSystem) => void;
@@ -30,15 +41,20 @@ const CalendarContext = createContext<CalendarContextValue | null>(null);
 function readStoredCalendar(): CalendarSystem {
   if (typeof window === "undefined") return "ethiopian";
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "gregorian" || stored === "ethiopian"
-      ? stored
-      : "ethiopian";
+    return toCalendarSystem(localStorage.getItem(STORAGE_KEY));
   } catch {
     return "ethiopian";
   }
 }
 
+/**
+ * Holds the calendar dates are displayed in.
+ *
+ * The source of truth is the signed-in user's preference (`/auth/me` →
+ * `preferences.calendar`, which falls back to the organisation's default) and
+ * `CalendarPreferenceSync` applies it. `localStorage` is only the cache that
+ * covers the moments before that answer arrives, or when it cannot.
+ */
 export function CalendarProvider({ children }: { children: ReactNode }) {
   const [calendar, setCalendarState] =
     useState<CalendarSystem>(readStoredCalendar);

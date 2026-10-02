@@ -79,9 +79,21 @@ export function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
-  const updateLocale = useUpdatePreferences();
+  const updatePreferences = useUpdatePreferences();
   const pageLabel = useCurrentPageLabel();
-  const { calendar, toggle: toggleCalendar } = useCalendar();
+  const { calendar, setCalendar } = useCalendar();
+
+  /**
+   * Applied at once, then stored on the user, as the language switcher does:
+   * the toggle used to write only this browser's `localStorage`, so the choice
+   * vanished on the next device and disagreed with the profile setting (N33).
+   * A failed save is not worth interrupting the switch the user just made.
+   */
+  function toggleCalendar() {
+    const next = calendar === "ethiopian" ? "gregorian" : "ethiopian";
+    setCalendar(next);
+    updatePreferences.mutate({ calendar: next });
+  }
   const paletteShortcut = useShortcutLabel("K");
 
   const { t, locale } = useT();
@@ -214,7 +226,7 @@ export function AppHeader() {
                     // new device and reaches the payslips, emails and SMS the
                     // server renders. A failure here is not worth interrupting
                     // the switch the user just made.
-                    updateLocale.mutate({ locale: lang.code });
+                    updatePreferences.mutate({ locale: lang.code });
                   }}
                 >
                   <span>{lang.nativeName}</span>

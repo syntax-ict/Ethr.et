@@ -84,6 +84,9 @@ export function useUpdateSettings() {
   return useSettingsMutation(
     async (settings: SettingsUpdate) =>
       (await apiClient.put("/settings", { settings })).data,
+    // `/auth/me` carries the calendar in force, which falls back to the
+    // organisation's: an admin who has not chosen their own sees the change.
+    [["auth", "me"]],
   );
 }
 

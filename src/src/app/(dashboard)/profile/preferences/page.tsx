@@ -22,11 +22,11 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   useMyProfile,
   useUpdatePreferences,
-  type ProfilePreferences,
   type ProfilePreferencesPayload,
   type ProfileResponse,
 } from "@/features/profile/api";
 import { useCurrentTenant } from "@/features/auth/api";
+import { toCalendarSystem, useCalendar } from "@/lib/calendar/calendar-context";
 import { useT } from "@/lib/i18n/useT";
 import { setLocale } from "@/lib/i18n/translations";
 import { toast } from "sonner";
@@ -41,7 +41,10 @@ const LANGUAGES = [
 ] as const;
 
 const THEMES = ["system", "light", "dark", "high-contrast"] as const;
-const CALENDARS = ["gregorian", "ethiopian", "dual"] as const;
+// No "dual": it promised both dates side by side and no display implements it
+// (N33). The API still accepts it so a saved choice is not refused; it shows
+// as Ethiopian (`toCalendarSystem`).
+const CALENDARS = ["ethiopian", "gregorian"] as const;
 
 export default function ProfilePreferencesPage() {
   const query = useMyProfile();
@@ -57,6 +60,7 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
   const { t } = useT();
   const { theme, setTheme } = useTheme();
   const { data: tenant } = useCurrentTenant();
+  const { setCalendar } = useCalendar();
   const save = useUpdatePreferences();
   const prefs = profile.preferences;
 
@@ -172,12 +176,16 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
               {t("profile.date_display", "Date display")}
             </Label>
             <Select
-              value={prefs?.calendar ?? "gregorian"}
-              onValueChange={(value) =>
-                void persist({
-                  calendar: value as ProfilePreferences["calendar"],
-                })
-              }
+              // The calendar in force — the server falls back to the
+              // organisation's default — not a hardcoded "gregorian", which
+              // is what this showed while every date was Ethiopian.
+              value={toCalendarSystem(prefs?.calendar)}
+              onValueChange={(value) => {
+                const system = toCalendarSystem(value);
+                // Applied at once, then stored; it was stored and never
+                // applied (N33).
+                void persist({ calendar: system }, () => setCalendar(system));
+              }}
             >
               <SelectTrigger id="calendar" className="w-full sm:w-64">
                 <SelectValue />
@@ -193,7 +201,7 @@ function Preferences({ profile }: { profile: ProfileResponse }) {
             <p className="text-xs text-muted-foreground">
               {t(
                 "profile.calendar_hint",
-                "Dual shows Gregorian and Ethiopian dates side by side.",
+                "Applies wherever you sign in. Until you choose, your organisation's default is used.",
               )}
             </p>
           </CardContent>

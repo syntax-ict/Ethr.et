@@ -42,10 +42,7 @@ import {
   type SsoUpdate,
   type TenantSettings,
 } from "@/features/settings/api";
-import {
-  useCalendar,
-  type CalendarSystem,
-} from "@/lib/calendar/calendar-context";
+import { type CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
 
 const VALID_TABS = ["general", "branding", "security", "sso"];
@@ -81,7 +78,6 @@ export default function SettingsPage() {
 
 function SettingsTabs({ data }: { data: TenantSettings }) {
   const { t } = useT();
-  const { calendar, setCalendar } = useCalendar();
   const searchParams = useSearchParams();
   const defaultTab = useMemo(() => {
     const tab = searchParams.get("tab");
@@ -123,6 +119,27 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         );
       },
     });
+  }
+
+  /**
+   * The organisation's default calendar, saved as soon as it is chosen. This
+   * select used to call the browser-local `setCalendar()` and nothing else, so
+   * an "organisation" setting changed only the admin's own screen and
+   * `PUT /settings` did not even accept the key (N33). Everyone who has not
+   * chosen their own calendar picks it up from `/auth/me`.
+   */
+  function saveCalendar(calendar: CalendarSystem) {
+    updateSettings.mutate(
+      { calendar },
+      {
+        onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
+        onError: (error) =>
+          toastError(
+            error,
+            t("settings.save_failed", "Failed to save settings"),
+          ),
+      },
+    );
   }
 
   function saveSso() {
@@ -234,8 +251,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   {t("settings.calendar_system", "Calendar System")}
                 </Label>
                 <Select
-                  value={calendar}
-                  onValueChange={(v) => setCalendar(v as CalendarSystem)}
+                  value={data.display.calendar}
+                  onValueChange={(v) => saveCalendar(v as CalendarSystem)}
+                  disabled={updateSettings.isPending}
                 >
                   <SelectTrigger id="org-calendar" className="mt-1">
                     <SelectValue />
