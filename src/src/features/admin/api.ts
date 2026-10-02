@@ -134,17 +134,45 @@ export function useExtendTrial() {
   });
 }
 
+export type ImpersonateResult =
+  operations["adminTenant.impersonate"]["responses"][200]["content"]["application/json"];
+
 /**
- * Start an impersonation session.
+ * Only an absolute http(s) URL is followed. Both URLs this module navigates to
+ * come from the API, but a navigation target is the one place a `javascript:`
+ * scheme would execute, so the check costs nothing and closes that door.
+ */
+export function isNavigableUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Start an impersonation session. The server answers in one of two shapes:
  *
- * The `token` in the response is for API clients that send a bearer header;
- * this app does not — the server puts the same token in the httpOnly session
- * cookie, which is what makes the reload below land as the tenant admin. The
- * localStorage entries only carry the tenant header and the banner flag.
+ * - **Hostname mode** (production): a `handoff_url` on the tenant's own host,
+ *   carrying a single-use, 30-second nonce in its fragment. The session cookie
+ *   is host-only, so nothing here can sign the browser in over there — the
+ *   tenant host's claim page does that, and sets the banner flag on *its*
+ *   origin. So this origin's storage is left alone: writing `impersonating`
+ *   here would put the banner on the admin console instead (audit N19).
+ * - **Single host** (local development): console and tenant app share an
+ *   origin. The server has already put the token in the httpOnly session
+ *   cookie; the `token` in the body is for API clients that send a bearer
+ *   header, which this app does not. The localStorage entries carry the tenant
+ *   header and the banner flag.
+ *
+ * Either way a full navigation, not a router push: the identity behind every
+ * cached query just changed, so the client cache has to be dropped wholesale.
  */
 export function useImpersonateTenant() {
   return useMutation<
-    { token: string; tenant: string; expires_at: string },
+    ImpersonateResult,
     unknown,
     { publicId: string; code: string }
   >({
@@ -156,14 +184,19 @@ export function useImpersonateTenant() {
       return data;
     },
     onSuccess: (data) => {
+      if ("handoff_url" in data) {
+        if (isNavigableUrl(data.handoff_url)) {
+          window.location.assign(data.handoff_url);
+        }
+        return;
+      }
+
       const currentTenant = localStorage.getItem("tenant");
       if (currentTenant) localStorage.setItem("original_tenant", currentTenant);
 
       localStorage.setItem("tenant", data.tenant);
       localStorage.setItem("impersonating", "true");
 
-      // Full reload, not a router push: the identity behind every cached query
-      // just changed, so the client cache has to be dropped wholesale.
       window.location.href = "/dashboard";
     },
   });
@@ -175,13 +208,17 @@ export type ExitImpersonationResult =
 /**
  * The one call in this module a super admin does not make: it is sent from
  * the impersonation session itself (the tenant admin's identity) and is
- * authorised by that session's `impersonation` token ability. The server
- * revokes the token, re-issues the super admin's session when it can, and
- * names the tenant to send as X-Tenant from then on. A one-shot call followed
- * by a full navigation, so a plain function rather than a mutation hook.
+ * authorised by that session's `impersonation` token ability. It lives at
+ * `/auth/impersonation/exit`, not under `/admin`, because the platform API
+ * 404s on a tenant host — which is where an impersonated session lives in
+ * production. The server revokes the token and either names a `return_url`
+ * on the platform host (hostname mode) or re-issues the super admin's session
+ * here and names the tenant to send as X-Tenant (single host). A one-shot call
+ * followed by a full navigation, so a plain function rather than a mutation
+ * hook.
  */
 export async function exitImpersonation(): Promise<ExitImpersonationResult> {
-  return (await apiClient.post("/admin/exit-impersonation")).data;
+  return (await apiClient.post("/auth/impersonation/exit")).data;
 }
 
 /** Same resource as the tenant audit log — never numeric ids (convention 4). */

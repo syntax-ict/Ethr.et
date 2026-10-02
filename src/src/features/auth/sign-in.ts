@@ -73,7 +73,17 @@ export async function initiateSso(tenant: string): Promise<string> {
   return data.redirect_url;
 }
 
-/** The tenant-host half of the impersonation handoff. */
+/**
+ * The tenant-host half of the impersonation handoff.
+ *
+ * The CSRF cookie is fetched first, exactly as the login form does. The claim
+ * is the browser's first request to this host — it arrives from the platform
+ * host by full navigation — so it holds no `XSRF-TOKEN` cookie yet, and the
+ * claim is a stateful POST, which Sanctum refuses with a 419 without one. The
+ * test suite cannot see this (Laravel skips CSRF verification under tests), so
+ * the order is pinned on this side instead.
+ */
 export async function claimImpersonationSession(nonce: string): Promise<void> {
+  await prepareCsrfCookie();
   await apiClient.post("/auth/session/claim", { nonce });
 }

@@ -154,8 +154,9 @@ function TenantDetail({ id }: { id: string }) {
     impersonate.mutate(
       { publicId: tenant.public_id, code: mfaCode },
       {
-        // No success branch: the mutation swaps the session and reloads into
-        // the tenant's dashboard, so anything set here would never paint.
+        // No success branch: the mutation navigates away — to the tenant
+        // host's handoff page in production, straight to the dashboard on a
+        // single host — so anything set here would never paint.
         onError: (err: unknown) => {
           const axiosErr = err as {
             response?: { data?: { detail?: string } };

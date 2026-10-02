@@ -88,7 +88,7 @@ describe("<ImpersonationBanner>", () => {
     localStorage.setItem("original_tenant", "stale-stash");
 
     server.use(
-      http.post("*/admin/exit-impersonation", () =>
+      http.post("*/auth/impersonation/exit", () =>
         HttpResponse.json({ session_restored: true, tenant: "acme-platform" }),
       ),
     );
@@ -114,7 +114,7 @@ describe("<ImpersonationBanner>", () => {
     localStorage.setItem("original_tenant", "fallback-tenant");
 
     server.use(
-      http.post("*/admin/exit-impersonation", () =>
+      http.post("*/auth/impersonation/exit", () =>
         HttpResponse.json({ session_restored: true }),
       ),
     );
@@ -130,6 +130,56 @@ describe("<ImpersonationBanner>", () => {
     expect(window.location.href).toBe("/admin");
   });
 
+  it("sends the browser back to the platform host the server names", async () => {
+    // Hostname mode: this is the tenant's host, the operator's own session
+    // lives on the platform host, and the server says where that is. Landing
+    // on this host's /admin would be the platform console refused by a tenant
+    // host — the dead end audit N19 found.
+    localStorage.setItem("impersonating", "true");
+
+    server.use(
+      http.post("*/auth/impersonation/exit", () =>
+        HttpResponse.json({
+          session_restored: false,
+          tenant: null,
+          return_url: "https://admin.ethr.et/admin",
+        }),
+      ),
+    );
+
+    render(<ImpersonationBanner />);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Exit Impersonation/i }),
+    );
+
+    await waitFor(() =>
+      expect(window.location.href).toBe("https://admin.ethr.et/admin"),
+    );
+    expect(localStorage.getItem("impersonating")).toBeNull();
+  });
+
+  it("does not follow a return URL that is not http(s)", async () => {
+    localStorage.setItem("impersonating", "true");
+
+    server.use(
+      http.post("*/auth/impersonation/exit", () =>
+        HttpResponse.json({
+          session_restored: false,
+          tenant: null,
+          // Not http(s): only a web page is a place to send the browser.
+          return_url: "data:text/html,<p>not ours</p>",
+        }),
+      ),
+    );
+
+    render(<ImpersonationBanner />);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Exit Impersonation/i }),
+    );
+
+    await waitFor(() => expect(window.location.href).toBe("/login"));
+  });
+
   it("sends the admin to login when there is no identity left to restore", async () => {
     // An expired session, or an account that is no longer a super admin. There
     // is nothing to go back to, and leaving them on an impersonated session
@@ -138,7 +188,7 @@ describe("<ImpersonationBanner>", () => {
 
     server.use(
       http.post(
-        "*/admin/exit-impersonation",
+        "*/auth/impersonation/exit",
         () => new HttpResponse(null, { status: 401 }),
       ),
       http.post(

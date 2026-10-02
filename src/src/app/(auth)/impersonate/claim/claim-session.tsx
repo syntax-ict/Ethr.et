@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { claimImpersonationSession } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
@@ -21,7 +20,6 @@ import { useT } from "@/lib/i18n/useT";
  * at all rather than the redirect landing straight on /dashboard.
  */
 export function ClaimSession() {
-  const router = useRouter();
   const { t } = useT();
   const [failed, setFailed] = useState(false);
 
@@ -47,8 +45,28 @@ export function ClaimSession() {
         })()
       : Promise.reject(new Error("missing nonce"));
 
-    claim.then(() => router.replace("/dashboard")).catch(() => setFailed(true));
-  }, [router]);
+    claim
+      .then(() => {
+        // The banner reads this flag from *this* origin's storage. Local
+        // storage is per origin, so the admin console cannot set it for the
+        // tenant host — this page is the only code that runs here knowing the
+        // session is an impersonation (audit N19). Set only after the claim
+        // succeeded: a failed claim leaves no session to warn about.
+        try {
+          localStorage.setItem("impersonating", "true");
+        } catch {
+          // Storage refused (private mode, quota). The session is still
+          // valid; the banner simply cannot show, which the exit endpoint
+          // and the 30-minute expiry both survive.
+        }
+
+        // A full navigation rather than a router push: the identity on this
+        // host just changed, so nothing cached from before the claim may
+        // survive. `replace` keeps the spent handoff page out of history.
+        window.location.replace("/dashboard");
+      })
+      .catch(() => setFailed(true));
+  }, []);
 
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center gap-4 text-center">
