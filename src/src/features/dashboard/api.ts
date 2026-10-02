@@ -1,38 +1,46 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import type { operations } from "@/api/generated";
 
-export interface EmployeeDashboard {
-  attendance_today: {
-    status: string;
-    check_in?: string;
-    check_out?: string;
-    worked_minutes?: number;
-  } | null;
-  leave_balances: Array<{
-    type: string;
-    entitled: number;
-    used: number;
-    remaining: number;
-  }>;
-  latest_payslip: {
-    period: string;
-    net_cents: number;
-    gross_cents: number;
-  } | null;
-  upcoming_holidays: Array<{
-    name: string;
-    /** Amharic name; null for holidays created before bilingual names existed. */
-    name_am: string | null;
-    date: string;
-  }>;
-  pending_approvals: number;
-  tenant_summary: {
-    employee_count: number;
-    department_count: number;
-    branch_count: number;
-  };
-  onboarding_complete: boolean;
+// Shapes come from the generated contract. The dashboard services build their
+// lists with `->map()`, which Scramble publishes as `unknown[]`; those rows are
+// restated from EmployeeDashboardService / ManagerDashboardService.
+
+type EmployeeContract =
+  operations["dashboard.employee"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `entitled` and `used` are LeaveBalance's `decimal:1` casts and arrive as
+ * strings ("16.0"); `remaining` is `remainingDays()`, a float. `type` is
+ * `leaveType?->name`, null once the leave type has been soft-deleted.
+ */
+export interface DashboardLeaveBalance {
+  type: string | null;
+  entitled: string;
+  used: string;
+  remaining: number;
 }
+
+export interface DashboardHoliday {
+  name: string;
+  /** Amharic name; null for holidays created before bilingual names existed. */
+  name_am: string | null;
+  date: string;
+}
+
+/** `latest_payslip.period` is `payrollRun?->period_label`, so nullable. */
+export type EmployeeDashboard = Omit<
+  EmployeeContract,
+  "leave_balances" | "upcoming_holidays" | "latest_payslip"
+> & {
+  leave_balances: DashboardLeaveBalance[];
+  upcoming_holidays: DashboardHoliday[];
+  latest_payslip:
+    | (Omit<NonNullable<EmployeeContract["latest_payslip"]>, "period"> & {
+        period: string | null;
+      })
+    | null;
+};
 
 export function useEmployeeDashboard() {
   return useQuery<EmployeeDashboard>({
@@ -45,16 +53,25 @@ export function useEmployeeDashboard() {
   });
 }
 
-export interface ManagerDashboard {
+type ManagerContract =
+  operations["dashboard.manager"]["responses"][200]["content"]["application/json"];
+
+/**
+ * `team_attendance.absent` is `count($teamIds) - $present`, an integer Scramble
+ * types as `string` on one branch. `team_on_leave` rows are mapped inline;
+ * `employee_name` is `employee?->name`.
+ */
+export type ManagerDashboard = Omit<
+  ManagerContract,
+  "team_attendance" | "team_on_leave"
+> & {
   team_attendance: { present: number; absent: number; late: number };
-  pending_approvals: { leave: number; total: number };
   team_on_leave: Array<{
-    employee_name: string;
+    employee_name: string | null;
     start_date: string;
     end_date: string;
   }>;
-  team_size: number;
-}
+};
 
 /**
  * @param enabled Gate the request on the caller's role. Consumers render null

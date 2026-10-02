@@ -147,6 +147,9 @@ export function TeamOverview() {
           <CardContent>
             <div className="space-y-2">
               {data.team_on_leave.map((member, i) => {
+                // `employee?->name`; the team is live employees, so this is
+                // a type-level null rather than one seen in practice.
+                const name = member.employee_name ?? "—";
                 return (
                   <div
                     key={i}
@@ -154,12 +157,12 @@ export function TeamOverview() {
                   >
                     <div className="flex items-center gap-3">
                       <EmployeeAvatar
-                        name={member.employee_name}
+                        name={name}
                         className="h-8 w-8"
                         fallbackClassName="bg-interactive-primary/10 text-xs font-medium text-interactive-primary"
                       />
                       <span className="text-sm font-medium text-foreground">
-                        {member.employee_name}
+                        {name}
                       </span>
                     </div>
                     <Badge

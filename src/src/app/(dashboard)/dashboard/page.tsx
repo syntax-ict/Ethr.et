@@ -116,6 +116,11 @@ function SelfServiceKpis() {
   }
 
   const attendance = data?.attendance_today;
+  // `not_checked_in` carries no times at all.
+  const checkIn =
+    attendance && attendance.status !== "not_checked_in"
+      ? attendance.check_in
+      : null;
   const balances = data?.leave_balances ?? [];
   const payslip = data?.latest_payslip;
   const holidays = data?.upcoming_holidays ?? [];
@@ -134,12 +139,12 @@ function SelfServiceKpis() {
               : t("dashboard.not_checked_in", "Not Checked In")
         }
         sub={
-          attendance?.check_in
+          checkIn
             ? // t() has no interpolation: passing a template string as the
               // fallback returns the bare translation ("Since") whenever the
               // key exists, dropping the time. Compose outside the call.
               // `check_in` is a UTC instant; print the tenant's wall clock.
-              `${t("dashboard.since", "Since")} ${formatTime(attendance.check_in)}`
+              `${t("dashboard.since", "Since")} ${formatTime(checkIn)}`
             : t("dashboard.no_record_today", "No record today")
         }
       />
