@@ -5577,6 +5577,11 @@ export interface components {
             message: string;
         };
         /**
+         * ContractStatus
+         * @enum {string}
+         */
+        ContractStatus: "active" | "renewed" | "expired" | "terminated_early";
+        /**
          * ContractType
          * @enum {string}
          */
@@ -5759,12 +5764,12 @@ export interface components {
         EmployeeContractResource: {
             public_id: string;
             reference_number: string | null;
-            contract_type: string;
+            contract_type: components["schemas"]["ContractType"];
             start_date: string;
             end_date: string | null;
             salary_cents: number | null;
             terms: string | null;
-            status: string;
+            status: components["schemas"]["ContractStatus"];
             renewed_from_id?: string | null;
             ended_at: string | null;
             end_notes: string | null;
@@ -5774,8 +5779,8 @@ export interface components {
              *     while the contract is still active; a renewed/ended one has
              *     already been superseded, not "expiring soon".
              */
-            is_expired: string;
-            expires_soon: string;
+            is_expired: boolean;
+            expires_soon: boolean;
             days_until_expiry: number | null;
             /**
              * @description Populated only on the tenant-wide expiring watchlist, where the
@@ -5814,12 +5819,12 @@ export interface components {
             file_size: number;
             mime_type: string | null;
             expiry_date: string | null;
-            is_expired: string;
+            is_expired: boolean;
             /**
              * @description Drives the S12 badge rule: amber within 30 days, red once expired.
              *     Mutually exclusive with is_expired so the UI never has to choose.
              */
-            expires_soon: string;
+            expires_soon: boolean;
             days_until_expiry: number | null;
             /**
              * @description Populated only on the tenant-wide expiring list, where the reader
@@ -8040,8 +8045,8 @@ export interface operations {
                             public_id: string;
                             metric: string;
                             operator: string;
-                            threshold_value: string;
-                            current_value: number | null;
+                            threshold_value: number;
+                            current_value: number;
                             severity: string;
                         }[];
                     };

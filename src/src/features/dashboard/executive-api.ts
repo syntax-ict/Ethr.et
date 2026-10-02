@@ -253,11 +253,7 @@ export type AlertThreshold = Omit<
 > &
   Pick<AlertThresholdBody, "metric" | "operator" | "severity">;
 
-/**
- * From AlertEvaluator::evaluate: `threshold_value` is the model's `float` cast
- * (Scramble: `string`), and a metric whose current value is null is skipped
- * before a row is built, so `current_value` is never null here.
- */
+/** A threshold `AlertEvaluator::evaluate` found breached, with the value that breached it. */
 export type TriggeredAlert = AlertThreshold & { current_value: number };
 
 export function useAlertThresholds() {

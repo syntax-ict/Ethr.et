@@ -63,8 +63,8 @@ final class AlertEvaluator
                     'public_id' => $threshold->public_id,
                     'metric' => $threshold->metric,
                     'operator' => $threshold->operator,
-                    'threshold_value' => $threshold->threshold_value,
-                    'current_value' => $current,
+                    'threshold_value' => (float) $threshold->threshold_value,
+                    'current_value' => (float) $current,
                     'severity' => $threshold->severity,
                 ];
             }

@@ -450,31 +450,12 @@ export function useCloseDisciplinaryCase(publicId: string) {
 
 // ── Employee contracts ──────────────────────────────────────────────
 
-export type ContractType =
-  "probation" | "fixed_term" | "permanent" | "casual" | "consultancy";
+export type ContractType = components["schemas"]["ContractType"];
 
-export type ContractStatus =
-  "active" | "renewed" | "expired" | "terminated_early";
+export type ContractStatus = components["schemas"]["ContractStatus"];
 
-export interface EmployeeContract {
-  public_id: string;
-  reference_number: string | null;
-  contract_type: ContractType;
-  start_date: string;
-  end_date: string | null;
-  salary_cents: number | null;
-  terms: string | null;
-  status: ContractStatus;
-  renewed_from_id?: string | null;
-  ended_at: string | null;
-  end_notes: string | null;
-  is_expired: boolean;
-  expires_soon: boolean;
-  days_until_expiry: number | null;
-  employee_name?: string;
-  employee_public_id?: string;
-  created_at: string;
-}
+export type EmployeeContract =
+  components["schemas"]["EmployeeContractResource"];
 
 export interface ContractInput {
   contract_type: ContractType;
@@ -709,11 +690,8 @@ export function useCancelRetirementCase(publicId: string) {
 export type BankDetail = components["schemas"]["BankDetailResource"];
 export type BankDetailPayload = components["schemas"]["StoreBankDetailRequest"];
 
-/** Scramble types the two expiry flags as strings; the resource emits booleans. */
-export type EmployeeDocument = Omit<
-  components["schemas"]["EmployeeDocumentResource"],
-  "is_expired" | "expires_soon"
-> & { is_expired: boolean; expires_soon: boolean };
+export type EmployeeDocument =
+  components["schemas"]["EmployeeDocumentResource"];
 
 /** `file` is a `File` on the wire; the contract can only call it a string. */
 export type DocumentUpload = Omit<
