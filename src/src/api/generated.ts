@@ -7614,11 +7614,7 @@ export interface components {
              * @enum {string|null}
              */
             theme?: "light" | "dark" | "system" | "high-contrast" | null;
-            /**
-             * @description Dual shows Gregorian and Ethiopian side by side; the tenant-level
-             *     `ethiopian_calendar` flag decides whether the choice is offered at all.
-             * @enum {string|null}
-             */
+            /** @enum {string|null} */
             calendar?: "gregorian" | "ethiopian" | "dual" | null;
         };
         /** UpdateProfileRequest */
@@ -7665,6 +7661,8 @@ export interface components {
                 /** @enum {string} */
                 mfa_policy?: "disabled" | "optional" | "required";
                 session_timeout_minutes?: number;
+                /** @enum {string} */
+                calendar?: "ethiopian" | "gregorian";
             };
         };
         /** UpdateShiftRequest */
@@ -10318,7 +10316,7 @@ export interface operations {
                             preferences: {
                                 locale: string;
                                 theme: string | "system";
-                                calendar: string | "gregorian";
+                                calendar: string;
                             };
                             /** Format: date-time */
                             last_login_at: string | null;
@@ -20081,6 +20079,10 @@ export interface operations {
                             mfa_policy: string;
                             session_timeout_minutes: number;
                         };
+                        display: {
+                            /** @enum {string} */
+                            calendar: "ethiopian" | "gregorian";
+                        };
                         sso: {
                             is_enabled: boolean;
                             provider: string;
@@ -21561,7 +21563,7 @@ export interface operations {
                         preferences: {
                             locale: string;
                             theme: string | "system";
-                            calendar: string | "gregorian";
+                            calendar: string;
                         };
                         employee: {
                             public_id: string;
@@ -21702,7 +21704,7 @@ export interface operations {
                     "application/json": {
                         locale: string;
                         theme: string | "system";
-                        calendar: string | "gregorian";
+                        calendar: string;
                     };
                 };
             };

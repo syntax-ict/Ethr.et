@@ -15,6 +15,7 @@ use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
+use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -77,8 +78,23 @@ class SettingsController extends Controller
                 'mfa_policy' => $security->mfaPolicy(),
                 'session_timeout_minutes' => $security->idleTimeoutMinutes(),
             ],
+            'display' => [
+                'calendar' => $this->organisationCalendar($tenant),
+            ],
             'sso' => $this->ssoConfig($tenant),
         ]);
+    }
+
+    /**
+     * The calendar everyone in the organisation sees until they choose their
+     * own on Profile → Preferences (audit N33). Before, General Settings'
+     * "Calendar System" only flipped the admin's own browser.
+     *
+     * @return 'ethiopian'|'gregorian'
+     */
+    private function organisationCalendar(Tenant $tenant): string
+    {
+        return CalendarPreference::forTenant($tenant);
     }
 
     public function update(UpdateSettingsRequest $request): JsonResponse

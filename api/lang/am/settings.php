@@ -26,5 +26,6 @@ return [
         'working_days' => 'የሥራ ቀናት',
         'mfa_policy' => 'የሁለት ደረጃ ማረጋገጫ መመሪያ',
         'session_timeout_minutes' => 'የክፍለ ጊዜ ማብቂያ',
+        'calendar' => 'የቀን መቁጠሪያ ሥርዓት',
     ],
 ];

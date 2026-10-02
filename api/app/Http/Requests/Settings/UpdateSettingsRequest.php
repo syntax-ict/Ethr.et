@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,7 @@ class UpdateSettingsRequest extends FormRequest
             'settings.working_days.*' => ['integer', 'distinct', 'between:1,7'],
             'settings.mfa_policy' => ['sometimes', 'string', Rule::in(TenantSecurityPolicy::MFA_POLICIES)],
             'settings.session_timeout_minutes' => ['sometimes', 'integer', $timeout],
+            'settings.calendar' => ['sometimes', 'string', Rule::in(CalendarPreference::ORGANISATION_CHOICES)],
         ];
     }
 

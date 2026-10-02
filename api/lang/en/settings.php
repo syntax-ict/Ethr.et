@@ -26,5 +26,6 @@ return [
         'working_days' => 'working days',
         'mfa_policy' => 'MFA policy',
         'session_timeout_minutes' => 'session timeout',
+        'calendar' => 'calendar system',
     ],
 ];
