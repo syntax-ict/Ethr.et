@@ -56,15 +56,26 @@ export function reportFieldLabel(t: T, field: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * A result cell as text. `*_cents` fields are money and shown in ETB
- * (convention 3) — the table printed "500000" under "salary (¢)".
+ * (convention 3) — the table printed "500000" under "salary (¢)". A date-only
+ * value goes through `formatDate` when given, so a hire date reads in the
+ * user's calendar like every other date in the app, not as raw ISO.
  */
-export function formatReportCell(field: string, value: unknown): string {
+export function formatReportCell(
+  field: string,
+  value: unknown,
+  formatDate?: (iso: string) => string,
+): string {
   if (value == null || value === "") return "—";
   if (field.endsWith("_cents")) {
     const cents = typeof value === "number" ? value : Number(value);
     if (Number.isFinite(cents)) return formatETB(cents);
+  }
+  if (formatDate && typeof value === "string" && DATE_ONLY.test(value)) {
+    return formatDate(value);
   }
   return String(value);
 }

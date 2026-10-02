@@ -804,7 +804,7 @@ function NavLink({
           }}
           className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/60 group-hover/pin:opacity-100"
           title={t("nav.unpin", "Unpin")}
-          aria-label={t("nav.unpin", "Unpin")}
+          aria-label={`${t("nav.unpin", "Unpin")}: ${item.label}`}
         >
           <Star className="h-3 w-3" />
         </button>
@@ -829,13 +829,13 @@ function NavLink({
                 ? t("nav.favorites_full", "Favorites full (max 5)")
                 : t("nav.pin_favorites", "Pin to favorites")
           }
-          aria-label={
+          aria-label={`${
             pinned
               ? t("nav.unpin_favorites", "Unpin from favorites")
               : favoritesAtLimit
                 ? t("nav.favorites_full", "Favorites full (max 5)")
                 : t("nav.pin_favorites", "Pin to favorites")
-          }
+          }: ${item.label}`}
           aria-pressed={pinned}
         >
           <Star
@@ -856,7 +856,7 @@ function NavLink({
             }}
             className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-[var(--color-accent,#E8A838)] group-hover/pin:opacity-100"
             title={t("nav.pin_favorites", "Pin to favorites")}
-            aria-label={t("nav.pin_favorites", "Pin to favorites")}
+            aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${item.label}`}
           >
             <Star className="h-3 w-3" />
           </button>

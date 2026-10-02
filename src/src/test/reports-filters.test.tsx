@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import ReportsPage from "@/app/(dashboard)/reports/page";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -97,7 +98,10 @@ function renderPage() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    // As the app mounts every dashboard page: under the calendar provider.
+    <QueryClientProvider client={queryClient}>
+      <CalendarProvider>{children}</CalendarProvider>
+    </QueryClientProvider>
   );
   return render(<ReportsPage />, { wrapper });
 }

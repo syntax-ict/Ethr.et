@@ -32,3 +32,20 @@ describe("report cells", () => {
     expect(formatReportCell("check_out", null)).toBe("—");
   });
 });
+
+describe("report cells — dates", () => {
+  const eth = (iso: string) => `ETH(${iso})`;
+
+  it("passes a date-only value through the calendar formatter", () => {
+    expect(formatReportCell("hire_date", "2024-06-24", eth)).toBe(
+      "ETH(2024-06-24)",
+    );
+  });
+
+  it("leaves a timestamp, and a date with no formatter, as they are", () => {
+    expect(formatReportCell("check_in", "2026-10-02T06:00:00Z", eth)).toBe(
+      "2026-10-02T06:00:00Z",
+    );
+    expect(formatReportCell("hire_date", "2024-06-24")).toBe("2024-06-24");
+  });
+});

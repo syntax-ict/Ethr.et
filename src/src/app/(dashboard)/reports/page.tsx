@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useCalendar } from "@/lib/calendar/calendar-context";
 import {
   formatReportCell,
   reportFieldLabel,
@@ -392,7 +393,7 @@ function BuilderTab() {
                     onClick={() => removeFilter(i)}
                     aria-label={[
                       t("reports_page.remove_filter", "Remove filter"),
-                      f.field,
+                      f.field ? reportFieldLabel(t, f.field) : "",
                     ]
                       .filter(Boolean)
                       .join(": ")}
@@ -560,7 +561,14 @@ function BuilderTab() {
 }
 
 function PreviewResult({ result }: { result: ReportResult }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { formatDate: formatCalendarDate } = useCalendar();
+  // Built from parts: `new Date(iso)` is UTC midnight, the previous day west
+  // of UTC.
+  const showDate = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    return formatCalendarDate(new Date(y, m - 1, d), locale);
+  };
   const headers = useMemo(
     () => (result.data.length > 0 ? Object.keys(result.data[0]) : []),
     [result.data],
@@ -640,7 +648,7 @@ function PreviewResult({ result }: { result: ReportResult }) {
                 key: String(i),
                 cells: headers.map((h) => (
                   <span key={h} className="whitespace-nowrap">
-                    {formatReportCell(h, row[h])}
+                    {formatReportCell(h, row[h], showDate)}
                   </span>
                 )),
               }))}
