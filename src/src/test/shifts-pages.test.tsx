@@ -308,9 +308,11 @@ describe("Shift assignments page", () => {
       (await screen.findByText("Select employee")).closest("button")!,
     );
 
-    expect(
-      await screen.findByRole("option", { name: "Employee 130" }),
-    ).toBeInTheDocument();
+    // A text query, then the role: `findByRole("option", { name })` computes
+    // the accessible name of all 130 options on every retry, which took this
+    // test past 11 s alone and over the 20 s timeout under load.
+    const last = await screen.findByText("Employee 130");
+    expect(last.closest('[role="option"]')).not.toBeNull();
   });
 
   it("shows an assignment as active through its last day", async () => {
