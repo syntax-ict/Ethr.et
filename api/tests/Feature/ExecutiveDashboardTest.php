@@ -171,6 +171,52 @@ test('overtime trend sums overtime pay from the calculation log, not a stored co
     expect($trend->get('August 2026')['overtime_minutes'])->toBe(180);
 });
 
+test('monthly payroll trend shows the latest twelve runs, oldest first', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Thirteen months of completed runs: the trend's window is twelve, so
+    // exactly one must fall off — and it has to be the oldest one. Each run
+    // pays one employee of a branch, so the branch-scoped query (summed from
+    // entries rather than read from the run) is held to the same window.
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+    foreach (range(12, 0) as $monthsAgo) {
+        $month = now()->startOfMonth()->subMonths($monthsAgo);
+        $run = PayrollRun::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'completed',
+            'period_label' => $month->format('Y-m'),
+            'period_start' => $month->toDateString(),
+            'period_end' => $month->copy()->endOfMonth()->toDateString(),
+            'gross_total_cents' => 100000,
+        ]);
+        PayrollEntry::factory()->create([
+            'tenant_id' => $tenant->id,
+            'payroll_run_id' => $run->id,
+            'employee_id' => $employee->id,
+        ]);
+    }
+
+    foreach (['', "?branch={$branch->public_id}"] as $scope) {
+        $periods = collect(
+            test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/payroll{$scope}")
+                ->assertOk()
+                ->json('monthly_trend'),
+        )->pluck('period');
+
+        expect($periods)->toHaveCount(12)
+            ->and($periods->first())->toBe(now()->startOfMonth()->subMonths(11)->format('Y-m'))
+            ->and($periods->last())->toBe(now()->format('Y-m'));
+    }
+
+    $forecast = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive/forecast")
+        ->assertOk()
+        ->json('payroll_gross.history');
+
+    expect(collect($forecast)->pluck('month')->last())->toBe(now()->format('Y-m'));
+});
+
 test('overtime trend excludes draft payroll runs', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);

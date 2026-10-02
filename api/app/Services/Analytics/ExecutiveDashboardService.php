@@ -429,15 +429,22 @@ final class ExecutiveDashboardService
             ->all();
     }
 
+    /**
+     * The latest twelve runs, oldest first. Both branches select newest-first
+     * and then reverse: ordering ascending before the limit kept the *first*
+     * twelve runs a tenant ever made, so the chart stopped moving after a year.
+     */
     private function monthlyPayrollTrend(int $tenantId, ?int $branchId): array
     {
         if ($branchId === null) {
             return PayrollRun::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
                 ->whereIn('status', ['completed', 'approved'])
-                ->orderBy('period_start')
+                ->orderByDesc('period_start')
                 ->limit(12)
                 ->get()
+                ->reverse()
+                ->values()
                 ->map(fn ($r) => [
                     'period' => $r->period_label,
                     'gross_cents' => $r->gross_total_cents,
@@ -462,9 +469,11 @@ final class ExecutiveDashboardService
                 sum(payroll_entries.income_tax_cents) as tax_cents
             ')
             ->groupBy('payroll_runs.id', 'payroll_runs.period_label', 'payroll_runs.period_start')
-            ->orderBy('payroll_runs.period_start')
+            ->orderByDesc('payroll_runs.period_start')
             ->limit(12)
             ->get()
+            ->reverse()
+            ->values()
             // These are selectRaw aliases, not real PayrollEntry columns —
             // getAttribute() reads them without asserting a static property
             // that doesn't exist on the model's real schema.
