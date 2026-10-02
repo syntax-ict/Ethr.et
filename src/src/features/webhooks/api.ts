@@ -2,18 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
-type IndexContract =
-  operations["webhook.index"]["responses"][200]["content"]["application/json"];
-type StoreContract =
+export type Webhook =
+  operations["webhook.index"]["responses"][200]["content"]["application/json"]["webhooks"][number];
+export type CreatedWebhook =
   operations["webhook.store"]["responses"][201]["content"]["application/json"];
-
-/** Scramble publishes `events` as `unknown[]`; it is the list of event names. */
-export type Webhook = Omit<IndexContract["webhooks"][number], "events"> & {
-  events: string[];
-};
-export type CreatedWebhook = Omit<StoreContract, "events"> & {
-  events: string[];
-};
 export type WebhookPayload = components["schemas"]["StoreWebhookRequest"];
 export type WebhookDelivery =
   operations["webhook.deliveries"]["responses"][200]["content"]["application/json"]["deliveries"][number];

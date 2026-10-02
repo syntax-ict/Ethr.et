@@ -9,6 +9,7 @@ use App\Http\Requests\ApiKey\StoreApiKeyRequest;
 use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Services\CurrentTenant;
+use App\Support\StringList;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -27,7 +28,7 @@ class ApiKeyController extends Controller
                 'public_id' => $k->public_id,
                 'name' => $k->name,
                 'key_prefix' => $k->key_prefix,
-                'abilities' => $k->abilities,
+                'abilities' => StringList::of($k->abilities),
                 'last_used_at' => $k->last_used_at,
                 'expires_at' => $k->expires_at,
                 'is_active' => $k->isActive(),
@@ -61,7 +62,7 @@ class ApiKeyController extends Controller
             'public_id' => $apiKey->public_id,
             'name' => $apiKey->name,
             'key' => $plainKey,
-            'abilities' => $apiKey->abilities,
+            'abilities' => StringList::of($apiKey->abilities),
             'expires_at' => $apiKey->expires_at,
             'created_at' => $apiKey->created_at,
         ], 201);

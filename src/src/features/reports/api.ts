@@ -61,15 +61,14 @@ export type SavedReport = Omit<Ok<"savedList">["reports"][number], "config"> & {
 };
 
 /**
- * `frequency` and `recipients` are columns ScheduleReportRequest constrains to
- * its enum and to email strings; Scramble sees `string` and `unknown[]`.
+ * `frequency` is an uncast string column, so the contract says `string`; only
+ * ScheduleReportRequest writes it, and it admits only its enum.
  */
 export type ScheduledReport = Omit<
   Ok<"scheduledList">["schedules"][number],
-  "frequency" | "recipients"
+  "frequency"
 > & {
   frequency: Schemas["ScheduleReportRequest"]["frequency"];
-  recipients: string[];
 };
 
 export function useReportSources() {

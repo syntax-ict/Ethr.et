@@ -2,22 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
-type IndexContract =
-  operations["apiKey.index"]["responses"][200]["content"]["application/json"];
-type StoreContract =
-  operations["apiKey.store"]["responses"][201]["content"]["application/json"];
-
 /**
- * Scramble publishes `abilities` as `unknown[]`; it is the string list
- * `StoreApiKeyRequest` validated (plus `scim` for tokens issued from the SCIM
- * settings page, which are API keys too).
+ * `abilities` is the list `StoreApiKeyRequest` validated (plus `scim` for
+ * tokens issued from the SCIM settings page, which are API keys too).
  */
-export type ApiKey = Omit<IndexContract["keys"][number], "abilities"> & {
-  abilities: string[];
-};
-export type CreatedApiKey = Omit<StoreContract, "abilities"> & {
-  abilities: string[];
-};
+export type ApiKey =
+  operations["apiKey.index"]["responses"][200]["content"]["application/json"]["keys"][number];
+export type CreatedApiKey =
+  operations["apiKey.store"]["responses"][201]["content"]["application/json"];
 export type ApiKeyPayload = components["schemas"]["StoreApiKeyRequest"];
 export type ApiKeyAbility = ApiKeyPayload["abilities"][number];
 

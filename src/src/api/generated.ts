@@ -11282,7 +11282,7 @@ export interface operations {
                             public_id: string;
                             branch_name: string | null;
                             frequency: string;
-                            recipients: unknown[];
+                            recipients: string[];
                             /** Format: date-time */
                             next_run_at: string | null;
                             /** Format: date-time */
@@ -11316,7 +11316,7 @@ export interface operations {
                         public_id: string;
                         branch_name: string | null;
                         frequency: string;
-                        recipients: unknown[];
+                        recipients: string[];
                         /** Format: date-time */
                         next_run_at: string | null;
                         /** Format: date-time */
@@ -11712,7 +11712,7 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         frequency: string;
-                        recipients: unknown[];
+                        recipients: string[];
                         /** Format: date-time */
                         next_run_at: string | null;
                     };
@@ -11742,7 +11742,7 @@ export interface operations {
                             public_id: string;
                             report_name: string;
                             frequency: string;
-                            recipients: unknown[];
+                            recipients: string[];
                             /** Format: date-time */
                             next_run_at: string | null;
                             /** Format: date-time */
@@ -14416,7 +14416,7 @@ export interface operations {
                             public_id: string;
                             name: string;
                             key_prefix: string;
-                            abilities: unknown[];
+                            abilities: string[];
                             /** Format: date-time */
                             last_used_at: string | null;
                             /** Format: date-time */
@@ -14454,7 +14454,7 @@ export interface operations {
                         public_id: string;
                         name: string;
                         key: string;
-                        abilities: unknown[];
+                        abilities: string[];
                         /** Format: date-time */
                         expires_at: string | null;
                         /** Format: date-time */
@@ -14509,7 +14509,7 @@ export interface operations {
                         webhooks: {
                             public_id: string;
                             url: string;
-                            events: unknown[];
+                            events: string[];
                             is_active: boolean;
                             failure_count: number;
                             /** Format: date-time */
@@ -14546,7 +14546,7 @@ export interface operations {
                         public_id: string;
                         url: string;
                         secret: string;
-                        events: unknown[];
+                        events: string[];
                         is_active: boolean;
                         /** Format: date-time */
                         created_at: string | null;
@@ -14582,7 +14582,7 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         url: string;
-                        events: unknown[];
+                        events: string[];
                         is_active: boolean;
                     };
                 };

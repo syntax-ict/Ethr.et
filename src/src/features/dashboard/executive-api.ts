@@ -192,14 +192,13 @@ type DigestBody = components["schemas"]["ScheduleDashboardDigestRequest"];
 export type DigestFrequency = DigestBody["frequency"];
 
 /**
- * `frequency` and `recipients` are columns ScheduleDashboardDigestRequest
- * constrains to its enum and to email strings; Scramble sees `string` and
- * `unknown[]`.
+ * `frequency` is an uncast string column, so the contract says `string`; only
+ * ScheduleDashboardDigestRequest writes it, and it admits only its enum.
  */
 export type DashboardDigest = Omit<
   operations["dashboardDigest.index"]["responses"][200]["content"]["application/json"]["digests"][number],
-  "frequency" | "recipients"
-> & { frequency: DigestFrequency; recipients: string[] };
+  "frequency"
+> & { frequency: DigestFrequency };
 
 export function useDashboardDigests() {
   return useQuery<{ digests: DashboardDigest[] }>({

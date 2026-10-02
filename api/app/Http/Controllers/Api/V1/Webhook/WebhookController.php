@@ -11,6 +11,7 @@ use App\Models\AuditLog;
 use App\Models\Webhook;
 use App\Services\CurrentTenant;
 use App\Services\Webhook\WebhookDispatcher;
+use App\Support\StringList;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -27,7 +28,7 @@ class WebhookController extends Controller
             ->map(fn (Webhook $w) => [
                 'public_id' => $w->public_id,
                 'url' => $w->url,
-                'events' => $w->events,
+                'events' => StringList::of($w->events),
                 'is_active' => $w->is_active,
                 'failure_count' => $w->failure_count,
                 'last_triggered_at' => $w->last_triggered_at,
@@ -57,7 +58,7 @@ class WebhookController extends Controller
             'public_id' => $webhook->public_id,
             'url' => $webhook->url,
             'secret' => $secret,
-            'events' => $webhook->events,
+            'events' => StringList::of($webhook->events),
             'is_active' => $webhook->is_active,
             'created_at' => $webhook->created_at,
         ], 201);
@@ -82,7 +83,7 @@ class WebhookController extends Controller
         return response()->json([
             'public_id' => $webhook->public_id,
             'url' => $webhook->url,
-            'events' => $webhook->events,
+            'events' => StringList::of($webhook->events),
             'is_active' => $webhook->is_active,
         ]);
     }
