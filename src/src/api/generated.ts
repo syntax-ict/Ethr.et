@@ -5330,9 +5330,15 @@ export interface components {
             public_id: string;
             employee?: components["schemas"]["EmployeeResource"];
             employee_public_id: string;
-            record_a?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_a?: components["schemas"]["AttendanceRecordResource"] & {
+                employee: components["schemas"]["EmployeeResource"];
+                shift: components["schemas"]["ShiftResource"] | null;
+            };
             record_a_public_id: string;
-            record_b?: components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+            record_b?: components["schemas"]["AttendanceRecordResource"] & {
+                employee: components["schemas"]["EmployeeResource"];
+                shift: components["schemas"]["ShiftResource"] | null;
+            };
             record_b_public_id: string;
             conflict_type: string;
             resolution: string;
@@ -8276,7 +8282,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8328,7 +8337,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -8896,7 +8908,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        date: unknown;
+                        date: string;
                         anomalies: {
                             count: number;
                             thresholds: {
@@ -8925,11 +8937,16 @@ export interface operations {
                         };
                         early_departures: {
                             count: number;
-                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                            records: (components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            })[];
                         };
                         missing_punches: {
                             count: number;
-                            records: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                            records: (components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                            })[];
                         };
                     };
                 };
@@ -8955,8 +8972,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        period: unknown;
-                        employees: unknown[];
+                        period: string;
+                        employees: {
+                            employee_public_id: string | null;
+                            employee_name: string | null;
+                            total_overtime_minutes: number;
+                            days_with_overtime: number;
+                        }[];
                     };
                 };
             };
@@ -9084,7 +9106,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9247,7 +9272,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9294,7 +9322,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceCorrectionResource"] & {
+                        attendance_record: components["schemas"]["AttendanceRecordResource"] | null;
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9324,7 +9355,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceConflictResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceConflictResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            record_a: components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            };
+                            record_b: components["schemas"]["AttendanceRecordResource"] & {
+                                employee: components["schemas"]["EmployeeResource"];
+                                shift: components["schemas"]["ShiftResource"] | null;
+                            };
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9379,7 +9420,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceConflictResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceConflictResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                        record_a: components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        };
+                        record_b: components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9413,7 +9464,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["AttendanceRecordResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["AttendanceRecordResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                            shift: components["schemas"]["ShiftResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -9464,7 +9518,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AttendanceRecordResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["AttendanceRecordResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                        shift: components["schemas"]["ShiftResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -9578,7 +9635,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["KioskSessionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["KioskSessionResource"] & {
+                        branch: {
+                            public_id: string;
+                            name: string;
+                        };
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10598,7 +10660,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeCostSharingResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -10650,7 +10714,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10676,7 +10742,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -10706,7 +10774,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeCostSharingResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12073,7 +12143,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["DeviceResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["DeviceResource"] & {
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -12125,7 +12197,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12151,7 +12225,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12181,7 +12257,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeviceResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DeviceResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12232,7 +12310,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12328,7 +12410,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12394,7 +12479,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12427,7 +12516,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DisciplinaryCaseResource"] & {
+                        reported_by: unknown;
+                        decided_by: unknown;
+                        appeal_decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12783,7 +12876,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeResource"] & {
+                            department: components["schemas"]["DepartmentResource"] | null;
+                            branch: components["schemas"]["BranchResource"] | null;
+                            position: components["schemas"]["PositionResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -12835,7 +12932,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12861,7 +12965,19 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
+                        emergency_contacts: components["schemas"]["EmergencyContactResource"][];
+                        bank_details: components["schemas"]["BankDetailResource"][];
+                        education: components["schemas"]["EducationResource"][];
+                        transitions: components["schemas"]["EmployeeTransitionResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12891,7 +13007,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        position: components["schemas"]["PositionResource"] | null;
+                        grade: components["schemas"]["GradeResource"] | null;
+                        team: components["schemas"]["TeamResource"] | null;
+                        cost_center: components["schemas"]["CostCenterResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12942,7 +13065,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeTransitionResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeTransitionResource"] & {
+                        approved_by: components["schemas"]["EmployeeSummaryResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -12999,7 +13124,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeContractResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeContractResource"] & {
+                        renewed_from_id: string | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -13634,7 +13761,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["EmployeeReportingNodeResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["EmployeeReportingNodeResource"] & {
+                        position: string | null;
+                        direct_reports: components["schemas"]["EmployeeReportingNodeResource"][];
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14459,7 +14589,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14486,7 +14619,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["LeaveRequestResource"] & {
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                            leave_type: components["schemas"]["LeaveTypeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -14537,7 +14673,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["LeaveRequestResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["LeaveRequestResource"] & {
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                            leave_type: components["schemas"]["LeaveTypeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -14587,7 +14726,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & {
+                        leave_type: components["schemas"]["LeaveTypeResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14613,7 +14754,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["LeaveBalanceResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["LeaveBalanceResource"] & {
+                        leave_type: components["schemas"]["LeaveTypeResource"] | null;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14639,7 +14782,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14686,7 +14832,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14713,7 +14862,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -14772,7 +14924,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LeaveRequestResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["LeaveRequestResource"] & {
+                        employee: components["schemas"]["EmployeeResource"] | null;
+                        leave_type: components["schemas"]["LeaveTypeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16292,7 +16447,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["DepartmentResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                        children_recursive: components["schemas"]["DepartmentResource"][];
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16483,7 +16641,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["DepartmentResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["DepartmentResource"] & {
+                            parent: components["schemas"]["DepartmentResource"] | null;
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -16535,7 +16696,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16561,7 +16725,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                        children: components["schemas"]["DepartmentResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16591,7 +16759,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DepartmentResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["DepartmentResource"] & {
+                        parent: components["schemas"]["DepartmentResource"] | null;
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16644,7 +16815,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["TeamResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["TeamResource"] & {
+                            department: components["schemas"]["DepartmentResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -16696,7 +16869,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16722,7 +16897,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16752,7 +16929,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["TeamResource"] & {
+                        department: components["schemas"]["DepartmentResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17579,7 +17758,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollRunResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["PayrollRunResource"] & {
+                        entries: components["schemas"]["PayrollEntryResource"][];
+                        reprocessed_from_public_id: string | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17772,7 +17954,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["PayrollEntryResource"] & {
+                            period_label: string;
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17825,7 +18010,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["PayrollEntryResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["PayrollEntryResource"] & {
+                            period_label: string;
+                            employee: components["schemas"]["EmployeeResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17904,7 +18092,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["EmployeeLoanResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["EmployeeLoanResource"] & {
+                            employee: components["schemas"]["EmployeeResource"];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -17956,7 +18146,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -17982,7 +18174,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -18012,7 +18206,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -18043,7 +18239,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeLoanResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["EmployeeLoanResource"] & {
+                        employee: components["schemas"]["EmployeeResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -18477,7 +18675,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["PersonnelActionResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["PersonnelActionResource"] & {
+                        recorded_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -18507,7 +18707,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PersonnelActionResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["PersonnelActionResource"] & {
+                        recorded_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19345,7 +19547,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["RetirementCaseResource"] & Record<string, never>)[];
+                    "application/json": (components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    })[];
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19441,7 +19646,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19474,7 +19682,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -19507,7 +19718,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetirementCaseResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["RetirementCaseResource"] & {
+                        initiated_by: unknown;
+                        decided_by: unknown;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20264,7 +20478,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        rotation: components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                        rotation: components["schemas"]["ShiftRotationResource"] & {
+                            steps: components["schemas"]["ShiftRotationStepResource"][];
+                        };
                         anchor_date: string;
                         days: {
                             date: string;
@@ -20301,7 +20517,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["ShiftRotationResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["ShiftRotationResource"] & {
+                            steps: components["schemas"]["ShiftRotationStepResource"][];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -20353,7 +20571,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20379,7 +20599,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20409,7 +20631,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShiftRotationResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["ShiftRotationResource"] & {
+                        steps: components["schemas"]["ShiftRotationStepResource"][];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20686,7 +20910,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["HolidayResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["HolidayResource"] & {
+                            branch: components["schemas"]["BranchResource"] | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -20738,7 +20964,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20764,7 +20992,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20794,7 +21024,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HolidayResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["HolidayResource"] & {
+                        branch: components["schemas"]["BranchResource"] | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -20965,7 +21197,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["UserResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["UserResource"] & {
+                            employee: {
+                                public_id: string;
+                                name: string;
+                            } | null;
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -21017,7 +21254,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21088,7 +21330,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["UserResource"] & {
+                        employee: {
+                            public_id: string;
+                            name: string;
+                        } | null;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21727,7 +21974,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: (components["schemas"]["CustomRoleResource"] & Record<string, never>)[];
+                        data: (components["schemas"]["CustomRoleResource"] & {
+                            permissions: unknown[];
+                        })[];
                         links: {
                             first: string | null;
                             last: string | null;
@@ -21779,7 +22028,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: unknown[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21805,7 +22056,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: unknown[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -21835,7 +22088,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CustomRoleResource"] & Record<string, never>;
+                    "application/json": components["schemas"]["CustomRoleResource"] & {
+                        permissions: unknown[];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

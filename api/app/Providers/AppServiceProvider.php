@@ -53,6 +53,7 @@ use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
+use App\Support\Scramble\TypeLoadedRelationOverlays;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -103,7 +104,8 @@ class AppServiceProvider extends ServiceProvider
             // and gives the document real tag prose and server URLs.
             Scramble::configure()
                 ->withOperationTransformers(GroupOperationsByDomain::class)
-                ->withDocumentTransformers(DescribeApiDocument::class);
+                ->withDocumentTransformers(DescribeApiDocument::class)
+                ->withDocumentTransformers(TypeLoadedRelationOverlays::class);
         }
 
         // Fail closed on the single most damaging production misconfiguration:

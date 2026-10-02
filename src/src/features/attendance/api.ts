@@ -43,35 +43,11 @@ export type QrCode =
 export type KioskToken =
   operations["kioskSession.regenerateToken"]["responses"][200]["content"]["application/json"];
 
-/**
- * Scramble publishes the two record lists as `AttendanceRecordResource &
- * Record<string, never>`, which makes every field `never`; they are plain
- * AttendanceRecordResource collections (AttendanceIntelligenceController::dashboard).
- */
-type IntelligenceContract =
+export type AttendanceIntelligence =
   operations["attendanceIntelligence.dashboard"]["responses"][200]["content"]["application/json"];
-export type AttendanceIntelligence = Omit<
-  IntelligenceContract,
-  "date" | "early_departures" | "missing_punches"
-> & {
-  date: string;
-  early_departures: { count: number; records: AttendanceRecord[] };
-  missing_punches: { count: number; records: AttendanceRecord[] };
-};
 
-/**
- * The contract types `employees` as `unknown[]` — the rows are built inline in
- * AttendanceIntelligenceController::overtime(). Mirrors that array.
- */
-export interface OvertimeSummary {
-  period: string;
-  employees: Array<{
-    employee_public_id: string | null;
-    employee_name: string | null;
-    total_overtime_minutes: number;
-    days_with_overtime: number;
-  }>;
-}
+export type OvertimeSummary =
+  operations["attendanceIntelligence.overtime"]["responses"][200]["content"]["application/json"];
 
 export type CorrectionPayrollImpact =
   operations["attendanceCorrection.payrollImpact"]["responses"][200]["content"]["application/json"];
