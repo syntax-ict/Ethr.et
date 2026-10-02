@@ -18,4 +18,13 @@ return [
     'work_week_updated' => 'Work week configuration updated.',
     'timezone_note' => 'All times are stored in UTC and displayed in EAT (UTC+3).',
     'template_unknown_variables' => 'This template cannot use :variables. Available variables: :allowed.',
+    'attributes' => [
+        'fiscal_year_start_month' => 'fiscal year start month',
+        'pagumen_proration_strategy' => 'Pagumen proration',
+        'retirement_age' => 'retirement age',
+        'run_day' => 'payroll run day',
+        'working_days' => 'working days',
+        'mfa_policy' => 'MFA policy',
+        'session_timeout_minutes' => 'session timeout',
+    ],
 ];

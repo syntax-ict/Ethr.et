@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { useSearchParams } from "next/navigation";
 import {
   Save,
@@ -91,6 +92,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   const updateSso = useUpdateSso();
 
   const [dirty, setDirty] = useState<SecurityDraft>({});
+  // The API names the failing field ("settings.session_timeout_minutes"); a
+  // bare "Failed to save settings" toast left the user to guess which one.
+  const [securityErrors, setSecurityErrors] = useState<FieldErrors>({});
   const [ssoDirty, setSsoDirty] = useState<SsoUpdate>({});
 
   function saveSettings() {
@@ -104,13 +108,20 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
       settings.session_timeout_minutes = timeout;
     }
 
+    setSecurityErrors({});
     updateSettings.mutate(settings, {
       onSuccess: () => {
         setDirty({});
         toast.success(t("settings.saved", "Settings saved"));
       },
-      onError: () =>
-        toast.error(t("settings.save_failed", "Failed to save settings")),
+      onError: (error) => {
+        setSecurityErrors(fieldErrors(error));
+        toastError(
+          error,
+          t("settings.save_failed", "Failed to save settings"),
+          { skipValidation: true },
+        );
+      },
     });
   }
 
@@ -318,8 +329,26 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
                   onChange={(e) =>
                     updateField("session_timeout_minutes", e.target.value)
                   }
+                  aria-invalid={
+                    securityErrors["settings.session_timeout_minutes"]
+                      ? true
+                      : undefined
+                  }
+                  aria-describedby={
+                    securityErrors["settings.session_timeout_minutes"]
+                      ? "session-timeout-error"
+                      : undefined
+                  }
                   className="mt-1"
                 />
+                {securityErrors["settings.session_timeout_minutes"] && (
+                  <p
+                    id="session-timeout-error"
+                    className="mt-1 text-xs text-destructive"
+                  >
+                    {securityErrors["settings.session_timeout_minutes"]}
+                  </p>
+                )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t(
                     "settings.session_timeout_help",

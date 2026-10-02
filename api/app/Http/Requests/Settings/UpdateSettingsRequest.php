@@ -38,6 +38,23 @@ class UpdateSettingsRequest extends FormRequest
     }
 
     /**
+     * Names for the messages. Without them Laravel spells the rule path out,
+     * and the page showed "The settings.session timeout minutes field must be
+     * between 5 and 480".
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        $names = [];
+        foreach (self::writableKeys() as $key) {
+            $names["settings.{$key}"] = __("settings.attributes.{$key}");
+        }
+
+        return $names;
+    }
+
+    /**
      * The keys `PUT /settings` may write — the ones `rules()` validates.
      *
      * @return list<string>

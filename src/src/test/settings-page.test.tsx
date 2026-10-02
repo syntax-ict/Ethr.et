@@ -112,6 +112,50 @@ describe("<SettingsPage> security tab", () => {
     expect(body).toEqual({ settings: { session_timeout_minutes: 45 } });
   });
 
+  it("puts a refused timeout's reason under the field, not in a toast", async () => {
+    // The API names the field; the page dropped the message and toasted
+    // "Failed to save settings", so the admin could not tell what was wrong.
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+      http.put("*/api/v1/settings", () =>
+        HttpResponse.json(
+          {
+            type: "https://ethr.et/errors/validation",
+            title: "Validation Failed",
+            status: 422,
+            detail: "The given data was invalid.",
+            errors: {
+              "settings.session_timeout_minutes": [
+                "The session timeout field must be between 5 and 480.",
+              ],
+            },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    const { toast } = await import("sonner");
+    const user = userEvent.setup();
+    renderPage();
+
+    const timeout = await screen.findByRole("spinbutton");
+    await user.clear(timeout);
+    await user.type(timeout, "3");
+    await user.click(screen.getByRole("button", { name: /Save/ }));
+
+    expect(
+      await screen.findByText(
+        "The session timeout field must be between 5 and 480.",
+      ),
+    ).toBeInTheDocument();
+    expect(timeout).toHaveAttribute("aria-invalid", "true");
+    expect(timeout).toHaveAccessibleDescription(
+      "The session timeout field must be between 5 and 480.",
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it("admits a custom role holding settings.manage", async () => {
     server.use(
       me(["settings.manage"], "employee"),

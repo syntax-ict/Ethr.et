@@ -95,3 +95,21 @@ test('a value stored before validation existed is shown as it is enforced', func
         ->assertJsonPath('security.mfa_policy', 'required')
         ->assertJsonPath('security.session_timeout_minutes', 480);
 });
+
+test('a refused value is named in words, in both languages', function (string $locale, string $name) {
+    // Without attributes() the message spelled out the rule path: "The
+    // settings.session timeout minutes field must be between 5 and 480".
+    $tenant = n6SettingsAdmin();
+    app()->setLocale($locale);
+
+    $message = test()->withHeader('Accept-Language', $locale)
+        ->putJson(n6SettingsUrl($tenant), ['settings' => ['session_timeout_minutes' => 3]])
+        ->assertStatus(422)
+        ->json('errors')['settings.session_timeout_minutes'][0];
+
+    expect($message)->toContain($name)
+        ->and($message)->not->toContain('settings.');
+})->with([
+    'English' => ['en', 'session timeout'],
+    'Amharic' => ['am', 'የክፍለ ጊዜ ማብቂያ'],
+]);
