@@ -328,10 +328,11 @@ final class ExecutiveDashboardService
             ))
             ->get();
 
-        // The columns are `decimal:1` casts, so each value is a numeric string;
-        // the sums are floats, stated so the contract says so too.
-        $totalEntitled = (float) $balances->sum('entitled_days');
-        $totalUsed = (float) $balances->sum('used_days');
+        // The columns are `decimal:1` casts, so each value is a numeric string
+        // and their float sum drifts (1.1 + 2.2 = 3.3000000000000003); rounding
+        // back to the column's one decimal is what the screen prints.
+        $totalEntitled = round((float) $balances->sum('entitled_days'), 1);
+        $totalUsed = round((float) $balances->sum('used_days'), 1);
         $rate = $totalEntitled > 0 ? round(($totalUsed / $totalEntitled) * 100, 1) : 0;
 
         return [

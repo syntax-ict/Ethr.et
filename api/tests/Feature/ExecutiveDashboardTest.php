@@ -8,6 +8,8 @@ use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\LeaveBalance;
+use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 
@@ -47,6 +49,32 @@ test('headcount returns correct numbers', function () {
     $response->assertOk();
     expect($response->json('headcount.total'))->toBe(4);
     expect($response->json('headcount.active'))->toBe(3);
+});
+
+test('leave utilization totals are tenths of a day, not float sums', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+    // Accrual writes balances in tenths (16 days / 12 months = 1.3 a month).
+    // Summed as floats, 1.1 + 2.2 is 3.3000000000000003 and 0.1 + 0.2 is
+    // 0.30000000000000004 — which the Overview tab printed verbatim.
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id]);
+    foreach ([[1.1, 0.1], [2.2, 0.2]] as [$entitled, $used]) {
+        LeaveBalance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'employee_id' => Employee::factory()->create(['tenant_id' => $tenant->id])->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => now()->year,
+            'entitled_days' => $entitled,
+            'used_days' => $used,
+        ]);
+    }
+
+    $response = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/executive");
+
+    $response->assertOk();
+    expect($response->json('leave_utilization.entitled_days'))->toBe(3.3);
+    expect($response->json('leave_utilization.used_days'))->toBe(0.3);
 });
 
 test('executive dashboard supports date range', function () {
