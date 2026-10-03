@@ -244,6 +244,17 @@ The rule: **nothing that can mis-bill a customer ships after the UI that trigger
 
 Phases 3 and 4 are independent of each other; both depend on 2.
 
+**Phase 8 progress (2026-10-03).** Re-measured and attributed chunk by chunk in
+`audit/BASELINE.md` §18. *Slice 1 done:* axios is off every public page
+(−18.7 KB on the landing page). *Slice 2 next:* the whole `am.json` — 56.6 KB
+gzipped — still ships to every public page, English included, because it is the
+one eager dictionary. The `[locale]` layout already sends English a 7.5 KB
+projection; extending that to Amharic has one trap to design around first: the
+i18n gate lets a public key outside the projection through when its inline
+English fallback equals `en.json`, which is sound for English and would be a
+hydration mismatch for Amharic. Sentry's 87 KB stays, for the reason in its
+docblock.
+
 **Remaining: Phase 8's performance work, and the B5 hosting answer.** Phase 0's Lighthouse measurement and the B5 hosting
 answer are still owner actions — a Plesk panel lookup cannot be done from here.
 Phase 0 is closed: `audit/BASELINE.md` §18 now carries Lighthouse medians for
