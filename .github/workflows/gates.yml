@@ -279,7 +279,7 @@ jobs:
       # release, and it is ~690 files.
       - name: Upload the export for inspection
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bronze-static-export
           path: src/out
