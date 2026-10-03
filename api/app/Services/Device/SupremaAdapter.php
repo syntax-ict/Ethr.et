@@ -6,7 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
-use App\Services\Device\Concerns\ReadsDeviceEvents;
+use App\Services\Device\Concerns\ReadsFromDevice;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Log;
  */
 final class SupremaAdapter implements DeviceAdapter
 {
-    use ReadsDeviceEvents;
+    use ReadsFromDevice;
 
     public function connect(Device $device): bool
     {
@@ -94,7 +94,7 @@ final class SupremaAdapter implements DeviceAdapter
             $query['start_datetime'] = $since;
         }
 
-        $response = $this->readEvents('Suprema', fn () => $this->request($device, 'GET', '/api/events?'.http_build_query($query)));
+        $response = $this->readDevice('Suprema', fn () => $this->request($device, 'GET', '/api/events?'.http_build_query($query)));
 
         $events = [];
         foreach (($response->json('records') ?? []) as $event) {
@@ -111,34 +111,21 @@ final class SupremaAdapter implements DeviceAdapter
 
     public function pullEnrollments(Device $device): array
     {
-        try {
-            $response = $this->request($device, 'GET', '/api/users?limit=500');
+        $response = $this->readDevice('Suprema', fn () => $this->request($device, 'GET', '/api/users?limit=500'));
 
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $enrollments = [];
-            foreach (($response->json('records') ?? $response->json('users') ?? []) as $user) {
-                $enrollments[] = [
-                    'device_user_id' => (string) ($user['user_id'] ?? ''),
-                    'name' => $user['name'] ?? null,
-                    'card_number' => isset($user['cards'][0]['card_id']) ? (string) $user['cards'][0]['card_id'] : null,
-                    'department' => $user['user_group_id']['name'] ?? null,
-                    'fingerprint_count' => isset($user['fingerprint_templates']) ? (int) $user['fingerprint_templates'] : null,
-                    'face_registered' => isset($user['face_templates']) ? ((int) $user['face_templates']) > 0 : null,
-                ];
-            }
-
-            return $enrollments;
-        } catch (\Throwable $e) {
-            Log::error('Suprema pullEnrollments failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        $enrollments = [];
+        foreach (($response->json('records') ?? $response->json('users') ?? []) as $user) {
+            $enrollments[] = [
+                'device_user_id' => (string) ($user['user_id'] ?? ''),
+                'name' => $user['name'] ?? null,
+                'card_number' => isset($user['cards'][0]['card_id']) ? (string) $user['cards'][0]['card_id'] : null,
+                'department' => $user['user_group_id']['name'] ?? null,
+                'fingerprint_count' => isset($user['fingerprint_templates']) ? (int) $user['fingerprint_templates'] : null,
+                'face_registered' => isset($user['face_templates']) ? ((int) $user['face_templates']) > 0 : null,
+            ];
         }
+
+        return $enrollments;
     }
 
     public function pushEventUrl(Device $device, string $callbackUrl): bool

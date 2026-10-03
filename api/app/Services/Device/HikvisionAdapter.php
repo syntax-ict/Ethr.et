@@ -6,7 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
-use App\Services\Device\Concerns\ReadsDeviceEvents;
+use App\Services\Device\Concerns\ReadsFromDevice;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 
 final class HikvisionAdapter implements DeviceAdapter
 {
-    use ReadsDeviceEvents;
+    use ReadsFromDevice;
 
     public function connect(Device $device): bool
     {
@@ -75,7 +75,7 @@ final class HikvisionAdapter implements DeviceAdapter
     public function pullEvents(Device $device, ?string $since = null): array
     {
         $searchBody = $this->buildEventSearchBody($since);
-        $response = $this->readEvents('Hikvision', fn () => $this->request(
+        $response = $this->readDevice('Hikvision', fn () => $this->request(
             $device, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', $searchBody,
         ));
 
@@ -97,42 +97,31 @@ final class HikvisionAdapter implements DeviceAdapter
 
     public function pullEnrollments(Device $device): array
     {
-        try {
-            $body = [
-                'UserInfoSearchCond' => [
-                    'searchID' => (string) Str::uuid(),
-                    'searchResultPosition' => 0,
-                    'maxResults' => 200,
-                ],
+        $body = [
+            'UserInfoSearchCond' => [
+                'searchID' => (string) Str::uuid(),
+                'searchResultPosition' => 0,
+                'maxResults' => 200,
+            ],
+        ];
+
+        $response = $this->readDevice('Hikvision', fn () => $this->request(
+            $device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body,
+        ));
+
+        $enrollments = [];
+        foreach ($response->json('UserInfoSearch.UserInfo') ?? [] as $user) {
+            $enrollments[] = [
+                'device_user_id' => (string) ($user['employeeNo'] ?? ''),
+                'name' => $user['name'] ?? null,
+                'card_number' => $user['cardNo'] ?? null,
+                'department' => $user['belongGroup'] ?? null,
+                'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
+                'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
             ];
-
-            $response = $this->request($device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body);
-
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $enrollments = [];
-            foreach ($response->json('UserInfoSearch.UserInfo') ?? [] as $user) {
-                $enrollments[] = [
-                    'device_user_id' => (string) ($user['employeeNo'] ?? ''),
-                    'name' => $user['name'] ?? null,
-                    'card_number' => $user['cardNo'] ?? null,
-                    'department' => $user['belongGroup'] ?? null,
-                    'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
-                    'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
-                ];
-            }
-
-            return $enrollments;
-        } catch (\Throwable $e) {
-            Log::error('Hikvision pullEnrollments failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
         }
+
+        return $enrollments;
     }
 
     public function pushEventUrl(Device $device, string $callbackUrl): bool
