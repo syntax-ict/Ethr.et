@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use App\Services\Device\Concerns\ReadsDeviceEvents;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
 
 final class HikvisionAdapter implements DeviceAdapter
 {
+    use ReadsDeviceEvents;
+
     public function connect(Device $device): bool
     {
         try {
@@ -71,35 +74,25 @@ final class HikvisionAdapter implements DeviceAdapter
 
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        try {
-            $searchBody = $this->buildEventSearchBody($since);
-            $response = $this->request($device, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', $searchBody);
+        $searchBody = $this->buildEventSearchBody($since);
+        $response = $this->readEvents('Hikvision', fn () => $this->request(
+            $device, 'POST', '/ISAPI/AccessControl/AcsEvent?format=json', $searchBody,
+        ));
 
-            if (! $response->successful()) {
-                return [];
-            }
+        $data = $response->json();
+        $events = [];
 
-            $data = $response->json();
-            $events = [];
-
-            foreach ($data['AcsEvent']['InfoList'] ?? [] as $event) {
-                $events[] = [
-                    'employee_badge' => (string) ($event['employeeNoString'] ?? $event['cardNo'] ?? ''),
-                    'timestamp' => $event['time'] ?? '',
-                    'type' => $this->mapEventType($event['eventType'] ?? 0),
-                    'raw' => $event,
-                ];
-            }
-
-            return $events;
-        } catch (\Throwable $e) {
-            Log::error('Hikvision pullEvents failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        // No InfoList is how ISAPI says nothing matched.
+        foreach ($data['AcsEvent']['InfoList'] ?? [] as $event) {
+            $events[] = [
+                'employee_badge' => (string) ($event['employeeNoString'] ?? $event['cardNo'] ?? ''),
+                'timestamp' => $event['time'] ?? '',
+                'type' => $this->mapEventType($event['eventType'] ?? 0),
+                'raw' => $event,
+            ];
         }
+
+        return $events;
     }
 
     public function pullEnrollments(Device $device): array

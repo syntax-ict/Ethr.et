@@ -110,3 +110,30 @@ device back from a day offline with 400 punches kept 100.)*
   been verified against real hardware and is not built.
 
 Pinned in `tests/Feature/AttendanceHistoryImportTest.php`.
+
+## A failed read is not an empty one
+
+`pullEvents()` throws `App\Exceptions\DeviceRequestFailed` when the device (or
+its middleware) is unreachable, answers non-2xx, or answers 2xx with a body that
+is not JSON — the three checks in `Services\Device\Concerns\ReadsDeviceEvents`,
+which every vendor adapter uses. *(2026-10-03: until then each adapter caught
+everything and returned `[]`, which is also what an idle device returns. The job
+could not tell them apart, so a timed-out read looked like "nothing new" and an
+incremental sync moved `last_sync_at` past punches it never read.)*
+
+The job already had the right path for an exception: the device goes to
+`error`, the sync log to `failed`, the job retries once, and after that
+`DeviceSyncFailed` notifies the tenant's admins. It never reaches the cursor
+update, so the next attempt reads from where the last good one stopped.
+
+- A 2xx JSON reply with no events key is still an empty read. ISAPI leaves out
+  `InfoList` when nothing matched, and the vendor quirks beyond that cannot be
+  checked without hardware.
+- The exception's message names the vendor and the HTTP status, never the
+  address or the credentials; the cURL error is chained, not quoted, because it
+  carries the full URL and a generic `base_url` may embed `user:pass@`.
+- `connect()`, `getStatus()` and `pullEnrollments()` still answer
+  `false` / offline / `[]` on failure. None of them moves a cursor; an empty
+  enrollment roster during discovery is misleading but loses nothing.
+
+Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php`.

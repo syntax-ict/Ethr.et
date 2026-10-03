@@ -7,6 +7,7 @@ namespace App\Services\Device;
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
 use App\Rules\DeviceConnectionConfig;
+use App\Services\Device\Concerns\ReadsDeviceEvents;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
@@ -34,6 +35,8 @@ use Illuminate\Support\Facades\Log;
  */
 final class GenericHttpAdapter implements DeviceAdapter
 {
+    use ReadsDeviceEvents;
+
     public function connect(Device $device): bool
     {
         try {
@@ -67,35 +70,25 @@ final class GenericHttpAdapter implements DeviceAdapter
 
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        try {
-            $query = $since ? ['since' => $since] : [];
-            $response = $this->client($device)->get($this->path($device, 'events_path', '/events'), $query);
+        $query = $since ? ['since' => $since] : [];
+        $response = $this->readEvents('Generic', fn () => $this->client($device)->get($this->path($device, 'events_path', '/events'), $query));
 
-            if (! $response->successful()) {
-                return [];
-            }
+        $map = $this->mapping($device);
+        $rows = $this->rows($response, $map['events_root'] ?? null);
+        $checkInValues = $this->checkInValues($device);
 
-            $map = $this->mapping($device);
-            $rows = $this->rows($response, $map['events_root'] ?? null);
-            $checkInValues = $this->checkInValues($device);
-
-            $events = [];
-            foreach ($rows as $row) {
-                $type = (string) Arr::get($row, $map['type'] ?? 'type', '');
-                $events[] = [
-                    'employee_badge' => (string) Arr::get($row, $map['badge'] ?? 'badge', ''),
-                    'timestamp' => (string) Arr::get($row, $map['timestamp'] ?? 'timestamp', ''),
-                    'type' => in_array(mb_strtolower($type), $checkInValues, true) ? 'check_in' : 'check_out',
-                    'raw' => $row,
-                ];
-            }
-
-            return $events;
-        } catch (\Throwable $e) {
-            Log::error('Generic device pullEvents failed', ['device_id' => $device->id, 'error' => $e->getMessage()]);
-
-            return [];
+        $events = [];
+        foreach ($rows as $row) {
+            $type = (string) Arr::get($row, $map['type'] ?? 'type', '');
+            $events[] = [
+                'employee_badge' => (string) Arr::get($row, $map['badge'] ?? 'badge', ''),
+                'timestamp' => (string) Arr::get($row, $map['timestamp'] ?? 'timestamp', ''),
+                'type' => in_array(mb_strtolower($type), $checkInValues, true) ? 'check_in' : 'check_out',
+                'raw' => $row,
+            ];
         }
+
+        return $events;
     }
 
     public function pullEnrollments(Device $device): array

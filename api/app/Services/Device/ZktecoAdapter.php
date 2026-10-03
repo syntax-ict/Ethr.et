@@ -6,12 +6,15 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use App\Services\Device\Concerns\ReadsDeviceEvents;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ZktecoAdapter implements DeviceAdapter
 {
+    use ReadsDeviceEvents;
+
     public function connect(Device $device): bool
     {
         try {
@@ -60,39 +63,26 @@ final class ZktecoAdapter implements DeviceAdapter
 
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        try {
-            $params = ['limit' => 100];
-            if ($since) {
-                $params['since'] = $since;
-            }
-
-            $response = $this->request($device, 'GET', '/api/attendance/logs', $params);
-
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $data = $response->json();
-            $events = [];
-
-            foreach ($data['logs'] ?? $data ?? [] as $log) {
-                $events[] = [
-                    'employee_badge' => (string) ($log['pin'] ?? $log['user_id'] ?? ''),
-                    'timestamp' => $log['timestamp'] ?? $log['datetime'] ?? '',
-                    'type' => $this->mapPunchType($log['punch'] ?? $log['status'] ?? 0),
-                    'raw' => $log,
-                ];
-            }
-
-            return $events;
-        } catch (\Throwable $e) {
-            Log::error('ZKTeco pullEvents failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        $params = ['limit' => 100];
+        if ($since) {
+            $params['since'] = $since;
         }
+
+        $response = $this->readEvents('ZKTeco', fn () => $this->request($device, 'GET', '/api/attendance/logs', $params));
+
+        $data = $response->json();
+        $events = [];
+
+        foreach ($data['logs'] ?? $data as $log) {
+            $events[] = [
+                'employee_badge' => (string) ($log['pin'] ?? $log['user_id'] ?? ''),
+                'timestamp' => $log['timestamp'] ?? $log['datetime'] ?? '',
+                'type' => $this->mapPunchType($log['punch'] ?? $log['status'] ?? 0),
+                'raw' => $log,
+            ];
+        }
+
+        return $events;
     }
 
     public function pullEnrollments(Device $device): array

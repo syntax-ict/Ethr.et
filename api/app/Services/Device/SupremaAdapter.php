@@ -6,6 +6,7 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
+use App\Services\Device\Concerns\ReadsDeviceEvents;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Log;
  */
 final class SupremaAdapter implements DeviceAdapter
 {
+    use ReadsDeviceEvents;
+
     public function connect(Device $device): bool
     {
         try {
@@ -86,37 +89,24 @@ final class SupremaAdapter implements DeviceAdapter
 
     public function pullEvents(Device $device, ?string $since = null): array
     {
-        try {
-            $query = ['limit' => 200, 'device_id' => $this->deviceId($device)];
-            if ($since) {
-                $query['start_datetime'] = $since;
-            }
-
-            $response = $this->request($device, 'GET', '/api/events?'.http_build_query($query));
-
-            if (! $response->successful()) {
-                return [];
-            }
-
-            $events = [];
-            foreach (($response->json('records') ?? []) as $event) {
-                $events[] = [
-                    'employee_badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
-                    'timestamp' => $event['datetime'] ?? '',
-                    'type' => $this->mapEventType((int) ($event['event_type_id'] ?? 0)),
-                    'raw' => $event,
-                ];
-            }
-
-            return $events;
-        } catch (\Throwable $e) {
-            Log::error('Suprema pullEvents failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        $query = ['limit' => 200, 'device_id' => $this->deviceId($device)];
+        if ($since) {
+            $query['start_datetime'] = $since;
         }
+
+        $response = $this->readEvents('Suprema', fn () => $this->request($device, 'GET', '/api/events?'.http_build_query($query)));
+
+        $events = [];
+        foreach (($response->json('records') ?? []) as $event) {
+            $events[] = [
+                'employee_badge' => (string) ($event['user_id'] ?? $event['user']['user_id'] ?? ''),
+                'timestamp' => $event['datetime'] ?? '',
+                'type' => $this->mapEventType((int) ($event['event_type_id'] ?? 0)),
+                'raw' => $event,
+            ];
+        }
+
+        return $events;
     }
 
     public function pullEnrollments(Device $device): array

@@ -12,11 +12,20 @@ declare(strict_types=1);
  * of what's verifiable without a physical device.
  */
 
+use App\Exceptions\DeviceRequestFailed;
+use App\Jobs\PullDeviceEventsJob;
+use App\Models\Branch;
 use App\Models\Device;
+use App\Models\DeviceSyncLog;
+use App\Services\Attendance\AttendanceEngine;
 use App\Services\Device\DeviceHost;
+use App\Services\Device\DeviceManager;
+use App\Services\Device\GenericHttpAdapter;
 use App\Services\Device\HikvisionAdapter;
 use App\Services\Device\SupremaAdapter;
 use App\Services\Device\ZktecoAdapter;
+use App\Services\Identity\IdentityResolver;
+use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
@@ -115,11 +124,13 @@ describe('HikvisionAdapter', function () {
         ]);
     });
 
-    it('returns an empty list rather than throwing when the device is unreachable', function () {
+    it('throws on an unreachable device when pulling events, and reports false from connect', function () {
         $device = hikvisionDevice();
         Http::fake(['10.0.0.5/*' => fn () => throw new ConnectionException('timed out')]);
 
-        expect(app(HikvisionAdapter::class)->pullEvents($device))->toBe([]);
+        // An empty list here is what an idle device returns, so the sync took a
+        // failed read for "nothing new" and moved its cursor past it.
+        expect(fn () => app(HikvisionAdapter::class)->pullEvents($device))->toThrow(DeviceRequestFailed::class);
         expect(app(HikvisionAdapter::class)->connect($device))->toBeFalse();
     });
 });
@@ -229,11 +240,13 @@ describe('ZktecoAdapter', function () {
         ]);
     });
 
-    it('returns an empty list on a non-200 response rather than throwing', function () {
+    it('throws on a non-200 response when pulling events; enrollment discovery still answers empty', function () {
         $device = zktecoDevice();
         Http::fake(['10.0.0.9:8080/*' => Http::response(null, 500)]);
 
-        expect(app(ZktecoAdapter::class)->pullEvents($device))->toBe([]);
+        expect(fn () => app(ZktecoAdapter::class)->pullEvents($device))->toThrow(DeviceRequestFailed::class);
+        // Discovery moves no cursor, so an empty roster loses nothing. It is
+        // unchanged here; see DEVICE_INTEGRATION.md.
         expect(app(ZktecoAdapter::class)->pullEnrollments($device))->toBe([]);
     });
 });
@@ -244,6 +257,114 @@ describe('ZktecoAdapter', function () {
 // rejects outright ("URL rejected: Port number was not a decimal number"). So a
 // device saved with a public IPv6 address passed validation and then failed
 // every request. RFC 3986 §3.2.2: an IPv6 literal in a URL goes in brackets.
+function genericDevice(): Device
+{
+    return Device::factory()->make([
+        'adapter_type' => 'generic',
+        'connection_config' => ['base_url' => 'https://mw.local'],
+    ]);
+}
+
+/**
+ * Each adapter, with a device for it and the body an idle device answers with:
+ * a successful reply that carries no events.
+ *
+ * @return array<string, array{0: Closure(): array{0: class-string, 1: Device}, 1: mixed}>
+ */
+function eventReaders(): array
+{
+    return [
+        'Hikvision' => [fn () => [HikvisionAdapter::class, hikvisionDevice()], ['AcsEvent' => ['numOfMatches' => 0]]],
+        'Suprema' => [fn () => [SupremaAdapter::class, supremaDevice()], ['records' => []]],
+        'ZKTeco' => [fn () => [ZktecoAdapter::class, zktecoDevice()], ['logs' => []]],
+        'generic' => [fn () => [GenericHttpAdapter::class, genericDevice()], []],
+    ];
+}
+
+describe('a failed event read is not an empty one', function () {
+    it('throws when the device cannot be reached', function (Closure $reader) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => fn () => throw new ConnectionException('cURL error 28 for https://user:pass@mw.local/events')]);
+
+        expect(fn () => app($class)->pullEvents($device))
+            ->toThrow(DeviceRequestFailed::class, 'unreachable');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], eventReaders()));
+
+    it('does not quote the transport error, which can carry the URL and its credentials', function () {
+        Http::fake(['*' => fn () => throw new ConnectionException('cURL error 28 for https://user:pass@mw.local/events')]);
+
+        try {
+            app(GenericHttpAdapter::class)->pullEvents(genericDevice());
+            $this->fail('expected DeviceRequestFailed');
+        } catch (DeviceRequestFailed $e) {
+            expect($e->getMessage())->not->toContain('pass')
+                ->and($e->getPrevious())->toBeInstanceOf(ConnectionException::class);
+        }
+    });
+
+    it('throws on a non-2xx answer', function (Closure $reader) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => Http::response(['error' => 'busy'], 503)]);
+
+        expect(fn () => app($class)->pullEvents($device))
+            ->toThrow(DeviceRequestFailed::class, 'HTTP 503');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], eventReaders()));
+
+    it('throws on a 2xx answer that is not JSON', function (Closure $reader) {
+        [$class, $device] = $reader();
+        // A captive portal or a proxy error page, served with a 200.
+        Http::fake(['*' => Http::response('<html><body>Gateway</body></html>', 200, ['Content-Type' => 'text/html'])]);
+
+        expect(fn () => app($class)->pullEvents($device))
+            ->toThrow(DeviceRequestFailed::class, 'not JSON');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], eventReaders()));
+
+    it('still answers an empty list for a device that is simply idle', function (Closure $reader, mixed $idleBody) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => Http::response($idleBody, 200)]);
+
+        expect(app($class)->pullEvents($device))->toBe([]);
+    })->with(fn () => eventReaders());
+
+    it('leaves the sync cursor where it was when the event read fails', function () {
+        Carbon::setTestNow('2026-07-31 09:00:00');
+        $tenant = createTenant();
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $device = Device::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'adapter_type' => 'hikvision',
+            'status' => 'online',
+            'connection_config' => ['ip' => '10.0.0.5', 'port' => 80, 'username' => 'admin', 'password' => 'secret'],
+            'last_sync_at' => Carbon::parse('2026-07-31 08:55:00'),
+        ]);
+
+        // The device is up, so the status check passes; the event search fails.
+        Http::fake([
+            '10.0.0.5/ISAPI/System/status' => Http::response(['DeviceStatus' => []], 200),
+            '10.0.0.5/ISAPI/AccessControl/*' => Http::response(null, 500),
+        ]);
+
+        expect(fn () => (new PullDeviceEventsJob($device))->handle(
+            app(DeviceManager::class),
+            app(AttendanceEngine::class),
+            app(IdentityResolver::class),
+        ))->toThrow(DeviceRequestFailed::class);
+
+        $device->refresh();
+        $log = DeviceSyncLog::where('device_id', $device->id)->latest('id')->first();
+
+        // Before: last_sync_at moved to 09:00 and the five minutes since 08:55
+        // were never read again. Now the next attempt reads from 08:55.
+        expect($device->last_sync_at->toDateTimeString())->toBe('2026-07-31 08:55:00')
+            ->and($device->status)->toBe('error')
+            ->and($log->status)->toBe('failed')
+            ->and($log->error_message)->toContain('HTTP 500');
+
+        Carbon::setTestNow();
+    });
+});
+
 describe('IPv6 device addresses', function () {
     it('is an address DeviceConnectionConfig accepts', function () {
         expect(DeviceHost::refusal('2606:4700:4700::1111'))->toBeNull();
