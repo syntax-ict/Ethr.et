@@ -1,6 +1,23 @@
-import { isAxiosError } from "axios";
+import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import type { ApiError } from "@/api/client";
+
+/**
+ * axios's own `isAxiosError`, restated so this module imports no axios code.
+ *
+ * The public contact form needs `fieldErrors`, and a runtime import from
+ * `axios` here put the whole HTTP client into the public site's bundle, ahead
+ * of anyone submitting anything. This is the check axios performs
+ * (`helpers/isAxiosError.js`: an object whose `isAxiosError` is `true`); the
+ * type import above is erased at build time.
+ */
+function isAxiosError<T>(error: unknown): error is AxiosError<T> {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { isAxiosError?: unknown }).isAxiosError === true
+  );
+}
 
 /** Field name → first message. RFC-7807 `errors` is `string[]` per field; forms
  *  show one message at a time, so the array is flattened here rather than at

@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 
+// Re-exported: the plan catalog moved to `./plans` so the public pricing page
+// can read it without importing this module and the axios client with it.
+export { usePlans, type Plan } from "./plans";
+
 // Shapes come from the generated contract, so a renamed field fails tsc here
 // instead of rendering blank.
 
@@ -15,15 +19,6 @@ export type BillingInvoice = BillingDashboard["invoices"][number];
  */
 export type PaymentDetails = NonNullable<BillingDashboard["payment_details"]>;
 
-/**
- * The public plan catalog row, exactly as `GET /api/v1/plans` sends it.
- *
- * `PlanResource` exists so the contract stops promising `is_active`,
- * `created_at` and `updated_at` that the endpoint never carried. The admin-only
- * fields live on `AdminPlan` in `features/admin/api.ts`.
- */
-export type Plan = components["schemas"]["PlanResource"];
-
 export function useBillingDashboard() {
   return useQuery<BillingDashboard>({
     queryKey: ["billing", "dashboard"],
@@ -32,35 +27,6 @@ export function useBillingDashboard() {
       return data;
     },
     staleTime: 30 * 60 * 1000,
-  });
-}
-
-/**
- * `options.initialData` exists for the public pricing page, which is a
- * prerendered static route: without a seed value its HTML would ship with no
- * prices, so a crawler and every link preview would see an empty pricing table.
- * It passes the committed build-time snapshot, and the live catalog replaces it
- * when the fetch resolves. Authenticated callers pass nothing and are unchanged.
- */
-export function usePlans(options?: {
-  initialData?: { data: Plan[] };
-  /**
-   * When `initialData` was produced, as epoch ms. Required alongside it:
-   * without it TanStack treats the seed as fetched now, and `staleTime` below
-   * would then suppress the refetch entirely — the caller would render its seed
-   * forever and never see the live catalog.
-   */
-  initialDataUpdatedAt?: number;
-}) {
-  return useQuery<{ data: Plan[] }>({
-    queryKey: ["plans"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/plans");
-      return data;
-    },
-    staleTime: 30 * 60 * 1000,
-    initialData: options?.initialData,
-    initialDataUpdatedAt: options?.initialDataUpdatedAt,
   });
 }
 

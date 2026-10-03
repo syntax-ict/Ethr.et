@@ -2820,6 +2820,40 @@ built `.next/server/app/en.html` references. Sentry's figure is a difference of
 two builds, not an estimate. Its docblock argues deliberately for the static
 import — read it before changing anything there.
 
+#### Re-measured 2026-10-03 — what the 427 KB is made of, and one correction
+
+Same method (reproduced: **426.0 KB** across 21 chunks on `/en` before any
+change), with each chunk attributed by its contents:
+
+| Chunk | gzipped | What it is |
+|---|---|---|
+| React, the Next runtime, Sentry | 146 + 42 + 18 KB | framework; Sentry's 87 KB is inside the first and the third |
+| **core-js polyfills** | **38.7 KB** | loaded with `<script noModule>` — **a modern browser never downloads it** |
+| **`am.json`** | **56.6 KB** | the whole Amharic dictionary (≈41,000 Ethiopic characters), on the *English* landing page too |
+| **axios** | **18 KB** | the authenticated app's HTTP client, there for one public GET |
+| Radix, TanStack Query, sonner, small modules | ≈100 KB | shared UI and providers |
+
+**The correction:** the sum counts the `noModule` polyfill chunk, so **427 KB
+overstates what a current browser downloads by about 39 KB** — the figure a
+visitor's browser actually fetches was ≈387 KB. The table above is left as
+measured; read it as "every chunk referenced", not "every chunk loaded".
+
+**Phase 8, slice 1 — axios off the public site (2026-10-03).** `useSiteContent()`
+and `usePlans()` (moved to `features/billing/plans.ts`) read their public GETs
+with `fetch`; the contact form loads the shared client when it is sent, keeping
+axios's `X-XSRF-TOKEN` handling for the CSRF-checked POST; `lib/errors.ts`
+recognises an axios error structurally instead of importing axios. Every
+public page now references **no axios chunk**:
+
+| Page | before | after |
+|---|---|---|
+| `/en`, `/am` | 426.0 KB | **407.3 KB** |
+| `/en/pricing` | 424.2 KB | **404.4 KB** |
+| `/en/contact` | — | 405.2 KB |
+
+Next: the 56.6 KB `am.json` (slice 2), which needs its own design — see
+`PLATFORM_MANAGED_CONTENT_PLAN.md` §5, Phase 8.
+
 Per-locale page weight, which the dictionary projection decides:
 `/en/pricing` is 14.0 KB gzipped of HTML against `/am/pricing`'s 7.4 KB, because
 the `[locale]` layout ships a 7.5 KB projection of `en.json` and `am.json` is
