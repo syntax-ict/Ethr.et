@@ -20,4 +20,23 @@ return [
 
     'allow_private_hosts' => (bool) env('DEVICE_ALLOW_PRIVATE_HOSTS', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Event pull time budget
+    |--------------------------------------------------------------------------
+    |
+    | Seconds one PullDeviceEventsJob spends paging through a device before it
+    | stops and queues a continuation from where it got to. Device APIs return
+    | about 100 events a call, so a long history or a backlog after an outage
+    | takes many calls.
+    |
+    | Production has no worker process: the cron caller runs `queue:work` for at
+    | most `cron.queue_max_seconds` (50) inside an HTTP request, under stock PHP
+    | time limits. A job that pages until the device is empty would be killed
+    | part-way on a large import. Keep this well under both.
+    |
+    */
+
+    'pull_time_budget_seconds' => (int) env('DEVICE_PULL_TIME_BUDGET', 20),
+
 ];

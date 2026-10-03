@@ -98,8 +98,13 @@ Login generalized from email-only to a tenant-configured identifier list via `Au
 `PullDeviceEventsJob` gained a `sinceOverride` for one-off backfills, and
 `POST /devices/{device}/import-history` triggers it with a window (last 30 / 90 /
 from-date / full). Backfilled punches are dated at event time and the incremental
-cursor is preserved. `AttendanceHistoryImportTest`. Adapter-side pagination for
-very large `full` imports is the remaining follow-up (decision D8).
+cursor is preserved. `AttendanceHistoryImportTest`. **Paging closed 2026-10-03**:
+`full` and the scheduled sync now drain the device page by page too, a long
+history is read across a chain of time-budgeted jobs, and the cursor no longer
+steps past a page boundary. Until then a `full` import and every incremental
+sync kept only the first ~100 punches. What remains of decision D8 is vendor
+offset paging for a full page of punches inside one second, which needs real
+hardware to verify. See `DEVICE_INTEGRATION.md` → *Paging through a device*.
 
 **Slice 8 — Readiness & Go Live. ✅ DONE (backend).**
 `ReadinessScorer` — a deterministic weighted rubric over real counts across configuration / data / security, each failing check carrying a remediation deep link. `GET /onboarding/readiness` and `POST /onboarding/go-live` (marks step 7, completes onboarding). `ReadinessScorerTest`. **Launch screen UI deferred (contract ready).**
