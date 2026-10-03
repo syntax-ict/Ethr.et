@@ -6,14 +6,14 @@ namespace App\Services\Device;
 
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
-use App\Services\Device\Concerns\ReadsDeviceEvents;
+use App\Services\Device\Concerns\ReadsFromDevice;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ZktecoAdapter implements DeviceAdapter
 {
-    use ReadsDeviceEvents;
+    use ReadsFromDevice;
 
     public function connect(Device $device): bool
     {
@@ -68,7 +68,7 @@ final class ZktecoAdapter implements DeviceAdapter
             $params['since'] = $since;
         }
 
-        $response = $this->readEvents('ZKTeco', fn () => $this->request($device, 'GET', '/api/attendance/logs', $params));
+        $response = $this->readDevice('ZKTeco', fn () => $this->request($device, 'GET', '/api/attendance/logs', $params));
 
         $data = $response->json();
         $events = [];
@@ -87,36 +87,23 @@ final class ZktecoAdapter implements DeviceAdapter
 
     public function pullEnrollments(Device $device): array
     {
-        try {
-            $response = $this->request($device, 'GET', '/api/users', ['limit' => 500]);
+        $response = $this->readDevice('ZKTeco', fn () => $this->request($device, 'GET', '/api/users', ['limit' => 500]));
 
-            if (! $response->successful()) {
-                return [];
-            }
+        $data = $response->json();
+        $enrollments = [];
 
-            $data = $response->json();
-            $enrollments = [];
-
-            foreach ($data['users'] ?? $data ?? [] as $user) {
-                $enrollments[] = [
-                    'device_user_id' => (string) ($user['pin'] ?? $user['user_id'] ?? ''),
-                    'name' => $user['name'] ?? null,
-                    'card_number' => isset($user['card']) ? (string) $user['card'] : null,
-                    'department' => $user['dept_name'] ?? $user['department'] ?? null,
-                    'fingerprint_count' => isset($user['fp_count']) ? (int) $user['fp_count'] : null,
-                    'face_registered' => isset($user['face']) ? (bool) $user['face'] : null,
-                ];
-            }
-
-            return $enrollments;
-        } catch (\Throwable $e) {
-            Log::error('ZKTeco pullEnrollments failed', [
-                'device_id' => $device->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
+        foreach ($data['users'] ?? $data as $user) {
+            $enrollments[] = [
+                'device_user_id' => (string) ($user['pin'] ?? $user['user_id'] ?? ''),
+                'name' => $user['name'] ?? null,
+                'card_number' => isset($user['card']) ? (string) $user['card'] : null,
+                'department' => $user['dept_name'] ?? $user['department'] ?? null,
+                'fingerprint_count' => isset($user['fp_count']) ? (int) $user['fp_count'] : null,
+                'face_registered' => isset($user['face']) ? (bool) $user['face'] : null,
+            ];
         }
+
+        return $enrollments;
     }
 
     public function pushEventUrl(Device $device, string $callbackUrl): bool

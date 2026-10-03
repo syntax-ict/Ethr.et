@@ -113,10 +113,10 @@ Pinned in `tests/Feature/AttendanceHistoryImportTest.php`.
 
 ## A failed read is not an empty one
 
-`pullEvents()` throws `App\Exceptions\DeviceRequestFailed` when the device (or
-its middleware) is unreachable, answers non-2xx, or answers 2xx with a body that
-is not JSON — the three checks in `Services\Device\Concerns\ReadsDeviceEvents`,
-which every vendor adapter uses. *(2026-10-03: until then each adapter caught
+`pullEvents()` and `pullEnrollments()` throw `App\Exceptions\DeviceRequestFailed`
+when the device (or its middleware) is unreachable, answers non-2xx, or answers
+2xx with a body that is not JSON — the three checks in
+`Services\Device\Concerns\ReadsFromDevice`, which every vendor adapter uses. *(2026-10-03: until then each adapter caught
 everything and returned `[]`, which is also what an idle device returns. The job
 could not tell them apart, so a timed-out read looked like "nothing new" and an
 incremental sync moved `last_sync_at` past punches it never read.)*
@@ -132,8 +132,16 @@ update, so the next attempt reads from where the last good one stopped.
 - The exception's message names the vendor and the HTTP status, never the
   address or the credentials; the cURL error is chained, not quoted, because it
   carries the full URL and a generic `base_url` may embed `user:pass@`.
-- `connect()`, `getStatus()` and `pullEnrollments()` still answer
-  `false` / offline / `[]` on failure. None of them moves a cursor; an empty
-  enrollment roster during discovery is misleading but loses nothing.
+- **Over HTTP it is a 502.** `bootstrap/app.php` renders `DeviceRequestFailed`
+  as an RFC-7807 problem with `type` `…/errors/device-unreachable` and the
+  translated `device.read_failed` as `detail` — not the exception's message,
+  which is for the sync log. Enrollment discovery used to answer 200 with an
+  empty roster, and staging a migration from a down device used to create an
+  empty batch; staging now reads the device *before* creating the batch, so a
+  failure leaves nothing behind. Both screens already had an error state (the
+  discovery dialog's `QueryBoundary`, the migration step's toast).
+- `connect()` and `getStatus()` still answer `false` / offline on failure:
+  answering "is it up?" with "no" is their job.
 
-Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php`.
+Pinned in `tests/Feature/Device/VendorAdapterProtocolTest.php` and
+`tests/Feature/DeviceEnrollmentTest.php`.

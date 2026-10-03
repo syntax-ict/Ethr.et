@@ -240,14 +240,12 @@ describe('ZktecoAdapter', function () {
         ]);
     });
 
-    it('throws on a non-200 response when pulling events; enrollment discovery still answers empty', function () {
+    it('throws on a non-200 response when pulling events or enrollments', function () {
         $device = zktecoDevice();
         Http::fake(['10.0.0.9:8080/*' => Http::response(null, 500)]);
 
         expect(fn () => app(ZktecoAdapter::class)->pullEvents($device))->toThrow(DeviceRequestFailed::class);
-        // Discovery moves no cursor, so an empty roster loses nothing. It is
-        // unchanged here; see DEVICE_INTEGRATION.md.
-        expect(app(ZktecoAdapter::class)->pullEnrollments($device))->toBe([]);
+        expect(fn () => app(ZktecoAdapter::class)->pullEnrollments($device))->toThrow(DeviceRequestFailed::class);
     });
 });
 
@@ -363,6 +361,54 @@ describe('a failed event read is not an empty one', function () {
 
         Carbon::setTestNow();
     });
+});
+
+/**
+ * Each adapter with the body a device with nobody enrolled answers.
+ *
+ * @return array<string, array{0: Closure(): array{0: class-string, 1: Device}, 1: mixed}>
+ */
+function rosterReaders(): array
+{
+    return [
+        'Hikvision' => [fn () => [HikvisionAdapter::class, hikvisionDevice()], ['UserInfoSearch' => ['numOfMatches' => 0]]],
+        'Suprema' => [fn () => [SupremaAdapter::class, supremaDevice()], ['records' => []]],
+        'ZKTeco' => [fn () => [ZktecoAdapter::class, zktecoDevice()], ['users' => []]],
+        'generic' => [fn () => [GenericHttpAdapter::class, genericDevice()], []],
+    ];
+}
+
+describe('a failed enrollment read is not an empty roster', function () {
+    it('throws when the device cannot be reached', function (Closure $reader) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => fn () => throw new ConnectionException('timed out')]);
+
+        expect(fn () => app($class)->pullEnrollments($device))
+            ->toThrow(DeviceRequestFailed::class, 'unreachable');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], rosterReaders()));
+
+    it('throws on a non-2xx answer', function (Closure $reader) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => Http::response(['error' => 'busy'], 503)]);
+
+        expect(fn () => app($class)->pullEnrollments($device))
+            ->toThrow(DeviceRequestFailed::class, 'HTTP 503');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], rosterReaders()));
+
+    it('throws on a 2xx answer that is not JSON', function (Closure $reader) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => Http::response('<html><body>Gateway</body></html>', 200, ['Content-Type' => 'text/html'])]);
+
+        expect(fn () => app($class)->pullEnrollments($device))
+            ->toThrow(DeviceRequestFailed::class, 'not JSON');
+    })->with(fn () => array_map(fn (array $row) => [$row[0]], rosterReaders()));
+
+    it('still answers an empty list for a device with nobody enrolled', function (Closure $reader, mixed $emptyBody) {
+        [$class, $device] = $reader();
+        Http::fake(['*' => Http::response($emptyBody, 200)]);
+
+        expect(app($class)->pullEnrollments($device))->toBe([]);
+    })->with(fn () => rosterReaders());
 });
 
 describe('IPv6 device addresses', function () {

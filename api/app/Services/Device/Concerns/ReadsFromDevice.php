@@ -9,22 +9,27 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 
 /**
- * The one rule every adapter's pullEvents() follows: a read that failed must
- * not come back as [], because [] is what an idle device returns and the sync
- * moves its cursor past it. Unreachable, non-2xx and not-JSON all throw.
+ * The one rule every adapter's pullEvents() and pullEnrollments() follow: a
+ * read that failed must not come back as [], because [] is also what an idle
+ * device, or one with nobody enrolled, returns. Unreachable, non-2xx and
+ * not-JSON all throw.
  *
- * A 2xx JSON reply with no events in it is still an empty read — Hikvision
- * leaves `InfoList` out when nothing matched — so what the adapter does with a
- * missing events key is unchanged.
+ * For events, [] made the sync move its cursor past punches it never read. For
+ * enrollments it showed an empty roster, and staged an empty migration batch,
+ * for a device that was simply down.
+ *
+ * A 2xx JSON reply with nothing in it is still an empty read — Hikvision leaves
+ * `InfoList` out when nothing matched — so what the adapter does with a missing
+ * key is unchanged.
  */
-trait ReadsDeviceEvents
+trait ReadsFromDevice
 {
     /**
      * @param  callable(): Response  $send
      *
      * @throws DeviceRequestFailed
      */
-    private function readEvents(string $vendor, callable $send): Response
+    private function readDevice(string $vendor, callable $send): Response
     {
         try {
             $response = $send();

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Exceptions\AttendanceRefused;
+use App\Exceptions\DeviceRequestFailed;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
@@ -188,6 +189,24 @@ return Application::configure(basePath: dirname(__DIR__))
                 'status' => 422,
                 'detail' => $e->getMessage(),
             ], 422);
+        });
+
+        // A device the request depends on could not be read: unreachable,
+        // non-2xx, or not JSON. The fault is upstream of this server, so 502,
+        // and the caller can retry once the device is back. The detail is a
+        // translated sentence, not the exception's message, which names the
+        // vendor and HTTP status for the sync log and the operator.
+        $exceptions->render(function (DeviceRequestFailed $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/device-unreachable',
+                'title' => 'Bad Gateway',
+                'status' => 502,
+                'detail' => __('device.read_failed'),
+            ], 502);
         });
 
         // Handle validation exceptions (422)
