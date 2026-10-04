@@ -63,7 +63,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@lhci/cli": "^0.15.1",
-    "@next/bundle-analyzer": "^16.3.7",
+    "@next/bundle-analyzer": "^16.3.8",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/dom": "^10.4.2",
@@ -73,7 +73,7 @@
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.3.7",
     "fake-indexeddb": "^6.2.5",
