@@ -35,9 +35,15 @@ final class OrganisationFinder
      */
     public function forEmail(string $email): array
     {
+        // Lowercased and matched against `email_normalized` (a generated
+        // LOWER(email) column) rather than `email`: MariaDB's collation
+        // compares `email` case-insensitively and SQLite's does not, so an
+        // exact match behaved differently in production and in tests. This is
+        // also how login matches an email (`AuthIdentifierResolver::byEmail`),
+        // so the organisations listed are the ones the address can sign in to.
         $tenantIds = User::withoutGlobalScopes()
             ->select('tenant_id')
-            ->where('email', $email)
+            ->where('email_normalized', mb_strtolower($email))
             ->where('status', 'active');
 
         return Tenant::query()

@@ -105,6 +105,26 @@ it('leaves out organisations the person cannot sign in to', function () {
         ->toBe([['subdomain' => 'working', 'name' => 'Working Co']]);
 });
 
+// MariaDB's collation compares `email` case-insensitively and SQLite's does
+// not, so an exact match passed in production and failed here — or, worse,
+// the other way round for whichever engine a test ran on. Both directions are
+// pinned: the address as typed, and the address as stored.
+it('finds the organisation whatever the case of the address typed', function () {
+    memberOf(['subdomain' => 'demo', 'name' => 'Ethio Demo Corp'], 'admin@demo.ethr.et');
+
+    findOrganisation('Admin@Demo.Ethr.et')->assertOk();
+
+    Notification::assertSentOnDemandTimes(OrganisationSignInLinksNotification::class, 1);
+});
+
+it('finds the organisation whatever the case the address was stored in', function () {
+    memberOf(['subdomain' => 'demo', 'name' => 'Ethio Demo Corp'], 'Admin@Demo.Ethr.et');
+
+    findOrganisation('admin@demo.ethr.et')->assertOk();
+
+    Notification::assertSentOnDemandTimes(OrganisationSignInLinksNotification::class, 1);
+});
+
 it('reads nothing across tenants but each organisation\'s subdomain and name', function () {
     memberOf(['subdomain' => 'acme', 'name' => 'Acme Ltd']);
 
