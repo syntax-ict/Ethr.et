@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Support\FrontendUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -35,9 +36,15 @@ class AccountActivationNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $email = $notifiable->email ?? '';
-        $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
 
-        $url = "{$frontendUrl}/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}";
+        // On the organisation's own subdomain, not the apex: this email is the
+        // invitation and the welcome, and the person should land where their
+        // organisation's session lives. `tenant=` stays because the reset form
+        // requires it (and single-host development has no subdomain to read).
+        $url = FrontendUrl::forTenant(
+            $this->tenantSubdomain,
+            "/login/reset?token={$this->token}&email=".urlencode($email)."&tenant={$this->tenantSubdomain}",
+        );
 
         return (new MailMessage)
             ->subject(__('user.activation.subject', ['org' => $this->organizationName]))

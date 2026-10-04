@@ -59,4 +59,14 @@ return [
     'mfa_enrolment_required' => 'Your organization requires two-factor authentication. Set it up under Profile > Security to continue.',
     'mfa_disabled_by_policy' => 'Your organization does not offer two-factor authentication.',
     'session_idle_expired' => 'Your session ended after a period of inactivity. Sign in again.',
+
+    // "Find my organisation" on the apex login (2026-10-04)
+    'find_organisation' => [
+        'sent' => "If that address belongs to an organisation, we've emailed you its sign-in link.",
+        'too_many' => 'Too many requests for this address. Try again in a few minutes.',
+        'mail_subject' => 'Your ETHR sign-in link',
+        'mail_intro' => 'You asked which organisations this address can sign in to on ETHR. Use the link for the one you want:',
+        'mail_action' => 'Sign in',
+        'mail_ignore' => 'If you did not ask for this, you can ignore this email; nothing has changed.',
+    ],
 ];

@@ -59,6 +59,21 @@ it('links activation mail to the configured frontend url', function () {
     expect($url)->toStartWith('https://www.ethr.test/login/reset?token=tok123');
 });
 
+it('links the invitation (activation) mail to the organisation\'s own subdomain when the hostname picks the tenant', function () {
+    // The activation email is both the invitation and the welcome: "Welcome to
+    // ETHR … An account has been created for you at :org". It used to land
+    // everyone on the apex, so a new user set their password on ethr.et and
+    // then had to find their organisation's address to sign in.
+    config(['app.domain' => 'ethr.et', 'app.frontend_url' => 'https://ethr.et']);
+    $user = User::factory()->make(['email' => 'a@acme.test']);
+
+    $url = mailActionUrl(new AccountActivationNotification('tok123', 'acme', 'Acme Ltd'), $user);
+
+    expect($url)->toStartWith('https://acme.ethr.et/login/reset?token=tok123')
+        // The reset form requires `tenant`, so the parameter stays.
+        ->and($url)->toContain('tenant=acme');
+});
+
 it('resolves to the application url, never localhost:3000, outside a local environment', function () {
     // phpunit.xml pins FRONTEND_URL to blank and APP_ENV to testing: the
     // production shape. It is pinned rather than assumed because CI builds its

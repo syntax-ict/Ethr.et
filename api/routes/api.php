@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\Attendance\ManualAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\MobileAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\OfflineSyncController;
 use App\Http\Controllers\Api\V1\Attendance\QrAttendanceController;
+use App\Http\Controllers\Api\V1\Auth\FindOrganisationController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
 use App\Http\Controllers\Api\V1\Auth\MeController;
@@ -169,6 +170,12 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
 
     Route::post('/password/forgot', [PasswordResetController::class, 'forgot']);
     Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+
+    // "Find my organisation" on the apex login: emails an address the sign-in
+    // link of each organisation it belongs to, and answers every request with
+    // the same sentence. Limited like the password reset (this group, plus a
+    // per-address counter in the controller).
+    Route::post('/find-organisation', FindOrganisationController::class);
 
     // Tenant-host half of the impersonation handoff. Necessarily unauthenticated
     // — the caller has no session on this host yet, which is the entire reason

@@ -95,6 +95,7 @@ return [
         'App\Http\Controllers\Api\V1\Auth\PasswordResetController@forgot' => 'Pre-authentication; the lookup states tenant_id from the hostname.',
         'App\Http\Controllers\Api\V1\Auth\PasswordResetController@reset' => 'The presented reset token is the authority; the lookup states tenant_id from the hostname.',
         'App\Http\Controllers\Api\V1\Auth\SubdomainCheckController@__invoke' => 'Pre-authentication availability check during sign-up.',
+        'App\Http\Controllers\Api\V1\Auth\FindOrganisationController@__invoke' => 'Pre-authentication "find my organisation": answers every request with the same sentence and emails the sign-in links to the address itself, so the address is the authority. throttle:auth plus a per-address counter.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskSessionController@authenticate' => 'The kiosk session token is the authority: where(\'token\')->where(\'status\', \'active\'), 401 when it misses.',
         'App\Http\Controllers\Api\V1\Kiosk\KioskCheckInController@__invoke' => 'X-Kiosk-Token resolves an active KioskSession; the employee lookup then states that session\'s tenant_id.',
         'App\Http\Controllers\Api\V1\Auth\SessionClaimController@__invoke' => 'Single-use handoff nonce, bound to the hostname\'s tenant rather than the body.',
