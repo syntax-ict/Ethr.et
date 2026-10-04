@@ -2952,6 +2952,29 @@ not heavy. Two places carry it:
    `/en`'s 724 ms, on an identical DOM and stylesheet. The difference is shaping
    Ethiopic text in Noto Sans Ethiopic.
 
+**What Sentry costs in production — measured 2026-10-04, and why it is not a
+slice.** The baseline above ran with no DSN, so `Sentry.init` never ran. Three
+more builds, applied throttling, `/en` medians of three runs (spread in
+brackets; noisy, but the direction held):
+
+| Build | TBT `/en` | Perf | TBT `/am` |
+|---|---|---|---|
+| No Sentry at all (`instrumentation-client.ts` stubbed) | 776 ms (534–1,129) | 76 | 881 ms |
+| Sentry loaded, no DSN (the baseline above) | 846 ms (807–1,032) | 73 | 1,299 ms |
+| **Sentry live** — DSN set, pointed at a dead local port | **1,186 ms** (1,072–1,317) | **69** | 1,381 ms |
+| Live, tracing attached on `requestIdleCallback` | 1,198 ms (1,189–1,239) | 70 | 1,546 ms |
+
+So in production Sentry costs **≈410 ms of blocking time and ≈7 Performance
+points** on the landing page, and **almost none of it is downloading** (87 KB
+loaded but not initialised: ≈70 ms). **Nor is it tracing**: deferring
+`browserTracingIntegration` until idle moved nothing. The cost is the core
+error-monitoring `init` — global handlers, and the breadcrumb instrumentation
+of console, DOM events, `fetch`, XHR and history. The remaining levers are
+trimming what Sentry captures, or initialising it after load, which its
+docblock rejects because page-load errors would go unseen. **Both change what
+production monitoring sees, so they are product decisions, not performance
+work.** The `excludeTracing` build flag would cut bytes, not this time.
+
 **Reproduce:** start a production build, then
 `LHCI_BASE_URL=<origin> LHCI_PRESET=mobile ./scripts/gates.sh lighthouse`
 (add `LHCI_THROTTLING=devtools` for applied throttling). The assertions are
