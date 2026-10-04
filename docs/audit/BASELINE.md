@@ -2949,8 +2949,34 @@ not heavy. Two places carry it:
    longest tasks. Sentry's own docblock names the lever it accepts —
    `tracesSampleRate` and the integrations — rather than deferring the import.
 2. **Amharic layout**: `/am` spends **1,673 ms** in style & layout against
-   `/en`'s 724 ms, on an identical DOM and stylesheet. The difference is shaping
-   Ethiopic text in Noto Sans Ethiopic.
+   `/en`'s 724 ms, on an identical DOM and stylesheet. ~~The difference is shaping
+   Ethiopic text in Noto Sans Ethiopic.~~ **Corrected the same day: Noto Sans
+   Ethiopic was never in use** — see *The fonts were never applied* below.
+
+**The fonts were never applied — found 2026-10-04 profiling the line above.**
+Every `FontFace` on `/am` reported `unloaded`, and the headline's computed
+`font-family` was Tailwind's preflight system stack (`-apple-system,
+BlinkMacSystemFont, "Segoe UI", …`), not `--font-sans`. Cause: `next/font`'s
+variable classes sat on `<body>`, while `--font-sans` is a theme variable
+declared on `:root` as `var(--font-inter), var(--font-noto-ethiopic), …`. A
+custom property resolves its `var()` references where it is declared, so at
+`:root` both were undefined, the whole of `--font-sans` was invalid, and
+`.font-sans` fell back to inheritance. **Inter was preloaded on every page and
+used on none; the 193 KB Ethiopic subset was never requested; Amharic rendered
+in whatever system face had Ethiopic glyphs** — tofu where none does, the
+outcome `root-shell.tsx` says the face exists to prevent. The variables now sit
+on `<html>`; `e2e/marketing.spec.ts` asserts the computed stack and a loaded
+Ethiopic face, which only a real browser can compute.
+
+Performance with the faces applied could not be settled on this machine: back
+to back with the same harness, both builds measured far slower than the
+morning's baseline, and the differences were inside the noise (`/en` perf 64 →
+55, TBT 4,510 → 3,308 ms; `/am` perf 51 → 54, TBT 9,440 → 8,110 ms, **LCP
+4,376 → 3,398 ms**). `/am` now downloads the 193 KB subset, as designed; CLS
+stays under 0.03. Shipped as the correctness fix it is. A phone-width sweep
+(`scripts/browser/overflow.js`, 375 px) of 6 public and 9 signed-in screens
+found nothing pushed off-screen or spilling with Inter in place of the system
+face.
 
 **What Sentry costs in production — measured 2026-10-04, and why it is not a
 slice.** The baseline above ran with no DSN, so `Sentry.init` never ran. Three
