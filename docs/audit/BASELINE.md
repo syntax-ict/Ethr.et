@@ -2999,7 +2999,7 @@ of console, DOM events, `fetch`, XHR and history. The remaining levers are
 trimming what Sentry captures, or initialising it after load, which its
 docblock rejects because page-load errors would go unseen. **Both change what
 production monitoring sees, so they are product decisions, not performance
-work.** The `excludeTracing` build flag would cut bytes, not this time.
+work.** **Owner decision 2026-10-04: Sentry stays as it is for launch; revisit after launch.** The `excludeTracing` build flag would cut bytes, not this time.
 
 **Reproduce:** start a production build, then
 `LHCI_BASE_URL=<origin> LHCI_PRESET=mobile ./scripts/gates.sh lighthouse`
