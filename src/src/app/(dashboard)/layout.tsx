@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { baseMetadata, RootShell } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
+import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 import { DashboardShell } from "./dashboard-shell";
 
 export const metadata: Metadata = baseMetadata;
@@ -21,7 +22,9 @@ export default function DashboardLayout({
 }) {
   return (
     <RootShell lang={DEFAULT_LOCALE}>
-      <DashboardShell>{children}</DashboardShell>
+      <AmharicDictionary>
+        <DashboardShell>{children}</DashboardShell>
+      </AmharicDictionary>
     </RootShell>
   );
 }
