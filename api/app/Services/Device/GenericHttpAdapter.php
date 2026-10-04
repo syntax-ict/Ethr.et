@@ -7,7 +7,7 @@ namespace App\Services\Device;
 use App\Contracts\DeviceAdapter;
 use App\Models\Device;
 use App\Rules\DeviceConnectionConfig;
-use App\Services\Device\Concerns\ReadsDeviceEvents;
+use App\Services\Device\Concerns\ReadsFromDevice;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Log;
  */
 final class GenericHttpAdapter implements DeviceAdapter
 {
-    use ReadsDeviceEvents;
+    use ReadsFromDevice;
 
     public function connect(Device $device): bool
     {
@@ -71,7 +71,7 @@ final class GenericHttpAdapter implements DeviceAdapter
     public function pullEvents(Device $device, ?string $since = null): array
     {
         $query = $since ? ['since' => $since] : [];
-        $response = $this->readEvents('Generic', fn () => $this->client($device)->get($this->path($device, 'events_path', '/events'), $query));
+        $response = $this->readDevice('Generic', fn () => $this->client($device)->get($this->path($device, 'events_path', '/events'), $query));
 
         $map = $this->mapping($device);
         $rows = $this->rows($response, $map['events_root'] ?? null);
@@ -93,34 +93,24 @@ final class GenericHttpAdapter implements DeviceAdapter
 
     public function pullEnrollments(Device $device): array
     {
-        try {
-            $response = $this->client($device)->get($this->path($device, 'enrollments_path', '/users'));
+        $response = $this->readDevice('Generic', fn () => $this->client($device)->get($this->path($device, 'enrollments_path', '/users')));
 
-            if (! $response->successful()) {
-                return [];
-            }
+        $map = $this->mapping($device);
+        $rows = $this->rows($response, $map['enrollments_root'] ?? null);
 
-            $map = $this->mapping($device);
-            $rows = $this->rows($response, $map['enrollments_root'] ?? null);
-
-            $enrollments = [];
-            foreach ($rows as $row) {
-                $enrollments[] = [
-                    'device_user_id' => (string) Arr::get($row, $map['user_id'] ?? 'user_id', ''),
-                    'name' => $this->stringOrNull(Arr::get($row, $map['name'] ?? 'name')),
-                    'card_number' => $this->stringOrNull(Arr::get($row, $map['card'] ?? 'card')),
-                    'department' => $this->stringOrNull(Arr::get($row, $map['department'] ?? 'department')),
-                    'fingerprint_count' => null,
-                    'face_registered' => null,
-                ];
-            }
-
-            return $enrollments;
-        } catch (\Throwable $e) {
-            Log::error('Generic device pullEnrollments failed', ['device_id' => $device->id, 'error' => $e->getMessage()]);
-
-            return [];
+        $enrollments = [];
+        foreach ($rows as $row) {
+            $enrollments[] = [
+                'device_user_id' => (string) Arr::get($row, $map['user_id'] ?? 'user_id', ''),
+                'name' => $this->stringOrNull(Arr::get($row, $map['name'] ?? 'name')),
+                'card_number' => $this->stringOrNull(Arr::get($row, $map['card'] ?? 'card')),
+                'department' => $this->stringOrNull(Arr::get($row, $map['department'] ?? 'department')),
+                'fingerprint_count' => null,
+                'face_registered' => null,
+            ];
         }
+
+        return $enrollments;
     }
 
     public function pushEventUrl(Device $device, string $callbackUrl): bool

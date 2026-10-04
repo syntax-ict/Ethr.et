@@ -9,8 +9,9 @@ use RuntimeException;
 use Throwable;
 
 /**
- * A device adapter could not read events: the device or its middleware was
- * unreachable, answered non-2xx, or answered with something that is not JSON.
+ * A device adapter could not read events or enrollments: the device or its
+ * middleware was unreachable, answered non-2xx, or answered with something that
+ * is not JSON.
  *
  * The adapters used to return [] instead, which is also what an idle device
  * returns. PullDeviceEventsJob cannot tell the two apart, so a failed read
@@ -18,6 +19,10 @@ use Throwable;
  * punches it never read. Throwing sends the job down the path it already has
  * for this: device marked `error`, a failed sync log, one retry, then
  * DeviceSyncFailed to the tenant's admins, with the cursor where it was.
+ *
+ * Over HTTP — enrollment discovery, staging a migration from a device —
+ * bootstrap/app.php renders it as a 502 with a translated message: the fault is
+ * upstream of this server, and the caller can retry once the device is back.
  *
  * The message names the vendor and what went wrong, never the address or the
  * credentials in the connection config: it lands in the sync log and in the

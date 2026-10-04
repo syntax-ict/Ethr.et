@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Exceptions\DeviceRequestFailed;
 use App\Models\Branch;
 use App\Models\Device;
 use App\Models\Employee;
+use App\Models\MigrationBatch;
+use App\Models\Tenant;
 use App\Services\Device\GenericHttpAdapter;
 use Illuminate\Support\Facades\Http;
 
@@ -136,7 +139,7 @@ describe('GenericHttpAdapter', function () {
         expect($events[1]['type'])->toBe('check_out');
     });
 
-    it('returns an empty list when the device responds with an error', function () {
+    it('throws when the device responds with an error, rather than answering an empty roster', function () {
         $tenant = createTenant();
         $device = Device::factory()->make([
             'tenant_id' => $tenant->id,
@@ -146,7 +149,67 @@ describe('GenericHttpAdapter', function () {
 
         Http::fake(['down.local/*' => Http::response(null, 500)]);
 
-        expect(app(GenericHttpAdapter::class)->pullEnrollments($device))->toBe([]);
+        expect(fn () => app(GenericHttpAdapter::class)->pullEnrollments($device))
+            ->toThrow(DeviceRequestFailed::class, 'HTTP 500');
+    });
+});
+
+/**
+ * A tenant admin, and a generic device whose middleware is down.
+ *
+ * @return array{0: string, 1: Device, 2: Tenant}
+ */
+function unreadableDevice(): array
+{
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'generic',
+        'connection_config' => ['base_url' => 'https://down.local'],
+    ]);
+    Http::fake(['down.local/*' => Http::response(null, 503)]);
+
+    return ["http://{$tenant->subdomain}.ethr.test/api/v1", $device, $tenant];
+}
+
+describe('a device that cannot be read', function () {
+    it('answers discovery with a 502 problem, not an empty roster', function () {
+        [$host, $device] = unreadableDevice();
+
+        // It used to answer 200 with `summary.total: 0`, which reads as a
+        // device with nobody enrolled.
+        test()->getJson("{$host}/devices/{$device->public_id}/enrollments")
+            ->assertStatus(502)
+            ->assertJsonPath('status', 502)
+            ->assertJsonPath('type', 'https://ethr.et/errors/device-unreachable')
+            ->assertJsonPath('detail', __('device.read_failed'))
+            ->assertJsonMissingPath('enrollments');
+    });
+
+    it('does not put the vendor, status or address in the client-facing detail', function () {
+        [$host, $device] = unreadableDevice();
+
+        $detail = test()->getJson("{$host}/devices/{$device->public_id}/enrollments")->json('detail');
+
+        expect($detail)->not->toContain('503')
+            ->and($detail)->not->toContain('down.local')
+            ->and($detail)->not->toContain('Generic');
+    });
+
+    it('answers staging a migration with a 502 and leaves no empty batch behind', function () {
+        [$host, $device, $tenant] = unreadableDevice();
+
+        // The batch used to be created before the device was read, so a down
+        // device produced an empty batch, indistinguishable from one with
+        // nobody enrolled.
+        test()->postJson("{$host}/onboarding/migration/devices/{$device->public_id}")
+            ->assertStatus(502)
+            ->assertJsonPath('detail', __('device.read_failed'));
+
+        expect(MigrationBatch::where('tenant_id', $tenant->id)->count())->toBe(0);
     });
 });
 
