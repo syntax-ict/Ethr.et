@@ -4,8 +4,13 @@ import { configure } from "@testing-library/dom";
 import { server } from "./msw/server";
 import { registerLocale } from "@/lib/i18n/translations";
 import enTranslations from "@/lib/i18n/locales/en.json";
+import amTranslations from "@/lib/i18n/locales/am.json";
 
 registerLocale("en", enTranslations);
+// What the app shells do (`AmharicDictionary`). `translations.ts` stopped
+// importing it eagerly on 2026-10-03 so the public site would not ship it, and
+// the Amharic rendering these tests assert depended on that import.
+registerLocale("am", amTranslations);
 
 // `findBy*` and `waitFor` are bounded by testing-library's own
 // `asyncUtilTimeout`, not by vitest's `testTimeout` — raising the latter (see

@@ -5,7 +5,6 @@ import sid from "./locales/sid.json";
 import so from "./locales/so.json";
 import ti from "./locales/ti.json";
 
-import { DEFAULT_LOCALE } from "./config";
 import { publicSubset } from "./public-keys";
 
 /**
@@ -16,8 +15,18 @@ import { publicSubset } from "./public-keys";
  * ~7.5 KB (gzipped) projection `publicSubset` returns, serialized once into the
  * RSC payload for the locale actually being served.
  *
- * `null` for `DEFAULT_LOCALE`: `am.json` is already imported eagerly by
- * `translations.ts`, so sending it again would be pure duplication.
+ * Every locale gets one, Amharic included. Until 2026-10-03 this returned `null`
+ * for `DEFAULT_LOCALE`, because `translations.ts` imported the whole of
+ * `am.json` eagerly — which is exactly what put 56.6 KB of Amharic on every
+ * public page, English ones included. The app shells register the full file
+ * now (`amharic-dictionary.tsx`), and a public page carries only this.
+ *
+ * That only works because the projection is *complete* for a public page:
+ * `scripts/i18n-check.js` fails on any public-page key outside
+ * `PUBLIC_KEY_PREFIXES`, fallback or not. A key outside it would render the
+ * Amharic sentence on the server and the English fallback in the browser's
+ * first render — a hydration mismatch the reader sees as the page switching
+ * language under them.
  */
 const DICTIONARIES: Record<string, Record<string, string>> = {
   am,
@@ -53,8 +62,6 @@ export function serverTranslate(
 export function publicDictionary(
   locale: string,
 ): Record<string, string> | null {
-  if (locale === DEFAULT_LOCALE) return null;
-
   const source = DICTIONARIES[locale];
   return source ? publicSubset(source) : null;
 }

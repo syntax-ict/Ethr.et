@@ -2825,6 +2825,45 @@ Per-locale page weight, which the dictionary projection decides:
 the `[locale]` layout ships a 7.5 KB projection of `en.json` and `am.json` is
 already eager.
 
+#### Phase 8, slice 2 — the Amharic dictionary off the public site (2026-10-04)
+
+**The paragraph above no longer holds: `am.json` is not eager any more.** It was
+a 56.6 KB gzipped chunk on every public page, English ones included, because
+`translations.ts` imported it and every page imports `translations.ts`. Now:
+
+- the app shells — `(auth)`, `(dashboard)`, `kiosk`, `offline` — register the
+  whole file through `lib/i18n/amharic-dictionary.tsx`, at module evaluation,
+  before anything below them renders;
+- the public `[locale]` pages register an Amharic **projection**, as English
+  already had, carried in the page's HTML;
+- `(root)` (the redirectors, including `/`) carries neither, and its metadata
+  reads `serverTranslate`, so `/` keeps its Amharic `<title>`.
+
+Measured from a production build against `main` (slice 1 not applied):
+
+| Page | JS before | JS after | HTML after (gzip) |
+|---|---|---|---|
+| `/en`, `/am` | 426.0 KB | **371.0 KB** | 17.2 KB / 19.5 KB |
+| `/en/pricing`, `/am/pricing` | 424.2 KB | **369.0 KB** | 13.7 KB / 16.1 KB |
+| `/dashboard` | — | 471.9 KB, still carrying the `am.json` chunk | — |
+
+`/am`'s HTML grows by the projection, about 8.7 KB, against 55 KB of JS it no
+longer downloads. With slice 1 (axios) on top, the landing page is ≈352 KB.
+
+**What made it safe, and is now enforced.** A projection works only if it holds
+every string a public page asks for. `i18n-check.js` used to let a public key
+outside `PUBLIC_KEY_PREFIXES` through when it carried an English fallback —
+sound while Amharic was eager, a hydration mismatch once it is not (server
+renders Amharic, the browser's first render English). The five keys that used
+that exemption, all in `product-flow.tsx`, were re-keyed under
+`marketing.product_flow.*` with their reviewed Amharic carried over unchanged,
+and the exemption is gone. `registerLocale` now merges instead of replacing, so
+a projection can never shrink the full dictionary within a session.
+`amharic-projection.test.ts` pins both, and that `translations.ts` imports no
+dictionary statically. Browser-checked: `/am` renders Amharic with no hydration
+warning and no `am.json` request; `/en` the same in English; `/login` and
+`/dashboard` render fully in Amharic.
+
 ### Four defects this measurement found
 
 None were visible from the source, and the first is the reason the rest were

@@ -1,11 +1,10 @@
-import amTranslations from "./locales/am.json";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isAvailableLocale } from "./config";
 
 /**
  * The locale list, the default and the cookie name now live in `./config`,
- * which imports nothing — `middleware.ts` needs them and must not pull the
- * 242 KB Amharic dictionary below into the Edge bundle. Re-exported here so
- * every existing `from "@/lib/i18n/translations"` import keeps working.
+ * which imports nothing — `middleware.ts` needs them and must not pull a
+ * dictionary into the Edge bundle. Re-exported here so every existing
+ * `from "@/lib/i18n/translations"` import keeps working.
  */
 export {
   DEFAULT_LOCALE,
@@ -18,13 +17,25 @@ export {
 } from "./config";
 export type { LocaleStatus } from "./config";
 
-const loaded: Record<string, Record<string, string>> = {
-  am: amTranslations,
-};
+/*
+ * No dictionary is imported here. `am.json` used to be, eagerly, because
+ * Amharic is the default locale and the authenticated app's first render needs
+ * it synchronously — but this module is shared, so the whole dictionary (56.6
+ * KB gzipped) also shipped to every public page, English ones included
+ * (measured 2026-10-03, BASELINE §18). The two halves now get it separately:
+ *
+ *   - the app shells — (auth), (dashboard), kiosk, offline — render
+ *     `AmharicDictionary` (`./amharic-dictionary.tsx`), which registers the
+ *     full file when its module evaluates, before anything below it renders;
+ *   - the public `[locale]` pages register a projection of it, exactly as they
+ *     already did for English (`public-dictionary.ts`, `public-keys.ts`).
+ */
+const loaded: Record<string, Record<string, string>> = {};
 
 /**
- * Every locale except the eager-loaded `am` is code-split behind a dynamic
- * import so its dictionary ships only when selected. `om`/`ti`/`so`/`sid` are
+ * Every locale is code-split behind a dynamic import so its dictionary ships
+ * only when selected — and is registered up front where a first render needs
+ * it (see the note above). `om`/`ti`/`so`/`sid` are
  * stub files today — a missing key falls back to the key name itself (see
  * `t()`), which lets `useT`'s caller-supplied English fallback string (already
  * passed at every call site) take over instead of silently substituting
@@ -36,6 +47,7 @@ const lazyLoaders: Record<
   string,
   () => Promise<{ default: Record<string, string> }>
 > = {
+  am: () => import("./locales/am.json"),
   en: () => import("./locales/en.json"),
   om: () => import("./locales/om.json"),
   ti: () => import("./locales/ti.json"),
@@ -46,7 +58,7 @@ const lazyLoaders: Record<
 const loadPromises: Record<string, Promise<void>> = {};
 
 function ensureLocaleLoaded(locale: string): void {
-  if (loaded[locale] || locale === "am") return;
+  if (loaded[locale]) return;
   const loader = lazyLoaders[locale];
   if (loader && !loadPromises[locale]) {
     loadPromises[locale] = loader().then((mod) => {
@@ -71,8 +83,9 @@ export function t(key: string, locale: string = "en"): string {
  * `<title>` in the page's own language — that is the whole point of the
  * locale-prefixed routes. This is the same logic `useT` uses, exported so the
  * two cannot drift: look the key up, and fall back to the caller's English
- * string when the dictionary has no entry (on the server that is every locale
- * except `am`, the only one imported eagerly).
+ * string when the dictionary has no entry. Server Components that need a
+ * locale's text *now*, with no race against the lazy import — `generateMetadata`
+ * above all — should use `serverTranslate` (`public-dictionary.ts`) instead.
  *
  * On the *server* the lazy import does resolve — Next's rendering yields between
  * components, so by the time a public page renders, `/en/*` is coming out of
@@ -190,11 +203,22 @@ export function syncDocumentLang(locale: string): void {
   }
 }
 
+/**
+ * Adds strings to a locale's dictionary. Merges, never replaces.
+ *
+ * Two registrations can now meet in one browser session: a public page
+ * registers a projection (`DictionaryRegistrar`), an app shell registers the
+ * whole file (`AmharicDictionary`). Replacing let the second-registered win, so
+ * dashboard → public page → dashboard (client-side, where the shell's module
+ * does not run again) left the dashboard on the projection, rendering English
+ * fallbacks for every string outside it. Every overlapping key holds the same
+ * value in both, so merging in either order yields the full dictionary.
+ */
 export function registerLocale(
   code: string,
   data: Record<string, string>,
 ): void {
-  loaded[code] = data;
+  loaded[code] = loaded[code] ? { ...loaded[code], ...data } : data;
 }
 
 export function preloadLocale(locale: string): Promise<void> {

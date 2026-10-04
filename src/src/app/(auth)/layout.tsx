@@ -4,6 +4,7 @@ import { HostProvider } from "@/lib/auth/host-provider";
 import { IS_STATIC_EXPORT } from "@/lib/build-target";
 import { baseMetadata, RootShell } from "../root-shell";
 import { DEFAULT_LOCALE } from "@/lib/i18n/translations";
+import { AmharicDictionary } from "@/lib/i18n/amharic-dictionary";
 import { AuthLayoutClient } from "./auth-layout-client";
 
 export const metadata: Metadata = baseMetadata;
@@ -49,9 +50,11 @@ export default async function AuthLayout({
 
   return (
     <RootShell lang={DEFAULT_LOCALE}>
-      <HostProvider host={host}>
-        <AuthLayoutClient>{children}</AuthLayoutClient>
-      </HostProvider>
+      <AmharicDictionary>
+        <HostProvider host={host}>
+          <AuthLayoutClient>{children}</AuthLayoutClient>
+        </HostProvider>
+      </AmharicDictionary>
     </RootShell>
   );
 }
