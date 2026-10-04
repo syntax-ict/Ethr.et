@@ -48,6 +48,13 @@ updates:
       # included, so they get a group of their own ahead of dev-dependencies.
       vitest:
         patterns: ["vitest", "@vitest/*"]
+      # Radix packages share internals (@radix-ui/primitive, react-primitive,
+      # popper, focus-scope, …). Bumped one at a time, each newer package
+      # nests its own copies beside the older shared ones: the 2.1.24
+      # dropdown-menu bump (#12) carried 23, so the public header would have
+      # shipped two copies of each. Together they deduplicate. 2026-10-04.
+      radix:
+        patterns: ["@radix-ui/*"]
       # Minor and patch only. A major in this group once bundled five breaking
       # upgrades with eleven safe ones, and one install conflict (TypeScript 7)
       # turned every gate red without testing any of the others. Majors now
