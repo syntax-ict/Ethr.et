@@ -59,4 +59,15 @@ return [
     'mfa_enrolment_required' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ ይፈልጋል። ለመቀጠል በመገለጫ > ደህንነት ስር ያዋቅሩት።',
     'mfa_disabled_by_policy' => 'ድርጅትዎ ባለ ሁለት ደረጃ ማረጋገጫ አያቀርብም።',
     'session_idle_expired' => 'ለተወሰነ ጊዜ እንቅስቃሴ ስላልነበረ ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።',
+
+    // "Find my organisation" on the apex login (2026-10-04). English placeholders,
+    // awaiting the native-speaker review (auditrecent.md N40).
+    'find_organisation' => [
+        'sent' => "If that address belongs to an organisation, we've emailed you its sign-in link.",
+        'too_many' => 'Too many requests for this address. Try again in a few minutes.',
+        'mail_subject' => 'Your ETHR sign-in link',
+        'mail_intro' => 'You asked which organisations this address can sign in to on ETHR. Use the link for the one you want:',
+        'mail_action' => 'Sign in',
+        'mail_ignore' => 'If you did not ask for this, you can ignore this email; nothing has changed.',
+    ],
 ];

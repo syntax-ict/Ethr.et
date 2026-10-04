@@ -2376,6 +2376,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/find-organisation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email the sign-in links of every organisation this address belongs to */
+        post: operations["auth.findOrganisation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scim/v2/Users": {
         parameters: {
             query?: never;
@@ -5968,6 +5985,11 @@ export interface components {
         FinalizeRetirementCaseRequest: {
             /** Format: date-time */
             effective_date: string;
+        };
+        /** FindOrganisationRequest */
+        FindOrganisationRequest: {
+            /** Format: email */
+            email: string;
         };
         /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
@@ -13889,6 +13911,50 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "auth.findOrganisation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindOrganisationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "If that address belongs to an organisation, we've emailed you its sign-in link.";
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/rate-limit";
+                        /** @constant */
+                        title: "Too Many Requests";
+                        /** @constant */
+                        status: 429;
+                        /** @constant */
+                        detail: "Too many requests for this address. Try again in a few minutes.";
+                    };
+                };
+            };
         };
     };
     "scimUser.index": {

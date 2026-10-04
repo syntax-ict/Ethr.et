@@ -306,7 +306,13 @@ export function LoginForm() {
               {t(
                 "auth.subdomain_hint",
                 "Don't know your subdomain? Check the invitation email or ask your administrator.",
-              )}
+              )}{" "}
+              <Link
+                href="/login/find"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t("auth.find_org_link", "Find your organisation by email")}
+              </Link>
             </p>
           </div>
         )}

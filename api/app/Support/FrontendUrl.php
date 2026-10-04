@@ -20,4 +20,32 @@ final class FrontendUrl
     {
         return rtrim((string) config('app.frontend_url'), '/').'/'.ltrim($path, '/');
     }
+
+    /**
+     * A link into one organisation's own app: `https://acme.ethr.et/login`.
+     *
+     * Where the hostname picks the tenant (`APP_DOMAIN` set — production), the
+     * page belongs on the tenant's subdomain: that is where its session lives,
+     * so a person landing on the apex would have to find their organisation's
+     * address before they could sign in. The scheme and any port come from
+     * `app.frontend_url`, so a local `http://localhost:3000` stays plain http.
+     *
+     * Single-host (no `APP_DOMAIN` — local development, tests) has no
+     * subdomains to link to, so this is `to()`; a caller that needs the tenant
+     * named on that host carries it in the query string, as the reset and
+     * activation links already do.
+     */
+    public static function forTenant(string $subdomain, string $path): string
+    {
+        $root = TenancyDomain::root();
+        if ($root === null) {
+            return self::to($path);
+        }
+
+        $frontend = parse_url((string) config('app.frontend_url'));
+        $scheme = $frontend['scheme'] ?? 'https';
+        $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
+
+        return "{$scheme}://{$subdomain}.{$root}{$port}/".ltrim($path, '/');
+    }
 }

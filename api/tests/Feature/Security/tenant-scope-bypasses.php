@@ -8,8 +8,14 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 158 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 159 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-04: **159 across 58 files**. `Services/Auth/OrganisationFinder` reads
+ * which tenants an email address belongs to, for "find my organisation" on the
+ * apex login — pre-authentication, with no tenant resolved, cross-tenant by
+ * design. It selects `tenant_id` alone from `users` and returns only each
+ * tenant's subdomain and name, which are emailed to the address, never shown.)
  *
  * (2026-10-02, later: **158 across 57 files**. `DispatchWebhookJob::failed()` now
  * counts an exhausted delivery against its webhook (audit N18), so it looks the
@@ -141,6 +147,13 @@ return [
     'Services/Attendance/AttendanceImporter.php' => 1,
     'Services/Attendance/ConflictResolver.php' => 1,
     'Services/Auth/AuthIdentifierResolver.php' => 7,
+    // "Find my organisation" on the apex login (2026-10-04). Pre-authentication,
+    // on the apex where no tenant resolves, and cross-tenant by its nature: the
+    // question is which tenants an address belongs to. From `users` it selects
+    // `tenant_id` only, for active accounts; the caller gets back each
+    // operational tenant's subdomain and name and nothing else, and that goes to
+    // the address by email — the endpoint answers every request identically.
+    'Services/Auth/OrganisationFinder.php' => 1,
     'Services/Billing/BillingService.php' => 5,
     'Services/Dashboard/EmployeeDashboardService.php' => 1,
     'Services/Holiday/HolidayService.php' => 2,
