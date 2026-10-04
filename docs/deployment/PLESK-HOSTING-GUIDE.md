@@ -1,5 +1,11 @@
 # ETHR on Plesk shared hosting — the owner's guide
 
+> **2026-10-04 — to deploy, follow [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md).** GitHub now
+> publishes a built `production` branch, and Plesk Git's deployment action runs
+> `deploy/post-deploy.sh`, which carries the install commands Part C below says have no
+> route. That route is built and rehearsed in CI. It has **not yet run on the host**. This
+> guide stays as the field-by-field reference for Part A.
+
 **Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · PHP 8.3.33 · Node 22.23.2
 
 > **Placeholders — HARD RULE 2**, [`SHARED-HOSTING-CONTRACT.md`](SHARED-HOSTING-CONTRACT.md).
