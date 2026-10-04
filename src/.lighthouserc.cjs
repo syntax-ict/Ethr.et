@@ -45,8 +45,21 @@ module.exports = {
         `${BASE}/register`,
       ],
       numberOfRuns: 3,
+      // Desktop by default, as this gate has always run. LHCI_PRESET=mobile
+      // drops the preset, so Lighthouse uses its own default: a mid-range phone
+      // on simulated slow 4G with a 4x CPU slowdown — the audience, which the
+      // desktop numbers say nothing about (audit/BASELINE.md §18).
+      //
+      // LHCI_THROTTLING=devtools applies the throttling instead of simulating
+      // it. Against a local server that matters: every async chunk arrives at
+      // once, the browser hydrates before its first paint, and the simulation
+      // then charges the whole throttled bundle to the LCP paint — 4.6 s
+      // simulated against 2.5 s applied, measured 2026-10-04 on /en.
       settings: {
-        preset: "desktop",
+        ...(process.env.LHCI_PRESET === "mobile" ? {} : { preset: "desktop" }),
+        ...(process.env.LHCI_THROTTLING === "devtools"
+          ? { throttlingMethod: "devtools" }
+          : {}),
         chromeFlags: "--no-sandbox --disable-gpu",
       },
     },

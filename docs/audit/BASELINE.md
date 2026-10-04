@@ -2898,6 +2898,66 @@ dictionary statically. Browser-checked: `/am` renders Amharic with no hydration
 warning and no `am.json` request; `/en` the same in English; `/login` and
 `/dashboard` render fully in Amharic.
 
+#### Mobile baseline — measured 2026-10-04, on `main` after both slices
+
+The first mobile numbers this project has. Production build of `1d2049d`
+(`next start`, `NEXT_PUBLIC_API_URL` pointed at a local API — the default build
+reads `.env.production` and proxies `/api/*` to the live `https://ethr.et`),
+landing page **352.3 KB** of JS referenced (≈314 KB a current browser
+fetches). Same seven URLs, three runs each, medians, no preset — Lighthouse's
+mobile default:
+
+| route | perf | a11y | bp | SEO | FCP | LCP | TBT | CLS |
+|---|---|---|---|---|---|---|---|---|
+| `/en` | 73 | 100 | 100 | 100 | 1.2 s | 4.6 s | 434 ms | 0 |
+| `/am` | 68 | 96 | 100 | 100 | 1.6 s | 4.7 s | 568 ms | 0 |
+| `/en/pricing` | 77 | 100 | 100 | 100 | 1.2 s | 4.5 s | 317 ms | 0 |
+| `/en/features` | 77 | 100 | 100 | 100 | 1.2 s | 4.5 s | 326 ms | 0 |
+| `/en/contact` | 79 | 100 | 100 | 100 | 1.1 s | 4.3 s | 282 ms | 0 |
+| `/login` | 75 | 100 | 100 | 63 | 1.1 s | 4.8 s | 338 ms | 0 |
+| `/register` | 75 | 100 | 100 | 63 | 1.1 s | 5.0 s | 311 ms | 0 |
+
+**Against `docs/CLAUDE.md` → Performance Targets, mobile fails two:**
+Performance > 80 (every page is 68–79) and LCP < 2.5 s. Accessibility, best
+practices and SEO hold; SEO 63 on the auth screens is `robots.ts`, as above.
+
+**Read the LCP column with care — on a local server it overstates.** The LCP
+element on `/en` is the hero `<h1>`: plain text, server-rendered, no animation.
+Its 4.6 s is *render delay* (TTFB 464 ms, load 0, render 4,141 ms). Unthrottled,
+the page paints at 1.18 s — **after** `load` (DCL 94 ms, load 450 ms): from
+localhost every async chunk arrives at once, so the browser hydrates before its
+first paint, and the simulated (lantern) projection then charges the throttled
+bundle to that paint. With throttling *applied* instead
+(`LHCI_THROTTLING=devtools`), the browser paints the HTML before the scripts
+land, and the headline is the first paint:
+
+| route | perf | FCP = LCP | TBT |
+|---|---|---|---|
+| `/en` (×3) | 73 / 73 / 75 | 2.6 / 2.3 / 2.5 s | 846 / 1,032 / 807 ms |
+| `/am` (×3) | 67 / 62 / 62 | 2.3 / 3.3 / 3.3 s | 2,284 / 1,145 / 1,299 ms |
+
+So **LCP is roughly at target on `/en` and over it on `/am`, and the binding
+constraint is Total Blocking Time** — 0.8–2.3 s against a 300 ms target, and
+30% of the Performance score.
+
+**Where the main thread goes** (simulated `/en`, CPU slowdown applied): script
+evaluation 884 ms, **style & layout 724 ms**, other 442 ms, parse/compile 180
+ms. DOM is 377 elements and CSS 21 KB with no unused rules — the page itself is
+not heavy. Two places carry it:
+
+1. **The React DOM + Sentry chunk** (483 KB raw): 670–740 ms of script and the
+   longest tasks. Sentry's own docblock names the lever it accepts —
+   `tracesSampleRate` and the integrations — rather than deferring the import.
+2. **Amharic layout**: `/am` spends **1,673 ms** in style & layout against
+   `/en`'s 724 ms, on an identical DOM and stylesheet. The difference is shaping
+   Ethiopic text in Noto Sans Ethiopic.
+
+**Reproduce:** start a production build, then
+`LHCI_BASE_URL=<origin> LHCI_PRESET=mobile ./scripts/gates.sh lighthouse`
+(add `LHCI_THROTTLING=devtools` for applied throttling). The assertions are
+unchanged, so in mobile mode the gate **fails**, on Performance — which is the
+measurement, not a fault in it. The default run stays desktop.
+
 ### Four defects this measurement found
 
 None were visible from the source, and the first is the reason the rest were
