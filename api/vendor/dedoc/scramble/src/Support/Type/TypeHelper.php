@@ -1,0 +1,344 @@
+<?php
+
+namespace Dedoc\Scramble\Support\Type;
+
+use Dedoc\Scramble\Infer\Scope\Scope;
+use Dedoc\Scramble\Support\Type\Contracts\LateResolvingType;
+use Dedoc\Scramble\Support\Type\Literal\LiteralBooleanType;
+use Dedoc\Scramble\Support\Type\Literal\LiteralIntegerType;
+use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
+use PhpParser\Node;
+use PhpParser\PrettyPrinter\Standard;
+use ReflectionNamedType;
+use ReflectionType;
+use ReflectionUnionType;
+
+class TypeHelper
+{
+    public const MAY_BE_UNDEFINED_IN_COALESCE = 'mayBeUndefinedInCoalesce';
+
+    public static function mayBeUndefinedInCoalesce(Type $type): bool
+    {
+        return $type->getAttribute(self::MAY_BE_UNDEFINED_IN_COALESCE) === true;
+    }
+
+    public static function markMayBeUndefinedInCoalesce(Type $type): Type
+    {
+        $type->setAttribute(self::MAY_BE_UNDEFINED_IN_COALESCE, true);
+
+        return $type;
+    }
+
+    public static function withoutMayBeUndefinedInCoalesce(Type $type): Type
+    {
+        if (! static::mayBeUndefinedInCoalesce($type)) {
+            return $type;
+        }
+
+        $type->setAttribute(self::MAY_BE_UNDEFINED_IN_COALESCE, false);
+
+        return $type;
+    }
+
+    public static function mergeTypes(...$types)
+    {
+        $flattenedTypes = [];
+
+        foreach ($types as $type) {
+            $nestedTypes = $type instanceof Union
+                ? $type->types
+                : [$type];
+
+            foreach ($nestedTypes as $nestedType) {
+                $alreadyAdded = false;
+
+                foreach ($flattenedTypes as $existingType) {
+                    if ($nestedType->isSame($existingType)) {
+                        $alreadyAdded = true;
+                        if (static::mayBeUndefinedInCoalesce($nestedType)) {
+                            static::markMayBeUndefinedInCoalesce($existingType);
+                        }
+
+                        break;
+                    }
+                }
+
+                if (! $alreadyAdded) {
+                    $flattenedTypes[] = $nestedType;
+                }
+            }
+        }
+
+        $hasVoidOrNever = false;
+
+        foreach ($flattenedTypes as $type) {
+            if ($type instanceof VoidType || $type instanceof NeverType) {
+                $hasVoidOrNever = true;
+
+                break;
+            }
+        }
+
+        if ($hasVoidOrNever && count($flattenedTypes) > 1) {
+            $filtered = [];
+
+            foreach ($flattenedTypes as $type) {
+                if ($type instanceof VoidType || $type instanceof NeverType) {
+                    continue;
+                }
+
+                $filtered[] = $type;
+            }
+
+            $flattenedTypes = $filtered;
+        }
+
+        return Union::wrap($flattenedTypes);
+    }
+
+    public static function withoutNull(Type $type): Type
+    {
+        if ($type instanceof NullType) {
+            return new NeverType;
+        }
+
+        if (! $type instanceof Union) {
+            return $type;
+        }
+
+        $types = collect($type->types)
+            ->map(fn (Type $t) => static::withoutNull($t))
+            ->reject(fn (Type $t) => $t instanceof NeverType)
+            ->all();
+
+        return count($types) ? static::mergeTypes(...$types) : new NeverType;
+    }
+
+    public static function canContainNull(Type $type): bool
+    {
+        if ($type instanceof NullType || $type instanceof UnknownType || $type instanceof MixedType) {
+            return true;
+        }
+
+        if ($type instanceof Union) {
+            return collect($type->types)->contains(fn (Type $t) => static::canContainNull($t));
+        }
+
+        return false;
+    }
+
+    public static function createTypeFromTypeNode(Node $typeNode)
+    {
+        if ($typeNode instanceof Node\NullableType) {
+            return Union::wrap([
+                new NullType,
+                static::createTypeFromTypeNode($typeNode->type),
+            ]);
+        }
+
+        if ($typeNode instanceof Node\Identifier) {
+            if ($typeNode->name === 'int') {
+                return new IntegerType;
+            }
+
+            if ($typeNode->name === 'string') {
+                return new StringType;
+            }
+
+            if ($typeNode->name === 'bool') {
+                return new BooleanType;
+            }
+
+            if ($typeNode->name === 'float') {
+                return new FloatType;
+            }
+
+            if ($typeNode->name === 'array') {
+                return new ArrayType(
+                    value: new MixedType,
+                );
+            }
+
+            if ($typeNode->name === 'mixed') {
+                return new MixedType;
+            }
+
+            if ($typeNode->name === 'null') {
+                return new NullType;
+            }
+
+            if (in_array($typeNode->name, ['true', 'false'])) {
+                return new LiteralBooleanType($typeNode->name === 'true');
+            }
+
+            return new ObjectType($typeNode->toString());
+        }
+
+        if ($typeNode instanceof Node\Name) {
+            return new ObjectType($typeNode->toString());
+        }
+
+        if ($typeNode instanceof Node\UnionType) {
+            return Union::wrap(array_map(
+                fn ($node) => static::createTypeFromTypeNode($node),
+                $typeNode->types
+            ));
+        }
+
+        return new UnknownType('Cannot get type from AST node '.(new Standard)->prettyPrint([$typeNode]));
+    }
+
+    /**
+     * @param  (Node\Arg|Node\VariadicPlaceholder)[]  $args
+     * @param  array{0: string, 1: int}  $parameterNameIndex
+     * @return ($default is null ? Type|null : Type)
+     */
+    public static function getArgType(Scope $scope, array $args, array $parameterNameIndex, ?Type $default = null): ?Type
+    {
+        $default = $default ?: new UnknownType("Cannot get a type of the arg #{$parameterNameIndex[1]}($parameterNameIndex[0])");
+
+        $matchingArg = static::getArg($args, $parameterNameIndex);
+
+        return $matchingArg instanceof Node\Arg ? $scope->getType($matchingArg->value) : $default;
+    }
+
+    public static function unpackIfArray($type)
+    {
+        if (! $type instanceof KeyedArrayType) {
+            return $type;
+        }
+
+        $unpackedItems = collect($type->items)
+            ->flatMap(function (ArrayItemType_ $type) {
+                if ($type->shouldUnpack && $type->value instanceof KeyedArrayType) {
+                    return $type->value->items;
+                }
+
+                return [$type];
+            })
+            ->reduce(function ($arrayItems, ArrayItemType_ $itemType) {
+                if (! $itemType->key) {
+                    $arrayItems[] = $itemType;
+                } else {
+                    $arrayItems[$itemType->key] = $itemType;
+                }
+
+                return $arrayItems;
+            }, []);
+
+        return (new KeyedArrayType(array_values($unpackedItems)))->mergeAttributes($type->attributes());
+    }
+
+    /**
+     * @param  (Node\Arg|Node\VariadicPlaceholder)[]  $args
+     * @param  array{0: string, 1: int}  $parameterNameIndex
+     */
+    private static function getArg(array $args, array $parameterNameIndex): Node\Arg|Node\VariadicPlaceholder|null
+    {
+        [$name, $index] = $parameterNameIndex;
+
+        return collect($args)->first(
+            fn ($arg) => ($arg->name->name ?? '') === $name,
+            fn () => empty($args[$index]->name->name) ? ($args[$index] ?? null) : null,
+        );
+    }
+
+    public static function createTypeFromValue(mixed $value)
+    {
+        if (is_string($value)) {
+            return new LiteralStringType($value);
+        }
+
+        if (is_int($value)) {
+            return new LiteralIntegerType($value);
+        }
+
+        if (is_float($value)) {
+            return new FloatType;
+        }
+
+        if (is_bool($value)) {
+            return new LiteralBooleanType($value);
+        }
+
+        if (is_array($value)) {
+            return new KeyedArrayType(array_map(
+                fn ($key) => new ArrayItemType_($key, static::createTypeFromValue($value[$key])),
+                array_keys($value),
+            ));
+        }
+
+        if ($value === null) {
+            return new NullType;
+        }
+
+        if (is_object($value)) {
+            if (enum_exists($value::class)) {
+                return new EnumCaseType(
+                    $value::class,
+                    $value->name,
+                );
+            }
+
+            return new ObjectType($value::class); // @todo generics
+        }
+
+        return new MixedType;
+    }
+
+    public static function createTypeFromReflectionType(ReflectionType $reflectionType, bool $handleNullable = true)
+    {
+        if ($reflectionType->allowsNull() && $handleNullable) {
+            return Union::wrap([
+                new NullType,
+                static::createTypeFromReflectionType($reflectionType, handleNullable: false),
+            ]);
+        }
+
+        if ($reflectionType instanceof ReflectionUnionType) {
+            return Union::wrap(array_map(
+                fn ($node) => static::createTypeFromReflectionType($node, $handleNullable),
+                $reflectionType->getTypes(),
+            ));
+        }
+
+        if ($reflectionType instanceof ReflectionNamedType) {
+            if ($reflectionType->getName() === 'int') {
+                return new IntegerType;
+            }
+
+            if ($reflectionType->getName() === 'string') {
+                return new StringType;
+            }
+
+            if ($reflectionType->getName() === 'bool') {
+                return new BooleanType;
+            }
+
+            if ($reflectionType->getName() === 'float') {
+                return new FloatType;
+            }
+
+            if ($reflectionType->getName() === 'array') {
+                return new ArrayType;
+            }
+
+            return new ObjectType($reflectionType->getName());
+        }
+
+        return new UnknownType('Cannot create type from reflection type '.$reflectionType::class);
+    }
+
+    public static function isResolvable(Type $type): bool
+    {
+        if ($type instanceof TemplateType) {
+            return false;
+        }
+
+        if ($type instanceof LateResolvingType) {
+            return false;
+        }
+
+        return true;
+    }
+}

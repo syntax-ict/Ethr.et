@@ -1,0 +1,163 @@
+<?php
+
+namespace Dedoc\Scramble\Support\Type;
+
+use Dedoc\Scramble\Support\Type\Contracts\LiteralType;
+use Dedoc\Scramble\Support\Type\Literal\LiteralStringType;
+
+/**
+ * Represents an array with known keys. This may represent a list as well.
+ */
+class KeyedArrayType extends AbstractType
+{
+    public bool $isList = false;
+
+    /**
+     * @param  ArrayItemType_[]  $items
+     */
+    public function __construct(
+        public array $items = [],
+        ?bool $isList = null
+    ) {
+        if ($isList === null) {
+            $this->isList = static::checkIsList($items);
+        } else {
+            $this->isList = $isList;
+        }
+    }
+
+    public static function checkIsList(array $items): bool
+    {
+        return collect($items)->every(fn (ArrayItemType_ $item) => $item->key === null)
+            || collect($items)->every(fn (ArrayItemType_ $item) => is_numeric($item->key)); // @todo add consecutive check to be sure it is really a list
+    }
+
+    public function nodes(): array
+    {
+        return ['items'];
+    }
+
+    public function isSame(Type $type)
+    {
+        return false;
+    }
+
+    public function getItemValueTypeByKey(string|int $key, Type $default = new UnknownType): Type
+    {
+        foreach ($this->items as $item) {
+            if ($item->key === $key) {
+                return $item->value;
+            }
+        }
+
+        return $default;
+    }
+
+    public function getKeyType(): Type
+    {
+        $items = collect($this->items);
+
+        if ($items->isNotEmpty() && $items->every(fn (ArrayItemType_ $t) => $t->key === null || is_int($t->key))) {
+            return new IntegerType;
+        }
+
+        if ($items->isNotEmpty() && $items->every(fn (ArrayItemType_ $t) => is_string($t->key))) {
+            return new Union(
+                $items->map(fn (ArrayItemType_ $t) => new LiteralStringType((string) $t->key))->all(),
+            );
+        }
+
+        return new Union([new IntegerType, new StringType]);
+    }
+
+    public function getOffsetValueType(Type $offset): Type
+    {
+        $default = TypeHelper::markMayBeUndefinedInCoalesce(parent::getOffsetValueType($offset));
+
+        if (! $offset instanceof LiteralType) {
+            return $default;
+        }
+
+        $offsetValue = $offset->getValue();
+
+        if (! is_string($offsetValue) && ! is_int($offsetValue)) {
+            return $default;
+        }
+
+        if ($this->isList && is_int($offsetValue)) {
+            $item = $this->getListItemAt($offsetValue);
+
+            if (! $item) {
+                return $default;
+            }
+
+            $value = $item->value->clone()->mergeAttributes($item->attributes());
+
+            return $item->isOptional
+                ? TypeHelper::markMayBeUndefinedInCoalesce($value)
+                : $value;
+        }
+
+        foreach ($this->items as $item) {
+            if ($item->key === $offsetValue) {
+                $value = $item->value->clone()->mergeAttributes($item->attributes());
+
+                return $item->isOptional
+                    ? TypeHelper::markMayBeUndefinedInCoalesce($value)
+                    : $value;
+            }
+        }
+
+        return $default;
+    }
+
+    public function toString(): string
+    {
+        $name = $this->isList ? 'list' : 'array';
+
+        return sprintf(
+            '%s{%s}',
+            $name,
+            implode(', ', array_map(function (ArrayItemType_ $item) {
+                if ($this->isList) {
+                    return $item->value->toString();
+                }
+
+                return sprintf(
+                    '%s%s: %s',
+                    $item->isNumericKey() ? $this->indexOfNumericKeyItem($item) : $item->key,
+                    $item->isOptional ? '?' : '',
+                    $item->value->toString()
+                );
+            }, $this->items))
+        );
+    }
+
+    private function getListItemAt(int $position): ?ArrayItemType_
+    {
+        $current = 0;
+
+        foreach ($this->items as $item) {
+            if ($item->isNumericKey()) {
+                if ($current === $position) {
+                    return $item;
+                }
+
+                $current++;
+            }
+        }
+
+        return null;
+    }
+
+    private function indexOfNumericKeyItem(ArrayItemType_ $search): int
+    {
+        for ($position = 0; $item = $this->getListItemAt($position); $position++) {
+            if ($item === $search) {
+                return $position;
+            }
+        }
+
+        return 0;
+    }
+}

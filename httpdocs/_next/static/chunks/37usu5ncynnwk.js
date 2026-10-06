@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,304534,(e,t,a)=>{t.exports={_comment:"Stub locale — awaiting professional translation. Untranslated keys fall back to Amharic, then to the key name. See ENTERPRISE_ROADMAP.md Phase 2.4."}}]);

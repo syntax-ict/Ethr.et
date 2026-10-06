@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<url>
+<loc>https://ethr.et/en</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et" />
+<priority>1</priority>
+</url>
+<url>
+<loc>https://ethr.et/am</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et" />
+<priority>1</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/features</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/features" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/features" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/features" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/features</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/features" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/features" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/features" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/pricing</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/pricing" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/pricing" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/pricing" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/pricing</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/pricing" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/pricing" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/pricing" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/faq</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/faq" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/faq" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/faq" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/faq</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/faq" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/faq" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/faq" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/contact</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/contact" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/contact" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/contact" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/contact</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/contact" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/contact" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/contact" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/privacy</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/privacy" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/privacy" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/privacy" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/privacy</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/privacy" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/privacy" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/privacy" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/en/terms</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/terms" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/terms" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/terms" />
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://ethr.et/am/terms</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://ethr.et/en/terms" />
+<xhtml:link rel="alternate" hreflang="am" href="https://ethr.et/am/terms" />
+<xhtml:link rel="alternate" hreflang="x-default" href="https://ethr.et/terms" />
+<priority>0.8</priority>
+</url>
+</urlset>
