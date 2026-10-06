@@ -105,6 +105,9 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    - `key:generate --force` — **once, on this first deploy only.** Running it again later
      replaces the key, and every encrypted column becomes unreadable.
    - `migrate --force` — stops by design if the database user lacks `TRIGGER` (G0-F).
+   - `db:seed --class=ProductionSeeder --force` — permissions, plans, Ethiopian tax brackets
+     and organisation templates. **Without it every role gets 403**, and there are no plans
+     or tax brackets. It is idempotent and creates no accounts.
    - `ethr:create-admin --email=<you@APP_DOMAIN> --password=<12+ characters> --force`. Then
      sign in and change the password on the Security page, so the one you typed is gone.
    - `config:cache`, `route:cache`, `view:cache`.
@@ -132,7 +135,8 @@ works without it.
 
 1. Merge to `main`, and wait for **Plesk release** to go green.
 2. Plesk Git → **Pull now → Deploy now**.
-3. Toolkit → Artisan: `migrate --force`, then `config:cache`, `route:cache`, `view:cache`.
+3. Toolkit → Artisan: `migrate --force`, `db:seed --class=ProductionSeeder --force` (it picks up
+   permissions a release adds), then `config:cache`, `route:cache`, `view:cache`.
    **Never `key:generate` again.**
 
 Rolling back is a revert on `main`, which produces a new release. A deploy does not undo

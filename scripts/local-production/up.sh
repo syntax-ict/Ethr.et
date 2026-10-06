@@ -276,6 +276,11 @@ step "4. Migrate — this exercises the audit-log CREATE TRIGGER on MariaDB"
 # whether Ethio Telecom's user holds it. That is G0-F and it stays open.
 (cd "$APP_ROOT/api" && php artisan migrate --force --no-interaction 2>&1 | tail -6 | sed 's/^/  /')
 
+# The global catalog — permissions, plans, tax brackets, templates — exactly as the
+# host runs it from the Toolkit. Without it every role is refused with 403. Measured
+# 2026-10-06, when this harness had never seeded and a tenant admin was refused.
+(cd "$APP_ROOT/api" && php artisan db:seed --class=ProductionSeeder --force --no-interaction 2>&1 \n    | grep -E 'DONE|FAIL|Error' | sed 's/^/  /') || die "ProductionSeeder failed"
+
 info "triggers now on audit_log:"
 "$MYSQL" -u root -N -e "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_TABLE='audit_log' AND TRIGGER_SCHEMA='$DB_NAME';" | sed 's/^/    /'
 

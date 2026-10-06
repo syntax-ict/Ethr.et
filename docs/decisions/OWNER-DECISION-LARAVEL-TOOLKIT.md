@@ -42,7 +42,7 @@ website document root and the `artisan` file [is] located in the parent director
 - **No deployment action.** `post-deploy.sh` is removed. Plesk Git deploys `production` into
   `<APP_ROOT>`, and that alone publishes the release.
 - **Artisan.** It runs from the Toolkit: `key:generate --force` **on the first deploy only**,
-  then `migrate --force` on every release. `rehearse-release.sh` rehearses that sequence in
+  then `migrate --force` and `db:seed --class=ProductionSeeder --force` on every release. `rehearse-release.sh` rehearses that sequence in
   CI on every release, and serves `api/public` to prove it boots.
 
 ## What it does not change
