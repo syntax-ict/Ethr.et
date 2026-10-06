@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 #
-# Rehearse a Plesk deploy of a built release tree, twice, against a throwaway
-# host layout — and assert the things that would be expensive to learn live:
+# Rehearse a release the way the host runs it: Plesk Git writes the tree into
+# <APP_ROOT>, then the owner runs artisan from the Laravel Toolkit. This does
+# both against a throwaway copy, and asserts what would be expensive to learn
+# live:
 #
-#   1. a missing .env stops the deploy and publishes nothing;
-#   2. the first deploy generates APP_KEY, migrates, creates the super admin
-#      from the one-shot file and deletes that file, and publishes httpdocs;
-#   3. the SECOND deploy leaves APP_KEY byte-identical — the defect the old
-#      action list (`key:generate --force` on every deploy) would have shipped;
-#   4. httpdocs/.well-known (ACME) survives a publish.
+#   1. the tree boots: api/public/index.php (the document root) answers
+#      /api/v1/ping through PHP's built-in server, with the release's vendor/;
+#   2. the Toolkit sequence works on a fresh .env made from the template:
+#      key:generate, migrate, ethr:create-admin;
+#   3. a SECOND deploy over the first (Plesk Git writing the next release)
+#      leaves .env and its APP_KEY alone, and migrate runs clean again.
+#      Plesk Git does not track .env, and nothing in a release may carry one.
 #
-# SQLite stands in for the host's MySQL, so this proves the script's control
-# flow and idempotence, not the host's database grants (G0-F) — that is M2.
+# SQLite stands in for the host's MySQL, so this proves the tree and the
+# sequence, not the host's grants (G0-F) or its PHP (M2).
 #
 # Usage: scripts/shared-hosting/rehearse-release.sh <release-dir>
 #
@@ -19,32 +22,27 @@ set -euo pipefail
 
 REL="$(cd "${1:?usage: rehearse-release.sh <release-dir>}" && pwd)"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+SERVER_PID=""
+cleanup() {
+  if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null; fi
+  rm -rf "$WORK" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 pass() { printf 'ok   %s\n' "$1"; }
 
-HOST="$WORK/home"
-mkdir -p "$HOST/httpdocs/.well-known/acme-challenge"
-echo token > "$HOST/httpdocs/.well-known/acme-challenge/keep"
-cp -R "$REL" "$HOST/ethr"
+APP="$WORK/home/ethr"
+API="$APP/api"
+mkdir -p "$WORK/home"
+cp -R "$REL" "$APP"
+artisan() { (cd "$API" && php artisan "$@" --no-interaction); }
 
-# 1 — no .env: must stop, must not publish.
-if bash "$HOST/ethr/deploy/post-deploy.sh" >"$WORK/out0" 2>&1; then
-  fail "post-deploy succeeded without api/.env"
-fi
-grep -q 'api/.env does not exist' "$WORK/out0" || fail "missing-.env message not shown"
-[ ! -f "$HOST/httpdocs/index.php" ] || fail "httpdocs was published without a .env"
-pass "a deploy without .env stops and publishes nothing"
-
-# The owner's File Manager step: .env from the template, APP_KEY empty.
-ENV="$HOST/ethr/api/.env"
-cp "$HOST/ethr/api/.env.shared-hosting.example" "$ENV"
+# The owner's File Manager / Toolkit .env step: the template as shipped. Its
+# `APP_KEY=   # REQUIRED` line is left alone on purpose.
+ENV="$API/.env"
+cp "$API/.env.shared-hosting.example" "$ENV"
 touch "$WORK/db.sqlite"
-# APP_KEY is deliberately left as the template ships it — `APP_KEY=   # REQUIRED`
-# — because that trailing comment is what a naive "is there a key?" check
-# mistakes for one.
-grep -qE '^APP_KEY=[[:space:]]+#' "$ENV" || fail "the template's APP_KEY line changed shape; update this rehearsal"
 # Git Bash's /tmp is invisible to a native Windows PHP; give it a mixed path.
 DB_FILE="$WORK/db.sqlite"
 command -v cygpath >/dev/null 2>&1 && DB_FILE="$(cygpath -m "$DB_FILE")"
@@ -52,29 +50,35 @@ sed -i -e 's#^DB_CONNECTION=.*#DB_CONNECTION=sqlite#' \
        -e "s#^DB_DATABASE=.*#DB_DATABASE=$DB_FILE#" "$ENV"
 grep -q '^DB_CONNECTION=sqlite' "$ENV" || fail "could not set DB_CONNECTION in the rehearsal .env"
 grep -q "^DB_DATABASE=$DB_FILE" "$ENV" || fail "could not set DB_DATABASE in the rehearsal .env"
-printf 'ADMIN_EMAIL=owner@example.et\nADMIN_PASSWORD=Rehearsal-Passw0rd-123\n' > "$HOST/ethr/admin-bootstrap.env"
 
-# 2 — first deploy.
-bash "$HOST/ethr/deploy/post-deploy.sh" >"$WORK/out1" 2>&1 || { cat "$WORK/out1"; fail "first deploy failed"; }
+# 2 — the Toolkit sequence.
+artisan key:generate --force >/dev/null || fail "key:generate failed"
+grep -qE '^APP_KEY=base64:' "$ENV" || fail "key:generate did not write APP_KEY"
 KEY1="$(grep '^APP_KEY=' "$ENV")"
-grep -qE '^APP_KEY=base64:' "$ENV" || fail "APP_KEY was not generated: $KEY1"
-[ ! -f "$HOST/ethr/admin-bootstrap.env" ] || fail "admin-bootstrap.env was not deleted"
-grep -q 'super admin owner@example.et is ready' "$WORK/out1" || fail "super admin not created"
-[ -f "$HOST/httpdocs/index.php" ] && [ -f "$HOST/httpdocs/.htaccess" ] && [ -f "$HOST/httpdocs/index.html" ] \
-  || fail "httpdocs was not published"
-[ -f "$HOST/ethr/api/bootstrap/cache/config.php" ] || fail "config was not cached"
-[ -f "$HOST/httpdocs/.user.ini" ] || fail "httpdocs/.user.ini (the PHP limits) was not published"
-pass "first deploy: key generated, migrated, admin created and file deleted, docroot published"
+artisan migrate --force >"$WORK/migrate1" 2>&1 || { cat "$WORK/migrate1"; fail "first migrate failed"; }
+artisan ethr:create-admin --email=owner@example.et --password=Rehearsal-Passw0rd-123 --force >/dev/null \
+  || fail "ethr:create-admin failed"
+pass "Toolkit sequence: key generated, migrated, super admin created"
 
-# 3 — second deploy: the key must not move.
-bash "$HOST/ethr/deploy/post-deploy.sh" >"$WORK/out2" 2>&1 || { cat "$WORK/out2"; fail "second deploy failed"; }
-KEY2="$(grep '^APP_KEY=' "$ENV")"
-[ "$KEY1" = "$KEY2" ] || fail "APP_KEY CHANGED on the second deploy — encrypted columns would be lost"
-grep -q 'APP_KEY present' "$WORK/out2" || fail "second deploy did not report the key as kept"
-pass "second deploy: APP_KEY unchanged"
+# 1 — the document root boots the app.
+PORT=$(( 20000 + RANDOM % 20000 ))
+(cd "$API/public" && php -S "127.0.0.1:$PORT" index.php >"$WORK/server.log" 2>&1) &
+SERVER_PID=$!
+PING=""
+for _ in $(seq 1 30); do
+  PING="$(curl -s --max-time 5 "http://127.0.0.1:$PORT/api/v1/ping" || true)"
+  case "$PING" in *'"status":"ok"'*) break ;; esac
+  sleep 1
+done
+case "$PING" in *'"status":"ok"'*) ;; *) cat "$WORK/server.log" >&2; fail "api/public/index.php did not answer /api/v1/ping: ${PING:-no response}" ;; esac
+pass "the document root (api/public/index.php) boots the app: /api/v1/ping ok"
 
-# 4 — ACME survives.
-[ "$(cat "$HOST/httpdocs/.well-known/acme-challenge/keep")" = token ] || fail ".well-known was disturbed"
-pass ".well-known survived both publishes"
+# 3 — the next release written over this one, as Plesk Git does.
+cp -R "$REL/." "$APP/"
+[ -f "$ENV" ] || fail "a redeploy removed api/.env"
+[ "$(grep '^APP_KEY=' "$ENV")" = "$KEY1" ] || fail "a redeploy changed APP_KEY"
+artisan migrate --force >"$WORK/migrate2" 2>&1 || { cat "$WORK/migrate2"; fail "second migrate failed"; }
+grep -q 'Nothing to migrate' "$WORK/migrate2" || fail "second migrate was not a no-op"
+pass "a second deploy keeps .env and APP_KEY; migrate is a no-op"
 
 echo "rehearsal passed"

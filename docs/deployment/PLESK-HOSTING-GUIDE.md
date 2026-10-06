@@ -1,10 +1,12 @@
 # ETHR on Plesk shared hosting — the owner's guide
 
-> **2026-10-04 — to deploy, follow [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md).** GitHub now
-> publishes a built `production` branch, and Plesk Git's deployment action runs
-> `deploy/post-deploy.sh`, which carries the install commands Part C below says have no
-> route. That route is built and rehearsed in CI. It has **not yet run on the host**. This
-> guide stays as the field-by-field reference for Part A.
+> **To deploy, follow [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md).** GitHub publishes a built
+> `production` branch, and Plesk Git deploys it. Since 2026-10-06 the install commands that
+> Part C below says have no route run from Plesk's **Laravel Toolkit**: the deployment
+> action's shell turned out to have no PHP. **That decision supersedes A4 below:** the
+> document root moves, on purpose, to exactly `ethr/api/public`
+> ([`OWNER-DECISION-LARAVEL-TOOLKIT.md`](../decisions/OWNER-DECISION-LARAVEL-TOOLKIT.md)).
+> This guide stays as the field-by-field reference for Part A.
 
 **Target:** `<APP_DOMAIN>` · account `<ACCOUNT_USER>` @ `<PANEL_HOST>` · PHP 8.3.33 · Node 22.23.2
 

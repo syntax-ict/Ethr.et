@@ -244,7 +244,7 @@ unfilled, which is visible.
 |---|---|
 | **Plesk UI** | All account configuration: PHP version and limits, environment variables, SSL, mail |
 | **Plesk Git deployment** | Getting code onto the host, and — via *additional deployment actions* — the one-off install commands |
-| ~~**Plesk Laravel integration**~~ | **Removed 2026-09-25 by the hard rule** — an extension, and never observed in an otherwise complete dashboard listing |
+| **Plesk Laravel Toolkit** | **Restored 2026-10-06 by owner decision, for artisan only** ([`OWNER-DECISION-LARAVEL-TOOLKIT.md`](../decisions/OWNER-DECISION-LARAVEL-TOOLKIT.md)). The deployment action turned out to run in a chrooted shell with no PHP, so the Toolkit is the only artisan runner on the account. It was removed on 2026-09-25 by the hard rule as an extension that had never been observed |
 | ~~**Plesk Scheduled Tasks**~~ | **Moved to OPTIONAL 2026-09-25.** Measured ABSENT on this subscription (**G0-D**), so it cannot be a PRIMARY dependency under the hard rule |
 | **An external cron caller** | The scheduler and the queue worker, driven over HTTP: `POST /api/v1/cron/schedule` and `POST /api/v1/cron/queue`, built `b61cb05`. **Both, not one** — eleven of the fourteen scheduled entries only enqueue |
 | **Plesk database** | MySQL/MariaDB provisioning, and schema import where a SQL console exists |
@@ -306,7 +306,7 @@ offers a startable application.
 | Plesk Git deployment | *Git* present in the dashboard listing; *additional deployment actions* field confirmed present by the owner 2026-09-18 — nothing entered, saved or executed | **OBSERVED** |
 | Plesk database | *Databases* present in the dashboard listing | **OBSERVED** (whether it offers a SQL console is unread) |
 | **Plesk Scheduled Tasks** | **Measured ABSENT.** No Scheduled Tasks / Task Scheduler / Cron Jobs section exists on the subscription dashboard (owner-read 2026-09-18). This is **G0-D = FAIL** | **NOT AVAILABLE** |
-| **Plesk Laravel integration** | **Never observed.** Not in the dashboard listing, which was otherwise complete — Files, Databases, FTP, Backup & Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories. Zero mentions anywhere in this repository | **UNEVIDENCED** |
+| **Plesk Laravel integration** | **OBSERVED 2026-10-06** — a *Laravel* sidebar entry opening *Laravel Toolkit*, which discovers an app whose `public/` is the document root. The reading below, from before that date, is kept as measured: **Never observed.** Not in the dashboard listing, which was otherwise complete — Files, Databases, FTP, Backup & Restore, Website Copying, Statistics, Dev Tools, PHP 8.3.33, Logs, Git, PHP Composer, Security/SSL, Imunify, Password Protected Directories. Zero mentions anywhere in this repository | **UNEVIDENCED** |
 
 Neither gap invalidates the contract. Both are **service-plan permissions or extensions**,
 not server capabilities — the same class as SSH, and exactly what the **higher-plans** ask of

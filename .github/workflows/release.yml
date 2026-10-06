@@ -3,9 +3,11 @@ name: Plesk release (production branch)
 # Builds the tree Plesk Git deploys and publishes it to the `production` branch.
 #
 # THE ROUTE: local -> GitHub `main` -> this workflow -> `production` -> Plesk Git
-# pulls `production` into <APP_ROOT> (~/ethr/) and runs `bash deploy/post-deploy.sh`.
-# The host has no shell, no Node application and no guaranteed Composer, so it
-# cannot build anything; the branch it pulls has to be the finished release.
+# deploys `production` into <APP_ROOT> (~/ethr/), whose api/public is the
+# document root, and the owner runs artisan (key:generate once, migrate) from
+# Plesk's Laravel Toolkit. There is no deployment action: the deploy shell is
+# chrooted and has no PHP (first host deploy, 2026-10-06). The host cannot
+# build anything, so the branch it pulls has to be the finished release.
 # What is in it, and why: scripts/shared-hosting/build-release.sh.
 #
 # WHEN IT PUBLISHES. Only after "Quality gates" has passed on a push to `main`,

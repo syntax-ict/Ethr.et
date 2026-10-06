@@ -77,6 +77,17 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-06 — the first host deploy closed one route; the install moves to the Laravel Toolkit
+>
+> Plesk Git's deployment action **executed** on the host for the first time. It runs in a
+> **chrooted shell with no PHP**: the log reported `dirname: command not found`,
+> `cut: command not found` and `no php binary found`. Artisan cannot run there. **Owner
+> decision** ([`OWNER-DECISION-LARAVEL-TOOLKIT.md`](../decisions/OWNER-DECISION-LARAVEL-TOOLKIT.md)):
+> artisan runs from Plesk's Laravel Toolkit, and the document root becomes
+> `ethr/api/public`. The release no longer carries `post-deploy.sh` or `httpdocs/`.
+> Measured on the same day: the database user allows only the web server's address, holds
+> **Trigger**, and the old probe is gone. **No gate status moved.**
+
 > ### 2026-10-04 — the deploy route exists in the repository; no gate moved
 >
 > GitHub now builds the release and publishes it to a `production` branch
