@@ -63,6 +63,7 @@ grep -q 'super admin owner@example.et is ready' "$WORK/out1" || fail "super admi
 [ -f "$HOST/httpdocs/index.php" ] && [ -f "$HOST/httpdocs/.htaccess" ] && [ -f "$HOST/httpdocs/index.html" ] \
   || fail "httpdocs was not published"
 [ -f "$HOST/ethr/api/bootstrap/cache/config.php" ] || fail "config was not cached"
+[ -f "$HOST/httpdocs/.user.ini" ] || fail "httpdocs/.user.ini (the PHP limits) was not published"
 pass "first deploy: key generated, migrated, admin created and file deleted, docroot published"
 
 # 3 — second deploy: the key must not move.

@@ -140,7 +140,10 @@ it('denies every path that must never be served', function () {
     // Each of these is a separate exposure. .env carries APP_KEY and the
     // database password; composer.json and composer.lock enumerate the
     // dependency surface; artisan and phpunit.xml should never be reachable.
-    foreach (['\.env', '\.git', 'composer\.', 'artisan', 'phpunit\.xml'] as $protected) {
+    // .user.ini sits in the document root on purpose — it carries the PHP
+    // limits the panel will not let the account set — and is configuration,
+    // not content.
+    foreach (['\.env', '\.git', 'composer\.', 'artisan', 'phpunit\.xml', '\.user\.ini'] as $protected) {
         expect($rule)->toContain($protected);
     }
 

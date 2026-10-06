@@ -49,9 +49,14 @@ workflow). It never deploys by itself — pressing **Deploy** in Plesk does.
 These are [`CUTOVER-CHECKLIST.md`](CUTOVER-CHECKLIST.md)'s known gaps, in its order.
 
 1. **Files → `httpdocs`** — delete the old probe `p-*.php` if it is still there.
-2. **Websites & Domains → `<APP_DOMAIN>` → PHP Settings** — PHP **8.3**; `memory_limit` **256M**,
-   `max_execution_time` **120**, `upload_max_filesize` **10M**, `post_max_size` **12M**; the
+2. **Websites & Domains → `<APP_DOMAIN>` → PHP Settings**: PHP **8.3**, and the
    extensions in [`PLESK-HOSTING-GUIDE.md`](PLESK-HOSTING-GUIDE.md) A1 (`gd` above all).
+   **The limits are not set here.** On this account the page shows them read-only, because
+   the provider has not granted the permission (panel reading, 2026-10-06). Every release
+   ships `httpdocs/.user.ini` with `memory_limit` **256M**, `max_execution_time` **120**,
+   `upload_max_filesize` **10M** and `post_max_size` **12M**, which is the override that page
+   names. `.htaccess` refuses to serve that file. The source is
+   [`scripts/shared-hosting/user.ini`](../../scripts/shared-hosting/user.ini).
 3. **Databases → User Management → `<DB_USER>`** — set a **new password** (the old one is in a
    chat transcript), and Access control → **Allow remote connections from** the web server's
    address, and nothing wider. **Not** *Allow local connections only*: the database runs on its

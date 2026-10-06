@@ -33,6 +33,11 @@ mandatory gate below reads `PASS`.**
 >    **120**, `upload_max_filesize` **10M**, `post_max_size` **12M** (above the upload limit,
 >    so a 10 MB file plus its form fields still fits). All four measured at stock defaults —
 >    128M / 30 / 2M / 8M — and all four fail the application's floor.
+>    **2026-10-06: the panel cannot do this.** It shows the four values read-only ("if the
+>    hosting provider grants you the corresponding permission"), and names `.user.ini` as
+>    the override. Every release now ships `httpdocs/.user.ini` with these values
+>    (`scripts/shared-hosting/user.ini`), and `.htaccess` denies it with `[F,L]`. **It is
+>    still unverified on the host.** The M2 re-run in step 4 is what proves the limits took.
 > 3. **Plesk → Databases → user `ethr` → Access control:** **Allow remote connections from
 >    `172.28.20.26`** only. *(Corrected 2026-10-06. This said "Allow local connections only".
 >    The database is on its own server, `10.180.50.142`, so "local" admits only that machine.

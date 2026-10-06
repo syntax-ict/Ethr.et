@@ -77,6 +77,10 @@ php "$REPO_ROOT/scripts/shared-hosting/render-htaccess.php" \
   --target=static-export --admin-host="$ADMIN_HOST" -o "$OUT/httpdocs/.htaccess"
 info "admin host: $ADMIN_HOST"
 
+# PHP limits: the panel shows them read-only on this account, and .user.ini is
+# the override it names. See scripts/shared-hosting/user.ini.
+cp "$REPO_ROOT/scripts/shared-hosting/user.ini" "$OUT/httpdocs/.user.ini"
+
 step "4. Deployment action"
 mkdir -p "$OUT/deploy"
 cp "$REPO_ROOT/scripts/shared-hosting/post-deploy.sh" "$OUT/deploy/post-deploy.sh"
@@ -101,6 +105,8 @@ LEAK="$(find "$OUT" \( -name '.env' -o -name '.env.local' -o -name '.env.product
 [ ! -d "$OUT/api/tests" ] || die "api/tests is in the release"
 [ -f "$OUT/httpdocs/.htaccess" ] || die "httpdocs/.htaccess is missing"
 [ -f "$OUT/httpdocs/index.html" ] || die "httpdocs/index.html is missing"
+grep -q '^memory_limit = 256M' "$OUT/httpdocs/.user.ini" 2>/dev/null || die "httpdocs/.user.ini is missing or lacks the memory_limit floor"
+grep -qF '\.user\.ini' "$OUT/httpdocs/.htaccess" || die "httpdocs/.htaccess does not deny .user.ini"
 grep -q '^#@' "$OUT/httpdocs/.htaccess" && die "httpdocs/.htaccess still has unrendered #@ lines"
 
 info "files: $(find "$OUT" -type f | wc -l | tr -d ' ')  size: $(du -sh "$OUT" | cut -f1)"
