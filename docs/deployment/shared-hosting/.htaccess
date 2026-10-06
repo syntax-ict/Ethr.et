@@ -60,7 +60,7 @@
     # document root in this layout (they live in ~/ethr, outside the document root
     # entirely) — a future document-root change or a misplaced file must not
     # silently become web-accessible.
-    RewriteRule ^(\.env.*|\.git|composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml)$ - [F,L]
+    RewriteRule ^(\.env.*|\.git|composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml|\.user\.ini)$ - [F,L]
 
     # Never serve storage/ or bootstrap/cache/ directly if either is ever
     # placed under this document root by mistake — Laravel's own public/
