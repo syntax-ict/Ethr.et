@@ -1,25 +1,453 @@
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
+# ETHR — Document root .htaccess for Ethio Telecom shared hosting (Plesk)
+#
+# THIS FILE IS A TEMPLATE, NOT THE DEPLOYED ARTIFACT. Render it:
+#
+#   php scripts/shared-hosting/render-htaccess.php --branch=b -o <DOCROOT>/.htaccess
+#
+# Lines carrying the sentinel `#@ ` are directives the renderer enables; every
+# other `#` line is prose it leaves alone. Do not hand-edit the result — see the
+# BRANCH B block below for the measured reason why.
+#
+# Goes at <DOCROOT>/.htaccess. Companion to the repointed <DOCROOT>/index.php.
+# <DOCROOT> is the served directory: `httpdocs/`, Plesk's default and the target
+# confirmed by measurement on 2026-09-24. See DEPLOYMENT.md "Deploy path".
+#
+# (Corrected 2026-09-25. These two lines used to end "It is NOT httpdocs/",
+# left over from when the target was believed to be `ethr.et/` — so the file
+# named httpdocs/ as the target and denied it in the next sentence. A
+# deployment file that contradicts itself about the document root is the one
+# place that mistake is expensive: the wrong answer web-serves ~/ethr/api/.env.)
+#
+# (see DEPLOYMENT.md step "Deploy the backend") — this file does the routing and
+# security work nginx did on the VPS, rewritten for what Apache/Plesk actually
+# offers on shared hosting. `infrastructure/nginx-common.conf` is where that
+# work came from historically; it was NOT a file this one had to be kept in sync
+# with, and it was deleted on 2026-09-27. See the response-headers section for
+# why that distinction was load-bearing — the nginx column of the CSP table
+# there is now a record rather than a live comparison.
+#
+# Layout this assumes:
+#   ~/ethr/              Laravel app — NOT web-accessible (not the document
+#                        root and not beneath it)
+#   <DOCROOT>/           document root — `httpdocs/` (Plesk default)
+#     index.php           copy of api/public/index.php, require paths repointed
+#     .htaccess           this file
+#     .well-known/        leave alone — ACME HTTP-01 challenge path
+#     _next/, assets, …   frontend static output, IF B5 says no Node runtime
+#
+# Two things this file cannot do that nginx did, and what replaces them:
+#   - Per-route rate limiting (nginx `limit_req`) — Laravel's own throttle
+#     middleware already covers every route CLAUDE.md's rate-limit policy
+#     lists (RateLimitLoginAttempts, AppServiceProvider's named limiters), so
+#     nothing is actually unenforced — it just moved from the edge to the app.
+#   - A separate WebSocket upgrade block for Reverb — moot, Reverb is not
+#     deployed here. BROADCAST_CONNECTION=null.
+#
+#     (Corrected 2026-09-27: this said `log`. On this target `log` is actively
+#     WRONG, not merely imprecise — it writes a line per broadcast against a fixed
+#     5 GB quota shared with the database and every uploaded document, and a full
+#     quota fails writes while reads keep succeeding. The authoritative plan states
+#     it as "→ null. Never `log`". config/broadcasting.php:40 defaults to `null`,
+#     api/.env.shared-hosting.example:105 sets `null`, and
+#     BroadcastConnectionConfigTest pins the unset case — so this comment was the
+#     only place in the deployment package still naming the wrong driver.)
 
+<IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Handle Authorization Header
+    # ── Security: deny everything that must never be served ────────────────
+    # Defence in depth even though .env/.git/vendor are NOT under this
+    # document root in this layout (they live in ~/ethr, outside the document root
+    # entirely) — a future document-root change or a misplaced file must not
+    # silently become web-accessible.
+    RewriteRule ^(\.env.*|\.git|composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml|\.user\.ini)$ - [F,L]
+
+    # Never serve storage/ or bootstrap/cache/ directly if either is ever
+    # placed under this document root by mistake — Laravel's own public/
+    # boundary is the only thing that should ever be reachable.
+    RewriteRule ^(storage|bootstrap/cache)(/|$) - [F,L]
+
+    # ── Handle Authorization Header ─────────────────────────────────────────
+    # Some Apache/FastCGI configurations drop the Authorization header before
+    # PHP sees it. Laravel's own default .htaccess (api/public/.htaccess)
+    # carries this same rule — kept identical rather than reinvented.
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
+    # ── Handle X-XSRF-Token Header ──────────────────────────────────────────
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
+    # ── ACME HTTP-01 challenge path — never rewrite this ────────────────────
+    # This is what makes the per-tenant TLS fallback work (B2) — see
+    # B1-B5_GATE_REPORT.md. Must resolve to a real file under .well-known/,
+    # untouched by anything below.
+    RewriteCond %{REQUEST_URI} ^/\.well-known/acme-challenge/ [NC]
+    RewriteRule ^ - [L]
 
-    # Send Requests To Front Controller...
+    # ── API and Sanctum routes → Laravel's front controller ─────────────────
+    # Laravel's own public/.htaccess pattern: rewrite to index.php UNLESS the
+    # request already matches a real file or directory. Since api/public/*
+    # (this file, index.php, favicon.ico, robots.txt) is now the whole
+    # document root alongside the frontend build, this single rule handles
+    # BOTH the API and Laravel's own static assets (favicon, robots.txt)
+    # correctly — a real file always wins over the rewrite.
+    RewriteCond %{REQUEST_URI} ^/(api|sanctum)(/|$) [NC]
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+
+    # ── Everything else → frontend ───────────────────────────────────────────
+    #
+    # ============================================================
+    # BRANCH A — Node.js runtime available (B5 = yes). ***NOT SELECTED.***
+    #
+    # The owner decided the STATIC EXPORT on 2026-09-27 — BRANCH B, below. See
+    # docs/decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md. The Plesk Node.js
+    # application is an extension, which SHARED-HOSTING-CONTRACT.md hard rule 2
+    # excludes, and the decision agrees with that rule rather than overriding it.
+    #
+    # MIND THE LETTERS. They read backwards from what most people guess:
+    #     BRANCH A = Plesk Node.js application   <-- this block, NOT selected
+    #     BRANCH B = static export via Apache    <-- selected
+    # A 2026-09-27 directive said "use Branch A: static-export", which are two
+    # different things. `render-htaccess.php --target=static-export` is the
+    # unambiguous spelling and the only one the deployment uses.
+    #
+    # If BRANCH A were ever chosen: DO NOT USE
+    # this .htaccess branch; delete this whole "Everything else"
+    # block instead and let Plesk's Node.js/Passenger integration
+    # own routing for every non-/api, non-/sanctum path. Passenger
+    # inserts its own front-controller rule ahead of this file when
+    # the Node.js app is enabled for the domain — a second catch-all
+    # rule here would conflict with it. See DEPLOYMENT.md "Frontend
+    # (Node.js path)".
+    # ============================================================
+    #
+    # ============================================================
+    # BRANCH B — static export served from this same document root.
+    # ***THIS IS THE PRODUCTION PATH — owner decision, 2026-09-27.***
+    #
+    # DO NOT UNCOMMENT THESE BY HAND. Run the renderer:
+    #
+    #   php scripts/shared-hosting/render-htaccess.php \
+    #       --target=static-export -o <DOCROOT>/.htaccess
+    #
+    # (`--branch=b` is the same thing and still works. Prefer --target: the
+    # letters are a trap, see the BRANCH A note above.)
+    #
+    # Every line below that is a directive to be enabled carries the
+    # sentinel `#@ ` instead of `# `. The renderer strips exactly that
+    # prefix and nothing else, so prose can never be promoted to a
+    # directive. That distinction is not academic: three lines in this
+    # very block begin with the words "Ordering", "Order matters" and
+    # "ErrorDocument," — and `Order` and `ErrorDocument` are real Apache
+    # directives, so a script matching on directive names uncomments
+    # English sentences. Apache 500s on that and `httpd -t` will not
+    # warn you, because it does not read .htaccess at all. That is
+    # exactly what happened on 2026-09-26; see docs/audit/BASELINE.md §21c.
+    #
+    # api/tests/Feature/SharedHostingHtaccessTest.php renders this file
+    # and asserts the result, so the sentinel set cannot drift from the
+    # rules the deployment needs.
+    #
+    # This is a client-side-routed SPA past the first
+    # paint (see D6 in docs/MIGRATION_STATE.md: 0 API routes, 0
+    # server actions, but middleware.ts's host-based rules must be
+    # reimplemented here — that is group 0, immediately below. It used to
+    # be further down; see the note in group 0 for why moving it was not
+    # cosmetic).
+    #
+    # REWRITTEN 2026-09-26, and the previous version would have 404'd
+    # every page on the site. It said "Next static export writes
+    # app/foo/page.tsx to /foo/index.html" and rewrote to
+    # $1/index.html. Measured against the pinned Next 16.3.5: the
+    # export writes out/features.html, not out/features/index.html.
+    # The /index.html form is what you get with trailingSlash: true,
+    # which next.config.ts does not set. See docs/audit/BASELINE.md
+    # §19; the rules below are the ones that were measured serving
+    # the real thing, not the ones that were reasoned about.
+    # ============================================================
+    #
+    # ── 0. middleware.ts's host-based rules, BRANCH B ONLY ───────
+    #
+    # src/src/middleware.ts refuses /admin on any host except
+    # admin.ethr.et, and redirects tenant routes (/dashboard, /employees,
+    # /attendance, /leave, /payroll, /organization, /directory, /devices,
+    # /shifts, /reports, /settings, /announcements, /approvals, /profile —
+    # the exact list in that file) away from the platform host. Under a
+    # static export the middleware never runs — Next says so itself during
+    # the build: "Statically exporting a Next.js application disables API
+    # routes and middleware." So this is the enforcement on that target,
+    # not a duplicate of one.
+    #
+    # MOVED HERE 2026-09-26, FROM BELOW THE FALLBACKS, WHERE IT COULD NEVER
+    # FIRE. It used to sit after group 2, and group 2 is
+    # "RewriteRule ^(.+)$ /$1.html [L]" — /admin matches it, admin.html
+    # exists, and [L] ends the round. Measured against a real export served
+    # under these rules: /admin on a tenant host returned 200, not 403. A
+    # deny rule placed after a catch-all is not a deny rule.
+    #
+    # Ordering is therefore load-bearing here, not stylistic. Group 0 before
+    # group 1.
+    #
+    # !-f is on the redirect deliberately: without it the platform host
+    # bounces its own static files — /robots.txt, /sitemap.xml, /og.png are
+    # none of them in the exclusion list below.
+    #
+    # admin\.ethr\.et IS A PLACEHOLDER, substituted by the renderer:
+    #
+    #   render-htaccess.php --target=static-export --admin-host=admin.<APP_DOMAIN>
+    #
+    # It used to be the literal `admin\.ethr\.et`, and that was a latent production
+    # defect rather than a tidiness matter. Deployed to any other domain, the second
+    # predicate below reads "deny /admin unless the host is admin.ethr.et" — so on the
+    # REAL admin host it denies too, and the platform console is unreachable. The first
+    # predicate simply never fires. Both failures are silent: the site works, /admin is
+    # 403, and nothing says why. Found 2026-09-28 while standing the rules up locally,
+    # where the host is localhost and /admin was 403 for exactly this reason.
+    #
+    # The renderer REQUIRES --admin-host and regex-escapes it. There is deliberately no
+    # default: defaulting to a domain is what produced the defect.
+    #
+    RewriteCond %{HTTP_HOST} ^admin\.ethr\.et$ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} !^/admin
+    RewriteCond %{REQUEST_URI} !^/(login|logout|_next|favicon\.ico|sw\.js|manifest)
+    RewriteRule ^ /admin/ [L,R=302]
+    #
+    RewriteCond %{HTTP_HOST} !^admin\.ethr\.et$ [NC]
+    RewriteRule ^admin(/|$) - [F,L]
+    #
+    # What this is and is not. It is a ROUTING control: it decides which
+    # host may reach the console's HTML. It is NOT the authorization
+    # boundary, and must never be mistaken for one — the console's data
+    # lives behind /api/v1/admin, where EnsurePlatformContext returns 404 on
+    # any host that resolves a tenant, Gate::authorize('admin.manage') is on
+    # every action, and RequirePlatformMfa is on the route group. Those three
+    # are what protect the data, they are server-side, and this migration
+    # does not touch them.
+    #
+    # ── 1. Entity routes: /employees/<ULID> and the other three ──
+    #
+    # Only one shell per route exists — out/employees/__id__.html —
+    # because ids are tenant data and there is nothing to enumerate
+    # at build time. These rules hand that shell to every id, and
+    # src/src/lib/hooks/useRouteId.ts reads the id back out of the
+    # URL. The four route prefixes are the four [id] segments in
+    # src/src/app; a fifth one needs a line here or it 404s.
+    #
+    # Order matters. ^…/[^/]+$ also matches "…/ABC.txt", so the RSC
+    # payload rule has to be reached first.
+    #
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(employees|payroll|devices|admin/tenants)/[^/]+/(__next\..*)$ /$1/__id__/$2 [L]
+    #
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(employees|payroll|devices|admin/tenants)/[^/]+\.txt$ /$1/__id__.txt [L]
+    #
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{DOCUMENT_ROOT}/$1/$2.html !-f
+    RewriteRule ^(employees|payroll|devices|admin/tenants)/([^/]+)$ /$1/__id__.html [L]
+    #
+    # THE SECOND CONDITION WAS ADDED 2026-09-27 AND WITHOUT IT SIX ROUTES WERE
+    # DEAD. This rule used to guard on `!-f` alone. For /employees/new,
+    # REQUEST_FILENAME is <DOCROOT>/employees/new — the exporter wrote
+    # employees/new.html, so that path is NOT a file, `!-f` passed, and the rule
+    # served the employee-DETAIL shell for the "Add employee" page. Then
+    # useRouteId read "new" out of the URL and fetched employee "new".
+    #
+    # Six static siblings live under these four prefixes: /employees/new,
+    # /employees/import, /payroll/cost-sharing, /payroll/loans,
+    # /payroll/payslips, /devices/dashboard. All six were affected.
+    #
+    # §21d's 20-of-20 matrix did not catch it because it tested
+    # /employees/<ULID> and never a static sibling under a dynamic prefix. The
+    # gate that found it is src/scripts/verify-static-export.mjs, on its first
+    # run — which is the argument for building the artifact in CI rather than
+    # once by hand.
+    #
+    # The fix mirrors group 2's own proven form: ask whether the real .html
+    # exists before falling back to the shell. $2 is the id segment, captured
+    # for that test — RewriteRule patterns are matched before the conditions are
+    # evaluated, which is what makes $N available here, and group 2 below has
+    # relied on exactly that since 2026-09-26.
+    #
+    # An `-f` test is the right mechanism rather than an exclusion list: a new
+    # static sibling needs no rule change, and cannot be forgotten.
+    #
+    # ── 2. Every other route: the export writes <path>.html ──────
+    #
+    # MEASURED ON REAL APACHE 2.4.58, 2026-09-26, AND THE FIRST VERSION
+    # OF THIS GROUP WAS BROKEN FOR MOST OF THE SITE.
+    #
+    # Next emits BOTH "admin.html" AND an "admin/" directory (for
+    # admin/tenants), and the same for dashboard, employees, login, en,
+    # am, settings, shifts — 20+ top-level routes. mod_dir then answers
+    # /admin with a 301 to /admin/ before this group is reached, and
+    # /admin/ matched "^(.+)$" as "admin/", looked for "admin/.html",
+    # found nothing and fell through to the 404. Measured: /admin -> 301
+    # -> /admin/ -> 404. Every such route was dead.
+    #
+    # Two lines fix it. DirectorySlash Off stops the 301, so /admin
+    # reaches this group and resolves to admin.html; "^(.+?)/?$" makes
+    # the explicit /admin/ form resolve too, so a typed or pasted
+    # trailing slash is not a 404.
+    #
+    # Disabling indexes is REQUIRED, not decorative: with DirectorySlash
+    # off, a directory request Apache cannot resolve would otherwise be
+    # eligible for an index listing.
+    #
+    # The earlier Node emulation of these rules passed 13/13 and could
+    # not have caught this — it did not model mod_dir. That is the whole
+    # argument for running them against a real Apache.
+    #
+    Options -Indexes
+    DirectorySlash Off
+    #
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+    RewriteRule ^(.+?)/?$ /$1.html [L]
+    #
+    # ── 3. Anything with no file behind it ───────────────────────
+    #
+    # ErrorDocument, not a rewrite. Measured 2026-09-26: the rewrite form
+    # served 404.html with HTTP **200**, because a rewrite is an internal
+    # substitution and does not change the status. Every unknown URL
+    # looked to a crawler — and to any monitoring — like a page that
+    # loaded. ErrorDocument serves the same file with a real 404, and
+    # needs no conditions because it only runs once nothing else matched.
+    #
+    ErrorDocument 404 /404.html
+    #
+    # ── Known, measured, and deliberately not worked around ──────
+    #
+    # A client-side navigation to an entity route also prefetches
+    # /employees/<id>/__next.employees.$d$id.__PAGE__.txt, and that
+    # 404s: Next asks for the segment with dots where the exporter
+    # wrote it with slashes. Group 1's first rule catches the other
+    # segment files; this one has no rule that can reach it without
+    # hardcoding a Next-internal filename per route, which would
+    # break silently on the next Next upgrade.
+    #
+    # The cost is one failed request per navigation, and nothing
+    # else: Next falls back to the full RSC payload, which group 1's
+    # second rule serves. Measured working in a browser — deep link,
+    # nested route, client-side navigation, back and forward — on
+    # 2026-09-26, with no hydration error. Do not "fix" this by
+    # pointing the 404 fallback at an entity shell; that would turn
+    # every genuine 404 into a page that looks like it loaded.
+
 </IfModule>
+
+# ── Response headers ─────────────────────────────────────────────────────
+#
+# THIS BLOCK IS THE AUTHORITY for shared hosting. Nothing else needs to agree
+# with it, and nothing else is checked against it.
+#
+# It used to say: "Mirrors infrastructure/nginx-common.conf's security headers.
+# Kept byte-identical in content (not just intent) so a security scan run
+# against this deployment matches the one already run against the VPS."
+#
+# **That was false when written, and measurably so — 2026-09-25.** The two CSPs
+# differ in seven places, and this file's own comment three lines below already
+# explained two of them, so the claim contradicted its own neighbour:
+#
+#   img-src          nginx: 'self' data: blob:        here: + https:
+#   font-src         nginx: 'self'                    here: + data:
+#   connect-src      nginx: 'self' wss:               here: no wss:
+#   frame-ancestors  nginx: absent                    here: 'none'
+#   base-uri         nginx: absent                    here: 'self'
+#   form-action      nginx: absent                    here: 'self'
+#   script-src       nginx: 'self'                    here: + 'unsafe-inline'
+#
+# (Six until 2026-09-26. `script-src` is the seventh and it is the one that goes
+# the OTHER way — see below.)
+#
+# Every difference is deliberate, and this file is the stricter of the two in six
+# of the seven: it adds the three clickjacking/injection directives nginx never
+# carried, and drops `wss:` because Reverb is not deployed here. So the sync
+# obligation was not merely unmet — meeting it would have LOOSENED this
+# deployment on those six.
+#
+# **`script-src` is the exception, and it must not be read past.** This file
+# allows `'unsafe-inline'` and nginx does not, so on that one directive this is
+# the LOOSER of the two. It is not a preference: a static export has no server to
+# mint a nonce, and the build emits three un-nonced inline scripts — measured, the
+# strict form leaves the application unable to hydrate at all. The reasoning is at
+# the directive itself. A reviewer comparing the two files should expect this row
+# to differ and should check that no OTHER row has drifted the same way.
+#
+# The practical consequence, and the reason this is spelled out rather than
+# quietly corrected: a VPS security scan does not transfer here. Scan this
+# deployment. And `infrastructure/nginx-common.conf` was deleted on 2026-09-27
+# without touching this file — which is exactly what the sync claim had been
+# preventing.
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
+
+    # img-src widened for tenant branding logos (PUT /settings/branding
+    # stores a URL, rendered straight into <img src> across the sidebar,
+    # header, mobile nav and kiosk) — same reasoning as next.config.ts's CSP.
+    # connect-src has no wss: — Reverb is not deployed here.
+    # script-src needs 'unsafe-inline', and this is the measurement that says so
+    # rather than an assumption — 2026-09-26, a real `output: "export"` build
+    # served under these exact headers:
+    #
+    #   script-src 'self'                  3 CSP violations per page, React error
+    #                                      #412, nothing hydrates. /employees/<id>
+    #                                      sits on "በመጫን ላይ..." forever and / never
+    #                                      negotiates a language. The HTML still
+    #                                      renders, so it looks like a broken app
+    #                                      rather than a header problem.
+    #   script-src 'self' 'unsafe-inline'  0 violations, 0 hydration errors, every
+    #                                      route renders and navigates.
+    #
+    # The build emits three inline <script> blocks — ~13 KB, the theme bootstrap
+    # plus the RSC payload — and Next does not nonce them. There is no way to
+    # allow those and keep the directive strict; a nonce needs a server to mint
+    # one per response, which is the thing this target does not have.
+    #
+    # 'unsafe-eval' is deliberately NOT here, even though `next.config.ts` grants
+    # it on the Node targets. Measured: zero violations without it, so the
+    # production bundle does not need it. This policy is tighter than the VPS's,
+    # not looser, and should stay that way.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+# ── Static asset caching ──────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)$">
+        ExpiresDefault "access plus 1 year"
+        Header set Cache-Control "public, immutable"
+    </FilesMatch>
+</IfModule>
+
+# ── PHP execution time for the payroll/import routes ─────────────────────
+# 120s, because Apache/PHP-FPM here has ONE execution-time budget for the whole
+# vhost and the payroll and import routes are the ones that need the most. This
+# layer cannot express a route-specific override, so the highest figure wins.
+#
+# (Historically: nginx gave /api/v1/payroll and /api/v1/employees/import 120s
+# and everything else 30s. That is where the number comes from; it is not a
+# constraint this file inherits.)
+#
+# (Corrected 2026-09-25. This ended "and rely on Horizon's `payroll` queue
+# timeout (1800s, config/horizon.php) no longer applying". **There is no
+# Horizon.** It was removed in cdf85d1: `laravel/horizon` appears zero times in
+# api/composer.lock and api/config/horizon.php does not exist — both measured
+# today. There is also no `payroll` queue; QueueHealth::QUEUES is default,
+# attendance, notifications, exports. The sentence reasoned about a timeout in
+# a config file that has not existed for weeks.)
+<IfModule mod_php.c>
+    php_value max_execution_time 120
+</IfModule>
+# If PHP runs as PHP-FPM/CGI rather than mod_php (verify with B4), set the
+# same value in Plesk → PHP Settings instead; php_value directives are
+# silently ignored under FPM and Plesk logs nothing when they are.

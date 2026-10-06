@@ -1,2 +1,12 @@
-User-agent: *
-Disallow:
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Host: https://ethr.et
+Sitemap: https://ethr.et/sitemap.xml
