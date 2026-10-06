@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { server } from "./msw/server";
 import { SidebarNav } from "@/components/layouts/sidebar-nav";
 import { getRouteMeta } from "@/lib/route-meta";
 
@@ -81,6 +83,40 @@ describe("sidebar navigation for the platform super admin", () => {
     expect(
       screen.queryByRole("link", { name: /^payroll runs$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("never asks the tenant manager dashboard for approval badges", async () => {
+    // isSupervisor is a level check, and a super admin clears it while belonging
+    // to no tenant: the badge query fired and the API answered 403 on every page
+    // of the console (local production rehearsal, 2026-10-06). Same shape as the
+    // onboarding query above it in sidebar-nav.tsx.
+    let calls = 0;
+    server.use(
+      http.get("*/api/v1/dashboard/manager", () => {
+        calls += 1;
+        return HttpResponse.json({}, { status: 403 });
+      }),
+    );
+
+    renderNav();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(calls).toBe(0);
+  });
+
+  it("still fetches approval badges for a tenant admin who supervises", async () => {
+    role.value = "tenant_admin";
+    let calls = 0;
+    server.use(
+      http.get("*/api/v1/dashboard/manager", () => {
+        calls += 1;
+        return HttpResponse.json({ pending_approvals: { total: 0 } });
+      }),
+    );
+
+    renderNav();
+
+    await waitFor(() => expect(calls).toBe(1));
   });
 
   it("still gives a tenant admin the full tenant navigation", () => {

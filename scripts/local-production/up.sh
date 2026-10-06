@@ -45,8 +45,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT="$REPO_ROOT/.local-production"
-APP_ROOT="$ROOT/app"          # mirrors ~/ethr on the host — NOT web accessible
-DOCROOT="$ROOT/docroot"       # mirrors httpdocs/
+RELEASE="$ROOT/release"       # what CI publishes to the `production` branch
+APP_ROOT="$ROOT/app"          # mirrors ~/ethr on the host: Plesk Git's deploy path
+DOCROOT="$APP_ROOT/api/public" # mirrors the host's document root, ethr/api/public
 APACHE_DIR="$ROOT/apache"
 
 XAMPP="${XAMPP:-/c/xampp}"
@@ -111,30 +112,34 @@ if netstat -ano 2>/dev/null | grep -q "LISTENING" && netstat -ano 2>/dev/null | 
 fi
 info "port $PORT is free"
 
-step "1. Isolated application root (mirrors ~/ethr)"
+step "1. The release — the same tree CI publishes to \`production\`"
 
-# A COPY, not the working tree. `config:cache` writes bootstrap/cache/config.php,
-# and a production config cached into the repo would break `gates.sh` until someone
-# noticed. Copying is slower and cannot do that.
-mkdir -p "$APP_ROOT"
-if [ -d "$APP_ROOT/api" ]; then
-    info "reusing $APP_ROOT/api (delete .local-production to start clean)"
+# REWRITTEN 2026-10-06. This step used to copy api/ out of the working tree, and
+# step 6 assembled a separate document root with a repointed index.php. Two
+# things were wrong with that. It rehearsed a layout production no longer uses:
+# the host's document root is ethr/api/public (owner decision, Laravel Toolkit).
+# And it REUSED the copy whenever one existed, so a green 36/36 could be about
+# code weeks old. That was a known trap.
+#
+# Now it builds the release with the script CI uses, from COMMITTED files
+# (uncommitted edits to api/ are not in it, exactly as on the host), and deploys
+# it over the app root the way Plesk Git does: files are written, and .env and
+# storage/ are left alone.
+#
+# A COPY, still, not the working tree: the config:cache below must never land in
+# the repository's bootstrap/cache, where it would break `gates.sh`.
+if [ "$BUILD" = true ] || [ ! -d "$RELEASE/api" ]; then
+    ETHR_ADMIN_HOST="$ADMIN_HOST" bash "$REPO_ROOT/scripts/shared-hosting/build-release.sh" "$RELEASE" \
+        2>&1 | grep -E '━━━|REFUSING|files:|ready' | sed 's/^/  /'
+    [ -f "$RELEASE/api/public/index.php" ] || die "build-release.sh did not produce a release"
 else
-    info "copying api/ -> $APP_ROOT/api (vendor included; this takes a minute)"
-    # No .env, no .git, no dev caches — the same exclusions the release tarball uses.
-    tar -cf - --force-local \
-        --exclude='api/.env' \
-        --exclude='api/.git' \
-        --exclude='api/storage/logs/*' \
-        --exclude='api/storage/framework/cache/*' \
-        --exclude='api/storage/framework/sessions/*' \
-        --exclude='api/storage/framework/views/*' \
-        --exclude='api/.phpunit.result.cache' \
-        -C "$REPO_ROOT" api | tar -xf - --force-local -C "$APP_ROOT"
+    info "reusing the release in $RELEASE (--no-build)"
 fi
+info "release: $(sed -n 's/^commit=//p' "$RELEASE/RELEASE" | cut -c1-12)"
 
-mkdir -p "$APP_ROOT/api/storage/framework/"{cache,sessions,views} \
-         "$APP_ROOT/api/storage/logs" "$APP_ROOT/api/bootstrap/cache"
+mkdir -p "$APP_ROOT"
+cp -R "$RELEASE/." "$APP_ROOT/"
+info "deployed over $APP_ROOT (.env and storage/ kept)"
 
 step "2. Database ($DB_NAME) — dedicated to the rehearsal"
 
@@ -191,28 +196,49 @@ step "3. Environment — from api/.env.shared-hosting.example, the Bronze templa
 
 ENV_FILE="$APP_ROOT/api/.env"
 
+FRESH_ENV=false
 if [ -f "$ENV_FILE" ]; then
-    info "reusing the existing .env (APP_KEY preserved)"
+    info "reusing the existing .env (APP_KEY and CRON_TOKEN preserved)"
 else
     cp "$REPO_ROOT/api/.env.shared-hosting.example" "$ENV_FILE"
+    FRESH_ENV=true
+fi
 
-    # Fill only what the template marks REQUIRED, with local values.
-    #
-    # APP_URL carries the port: Laravel builds signed URLs from it, and
-    # FileStorageService serves every document through a signed temporaryUrl(), so
-    # a wrong APP_URL breaks file access in a way that looks like a storage fault.
-    python - "$ENV_FILE" "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASS" "$PORT" <<'PY'
+# The local values, applied on EVERY run, so a reused .env cannot keep a stale or
+# broken one. APP_KEY is never touched here, and CRON_TOKEN only when the file is new.
+#
+# APP_URL carries the port: Laravel builds signed URLs from it, and
+# FileStorageService serves every document through a signed temporaryUrl(), so a
+# wrong APP_URL breaks file access in a way that looks like a storage fault.
+#
+# The last three are what this plain-HTTP harness on localhost needs and production
+# must NOT have. Without them, sign-in answered 200 and the next /auth/me answered 401
+# (measured 2026-10-06): the session cookie was Secure on HTTP, and Sanctum did not
+# treat localhost as a first-party origin.
+python - "$ENV_FILE" "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASS" "$PORT" "$FRESH_ENV" <<'PY'
 import io, re, sys, secrets
-path, dbhost, dbport, dbname, dbuser, dbpass, port = sys.argv[1:8]
+path, dbhost, dbport, dbname, dbuser, dbpass, port, fresh = sys.argv[1:9]
 s = io.open(path, encoding='utf-8').read()
 
+# Replace the VALUE and keep any inline comment, separated by whitespace.
+# FIXED 2026-10-06: the old pattern swallowed the space before ` # comment`, which
+# left `APP_URL=http://localhost:8081# [shared-hosting] ...`. Without that space,
+# dotenv reads the comment as part of the value, so APP_URL was the URL plus the
+# comment text.
+#
+# A comment with NO space before it (written by that old version) is repaired, not
+# duplicated: the line still matches, and the space goes back in.
 def setkey(text, key, value):
-    pat = re.compile(r'^(%s=)([^\n#]*)' % re.escape(key), re.M)
+    pat = re.compile(r'^%s=[^#\n]*?([^\S\n]*)(#[^\n]*)?$' % re.escape(key), re.M)
     if pat.search(text):
-        return pat.sub(lambda m: m.group(1) + value, text, count=1)
+        def repl(m):
+            comment = m.group(2) or ''
+            gap = (m.group(1) or ' ') if comment else ''
+            return '%s=%s%s%s' % (key, value, gap, comment)
+        return pat.sub(repl, text, count=1)
     return text.rstrip('\n') + '\n%s=%s\n' % (key, value)
 
-for k, v in [
+pairs = [
     ('APP_ENV', 'production'),
     ('APP_DEBUG', 'false'),
     ('APP_URL', 'http://localhost:%s' % port),
@@ -222,15 +248,20 @@ for k, v in [
     ('DB_DATABASE', dbname),
     ('DB_USERNAME', dbuser),
     ('DB_PASSWORD', dbpass),
+    ('SESSION_SECURE_COOKIE', 'false'),
+    ('SANCTUM_STATEFUL_DOMAINS', 'localhost:%s,*.localhost:%s' % (port, port)),
+]
+if fresh == 'true':
     # A fresh 32-byte token. Below 32 chars VerifyCronToken 404s the routes.
-    ('CRON_TOKEN', secrets.token_hex(32)),
-]:
+    pairs.append(('CRON_TOKEN', secrets.token_hex(32)))
+for k, v in pairs:
     s = setkey(s, k, v)
 
 io.open(path, 'w', encoding='utf-8', newline='').write(s)
 PY
-    info "wrote $ENV_FILE"
+info "local values applied to $ENV_FILE"
 
+if [ "$FRESH_ENV" = true ]; then
     # A FRESH key. Never the one in git history (START_BACKEND.ps1, removed in
     # 090ca50) — CUTOVER-CHECKLIST.md's rotation note requires exactly this.
     (cd "$APP_ROOT/api" && php artisan key:generate --force --no-interaction >/dev/null)
@@ -248,50 +279,21 @@ step "4. Migrate — this exercises the audit-log CREATE TRIGGER on MariaDB"
 info "triggers now on audit_log:"
 "$MYSQL" -u root -N -e "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_TABLE='audit_log' AND TRIGGER_SCHEMA='$DB_NAME';" | sed 's/^/    /'
 
-step "5. Frontend — the Bronze static export"
+step "5. Caches — the Toolkit's last three Artisan commands on the host"
 
-if [ "$BUILD" = true ]; then
-    (cd "$REPO_ROOT/src" && npm run build:shared-hosting 2>&1 | tail -4 | sed 's/^/  /')
-else
-    info "skipped (--no-build)"
-fi
-[ -d "$REPO_ROOT/src/out" ] || die "src/out is missing — run without --no-build"
+(cd "$APP_ROOT/api" && php artisan config:cache --no-interaction >/dev/null \
+    && php artisan route:cache --no-interaction >/dev/null \
+    && php artisan view:cache --no-interaction >/dev/null) || die "caching failed"
+info "config, routes and views cached"
 
-step "6. Assemble the document root (DEPLOYMENT.md §4a)"
+step "6. Document root — the release's api/public, as on the host"
 
-rm -rf "$DOCROOT"
-mkdir -p "$DOCROOT"
-
-# The exported site.
-cp -r "$REPO_ROOT/src/out/." "$DOCROOT/"
-
-# The three files §4a names. index.php is Laravel's front controller with its two
-# require paths repointed at <APP_ROOT>/api — the "three lines, not two" §4a warns
-# about is that `$app->handleRequest` needs no change but BOTH requires do, plus
-# the maintenance-mode include above them.
-cp "$REPO_ROOT/api/public/favicon.ico" "$DOCROOT/" 2>/dev/null || true
-cp "$REPO_ROOT/api/public/robots.txt" "$DOCROOT/robots-laravel.txt" 2>/dev/null || true
-
-python - "$REPO_ROOT/api/public/index.php" "$DOCROOT/index.php" <<'PY'
-import io, re, sys
-src, dst = sys.argv[1], sys.argv[2]
-s = io.open(src, encoding='utf-8').read()
-# ../vendor/autoload.php  ->  ../app/api/vendor/autoload.php  (and bootstrap/app.php,
-# and storage/framework/maintenance.php). Rewriting __DIR__.'/../' is the whole edit.
-s2, n = re.subn(r"__DIR__\s*\.\s*'/\.\./", "__DIR__.'/../app/api/", s)
-io.open(dst, 'w', encoding='utf-8', newline='').write(s2)
-print("  index.php repointed: %d require path(s) rewritten" % n)
-if n < 2:
-    raise SystemExit("  REFUSING: expected at least 2 rewrites; api/public/index.php changed shape")
-PY
-
-# The rendered .htaccess — generated, never hand-edited.
-php "$REPO_ROOT/scripts/shared-hosting/render-htaccess.php" \
-    --target=static-export --admin-host="$ADMIN_HOST" \
-    -o "$DOCROOT/.htaccess" 2>&1 | sed 's/^/  /'
+# Nothing is assembled here any more: the release already holds the static export,
+# Laravel's own index.php, the rendered .htaccess and .user.ini in api/public.
+[ -f "$DOCROOT/index.php" ] && [ -f "$DOCROOT/index.html" ] && [ -f "$DOCROOT/.htaccess" ] \
+    || die "$DOCROOT is not a complete document root"
 info "admin host: $ADMIN_HOST   (localhost:$PORT is a TENANT host)"
-
-info "docroot: $(find "$DOCROOT" -type f | wc -l) files"
+info "docroot: $DOCROOT ($(find "$DOCROOT" -type f | wc -l) files)"
 
 step "7. Apache — dedicated instance, XAMPP's own config untouched"
 
@@ -377,9 +379,9 @@ DocumentRoot "$W_DOCROOT"
     Require all granted
 </Directory>
 
-# <APP_ROOT> must never be reachable over HTTP. On the host this holds by
-# construction because ~/ethr is not under httpdocs; here the two are siblings, so
-# the boundary is asserted rather than assumed.
+# Everything in <APP_ROOT> except the document root must be unreachable. Apache
+# merges <Directory> sections from the shortest path to the longest, so the grant
+# on api/public above wins inside it, and this deny holds everywhere else.
 <Directory "$W_APP_ROOT">
     Require all denied
 </Directory>

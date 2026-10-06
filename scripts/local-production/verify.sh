@@ -75,7 +75,9 @@ printf '\n\033[1m3 · static siblings under a dynamic prefix — the §22b defec
 # the same <head> scaffolding, so it reported all six as regressions when all six were
 # correct. A check that cannot distinguish what it claims to test is the emulator
 # passing 13/13 one level up.
-DOCROOT_DIR="${DOCROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/.local-production/docroot}"
+# The host's document root is ethr/api/public (2026-10-06), so the rehearsal's is
+# the release's api/public too.
+DOCROOT_DIR="${DOCROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/.local-production/app/api/public}"
 
 for r in employees/new employees/import payroll/loans payroll/payslips payroll/cost-sharing devices/dashboard; do
     want="$DOCROOT_DIR/$r.html"
@@ -119,6 +121,8 @@ check "/.env"                                 "403" "$BASE/.env"
 check "/composer.json"                        "403" "$BASE/composer.json"
 check "/artisan"                              "403" "$BASE/artisan"
 check "/storage/anything"                     "403" "$BASE/storage/secret.txt"
+# .user.ini sits in the document root on purpose (the PHP limits) and is config.
+check "/.user.ini"                            "403" "$BASE/.user.ini"
 
 printf '\n\033[1m6 · the /admin host boundary — routing, not authorization\033[0m\n'
 check "/admin from a tenant host"             "403" -H "Host: $TENANT_HOST" "$BASE/admin"
@@ -144,8 +148,19 @@ else
     printf '  \033[31mFAIL\033[0m  %-52s the export will not hydrate\n' "CSP script-src"; fail=$((fail+1))
 fi
 
+swh="$(curl -sI --max-time 15 "$BASE/sw.js" || true)"
+if printf '%s' "$swh" | grep -qi '^Cache-Control:.*no-cache' && ! printf '%s' "$swh" | grep -qi 'immutable'; then
+    printf '  \033[32mok\033[0m    %-52s no-cache, not immutable\n' "/sw.js caching"; pass=$((pass+1))
+else
+    printf '  \033[31mFAIL\033[0m  %-52s %s\n' "/sw.js caching" "$(printf '%s' "$swh" | grep -i '^Cache-Control' | tr -d '\r')"; fail=$((fail+1))
+fi
+
 printf '\n\033[1m9 · the application root is not web-reachable\033[0m\n'
-check "../app/api/.env via traversal"         "40[0-9]" "$BASE/../app/api/.env"
+# With the document root at api/public, .env is ONE level up: the closest it has
+# ever been. Encoded and plain traversal must both fail to reach it.
+check "/../.env via traversal"                "40[0-9]" --path-as-is "$BASE/../.env"
+check "/%2e%2e/.env via encoded traversal"    "40[0-9]" --path-as-is "$BASE/%2e%2e/.env"
+contains "/api/v1/ping answers from api/public" '"status":"ok"' "$BASE/api/v1/ping"
 
 printf '\n\033[1m━━━ %d passed, %d failed\033[0m\n' "$pass" "$fail"
 

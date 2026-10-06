@@ -35,8 +35,8 @@ breaks silently on a different domain.
 |---|---|---|
 | **Web server** | XAMPP Apache 2.4.58, port **8081**, its own config | Plesk Apache behind nginx, port 443 |
 | **PHP** | `mod_cgi` + `Action` → `php-cgi` (`cgi-fcgi`) | **`fpm-fcgi`** — measured on the host |
-| **Document root** | `.local-production/docroot/` | `<DOCROOT>` — `httpdocs/`, the Plesk default. **Never change that field** |
-| **App root** | `.local-production/app/api/` | `<APP_ROOT>` — `~/ethr/`, **above** the document root |
+| **Document root** | `.local-production/app/api/public/` | `ethr/api/public` — set on purpose since 2026-10-06 (Laravel Toolkit). **Exactly that value: `ethr` or `ethr/api` would serve `.env`** |
+| **App root** | `.local-production/app/` — the release, deployed over it | `<APP_ROOT>` — `~/ethr/`, Plesk Git's deploy path; the document root is its `api/public` |
 | **Database** | MariaDB 10.4.32, `ethr_local_prod` / `ethr_localprod` | `<DB_NAME>` / `<DB_USER>`, version **unverified (G0-I)** |
 | **Admin host** | `admin.localhost:8081` | `admin.<APP_DOMAIN>` |
 | **`APP_URL`** | `http://localhost:8081` | `https://<APP_DOMAIN>` |
@@ -44,8 +44,9 @@ breaks silently on a different domain.
 | **Scheduler** | run by hand (below) | GitHub Actions, once two secrets exist |
 | **TLS** | none | Plesk-issued; wildcard binding is **M3**, open |
 
-**Identical in both:** the rendered `.htaccess` rules, the document-root assembly, the
-repointed `index.php`, the static export, `QUEUE_CONNECTION`/`CACHE_STORE`/
+**Identical in both:** the release tree itself (`scripts/shared-hosting/build-release.sh`,
+built from committed files, the same script CI publishes with). That includes the
+rendered `.htaccess`, `.user.ini`, Laravel's own `index.php` and the static export, plus `QUEUE_CONNECTION`/`CACHE_STORE`/
 `SESSION_DRIVER=database`, `BROADCAST_CONNECTION=null`, `FILESYSTEM_DISK=local`, and
 the audit-log triggers. Those are the things worth rehearsing; the rest is plumbing.
 
@@ -64,7 +65,7 @@ php scripts/shared-hosting/render-htaccess.php \
 
 # local — up.sh does this for you
 php scripts/shared-hosting/render-htaccess.php \
-    --target=static-export --admin-host=admin.localhost:8081 -o .../docroot/.htaccess
+    --target=static-export --admin-host=admin.localhost:8081 -o .../api/public/.htaccess
 ```
 
 Include the port if requests carry one: the predicate anchors on the whole `Host`
