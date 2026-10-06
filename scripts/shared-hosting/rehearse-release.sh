@@ -24,7 +24,9 @@ REL="$(cd "${1:?usage: rehearse-release.sh <release-dir>}" && pwd)"
 WORK="$(mktemp -d)"
 SERVER_PID=""
 cleanup() {
-  if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null; fi
+  # `wait` on a killed server returns 143, and under `set -e` that would become
+  # the script's exit status after a passing rehearsal (CI, 2026-10-06).
+  if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
   rm -rf "$WORK" 2>/dev/null || true
 }
 trap cleanup EXIT
