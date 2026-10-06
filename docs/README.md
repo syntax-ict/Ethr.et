@@ -85,7 +85,8 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 
 | Document | What it is |
 |---|---|
-| [`deployment/PLESK-HOSTING-GUIDE.md`](deployment/PLESK-HOSTING-GUIDE.md) | **Start here if you have the panel open.** The owner's end-to-end guide: what to configure, in what order, and the one step that has no route |
+| [`deployment/PLESK-GO-LIVE.md`](deployment/PLESK-GO-LIVE.md) | **Start here to deploy.** The GitHub → Plesk Git route: GitHub settings, the panel prerequisites, the Plesk Git fields, the first two deploys, then verification |
+| [`deployment/PLESK-HOSTING-GUIDE.md`](deployment/PLESK-HOSTING-GUIDE.md) | **The field-by-field panel reference.** The owner's end-to-end guide: what to configure, in what order, and the one step that has no route |
 | [`deployment/VPS-DECOMMISSION.md`](deployment/VPS-DECOMMISSION.md) | When the VPS assets come out, and the five that must **not** — two are load-bearing for the Plesk target |
 | [`deployment/GATE-0-RESULT.md`](deployment/GATE-0-RESULT.md) | Hosting verification — the authoritative capability register. *(Corrected 2026-09-25: this said "all rows `NOT VERIFIED`". Phase 1 verified five and re-graded PHP from panel-read to measured; the register itself is unmodified, with the new readings in [`audit/BRONZE-BLOCKER-RESOLUTION.md`](audit/BRONZE-BLOCKER-RESOLUTION.md).)* |
 | [`deployment/PLESK-SETUP.md`](deployment/PLESK-SETUP.md) | **What the repository handles vs what you click in Plesk.** Extensions, env file, database, Git path |

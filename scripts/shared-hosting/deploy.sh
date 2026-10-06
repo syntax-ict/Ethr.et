@@ -217,13 +217,16 @@ step "5. Post-deploy commands (Plesk Git 'additional deployment actions')"
 #
 # Order is load-bearing: key:generate before migrate, because the migration writes
 # encrypted columns; caches last, because they capture config that must be final.
+#
+# SUPERSEDED 2026-10-04 by scripts/shared-hosting/post-deploy.sh, and the list
+# that stood here must not be pasted anywhere. Plesk runs deployment actions on
+# EVERY deploy, so `key:generate --force` replaced APP_KEY on the second one —
+# every `encrypted` column unreadable — and `ethr:create-admin` prompted for
+# input no deployment action can give. post-deploy.sh generates the key only
+# when .env has none, creates the admin only from a one-shot file, and is
+# rehearsed twice per release by scripts/shared-hosting/rehearse-release.sh.
 cat <<'ACTIONS'
-  cd ~/ethr/api && php artisan key:generate --force
-  cd ~/ethr/api && php artisan migrate --force
-  cd ~/ethr/api && php artisan ethr:create-admin
-  cd ~/ethr/api && php artisan config:cache
-  cd ~/ethr/api && php artisan route:cache
-  cd ~/ethr/api && php artisan view:cache
+  bash deploy/post-deploy.sh
 ACTIONS
 echo
 echo "  NOT in that list, deliberately:"

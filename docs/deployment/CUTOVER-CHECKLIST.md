@@ -63,6 +63,17 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-04 — the deploy route exists in the repository; no gate moved
+>
+> GitHub now builds the release and publishes it to a `production` branch
+> ([`release.yml`](../../.github/workflows/release.yml)), and Plesk Git's one deployment
+> action is `bash deploy/post-deploy.sh`. Every release is deployed twice in CI on a throwaway
+> layout, and the rehearsal fails if `APP_KEY` changes on the second deploy. The old printed
+> action list ran `key:generate --force` on every deploy, which would have made every
+> encrypted column unreadable from the second deploy on. The owner's procedure is
+> [`PLESK-GO-LIVE.md`](PLESK-GO-LIVE.md). **That is repository work.** None of the host gates
+> above changed, and `CUTOVER READY` is still **NO**.
+
 Five states, and they are not interchangeable:
 
 | State | Means |

@@ -1,0 +1,118 @@
+name: Plesk release (production branch)
+
+# Builds the tree Plesk Git deploys and publishes it to the `production` branch.
+#
+# THE ROUTE: local -> GitHub `main` -> this workflow -> `production` -> Plesk Git
+# pulls `production` into <APP_ROOT> (~/ethr/) and runs `bash deploy/post-deploy.sh`.
+# The host has no shell, no Node application and no guaranteed Composer, so it
+# cannot build anything; the branch it pulls has to be the finished release.
+# What is in it, and why: scripts/shared-hosting/build-release.sh.
+#
+# WHEN IT PUBLISHES. Only after "Quality gates" has passed on a push to `main`,
+# or when run by hand. A pull request that touches the release machinery gets
+# the same build and the same two-deploy rehearsal, and publishes nothing.
+#
+# WHAT IT DOES NOT DO: deploy. Publishing moves a branch. Nothing reaches
+# <APP_DOMAIN> until someone presses Deploy in Plesk Git (or enables its
+# automatic deployment), which keeps going live a deliberate act.
+#
+# The branch only ever moves forward: each release is a new commit whose parent
+# is the previous release, never a force-push, so a Plesk pull is always a
+# fast-forward and `production`'s history is the deployment history.
+
+on:
+  workflow_run:
+    workflows: ["Quality gates"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/shared-hosting/**"
+      - ".github/workflows/release.yml"
+      - "api/.env.shared-hosting.example"
+      - "api/public/index.php"
+      - "docs/deployment/shared-hosting/.htaccess"
+
+concurrency:
+  group: plesk-release-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build, rehearse and publish
+    # A workflow_run fires on every completion; only a green push to main publishes.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' }}
+      # The platform console host, which render-htaccess.php needs: every other
+      # host gets /admin denied. A repository variable, not a literal (HARD RULE 2).
+      # A pull request builds against a throwaway value, as the htaccess-rules job does.
+      ETHR_ADMIN_HOST: ${{ github.event_name == 'pull_request' && 'admin.ci.invalid' || vars.ETHR_ADMIN_HOST }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Refuse to publish without the admin host
+        if: env.PUBLISH == 'true' && env.ETHR_ADMIN_HOST == ''
+        run: |
+          echo "::error::Set the repository variable ETHR_ADMIN_HOST (Settings > Secrets and variables > Actions > Variables), e.g. admin.<APP_DOMAIN>."
+          exit 1
+
+      # The host runs PHP 8.3 (panel reading); build vendor/ against the same minor.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src
+        run: npm ci
+
+      - name: Build the release tree
+        run: scripts/shared-hosting/build-release.sh "$RUNNER_TEMP/release"
+
+      - name: Rehearse two deploys of it
+        run: scripts/shared-hosting/rehearse-release.sh "$RUNNER_TEMP/release"
+
+      - name: Publish to the production branch
+        if: env.PUBLISH == 'true'
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin "+refs/heads/production:refs/remotes/origin/production" 2>/dev/null || true
+
+          # Stage the release tree in a private index. -f because the tree holds
+          # files the source .gitignore excludes on purpose — vendor/ above all.
+          export GIT_INDEX_FILE="$RUNNER_TEMP/release.index"
+          git -C "$RUNNER_TEMP/release" --git-dir="$GITHUB_WORKSPACE/.git" --work-tree=. add -A -f .
+          TREE="$(git write-tree)"
+
+          PARENT="$(git rev-parse -q --verify refs/remotes/origin/production || true)"
+          COMMIT="$(git commit-tree "$TREE" ${PARENT:+-p "$PARENT"} \
+            -m "release: ${SOURCE_SHA:0:12}" \
+            -m "Built from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${SOURCE_SHA} by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}.")"
+          git push origin "$COMMIT:refs/heads/production"
+          echo "production -> $COMMIT (source ${SOURCE_SHA})" >> "$GITHUB_STEP_SUMMARY"
