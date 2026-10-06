@@ -427,6 +427,12 @@
         ExpiresDefault "access plus 1 year"
         Header set Cache-Control "public, immutable"
     </FilesMatch>
+    # The service worker keeps one name and changes in place, so it must not
+    # inherit "immutable" from the rule above. Later <Files> sections win.
+    <Files "sw.js">
+        ExpiresDefault "access"
+        Header set Cache-Control "no-cache"
+    </Files>
 </IfModule>
 
 # ── PHP execution time for the payroll/import routes ─────────────────────
