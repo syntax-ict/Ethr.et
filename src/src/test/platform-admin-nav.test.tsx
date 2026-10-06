@@ -133,9 +133,12 @@ describe("route metadata for detail pages", () => {
   it("never turns an opaque record id into a page heading", () => {
     // The last URL segment used to become the <h1> unconditionally, so every
     // detail route rendered a 26-character ULID as its title.
-    expect(getRouteMeta("/admin/tenants/01M0H81PEVP5T5DQJ093XNSAY2")).toEqual(
-      getRouteMeta("/admin/tenants"),
-    );
+    // Same metadata as the list, plus the path its translation keys come from
+    // (route.admin.tenants.*, never route.admin.tenants.<ULID>).
+    expect(getRouteMeta("/admin/tenants/01M0H81PEVP5T5DQJ093XNSAY2")).toEqual({
+      ...getRouteMeta("/admin/tenants"),
+      i18nPath: "/admin/tenants",
+    });
     expect(
       getRouteMeta("/employees/01M0C0BBMH6CC238XTVJWP6QWE")?.label,
     ).not.toMatch(/^01/);

@@ -64,14 +64,14 @@ const HEADER_LANGUAGES = supportedLocales.filter(
   (l) => l.status === "available",
 );
 
-import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
 
 function useCurrentPageLabel() {
   const pathname = usePathname();
   const { t } = useT();
   const meta = getRouteMeta(pathname);
   if (!meta) return t("common.page", "Page");
-  return t(routeI18nKey(pathname, "label"), meta.label);
+  return t(routeI18nKey(routeI18nPath(pathname, meta), "label"), meta.label);
 }
 
 export function AppHeader() {
