@@ -33,8 +33,17 @@ mandatory gate below reads `PASS`.**
 >    **120**, `upload_max_filesize` **10M**, `post_max_size` **12M** (above the upload limit,
 >    so a 10 MB file plus its form fields still fits). All four measured at stock defaults —
 >    128M / 30 / 2M / 8M — and all four fail the application's floor.
-> 3. **Plesk → Databases → user `ethr` → Access control:** *Allow local connections only*.
+> 3. **Plesk → Databases → user `ethr` → Access control:** **Allow remote connections from
+>    `172.28.20.26`** only. *(Corrected 2026-10-06. This said "Allow local connections only".
+>    The database is on its own server, `10.180.50.142`, so "local" admits only that machine.
+>    phpMyAdmin then reported `Access denied for user 'ethr'@'172.28.20.26'`, which also
+>    gives the web server's address as the database sees it. That address is an owner
+>    reading from the panel, 2026-10-06.)*
 >    If step 4 is still refused, *any host* for that one run, then narrow it before cutover.
+>
+>    **Item 1 is done.** The owner searched File Manager on 2026-10-06 and could not find
+>    `p-ec99d920a8478c8a.php`. A 404 at `https://www.ethr.et/p-ec99d920a8478c8a.php`
+>    confirms it from outside.
 > 4. **Re-run M2** with database host `10.180.50.142` — `bash .m2-kit/m2.sh run`. After
 >    step 2, so the one run also proves the new limits. Then delete the probe again.
 > 5. **Change the `ethr` database password.** The current one was pasted into an AI chat
