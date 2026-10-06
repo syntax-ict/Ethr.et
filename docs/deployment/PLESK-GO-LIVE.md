@@ -53,7 +53,13 @@ These are [`CUTOVER-CHECKLIST.md`](CUTOVER-CHECKLIST.md)'s known gaps, in its or
    `max_execution_time` **120**, `upload_max_filesize` **10M**, `post_max_size` **12M**; the
    extensions in [`PLESK-HOSTING-GUIDE.md`](PLESK-HOSTING-GUIDE.md) A1 (`gd` above all).
 3. **Databases → User Management → `<DB_USER>`** — set a **new password** (the old one is in a
-   chat transcript), and Access control → *Allow local connections only*.
+   chat transcript), and Access control → **Allow remote connections from** the web server's
+   address, and nothing wider. **Not** *Allow local connections only*: the database runs on its
+   own server (`<DB_HOST>`), so "local" means the database machine itself, and that setting
+   refuses the web server, phpMyAdmin and ETHR. To find the address, open phpMyAdmin
+   once. The refusal names it: `Access denied for user '<DB_USER>'@'<web server address>'`.
+   *(Corrected 2026-10-06. This step said "local connections only", and following it
+   produced exactly that refusal.)*
 4. **Ask for `TRIGGER`** if it is not granted. `migrate` **stops by design** without it
    (G0-F); the first deploy in Part 4 will tell you.
 5. **Do not touch** *Hosting Settings → Document root*. It is already `httpdocs`
