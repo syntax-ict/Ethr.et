@@ -218,15 +218,19 @@ step "5. Post-deploy commands (Plesk Git 'additional deployment actions')"
 # Order is load-bearing: key:generate before migrate, because the migration writes
 # encrypted columns; caches last, because they capture config that must be final.
 #
-# SUPERSEDED 2026-10-04 by scripts/shared-hosting/post-deploy.sh, and the list
-# that stood here must not be pasted anywhere. Plesk runs deployment actions on
-# EVERY deploy, so `key:generate --force` replaced APP_KEY on the second one —
-# every `encrypted` column unreadable — and `ethr:create-admin` prompted for
-# input no deployment action can give. post-deploy.sh generates the key only
-# when .env has none, creates the admin only from a one-shot file, and is
-# rehearsed twice per release by scripts/shared-hosting/rehearse-release.sh.
+# SUPERSEDED TWICE, and the list that stood here must not be pasted anywhere.
+# Plesk runs deployment actions on EVERY deploy, so `key:generate --force`
+# replaced APP_KEY on the second deploy, leaving every `encrypted` column
+# unreadable. On 2026-10-04 a script replaced it. On 2026-10-06 the first host
+# deploy showed that the action shell is chrooted, with no php, dirname or cut,
+# so no deployment action can run artisan here at all. Artisan now runs from
+# Plesk's Laravel Toolkit with the document root at api/public
+# (docs/deployment/PLESK-GO-LIVE.md); scripts/shared-hosting/rehearse-release.sh
+# rehearses that sequence on every release.
 cat <<'ACTIONS'
-  bash deploy/post-deploy.sh
+  (none — leave "Enable post deployment actions" unticked)
+  Laravel Toolkit -> Artisan:  key:generate --force   (FIRST DEPLOY ONLY)
+  Laravel Toolkit -> Artisan:  migrate --force        (every release)
 ACTIONS
 echo
 echo "  NOT in that list, deliberately:"
