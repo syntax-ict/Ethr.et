@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { server } from "./msw/server";
 import { SidebarNav } from "@/components/layouts/sidebar-nav";
 import { getRouteMeta } from "@/lib/route-meta";
 
@@ -83,6 +85,40 @@ describe("sidebar navigation for the platform super admin", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("never asks the tenant manager dashboard for approval badges", async () => {
+    // isSupervisor is a level check, and a super admin clears it while belonging
+    // to no tenant: the badge query fired and the API answered 403 on every page
+    // of the console (local production rehearsal, 2026-10-06). Same shape as the
+    // onboarding query above it in sidebar-nav.tsx.
+    let calls = 0;
+    server.use(
+      http.get("*/api/v1/dashboard/manager", () => {
+        calls += 1;
+        return HttpResponse.json({}, { status: 403 });
+      }),
+    );
+
+    renderNav();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(calls).toBe(0);
+  });
+
+  it("still fetches approval badges for a tenant admin who supervises", async () => {
+    role.value = "tenant_admin";
+    let calls = 0;
+    server.use(
+      http.get("*/api/v1/dashboard/manager", () => {
+        calls += 1;
+        return HttpResponse.json({ pending_approvals: { total: 0 } });
+      }),
+    );
+
+    renderNav();
+
+    await waitFor(() => expect(calls).toBe(1));
+  });
+
   it("still gives a tenant admin the full tenant navigation", () => {
     role.value = "tenant_admin";
     renderNav();
@@ -97,9 +133,12 @@ describe("route metadata for detail pages", () => {
   it("never turns an opaque record id into a page heading", () => {
     // The last URL segment used to become the <h1> unconditionally, so every
     // detail route rendered a 26-character ULID as its title.
-    expect(getRouteMeta("/admin/tenants/01M0H81PEVP5T5DQJ093XNSAY2")).toEqual(
-      getRouteMeta("/admin/tenants"),
-    );
+    // Same metadata as the list, plus the path its translation keys come from
+    // (route.admin.tenants.*, never route.admin.tenants.<ULID>).
+    expect(getRouteMeta("/admin/tenants/01M0H81PEVP5T5DQJ093XNSAY2")).toEqual({
+      ...getRouteMeta("/admin/tenants"),
+      i18nPath: "/admin/tenants",
+    });
     expect(
       getRouteMeta("/employees/01M0C0BBMH6CC238XTVJWP6QWE")?.label,
     ).not.toMatch(/^01/);

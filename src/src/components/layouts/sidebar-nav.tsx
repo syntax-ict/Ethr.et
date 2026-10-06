@@ -142,8 +142,12 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
 
   // Badge counts. CLAUDE.md: "Items show notification count badges where
   // applicable (Approvals, Attendance anomalies)". Only fetched for roles that
-  // can act on the queue.
-  const { data: managerData } = useManagerDashboard(isSupervisor);
+  // can act on the queue — and, like the onboarding query above, never for a
+  // super admin, who clears the isSupervisor level check with no tenant queue
+  // to count (the API answers 403).
+  const { data: managerData } = useManagerDashboard(
+    isSupervisor && !isSuperAdmin,
+  );
   const approvalCount = managerData?.pending_approvals?.total ?? 0;
 
   useEffect(() => {

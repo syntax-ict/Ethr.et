@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { getRouteMeta, routeI18nKey, sectionI18nKey } from "@/lib/route-meta";
+import {
+  getRouteMeta,
+  routeI18nKey,
+  routeI18nPath,
+  sectionI18nKey,
+} from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
 
 // Pages that render their own page-level header. On /dashboard the personalised
@@ -20,9 +25,10 @@ export function PageTitleBar() {
   const meta = getRouteMeta(pathname);
   if (!meta) return null;
 
-  const label = t(routeI18nKey(pathname, "label"), meta.label);
+  const keyPath = routeI18nPath(pathname, meta);
+  const label = t(routeI18nKey(keyPath, "label"), meta.label);
   const description = meta.description
-    ? t(routeI18nKey(pathname, "desc"), meta.description)
+    ? t(routeI18nKey(keyPath, "desc"), meta.description)
     : undefined;
 
   const crumbs: Array<{ label: string; href?: string }> = [];

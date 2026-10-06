@@ -294,6 +294,26 @@ it('sends the full security header set, with the CSP that lets the export hydrat
 
 // ── The renderer's own discipline ───────────────────────────────────────────
 
+it('never marks the service worker immutable', function () {
+    // The asset rule caches every .js for a year as "public, immutable", and
+    // sw.js is a .js. It is the one script whose job is to change in place under
+    // a fixed name (local production rehearsal, 2026-10-06). The override must
+    // come AFTER the asset rule: Apache applies <Files> sections in order, so a
+    // later one wins.
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $assets = ethrHtaccessIndexOf($directives, '<FilesMatch "\.(js|css');
+    $worker = ethrHtaccessIndexOf($directives, '<Files "sw.js">');
+
+    expect($assets)->not->toBeNull('the static asset caching rule is gone')
+        ->and($worker)->not->toBeNull('sw.js has no cache override')
+        ->and($worker)->toBeGreaterThan($assets);
+
+    $block = array_slice($directives, $worker, 4);
+    expect($block)->toContain('Header set Cache-Control "no-cache"')
+        ->and($block)->toContain('</Files>');
+});
+
 it('promotes exactly the sentinel lines and no prose', function () {
     $root = dirname(base_path());
     $template = (string) file_get_contents($root.'/docs/deployment/shared-hosting/.htaccess');

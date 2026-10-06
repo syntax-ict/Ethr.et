@@ -58,9 +58,14 @@ artisan key:generate --force >/dev/null || fail "key:generate failed"
 grep -qE '^APP_KEY=base64:' "$ENV" || fail "key:generate did not write APP_KEY"
 KEY1="$(grep '^APP_KEY=' "$ENV")"
 artisan migrate --force >"$WORK/migrate1" 2>&1 || { cat "$WORK/migrate1"; fail "first migrate failed"; }
+# The catalog seed runs from the RELEASE's vendor/, which has no dev packages, so
+# this also proves ProductionSeeder needs none (DemoTenantSeeder needs faker).
+artisan db:seed --class=ProductionSeeder --force >"$WORK/seed1" 2>&1 || { cat "$WORK/seed1"; fail "ProductionSeeder failed"; }
 artisan ethr:create-admin --email=owner@example.et --password=Rehearsal-Passw0rd-123 --force >/dev/null \
   || fail "ethr:create-admin failed"
-pass "Toolkit sequence: key generated, migrated, super admin created"
+PERMS="$(php -r '$p = new PDO("sqlite:".$argv[1]); echo $p->query("SELECT COUNT(*) FROM permissions")->fetchColumn();' "$DB_FILE")"
+[ "${PERMS:-0}" -gt 0 ] || fail "ProductionSeeder ran but the permissions table is empty — every role would get 403"
+pass "Toolkit sequence: key generated, migrated, catalog seeded ($PERMS permissions), super admin created"
 
 # 1 — the document root boots the app.
 PORT=$(( 20000 + RANDOM % 20000 ))
@@ -80,6 +85,7 @@ cp -R "$REL/." "$APP/"
 [ -f "$ENV" ] || fail "a redeploy removed api/.env"
 [ "$(grep '^APP_KEY=' "$ENV")" = "$KEY1" ] || fail "a redeploy changed APP_KEY"
 artisan migrate --force >"$WORK/migrate2" 2>&1 || { cat "$WORK/migrate2"; fail "second migrate failed"; }
+artisan db:seed --class=ProductionSeeder --force >"$WORK/seed2" 2>&1 || { cat "$WORK/seed2"; fail "ProductionSeeder is not re-runnable"; }
 grep -q 'Nothing to migrate' "$WORK/migrate2" || fail "second migrate was not a no-op"
 pass "a second deploy keeps .env and APP_KEY; migrate is a no-op"
 

@@ -64,8 +64,35 @@ composer install --working-dir="$OUT/api" --no-dev --optimize-autoloader \
 mkdir -p "$OUT/api/storage/framework/"{cache/data,sessions,views} \
          "$OUT/api/storage/logs" "$OUT/api/storage/app/private" "$OUT/api/bootstrap/cache"
 
-step "2. Frontend — static export (C-5)"
-npm --prefix "$REPO_ROOT/src" run build:shared-hosting
+step "2. Frontend — static export (C-5), from committed settings only"
+# Next.js loads src/.env.local even for a production build, and process
+# environment variables beat it. A release built on a developer machine (by
+# up.sh, say) therefore baked in the developer's NEXT_PUBLIC_* values. Measured
+# 2026-10-06: a Reverb key, so every page tried a WebSocket to localhost:8080,
+# and a localhost API URL. CI has no .env.local, so CI releases were clean, and
+# a local release was not the release. Every key .env.local defines is
+# overridden here with its committed .env.production value, or with empty when
+# it has none. Step 4 checks the leak did not happen instead of trusting this.
+LOCAL_ENV="$REPO_ROOT/src/.env.local"
+PROD_ENV="$REPO_ROOT/src/.env.production"
+BUILD_ENV=()
+LEAK_VALUES=()
+if [ -f "$LOCAL_ENV" ]; then
+  while IFS= read -r key; do
+    prod_val="$(sed -n "s/^${key}=//p" "$PROD_ENV" 2>/dev/null | head -1)"
+    BUILD_ENV+=("$key=$prod_val")
+    local_val="$(sed -n "s/^${key}=//p" "$LOCAL_ENV" | head -1)"
+    # Only values long enough to be distinctive are leak-checked. "localhost" (9)
+    # matched the service-worker hook's own LOOPBACK_HOSTS list and refused a
+    # clean release (2026-10-06); "ethr-reverb-key" and
+    # "http://localhost:8010" are what a real leak looks like.
+    if [ -n "$local_val" ] && [ "$local_val" != "$prod_val" ] && [ "${#local_val}" -ge 12 ]; then
+      LEAK_VALUES+=("$local_val")
+    fi
+  done < <(sed -n 's/^\(NEXT_PUBLIC_[A-Z0-9_]*\)=.*/\1/p' "$LOCAL_ENV")
+  info "src/.env.local present: ${#BUILD_ENV[@]} NEXT_PUBLIC_* key(s) pinned to .env.production"
+fi
+env ${BUILD_ENV[@]+"${BUILD_ENV[@]}"} npm --prefix "$REPO_ROOT/src" run build:shared-hosting
 [ -f "$REPO_ROOT/src/out/index.html" ] || die "src/out/index.html is missing — the export did not build"
 
 step "3. Document root — api/public"
@@ -112,6 +139,12 @@ grep -qF '\.user\.ini' "$PUBLIC/.htaccess" || die "api/public/.htaccess does not
 grep -q '^memory_limit = 256M' "$PUBLIC/.user.ini" 2>/dev/null || die "api/public/.user.ini is missing or lacks the memory_limit floor"
 # Nothing above the document root may be reachable from it.
 [ ! -e "$PUBLIC/.env.shared-hosting.example" ] || die "an env template landed in the document root"
+# No developer-only frontend value may have been baked in (see step 2).
+for v in ${LEAK_VALUES[@]+"${LEAK_VALUES[@]}"}; do
+  if grep -rqF -- "$v" "$PUBLIC/_next" 2>/dev/null; then
+    die "a value from src/.env.local was built into the frontend; the release would differ from CI's"
+  fi
+done
 
 info "files: $(find "$OUT" -type f | wc -l | tr -d ' ')  size: $(du -sh "$OUT" | cut -f1)"
 info "release tree ready: $OUT"

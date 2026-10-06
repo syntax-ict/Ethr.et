@@ -3,6 +3,18 @@ export interface RouteMeta {
   description?: string;
   section?: string;
   parent?: { label: string; href: string };
+  /**
+   * The registry path this metadata came from, when it is not the URL itself —
+   * a record page (`/employees/<ULID>`) borrows `/employees`. Translation keys
+   * must be built from this, not from the URL: `route.employees.<ULID>` is in no
+   * dictionary, so every record page fell back to English.
+   */
+  i18nPath?: string;
+}
+
+/** The path a route's translation keys are built from. */
+export function routeI18nPath(pathname: string, meta: RouteMeta): string {
+  return meta.i18nPath ?? pathname;
 }
 
 /**
@@ -397,7 +409,9 @@ export function getRouteMeta(pathname: string): RouteMeta | null {
 
       // The record's own name lives in the page body, which is where a reader
       // looks for it; the bar keeps the section it belongs to.
-      if (isOpaqueId(last)) return ROUTE_META[parentPath];
+      if (isOpaqueId(last)) {
+        return { ...ROUTE_META[parentPath], i18nPath: parentPath };
+      }
 
       const fallbackLabel = last.replace(/-/g, " ");
       return {

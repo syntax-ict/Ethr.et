@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { getRouteMeta, routeI18nKey } from "@/lib/route-meta";
+import { getRouteMeta, routeI18nKey, routeI18nPath } from "@/lib/route-meta";
 import { useT } from "@/lib/i18n/useT";
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "ETHR";
@@ -34,7 +34,10 @@ export function useDocumentTitle(): void {
     const meta = getRouteMeta(pathname);
     if (!meta) return;
 
-    const label = t(routeI18nKey(pathname, "label"), meta.label);
+    const label = t(
+      routeI18nKey(routeI18nPath(pathname, meta), "label"),
+      meta.label,
+    );
     document.title = `${label} · ${APP_NAME}`;
     // `locale` is a dependency because the title must be re-rendered in the new
     // language when the user switches, not just on navigation.

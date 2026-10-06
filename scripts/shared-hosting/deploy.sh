@@ -231,6 +231,7 @@ cat <<'ACTIONS'
   (none — leave "Enable post deployment actions" unticked)
   Laravel Toolkit -> Artisan:  key:generate --force   (FIRST DEPLOY ONLY)
   Laravel Toolkit -> Artisan:  migrate --force        (every release)
+  Laravel Toolkit -> Artisan:  db:seed --class=ProductionSeeder --force   (every release)
 ACTIONS
 echo
 echo "  NOT in that list, deliberately:"
