@@ -152,6 +152,36 @@ test('employee can submit leave request', function () {
         ->assertJsonMissingPath('id');
 });
 
+test('a deactivated leave type cannot be requested', function () {
+    // The rule only checked that the type existed. An employee could request
+    // leave of a type HR had switched off, and LeaveBalanceService then
+    // granted that type's default_days to cover it.
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    $retired = LeaveType::factory()->create([
+        'tenant_id' => $tenant->id,
+        'code' => 'retired_type',
+        'default_days' => 20,
+        'min_notice_days' => 0,
+        'is_active' => false,
+    ]);
+
+    $start = now()->addDays(1)->startOfDay();
+    while ($start->isWeekend()) {
+        $start->addDay();
+    }
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/leave/request", [
+        'leave_type_public_id' => $retired->public_id,
+        'start_date' => $start->format('Y-m-d'),
+        'end_date' => $start->format('Y-m-d'),
+    ])->assertUnprocessable()->assertJsonValidationErrors('leave_type_public_id');
+
+    expect(LeaveBalance::query()->where('employee_id', $employee->id)->exists())->toBeFalse();
+});
+
 test('leave request checks insufficient balance', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);

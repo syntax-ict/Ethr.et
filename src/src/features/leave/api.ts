@@ -18,6 +18,13 @@ export interface LeaveBalance {
 
 export interface LeaveRequest {
   public_id: string;
+  /**
+   * Who asked. `/leave/team` loads it (LeaveRequestResource nests an
+   * EmployeeResource); `/leave/my` does not, since that list is the caller's
+   * own. The team list and calendar used to read an `employee_name` the API
+   * never sent, so every row said "—" and every calendar badge "?".
+   */
+  employee?: { public_id: string; name: string } | null;
   leave_type: { name: string; code: string; public_id: string } | string;
   start_date: string;
   end_date: string;
@@ -60,21 +67,21 @@ export function useTeamLeaveRequests(params?: { page?: number }) {
   });
 }
 
-export function useLeaveTypes() {
-  return useQuery<PaginatedResponse<LeaveType>>({
-    queryKey: ["leave-types"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/leave-types");
-      return data;
-    },
+/**
+ * The leave types an employee may request: active ones only, every page.
+ * The request form used `useLeaveTypes`, which read the first 25 types and
+ * included deactivated ones the API now refuses.
+ */
+export function useRequestableLeaveTypes() {
+  return useQuery<LeaveType[]>({
+    queryKey: ["leave-types", "requestable"],
+    queryFn: () =>
+      fetchAllPages<LeaveType>("/leave-types", { "filter[is_active]": 1 }),
     staleTime: 30 * 60 * 1000,
   });
 }
 
-/**
- * Every leave type, for the management page. `GET /leave-types` pages at 25;
- * `useLeaveTypes` above still reads only the first page.
- */
+/** Every leave type, active or not, for the management page. */
 export function useAllLeaveTypes() {
   return useQuery<LeaveType[]>({
     queryKey: ["leave-types", "all"],

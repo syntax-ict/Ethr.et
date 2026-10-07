@@ -284,7 +284,7 @@ class PayrollController extends Controller
         ]);
     }
 
-    public function bankExport(PayrollRun $payrollRun): JsonResponse
+    public function bankExport(PayrollRun $payrollRun, BankExportService $bankExportService): JsonResponse
     {
         $this->authorize('view', $payrollRun);
 
@@ -293,8 +293,8 @@ class PayrollController extends Controller
             ->with('employee.bankDetails')
             ->get();
 
-        $rows = $entries->map(function (PayrollEntry $entry) {
-            $bank = $entry->employee?->bankDetails?->first();
+        $rows = $entries->map(function (PayrollEntry $entry) use ($bankExportService) {
+            $bank = $entry->employee ? $bankExportService->primaryBankDetail($entry->employee) : null;
 
             return [
                 'employee_name' => $entry->employee?->name,

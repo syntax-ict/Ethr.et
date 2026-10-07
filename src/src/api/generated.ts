@@ -5743,7 +5743,6 @@ export interface components {
             reported_by?: unknown;
             investigation_notes: {
                 note: string;
-                by: number | null;
                 by_name: string | null;
                 at: string;
             }[];

@@ -159,7 +159,6 @@ describe("<DisciplinaryCasesTab>", () => {
             investigation_notes: [
               {
                 note: "Interviewed the cashier.",
-                by: 1,
                 by_name: "HR Admin",
                 at: "2026-08-02T00:00:00Z",
               },

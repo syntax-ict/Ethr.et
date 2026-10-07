@@ -230,7 +230,7 @@ export function AllowanceRulesCard() {
                 t("payroll_config.taxable", "Taxable"),
                 t("common.status", "Status"),
               ]}
-              rows={data.data.map((rule) => ({
+              rows={data.map((rule) => ({
                 key: rule.public_id,
                 cells: [
                   <span key="n" className="font-medium">
