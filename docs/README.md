@@ -106,6 +106,7 @@ The target is Ethio Telecom Linux shared hosting under **Plesk** (owner decision
 | [`deployment/shared-hosting/ENVIRONMENT.md`](deployment/shared-hosting/ENVIRONMENT.md) · [`cron-caller.md`](deployment/shared-hosting/cron-caller.md) · [`deploy-checklist.md`](deployment/shared-hosting/deploy-checklist.md) · [`health-check.md`](deployment/shared-hosting/health-check.md) | Env reference, the GitHub Actions scheduler, the pre-cutover pass, and the health endpoint |
 | [`deployment/G0-F-CREATE-TRIGGER.md`](deployment/G0-F-CREATE-TRIGGER.md) · [`deployment/SHARED_HOSTING_PLAN.md`](deployment/SHARED_HOSTING_PLAN.md) · [`PANEL-SESSION-RUNBOOK.md`](PANEL-SESSION-RUNBOOK.md) | The `CREATE TRIGGER` host probe, the original (Gold-tier, disputed) plan, and the single-session panel runbook |
 | [`decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md`](decisions/OWNER-DECISION-C5-FRONTEND-TARGET.md) | **Decided 2026-09-27: static export served by Apache**, no Plesk Node application |
+| [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md) | **Decided 2026-10-06: an organisation is reached at `ethr.et/{slug}` or its own domain**, because M3 serves no subdomain. Subdomains return with `TENANCY_SUBDOMAINS=true` |
 | [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) · [`ROLLBACK_RUNBOOK.md`](ROLLBACK_RUNBOOK.md) | **Historical.** The original 24-item brief and the VPS-era rollback plan; both superseded by the two rows above |
 | [`LOCAL_SETUP.md`](LOCAL_SETUP.md) | Development environment |
 

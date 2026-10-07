@@ -288,3 +288,4 @@ Deleting it was the obvious move. Rejected: agent tooling looks for `AGENTS.md` 
 | Redis, Horizon, Reverb and MinIO removed for the shared-hosting target | [`../archive/migration/SHARED_HOSTING_AUDIT.md`](../archive/migration/SHARED_HOSTING_AUDIT.md) §B |
 | Git ban retired — Git *is* in use on this project | `0997faa`, and [`../CLAUDE.md`](../CLAUDE.md) |
 | Plan-tier gating enforces seat caps only; the `Plan.features` gate deferred | [`../ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md) row 2.2 |
+| Tenancy without wildcard subdomains: `ethr.et/{slug}`, custom domains, `X-Tenant` on the apex (owner, 2026-10-06) | [`OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md) |

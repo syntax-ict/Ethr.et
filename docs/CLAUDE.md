@@ -477,7 +477,9 @@ Per-slice review checklist — a few items are also enforced by a gate, most are
 ```
 Base:        /api/v1/
 Auth:        Authorization: Bearer {sanctum_token}
-Tenant:      Subdomain resolution ({tenant}.ethr.et)
+Tenant:      Host first: custom domain, then {tenant}.ethr.et. On the apex,
+             X-Tenant: {slug} (entry URL ethr.et/{slug}). Membership is
+             always checked against the signed-in user
 Pagination:  ?page=1&per_page=25 (max per_page=100)
 Filtering:   ?filter[field]=value
 Sorting:     ?sort=-created_at
@@ -485,6 +487,32 @@ Includes:    ?include=department,branch
 Search:      ?search=query
 Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 ```
+
+> **Tenant resolution changed on 2026-10-06, by owner decision.** This line read *"Subdomain
+> resolution ({tenant}.ethr.et)"*, and production cannot serve one: M3 has no vhost, so every
+> tenant host redirects to the Plesk login. `ResolveTenant` now tries, in order:
+>
+> 1. a **custom domain** assigned to one tenant;
+> 2. the **subdomain**;
+> 3. **`X-Tenant`**, honoured on the apex, its `www` alias, and single-host installs only.
+>    It is never honoured on a tenant host, the platform host, or a host this deployment
+>    does not own;
+> 4. the organisation in the **form body**, on login, register and password endpoints.
+>
+> `EnsureUserBelongsToTenant` is what stops a token reading another tenant, whichever selector
+> answered: a member naming someone else's organisation gets 403 `tenant-mismatch`.
+>
+> Two rules follow for new work:
+>
+> - **Never build a tenant link by hand.** Use `FrontendUrl::forTenant()`. It picks the custom
+>   domain, the subdomain only when `TENANCY_SUBDOMAINS=true`, and otherwise `ethr.et/{slug}`.
+>   A hand-built `{tenant}.ethr.et` link points at a host that does not answer.
+> - **A new top-level frontend route needs a reserved slug** in `Tenant::RESERVED_SUBDOMAINS`.
+>   The entry URL shares its namespace with the frontend's pages, and
+>   `PathAndCustomDomainTenancyTest` fails until the name is reserved.
+>
+> The decision, its costs and its open gaps — no admin field assigns a custom domain yet — are
+> in [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 Response shapes:
 
@@ -516,7 +544,11 @@ TypeScript types for all responses generated from OpenAPI spec via `openapi-type
 **Backend (Pest):**
 - SQLite `:memory:` for speed
 - `RefreshDatabase` trait on all test classes
-- Full URL for host-based tests: `$this->getJson('http://acme.ethr.et/api/v1/...')`
+- Full URL for host-based tests: `$this->getJson('http://acme.ethr.et/api/v1/...')`. Testing
+  the apex selector also needs production: in `local`/`testing` the header is honoured on every
+  host that does not name a tenant itself, foreign hosts included, so a test of the host
+  restriction proves nothing there. `PathAndCustomDomainTenancyTest`
+  switches the environment with `asProduction()` for that reason
 - `$this->app['auth']->forgetGuards()` between requests that change auth state
 - Assert `assertJsonMissingPath('id')` — never leak numeric PKs
 - No test-only migration files in `database/migrations/`
