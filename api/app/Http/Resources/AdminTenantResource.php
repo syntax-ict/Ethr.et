@@ -17,6 +17,7 @@ class AdminTenantResource extends JsonResource
             'public_id' => $this->public_id,
             'name' => $this->name,
             'subdomain' => $this->subdomain,
+            'custom_domain' => $this->custom_domain,
             'type' => $this->type,
             'status' => $this->status->value,
             'employee_count' => (int) $this->employees_count,

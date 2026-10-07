@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\TenantStatus;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
 
-/** @property TenantStatus $status */
+/**
+ * @property TenantStatus $status
+ * @property string|null $custom_domain
+ */
 class Tenant extends Model
 {
     use HasFactory, HasPublicId, SoftDeletes;
@@ -44,6 +48,19 @@ class Tenant extends Model
         'cdn', 'static', 'assets',
         'status', 'support', 'help', 'docs',
         'staging', 'dev', 'test',
+        // Since 2026-10-06 an organisation is also reachable as ethr.et/{slug},
+        // which shares ONE namespace with the frontend's own pages. Every
+        // top-level route below is reserved so no tenant can shadow it, and
+        // PathAndCustomDomainTenancyTest reads src/src/app to keep this list
+        // complete. The locale codes are the marketing site's first segment.
+        'analytics', 'announcements', 'approvals', 'attendance', 'billing',
+        'contact', 'dashboard', 'devices', 'directory', 'employees', 'faq',
+        'features', 'impersonate', 'kiosk', 'leave', 'login', 'logout',
+        'notifications', 'offline', 'og.png', 'organization', 'payroll',
+        'pricing', 'privacy', 'profile', 'register', 'reports', 'settings',
+        'setup', 'shifts', 'terms',
+        'en', 'am', 'om', 'ti', 'so', 'sid',
+        'sanctum', 'up', 'storage', 'icons', 'auth', 'org', 'tenant',
     ];
 
     /**
@@ -231,6 +248,41 @@ class Tenant extends Model
         static::saved(function (self $tenant): void {
             Cache::forget("tenant:{$tenant->getOriginal('subdomain')}");
             Cache::forget("tenant:{$tenant->subdomain}");
+            // ResolveTenant caches custom-domain lookups the same way, and a
+            // domain moved or removed must stop resolving at once.
+            foreach (array_filter([$tenant->getOriginal('custom_domain'), $tenant->custom_domain]) as $domain) {
+                Cache::forget('tenant-domain:'.$domain);
+            }
         });
+    }
+
+    /**
+     * A custom domain is stored as a bare, lower-case hostname, because that is
+     * what ResolveTenant compares the request host against. A scheme, port,
+     * path or trailing dot typed into the field would otherwise make the domain
+     * silently never match.
+     *
+     * @return Attribute<string|null, string|null>
+     */
+    protected function customDomain(): Attribute
+    {
+        return Attribute::make(
+            set: static fn (?string $value): ?string => self::normaliseDomain($value),
+        );
+    }
+
+    public static function normaliseDomain(?string $value): ?string
+    {
+        $value = strtolower(trim((string) $value));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = (string) preg_replace('#^[a-z][a-z0-9+.-]*://#', '', $value);
+        $value = explode('/', $value, 2)[0];
+        $value = explode(':', $value, 2)[0];
+        $value = rtrim($value, '.');
+
+        return $value === '' ? null : $value;
     }
 }
