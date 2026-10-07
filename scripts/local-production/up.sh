@@ -279,7 +279,12 @@ step "4. Migrate — this exercises the audit-log CREATE TRIGGER on MariaDB"
 # The global catalog — permissions, plans, tax brackets, templates — exactly as the
 # host runs it from the Toolkit. Without it every role is refused with 403. Measured
 # 2026-10-06, when this harness had never seeded and a tenant admin was refused.
-(cd "$APP_ROOT/api" && php artisan db:seed --class=ProductionSeeder --force --no-interaction 2>&1 \n    | grep -E 'DONE|FAIL|Error' | sed 's/^/  /') || die "ProductionSeeder failed"
+#
+# (2026-10-07: this read `2>&1 \n    | grep` on ONE line — a literal backslash-n where a
+# line continuation was meant. Bash passed `n` to db:seed as a stray argument, the seeder
+# refused it, and the rehearsal died here on every run since #165 added the step.)
+(cd "$APP_ROOT/api" && php artisan db:seed --class=ProductionSeeder --force --no-interaction 2>&1 \
+    | grep -E 'DONE|FAIL|Error' | sed 's/^/  /') || die "ProductionSeeder failed"
 
 info "triggers now on audit_log:"
 "$MYSQL" -u root -N -e "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_TABLE='audit_log' AND TRIGGER_SCHEMA='$DB_NAME';" | sed 's/^/    /'
