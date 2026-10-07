@@ -12,8 +12,14 @@ import {
  * answer, and every place the UI printed it sent people to a Plesk login.
  * Subdomain mode must keep working for the day M3 passes.
  */
-const SINGLE_HOST: TenantAddressConfig = { rootDomain: null, siteHost: "ethr.et" };
-const SUBDOMAIN: TenantAddressConfig = { rootDomain: "ethr.et", siteHost: "ethr.et" };
+const SINGLE_HOST: TenantAddressConfig = {
+  rootDomain: null,
+  siteHost: "ethr.et",
+};
+const SUBDOMAIN: TenantAddressConfig = {
+  rootDomain: "ethr.et",
+  siteHost: "ethr.et",
+};
 
 describe("tenantAddress", () => {
   it("is the path form in single-host mode", () => {
@@ -25,7 +31,9 @@ describe("tenantAddress", () => {
   });
 
   it("is the custom domain in either mode when one is assigned", () => {
-    expect(tenantAddress("acme", "hr.acme.com", SINGLE_HOST)).toBe("hr.acme.com");
+    expect(tenantAddress("acme", "hr.acme.com", SINGLE_HOST)).toBe(
+      "hr.acme.com",
+    );
     expect(tenantAddress("acme", "hr.acme.com", SUBDOMAIN)).toBe("hr.acme.com");
   });
 
@@ -55,9 +63,8 @@ describe("tenantAddressAffixes", () => {
 async function renderAffixes(rootDomain: string) {
   vi.stubEnv("NEXT_PUBLIC_ROOT_DOMAIN", rootDomain);
   vi.resetModules();
-  const { TenantAddressAffix } = await import(
-    "@/components/shared/tenant-address-affix"
-  );
+  const { TenantAddressAffix } =
+    await import("@/components/shared/tenant-address-affix");
   return render(
     <div data-testid="field">
       <TenantAddressAffix side="prefix" bordered />
