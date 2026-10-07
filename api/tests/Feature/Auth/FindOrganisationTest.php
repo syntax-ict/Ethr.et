@@ -63,8 +63,8 @@ it('emails one message with each organisation\'s own sign-in link', function () 
             $body = implode("\n", [...$mail->introLines, ...$mail->outroLines, (string) $mail->actionUrl]);
 
             return $notifiable->routes['mail'] === 'person@example.et'
-                && str_contains($body, 'https://acme.ethr.et/login')
-                && str_contains($body, 'https://habru.ethr.et/login')
+                && str_contains($body, 'https://ethr.et/acme')
+                && str_contains($body, 'https://ethr.et/habru')
                 && str_contains($body, 'Acme Ltd')
                 && str_contains($body, 'Habru Textiles');
         },

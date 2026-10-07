@@ -117,7 +117,11 @@ it('ignores X-Tenant when the host already names a tenant', function () {
         ->assertOk();
 });
 
-it('refuses X-Tenant outright once the environment is not local or testing', function () {
+it('refuses X-Tenant in production on a host the deployment does not own', function () {
+    // Since 2026-10-06 the header IS honoured on the apex (path tenancy, see
+    // PathAndCustomDomainTenancyTest). What must still hold: a foreign host gets
+    // no tenant selector at all.
+    config(['app.domain' => 'ethr.et']);
     [, $habruAdmin] = tenantWithAdmin('habru');
 
     $token = $habruAdmin->createToken('auth', ['*'])->plainTextToken;
@@ -135,7 +139,7 @@ it('refuses X-Tenant outright once the environment is not local or testing', fun
     // serving whatever tenant the client asked for.
     test()->withToken($token)
         ->withHeaders(['X-Tenant' => 'habru'])
-        ->getJson('http://ethr.et/api/v1/employees')
+        ->getJson('http://evil.example/api/v1/employees')
         ->assertOk()
         ->assertJsonCount(0, 'data');
 });

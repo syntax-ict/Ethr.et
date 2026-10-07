@@ -28,18 +28,21 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     config.headers["Accept-Language"] = locale;
   }
 
-  // X-Tenant is a single-host development affordance, not a production one.
+  // X-Tenant names the tenant wherever no hostname can.
   //
-  // Where NEXT_PUBLIC_ROOT_DOMAIN is configured the hostname is the tenant
-  // selector and the API refuses this header outright (ResolveTenant only
-  // honours it in local/testing). Sending it anyway would be harmless but
-  // misleading: it would look like the client still chooses the tenant.
+  // Without NEXT_PUBLIC_ROOT_DOMAIN — which is how production builds, because
+  // the host serves no wildcard subdomains (M3) — the app runs on one host
+  // (`ethr.et`), and the header is the only way to say which tenant is meant.
+  // ResolveTenant honours it on the apex, its `www` alias and single-host
+  // installs, in every environment (docs/decisions/
+  // OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md). A custom domain or subdomain
+  // the request arrived on still wins over a header naming someone else.
   //
-  // Without a root domain — localhost development, tests — there is no
-  // subdomain to read, so the header is the only way to say which tenant is
-  // meant. That condition is exactly "the hostname is not authoritative": the
-  // second guard this used to carry counted labels without knowing the root
-  // domain, and could only ever disagree with the first one wrongly.
+  // Where a root domain is configured, the hostname is the selector and this
+  // header is not sent: the apex routes to `{tenant}.{root}` instead. That
+  // condition is exactly "the hostname is not authoritative": the second guard
+  // this used to carry counted labels without knowing the root domain, and
+  // could only ever disagree with the first one wrongly.
   if (!hostnameIsAuthoritative()) {
     const tenant = localStorage.getItem("tenant");
     if (tenant && config.headers) {

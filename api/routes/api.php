@@ -688,6 +688,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::get('/tenants', [AdminTenantController::class, 'index']);
             Route::get('/tenants/{publicId}', [AdminTenantController::class, 'show']);
             Route::put('/tenants/{publicId}/status', [AdminTenantController::class, 'updateStatus']);
+            Route::put('/tenants/{publicId}/domain', [AdminTenantController::class, 'updateDomain']);
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);

@@ -22,6 +22,11 @@ PORT="${PORT:-8081}"
 BASE="http://localhost:$PORT"
 ADMIN_HOST="${ADMIN_HOST:-admin.localhost:8081}"
 TENANT_HOST="${TENANT_HOST:-acme.localhost:8081}"
+# Path tenancy (section 7b) needs a REAL organisation in the rehearsal database:
+# DemoTenantSeeder creates `demo`. A missing one fails the 302 check, loudly.
+ORG_SLUG="${ORG_SLUG:-demo}"
+RESERVED_SLUG="${RESERVED_SLUG:-support}"
+UNKNOWN_SLUG="${UNKNOWN_SLUG:-no-such-org-zz9}"
 
 pass=0; fail=0
 
@@ -131,6 +136,32 @@ check "/dashboard on the admin host redirects" "302" -H "Host: $ADMIN_HOST" "$BA
 
 printf '\n\033[1m7 · 404 is a real 404, not a rewritten 200\033[0m\n'
 check "/nope"                                 "404" "$BASE/nope"
+
+printf '
+[1m7b · path tenancy — ethr.et/{slug} (no wildcard subdomains, M3)[0m
+'
+# OrganisationEntryController: a real organisation answers 302 to its sign-in page
+# with the organisation preset; a reserved or unknown name answers a real 404. The
+# entry URL runs without the `web` group, so it must not start a session either.
+entry="$(curl -s -o /dev/null -D - --max-time 15 "$BASE/$ORG_SLUG" || true)"
+entry_code="$(printf '%s' "$entry" | head -1 | awk '{print $2}')"
+entry_loc="$(printf '%s' "$entry" | grep -i '^Location:' | tr -d '' | sed 's/^[Ll]ocation: *//')"
+if [ "$entry_code" = "302" ] && [[ "$entry_loc" =~ /login\?org=$ORG_SLUG$ ]]; then
+    printf '  [32mok[0m    %-52s 302 → %s
+' "/$ORG_SLUG (real organisation)" "$entry_loc"; pass=$((pass+1))
+else
+    printf '  [31mFAIL[0m  %-52s %s → %s (want 302 → /login?org=%s)
+' "/$ORG_SLUG (real organisation)" "${entry_code:-000}" "${entry_loc:-none}" "$ORG_SLUG"; fail=$((fail+1))
+fi
+if printf '%s' "$entry" | grep -qi '^Set-Cookie:'; then
+    printf '  [31mFAIL[0m  %-52s %s
+' "/$ORG_SLUG sets no cookie" "Set-Cookie present"; fail=$((fail+1))
+else
+    printf '  [32mok[0m    %-52s none
+' "/$ORG_SLUG sets no cookie"; pass=$((pass+1))
+fi
+check "/$RESERVED_SLUG (reserved name)"       "404" "$BASE/$RESERVED_SLUG"
+check "/$UNKNOWN_SLUG (unknown name)"         "404" "$BASE/$UNKNOWN_SLUG"
 
 printf '\n\033[1m8 · security headers\033[0m\n'
 hdrs="$(curl -sI --max-time 15 "$BASE/login" || true)"

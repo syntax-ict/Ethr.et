@@ -1,5 +1,6 @@
 "use client";
 
+import { tenantAddress } from "@/lib/tenant-address";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -40,6 +41,7 @@ import {
   useUpdateTenantStatus,
   useExtendTrial,
   useImpersonateTenant,
+  useUpdateTenantDomain,
   useTenantBackup,
 } from "@/features/admin/api";
 import { formatETB } from "@/lib/utils/currency";
@@ -96,12 +98,16 @@ function TenantDetail({ id }: { id: string }) {
   const extendTrial = useExtendTrial();
   const impersonate = useImpersonateTenant();
   const backup = useTenantBackup();
+  const updateDomain = useUpdateTenantDomain();
 
   // Clock pinned at mount so the render stays pure (see trialDaysLeft below).
   const [mountedAt] = useState(() => Date.now());
 
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState(30);
+  const [domainOpen, setDomainOpen] = useState(false);
+  const [domainInput, setDomainInput] = useState("");
+  const [domainError, setDomainError] = useState<string | null>(null);
   const [mfaDialogOpen, setMfaDialogOpen] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [pendingStatus, setPendingStatus] = useState<
@@ -146,6 +152,63 @@ function TenantDetail({ id }: { id: string }) {
         onError: () => toast.error(t("admin_tenant_detail_page.extend_failed")),
       },
     );
+  }
+
+  function openDomainDialog() {
+    setDomainInput(tenant?.custom_domain ?? "");
+    setDomainError(null);
+    setDomainOpen(true);
+  }
+
+  // `null` clears the domain. The server normalises what it is given and owns
+  // every rule (hostname shape, another organisation's domain, ETHR's own), so
+  // its 422 message is shown under the field rather than re-implemented here.
+  function saveDomain(domain: string | null) {
+    if (!tenant) return;
+    setDomainError(null);
+    updateDomain.mutate(
+      { publicId: tenant.public_id, custom_domain: domain },
+      {
+        onSuccess: () => {
+          toast.success(
+            domain === null
+              ? t("admin_tenant_detail_page.custom_domain_removed")
+              : t("admin_tenant_detail_page.custom_domain_saved"),
+          );
+          setDomainOpen(false);
+        },
+        // A field error belongs under the field. Anything else (chiefly the
+        // 403 a super admin without MFA gets on every console write) carries
+        // its reason in `detail`, which the impersonation dialog shows too.
+        onError: (err: unknown) => {
+          const data = (
+            err as {
+              response?: {
+                data?: {
+                  detail?: string;
+                  errors?: { custom_domain?: string[] };
+                };
+              };
+            }
+          ).response?.data;
+          const fieldError = data?.errors?.custom_domain?.[0];
+          if (fieldError) {
+            setDomainError(fieldError);
+          } else {
+            toast.error(
+              data?.detail ||
+                t("admin_tenant_detail_page.custom_domain_failed"),
+            );
+          }
+        },
+      },
+    );
+  }
+
+  function handleSaveDomain(e: React.FormEvent) {
+    e.preventDefault();
+    const domain = domainInput.trim();
+    saveDomain(domain === "" ? null : domain);
   }
 
   function handleConfirmImpersonate(e: React.FormEvent) {
@@ -245,7 +308,7 @@ function TenantDetail({ id }: { id: string }) {
               {tenant.name}
             </h1>
             <p className="mt-0.5 font-mono text-sm text-muted-foreground">
-              {tenant.subdomain}.ethr.et
+              {tenantAddress(tenant.subdomain, tenant.custom_domain)}
             </p>
           </div>
           <StatusBadge status={tenant.status} />
@@ -348,6 +411,11 @@ function TenantDetail({ id }: { id: string }) {
                 {t("admin_tenant_detail_page.extend_trial")}
               </Button>
 
+              <Button variant="outline" onClick={openDomainDialog}>
+                <Globe className="mr-2 h-4 w-4 text-status-info" />{" "}
+                {t("admin_tenant_detail_page.custom_domain")}
+              </Button>
+
               <Button
                 variant="outline"
                 onClick={() => setMfaDialogOpen(true)}
@@ -416,7 +484,19 @@ function TenantDetail({ id }: { id: string }) {
             <Row label={t("common.name")} value={tenant.name} />
             <Row
               label={t("admin_tenants_page.subdomain")}
-              value={`${tenant.subdomain}.ethr.et`}
+              value={tenantAddress(tenant.subdomain)}
+            />
+            <Row
+              label={t("admin_tenant_detail_page.custom_domain")}
+              value={
+                tenant.custom_domain ? (
+                  <code className="font-mono text-xs">
+                    {tenant.custom_domain}
+                  </code>
+                ) : (
+                  t("admin_tenant_detail_page.custom_domain_none")
+                )
+              }
             />
             <Row
               label={t("admin_tenant_detail_page.type")}
@@ -664,6 +744,82 @@ function TenantDetail({ id }: { id: string }) {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("admin_tenant_detail_page.extend")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Custom domain dialog */}
+        <Dialog open={domainOpen} onOpenChange={setDomainOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {t("admin_tenant_detail_page.custom_domain")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("admin_tenant_detail_page.custom_domain_description")}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveDomain} className="space-y-4">
+              <div>
+                <Label htmlFor="custom-domain">
+                  {t("admin_tenant_detail_page.custom_domain_field")}
+                </Label>
+                <Input
+                  id="custom-domain"
+                  value={domainInput}
+                  onChange={(e) => {
+                    setDomainInput(e.target.value);
+                    setDomainError(null);
+                  }}
+                  placeholder={t(
+                    "admin_tenant_detail_page.custom_domain_placeholder",
+                  )}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="mt-1 font-mono"
+                  aria-invalid={domainError !== null}
+                  aria-describedby="custom-domain-help"
+                />
+                <p
+                  id="custom-domain-help"
+                  className={cn(
+                    "mt-1 text-xs",
+                    domainError ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {domainError ??
+                    t("admin_tenant_detail_page.custom_domain_hint")}
+                </p>
+              </div>
+              <DialogFooter className="gap-2">
+                {tenant.custom_domain && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sm:mr-auto"
+                    onClick={() => saveDomain(null)}
+                    disabled={updateDomain.isPending}
+                  >
+                    {t("admin_tenant_detail_page.custom_domain_remove")}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDomainOpen(false)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateDomain.isPending || domainInput.trim() === ""}
+                >
+                  {updateDomain.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("admin_tenant_detail_page.custom_domain_save")}
                 </Button>
               </DialogFooter>
             </form>

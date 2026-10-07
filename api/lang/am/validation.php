@@ -18,4 +18,6 @@ return [
     'base64_image_invalid' => 'የምስሉ ዳታ ትክክለኛ base64 ምስል አይደለም።',
     'base64_image_unsupported_type' => 'JPEG፣ PNG እና WebP ምስሎች ብቻ ተቀባይነት አላቸው።',
     'base64_image_too_large' => 'ምስሉ ከ:max ኪባ መብለጥ የለበትም።',
+    // English placeholder until the native-speaker review.
+    'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',
 ];

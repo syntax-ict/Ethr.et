@@ -23,6 +23,7 @@ export interface AdminTenant {
   public_id: string;
   name: string;
   subdomain: string;
+  custom_domain: string | null;
   type: string | null;
   status: string;
   employee_count: number;
@@ -107,6 +108,29 @@ export function useUpdateTenantStatus() {
       const { data } = await apiClient.put(
         `/admin/tenants/${publicId}/status`,
         { status },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
+export type UpdateTenantDomainResult =
+  operations["adminTenant.updateDomain"]["responses"][200]["content"]["application/json"];
+
+/** `custom_domain: null` clears it; the server normalises what it is given. */
+export function useUpdateTenantDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      ...body
+    }: {
+      publicId: string;
+    } & components["schemas"]["UpdateTenantDomainRequest"]) => {
+      const { data } = await apiClient.put<UpdateTenantDomainResult>(
+        `/admin/tenants/${publicId}/domain`,
+        body,
       );
       return data;
     },

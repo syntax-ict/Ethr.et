@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -450,6 +451,7 @@ export function RegisterForm() {
                 {t("auth.subdomain", "Subdomain")}
               </Label>
               <div className="flex items-center gap-2">
+                <TenantAddressAffix side="prefix" />
                 <div className="relative flex-1">
                   <Input
                     id="subdomain"
@@ -476,9 +478,7 @@ export function RegisterForm() {
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 text-sm text-muted-foreground">
-                  .ethr.et
-                </span>
+                <TenantAddressAffix side="suffix" />
               </div>
               {subdomainAvailable === false && (
                 <p className="text-xs text-destructive">

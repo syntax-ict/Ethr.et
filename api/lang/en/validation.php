@@ -213,4 +213,7 @@ return [
     'base64_image_unsupported_type' => 'Only JPEG, PNG and WebP images are accepted.',
     'base64_image_too_large' => 'The image must not be larger than :max KB.',
 
+    // App\Http\Requests\Admin\UpdateTenantDomainRequest: a host ETHR already owns.
+    'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',
+
 ];

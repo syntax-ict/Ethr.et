@@ -9,6 +9,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ExtendTrialRequest;
 use App\Http\Requests\Admin\ImpersonateTenantRequest;
+use App\Http\Requests\Admin\UpdateTenantDomainRequest;
 use App\Http\Requests\Admin\UpdateTenantStatusRequest;
 use App\Http\Resources\AdminTenantResource;
 use App\Jobs\BackupTenantJob;
@@ -116,6 +117,7 @@ class AdminTenantController extends Controller
             'public_id' => $tenant->public_id,
             'name' => $tenant->name,
             'subdomain' => $tenant->subdomain,
+            'custom_domain' => $tenant->custom_domain,
             'type' => $tenant->type,
             'status' => $tenant->status->value,
             'trial_ends_at' => $tenant->trial_ends_at,
@@ -154,6 +156,41 @@ class AdminTenantController extends Controller
         return response()->json([
             'public_id' => $tenant->public_id,
             'status' => $tenant->status->value,
+        ]);
+    }
+
+    /**
+     * Assign, change or clear the tenant's custom domain.
+     *
+     * The organisation is then reachable at that host, and links ETHR e-mails
+     * to its people use it. `null` clears it. The change applies from the next
+     * request.
+     */
+    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        // Tenant::query(), not withoutGlobalScopes(): Tenant carries no tenant
+        // scope, so there is nothing to bypass, and SoftDeletes keeps a deleted
+        // tenant from being handed a domain. Tenant's saved() hook forgets the
+        // resolver's cache for the old and the new domain, which is why the
+        // change applies at once rather than after the five-minute cache.
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        $oldDomain = $tenant->custom_domain;
+        $newDomain = $request->input('custom_domain');
+        $tenant->update(['custom_domain' => $newDomain]);
+
+        AuditLog::record('admin.tenant.domain_changed', $tenant, [
+            'old_domain' => $oldDomain,
+            'new_domain' => $tenant->custom_domain,
+        ]);
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'custom_domain' => $tenant->custom_domain,
         ]);
     }
 
