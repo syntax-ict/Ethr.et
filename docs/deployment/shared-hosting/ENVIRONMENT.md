@@ -167,8 +167,18 @@ are not registered at all, so an unconfigured deployment does not advertise them
 # this — noted here only so the reason isn't rediscovered from scratch later.
 ```
 
-(No new variables are actually needed — the layout decision is structural, not
-configured via `.env`.)
+The layout decision needs no variable: it is structural, not configured via `.env`.
+
+```
+TENANCY_SUBDOMAINS=false
+```
+
+**Added 2026-10-07.** It decides whether ETHR hands out `{tenant}.ethr.et` links. Keep
+it `false` until M3 passes, meaning a tenant subdomain actually answers with the
+application. Today every tenant host redirects to the Plesk login. While it is false,
+e-mailed links go to the organisation's custom domain, or else to `ethr.et/{slug}`.
+Resolution accepts a subdomain either way. See
+[`../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 ---
 
