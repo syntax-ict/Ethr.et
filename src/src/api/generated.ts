@@ -4097,6 +4097,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/domain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign, change or clear the tenant's custom domain
+         * @description The organisation is then reachable at that host, and links ETHR e-mails
+         *     to its people use it. `null` clears it. The change applies from the next
+         *     request.
+         */
+        put: operations["adminTenant.updateDomain"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/tenants/{publicId}/extend-trial": {
         parameters: {
             query?: never;
@@ -5264,6 +5286,7 @@ export interface components {
             public_id: string;
             name: string;
             subdomain: string;
+            custom_domain: string | null;
             type: string | null;
             status: string;
             employee_count: number;
@@ -7733,6 +7756,18 @@ export interface components {
             name_am?: string | null;
             department_public_id?: string | null;
             is_active?: boolean | null;
+        };
+        /**
+         * UpdateTenantDomainRequest
+         * @description A bare hostname such as `hr.acme.com`, or `null` to clear it.
+         *
+         *     A scheme, port, path or trailing dot is stripped and the name lower-cased
+         *     before it is checked. The domain must not already belong to another
+         *     organisation, nor sit under the platform's own domain. The field is
+         *     required: send `null` explicitly to clear it.
+         */
+        UpdateTenantDomainRequest: {
+            custom_domain: string | null;
         };
         /** UpdateTenantStatusRequest */
         UpdateTenantStatusRequest: {
@@ -19055,6 +19090,7 @@ export interface operations {
                         public_id: string;
                         name: string;
                         subdomain: string;
+                        custom_domain: string | null;
                         type: string | null;
                         status: string;
                         /** Format: date-time */
@@ -19116,6 +19152,37 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         status: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.updateDomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTenantDomainRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        custom_domain: string | null;
                     };
                 };
             };

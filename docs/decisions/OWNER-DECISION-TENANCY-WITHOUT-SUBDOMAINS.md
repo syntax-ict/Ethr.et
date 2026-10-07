@@ -80,6 +80,14 @@ the account cannot choose a tenant with the header.
   runtime; without this, sign-in on `hr.acme.com` answers 200 and the next request 401.
 - Session cookies stay host-only (`SESSION_DOMAIN` is empty), which is what lets a custom
   domain hold its own session at all.
+- **A platform admin assigns it** from the tenant's page in the console, through
+  `PUT /api/v1/admin/tenants/{publicId}/domain` (added 2026-10-07). `null` clears it, and the
+  field is required, so an empty body cannot remove a domain by accident. The request is
+  normalised before it is validated, so uniqueness is checked against the stored spelling.
+  It refuses a domain another organisation holds, anything that is not a hostname, and any
+  host under `APP_DOMAIN`: those never reach the custom-domain resolver, but `FrontendUrl`
+  would still put them in every link. Each change is audited as `admin.tenant.domain_changed`
+  with the old and new value. Like every console write, it needs MFA on the admin's account.
 
 ### Links ETHR hands out
 
@@ -123,9 +131,9 @@ bypass inventory. No `withoutGlobalScope` was added, and `Tenant` is on the Glob
 
 | Gap | What it needs |
 |---|---|
-| **No way to assign a custom domain** except the database. `custom_domain` is fillable and nothing in the API or the admin console sets it | A platform-admin endpoint and field, validated against the apex, the platform host and other tenants' domains |
+| ~~No way to assign a custom domain except the database~~ | **Closed 2026-10-07**: the console field and endpoint described under *Custom domains* |
 | **A custom domain needs host work** that has not been measured on this account: DNS at the organisation's registrar, the domain added in Plesk to the same site, and a certificate for it | Per organisation: host action, owner's |
-| `TENANCY_SUBDOMAINS` appears in neither `.env.example` nor `.env.shared-hosting.example` | One documented line in each. The default is the right value today |
+| ~~`TENANCY_SUBDOMAINS` appears in neither env example~~ | **Closed 2026-10-07**: `false` in both, documented, and in `deployment/shared-hosting/ENVIRONMENT.md`. `HostingRequirementsConsistencyTest` pins it in the shared-hosting template's key set |
 | The local production rehearsal (`scripts/local-production/up.sh`) has not been run over this change | Rehearse before deploying; `--no-build` reuses an old release tree and cannot test it |
 
 ## What would reverse it
@@ -154,3 +162,12 @@ built on `ethr.et/{slug}` is still in anyone's inbox.
   on a tenant host gets 403, and `/api/*` is unchanged.
 - Gates on 2026-10-07: `gates.sh quick` all green; `gates.sh backend` with PHPStan clean and
   Pest 2565 passed, 232/232 classes collected.
+- The console field, added the same day:
+  - `AdminTenantDomainTest`, 19 cases: normalised storage and the audit row; resolution on
+    the very next request past a cached miss; clearing with `null`; the required field;
+    another organisation's domain in any spelling; hosts under `APP_DOMAIN`; non-hostnames;
+    the field on the detail and list responses; and a tenant admin refused.
+  - `admin-tenant-domain.test.tsx`, 5 cases: the empty state, save, the server's 422 shown
+    under the field, removal sending `null`, and no Remove button when nothing is assigned.
+  - Driven in a browser against the local stack. The PUT reached the endpoint and, for a dev
+    super admin without MFA, came back 403 with the server's reason shown in the dialog.

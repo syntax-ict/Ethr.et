@@ -511,8 +511,9 @@ Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 >   The entry URL shares its namespace with the frontend's pages, and
 >   `PathAndCustomDomainTenancyTest` fails until the name is reserved.
 >
-> The decision, its costs and its open gaps — no admin field assigns a custom domain yet — are
-> in [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
+> A platform admin assigns a custom domain on the tenant's page in the console
+> (`PUT /admin/tenants/{publicId}/domain`). The decision, its costs and its open gaps are in
+> [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 Response shapes:
 
