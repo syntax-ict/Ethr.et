@@ -1,5 +1,6 @@
 "use client";
 
+import { tenantAddress } from "@/lib/tenant-address";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, RefreshCw, Users } from "lucide-react";
@@ -197,7 +198,10 @@ export default function AdminTenantsPage() {
                           key="s"
                           className="font-mono text-muted-foreground"
                         >
-                          {tenant.subdomain}.ethr.et
+                          {tenantAddress(
+                            tenant.subdomain,
+                            tenant.custom_domain,
+                          )}
                         </span>,
                         <span
                           key="e"

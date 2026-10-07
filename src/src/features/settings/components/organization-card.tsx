@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import { Building2, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -136,14 +137,13 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               {t("settings.subdomain", "Subdomain")}
             </Label>
             <div className="mt-1 flex items-center gap-2">
+              <TenantAddressAffix side="prefix" />
               <Input
                 id="org-subdomain"
                 value={organization?.subdomain ?? ""}
                 disabled
               />
-              <span className="shrink-0 text-sm text-muted-foreground">
-                .ethr.et
-              </span>
+              <TenantAddressAffix side="suffix" />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {t("settings.contact_support", "Contact support to change")}

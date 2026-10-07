@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -300,6 +301,7 @@ export function LoginForm() {
               {t("auth.org_subdomain", "Organization subdomain")}
             </Label>
             <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+              <TenantAddressAffix side="prefix" bordered />
               <Input
                 id="tenant"
                 {...register("tenant")}
@@ -307,9 +309,7 @@ export function LoginForm() {
                 autoComplete="organization"
                 className="border-0 focus-visible:ring-0"
               />
-              <span className="shrink-0 border-l px-3 text-sm text-muted-foreground">
-                .ethr.et
-              </span>
+              <TenantAddressAffix side="suffix" bordered />
             </div>
             {errors.tenant && (
               <p className="text-xs text-destructive">

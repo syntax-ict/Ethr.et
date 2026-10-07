@@ -1,5 +1,6 @@
 "use client";
 
+import { TenantAddressAffix } from "@/components/shared/tenant-address-affix";
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MailCheck, Loader2 } from "lucide-react";
@@ -177,15 +178,14 @@ export function ForgotForm() {
           >
             {(control) => (
               <div className="flex items-center rounded-md border border-input focus-within:ring-2 focus-within:ring-ring">
+                <TenantAddressAffix side="prefix" bordered />
                 <Input
                   {...register("tenant")}
                   {...control}
                   placeholder="acme"
                   className="border-0 focus-visible:ring-0"
                 />
-                <span className="px-3 text-sm text-muted-foreground border-l">
-                  .ethr.et
-                </span>
+                <TenantAddressAffix side="suffix" bordered />
               </div>
             )}
           </FormField>

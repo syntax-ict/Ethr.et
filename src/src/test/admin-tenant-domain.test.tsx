@@ -182,3 +182,26 @@ describe("assigning a custom domain from the tenant detail page", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+// Production builds without NEXT_PUBLIC_ROOT_DOMAIN, and the host serves no
+// wildcard subdomains (M3), so `acme.ethr.et` does not answer. The console
+// must print an address that does.
+describe("the tenant's address on the detail page (single-host mode)", () => {
+  it("prints ethr.et/{slug} when no custom domain is assigned", async () => {
+    serveTenant(null);
+    renderPage();
+
+    const heading = await screen.findByRole("heading", { name: "Acme Ltd" });
+    expect(heading.parentElement).toHaveTextContent("ethr.et/acme");
+    expect(document.body).not.toHaveTextContent("acme.ethr.et");
+  });
+
+  it("prints the custom domain under the name when one is assigned", async () => {
+    serveTenant("hr.acme.com");
+    renderPage();
+
+    const heading = await screen.findByRole("heading", { name: "Acme Ltd" });
+    expect(heading.parentElement).toHaveTextContent("hr.acme.com");
+    expect(document.body).not.toHaveTextContent("acme.ethr.et");
+  });
+});

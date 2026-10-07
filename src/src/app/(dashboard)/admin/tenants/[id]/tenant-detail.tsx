@@ -1,5 +1,6 @@
 "use client";
 
+import { tenantAddress } from "@/lib/tenant-address";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -307,7 +308,7 @@ function TenantDetail({ id }: { id: string }) {
               {tenant.name}
             </h1>
             <p className="mt-0.5 font-mono text-sm text-muted-foreground">
-              {tenant.subdomain}.ethr.et
+              {tenantAddress(tenant.subdomain, tenant.custom_domain)}
             </p>
           </div>
           <StatusBadge status={tenant.status} />
@@ -483,7 +484,7 @@ function TenantDetail({ id }: { id: string }) {
             <Row label={t("common.name")} value={tenant.name} />
             <Row
               label={t("admin_tenants_page.subdomain")}
-              value={`${tenant.subdomain}.ethr.et`}
+              value={tenantAddress(tenant.subdomain)}
             />
             <Row
               label={t("admin_tenant_detail_page.custom_domain")}
