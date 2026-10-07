@@ -1,8 +1,8 @@
 /**
- * Where a tenant's application actually lives.
+ * Where a tenant's application actually lives, in subdomain mode.
  *
- * In production the hostname is the only tenant selector the API honours, so a
- * session established on the apex (`ethr.et`) is useless: the session cookie is
+ * Where tenants have their own hostnames, a session established on the apex
+ * (`ethr.et`) is useless on the tenant's host: the session cookie is
  * host-only by design — that is what stops `habru.ethr.et`'s cookie from ever
  * reaching `woldia.ethr.et` — and so it does not travel to the tenant host.
  *
@@ -14,9 +14,11 @@
  * Behaviour is driven by explicit configuration rather than NODE_ENV, so a
  * production build running locally behaves like local development:
  *
- *   NEXT_PUBLIC_ROOT_DOMAIN unset  → single-host mode (localhost dev, tests).
+ *   NEXT_PUBLIC_ROOT_DOMAIN unset  → single-host mode: production (no wildcard
+ *                                     subdomains, M3), localhost dev and tests.
  *                                     The tenant travels in the X-Tenant header,
- *                                     which the API accepts only in local/testing.
+ *                                     which the API honours on the apex in every
+ *                                     environment. Nothing to route to.
  *   NEXT_PUBLIC_ROOT_DOMAIN set    → hostname is authoritative. The apex routes
  *                                     to {tenant}.{root}; X-Tenant is not sent.
  */

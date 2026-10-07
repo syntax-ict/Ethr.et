@@ -38,9 +38,11 @@ import { PUBLIC_ROUTES } from "@/lib/site-url";
  * returns 404 whenever a tenant resolves, `Gate::authorize('admin.manage')` is on
  * every action, and `RequirePlatformMfa` is on the route group.
  *
- * Inert without NEXT_PUBLIC_ROOT_DOMAIN. On `localhost` there are no subdomains
- * to read, so enforcing a hostname model would simply lock development out —
- * the same reason ResolveTenant only honours X-Tenant in local/testing.
+ * Inert without NEXT_PUBLIC_ROOT_DOMAIN. In single-host mode — production,
+ * which has no wildcard subdomains (M3), and `localhost` — there are no
+ * subdomains to read, so enforcing a hostname model would lock everyone out.
+ * The tenant travels in X-Tenant there, which ResolveTenant honours on the
+ * apex in every environment.
  */
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || null;
