@@ -43,6 +43,23 @@ const loginSchema = z.object({
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
+/**
+ * The organisation named by `?org=`, which is where an organisation's entry URL
+ * (`ethr.et/{slug}`, OrganisationEntryController) sends its people.
+ *
+ * It only prefills the field. Nothing is stored until the person signs in, so a
+ * crafted link cannot change the organisation a signed-in browser sends in
+ * X-Tenant. A value that is not a slug is ignored rather than shown.
+ */
+function organisationFromEntryUrl(): string | null {
+  const org = new URLSearchParams(window.location.search)
+    .get("org")
+    ?.trim()
+    .toLowerCase();
+
+  return org && /^[a-z0-9][a-z0-9-]{0,62}$/.test(org) ? org : null;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -68,7 +85,7 @@ export function LoginForm() {
     defaultValues: {
       tenant:
         typeof window !== "undefined"
-          ? (localStorage.getItem("tenant") ?? "")
+          ? (organisationFromEntryUrl() ?? localStorage.getItem("tenant") ?? "")
           : "",
       email: "",
       password: "",

@@ -64,7 +64,7 @@ it('links the invitation (activation) mail to the organisation\'s own subdomain 
     // ETHR … An account has been created for you at :org". It used to land
     // everyone on the apex, so a new user set their password on ethr.et and
     // then had to find their organisation's address to sign in.
-    config(['app.domain' => 'ethr.et', 'app.frontend_url' => 'https://ethr.et']);
+    config(['app.domain' => 'ethr.et', 'app.frontend_url' => 'https://ethr.et', 'tenancy.subdomains' => true]);
     $user = User::factory()->make(['email' => 'a@acme.test']);
 
     $url = mailActionUrl(new AccountActivationNotification('tok123', 'acme', 'Acme Ltd'), $user);

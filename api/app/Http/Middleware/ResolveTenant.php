@@ -21,9 +21,15 @@ use Symfony\Component\HttpFoundation\Response;
  * concerns (preventing cross-tenant data access via leaked tokens).
  *
  * Resolution order:
- *   1. Subdomain — the only selector honoured in production: acme.ethr.et
- *   2. X-Tenant header — local/testing ONLY (a bare `localhost` has no
- *      subdomain to read); refused in production, see resolveFromHeader()
+ *   0. Custom domain — a host the platform admin assigned to one tenant
+ *      (`hr.acme.com`). Checked first: on that host it is the only answer.
+ *   1. Subdomain — acme.ethr.et, wherever the host can serve it.
+ *   2. X-Tenant header — on the APEX (ethr.et / www.ethr.et), in every
+ *      environment since 2026-10-06, because the production host cannot serve
+ *      wildcard subdomains (M3) and ethr.et/{slug} is how an organisation is
+ *      reached instead. Ignored on a tenant subdomain, a custom domain, the
+ *      platform host and any host this deployment does not own. See
+ *      resolveFromHeader() for why that is safe.
  *   3. Tenant slug in form body — login/register/password endpoints only, so a
  *      user arriving at the apex can say which organisation they belong to.
  *      Safe in production: it selects *which* tenant to authenticate against,
@@ -50,7 +56,8 @@ class ResolveTenant
             return $next($request);
         }
 
-        $tenant = $this->resolveFromSubdomain($request)
+        $tenant = $this->resolveFromCustomDomain($request)
+            ?? $this->resolveFromSubdomain($request)
             ?? $this->resolveFromHeader($request)
             ?? $this->resolveFromFormField($request);
 
@@ -92,6 +99,65 @@ class ResolveTenant
         return $this->extractSubdomain($request->getHost()) === Tenant::PLATFORM_SUBDOMAIN;
     }
 
+    /**
+     * A host the platform admin assigned to one tenant.
+     *
+     * Only consulted when APP_DOMAIN is set: without it there is no way to tell
+     * a custom domain from the deployment's own single host. A resolved custom
+     * domain is also added to Sanctum's first-party list for this request:
+     * `SANCTUM_STATEFUL_DOMAINS` is static configuration and cannot name
+     * domains assigned at runtime. Without this, sign-in on hr.acme.com would
+     * answer 200 and the next request 401, because Sanctum would not treat the
+     * session cookie as first-party. This middleware runs before
+     * EnsureFrontendRequestsAreStateful (bootstrap/app.php prepends the api
+     * group), which is what makes the addition count.
+     */
+    private function resolveFromCustomDomain(Request $request): Tenant|Response|null
+    {
+        $root = TenancyDomain::root();
+        if ($root === null) {
+            return null;
+        }
+
+        $host = Tenant::normaliseDomain($request->getHost());
+        if ($host === null || $host === $root || str_ends_with($host, '.'.$root)) {
+            return null;
+        }
+
+        $tenant = Cache::remember(
+            "tenant-domain:{$host}",
+            300,
+            fn () => Tenant::where('custom_domain', $host)->first() ?? false,
+        );
+
+        if (! $tenant instanceof Tenant) {
+            return null;
+        }
+
+        $stateful = (array) config('sanctum.stateful', []);
+        if (! in_array($request->getHttpHost(), $stateful, true)) {
+            config(['sanctum.stateful' => array_values(array_unique([...$stateful, $host, $request->getHttpHost()]))]);
+        }
+
+        return $this->lookupTenant($tenant->subdomain);
+    }
+
+    /**
+     * A host this deployment owns that names no tenant: the apex, its `www`
+     * alias, or any host at all on a single-host install with no APP_DOMAIN.
+     */
+    private function isSharedHost(Request $request): bool
+    {
+        $root = TenancyDomain::root();
+        if ($root === null) {
+            return true;
+        }
+
+        $host = Tenant::normaliseDomain($request->getHost());
+
+        return $host === $root || $host === 'www.'.$root;
+    }
+
     private function resolveFromSubdomain(Request $request): Tenant|Response|null
     {
         $subdomain = $this->extractSubdomain($request->getHost());
@@ -104,22 +170,28 @@ class ResolveTenant
     }
 
     /**
-     * Development-only tenant selection.
+     * The tenant named by X-Tenant, honoured where no host can name one.
      *
-     * In production the hostname is the *only* tenant selector. This header
-     * exists because a bare `localhost` has no subdomain to read, so local
-     * development and the test suite would otherwise have no way to pick a
-     * tenant at all.
+     * Until 2026-10-06 this was refused outside local/testing, on the reasoning
+     * that the client should not choose its tenant. Two facts changed that.
+     * The host is client-chosen too: anyone can type acme.ethr.et, so the
+     * subdomain was never a secret. What actually stops a leaked token reading
+     * another tenant is EnsureUserBelongsToTenant, which compares the resolved
+     * tenant with the authenticated user's own, and it applies to the header
+     * exactly as to the host. And without wildcard subdomains (M3) the apex is
+     * the only host there is: refusing the header there meant every organisation
+     * could sign in and then saw empty pages, because nothing resolved its tenant.
      *
-     * Honouring it in production would mean the tenant is chosen by the client
-     * rather than by the host — which is precisely the property that made a
-     * leaked or borrowed token able to read another tenant's data before
-     * EnsureUserBelongsToTenant existed. Two independent controls are better
-     * than one, so the header is refused outright rather than relied upon.
+     * So it is honoured where the deployment owns the host but the host names
+     * no tenant: the apex, its `www` alias, and single-host installs with no
+     * APP_DOMAIN. Never on a tenant subdomain or custom domain (the host already
+     * answered, and those resolve before this runs), never on the platform host
+     * (handled before any selector), and never on a host this deployment does
+     * not own. A stranger pointing DNS at the account gets no tenant selector.
      */
     private function resolveFromHeader(Request $request): Tenant|Response|null
     {
-        if (! app()->environment('local', 'testing')) {
+        if (! app()->environment('local', 'testing') && ! $this->isSharedHost($request)) {
             return null;
         }
 

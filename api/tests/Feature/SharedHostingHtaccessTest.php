@@ -203,6 +203,42 @@ it('serves an unknown URL as a real 404 rather than a rewritten 200', function (
     }
 });
 
+it('sends an organisation entry URL to Laravel, and nothing a page or asset owns', function () {
+    $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
+
+    $pattern = '[a-z0-9][a-z0-9-]{0,62}';
+    $entryRule = 'RewriteRule ^('.$pattern.')/?$ index.php [L]';
+
+    // Without it ethr.et/{slug} never reached OrganisationEntryController:
+    // ErrorDocument answered first, so every organisation's entry URL, and
+    // every e-mailed sign-in link built on it, was a 404.
+    expect($directives)->toContain($entryRule);
+
+    $ruleIndex = ethrHtaccessIndexOf($directives, $entryRule);
+
+    // A RewriteCond binds to the next RewriteRule only, so the three guards must
+    // be the three lines directly above it.
+    expect(array_slice($directives, $ruleIndex - 3, 3))->toBe([
+        'RewriteCond %{REQUEST_FILENAME} !-f',
+        'RewriteCond %{REQUEST_FILENAME} !-d',
+        'RewriteCond %{DOCUMENT_ROOT}/$1.html !-f',
+    ]);
+
+    // Exported pages win: /login and /dashboard are served by group 2 before
+    // this rule can see them, and the /admin boundary precedes both.
+    $spaFallback = ethrHtaccessIndexOf($directives, 'RewriteRule ^(.+?)/?$ /$1.html [L]');
+    $adminDeny = ethrHtaccessIndexOf($directives, 'RewriteRule ^admin(/|$) - [F,L]');
+    expect($spaFallback)->toBeLessThan($ruleIndex)
+        ->and($adminDeny)->toBeLessThan($ruleIndex);
+
+    // The pattern is the route's own constraint, so Apache never hands Laravel
+    // a path its route refuses, nor refuses one the route would answer. It has
+    // no dot, so no asset, exported .html or index.php itself can match.
+    $routes = (string) file_get_contents(base_path('routes/web.php'));
+    expect($routes)->toContain("->where('slug', '{$pattern}')");
+    expect($pattern)->not->toContain('.');
+});
+
 it('falls back to the entity shell only when no real page exists at that path', function () {
     $directives = ethrHtaccessDirectives(ethrRenderedHtaccess());
 
@@ -329,8 +365,10 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // Pinned deliberately. Adding a fifth [id] route, or a rule of any kind,
     // must be a conscious act that updates this list — the same reason
     // TenantScopeBypassInventoryTest pins its inventory per file.
+    // 20 → 24 on 2026-10-07: group 2b, the organisation entry URL (three
+    // conditions and its rule).
     expect($sentinels)->toHaveCount(
-        20,
+        24,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );

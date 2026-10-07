@@ -309,6 +309,27 @@
     #@ RewriteCond %{DOCUMENT_ROOT}/$1.html -f
     #@ RewriteRule ^(.+?)/?$ /$1.html [L]
     #
+    # ── 2b. An organisation's entry URL: ethr.et/{slug} ──────────
+    #
+    # Added 2026-10-07. The host cannot serve wildcard subdomains (M3), so an
+    # organisation is reached at ethr.et/{slug} instead, and Laravel's
+    # OrganisationEntryController answers it: a real organisation redirects
+    # to /login?org={slug}, anything else gets 404.html with a real 404.
+    # Without this rule the path never reached Laravel at all — group 3 served
+    # Apache's 404 for every organisation, and every e-mailed sign-in link.
+    #
+    # Only what nothing else claims: one lower-case segment, no dot (so no
+    # asset or .html can match, and neither can this rule's own index.php on
+    # the next round), with no file, directory or exported page behind it.
+    # Group 2 has already taken every exported page by then; the third
+    # condition restates that rather than relying on the order. The pattern
+    # is the route's own constraint in routes/web.php, so the two agree.
+    #
+    #@ RewriteCond %{REQUEST_FILENAME} !-f
+    #@ RewriteCond %{REQUEST_FILENAME} !-d
+    #@ RewriteCond %{DOCUMENT_ROOT}/$1.html !-f
+    #@ RewriteRule ^([a-z0-9][a-z0-9-]{0,62})/?$ index.php [L]
+    #
     # ── 3. Anything with no file behind it ───────────────────────
     #
     # ErrorDocument, not a rewrite. Measured 2026-09-26: the rewrite form
