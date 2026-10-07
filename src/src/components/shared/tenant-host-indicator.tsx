@@ -2,7 +2,8 @@
 
 import { Building2 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
-import { tenantAddress } from "@/lib/tenant-address";
+
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "ethr.et";
 
 /**
  * Replaces the manual "Organization subdomain" field on a tenant hostname —
@@ -33,7 +34,7 @@ export function TenantHostIndicator({
             : (name ?? slug)}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {tenantAddress(slug)}
+          {slug}.{ROOT_DOMAIN}
         </p>
       </div>
     </div>
