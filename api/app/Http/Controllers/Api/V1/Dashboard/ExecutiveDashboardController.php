@@ -9,11 +9,11 @@ use App\Models\Branch;
 use App\Services\Analytics\ExecutiveDashboardService;
 use App\Services\CurrentTenant;
 use App\Services\Dashboard\DashboardCacheVersion;
+use App\Support\ExecutiveBranchScope;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Persona-scoped executive dashboards.
@@ -129,36 +129,7 @@ class ExecutiveDashboardController extends Controller
      */
     private function resolveBranchId(Request $request): ?int
     {
-        $user = $request->user();
-        $hasFull = $user?->hasPermission('dashboard.executive') ?? false;
-        $hasRegional = $user?->hasPermission('dashboard.regional') ?? false;
-
-        if (! $hasFull && ! $hasRegional) {
-            throw new HttpException(403, 'This action is unauthorized.');
-        }
-
-        if ($hasFull) {
-            if (! $request->filled('branch')) {
-                return null;
-            }
-
-            $branch = Branch::where('public_id', $request->input('branch'))->first();
-
-            if (! $branch) {
-                throw new HttpException(404, 'Branch not found.');
-            }
-
-            return $branch->id;
-        }
-
-        // Regional: forced to the caller's own branch, never the caller's choice.
-        $branchId = $user->employee?->branch_id;
-
-        if ($branchId === null) {
-            throw new HttpException(403, 'No branch is assigned to your account.');
-        }
-
-        return $branchId;
+        return ExecutiveBranchScope::resolve($request);
     }
 
     private function cacheKey(int $tenantId, string $section, ?int $branchId, ?Carbon $from = null, ?Carbon $to = null): string

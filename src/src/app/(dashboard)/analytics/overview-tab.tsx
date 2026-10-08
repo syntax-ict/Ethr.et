@@ -169,6 +169,7 @@ export function OverviewTab({ branchPublicId }: { branchPublicId?: string }) {
 
           <DepartmentDrillDownDialog
             departmentPublicId={drilldownDept}
+            branchPublicId={branchPublicId}
             onOpenChange={(open) => {
               if (!open) setDrilldownDept(null);
             }}

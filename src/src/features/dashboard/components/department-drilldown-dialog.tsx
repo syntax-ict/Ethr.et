@@ -24,13 +24,16 @@ import { useDepartmentDetail } from "../executive-api";
  */
 export function DepartmentDrillDownDialog({
   departmentPublicId,
+  branchPublicId,
   onOpenChange,
 }: {
   departmentPublicId: string | null;
+  /** The dashboard's branch filter, so the roster matches the charts. */
+  branchPublicId?: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useT();
-  const query = useDepartmentDetail(departmentPublicId);
+  const query = useDepartmentDetail(departmentPublicId, branchPublicId);
 
   /**
    * The keys are stored values: `male`, `female` (StoreEmployeeRequest allows

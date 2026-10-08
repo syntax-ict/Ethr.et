@@ -225,7 +225,9 @@ export function CommandPalette() {
             label: t("nav.analytics", "Analytics"),
             href: "/analytics",
             icon: TrendingUp,
-            show: isTenantAdmin,
+            // As the sidebar: the page is for either dashboard ability, and
+            // HR, finance and regional users were left out here (audit N85).
+            show: can.viewExecutiveDashboard || can.viewRegionalDashboard,
           },
           {
             label: t("nav.announcements", "Announcements"),

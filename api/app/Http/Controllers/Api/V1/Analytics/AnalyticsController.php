@@ -10,6 +10,7 @@ use App\Models\Department;
 use App\Services\Analytics\BranchAnalyticsService;
 use App\Services\Analytics\DepartmentAnalyticsService;
 use App\Services\CurrentTenant;
+use App\Support\ExecutiveBranchScope;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,12 +35,17 @@ class AnalyticsController extends Controller
 
     public function departmentDetail(Request $request, Department $department, DepartmentAnalyticsService $service): JsonResponse
     {
-        Gate::authorize('dashboard.executive');
+        // The drill-down on the executive dashboard, so the dashboard's scope:
+        // a regional holder sees their own branch's part of the department,
+        // an executive the branch they filtered to. It was executive-only and
+        // branch-blind, so a regional user's click was a 403 and a filtered
+        // executive saw every branch (audit N85).
+        $branchId = ExecutiveBranchScope::resolve($request);
 
         [$from, $to] = $this->dateRange($request);
         $tenantId = app(CurrentTenant::class)->get()->id;
 
-        return response()->json($service->detail($tenantId, $department, $from, $to));
+        return response()->json($service->detail($tenantId, $department, $from, $to, $branchId));
     }
 
     public function branches(Request $request, BranchAnalyticsService $service): JsonResponse

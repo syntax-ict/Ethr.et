@@ -33,7 +33,10 @@ function buildDetail(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderDialog(departmentPublicId: string | null) {
+function renderDialog(
+  departmentPublicId: string | null,
+  branchPublicId?: string,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -43,6 +46,7 @@ function renderDialog(departmentPublicId: string | null) {
   return render(
     <DepartmentDrillDownDialog
       departmentPublicId={departmentPublicId}
+      branchPublicId={branchPublicId}
       onOpenChange={() => {}}
     />,
     { wrapper: Wrapper },
@@ -50,6 +54,22 @@ function renderDialog(departmentPublicId: string | null) {
 }
 
 describe("<DepartmentDrillDownDialog>", () => {
+  // The roster ignored the dashboard's branch filter, so a filtered view's
+  // drill-down listed every branch's people (audit N85).
+  it("asks for the dashboard's branch", async () => {
+    let branch: string | null = "unset";
+    server.use(
+      http.get(DETAIL_URL, ({ request }) => {
+        branch = new URL(request.url).searchParams.get("branch");
+        return HttpResponse.json(buildDetail());
+      }),
+    );
+    renderDialog(DEPARTMENT_ID, "01HZBRANCH000000000000001");
+
+    await screen.findByRole("heading", { name: "Finance" });
+    expect(branch).toBe("01HZBRANCH000000000000001");
+  });
+
   it("shows the department's headcount and links each employee", async () => {
     server.use(http.get(DETAIL_URL, () => HttpResponse.json(buildDetail())));
     renderDialog(DEPARTMENT_ID);

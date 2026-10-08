@@ -163,15 +163,23 @@ export type DepartmentDetail = Omit<
   employees: Array<{ public_id: string; name: string; status: string }>;
 };
 
-/** The executive dashboard's department drill-down; idle until one is picked. */
-export function useDepartmentDetail(departmentPublicId: string | null) {
+/**
+ * The executive dashboard's department drill-down; idle until one is picked.
+ * Scoped like the dashboard around it: the branch filter is passed, and a
+ * regional holder is held to their own branch by the API (audit N85).
+ */
+export function useDepartmentDetail(
+  departmentPublicId: string | null,
+  branchPublicId?: string,
+) {
   return useQuery<DepartmentDetail>({
-    queryKey: ["analytics", "departments", departmentPublicId],
+    queryKey: ["analytics", "departments", departmentPublicId, branchPublicId],
     enabled: departmentPublicId !== null,
     queryFn: async () =>
       (
         await apiClient.get<DepartmentDetail>(
           `/analytics/departments/${departmentPublicId}`,
+          { params: branchPublicId ? { branch: branchPublicId } : undefined },
         )
       ).data,
   });
