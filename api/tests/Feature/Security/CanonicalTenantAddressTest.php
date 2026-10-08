@@ -166,6 +166,18 @@ it('builds no link on a custom domain that is assigned but not verified', functi
     expect(FrontendUrl::forTenant('acme', '/login'))->toBe('https://ethr.et/acme');
 });
 
+it('gives a custom domain the scheme and port the deployment serves, like the subdomain tier', function () {
+    canonicalTenant('acme', verifiedDomain('hr.acme.com'));
+    app()->detectEnvironment(fn () => 'production');
+    config(['app.domain' => 'ethr.et', 'app.frontend_url' => 'http://ethr.localhost:8081']);
+
+    // Production is https because FRONTEND_URL is; the local-production
+    // rehearsal is http on :8081, and a hard-coded https sent every Enterprise
+    // redirect to a port it does not listen on.
+    expect(FrontendUrl::forTenant('acme', '/login'))->toBe('http://hr.acme.com:8081/login');
+    test()->get('http://ethr.et/acme')->assertRedirect('http://hr.acme.com:8081/login');
+});
+
 it('starts verification over, with a new token, whenever the domain changes', function () {
     [$tenant] = canonicalTenant('acme', verifiedDomain('hr.acme.com'));
     $tenant->forceFill(['custom_domain_token' => 'old-token'])->save();

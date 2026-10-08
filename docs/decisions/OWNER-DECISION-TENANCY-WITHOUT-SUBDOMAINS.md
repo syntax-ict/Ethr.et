@@ -308,7 +308,7 @@ when it does.
 | **Per-domain host work** for every Enterprise organisation: the domain added in Plesk to the same site, and a certificate for it. Verification proves DNS, not that Plesk answers for the name | Host action, owner's, per organisation |
 | ~~No periodic re-check. A verified domain stays verified if the organisation later removes the records or repoints the name~~ | **Closed 2026-10-08, report-only** (delegated to the agent, "decide for me"). `tenancy:recheck-custom-domains` runs Mondays at 03:00 UTC. For each verified domain that no longer checks out it writes `platform.tenant.domain_check_failed` to the platform audit log, with the failed checks, and a log warning. It **never revokes**: one DNS hiccup must not take an organisation's address away, so a person decides. `CustomDomainRecheckTest`, 4 cases, all failing before the command existed. Like every scheduled task it runs only when the GitHub Actions caller hits `/cron/schedule` |
 | **`dns_get_record()` on the production host is unmeasured.** If the host blocks outbound DNS or the function, every Verify fails with both records reported missing | Press Verify once on a known-good domain after deploying |
-| The local production rehearsal has not been run over this change | `scripts/local-production/up.sh` without `--no-build` |
+| ~~The local production rehearsal has not been run over this change~~ | **Closed 2026-10-08**: rebuilt from the merge and driven through every tier with `APP_DOMAIN=ethr.localhost` and `hr.acme.localhost` as the Enterprise domain. Three defects found and fixed (`499812c3`), none crossing a tenant boundary: [`../audit/QA-CANONICAL-ADDRESS-2026-10-08.md`](../audit/QA-CANONICAL-ADDRESS-2026-10-08.md) |
 
 ### Verification of the amendment
 

@@ -77,6 +77,24 @@ it('still prefers the resolved tenant when there is one', function () {
     expect($entry->tenant_id)->toBe($tenant->id);
 });
 
+it('attributes a console action on a tenant to that tenant', function () {
+    // The platform host resolves no tenant, and a Tenant has no `tenant_id`
+    // of its own, so `admin.tenant.*` rows (status, trial, custom domain)
+    // were written unowned: the organisation never saw that the platform had
+    // changed its domain, and the console's Recent activity for it stayed
+    // blank. Found in the browser on 2026-10-08.
+    $tenant = Tenant::factory()->create(['subdomain' => 'acme']);
+    app(CurrentTenant::class)->forget();
+
+    AuditLog::record('admin.tenant.domain_changed', $tenant, ['old_domain' => null, 'new_domain' => 'hr.acme.com']);
+
+    $entry = AuditLog::withoutGlobalScopes()
+        ->where('action', 'admin.tenant.domain_changed')
+        ->firstOrFail();
+
+    expect($entry->tenant_id)->toBe($tenant->id);
+});
+
 it('records a tenantless action with no owner rather than inventing one', function () {
     // Platform-level actions genuinely have no tenant, and `tenant_id` is
     // nullable for them. The fallback must not manufacture an owner when there
