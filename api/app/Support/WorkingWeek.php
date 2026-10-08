@@ -22,8 +22,9 @@ final class WorkingWeek
     /** @return list<int> */
     public static function of(?Tenant $tenant): array
     {
+        // data_get: `settings` is cast to an array, but its static type is not.
         $days = [];
-        foreach ($tenant?->settings['working_days'] ?? self::DEFAULT as $day) {
+        foreach ((array) data_get($tenant?->settings, 'working_days', self::DEFAULT) as $day) {
             $days[] = (int) $day;
         }
 
