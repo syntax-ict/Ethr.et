@@ -16227,6 +16227,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        available: [
+                            "email",
+                            "phone",
+                            "employee_code",
+                            "username"
+                        ];
                         login_identifiers: [
                             "email"
                         ] | unknown[];

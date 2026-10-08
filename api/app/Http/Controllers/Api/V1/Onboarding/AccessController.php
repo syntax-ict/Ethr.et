@@ -69,9 +69,13 @@ class AccessController extends Controller
         );
         $progress->markStepComplete(OnboardingStep::ACCESS_IDENTITY->value, ['login_identifiers' => $identifiers]);
 
+        // The response has show()'s shape, `available` included: the wizard
+        // writes it straight into its cache, and the step's next render maps
+        // over `available`. Without it, going Back to the step threw (N56).
         AuditLog::record('onboarding.access_updated', $tenant, ['login_identifiers' => $identifiers]);
 
         return response()->json([
+            'available' => AuthIdentifierResolver::AVAILABLE,
             'login_identifiers' => $identifiers,
             'role_defaults' => $settings['login_identifier_defaults'] ?? [],
         ]);

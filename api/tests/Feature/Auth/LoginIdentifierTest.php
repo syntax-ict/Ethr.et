@@ -233,6 +233,23 @@ describe('access step configuration', function () {
         expect($tenant->fresh()->settings['login_identifiers'])->toBe(['email', 'phone', 'employee_code']);
     });
 
+    it('answers a save with the same shape it answers a read', function () {
+        // The wizard writes the save response into its cache, and the step maps
+        // over `available` on its next render. The save left it out, so going
+        // Back to the step threw a TypeError (N56).
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        $host = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+        $read = test()->getJson("{$host}/onboarding/access")->assertOk()->json();
+        $saved = test()->putJson("{$host}/onboarding/access", ['login_identifiers' => ['email', 'phone']])
+            ->assertOk()
+            ->json();
+
+        expect(array_keys($saved))->toBe(array_keys($read))
+            ->and($saved['available'])->toBe($read['available']);
+    });
+
     it('exposes username among the available identifier types', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
