@@ -37,6 +37,7 @@ function record(
     type: "check_in",
     idempotency_key: "key-1",
     offline_token: "tok-1",
+    captured_at: "2026-10-07T06:30:00.000Z",
     synced: false,
     ...overrides,
   } as OfflineAttendanceRecord;
@@ -75,6 +76,10 @@ describe("useOfflineSync", () => {
           employee_public_id: "01HEMP0000000000000000001",
           idempotency_key: "key-1",
           offline_token: "tok-1",
+          // Required by OfflineSyncRequest; without it every batch was a
+          // 422 and no offline punch ever arrived (N49). This assertion did
+          // not check it, which is how that went unnoticed.
+          timestamp: "2026-10-07T06:30:00.000Z",
         }),
       ],
     });

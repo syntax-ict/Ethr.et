@@ -42,8 +42,12 @@ class AdminDashboardController extends Controller
 
         $query = AuditLog::withoutGlobalScopes()->orderByDesc('created_at');
 
+        // A substring, as on the tenant view: both share one explorer whose
+        // action box is free text, so an exact match made "payroll" find
+        // nothing here and everything there (audit N77).
         if ($request->has('filter.action')) {
-            $query->where('action', $request->input('filter.action'));
+            $action = $request->input('filter.action');
+            $query->where('action', 'like', '%'.$action.'%');
         }
 
         if ($request->has('filter.from')) {

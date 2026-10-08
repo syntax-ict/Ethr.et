@@ -60,7 +60,7 @@ class DisciplinaryCaseService
             $notes = $case->investigation_notes ?? [];
             $notes[] = [
                 'note' => $note,
-                'by' => $author?->id,
+                'by' => $author?->public_id,
                 'by_name' => $author?->getAttribute('name'),
                 'at' => now()->toIso8601String(),
             ];

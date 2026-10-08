@@ -3,9 +3,14 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\CustomRole;
+use App\Models\Permission;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\AccountActivationNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 
 describe('POST /api/v1/users', function () {
     it('lets an hr admin invite a department admin and emails an activation link', function () {
@@ -133,5 +138,59 @@ describe('user lifecycle management', function () {
         expect($target->trashed())->toBeTrue();
 
         $this->deleteJson("/api/v1/users/{$admin->public_id}")->assertStatus(422);
+    });
+});
+
+// A custom role could be assigned by anyone with users.update, whatever it
+// granted, and another tenant's role passed validation and then silently
+// cleared the user's role (audit N87).
+describe('assigning a custom role', function () {
+    function customRoleWith(int $tenantId, array $permissions): CustomRole
+    {
+        $role = CustomRole::query()->forceCreate([
+            'tenant_id' => $tenantId,
+            'name' => 'Role '.Str::random(6),
+            'is_active' => true,
+        ]);
+        foreach ($permissions as $name) {
+            DB::table('custom_role_permissions')->insert([
+                'custom_role_id' => $role->id,
+                'permission_id' => Permission::query()->where('name', $name)->value('id'),
+            ]);
+        }
+        Permission::clearCache();
+
+        return $role;
+    }
+
+    it('refuses an hr admin a role carrying abilities they lack, for themselves too', function () {
+        $hr = actingAsUser(['role' => UserRole::HR_ADMIN]);
+        $role = customRoleWith($hr->tenant_id, ['employee.view', 'settings.manage']);
+
+        $this->patchJson("/api/v1/users/{$hr->public_id}", ['custom_role_id' => $role->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+        expect($hr->fresh()->custom_role_id)->toBeNull();
+    });
+
+    it('lets an hr admin assign a role within their own abilities', function () {
+        $hr = actingAsUser(['role' => UserRole::HR_ADMIN]);
+        $target = createUser(['role' => UserRole::EMPLOYEE], Tenant::find($hr->tenant_id));
+        $role = customRoleWith($hr->tenant_id, ['employee.view', 'leave.approve']);
+
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $role->public_id])
+            ->assertOk();
+        expect($target->fresh()->custom_role_id)->toBe($role->id);
+    });
+
+    it('refuses another tenant\'s role instead of silently clearing the user\'s', function () {
+        // First: creating a tenant makes it the resolved one.
+        $foreign = customRoleWith(createTenant()->id, ['employee.view']);
+        $admin = actingAsUser(['role' => UserRole::TENANT_ADMIN]);
+        $own = customRoleWith($admin->tenant_id, ['employee.view']);
+        $target = createUser(['role' => UserRole::EMPLOYEE, 'custom_role_id' => $own->id], Tenant::find($admin->tenant_id));
+
+        $this->patchJson("/api/v1/users/{$target->public_id}", ['custom_role_id' => $foreign->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
+        expect($target->fresh()->custom_role_id)->toBe($own->id);
     });
 });

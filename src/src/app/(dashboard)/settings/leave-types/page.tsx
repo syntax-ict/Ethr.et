@@ -43,6 +43,7 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
+import { WorkingWeekCard } from "@/features/leave/components/working-week-card";
 
 const ACCRUAL_TYPES = [
   "monthly",
@@ -173,6 +174,8 @@ export default function LeaveTypesPage() {
             </Button>
           }
         />
+
+        <WorkingWeekCard />
 
         <QueryBoundary
           query={leaveTypesQuery}

@@ -10,12 +10,16 @@ use App\Http\Resources\TenantResource;
 use App\Models\Employee;
 use App\Services\CurrentTenant;
 use App\Services\FileStorageService;
+use App\Services\PlanFeatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MeController extends Controller
 {
-    public function __construct(private readonly FileStorageService $storage) {}
+    public function __construct(
+        private readonly FileStorageService $storage,
+        private readonly PlanFeatureService $features,
+    ) {}
 
     public function __invoke(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
@@ -39,9 +43,13 @@ class MeController extends Controller
                 'preferences' => ProfilePreferencesController::present($user),
                 'last_login_at' => $user->last_login_at,
                 'employee_code' => $employee?->employee_code,
+                'employee_public_id' => $employee?->public_id,
                 'photo_thumb_url' => $this->storage->thumbnailUrlOrNull($employee?->photo_path, 150),
             ],
             'permissions' => $user->permissionNames(),
+            'plan_features' => $currentTenant->resolved()
+                ? $this->features->enabledFor($currentTenant->get())
+                : null,
             'tenant' => $currentTenant->resolved()
                 ? new TenantResource($currentTenant->get())
                 : null,

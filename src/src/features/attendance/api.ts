@@ -336,6 +336,8 @@ export function useApproveCorrection() {
   return useAttendanceMutation(
     async (publicId: string): Promise<AttendanceCorrection> =>
       (await apiClient.put(`/attendance/corrections/${publicId}/approve`)).data,
+    // The dashboard's Approvals badge counts pending corrections.
+    [keys.all, ["dashboard"]],
   );
 }
 
@@ -353,7 +355,7 @@ export function useRejectCorrection() {
           reason,
         })
       ).data,
-    [keys.corrections],
+    [keys.corrections, ["dashboard"]],
   );
 }
 

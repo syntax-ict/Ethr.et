@@ -270,3 +270,21 @@ describe("super-admin gating", () => {
     expect(result.current.isSuccess).toBe(false);
   });
 });
+
+describe("servicesNeedingAttention", () => {
+  // The console raised "Attention Required" for every status but `healthy`
+  // and `unknown`. On shared hosting Reverb always reports `disabled`, by
+  // design, so production showed a permanent red alert (audit N52).
+  it("raises an alert for an unhealthy service only", async () => {
+    const { servicesNeedingAttention } = await import("@/features/admin/api");
+
+    const flagged = servicesNeedingAttention({
+      database: { status: "healthy", response_ms: 2 },
+      reverb: { status: "disabled" },
+      storage: { status: "unknown" },
+      cache: { status: "unhealthy", error: "connection refused" },
+    });
+
+    expect(flagged.map(([name]) => name)).toEqual(["cache"]);
+  });
+});

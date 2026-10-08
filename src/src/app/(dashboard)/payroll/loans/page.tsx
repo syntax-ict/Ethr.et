@@ -37,7 +37,7 @@ export default function LoansPage() {
   const { data, isLoading } = useLoans();
   const createLoan = useCreateLoan();
 
-  const loans: Loan[] = data?.data ?? [];
+  const loans: Loan[] = data ?? [];
 
   return (
     <RoleGate allowedRoles={["finance_admin", "tenant_admin", "super_admin"]}>

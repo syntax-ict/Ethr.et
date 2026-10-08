@@ -366,9 +366,11 @@ it('promotes exactly the sentinel lines and no prose', function () {
     // must be a conscious act that updates this list — the same reason
     // TenantScopeBypassInventoryTest pins its inventory per file.
     // 20 → 24 on 2026-10-07: group 2b, the organisation entry URL (three
-    // conditions and its rule).
+    // conditions and its rule). 24 → 37 on 2026-10-08: group 0b, per-page
+    // segment prefetches (four depths × two conditions and a rule), and the
+    // directory condition that stopped group 1's entity rule looping into a 500.
     expect($sentinels)->toHaveCount(
-        24,
+        37,
         'the sentinel set changed. If that is intended, update this count and say why in the '
         .'commit message; if it is not, a directive has been lost or a prose line marked.'
     );

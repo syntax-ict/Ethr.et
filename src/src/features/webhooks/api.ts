@@ -79,6 +79,24 @@ export function useCreateWebhook() {
   });
 }
 
+/**
+ * Change a webhook's URL, events, or whether it is active. Re-enabling resets
+ * its failure count server-side (N18). Before this existed, a webhook the
+ * delivery job switched off after an outage could only be deleted and
+ * recreated, which issues a new signing secret (audit N71).
+ */
+export function useUpdateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      publicId,
+      ...changes
+    }: { publicId: string } & components["schemas"]["UpdateWebhookRequest"]) =>
+      (await apiClient.put(`/webhooks/${publicId}`, changes)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks"] }),
+  });
+}
+
 export function useDeleteWebhook() {
   const queryClient = useQueryClient();
 

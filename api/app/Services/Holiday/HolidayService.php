@@ -6,6 +6,7 @@ namespace App\Services\Holiday;
 
 use App\Models\Holiday;
 use App\Services\Calendar\EthiopianCalendar;
+use App\Services\CurrentTenant;
 use Carbon\Carbon;
 
 final class HolidayService
@@ -221,21 +222,100 @@ final class HolidayService
     }
 
     /**
-     * Resolve the Gregorian date of an Ethiopian-calendar holiday for the
-     * Ethiopian year that begins in September of $gregorianYear.
+     * The date in Gregorian $gregorianYear of an Ethiopian-calendar holiday.
      *
-     * That Ethiopian year is ($gregorianYear - 7): e.g. the year starting in
-     * September 2024 is 2017 EC. Conversion is delegated to the shared, exact
-     * EthiopianCalendar service so there is a single implementation. For all
-     * current-century inputs this yields dates identical to the previous
-     * inline Sept-11/12 approximation; beyond ~2100 it is strictly more
-     * accurate (it tracks the widening Julian/Gregorian gap the old rule
-     * ignored).
+     * Two Ethiopian years overlap any Gregorian year: ($gregorianYear - 8),
+     * which ends in September, and ($gregorianYear - 7), which begins then. A
+     * fixed Ethiopian date falls in exactly one of them inside this Gregorian
+     * year, and that is the one returned.
+     *
+     * Until 2026-10-07 this always used ($gregorianYear - 7), the year
+     * beginning in September. A run for 2026 then produced Genna, Timkat and
+     * Adwa for January–March 2027 while its Labour Day and Easter were 2026's,
+     * so this year's were never created by any run a new tenant got, and
+     * attendance and payroll treated them as working days (audit N57).
+     * Conversion is delegated to the shared, exact EthiopianCalendar service.
      */
     private function ethiopianToGregorian(int $gregorianYear, int $ethMonth, int $ethDay): string
     {
-        return $this->calendar
-            ->ethiopianToGregorian($gregorianYear - 7, $ethMonth, $ethDay)
-            ->format('Y-m-d');
+        foreach ([$gregorianYear - 8, $gregorianYear - 7] as $ethiopianYear) {
+            $date = $this->calendar->ethiopianToGregorian($ethiopianYear, $ethMonth, $ethDay);
+            if ($date->year === $gregorianYear) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        // Unreachable for the twelve regular months; kept so a Pagume date
+        // in a year without it cannot silently pick the wrong year.
+        throw new \LogicException("No {$ethMonth}/{$ethDay} EC falls in {$gregorianYear}.");
+    }
+
+    /**
+     * Make "recurring every year" true for $toYear: the statutory holidays,
+     * and the tenant's own recurring holidays from the year before.
+     *
+     * The `recurring` flag was saved and read by nothing, so a company holiday
+     * marked recurring applied to one year only (audit N58). Statutory
+     * holidays come from autoDetect(), which computes each year properly,
+     * movable feasts included. A tenant's own recurring holiday is copied to
+     * the same month and day, but only a Gregorian, non-estimated one. An
+     * Ethiopian-calendar or estimated holiday moves between Gregorian years by
+     * a rule this cannot know, and copying it by date would invent a wrong
+     * holiday.
+     *
+     * Idempotent, like autoDetect: a date the tenant already has, on the same
+     * branch, is skipped. Runs for the coming year only, never the current
+     * one, so a holiday a tenant removed this year does not come back.
+     *
+     * Requires $tenantId to be the current tenant (RollForwardHolidaysJob sets
+     * it), so these queries need no scope bypass.
+     */
+    public function rollForward(int $tenantId, int $toYear): int
+    {
+        if (app(CurrentTenant::class)->id() !== $tenantId) {
+            throw new \LogicException('rollForward() needs the tenant it rolls forward to be current.');
+        }
+
+        $created = $this->autoDetect($tenantId, $toYear);
+
+        $recurring = Holiday::query()
+            ->where('recurring', true)
+            ->where('ethiopian_calendar', false)
+            ->where('is_estimated', false)
+            ->whereYear('date', $toYear - 1)
+            ->get();
+
+        foreach ($recurring as $holiday) {
+            $previous = Carbon::parse($holiday->date);
+            // 29 February has no equivalent in a common year; it is skipped
+            // rather than moved to a day the tenant never chose.
+            if (! checkdate($previous->month, $previous->day, $toYear)) {
+                continue;
+            }
+            $date = Carbon::create($toYear, $previous->month, $previous->day)->format('Y-m-d');
+
+            $exists = Holiday::query()
+                ->whereDate('date', $date)
+                ->where('branch_id', $holiday->branch_id)
+                ->exists();
+            if ($exists) {
+                continue;
+            }
+
+            Holiday::create([
+                'tenant_id' => $tenantId,
+                'branch_id' => $holiday->branch_id,
+                'name' => $holiday->name,
+                'name_am' => $holiday->name_am,
+                'date' => $date,
+                'ethiopian_calendar' => false,
+                'recurring' => true,
+                'is_estimated' => false,
+                'is_active' => $holiday->is_active,
+            ]);
+            $created++;
+        }
+
+        return $created;
     }
 }

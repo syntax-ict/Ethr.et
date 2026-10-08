@@ -46,7 +46,7 @@ export default function CostSharingPage() {
   const createObligation = useCreateCostSharing();
   const updateObligation = useUpdateCostSharing();
 
-  const obligations: CostSharing[] = data?.data ?? [];
+  const obligations: CostSharing[] = data ?? [];
 
   const toggleSuspended = (obligation: CostSharing) => {
     const next = obligation.status === "active" ? "suspended" : "active";

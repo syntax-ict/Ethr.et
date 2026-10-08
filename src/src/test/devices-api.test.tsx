@@ -61,7 +61,33 @@ describe("devices api", () => {
 
     expect(seen[0].get("search")).toBe("gate");
     expect(seen[0].get("filter[status]")).toBe("offline");
-    expect([...seen[1].keys()]).toEqual([]);
+    // Only paging is sent unfiltered: every page is read now (N69).
+    expect([...seen[1].keys()].sort()).toEqual(["page", "per_page"]);
+  });
+
+  it("reads every page, so a device past the first page is listed", async () => {
+    // Neither the device list nor the health dashboard has a pager, and the
+    // API pages at 25: device 26 could not be seen, edited or pulled (N69).
+    server.use(
+      http.get("*/api/v1/devices", ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get("page"));
+        return HttpResponse.json({
+          ...PAGE,
+          data: [{ public_id: `DEV-PAGE-${page}`, name: `Gate ${page}` }],
+          meta: { ...PAGE.meta, current_page: page, last_page: 2 },
+        });
+      }),
+    );
+
+    const { result } = renderHook(() => useDevices(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.data.map((d) => d.public_id)).toEqual([
+      "DEV-PAGE-1",
+      "DEV-PAGE-2",
+    ]);
   });
 
   it("does not request a device before the route id is known", async () => {

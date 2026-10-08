@@ -954,7 +954,8 @@ this convention and don't need to be migrated on sight.
     POST   /change-plan         Upgrade/downgrade
     GET    /invoices            Invoice history
     GET    /invoices/{id}/receipt   PDF receipt
-    POST   /invoices/{id}/mark-paid
+                        (an organisation cannot mark its own invoice paid —
+                        the platform confirms payment; audit N94)
 
   /admin/                       Super admin only (super_admin role)
     GET    /tenants
@@ -966,8 +967,7 @@ this convention and don't need to be migrated on sight.
     GET    /revenue
     GET    /health
     GET    /audit               Cross-tenant audit log
-    GET    /billing/invoices    All invoices
-    PUT    /billing/invoices/{id}/mark-paid
+    PUT    /tenants/{id}/invoices/{invoice}/mark-paid   Confirm a bank transfer
     CRUD   /plans
 
   /register/                    Public (no auth)

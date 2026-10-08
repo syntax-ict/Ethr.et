@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Services\CurrentTenant;
 use App\Support\TenancyDomain;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -38,20 +39,36 @@ class EnsurePlatformContext
 
     public function handle(Request $request, Closure $next): Response
     {
-        // Via TenancyDomain, not a bare `=== null` check: `APP_DOMAIN=` in a .env
-        // yields an empty string, and treating that as "configured" turned every
-        // admin API call on a tenant host into a 404.
-        if (! TenancyDomain::isHostnameAuthoritative()) {
-            return $next($request);
+        // On a tenant's own hostname these routes do not exist. Via
+        // TenancyDomain, not a bare `=== null` check: `APP_DOMAIN=` in a .env
+        // yields an empty string, and treating that as "configured" turned
+        // every admin API call on a tenant host into a 404.
+        if (TenancyDomain::isHostnameAuthoritative() && $this->currentTenant->resolved()) {
+            return $this->notAvailable();
         }
 
-        if (! $this->currentTenant->resolved()) {
-            return $next($request);
+        // Anywhere else, only a super admin uses the platform API, in every
+        // mode. Until this, "no tenant resolved" was the whole test and the
+        // ability gate was the only wall: when a custom role could carry
+        // `admin.manage`, a tenant user on the apex with no X-Tenant walked
+        // through (audit N86). This is the second wall that finding asked for
+        // (audit N93), with the 403 the gate always gave. An unauthenticated
+        // request is left to auth:sanctum's 401.
+        $user = $request->user();
+        if ($user !== null && ! $user->isSuperAdmin()) {
+            throw new AuthorizationException;
         }
 
-        // 404 rather than 403: on a tenant host these routes are not "forbidden",
-        // they are not part of that application at all, and saying so would
-        // confirm the platform API's shape to a tenant user probing for it.
+        return $next($request);
+    }
+
+    /**
+     * 404 rather than 403: to a tenant user these routes are not "forbidden",
+     * they are not part of their application at all, and saying so would
+     * confirm the platform API's shape to someone probing for it.
+     */
+    private function notAvailable(): Response
+    {
         return response()->json([
             'type' => 'https://ethr.et/errors/not-found',
             'title' => 'Not Found',

@@ -60,6 +60,9 @@ export function useOfflineSync() {
       const batchPayload = pending.map((r: OfflineAttendanceRecord) => ({
         employee_public_id: r.employee_public_id,
         type: r.type,
+        // Required by OfflineSyncRequest, and the time the punch is recorded
+        // at. It was left out, so every batch failed validation (N49).
+        timestamp: r.captured_at,
         idempotency_key: r.idempotency_key,
         offline_token: r.offline_token,
         latitude: r.latitude,

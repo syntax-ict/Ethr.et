@@ -244,7 +244,13 @@ final class OrganizationProvisioner
 
         // autoDetect is itself idempotent — it matches on date and skips
         // holidays the tenant already has, so re-applying a template is safe.
-        $created = $this->holidays->autoDetect($tenant->id, (int) Carbon::now()->year);
+        // This year and next: a run covers one Gregorian year (audit N57), and
+        // an organisation set up in October needs January's Genna and Timkat
+        // as much as this year's remaining ones. Years after that are
+        // RollForwardHolidaysJob's.
+        $year = (int) Carbon::now()->year;
+        $created = $this->holidays->autoDetect($tenant->id, $year)
+            + $this->holidays->autoDetect($tenant->id, $year + 1);
 
         for ($i = 0; $i < $created; $i++) {
             $result->created('holidays');

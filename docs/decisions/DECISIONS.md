@@ -287,5 +287,5 @@ Deleting it was the obvious move. Rejected: agent tooling looks for `AGENTS.md` 
 | Target Ethio Telecom shared hosting; Options A, C, D withdrawn ("NO VPS", 2026-08-29) | [`../MIGRATION_STATE.md`](../MIGRATION_STATE.md) decision table |
 | Redis, Horizon, Reverb and MinIO removed for the shared-hosting target | [`../archive/migration/SHARED_HOSTING_AUDIT.md`](../archive/migration/SHARED_HOSTING_AUDIT.md) §B |
 | Git ban retired — Git *is* in use on this project | `0997faa`, and [`../CLAUDE.md`](../CLAUDE.md) |
-| Plan-tier gating enforces seat caps only; the `Plan.features` gate deferred | [`../ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md) row 2.2 |
+| Plan-tier gating: seat caps (`PlanLimitService`) and the `Plan.features` gate (`RequiresPlanFeature`, twelve routes), which was recorded here as deferred and was built later. The UI reads `plan_features` since 2026-10-07 (audit N66) | [`../ENTERPRISE_ROADMAP.md`](../ENTERPRISE_ROADMAP.md) row 2.2 |
 | Tenancy without wildcard subdomains: `ethr.et/{slug}`, custom domains, `X-Tenant` on the apex (owner, 2026-10-06) | [`OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md) |

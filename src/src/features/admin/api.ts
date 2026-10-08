@@ -138,6 +138,20 @@ export function useUpdateTenantDomain() {
   });
 }
 
+/** Confirms an organisation's invoice paid; the provider receives the transfer. */
+export function useMarkTenantInvoicePaid(tenantPublicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invoicePublicId: string) => {
+      const { data } = await apiClient.put(
+        `/admin/tenants/${tenantPublicId}/invoices/${invoicePublicId}/mark-paid`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
 export function useExtendTrial() {
   const qc = useQueryClient();
   return useMutation({
@@ -363,6 +377,21 @@ export interface AdminHealthService {
   note?: string;
 }
 
+/**
+ * The services the console should raise an alert for: `unhealthy` only.
+ *
+ * `disabled` is a service this deployment does not run on purpose (Reverb,
+ * with BROADCAST_CONNECTION=null on shared hosting), and SystemHealthService
+ * says it is the correct answer. Counting it raised a permanent "Attention
+ * Required" in production, which trains operators to ignore it (audit N52).
+ * `unknown` means not measured, which is not a fault either.
+ */
+export function servicesNeedingAttention(
+  services: Record<string, AdminHealthService>,
+): [string, AdminHealthService][] {
+  return Object.entries(services).filter(([, s]) => s.status === "unhealthy");
+}
+
 export interface AdminHealth {
   services: Record<string, AdminHealthService>;
   queue: Record<string, { depth: number | null; error?: string }>;
@@ -563,6 +592,25 @@ export function useUpdateAdminPlan() {
       ...payload
     }: Partial<AdminPlan> & { publicId: string }) => {
       const { data } = await apiClient.put(`/admin/plans/${publicId}`, payload);
+      return data.data as AdminPlan;
+    },
+    onSuccess: () => invalidatePlanCaches(qc),
+  });
+}
+
+/** `POST /admin/plans` had no screen; plans were added by hand (audit N101). */
+export function useCreateAdminPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      payload: Pick<
+        AdminPlan,
+        "name" | "slug" | "price_cents" | "is_public"
+      > & {
+        features: string[];
+      },
+    ) => {
+      const { data } = await apiClient.post("/admin/plans", payload);
       return data.data as AdminPlan;
     },
     onSuccess: () => invalidatePlanCaches(qc),

@@ -39,7 +39,7 @@ import {
   useBillingDashboard,
   usePlans,
   useChangePlan,
-  useMarkInvoicePaid,
+  downloadReceipt,
   type Plan,
   type BillingInvoice,
   type PaymentDetails,
@@ -259,21 +259,6 @@ function PaymentInstructions({ details }: { details: PaymentDetails | null }) {
 function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
   const { t } = useT();
   const { formatDate } = useDateFormatters();
-  const markPaid = useMarkInvoicePaid();
-
-  function handleMarkPaid(invoice: BillingInvoice) {
-    markPaid.mutate(invoice.public_id, {
-      onSuccess: () =>
-        toast.success(
-          t("billing.invoice_marked_paid", "Invoice marked as paid"),
-        ),
-      onError: () =>
-        toast.error(
-          t("billing.mark_paid_failed", "Failed to mark invoice as paid"),
-        ),
-    });
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -354,9 +339,13 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                           "Download receipt",
                         )}
                         onClick={() =>
-                          window.open(
-                            `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
-                            "_blank",
+                          downloadReceipt(invoice.public_id).catch(() =>
+                            toast.error(
+                              t(
+                                "billing.receipt_failed",
+                                "Couldn't download the receipt",
+                              ),
+                            ),
                           )
                         }
                       >
@@ -366,21 +355,16 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                         </span>
                       </Button>
                     )}
+                    {/* Paid by bank transfer to the provider, who confirms it
+                        from the platform console; this page marked its own
+                        invoices paid (audit N94). */}
                     {invoice.status !== "paid" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleMarkPaid(invoice)}
-                        disabled={markPaid.isPending}
-                      >
-                        {markPaid.isPending &&
-                        markPaid.variables === invoice.public_id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Check className="mr-1 h-3 w-3" />
+                      <span className="text-xs text-muted-foreground">
+                        {t(
+                          "billing.awaiting_confirmation",
+                          "Awaiting payment confirmation",
                         )}
-                        {t("billing.mark_paid", "Mark Paid")}
-                      </Button>
+                      </span>
                     )}
                   </div>
                 ),

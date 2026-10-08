@@ -65,6 +65,8 @@ import {
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -138,6 +140,12 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
     });
   }
 
+  // Pull and edit need device.update, delete needs device.delete. The seeded
+  // HR role, which this page admits, holds neither (N54).
+  const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission("device.update");
+  const canDelete = hasPermission("device.delete");
+
   function regenerateToken() {
     regenTokenMutation.mutate(id, {
       onSuccess: () => toast.success(t("device_detail_page.token_regenerated")),
@@ -163,14 +171,17 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
           toast.success(t("devices_page.updated"));
           setEditOpen(false);
         },
-        onError: () => toast.error(t("device_detail_page.update_failed")),
+        onError: (err: unknown) =>
+          toast.error(
+            apiErrorMessage(err, t("device_detail_page.update_failed")),
+          ),
       },
     );
   }
 
   if (!id || isLoading) {
     return (
-      <RoleGate minRole="hr_admin">
+      <RoleGate anyPermission={["viewDevices"]}>
         <div className="space-y-6">
           <Skeleton className="h-8 w-48" />
           <div className="grid gap-4 sm:grid-cols-3">
@@ -199,7 +210,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const eventPages = events?.last_page ?? 1;
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
@@ -249,33 +260,39 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
               )}
               {t("devices_page.test")}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={pull}
-              disabled={pullMutation.isPending}
-            >
-              {pullMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              {t("devices_page.pull")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
-            </Button>
+            {canUpdate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={pull}
+                disabled={pullMutation.isPending}
+              >
+                {pullMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {t("devices_page.pull")}
+              </Button>
+            )}
+            {canUpdate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
+              </Button>
+            )}
           </div>
         </div>
 

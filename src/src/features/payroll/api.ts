@@ -4,6 +4,7 @@ import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 import { csvAmount, csvFromRows } from "@/lib/utils/csv-export";
+import { saveBlob } from "@/lib/utils/csv-export";
 
 type Schemas = components["schemas"];
 
@@ -207,13 +208,14 @@ export function useMyPayslips(params?: { page?: number }) {
 
 // ── Loans ─────────────────────────────────────────────────────────────────────
 
-export function useLoans(params?: { page?: number }) {
-  return useQuery<PaginatedResponse<Loan>>({
-    queryKey: ["payroll", "loans", params],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/payroll/loans", { params });
-      return data;
-    },
+/**
+ * Every loan, all pages. The loans page has no pager, and `GET /payroll/loans`
+ * pages at 25, so the 26th loan and every later one could not be seen.
+ */
+export function useLoans() {
+  return useQuery<Loan[]>({
+    queryKey: ["payroll", "loans"],
+    queryFn: () => fetchAllPages<Loan>("/payroll/loans"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -234,22 +236,21 @@ export function useCreateLoan() {
 
 // ── Cost sharing ──────────────────────────────────────────────────────────────
 
-export function useCostSharingList(params?: {
-  page?: number;
-  status?: CostSharingStatus;
-}) {
-  return useQuery<PaginatedResponse<CostSharing>>({
+/**
+ * Every cost-sharing obligation, all pages: the page has no pager and the API
+ * pages at 25.
+ */
+export function useCostSharingList(params?: { status?: CostSharingStatus }) {
+  return useQuery<CostSharing[]>({
     queryKey: ["payroll", "cost-sharing", params],
-    queryFn: async () => {
-      const { page, status } = params ?? {};
-      const { data } = await apiClient.get("/payroll/cost-sharing", {
-        // The API filters via `filter[status]`, not a bare `status` param —
-        // sending the wrong shape returns the unfiltered list, which looks like
-        // the filter silently doing nothing.
-        params: { page, ...(status ? { "filter[status]": status } : {}) },
-      });
-      return data;
-    },
+    queryFn: () =>
+      // The API filters via `filter[status]`, not a bare `status` param —
+      // sending the wrong shape returns the unfiltered list, which looks like
+      // the filter silently doing nothing.
+      fetchAllPages<CostSharing>(
+        "/payroll/cost-sharing",
+        params?.status ? { "filter[status]": params.status } : {},
+      ),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -321,13 +322,14 @@ export type OvertimeRatesResponse =
 
 export type OvertimeRates = OvertimeRatesResponse["defaults"];
 
+/**
+ * Every allowance rule, all pages. Rules past the 25th still applied in payroll
+ * but could not be seen or edited, because the card read only the first page.
+ */
 export function useAllowanceRules() {
-  return useQuery<PaginatedResponse<AllowanceRule>>({
+  return useQuery<AllowanceRule[]>({
     queryKey: ["payroll", "rules"],
-    queryFn: async () => {
-      const { data } = await apiClient.get("/payroll/rules");
-      return data;
-    },
+    queryFn: () => fetchAllPages<AllowanceRule>("/payroll/rules"),
   });
 }
 
@@ -467,4 +469,13 @@ export function bankTransferCsv(file: BankTransferExport): string {
       csvAmount(r.net_amount_cents),
     ]),
   );
+}
+
+/** The payslip PDF the server renders, saved under the entry's id. */
+export async function downloadPayslip(entryPublicId: string): Promise<void> {
+  const { data } = await apiClient.get<Blob>(
+    `/payroll/payslips/${entryPublicId}/pdf`,
+    { responseType: "blob" },
+  );
+  saveBlob(`payslip-${entryPublicId}.pdf`, data);
 }

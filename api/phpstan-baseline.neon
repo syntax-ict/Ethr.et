@@ -277,12 +277,6 @@ parameters:
 			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
 
 		-
-			message: '#^Offset ''working_days'' on string\|null on left side of \?\? does not exist\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Http/Controllers/Api/V1/Settings/SettingsController.php
-
-		-
 			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
 			identifier: greater.alwaysTrue
 			count: 1

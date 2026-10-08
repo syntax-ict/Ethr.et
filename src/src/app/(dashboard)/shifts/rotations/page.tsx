@@ -47,6 +47,7 @@ import {
   type ShiftRotation,
   type ShiftRotationStepInput,
 } from "@/features/shifts/rotations";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 /** Sentinel for the rest-day option: Radix Select cannot hold an empty value. */
 const REST = "__rest__";
@@ -156,10 +157,11 @@ export default function ShiftRotationsPage() {
         setShowDialog(false);
       },
       onError: (err: unknown) => {
-        const e = err as { response?: { data?: { detail?: string } } };
         toast.error(
-          e.response?.data?.detail ??
+          apiErrorMessage(
+            err,
             t("rotations_page.save_failed", "Could not save rotation"),
+          ),
         );
       },
     };
@@ -509,15 +511,11 @@ function RotationAssignDialog({
           onClose();
         },
         onError: (err: unknown) => {
-          const e = err as {
-            response?: {
-              data?: { detail?: string; errors?: Record<string, string[]> };
-            };
-          };
           toast.error(
-            e.response?.data?.detail ??
-              Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
+            apiErrorMessage(
+              err,
               t("rotations_page.assign_failed", "Could not assign rotation"),
+            ),
           );
         },
       },

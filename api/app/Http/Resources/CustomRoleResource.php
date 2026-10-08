@@ -18,6 +18,7 @@ class CustomRoleResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'org_scope' => $this->org_scope,
             'permissions' => $this->whenLoaded('permissions', fn () => $this->permissions->map(fn ($permission) => (string) $permission->getAttribute('name'))->values()->all()),
             'users_count' => $this->whenCounted('users'),
             'created_at' => $this->created_at,

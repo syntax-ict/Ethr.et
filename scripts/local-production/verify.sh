@@ -71,6 +71,17 @@ check "/employees/<ULID>"                     "200" "$BASE/employees/01HQZX3NDJK
 check "/payroll/<ULID>"                       "200" "$BASE/payroll/01HQZX3NDJKMNP4RSTVWXY5Z6A"
 check "/devices/<ULID>"                       "200" "$BASE/devices/01HQZX3NDJKMNP4RSTVWXY5Z6A"
 
+printf '\n\033[1m2b · per-page segment prefetches — every link fetches one\033[0m\n'
+# Next asks for dots, the exporter writes directories (group 0b). Until 2026-10-08
+# each of these was a 404, and under a dynamic prefix a 500: the entity rule read
+# the static sibling's name as an id and then matched its own rewrite forever.
+SEG='!KGRhc2hib2FyZCk'
+check "segment: /dashboard"                   "200" "$BASE/dashboard/__next.$SEG.dashboard.__PAGE__.txt"
+check "segment: /payroll/payslips (was 500)"  "200" "$BASE/payroll/payslips/__next.$SEG.payroll.payslips.__PAGE__.txt"
+check "segment: /employees/new (was 500)"     "200" "$BASE/employees/new/__next.$SEG.employees.new.__PAGE__.txt"
+check "segment: /employees/<ULID>"            "200" "$BASE/employees/01HQZX3NDJKMNP4RSTVWXY5Z6A/__next.$SEG.employees.\$d\$id.__PAGE__.txt"
+check "segment: unknown stays a real 404"     "404" "$BASE/dashboard/__next.$SEG.nothere.__PAGE__.txt"
+
 printf '\n\033[1m3 · static siblings under a dynamic prefix — the §22b defect\033[0m\n'
 # Each of these was served the entity-detail shell until 2026-09-27, so a 200 proves
 # nothing — the BODY has to be the sibling's own page.

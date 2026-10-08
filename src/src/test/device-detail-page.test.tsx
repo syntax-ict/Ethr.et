@@ -7,12 +7,16 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { DeviceDetail } from "@/app/(dashboard)/devices/[id]/device-detail";
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is wrapped in <RoleGate anyPermission={["viewDevices"]}>; grant access directly.
+// `granted` decides hasPermission: everything by default, or a seeded role's set.
+const granted = vi.hoisted(() => ({ abilities: null as string[] | null }));
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
-    can: {},
+    hasPermission: (ability: string) =>
+      granted.abilities === null || granted.abilities.includes(ability),
+    can: { viewDevices: true },
     role: "hr_admin",
   }),
 }));
@@ -107,5 +111,37 @@ describe("<DeviceDetail>", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Next page" }));
     expect(await within(panel).findByText("Employee 2")).toBeInTheDocument();
+  });
+
+  it("offers HR only what the seeded HR role may do", async () => {
+    // HR is admitted to the page but holds device.viewAny and device.view only.
+    // Pull, Edit and Delete were shown and refused with a 403 (N54).
+    granted.abilities = ["device.viewAny", "device.view"];
+    server.use(
+      http.get("*/api/v1/devices/DEV1", () => HttpResponse.json(DEVICE)),
+      http.get("*/api/v1/devices/DEV1/sync-logs", () =>
+        HttpResponse.json({
+          data: [],
+          meta: { current_page: 1, last_page: 1, per_page: 10, total: 0 },
+          links: {},
+        }),
+      ),
+      http.get("*/api/v1/devices/DEV1/events", () =>
+        HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
+      ),
+    );
+
+    try {
+      renderDetail();
+
+      expect(
+        await screen.findByRole("button", { name: /^test$/i }),
+      ).toBeInTheDocument();
+      for (const name of [/^pull$/i, /^edit$/i, /^delete$/i]) {
+        expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+      }
+    } finally {
+      granted.abilities = null;
+    }
   });
 });

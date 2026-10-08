@@ -7,6 +7,12 @@ interface MeResponse {
   user: User;
   /** Abilities resolved server-side from the base role or custom role. */
   permissions: string[];
+  /**
+   * The features the organisation's plan includes, or null when nothing is
+   * restricted (a trial, or no plan). The API refuses a gated action with a
+   * 403; this lets the screen say so first (audit N66).
+   */
+  plan_features?: string[] | null;
   tenant: {
     public_id: string;
     name: string;
@@ -49,6 +55,25 @@ export function useCurrentTenant() {
     ...meQueryOptions,
     select: (data: MeResponse) => data.tenant,
   });
+}
+
+/**
+ * Which plan features the organisation has. `has()` is true while loading and
+ * for any feature when the plan restricts nothing, so a screen never hides a
+ * paying customer's feature on a guess; the API still has the last word.
+ */
+export function usePlanFeatures() {
+  const query = useQuery({
+    ...meQueryOptions,
+    select: (data: MeResponse) => data.plan_features ?? null,
+  });
+  const features = query.data ?? null;
+
+  return {
+    has: (feature: string): boolean =>
+      features === null || features.includes(feature),
+    isLoading: query.isLoading,
+  };
 }
 
 export function useCurrentPermissions() {

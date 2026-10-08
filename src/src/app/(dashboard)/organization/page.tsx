@@ -59,11 +59,12 @@ import { ReportingChart } from "@/features/organization/components/reporting-cha
 import { GradeSalaryStepsDialog } from "@/features/organization/components/grade-salary-steps-dialog";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export default function OrganizationPage() {
   const { t } = useT();
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageOrg"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("org.title", "Organization")}
@@ -141,7 +142,18 @@ export default function OrganizationPage() {
 
 // ── BRANCHES ───────────────────────────────────────────────────
 
+/**
+ * Delete is a tenant-admin ability: `org.delete` is not in the seeded HR or
+ * finance role, though both may open this page and create or edit. Every
+ * delete button was shown to them and every delete refused with a 403
+ * (audit N55). The holidays page had the same defect and already gates this.
+ */
+function useCanDeleteOrg(): boolean {
+  return usePermissions().hasPermission("org.delete");
+}
+
 function BranchesTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = branchesApi.useList();
   const createMut = branchesApi.useCreate();
@@ -276,7 +288,7 @@ function BranchesTab() {
                 </div>
                 <TableRowActions
                   onEdit={() => openEdit(b)}
-                  onDelete={() => handleDelete(b)}
+                  onDelete={canDelete ? () => handleDelete(b) : undefined}
                 />
               </div>
             </CardContent>
@@ -405,7 +417,35 @@ function BranchesTab() {
 
 // ── DEPARTMENTS ────────────────────────────────────────────────
 
+/**
+ * The public ids of every department below `rootId`, from a flat list whose
+ * rows carry their parent.
+ */
+function descendantIds(
+  items: { public_id: string; parent?: { public_id: string } | null }[],
+  rootId: string,
+): Set<string> {
+  const childrenOf = new Map<string, string[]>();
+  for (const d of items) {
+    const parent = d.parent?.public_id;
+    if (parent)
+      childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), d.public_id]);
+  }
+  const found = new Set<string>();
+  const queue = [rootId];
+  while (queue.length > 0) {
+    for (const child of childrenOf.get(queue.pop() as string) ?? []) {
+      if (!found.has(child)) {
+        found.add(child);
+        queue.push(child);
+      }
+    }
+  }
+  return found;
+}
+
 function DepartmentsTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
@@ -477,6 +517,12 @@ function DepartmentsTab() {
   }
 
   const items = data?.data ?? [];
+  // Its own sub-departments cannot be its parent: the API refuses that
+  // cycle (N72), and offering them only to refuse is no help.
+  const descendantsOfEditing = editing
+    ? descendantIds(items, editing.public_id)
+    : new Set<string>();
+
   return (
     <ResourceLayout
       title={t("org.tab.departments", "Departments")}
@@ -522,7 +568,7 @@ function DepartmentsTab() {
                 </Badge>,
               ],
               onEdit: () => openEdit(d),
-              onDelete: () => handleDelete(d),
+              onDelete: canDelete ? () => handleDelete(d) : undefined,
             }))}
           />
         </CardContent>
@@ -604,7 +650,11 @@ function DepartmentsTab() {
                       {t("org.field.none_top_level", "None (top-level)")}
                     </SelectItem>
                     {items
-                      .filter((d) => d.public_id !== editing?.public_id)
+                      .filter(
+                        (d) =>
+                          d.public_id !== editing?.public_id &&
+                          !descendantsOfEditing.has(d.public_id),
+                      )
                       .map((d) => (
                         <SelectItem key={d.public_id} value={d.public_id}>
                           {d.name}
@@ -640,6 +690,7 @@ function DepartmentsTab() {
 // ── TEAMS ──────────────────────────────────────────────────────
 
 function TeamsTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = teamsApi.useList();
   const { data: departments } = departmentsApi.useList();
@@ -745,7 +796,7 @@ function TeamsTab() {
                 </Badge>,
               ],
               onEdit: () => openEdit(tm),
-              onDelete: () => handleDelete(tm),
+              onDelete: canDelete ? () => handleDelete(tm) : undefined,
             }))}
           />
         </CardContent>
@@ -826,6 +877,7 @@ function TeamsTab() {
 // ── POSITIONS ──────────────────────────────────────────────────
 
 function PositionsTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = positionsApi.useList();
   const createMut = positionsApi.useCreate();
@@ -941,7 +993,7 @@ function PositionsTab() {
                 </Badge>,
               ],
               onEdit: () => openEdit(p),
-              onDelete: () => handleDelete(p),
+              onDelete: canDelete ? () => handleDelete(p) : undefined,
             }))}
           />
         </CardContent>
@@ -1020,6 +1072,7 @@ function PositionsTab() {
 // ── GRADES ─────────────────────────────────────────────────────
 
 function GradesTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = gradesApi.useList();
   const createMut = gradesApi.useCreate();
@@ -1122,7 +1175,7 @@ function GradesTab() {
                   </Button>
                   <TableRowActions
                     onEdit={() => openEdit(g)}
-                    onDelete={() => handleDelete(g)}
+                    onDelete={canDelete ? () => handleDelete(g) : undefined}
                   />
                 </div>
               ),
@@ -1221,6 +1274,7 @@ function GradesTab() {
 // ── COST CENTERS ───────────────────────────────────────────────
 
 function CostCentersTab() {
+  const canDelete = useCanDeleteOrg();
   const { t } = useT();
   const { data, isLoading } = costCentersApi.useList();
   const createMut = costCentersApi.useCreate();
@@ -1313,7 +1367,7 @@ function CostCentersTab() {
                 </Badge>,
               ],
               onEdit: () => openEdit(c),
-              onDelete: () => handleDelete(c),
+              onDelete: canDelete ? () => handleDelete(c) : undefined,
             }))}
           />
         </CardContent>

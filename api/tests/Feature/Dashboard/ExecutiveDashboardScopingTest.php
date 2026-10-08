@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use App\Models\Tenant;
@@ -185,5 +186,56 @@ describe('forecast', function () {
 
         expect($response->json())->toHaveKeys(['headcount', 'payroll_gross']);
         expect($response->json('headcount.history'))->toHaveCount(12);
+    });
+});
+
+// The department drill-down on the same page was executive-only and
+// branch-blind: a regional holder's click was a 403, and an executive filtered
+// to one branch saw every branch's people (audit N85).
+describe('department drill-down', function () {
+    /** @return array{0: Tenant, 1: Branch, 2: Branch, 3: Department} */
+    function drillDownFixture(): array
+    {
+        $tenant = createTenant();
+        $own = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $other = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $department = Department::factory()->create(['tenant_id' => $tenant->id]);
+        foreach ([[$own, 2], [$other, 3]] as [$branch, $count]) {
+            Employee::factory()->count($count)->create([
+                'tenant_id' => $tenant->id,
+                'branch_id' => $branch->id,
+                'department_id' => $department->id,
+                'status' => EmployeeStatus::CONFIRMED,
+            ]);
+        }
+
+        return [$tenant, $own, $other, $department];
+    }
+
+    it('shows a regional holder their own branch only, whatever branch they ask for', function () {
+        [$tenant, $own, $other, $department] = drillDownFixture();
+        $caller = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $own->id]);
+        actingAsUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $caller->id], $tenant);
+
+        $this->getJson("/api/v1/analytics/departments/{$department->public_id}?branch={$other->public_id}")
+            ->assertOk()
+            ->assertJsonPath('headcount', 2);
+    });
+
+    it('follows an executive holder\'s branch filter, and is whole without one', function () {
+        [$tenant, , $other, $department] = drillDownFixture();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $this->getJson("/api/v1/analytics/departments/{$department->public_id}")
+            ->assertOk()->assertJsonPath('headcount', 5);
+        $this->getJson("/api/v1/analytics/departments/{$department->public_id}?branch={$other->public_id}")
+            ->assertOk()->assertJsonPath('headcount', 3);
+    });
+
+    it('still refuses a plain employee', function () {
+        [$tenant, , , $department] = drillDownFixture();
+        actingAsUser(['role' => UserRole::EMPLOYEE], $tenant);
+
+        $this->getJson("/api/v1/analytics/departments/{$department->public_id}")->assertForbidden();
     });
 });

@@ -11,6 +11,7 @@ export type Employee = Pick<
   | "email"
   | "phone"
   | "employee_code"
+  | "has_kiosk_pin"
   | "gender"
   | "status"
   | "photo_url"
@@ -20,5 +21,8 @@ export type Employee = Pick<
   | "department"
   | "branch"
   | "position"
+  | "team"
+  | "cost_center"
+  | "supervisor"
   | "created_at"
 >;

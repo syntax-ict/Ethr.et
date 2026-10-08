@@ -49,6 +49,7 @@ import { useDirectory } from "@/features/directory/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useT } from "@/lib/i18n/useT";
+import { useSettingsLanding } from "@/components/layouts/settings-nav";
 
 /** Event any UI can fire to open the palette — cleaner than faking a ⌘K keypress. */
 const OPEN_EVENT = "command-palette:open";
@@ -80,7 +81,8 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
+  const { can, isSupervisor, isTenantAdmin } = usePermissions();
+  const settingsLanding = useSettingsLanding();
   const { t } = useT();
 
   // Open/close through one handler that also resets the query, so the palette
@@ -207,13 +209,13 @@ export function CommandPalette() {
             label: t("nav.loans", "Loans"),
             href: "/payroll/loans",
             icon: Banknote,
-            show: isFinanceAdmin,
+            show: can.viewPayrollRuns,
           },
           {
             label: t("nav.cost_sharing", "Cost Sharing"),
             href: "/payroll/cost-sharing",
             icon: GraduationCap,
-            show: isFinanceAdmin,
+            show: can.viewPayrollRuns,
           },
           {
             label: t("nav.reports", "Reports"),
@@ -225,7 +227,9 @@ export function CommandPalette() {
             label: t("nav.analytics", "Analytics"),
             href: "/analytics",
             icon: TrendingUp,
-            show: isTenantAdmin,
+            // As the sidebar: the page is for either dashboard ability, and
+            // HR, finance and regional users were left out here (audit N85).
+            show: can.viewExecutiveDashboard || can.viewRegionalDashboard,
           },
           {
             label: t("nav.announcements", "Announcements"),
@@ -237,19 +241,19 @@ export function CommandPalette() {
             label: t("nav.devices", "Devices"),
             href: "/devices",
             icon: Fingerprint,
-            show: can.manageEmployees,
+            show: can.viewDevices,
           },
           {
             label: t("nav.holidays", "Holidays"),
             href: "/settings/holidays",
             icon: Calendar,
-            show: can.manageEmployees,
+            show: can.manageHolidays,
           },
           {
             label: t("nav.settings", "Settings"),
-            href: "/settings",
+            href: settingsLanding ?? "/settings",
             icon: Settings,
-            show: can.manageSettings,
+            show: settingsLanding !== null,
           },
           {
             label: t("nav.billing", "Billing"),
@@ -352,7 +356,7 @@ export function CommandPalette() {
         ],
       },
     ],
-    [t, can, isSupervisor, isFinanceAdmin, isTenantAdmin],
+    [t, can, isSupervisor, isTenantAdmin, settingsLanding],
   );
 
   const showPeopleGroup =

@@ -73,6 +73,30 @@ describe('opening and investigating a case', function () {
         expect($second->json('investigation_notes'))->toHaveCount(2);
     });
 
+    it('never puts the author\'s numeric user id in a note', function () {
+        // Convention 4. Each note carried `by` => the author's numeric id,
+        // passed straight through the resource. The screen reads `by_name`.
+        $tenant = createTenant();
+        $author = actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $case = openCase($employee);
+
+        // A note stored before the fix, with the numeric id in it.
+        $case->forceFill(['investigation_notes' => [
+            ['note' => 'Old note.', 'by' => $author->id, 'by_name' => 'Hana HR', 'at' => now()->toIso8601String()],
+        ]])->save();
+
+        $note = $this->postJson(caseActionUrl($employee, $case, 'notes'), ['note' => 'New note.'])
+            ->assertOk()
+            ->json('investigation_notes');
+
+        expect($note)->toHaveCount(2);
+        foreach ($note as $entry) {
+            expect($entry)->not->toHaveKey('by')
+                ->and($entry)->toHaveKeys(['note', 'by_name', 'at']);
+        }
+    });
+
     it('rejects notes on an already-closed case', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

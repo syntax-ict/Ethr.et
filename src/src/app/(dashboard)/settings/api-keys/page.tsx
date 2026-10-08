@@ -42,6 +42,8 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { toast } from "sonner";
 import { z } from "zod";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
 
 const ABILITIES = [
   "read",
@@ -88,6 +90,8 @@ export default function ApiKeysPage() {
 
   const keysQuery = useApiKeys();
   const createKey = useCreateApiKey();
+  // Creating a key needs the plan's `api_access` feature (N66).
+  const hasApiAccess = usePlanFeatures().has("api_access");
   const revokeKey = useRevokeApiKey();
 
   // No `onError` toast — `submit` reports a rejected create inside the dialog,
@@ -149,13 +153,17 @@ export default function ApiKeysPage() {
                   {t("api_keys_page.api_docs")}
                 </a>
               </Button>
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />{" "}
-                {t("api_keys_page.create_key")}
-              </Button>
+              {hasApiAccess && (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("api_keys_page.create_key")}
+                </Button>
+              )}
             </div>
           }
         />
+
+        {!hasApiAccess && <PlanFeatureNotice />}
 
         {newKey && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">

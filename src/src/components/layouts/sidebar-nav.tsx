@@ -44,6 +44,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { useManagerDashboard } from "@/features/dashboard/api";
+import { useSettingsLanding } from "@/components/layouts/settings-nav";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,7 @@ function resolveActiveHref(sections: NavSection[], pathname: string): string {
 export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
   const pathname = usePathname();
   const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
+  const settingsLanding = useSettingsLanding();
   const { t } = useT();
   const {
     favorites,
@@ -317,14 +319,17 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
             id: "ops-attendance",
             label: t("nav.attendance", "Attendance"),
             icon: Clock,
-            show: isSupervisor,
+            // Each child carries the ability its screen's API checks, so the
+            // group opens for a custom role holding any of them rather than
+            // for a role level alone (audit N78).
+            show: isSupervisor || can.viewTeam || can.viewAllAttendance,
             children: [
               {
                 kind: "leaf",
                 label: t("nav.team_attendance", "Team Attendance"),
                 href: "/attendance/team",
                 icon: UsersRound,
-                show: isSupervisor,
+                show: can.viewTeam,
               },
               {
                 kind: "leaf",
@@ -345,7 +350,7 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
                 label: t("nav.overtime", "Overtime"),
                 href: "/attendance/overtime",
                 icon: TrendingUp,
-                show: can.manageEmployees,
+                show: can.viewAllAttendance,
               },
             ],
           },
@@ -354,14 +359,14 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
             label: t("nav.shifts", "Shifts & Schedules"),
             href: "/shifts",
             icon: CalendarRange,
-            show: can.manageEmployees,
+            show: can.manageShifts,
           },
           {
             kind: "leaf",
             label: t("nav.devices", "Devices"),
             href: "/devices",
             icon: Fingerprint,
-            show: can.manageEmployees,
+            show: can.viewDevices,
           },
         ],
       },
@@ -417,9 +422,9 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
           {
             kind: "leaf",
             label: t("nav.settings", "Settings"),
-            href: "/settings",
+            href: settingsLanding ?? "/settings",
             icon: Settings,
-            show: can.manageSettings,
+            show: settingsLanding !== null,
           },
           {
             kind: "leaf",
@@ -475,7 +480,15 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
         ],
       },
     ];
-  }, [t, can, isSupervisor, isTenantAdmin, isSuperAdmin, approvalCount]);
+  }, [
+    t,
+    can,
+    isSupervisor,
+    isTenantAdmin,
+    isSuperAdmin,
+    approvalCount,
+    settingsLanding,
+  ]);
 
   // ── Visibility filtering ─────────────────────────────────────────────────
 

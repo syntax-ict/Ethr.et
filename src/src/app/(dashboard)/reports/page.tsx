@@ -78,6 +78,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
+import { ReportFilterValue } from "@/features/reports/components/report-filter-value";
 
 const prebuilt: Array<{
   key: ReportSourceKey;
@@ -118,41 +121,54 @@ const prebuilt: Array<{
 
 export default function ReportsPage() {
   const { t } = useT();
+  // Generating and exporting need the plan's `reports` feature; saving and
+  // scheduling need `custom_reports`. The page offered all of them on every
+  // plan, and each was refused with a 403 shown as "failed" (audit N66).
+  const plan = usePlanFeatures();
+
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewReports"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("reports_page.title")}
           description={t("reports_page.description")}
         />
 
-        <Tabs defaultValue="builder">
-          <TabsList>
-            <TabsTrigger value="builder">
-              {t("reports_page.builder")}
-            </TabsTrigger>
-            <TabsTrigger value="quick">
-              {t("reports_page.quick_reports")}
-            </TabsTrigger>
-            <TabsTrigger value="saved">{t("reports_page.saved")}</TabsTrigger>
-            <TabsTrigger value="scheduled">
-              {t("reports_page.scheduled")}
-            </TabsTrigger>
-          </TabsList>
+        {!plan.has("reports") ? (
+          <PlanFeatureNotice />
+        ) : (
+          <Tabs defaultValue="builder">
+            <TabsList>
+              <TabsTrigger value="builder">
+                {t("reports_page.builder")}
+              </TabsTrigger>
+              <TabsTrigger value="quick">
+                {t("reports_page.quick_reports")}
+              </TabsTrigger>
+              <TabsTrigger value="saved">{t("reports_page.saved")}</TabsTrigger>
+              <TabsTrigger value="scheduled">
+                {t("reports_page.scheduled")}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="builder" className="mt-4">
-            <BuilderTab />
-          </TabsContent>
-          <TabsContent value="quick" className="mt-4">
-            <QuickTab />
-          </TabsContent>
-          <TabsContent value="saved" className="mt-4">
-            <SavedTab />
-          </TabsContent>
-          <TabsContent value="scheduled" className="mt-4">
-            <ScheduledTab />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="builder" className="mt-4">
+              <BuilderTab />
+            </TabsContent>
+            <TabsContent value="quick" className="mt-4">
+              <QuickTab />
+            </TabsContent>
+            <TabsContent value="saved" className="mt-4">
+              <SavedTab />
+            </TabsContent>
+            <TabsContent value="scheduled" className="mt-4">
+              {plan.has("custom_reports") ? (
+                <ScheduledTab />
+              ) : (
+                <PlanFeatureNotice />
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </RoleGate>
   );
@@ -167,6 +183,7 @@ interface FilterRow {
 
 function BuilderTab() {
   const { t } = useT();
+  const canSaveTemplates = usePlanFeatures().has("custom_reports");
   const { data: sourcesData, isLoading: sourcesLoading } = useReportSources();
   const generate = useGenerateReport();
   const [config, setConfig] = useState<ReportConfig>({ source: "employees" });
@@ -361,7 +378,9 @@ function BuilderTab() {
                 <div key={i} className="flex gap-1">
                   <Select
                     value={f.field}
-                    onValueChange={(v) => updateFilter(i, { field: v })}
+                    onValueChange={(v) =>
+                      updateFilter(i, { field: v, value: "" })
+                    }
                   >
                     <SelectTrigger
                       className="h-8 flex-1"
@@ -380,11 +399,11 @@ function BuilderTab() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
+                  <ReportFilterValue
+                    field={f.field}
                     value={f.value}
-                    onChange={(e) => updateFilter(i, { value: e.target.value })}
-                    placeholder={t("reports_page.value")}
-                    className="h-8 flex-1"
+                    onChange={(value) => updateFilter(i, { value })}
+                    label={`${t("reports_page.value")}: ${reportFieldLabel(t, f.field)}`}
                   />
                   <Button
                     size="sm"
@@ -512,10 +531,12 @@ function BuilderTab() {
                 <Download className="mr-2 h-4 w-4" />{" "}
                 {t("reports_page.download_csv")}
               </Button>
-              <Button variant="outline" onClick={() => setSaveOpen(true)}>
-                <Save className="mr-2 h-4 w-4" />{" "}
-                {t("reports_page.save_as_template")}
-              </Button>
+              {canSaveTemplates && (
+                <Button variant="outline" onClick={() => setSaveOpen(true)}>
+                  <Save className="mr-2 h-4 w-4" />{" "}
+                  {t("reports_page.save_as_template")}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -584,6 +605,14 @@ function PreviewResult({ result }: { result: ReportResult }) {
             <span className="capitalize">{result.source}</span> · {result.total}{" "}
             {t("reports_page.records")}
           </p>
+          {result.truncated && (
+            <p role="note" className="mt-1 text-xs text-status-warning">
+              {t(
+                "reports_page.truncated",
+                "Only the newest 1,000 rows are shown. Narrow the dates to see the rest.",
+              )}
+            </p>
+          )}
         </div>
       </div>
 
@@ -792,9 +821,11 @@ function QuickTab() {
     generate.mutate(
       { source },
       {
-        onSuccess: () =>
+        // The result, not `generate.data`, which still holds the previous
+        // run inside onSuccess: the first run said "Generated 0 records" (N67).
+        onSuccess: (data) =>
           toast.success(
-            `${t("reports_page.generated_prefix")} ${generate.data?.total ?? 0} ${t("reports_page.records")}`,
+            `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
           ),
         onError: () => toast.error(t("reports_page.generate_failed")),
       },
@@ -853,10 +884,20 @@ function QuickTab() {
       {generate.data && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {generate.data.total} {t("reports_page.records")} ·{" "}
-              <span className="capitalize">{generate.data.source}</span>
-            </p>
+            <div>
+              <p className="text-sm text-muted-foreground">
+                {generate.data.total} {t("reports_page.records")} ·{" "}
+                <span className="capitalize">{generate.data.source}</span>
+              </p>
+              {generate.data.truncated && (
+                <p role="note" className="mt-1 text-xs text-status-warning">
+                  {t(
+                    "reports_page.truncated",
+                    "Only the newest 1,000 rows are shown. Narrow the dates to see the rest.",
+                  )}
+                </p>
+              )}
+            </div>
             <Button size="sm" onClick={downloadCsv}>
               <Download className="mr-2 h-3 w-3" />{" "}
               {t("reports_page.download_csv")}
@@ -882,10 +923,10 @@ function SavedTab() {
 
   function handleRun(r: SavedReport) {
     runReport.mutate(r.config, {
-      onSuccess: () => {
+      onSuccess: (data) => {
         setResultFor(r.public_id);
         toast.success(
-          `${t("reports_page.generated_prefix")} ${runReport.data?.total ?? 0} ${t("reports_page.records")}`,
+          `${t("reports_page.generated_prefix")} ${data.total} ${t("reports_page.records")}`,
         );
       },
       onError: () => toast.error(t("reports_page.run_failed")),

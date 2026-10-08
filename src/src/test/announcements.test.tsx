@@ -180,7 +180,35 @@ describe("<AnnouncementsPage>", () => {
     renderWithQuery(<AnnouncementsPage />);
 
     await user.click(await screen.findByRole("button", { name: "Delete" }));
+    // Deleting is confirmed first (N70); the dialog's button is the last
+    // "Delete" on screen.
+    const confirm = await screen.findAllByRole("button", { name: "Delete" });
+    await user.click(confirm[confirm.length - 1]);
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
+  });
+
+  it("asks before deleting, and deletes nothing when cancelled", async () => {
+    // Announcements are not soft-deleted, and one click on a bare icon used
+    // to remove one for good (audit N70).
+    let deleted = false;
+    server.use(
+      me(["announcement.manage"]),
+      http.get("*/api/v1/announcements", () =>
+        HttpResponse.json(page([ANNOUNCEMENT])),
+      ),
+      http.delete("*/api/v1/announcements/ANN1", () => {
+        deleted = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<AnnouncementsPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(await screen.findByText(/cannot be recovered/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(deleted).toBe(false);
   });
 });

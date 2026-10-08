@@ -122,8 +122,7 @@ export default function MobileCheckInPage() {
 
     if (!isOnline) {
       try {
-        const employeePublicId = (user as { employee?: { public_id?: string } })
-          ?.employee?.public_id;
+        const employeePublicId = user?.employee_public_id;
         if (!employeePublicId) {
           setMessage(t("attendance.mobile_page.cannot_determine_identity"));
           setStatus("error");

@@ -40,6 +40,7 @@ import {
   useAdminTenant,
   useUpdateTenantStatus,
   useExtendTrial,
+  useMarkTenantInvoicePaid,
   useImpersonateTenant,
   useUpdateTenantDomain,
   useTenantBackup,
@@ -50,6 +51,7 @@ import { formatDateOnly } from "@/lib/utils/date";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 
 function timeAgo(dateStr: string): string {
@@ -96,6 +98,7 @@ function TenantDetail({ id }: { id: string }) {
   const { data: tenant, isLoading, isError, refetch } = useAdminTenant(id);
   const updateStatus = useUpdateTenantStatus();
   const extendTrial = useExtendTrial();
+  const markInvoicePaid = useMarkTenantInvoicePaid(id);
   const impersonate = useImpersonateTenant();
   const backup = useTenantBackup();
   const updateDomain = useUpdateTenantDomain();
@@ -598,6 +601,7 @@ function TenantDetail({ id }: { id: string }) {
                   t("payroll_page.loans_page.amount"),
                   t("common.status"),
                   t("admin_tenant_detail_page.due"),
+                  "",
                 ]}
                 rows={tenant.invoices.map((inv) => ({
                   key: inv.public_id,
@@ -630,6 +634,43 @@ function TenantDetail({ id }: { id: string }) {
                           written rather than being shifted into a zone. */}
                       {inv.due_date ? formatDateOnly(inv.due_date) : "—"}
                     </span>,
+                    inv.status === "paid" ? (
+                      <span key="m" />
+                    ) : (
+                      <Button
+                        key="m"
+                        size="sm"
+                        variant="outline"
+                        disabled={markInvoicePaid.isPending}
+                        aria-label={`${t(
+                          "admin_tenant_detail_page.mark_paid",
+                          "Mark paid",
+                        )} ${inv.public_id.slice(-8)}`}
+                        onClick={() =>
+                          markInvoicePaid.mutate(inv.public_id, {
+                            onSuccess: () =>
+                              toast.success(
+                                t(
+                                  "admin_tenant_detail_page.invoice_marked_paid",
+                                  "Invoice marked paid",
+                                ),
+                              ),
+                            onError: (err) =>
+                              toast.error(
+                                apiErrorMessage(
+                                  err,
+                                  t(
+                                    "admin_tenant_detail_page.mark_paid_failed",
+                                    "Couldn't mark the invoice paid",
+                                  ),
+                                ),
+                              ),
+                          })
+                        }
+                      >
+                        {t("admin_tenant_detail_page.mark_paid", "Mark paid")}
+                      </Button>
+                    ),
                   ],
                 }))}
               />

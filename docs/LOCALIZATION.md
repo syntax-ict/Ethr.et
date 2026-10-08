@@ -90,24 +90,28 @@ payroll.calculation.basic_salary → "መሰረታዊ ደመወዝ" (am)
 
 ### Frontend i18n
 
-Using `next-intl` or `react-i18next`:
+ETHR uses its own hook, `useT` (`src/src/lib/i18n/useT.ts`), not `next-intl` or `react-i18next`. It returns `{ t, locale }`; `t` takes the full dot-notation key, an English fallback, and optional `:name` replacements:
 
 ```tsx
 // Usage in components
-const t = useTranslations('employee');
-<h1>{t('profile.title')}</h1>
+const { t } = useT();
+<h1>{t('employee.detail.tab.lifecycle', 'Lifecycle')}</h1>
 
 // With variables
-t('welcome', { name: employee.first_name })
-// en: "Welcome, {name}"
-// am: "እንኳን ደህና መጡ, {name}"
+t('approvals.reject_description', 'This will be recorded and shown to :name.', { name: employee.name })
 ```
 
-Frontend translation files mirror backend structure:
+The language switcher offers only locales marked `available` in `src/src/lib/i18n/config.ts` — today `en` and `am`. The others are listed as `coming_soon` and cannot be selected.
+
+Frontend translation files are one JSON dictionary per locale:
 ```
-/src/lib/i18n/
-  /en.json
-  /am.json
+/src/src/lib/i18n/locales/
+  en.json
+  am.json
+  om.json   (stub, coming soon)
+  ti.json   (stub, coming soon)
+  so.json   (stub, coming soon)
+  sid.json  (stub, coming soon)
 ```
 
 ---
@@ -143,14 +147,9 @@ Ethiopia uses the Ge'ez calendar (Ethiopian calendar) alongside the Gregorian ca
 
 ### Dual Calendar Display
 
-When tenant enables Ethiopian calendar (`settings.ethiopian_calendar = true`):
+The organization's calendar is `settings.calendar` — `ethiopian` (the default) or `gregorian` — set at Settings → General → Calendar System. Each user can choose their own on Profile → Preferences, which overrides the organization's choice for them.
 
-- All date pickers show both Gregorian and Ethiopian dates
-- Date display format: `July 15, 2026 / ሐምሌ 8, 2018`
-- Calendar components show both month/year headers
-- User can toggle primary calendar in date pickers
-
-When disabled: only Gregorian dates shown.
+- Date inputs show the chosen calendar and the other calendar's date beneath (see *Date Picker Behavior*)
 
 ### CalendarService API
 
@@ -220,15 +219,31 @@ Tenant setting: `pagumen_proration_strategy` — `full_month` (default for gover
 | Calendar | Holiday columns highlighted in team calendar |
 | Dashboard | Upcoming holidays shown on employee dashboard |
 
+### Which year an auto-detect run covers
+
+A run for a year produces the holidays **dated in that Gregorian year**, January to December. The fixed Ethiopian dates are placed in whichever of the two overlapping Ethiopian years falls inside it. So a 2026 run gives Genna on 7 January 2026, Adwa on 2 March 2026 and Enkutatash on 11 September 2026.
+
+*(Corrected 2026-10-07, audit N57. A run used to cover the Ethiopian year beginning in September. Genna, Timkat and Adwa then landed in the next Gregorian year while Labour Day and Easter stayed in this one, so a tenant created in 2026 never had 2026's Genna, Timkat or Adwa. Attendance and payroll treated those days as working days.)*
+
+Onboarding runs auto-detect for the current year and the next, so an organisation set up in October already has next January's holidays. After that, `RollForwardHolidaysJob` keeps the next year filled in (below).
+
 ### Branch-Specific Holidays
 
-Some holidays apply only to certain branches (e.g., regional holidays). The `branch_scope` JSON field on `holidays` table controls this:
+Some holidays apply only to one branch (e.g. a regional holiday). Each holiday row has a nullable `branch_id`:
 - `null` = applies to all branches
-- `[branch_id_1, branch_id_2]` = applies only to listed branches
+- a branch = applies to that branch only, alongside the tenant-wide holidays
+
+*(Corrected 2026-10-07: this described a `branch_scope` JSON list of branches, which does not exist. A regional holiday for several branches is one row per branch.)*
 
 ### Recurring Holidays
 
-Holidays flagged as `is_recurring = true` are auto-created for new years by the yearly holiday generation job.
+A holiday marked **Recurring every year** (`recurring = true`) is created for the next year by `RollForwardHolidaysJob`. The job runs on the 1st of every month for every tenant, and the run is idempotent.
+
+- **Statutory holidays** for the next year come from auto-detect, so movable feasts (Easter, the Islamic holidays) get that year's computed date.
+- **A tenant's own recurring holiday** is copied to the same month and day, if it is a Gregorian, non-estimated holiday. An Ethiopian-calendar or estimated holiday moves between Gregorian years by a rule a copy cannot know, so it is not copied by date. 29 February is skipped in a year without it.
+- **Only the next year is touched, never the current one.** A holiday a tenant removed this year stays removed.
+
+*(Corrected 2026-10-07, audit N58. This said "auto-created for new years by the yearly holiday generation job". There was no such job, and the flag was saved and read by nothing.)*
 
 ---
 
@@ -307,7 +322,9 @@ Ethiopian addresses follow this hierarchy:
 
 ### AddressForm Component
 
-The `AddressForm` component renders these fields in the correct hierarchy:
+> **Not built.** There is no `AddressForm` component in the frontend. A branch's address is a single free-text field, and employee records have no address field. The list below is the intended design.
+
+The `AddressForm` component would render these fields in the correct hierarchy:
 - Region dropdown (Ethiopian regions + Addis Ababa + Dire Dawa)
 - City/Zone text input
 - Subcity text input
@@ -351,7 +368,7 @@ Ethiopian organizations use different fiscal year starts:
 | Government | Hamle 1 (July 8 Gregorian) | Ethiopian |
 | Private sector | Meskerem 1 (Sep 11 Gregorian) or Jan 1 | Varies |
 
-Configurable per tenant: `settings.fiscal_year_start_month` (1-13, where 13 = Pagumen).
+Configurable per tenant: `settings.fiscal_year_start_month` (1-13, where 13 = Pagumen), set by a Tenant Admin on the Payroll Schedule card at Settings → Payroll Rules.
 
 Fiscal year affects:
 - Leave balance accrual and carry-forward
@@ -373,32 +390,29 @@ Fiscal year affects:
 
 ### Date Picker Behavior
 
-When `settings.ethiopian_calendar = true`:
-- `DualCalendarPicker` shows both calendars side by side
-- User can click on either calendar to select a date
-- Selected date syncs between both calendars
-- Month navigation works independently on each calendar
-- Today is highlighted on both calendars
+Date inputs use `DualCalendarDateInput` (`src/src/components/shared/dual-calendar-date-input.tsx`), a single input — not two calendars side by side. Its value is always an ISO Gregorian `YYYY-MM-DD` string, whichever calendar is shown.
 
-When `settings.ethiopian_calendar = false`:
-- Standard single Gregorian date picker
-- No Ethiopian dates shown
+When the calendar system (Settings → General) is **Ethiopian**:
+- The input is three parts: Ethiopian year, month (Meskerem … Pagume) and day
+- The day list follows the month's length, so Pagume offers 5 or 6 days
+- The Gregorian equivalent is shown beneath the input
+
+When it is **Gregorian**:
+- The browser's native date input
+- The Ethiopian equivalent is shown beneath the input
 
 ---
 
 ## Working Days
 
-Default Ethiopian working week: **Monday through Saturday** (6 days).
+Many Ethiopian organizations work **Monday through Saturday** (6 days); others (particularly banks and NGOs) work Monday through Friday (5 days). ETHR's default, until an organization sets its own, is **Monday through Friday**.
 
-Some organizations (particularly banks and NGOs) work Monday through Friday (5 days).
-
-Configurable per tenant: `settings.working_days` — array of day numbers (0=Sunday, 6=Saturday).
+Configurable per tenant: `settings.working_days` — array of ISO day numbers, **1 = Monday … 7 = Sunday** (`api/app/Support/WorkingWeek.php`). An organization admin sets it on the **Working week** card at Settings → Leave Types.
 
 Working days affect:
-- Leave day counting (skip non-working days)
-- Attendance expectations (no absent flag on non-working days)
-- Shift scheduling
-- Payroll working day calculations
+- Leave day counting (skip non-working days and holidays)
+
+Attendance expectations come from each shift's own `working_days`, which use the same ISO 1–7 numbering.
 
 ---
 

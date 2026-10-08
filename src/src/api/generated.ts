@@ -843,7 +843,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create ac */
+        /**
+         * The identity provider's form POST back after sign-in (SAML ACS)
+         * @description Every outcome is a 303 redirect to the app's `/login/sso` page with the
+         *     organisation (`org`) and either `next` (plus `mfa=1` while a second
+         *     factor is owed) or `error`: `failed`, `no_account`, `account_inactive`,
+         *     `tenant_inactive`, `not_configured` or `seat_limit`. On success the
+         *     session cookie is set on the redirect.
+         */
         post: operations["sso.callback"];
         delete?: never;
         options?: never;
@@ -1085,23 +1092,6 @@ export interface paths {
         put?: never;
         /** Change plan billing */
         post: operations["billing.changePlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/invoices/{invoice}/mark-paid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Mark paid invoices */
-        put: operations["billing.markPaid"];
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2187,6 +2177,28 @@ export interface paths {
         put?: never;
         /** End contracts */
         post: operations["employeeContract.end"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{employee}/kiosk-pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the PIN an employee enters at a kiosk
+         * @description Needed whenever the organisation turns on "Require PIN" for kiosk
+         *     check-in. `null` removes it. The PIN is stored hashed and never
+         *     returned; the answer says only whether one is set.
+         */
+        put: operations["attendance.employeeKioskPin"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4178,6 +4190,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that an organisation's invoice has been paid
+         * @description Payment is by bank transfer to the provider, so it is the provider who
+         *     knows it arrived. This was a tenant endpoint behind the tenant's own
+         *     `billing.manage`, which let an organisation mark its own invoices paid,
+         *     defeat overdue suspension and count as revenue (audit N94).
+         */
+        put: operations["adminTenant.markInvoicePaid"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/revenue": {
         parameters: {
             query?: never;
@@ -5649,6 +5684,7 @@ export interface components {
             name: string;
             description: string;
             is_active: boolean;
+            org_scope: string;
             permissions?: string[];
             users_count?: number;
             /** Format: date-time */
@@ -5743,7 +5779,6 @@ export interface components {
             reported_by?: unknown;
             investigation_notes: {
                 note: string;
-                by: number | null;
                 by_name: string | null;
                 at: string;
             }[];
@@ -5910,6 +5945,7 @@ export interface components {
             email: string | null;
             phone: string | null;
             employee_code: string | null;
+            has_kiosk_pin: boolean;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -6333,6 +6369,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * OrgScope
+         * @enum {string}
+         */
+        OrgScope: "all" | "branch" | "department" | "team" | "direct_reports" | "self";
         /** OrganizationTemplate */
         OrganizationTemplate: {
             public_id: string;
@@ -6961,6 +7002,7 @@ export interface components {
             name: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions: string[];
         };
         /** StoreDepartmentRequest */
@@ -7436,6 +7478,7 @@ export interface components {
             name?: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions?: string[];
         };
         /** UpdateDepartmentRequest */
@@ -7515,6 +7558,14 @@ export interface components {
             recurring?: boolean;
             is_estimated?: boolean;
             is_active?: boolean;
+        };
+        /**
+         * UpdateKioskPinRequest
+         * @description Four to six digits, or `null` to remove the employee's PIN. The field is
+         *     required, so an empty body cannot remove a PIN by accident.
+         */
+        UpdateKioskPinRequest: {
+            pin: string | null;
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -8152,12 +8203,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        session: components["schemas"]["KioskSessionResource"] & {
-                            branch: {
-                                public_id: string;
-                                name: string;
-                            };
-                        };
+                        session: components["schemas"]["KioskSessionResource"];
                         tenant: {
                             name: string;
                             subdomain: string;
@@ -9018,17 +9064,23 @@ export interface operations {
                             /** @constant */
                             status: "error";
                             /** @constant */
+                            detail: "You can only sync your own attendance.";
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            detail: string;
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            /** @constant */
                             detail: "Employee not found";
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */
                             status: "duplicate" | "created";
                             public_id: string;
-                        } | {
-                            idempotency_key: string;
-                            /** @constant */
-                            status: "error";
-                            detail: string;
                         })[];
                         summary: {
                             created: number;
@@ -10171,7 +10223,6 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    /** @default /dashboard */
                     RelayState?: string;
                 };
             };
@@ -10182,92 +10233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @constant */
-                        token_type: "Bearer";
-                        expires_in: string;
-                        mfa_required: string;
-                        /**
-                         * @description Advisory, not a block: the token is still issued so the user can
-                         *     reach the change-password endpoint. Refusing to authenticate would
-                         *     lock them out of the only screen that can clear the condition.
-                         *     Always present, so clients can branch without probing for the key.
-                         */
-                        password_expired: boolean;
-                        mfa_token: string;
-                        mfa_token_expires_in: string;
-                        relay_state: unknown;
-                    };
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-failed";
-                        /** @constant */
-                        title: "SSO Authentication Failed";
-                        /** @constant */
-                        status: 401;
-                        /** @constant */
-                        detail: "SSO authentication failed. Please try again or contact your administrator.";
-                    };
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/account-inactive";
-                        /** @constant */
-                        title: "Account Inactive";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "Your account has been suspended.";
-                    } | {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-no-account";
-                        /** @constant */
-                        title: "No Account Found";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "No account found for this SSO identity. Contact your administrator.";
-                    } | {
-                        /** @constant */
-                        type: "https://ethr.et/errors/tenant-inactive";
-                        /** @constant */
-                        title: "Organization Inactive";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "Your organization account is not active.";
-                    };
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-not-configured";
-                        /** @constant */
-                        title: "SSO Not Configured";
-                        /** @constant */
-                        status: 422;
-                        /** @constant */
-                        detail: "Single sign-on is not configured for this organization.";
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -10378,11 +10344,13 @@ export interface operations {
                             /** Format: date-time */
                             last_login_at: string | null;
                             employee_code: string | null;
+                            employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
                         permissions: {
                             [key: string]: unknown;
                         };
+                        plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
                     };
                 };
@@ -10743,37 +10711,6 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
-    "billing.markPaid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The invoice public id */
-                invoice: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        /** @constant */
-                        status: "paid";
-                        /** Format: date-time */
-                        paid_at: string | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
-        };
-    };
     "billing.receipt": {
         parameters: {
             query?: never;
@@ -11030,6 +10967,8 @@ export interface operations {
                         };
                         pending_approvals: {
                             leave: number;
+                            correction: number;
+                            profile_update: number;
                             total: number;
                         };
                         team_on_leave: {
@@ -11464,7 +11403,21 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
+            /** @description An error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Error overview.
+                         * @example
+                         */
+                        message: string;
+                    };
+                };
+            };
             404: components["responses"]["ModelNotFoundException"];
         };
     };
@@ -11629,6 +11582,7 @@ export interface operations {
                     "application/json": {
                         source: string;
                         total: number;
+                        truncated: boolean;
                         data: {
                             [key: string]: unknown;
                         }[];
@@ -13116,6 +13070,7 @@ export interface operations {
                         grade: components["schemas"]["GradeResource"] | null;
                         team: components["schemas"]["TeamResource"] | null;
                         cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };
@@ -13191,6 +13146,7 @@ export interface operations {
                         grade: components["schemas"]["GradeResource"] | null;
                         team: components["schemas"]["TeamResource"] | null;
                         cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };
@@ -13400,6 +13356,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendance.employeeKioskPin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateKioskPinRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        has_kiosk_pin: boolean;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -16226,6 +16215,12 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        available: [
+                            "email",
+                            "phone",
+                            "employee_code",
+                            "username"
+                        ];
                         login_identifiers: [
                             "email"
                         ] | unknown[];
@@ -19316,6 +19311,35 @@ export interface operations {
                         /** @constant */
                         message: "Backup job queued. You will be notified when the export is ready.";
                         tenant_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.markInvoicePaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+                invoicePublicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        /** Format: date-time */
+                        paid_at: string | null;
                     };
                 };
             };

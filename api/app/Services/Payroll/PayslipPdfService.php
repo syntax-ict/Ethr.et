@@ -7,6 +7,7 @@ namespace App\Services\Payroll;
 use App\Models\PayrollEntry;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\File;
 
 final class PayslipPdfService
 {
@@ -40,8 +41,16 @@ final class PayslipPdfService
             'is_voided' => $entry->payrollRun->status === 'voided',
         ];
 
+        // Ethiopic glyphs come from the bundled Noto Sans Ethiopic: DejaVu has
+        // none, so every Amharic name printed as empty boxes (audit N79).
+        // dompdf caches font metrics here and does not create the directory.
+        File::ensureDirectoryExists(storage_path('fonts'));
+
         $pdf = Pdf::loadView('payslip', $data);
         $pdf->setPaper('a5', 'portrait');
+        // Embed only the glyphs used: whole DejaVu and Ethiopic faces made
+        // each payslip over a megabyte.
+        $pdf->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->output();
     }

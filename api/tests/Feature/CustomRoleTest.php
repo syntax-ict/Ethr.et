@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Branch;
 use App\Models\CustomRole;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Permission;
 
 function roleUrl(string $path = '', ?string $subdomain = null): string
@@ -330,5 +333,61 @@ describe('audit trail', function () {
         $this->assertDatabaseHas('audit_log', [
             'action' => 'custom_role.deleted',
         ]);
+    });
+});
+
+// Nothing set a custom role's reach, so every one took the column default,
+// `self`: a custom HR role could see no employee but its holder (audit N89).
+describe('custom role reach', function () {
+    it('saves the reach chosen and applies it', function () {
+        $tenant = createTenant(['subdomain' => 'test']);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $response = test()->postJson(roleUrl(), [
+            'name' => 'Branch HR',
+            'org_scope' => 'branch',
+            'permissions' => ['employee.viewAny', 'employee.view'],
+        ])->assertCreated()->assertJsonPath('org_scope', 'branch');
+
+        $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+        $holderEmployee = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+        $colleague = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+        $elsewhere = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $holder = createUser([
+            'employee_id' => $holderEmployee->id,
+            'custom_role_id' => CustomRole::where('public_id', $response->json('public_id'))->value('id'),
+        ], $tenant);
+
+        expect($holder->canAccessEmployee($colleague))->toBeTrue()
+            ->and($holder->canAccessEmployee($elsewhere))->toBeFalse();
+    });
+
+    it('refuses an unknown reach', function () {
+        $tenant = createTenant(['subdomain' => 'test']);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        test()->postJson(roleUrl(), [
+            'name' => 'Odd',
+            'org_scope' => 'galaxy',
+            'permissions' => ['employee.view'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('org_scope');
+    });
+
+    it('does not let an assigner hand out a reach wider than their own', function () {
+        $tenant = createTenant(['subdomain' => 'test']);
+        $department = Department::factory()->create(['tenant_id' => $tenant->id]);
+        $assignerEmployee = Employee::factory()->create(['tenant_id' => $tenant->id, 'department_id' => $department->id]);
+        $abilities = ['users.viewAny', 'users.update', 'employee.view'];
+        $deptRole = CustomRole::query()->forceCreate(['tenant_id' => $tenant->id, 'name' => 'Dept HR', 'is_active' => true, 'org_scope' => 'department']);
+        $wideRole = CustomRole::query()->forceCreate(['tenant_id' => $tenant->id, 'name' => 'Wide', 'is_active' => true, 'org_scope' => 'all']);
+        foreach ([$deptRole, $wideRole] as $role) {
+            $role->permissions()->sync(Permission::whereIn('name', $abilities)->pluck('id'));
+            Permission::clearCacheForCustomRole($role->id);
+        }
+        $assigner = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $assignerEmployee->id, 'custom_role_id' => $deptRole->id], $tenant);
+        test()->actingAs($assigner);
+
+        test()->patchJson("http://test.ethr.test/api/v1/users/{$assigner->public_id}", ['custom_role_id' => $wideRole->public_id])
+            ->assertUnprocessable()->assertJsonValidationErrors('custom_role_id');
     });
 });

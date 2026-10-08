@@ -9,6 +9,7 @@ import {
   Send,
   Loader2,
   History,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import {
   type WebhookEvent,
   useCreateWebhook,
   useDeleteWebhook,
+  useUpdateWebhook,
   useTestWebhook,
   useWebhooks,
   type Webhook as WebhookEntry,
@@ -46,6 +48,10 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
+import { Switch } from "@/components/ui/switch";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const webhookSchema = z.object({
   url: rules.url(),
@@ -65,6 +71,8 @@ export default function WebhooksPage() {
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [deliveriesFor, setDeliveriesFor] = useState<WebhookEntry | null>(null);
   const [deleting, setDeleting] = useState<WebhookEntry | null>(null);
+  // The webhook being edited; null while the dialog creates one.
+  const [editing, setEditing] = useState<WebhookEntry | null>(null);
 
   const {
     register,
@@ -83,7 +91,10 @@ export default function WebhooksPage() {
 
   const webhooksQuery = useWebhooks();
   const createWebhook = useCreateWebhook();
+  // Creating and editing webhooks needs the plan's `webhooks` feature (N66).
+  const hasWebhooks = usePlanFeatures().has("webhooks");
   const deleteWebhook = useDeleteWebhook();
+  const updateWebhook = useUpdateWebhook();
   const testWebhook = useTestWebhook();
 
   // No `onError` toast: `submit` reports a failed create inside the dialog —
@@ -91,11 +102,49 @@ export default function WebhooksPage() {
   // would duplicate it and then vanish, which is what previously left the user
   // with a dialog full of rejected input and no explanation.
   async function create(values: WebhookValues) {
+    if (editing) {
+      await updateWebhook.mutateAsync({
+        publicId: editing.public_id,
+        ...values,
+      });
+      closeDialog();
+      toast.success(t("webhooks_page.updated", "Webhook updated"));
+      return;
+    }
     const created = await createWebhook.mutateAsync(values);
     setNewSecret(created.secret);
-    setCreateOpen(false);
-    reset();
+    closeDialog();
     toast.success(t("webhooks_page.created"));
+  }
+
+  function openEdit(webhook: WebhookEntry) {
+    setEditing(webhook);
+    reset({ url: webhook.url, events: webhook.events as WebhookEvent[] });
+    setCreateOpen(true);
+  }
+
+  function closeDialog() {
+    setCreateOpen(false);
+    setEditing(null);
+    reset({ url: "", events: [] });
+  }
+
+  // Re-enabling is the recovery after a receiver's outage: the delivery job
+  // switches a webhook off after repeated failures (audit N71).
+  function setActive(webhook: WebhookEntry, isActive: boolean) {
+    updateWebhook.mutate(
+      { publicId: webhook.public_id, is_active: isActive },
+      {
+        onSuccess: () =>
+          toast.success(
+            isActive
+              ? t("webhooks_page.enabled", "Webhook enabled")
+              : t("webhooks_page.disabled", "Webhook disabled"),
+          ),
+        onError: (err) =>
+          toast.error(apiErrorMessage(err, t("common.action_failed"))),
+      },
+    );
   }
 
   // Deleting stops deliveries to the endpoint for good, so it is confirmed —
@@ -142,11 +191,16 @@ export default function WebhooksPage() {
           title={t("webhooks_page.title")}
           description={t("webhooks_page.description")}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> {t("webhooks_page.add_webhook")}
-            </Button>
+            hasWebhooks && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("webhooks_page.add_webhook")}
+              </Button>
+            )
           }
         />
+
+        {!hasWebhooks && <PlanFeatureNotice />}
 
         {newSecret && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">
@@ -269,6 +323,31 @@ export default function WebhooksPage() {
                             {t("webhooks_page.send_test")}
                           </span>
                         </Button>
+                        {hasWebhooks && (
+                          <>
+                            <Switch
+                              checked={w.is_active}
+                              onCheckedChange={(on) => setActive(w, on)}
+                              disabled={updateWebhook.isPending}
+                              aria-label={t(
+                                "webhooks_page.active_toggle",
+                                "Deliver to this webhook",
+                              )}
+                              className="mt-1.5"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(w)}
+                              title={t("common.edit", "Edit")}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">
+                                {t("common.edit", "Edit")}
+                              </span>
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -305,10 +384,17 @@ export default function WebhooksPage() {
           onClose={() => setDeliveriesFor(null)}
         />
 
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <Dialog
+          open={createOpen}
+          onOpenChange={(open) => (open ? setCreateOpen(true) : closeDialog())}
+        >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{t("webhooks_page.create_webhook")}</DialogTitle>
+              <DialogTitle>
+                {editing
+                  ? t("webhooks_page.edit_webhook", "Edit webhook")
+                  : t("webhooks_page.create_webhook")}
+              </DialogTitle>
             </DialogHeader>
             <form
               onSubmit={submit(create, t("webhooks_page.create_failed"))}
@@ -366,11 +452,7 @@ export default function WebhooksPage() {
               </FormField>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCreateOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={closeDialog}>
                   {t("common.cancel")}
                 </Button>
                 {/* No longer disabled on an empty event list: a button that is
@@ -380,7 +462,9 @@ export default function WebhooksPage() {
                   {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {t("api_keys_page.create")}
+                  {editing
+                    ? t("common.save", "Save")
+                    : t("api_keys_page.create")}
                 </Button>
               </DialogFooter>
             </form>

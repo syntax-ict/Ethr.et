@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { fetchAllPages } from "@/api/fetch-all-pages";
 
 // Shapes come from the generated contract. The hand-written ones they replace
 // had drifted: a `status` field the resource never returns (which emptied the
@@ -23,6 +24,20 @@ const keys = {
 };
 
 /** Published, unexpired announcements — the API applies both rules. */
+/**
+ * Every live announcement, all pages. The page has no pager and the API pages
+ * at 25, ordered by priority before date, so once there were more than 25 a
+ * recent normal one could fall behind older urgent ones and be unreachable
+ * (audit N70).
+ */
+export function useAllAnnouncements() {
+  return useQuery<Announcement[]>({
+    queryKey: [...keys.list(undefined), "all"],
+    queryFn: () => fetchAllPages<Announcement>("/announcements"),
+  });
+}
+
+/** One page, for the dashboard widget, which shows only the top few. */
 export function useAnnouncements(params?: { page?: number }) {
   return useQuery<PaginatedResponse<Announcement>>({
     queryKey: keys.list(params),

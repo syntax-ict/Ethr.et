@@ -443,6 +443,37 @@ class AdminTenantController extends Controller
         return $impersonator?->isSuperAdmin() ? $impersonator : null;
     }
 
+    /**
+     * Record that an organisation's invoice has been paid.
+     *
+     * Payment is by bank transfer to the provider, so it is the provider who
+     * knows it arrived. This was a tenant endpoint behind the tenant's own
+     * `billing.manage`, which let an organisation mark its own invoices paid,
+     * defeat overdue suspension and count as revenue (audit N94).
+     */
+    public function markInvoicePaid(string $publicId, string $invoicePublicId): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::where('public_id', $publicId)->firstOrFail();
+
+        $invoice = Invoice::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('public_id', $invoicePublicId)
+            ->firstOrFail();
+
+        if ($invoice->status !== 'paid') {
+            $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+            AuditLog::record('billing.invoice_paid', $invoice);
+        }
+
+        return response()->json([
+            'public_id' => $invoice->public_id,
+            'status' => $invoice->status,
+            'paid_at' => $invoice->paid_at,
+        ]);
+    }
+
     public function backup(Request $request, string $publicId): JsonResponse
     {
         Gate::authorize('admin.manage');

@@ -22,7 +22,7 @@ class SessionCookie
      * Scoped to the API so the cookie is never attached to Next.js document or
      * asset requests.
      */
-    private const PATH = '/api';
+    public const PATH = '/api';
 
     public function issue(string $token, int $ttlSeconds): void
     {

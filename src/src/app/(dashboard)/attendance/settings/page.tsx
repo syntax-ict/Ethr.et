@@ -420,7 +420,10 @@ export default function AttendanceSettingsPage() {
                 <SettingRow
                   id="require-pin"
                   title={t("attendance.settings_page.require_pin")}
-                  description={t("attendance.settings_page.require_pin_desc")}
+                  description={`${t("attendance.settings_page.require_pin_desc")}. ${t(
+                    "attendance.settings_page.require_pin_where",
+                    "Set each employee's PIN on their profile, under Attendance.",
+                  )}`}
                 >
                   <Switch
                     checked={form.kiosk_pin_required}

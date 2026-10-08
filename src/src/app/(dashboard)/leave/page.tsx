@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   useLeaveBalance,
   useMyLeaveRequests,
-  useLeaveTypes,
+  useRequestableLeaveTypes,
   useSubmitLeave,
   useTeamLeaveRequests,
   useApproveLeave,
@@ -68,7 +68,7 @@ export default function LeavePage() {
   const { t } = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const { isSupervisor } = usePermissions();
-  const { data: leaveTypes } = useLeaveTypes();
+  const { data: leaveTypes } = useRequestableLeaveTypes();
 
   const [leaveForm, setLeaveForm] = useState({
     leave_type_public_id: "",
@@ -151,7 +151,7 @@ export default function LeavePage() {
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {leaveTypes?.data?.map((lt) => (
+                  {leaveTypes?.map((lt) => (
                     <SelectItem key={lt.public_id} value={lt.public_id}>
                       {lt.name}
                     </SelectItem>
@@ -376,9 +376,7 @@ function TeamLeaveTab() {
       </div>
 
       {view === "calendar" ? (
-        <TeamLeaveCalendar
-          requests={requests as (LeaveRequest & { employee_name?: string })[]}
-        />
+        <TeamLeaveCalendar requests={requests} />
       ) : (
         <Card>
           <CardHeader>
@@ -414,8 +412,7 @@ function TeamLeaveTab() {
                     key: req.public_id,
                     cells: [
                       <span key="e" className="font-medium">
-                        {(req as { employee_name?: string }).employee_name ??
-                          "—"}
+                        {req.employee?.name ?? "—"}
                       </span>,
                       <span key="ty" className="text-muted-foreground">
                         {leaveTypeName(req.leave_type, t("leave_page.unknown"))}
@@ -486,11 +483,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: "bg-destructive-soft text-destructive-on-soft",
 };
 
-function TeamLeaveCalendar({
-  requests,
-}: {
-  requests: (LeaveRequest & { employee_name?: string })[];
-}) {
+function TeamLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
   const { t, locale } = useT();
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -510,11 +503,14 @@ function TeamLeaveCalendar({
 
   function leavesOnDay(day: number) {
     const d = dateStr(day);
-    return requests.filter((r) => {
-      const status = r.status;
-      if (status === "rejected") return false;
-      return r.start_date <= d && r.end_date >= d;
-    });
+    // Only leave that is happening or may happen: a cancelled request used
+    // to stay on the calendar, since the filter dropped `rejected` alone.
+    return requests.filter(
+      (r) =>
+        (r.status === "pending" || r.status === "approved") &&
+        r.start_date <= d &&
+        r.end_date >= d,
+    );
   }
 
   function prevMonth() {
@@ -619,7 +615,7 @@ function TeamLeaveCalendar({
                 </span>
                 <div className="mt-0.5 space-y-0.5">
                   {leaves.slice(0, 3).map((leave, j) => {
-                    const name = leave.employee_name ?? "?";
+                    const name = leave.employee?.name ?? "?";
                     const firstName = name.split(" ")[0];
                     return (
                       <Badge

@@ -5,9 +5,11 @@ declare(strict_types=1);
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Models\Team;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 
@@ -104,6 +106,41 @@ describe('employee CRUD', function () {
         ]);
 
         $response->assertOk()->assertJsonPath('phone', '+251922334455');
+    });
+
+    it('sets supervisor, team and cost centre, and answers with all three', function () {
+        // The API accepted these and no screen set them, so the reporting
+        // chart was flat and teams and cost centres were never assigned
+        // (audit N73). The update response also left `supervisor` unloaded.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $boss = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Boss Person']);
+        $team = Team::factory()->create(['tenant_id' => $tenant->id]);
+        $costCenter = CostCenter::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'supervisor_id' => $boss->public_id,
+            'team_id' => $team->public_id,
+            'cost_center_id' => $costCenter->public_id,
+        ])->assertOk()
+            ->assertJsonPath('supervisor.name', 'Boss Person')
+            ->assertJsonPath('team.public_id', $team->public_id)
+            ->assertJsonPath('cost_center.public_id', $costCenter->public_id);
+
+        expect($employee->fresh()->supervisor_id)->toBe($boss->id);
+    });
+
+    it('refuses to make an employee their own supervisor', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'supervisor_id' => $employee->public_id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('supervisor_id');
+
+        expect($employee->fresh()->supervisor_id)->toBeNull();
     });
 
     it('shows a single employee with relationships', function () {

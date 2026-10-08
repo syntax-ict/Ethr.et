@@ -17,6 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -44,15 +51,37 @@ import { toast } from "sonner";
 import { toastError } from "@/lib/errors";
 import { z } from "zod";
 
+/** OrgScope, narrowest first: whose records a holder of the role reaches. */
+const ORG_SCOPES = [
+  "self",
+  "direct_reports",
+  "team",
+  "department",
+  "branch",
+  "all",
+] as const;
+
 const roleSchema = z.object({
   name: rules.requiredText(255),
   description: rules.text(500),
+  // Nothing set this, so every custom role took the column default, `self`,
+  // and a custom HR role could see no one but its holder (audit N89).
+  org_scope: z.enum(ORG_SCOPES),
   // A role granting nothing can be assigned and locks its holder out of every
   // screen. The server rejects it; this says so against the permission tree
   // instead of in a toast that names no control.
   permissions: z.array(z.string()).min(1, "roles_page.select_at_least_one"),
 });
 type RoleValues = z.infer<typeof roleSchema>;
+
+const SCOPE_FALLBACK: Record<(typeof ORG_SCOPES)[number], string> = {
+  self: "Their own only",
+  direct_reports: "Their direct reports",
+  team: "Their team",
+  department: "Their department",
+  branch: "Their branch",
+  all: "Everyone in the organisation",
+};
 
 const MODULE_LABEL_KEYS: Record<string, string> = {
   org: "roles_page.module_org",
@@ -98,7 +127,7 @@ export default function RolesPage() {
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("roles_page.title")}
@@ -235,7 +264,12 @@ function RoleDialog({
     formState: { errors, isSubmitting },
   } = useZodForm<RoleValues>({
     schema: roleSchema,
-    defaultValues: { name: "", description: "", permissions: [] },
+    defaultValues: {
+      name: "",
+      description: "",
+      org_scope: "self",
+      permissions: [],
+    },
   });
 
   // The permission tree toggles by name and asks "is this one on?" thousands of
@@ -267,9 +301,14 @@ function RoleDialog({
         ? {
             name: editingRole.name,
             description: editingRole.description,
+            org_scope: (ORG_SCOPES as readonly string[]).includes(
+              editingRole.org_scope,
+            )
+              ? (editingRole.org_scope as RoleValues["org_scope"])
+              : "self",
             permissions: editingRole.permissions,
           }
-        : { name: "", description: "", permissions: [] },
+        : { name: "", description: "", org_scope: "self", permissions: [] },
     );
   }, [editingRole, reset]);
 
@@ -395,6 +434,35 @@ function RoleDialog({
                 />
               </FormField>
             </div>
+
+            <FormField
+              id="role_org_scope"
+              label={t("roles_page.org_scope", "Whose records")}
+              hint={t(
+                "roles_page.org_scope_hint",
+                "The employees a holder of this role can see and act on.",
+              )}
+            >
+              <Select
+                value={watch("org_scope")}
+                onValueChange={(v) =>
+                  setValue("org_scope", v as RoleValues["org_scope"], {
+                    shouldDirty: true,
+                  })
+                }
+              >
+                <SelectTrigger id="role_org_scope" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORG_SCOPES.map((scope) => (
+                    <SelectItem key={scope} value={scope}>
+                      {t(`roles_page.scope_${scope}`, SCOPE_FALLBACK[scope])}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
 
             <div>
               <Label id="role_permissions_label">

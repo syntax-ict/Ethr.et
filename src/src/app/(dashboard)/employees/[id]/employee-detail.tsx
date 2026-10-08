@@ -37,13 +37,24 @@ import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useEmployeeOptions } from "@/features/attendance/api";
+import { costCentersApi, teamsApi } from "@/features/organization/api";
+import { RelationPicker } from "@/features/employees/components/relation-picker";
 
 export function EmployeeDetail({ routeId }: { routeId: string }) {
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
-  const updateEmployee = useUpdateEmployee(id);
+  const canManageAttendance =
+    usePermissions().hasPermission("attendance.manage");
   const [editing, setEditing] = useState(false);
+  const updateEmployee = useUpdateEmployee(id);
+  // Options load only once editing starts.
+  const { data: employeeOptions } = useEmployeeOptions({ enabled: editing });
+  const { data: teams } = teamsApi.useList();
+  const { data: costCenters } = costCentersApi.useList();
   const [editForm, setEditForm] = useState<Record<string, string>>({});
 
   function startEdit() {
@@ -52,6 +63,11 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
       name: employee.name ?? "",
       email: employee.email ?? "",
       phone: employee.phone ?? "",
+      // Settable nowhere else: no screen assigned a supervisor, team or cost
+      // centre, so the reporting chart was flat (audit N73). Empty clears it.
+      supervisor_id: employee.supervisor?.public_id ?? "",
+      team_id: employee.team?.public_id ?? "",
+      cost_center_id: employee.cost_center?.public_id ?? "",
     });
     setEditing(true);
   }
@@ -245,6 +261,41 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         className="mt-1"
                       />
                     </div>
+                    <RelationPicker
+                      id="edit-supervisor"
+                      label={t("employee.supervisor", "Supervisor")}
+                      value={editForm.supervisor_id}
+                      options={(employeeOptions ?? [])
+                        .filter((e) => e.public_id !== employee.public_id)
+                        .map((e) => ({ value: e.public_id, label: e.name }))}
+                      onChange={(v) =>
+                        setEditForm((p) => ({ ...p, supervisor_id: v }))
+                      }
+                    />
+                    <RelationPicker
+                      id="edit-team"
+                      label={t("employee.team", "Team")}
+                      value={editForm.team_id}
+                      options={(teams?.data ?? []).map((x) => ({
+                        value: x.public_id,
+                        label: x.name,
+                      }))}
+                      onChange={(v) =>
+                        setEditForm((p) => ({ ...p, team_id: v }))
+                      }
+                    />
+                    <RelationPicker
+                      id="edit-cost-center"
+                      label={t("employee.cost_center", "Cost centre")}
+                      value={editForm.cost_center_id}
+                      options={(costCenters?.data ?? []).map((x) => ({
+                        value: x.public_id,
+                        label: x.name,
+                      }))}
+                      onChange={(v) =>
+                        setEditForm((p) => ({ ...p, cost_center_id: v }))
+                      }
+                    />
                   </>
                 ) : (
                   <>
@@ -290,6 +341,18 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                   icon={Briefcase}
                   label={t("common.position", "Position")}
                   value={employee.position?.title ?? "—"}
+                />
+                <InfoRow
+                  label={t("employee.supervisor", "Supervisor")}
+                  value={employee.supervisor?.name ?? "—"}
+                />
+                <InfoRow
+                  label={t("employee.team", "Team")}
+                  value={employee.team?.name ?? "—"}
+                />
+                <InfoRow
+                  label={t("employee.cost_center", "Cost centre")}
+                  value={employee.cost_center?.name ?? "—"}
                 />
                 <InfoRow
                   label={t("employee.detail.branch", "Branch")}
@@ -384,7 +447,8 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
           <RetirementTab employeeId={id} />
         </TabsContent>
 
-        <TabsContent value="attendance" className="mt-4">
+        <TabsContent value="attendance" className="mt-4 space-y-4">
+          {canManageAttendance && <KioskPinCard employee={employee} />}
           <AttendanceTimelineTab employeeId={id} />
         </TabsContent>
       </Tabs>

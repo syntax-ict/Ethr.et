@@ -58,8 +58,13 @@ final class BankExportService
      * The employee's designated salary account. Falls back to the first bank
      * detail on record if none is explicitly marked primary, rather than
      * dropping the employee from the file entirely.
+     *
+     * Public because PayrollController::bankExport() builds the same file as
+     * JSON for the run page, and must pay into the same account as this CSV.
+     * It used `bankDetails->first()`, which ignores `is_primary` and has no
+     * ordering, so an employee with two accounts could be paid into either.
      */
-    private function primaryBankDetail(Employee $employee): ?EmployeeBankDetail
+    public function primaryBankDetail(Employee $employee): ?EmployeeBankDetail
     {
         $details = $employee->bankDetails;
 

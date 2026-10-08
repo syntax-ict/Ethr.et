@@ -41,20 +41,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useCalendar } from "@/lib/calendar/calendar-context";
 import { toast } from "sonner";
-
-/** The API's `detail`, else its first field error, else `fallback`. */
-function apiMessage(err: unknown, fallback: string): string {
-  const e = err as {
-    response?: {
-      data?: { detail?: string; errors?: Record<string, string[]> };
-    };
-  };
-  return (
-    e.response?.data?.detail ??
-    Object.values(e.response?.data?.errors ?? {})[0]?.[0] ??
-    fallback
-  );
-}
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 interface AssignmentForm {
   shift_public_id: string;
@@ -145,7 +132,9 @@ function AssignmentsContent() {
           toast.success(t("shift_assignments_page.ended_success"));
         },
         onError: (err: unknown) =>
-          toast.error(apiMessage(err, t("shift_assignments_page.end_failed"))),
+          toast.error(
+            apiErrorMessage(err, t("shift_assignments_page.end_failed")),
+          ),
       },
     );
   }
@@ -157,7 +146,9 @@ function AssignmentsContent() {
       // A 409 says the assignment has already taken effect and should be
       // ended instead; the API's own sentence is the useful one.
       onError: (err: unknown) =>
-        toast.error(apiMessage(err, t("shift_assignments_page.delete_failed"))),
+        toast.error(
+          apiErrorMessage(err, t("shift_assignments_page.delete_failed")),
+        ),
     });
   }
 
@@ -177,7 +168,9 @@ function AssignmentsContent() {
           toast.success(t("shift_assignments_page.assigned_success"));
         },
         onError: (err: unknown) =>
-          toast.error(apiMessage(err, t("shifts_settings_page.assign_failed"))),
+          toast.error(
+            apiErrorMessage(err, t("shifts_settings_page.assign_failed")),
+          ),
       },
     );
   }

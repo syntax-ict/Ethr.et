@@ -18,4 +18,6 @@ return [
     'grade_updated' => 'የክፍያ ደረጃ ተዘምኗል።',
     'grade_deleted' => 'የክፍያ ደረጃ ተሰርዟል።',
     'structure_updated' => 'የድርጅት መዋቅር ተዘምኗል።',
+    // English placeholder until the native-speaker review (audit N72).
+    'department_parent_cycle' => 'A department cannot sit under one of its own sub-departments.',
 ];

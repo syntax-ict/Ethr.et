@@ -25,8 +25,8 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 // "Settings" and "Integrations" groups that used to live in the main sidebar:
 // configuration is a destination with its own left nav (the modern SaaS
 // standard — Stripe, Vercel, Linear), keeping the primary sidebar lean.
-// Per-item gates mirror the previous sidebar entries so no role gains or loses
-// access; in practice only tenant_admin+ ever reach this layout.
+// Each item is gated on the ability its page and API check, and the main
+// sidebar links here whenever any item is visible.
 
 interface SettingsNavItem {
   label: string;
@@ -60,8 +60,14 @@ function resolveActiveHref(
   return best;
 }
 
-export function SettingsNav() {
-  const pathname = usePathname();
+/**
+ * The settings pages the caller may open, grouped, each on the ability its API
+ * checks. Shared with the sidebar and command palette, which link to the first
+ * one: they offered Settings to `settings.manage` alone, so an HR admin, who
+ * holds Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no
+ * way to reach any of them (audit N91).
+ */
+export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
   const { can, isTenantAdmin } = usePermissions();
 
@@ -84,25 +90,25 @@ export function SettingsNav() {
           label: t("nav.attendance_rules", "Attendance Rules"),
           href: "/attendance/settings",
           icon: Clock,
-          show: can.manageEmployees,
+          show: can.manageAttendance,
         },
         {
           label: t("nav.shift_config", "Shift Rules"),
           href: "/settings/shifts",
           icon: Timer,
-          show: can.manageEmployees,
+          show: can.manageShifts,
         },
         {
           label: t("nav.leave_types", "Leave Types"),
           href: "/settings/leave-types",
           icon: ListChecks,
-          show: can.manageEmployees,
+          show: can.manageLeaveTypes,
         },
         {
           label: t("nav.holidays", "Holidays"),
           href: "/settings/holidays",
           icon: Calendar,
-          show: can.manageEmployees,
+          show: can.manageHolidays,
         },
         {
           label: t("nav.payroll_config", "Payroll Rules"),
@@ -119,13 +125,15 @@ export function SettingsNav() {
           label: t("nav.users", "Users & Access"),
           href: "/settings/users",
           icon: UserCog,
-          show: isTenantAdmin,
+          // users.viewAny, which HR admins hold too; the API guards which
+          // accounts each may change (N68).
+          show: can.viewUsers,
         },
         {
           label: t("nav.roles", "Roles & Permissions"),
           href: "/settings/roles",
           icon: ShieldCheck,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
@@ -136,31 +144,31 @@ export function SettingsNav() {
           label: t("nav.api_keys", "API Keys"),
           href: "/settings/api-keys",
           icon: KeyRound,
-          show: isTenantAdmin,
+          show: can.manageApiKeys,
         },
         {
           label: t("nav.webhooks", "Webhooks"),
           href: "/settings/webhooks",
           icon: Webhook,
-          show: isTenantAdmin,
+          show: can.manageWebhooks,
         },
         {
           label: t("nav.accounting", "Accounting"),
           href: "/settings/accounting",
           icon: BookOpen,
-          show: can.manageSettings,
+          show: can.viewPayrollRuns,
         },
         {
           label: t("nav.notification_templates", "Notification Templates"),
           href: "/settings/notification-templates",
           icon: Mail,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
         {
           label: t("nav.scim", "SCIM Provisioning"),
           href: "/settings/scim",
           icon: UserCog,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
@@ -171,15 +179,32 @@ export function SettingsNav() {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
   ];
 
-  const visibleGroups = groups
+  return groups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
     .filter((g) => g.items.length > 0);
+}
+
+/** Where "Settings" should lead the caller, or null when nothing is theirs. */
+export function useSettingsLanding(): string | null {
+  const items = useSettingsNavGroups().flatMap((g) => g.items);
+  // A page inside the hub first: only /settings/* renders this navigation.
+  // Attendance Rules lives at /attendance/settings, outside it, so an HR admin
+  // landing there had no way on to Leave Types, Holidays or Users — N91 left
+  // them as unreachable as before (found in the browser pass, audit N98).
+  const inHub = items.find((i) => i.href.startsWith("/settings"));
+  return (inHub ?? items[0])?.href ?? null;
+}
+
+export function SettingsNav() {
+  const pathname = usePathname();
+  const { t } = useT();
+  const visibleGroups = useSettingsNavGroups();
 
   const activeHref = resolveActiveHref(visibleGroups, pathname);
 

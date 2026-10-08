@@ -54,6 +54,8 @@ export function useBatchApprovals() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.all });
       queryClient.invalidateQueries({ queryKey: ["leave"] });
+      // The dashboard's Approvals badge counts these.
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       // Approving a profile change writes to the employee record, so the
       // employee list and the submitter's own profile are both now stale.
       queryClient.invalidateQueries({ queryKey: ["profile"] });

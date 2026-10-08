@@ -56,9 +56,14 @@ class HolidayController extends Controller
 
         $data = $request->validated();
 
-        if (isset($data['branch_public_id'])) {
-            $branch = Branch::where('public_id', $data['branch_public_id'])->first();
-            $data['branch_id'] = $branch?->id;
+        // array_key_exists, not isset: `null` means "tenant-wide" and must map
+        // to branch_id = null. isset() skipped it, leaving an unknown
+        // `branch_public_id` column in the update: a 500 outside production,
+        // silently dropped in it (audit N76).
+        if (array_key_exists('branch_public_id', $data)) {
+            $data['branch_id'] = $data['branch_public_id'] === null
+                ? null
+                : Branch::where('public_id', $data['branch_public_id'])->first()?->id;
             unset($data['branch_public_id']);
         }
 
@@ -88,9 +93,14 @@ class HolidayController extends Controller
 
         $data = $request->validated();
 
-        if (isset($data['branch_public_id'])) {
-            $branch = Branch::where('public_id', $data['branch_public_id'])->first();
-            $data['branch_id'] = $branch?->id;
+        // array_key_exists, not isset: `null` means "tenant-wide" and must map
+        // to branch_id = null. isset() skipped it, leaving an unknown
+        // `branch_public_id` column in the update: a 500 outside production,
+        // silently dropped in it (audit N76).
+        if (array_key_exists('branch_public_id', $data)) {
+            $data['branch_id'] = $data['branch_public_id'] === null
+                ? null
+                : Branch::where('public_id', $data['branch_public_id'])->first()?->id;
             unset($data['branch_public_id']);
         }
 

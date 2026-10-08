@@ -125,3 +125,32 @@ describe("Loans page — new loan", () => {
     expect(body).toMatchObject({ reason: null });
   });
 });
+
+describe("Loans page — the list", () => {
+  /**
+   * The page has no pager and GET /payroll/loans pages at 25, so a loan on
+   * the second page could never be seen, repaid or checked.
+   */
+  it("shows loans past the first page", async () => {
+    const loan = (n: number, name: string) => ({
+      ...CREATED_LOAN,
+      public_id: `01HZLOAN0000000000000000${String(n).padStart(2, "0")}`,
+      employee: { public_id: `01HZEMP${n}`, name },
+    });
+    server.use(
+      http.get("*/api/v1/payroll/loans", ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get("page") ?? 1);
+        return HttpResponse.json({
+          data: [page === 1 ? loan(1, "First Page") : loan(2, "Second Page")],
+          meta: { current_page: page, last_page: 2, per_page: 1, total: 2 },
+          links: { first: null, last: null, prev: null, next: null },
+        });
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("First Page")).toBeInTheDocument();
+    expect(await screen.findByText("Second Page")).toBeInTheDocument();
+  });
+});

@@ -74,6 +74,9 @@ import {
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/api/error-message";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { cn } from "@/lib/utils";
 
 const ADAPTER_LABELS: Record<string, string> = {
   hikvision: "Hikvision",
@@ -115,9 +118,7 @@ export default function DevicesPage() {
         setForm({ ...EMPTY_DEVICE_FORM });
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { detail?: string } } })
-          ?.response?.data?.detail;
-        toast.error(msg || t("devices_page.add_failed"));
+        toast.error(apiErrorMessage(err, t("devices_page.add_failed")));
       },
     });
   }
@@ -134,7 +135,8 @@ export default function DevicesPage() {
           toast.success(t("devices_page.updated"));
           setEditDevice(null);
         },
-        onError: () => toast.error(t("devices_page.update_failed")),
+        onError: (err: unknown) =>
+          toast.error(apiErrorMessage(err, t("devices_page.update_failed"))),
       },
     );
   }
@@ -155,6 +157,15 @@ export default function DevicesPage() {
       onError: () => toast.error(t("devices_page.pull_failed")),
     });
   }
+
+  // The page is open to hr_admin, but the seeded HR role holds only
+  // device.viewAny and device.view; create, update (which also covers pull,
+  // sync all and history import) and delete are tenant-admin abilities. Every
+  // one of these buttons used to be shown and then refused with a 403 (N54).
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("device.create");
+  const canUpdate = hasPermission("device.update");
+  const canDelete = hasPermission("device.delete");
 
   function syncAll() {
     syncAllMutation.mutate(undefined, {
@@ -201,7 +212,7 @@ export default function DevicesPage() {
   const isMockAdapter = form.adapter_type === "mock";
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("devices_page.title")}
@@ -214,27 +225,32 @@ export default function DevicesPage() {
                   {t("devices_page.health_dashboard")}
                 </Link>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={syncAll}
-                disabled={syncAllMutation.isPending || devices.length === 0}
-              >
-                {syncAllMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                {t("devices_page.sync_all")}
-              </Button>
-              <Button
-                onClick={() => {
-                  setForm({ ...EMPTY_DEVICE_FORM });
-                  setCreateOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
-              </Button>
+              {canUpdate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={syncAll}
+                  disabled={syncAllMutation.isPending || devices.length === 0}
+                >
+                  {syncAllMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {t("devices_page.sync_all")}
+                </Button>
+              )}
+              {canCreate && (
+                <Button
+                  onClick={() => {
+                    setForm({ ...EMPTY_DEVICE_FORM });
+                    setCreateOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.add_device")}
+                </Button>
+              )}
             </div>
           }
         />
@@ -281,14 +297,17 @@ export default function DevicesPage() {
             title={t("devices_page.no_devices")}
             description={t("devices_page.no_devices_desc")}
             action={
-              <Button
-                onClick={() => {
-                  setForm({ ...EMPTY_DEVICE_FORM });
-                  setCreateOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" /> {t("devices_page.add_device")}
-              </Button>
+              canCreate ? (
+                <Button
+                  onClick={() => {
+                    setForm({ ...EMPTY_DEVICE_FORM });
+                    setCreateOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />{" "}
+                  {t("devices_page.add_device")}
+                </Button>
+              ) : undefined
             }
           />
         ) : (
@@ -297,12 +316,14 @@ export default function DevicesPage() {
               <DeviceCard
                 key={d.public_id}
                 device={d}
-                onPull={() => pull(d.public_id)}
+                onPull={canUpdate ? () => pull(d.public_id) : undefined}
                 onTest={() => testConnection(d.public_id)}
-                onEdit={() => openEdit(d)}
-                onDelete={() => setDeleteDevice(d)}
+                onEdit={canUpdate ? () => openEdit(d) : undefined}
+                onDelete={canDelete ? () => setDeleteDevice(d) : undefined}
                 onDiscover={() => setDiscoverDevice(d)}
-                onImportHistory={() => setHistoryDevice(d)}
+                onImportHistory={
+                  canUpdate ? () => setHistoryDevice(d) : undefined
+                }
                 pulling={pullMutation.isPending}
                 testing={testMutation.isPending}
               />
@@ -414,12 +435,13 @@ function DeviceCard({
   testing,
 }: {
   device: Device;
-  onPull: () => void;
+  /** Absent when the user may not do it: the item is then not offered. */
+  onPull?: () => void;
   onTest: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
   onDiscover: () => void;
-  onImportHistory: () => void;
+  onImportHistory?: () => void;
   pulling: boolean;
   testing: boolean;
 }) {
@@ -485,31 +507,39 @@ function DeviceCard({
                   <Signal className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.test_connection")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onPull} disabled={pulling}>
-                  <RefreshCw className="mr-2 h-4 w-4" />{" "}
-                  {t("devices_page.pull_records")}
-                </DropdownMenuItem>
+                {onPull && (
+                  <DropdownMenuItem onClick={onPull} disabled={pulling}>
+                    <RefreshCw className="mr-2 h-4 w-4" />{" "}
+                    {t("devices_page.pull_records")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={onDiscover}>
                   <Users className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.discover_users", "Discover enrolled users")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onImportHistory}>
-                  <History className="mr-2 h-4 w-4" />{" "}
-                  {t(
-                    "devices_page.import_history",
-                    "Import attendance history",
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
-                </DropdownMenuItem>
+                {onImportHistory && (
+                  <DropdownMenuItem onClick={onImportHistory}>
+                    <History className="mr-2 h-4 w-4" />{" "}
+                    {t(
+                      "devices_page.import_history",
+                      "Import attendance history",
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {(onEdit || onDelete) && <DropdownMenuSeparator />}
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <Pencil className="mr-2 h-4 w-4" /> {t("common.edit")}
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -548,7 +578,12 @@ function DeviceCard({
           </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div
+          className={cn(
+            "mt-3 grid gap-2",
+            onPull ? "grid-cols-2" : "grid-cols-1",
+          )}
+        >
           <Button
             variant="outline"
             size="sm"
@@ -562,19 +597,21 @@ function DeviceCard({
             )}
             {t("devices_page.test")}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPull}
-            disabled={pulling}
-          >
-            {pulling ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1 h-3 w-3" />
-            )}
-            {t("devices_page.pull")}
-          </Button>
+          {onPull && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPull}
+              disabled={pulling}
+            >
+              {pulling ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-3 w-3" />
+              )}
+              {t("devices_page.pull")}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

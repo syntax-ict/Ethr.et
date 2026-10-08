@@ -434,3 +434,25 @@ it('cannot end or delete another tenant\'s assignment', function () {
     expect($row)->not->toBeNull()
         ->and($row->effective_to)->toBeNull();
 });
+
+test('a rotation step naming another tenant\'s shift is refused, not saved as a rest day', function () {
+    // The rule was an unscoped exists: the foreign shift passed, the
+    // controller could not resolve it, and the step became a rest day while
+    // the save "succeeded" (audit N75).
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $other = createTenant();
+    $foreign = Shift::factory()->create(['tenant_id' => $other->id]);
+    app(CurrentTenant::class)->set($tenant);
+
+    test()->postJson(shiftMgmtUrl($tenant, '/shift-rotations'), [
+        'name' => 'Two-day',
+        'cycle_days' => 2,
+        'steps' => [
+            ['day_offset' => 0, 'shift_id' => $foreign->public_id],
+            ['day_offset' => 1, 'shift_id' => null],
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrors('steps.0.shift_id');
+
+    expect(ShiftRotation::query()->where('name', 'Two-day')->exists())->toBeFalse();
+});

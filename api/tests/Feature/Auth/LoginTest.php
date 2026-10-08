@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\CustomRole;
+use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\User;
@@ -173,6 +174,18 @@ describe('GET /api/v1/auth/me', function () {
 
         expect($response->json('user.role'))->toBe('hr_admin');
         expect($response->json('user'))->not->toHaveKey('id');
+    });
+
+    it('names the caller\'s own employee record, which offline punches are queued under', function () {
+        // The mobile page read a nested `employee` this response never had, so
+        // every offline punch failed with "cannot determine identity" (N49).
+        $tenant = createTenant();
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        actingAsUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
+
+        $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.employee_public_id', $employee->public_id);
     });
 
     it('rejects unauthenticated requests', function () {

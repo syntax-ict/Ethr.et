@@ -54,6 +54,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { usePlanFeatures } from "@/features/auth/api";
 
 export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const { t } = useT();
@@ -63,9 +64,11 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   // page asked for the tenant-admin role instead, so a custom role granted
   // `payroll.approve` never saw the button.
   const { hasPermission } = usePermissions();
-  const canApprove = hasPermission("payroll.approve");
-  const canVoid = hasPermission("payroll.void");
-  const canReprocess = hasPermission("payroll.reprocess");
+  // And the plan's `payroll` feature, which the API also requires (N66).
+  const hasPayroll = usePlanFeatures().has("payroll");
+  const canApprove = hasPayroll && hasPermission("payroll.approve");
+  const canVoid = hasPayroll && hasPermission("payroll.void");
+  const canReprocess = hasPayroll && hasPermission("payroll.reprocess");
   const approvePayroll = useApprovePayroll();
   const voidPayroll = useVoidPayroll();
   const reprocessPayroll = useReprocessPayroll();

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Models\Branch;
 use App\Models\Holiday;
+use App\Models\Tenant;
 use App\Services\Calendar\EthiopianCalendar;
+use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 
 // ── Orthodox computus (exact — these feasts are calculated, not sighted) ──
@@ -138,19 +140,29 @@ test('auto-detect stays idempotent with the movable feasts', function () {
     expect(Holiday::where('tenant_id', $tenant->id)->count())->toBe(13);
 });
 
-test('a run covers the Ethiopian year beginning in September of the given year', function () {
+test('a run covers exactly the Gregorian year it names', function () {
     $service = app(HolidayService::class);
 
-    // Ethiopian-calendar feasts after Meskerem 1 land in the next Gregorian
-    // year — Genna, Timkat and Adwa always spill over. The run is therefore
-    // bounded by [year, year + 1], not by the single calendar year.
+    // Until 2026-10-07 a run covered the Ethiopian year beginning in September,
+    // so Genna, Timkat and Adwa spilled into the next Gregorian year while
+    // Labour Day and Easter stayed in this one. No run a new tenant got ever
+    // produced this year's Genna, Timkat or Adwa (audit N57).
     foreach ([2025, 2026, 2027] as $year) {
         foreach ($service->getEthiopianHolidays($year) as $holiday) {
-            expect((int) substr((string) $holiday['date'], 0, 4))
-                ->toBeGreaterThanOrEqual($year)
-                ->toBeLessThanOrEqual($year + 1);
+            expect((int) substr((string) $holiday['date'], 0, 4))->toBe($year);
         }
     }
+});
+
+test('a 2026 run includes January to March 2026, which it used to skip', function () {
+    $dates = collect(app(HolidayService::class)->getEthiopianHolidays(2026))
+        ->pluck('date', 'name');
+
+    expect($dates['Ethiopian Christmas (Genna)'])->toBe('2026-01-07')
+        ->and($dates['Timkat (Epiphany)'])->toBe('2026-01-19')
+        ->and($dates['Adwa Victory Day'])->toBe('2026-03-02')
+        ->and($dates['Ethiopian New Year (Enkutatash)'])->toBe('2026-09-11')
+        ->and($dates['Meskel (Finding of the True Cross)'])->toBe('2026-09-27');
 });
 
 test('auto-detect does not duplicate a holiday the tenant already recorded', function () {
@@ -160,14 +172,14 @@ test('auto-detect does not duplicate a holiday the tenant already recorded', fun
     Holiday::create([
         'tenant_id' => $tenant->id,
         'name' => 'Ethiopian Christmas',
-        'date' => '2027-01-07',
+        'date' => '2026-01-07',
         'is_active' => true,
     ]);
 
     app(HolidayService::class)->autoDetect($tenant->id, 2026);
 
     $onGenna = Holiday::where('tenant_id', $tenant->id)
-        ->whereDate('date', '2027-01-07')
+        ->whereDate('date', '2026-01-07')
         ->count();
 
     expect($onGenna)->toBe(1);
@@ -196,18 +208,88 @@ test('auto-detect leaves branch-specific holidays alone', function () {
     )->toBe(2);
 });
 
-test('seeding consecutive years gives a calendar year exactly 13 holidays', function () {
+test('one run gives its calendar year all 13 holidays, with nothing from the next', function () {
     $tenant = createTenant();
-    $service = app(HolidayService::class);
 
-    // The spill-over from the previous run is what completes a calendar year:
-    // 2025's run supplies Genna, Timkat and Adwa for 2026.
-    $service->autoDetect($tenant->id, 2025);
-    $service->autoDetect($tenant->id, 2026);
+    // It took two runs before (2025's supplied 2026's Genna, Timkat and Adwa),
+    // and a tenant created in 2026 never had the 2025 one (audit N57).
+    app(HolidayService::class)->autoDetect($tenant->id, 2026);
 
-    $inCalendar2026 = Holiday::where('tenant_id', $tenant->id)
-        ->whereYear('date', 2026)
-        ->count();
-
-    expect($inCalendar2026)->toBe(13);
+    expect(Holiday::where('tenant_id', $tenant->id)->whereYear('date', 2026)->count())->toBe(13)
+        ->and(Holiday::where('tenant_id', $tenant->id)->whereYear('date', 2027)->count())->toBe(0);
 });
+
+// ── N58: "recurring every year" ─────────────────────────────────────────────
+
+function rollForwardFor(Tenant $tenant, int $toYear): int
+{
+    app(CurrentTenant::class)->set($tenant);
+
+    return app(HolidayService::class)->rollForward($tenant->id, $toYear);
+}
+
+test('a company holiday marked recurring is created for the next year', function () {
+    $tenant = createTenant();
+    Holiday::create([
+        'tenant_id' => $tenant->id, 'name' => 'Company Founding Day',
+        'date' => '2026-06-15', 'recurring' => true, 'is_active' => true,
+    ]);
+
+    rollForwardFor($tenant, 2027);
+
+    expect(Holiday::where('tenant_id', $tenant->id)->where('name', 'Company Founding Day')
+        ->whereDate('date', '2027-06-15')->exists())->toBeTrue();
+});
+
+test('a one-off company holiday is not repeated', function () {
+    $tenant = createTenant();
+    Holiday::create([
+        'tenant_id' => $tenant->id, 'name' => 'Office move',
+        'date' => '2026-06-15', 'recurring' => false, 'is_active' => true,
+    ]);
+
+    rollForwardFor($tenant, 2027);
+
+    expect(Holiday::where('tenant_id', $tenant->id)->where('name', 'Office move')->count())->toBe(1);
+});
+
+test('rolling forward creates next year\'s statutory holidays, computed for that year', function () {
+    $tenant = createTenant();
+
+    rollForwardFor($tenant, 2027);
+
+    // Easter moves: copying 2026's date by month and day would be wrong.
+    expect(Holiday::where('tenant_id', $tenant->id)->where('name', 'Ethiopian Easter (Fasika)')
+        ->whereDate('date', '2027-05-02')->exists())->toBeTrue();
+});
+
+test('rolling forward never copies an Ethiopian-calendar or estimated holiday by date', function () {
+    $tenant = createTenant();
+    app(HolidayService::class)->autoDetect($tenant->id, 2026);
+
+    rollForwardFor($tenant, 2027);
+
+    // 2026's Easter (12 April) and Eid al-Fitr must not reappear on the same
+    // day in 2027; their 2027 dates come from autoDetect.
+    expect(Holiday::where('tenant_id', $tenant->id)->whereDate('date', '2027-04-12')->exists())->toBeFalse();
+});
+
+test('rolling forward is idempotent', function () {
+    $tenant = createTenant();
+    Holiday::create([
+        'tenant_id' => $tenant->id, 'name' => 'Company Founding Day',
+        'date' => '2026-06-15', 'recurring' => true, 'is_active' => true,
+    ]);
+
+    $first = rollForwardFor($tenant, 2027);
+    $second = rollForwardFor($tenant, 2027);
+
+    expect($first)->toBe(14)->and($second)->toBe(0);
+});
+
+test('rolling forward refuses to run for a tenant that is not current', function () {
+    $tenant = createTenant();
+    app(CurrentTenant::class)->forget();
+
+    app(HolidayService::class)->rollForward($tenant->id, 2027);
+})->throws(LogicException::class);

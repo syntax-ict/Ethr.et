@@ -22,4 +22,5 @@ return [
     'emergency_contact_deleted' => 'Emergency contact removed.',
     'bank_details_updated' => 'Bank details updated.',
     'salary_updated' => 'Salary updated successfully.',
+    'supervisor_self' => 'An employee cannot be their own supervisor.',
 ];

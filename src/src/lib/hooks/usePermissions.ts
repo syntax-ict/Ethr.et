@@ -34,10 +34,16 @@ const CAN_ABILITIES = {
   viewPayrollRuns: "payroll.viewAll",
   approveLeave: "leave.approve",
   manageLeaveTypes: "leave.manageTypes",
+  // Viewing shifts and holidays is granted to everyone, so the management
+  // screens are gated on the first write ability instead.
+  manageShifts: "shift.create",
+  manageHolidays: "holiday.create",
+  viewDevices: "device.viewAny",
   manageOrg: "org.create",
   viewReports: "report.generate",
   viewExecutiveDashboard: "dashboard.executive",
   manageSettings: "settings.manage",
+  viewUsers: "users.viewAny",
   manageApiKeys: "apikey.manage",
   manageWebhooks: "webhook.manage",
   viewAdminConsole: "admin.manage",

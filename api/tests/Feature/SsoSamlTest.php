@@ -172,8 +172,11 @@ test('acs callback rejects invalid saml response', function () {
         'SAMLResponse' => base64_encode('<invalid/>'),
     ]);
 
-    $response->assertStatus(401);
-    expect($response->json('type'))->toBe('https://ethr.et/errors/sso-failed');
+    // The browser is sent back to the app with the reason, not shown JSON
+    // (audit N60).
+    $response->assertStatus(303);
+    expect($response->headers->get('Location'))->toContain('/login/sso?')
+        ->toContain('error=failed');
 });
 
 test('sso setting model belongs to tenant', function () {
