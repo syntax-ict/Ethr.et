@@ -598,6 +598,25 @@ export function useUpdateAdminPlan() {
   });
 }
 
+/** `POST /admin/plans` had no screen; plans were added by hand (audit N101). */
+export function useCreateAdminPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      payload: Pick<
+        AdminPlan,
+        "name" | "slug" | "price_cents" | "is_public"
+      > & {
+        features: string[];
+      },
+    ) => {
+      const { data } = await apiClient.post("/admin/plans", payload);
+      return data.data as AdminPlan;
+    },
+    onSuccess: () => invalidatePlanCaches(qc),
+  });
+}
+
 export function useRetireAdminPlan() {
   const qc = useQueryClient();
   return useMutation({
