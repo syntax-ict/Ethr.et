@@ -43,10 +43,14 @@ export default function AttendanceIntelligencePage() {
           description={t("attendance.intelligence_page.description")}
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <Label className="text-xs">
+              {/* `htmlFor` + `id`: the caption read as a label but bound to
+                  nothing, so the date control had no accessible name — a
+                  critical axe violation on every theme (UX audit, 2026-10-08). */}
+              <Label htmlFor="intelligence-date" className="text-xs">
                 {t("attendance.intelligence_page.date_label")}:
               </Label>
               <DualCalendarDateInput
+                id="intelligence-date"
                 value={date}
                 onChange={setDate}
                 className="max-w-80 min-w-0 flex-1"
