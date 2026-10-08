@@ -18,4 +18,5 @@ return [
     'grade_updated' => 'Pay grade updated.',
     'grade_deleted' => 'Pay grade deleted.',
     'structure_updated' => 'Organization structure updated.',
+    'department_parent_cycle' => 'A department cannot sit under one of its own sub-departments.',
 ];

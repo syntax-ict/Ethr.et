@@ -6,6 +6,7 @@ use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\NotifyExpiringTrialsJob;
+use App\Jobs\RollForwardHolidaysJob;
 use App\Jobs\RunDashboardDigestsJob;
 use App\Jobs\RunScheduledReportsJob;
 use App\Jobs\ScanAttendanceAnomaliesJob;
@@ -52,6 +53,17 @@ Schedule::call(function () {
             ->onQueue('default');
     });
 })->yearlyOn(1, 1, '01:00')->name('carry-forward-leave-balances')->withoutOverlapping();
+
+// Next year's holidays for every tenant, on the 1st of each month — 01:30 UTC
+// (04:30 EAT). Monthly so a missed run or a new tenant is caught up; the roll
+// is idempotent. Never the current year, so a holiday removed this year stays
+// removed (audit N58).
+Schedule::call(function () {
+    $toYear = now()->year + 1;
+    Tenant::operational()->each(function (Tenant $tenant) use ($toYear) {
+        RollForwardHolidaysJob::dispatch($tenant->id, $toYear)->onQueue('default');
+    });
+})->monthlyOn(1, '01:30')->name('roll-forward-holidays')->withoutOverlapping();
 
 // Scan the previous workday for attendance anomalies — 15:45 UTC, just after the
 // missing-punch scan, so both read a settled day.

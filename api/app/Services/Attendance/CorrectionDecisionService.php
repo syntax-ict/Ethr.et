@@ -59,8 +59,23 @@ class CorrectionDecisionService
         ]);
 
         $record = $correction->attendanceRecord;
+        $before = null;
         if ($record) {
-            $updateData = ['metadata' => array_merge($record->metadata ?? [], ['is_corrected' => true, 'correction_id' => $correction->public_id])];
+            // The punches as they stood, kept: approving wrote the proposed
+            // times over them and the audit row named only the approver, so
+            // the original record of when someone clocked in was gone
+            // (audit N88). The first original survives later corrections.
+            $before = [
+                'check_in' => $record->check_in?->toIso8601String(),
+                'check_out' => $record->check_out?->toIso8601String(),
+            ];
+            $metadata = $record->metadata ?? [];
+            $updateData = ['metadata' => array_merge($metadata, [
+                'is_corrected' => true,
+                'correction_id' => $correction->public_id,
+                'original_check_in' => $metadata['original_check_in'] ?? $before['check_in'],
+                'original_check_out' => $metadata['original_check_out'] ?? $before['check_out'],
+            ])];
 
             if ($correction->proposed_check_in) {
                 $updateData['check_in'] = $correction->proposed_check_in;
@@ -74,6 +89,11 @@ class CorrectionDecisionService
 
         AuditLog::record('correction.approved', $correction, [
             'approved_by' => $by->id,
+            'before' => $before,
+            'after' => $record === null ? null : [
+                'check_in' => $record->check_in?->toIso8601String(),
+                'check_out' => $record->check_out?->toIso8601String(),
+            ],
         ]);
 
         $this->notify($this->userOf($correction->employee), new AttendanceCorrectionApprovedNotification($correction, true));

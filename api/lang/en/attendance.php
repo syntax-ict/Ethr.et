@@ -12,4 +12,6 @@ return [
     'geofence_location_required' => 'GPS location is required when geofence enforcement is enabled.',
     'outside_geofence' => 'You are outside the allowed check-in area. Please move closer to your branch location.',
     'conflict_already_resolved' => 'This conflict has already been resolved.',
+    'offline_not_own' => 'You can only sync your own attendance.',
+    'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
 ];

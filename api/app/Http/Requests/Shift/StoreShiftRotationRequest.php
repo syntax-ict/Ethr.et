@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Shift;
 
+use App\Models\Shift;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -29,7 +30,7 @@ class StoreShiftRotationRequest extends FormRequest
             'steps.*.day_offset' => ['required', 'integer', 'min:0'],
             // Null is a rest day, so nullable is meaningful here rather than
             // merely permissive.
-            'steps.*.shift_id' => ['nullable', 'string', 'exists:shifts,public_id'],
+            'steps.*.shift_id' => ['nullable', 'string'],
         ];
     }
 
@@ -80,5 +81,32 @@ class StoreShiftRotationRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    /**
+     * Each step's shift must exist in this tenant.
+     *
+     * The rule was an unscoped `exists:shifts,public_id`. Another tenant's
+     * shift passed, ShiftRotationController then resolved it through the tenant
+     * scope, found nothing, and saved the step as a rest day: the save
+     * "succeeded" with a changed pattern, and 422-versus-201 confirmed the id
+     * existed somewhere (audit N75). Checked through the scope, with the
+     * message a missing id gets.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach ((array) $this->input('steps', []) as $i => $step) {
+                $publicId = is_array($step) ? ($step['shift_id'] ?? null) : null;
+                if (! is_string($publicId) || $publicId === '') {
+                    continue;
+                }
+                if (! Shift::where('public_id', $publicId)->exists()) {
+                    $validator->errors()->add("steps.{$i}.shift_id", __('validation.exists', [
+                        'attribute' => "steps.{$i}.shift id",
+                    ]));
+                }
+            }
+        });
     }
 }

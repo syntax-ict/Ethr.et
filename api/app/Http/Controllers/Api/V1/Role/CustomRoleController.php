@@ -140,7 +140,9 @@ class CustomRoleController extends Controller
      */
     private function permissionsByModule(): array
     {
+        // Platform abilities are not a tenant's to grant (audit N86).
         $permissions = Permission::query()
+            ->whereNotIn('name', Permission::PLATFORM_ONLY)
             ->select('name', 'module', 'action', 'description')
             ->orderBy('module')
             ->orderBy('action')

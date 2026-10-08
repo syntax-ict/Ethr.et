@@ -23,7 +23,14 @@ class DisciplinaryCaseResource extends JsonResource
             'incident_date' => $this->incident_date->toDateString(),
             'status' => $this->status->value,
             'reported_by' => $this->whenLoaded('reportedBy', fn () => $this->reportedBy?->getAttribute('name')),
-            'investigation_notes' => $this->investigation_notes ?? [],
+            'investigation_notes' => collect($this->investigation_notes ?? [])
+                ->map(fn (array $note): array => [
+                    'note' => (string) $note['note'],
+                    'by_name' => $note['by_name'] === null ? null : (string) $note['by_name'],
+                    'at' => (string) $note['at'],
+                ])
+                ->values()
+                ->all(),
 
             'decision' => $this->decision?->value,
             'decision_notes' => $this->decision_notes,

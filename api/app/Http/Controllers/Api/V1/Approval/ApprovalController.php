@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Approval;
 
-use App\Enums\CorrectionStatus;
-use App\Enums\LeaveStatus;
-use App\Enums\OrgScope;
 use App\Enums\ProfileUpdateStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Approval\BatchApprovalRequest;
@@ -14,11 +11,11 @@ use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
 use App\Models\ProfileUpdateRequest;
 use App\Models\User;
+use App\Services\Approval\DecidableApprovals;
 use App\Services\Attendance\CorrectionDecisionService;
 use App\Services\Leave\LeaveDecisionService;
 use App\Services\Profile\ProfileUpdateRequestService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,6 +26,7 @@ class ApprovalController extends Controller
         private readonly ProfileUpdateRequestService $profileUpdates,
         private readonly LeaveDecisionService $leaveDecisions,
         private readonly CorrectionDecisionService $correctionDecisions,
+        private readonly DecidableApprovals $approvals,
     ) {}
 
     public function pending(Request $request): JsonResponse
@@ -45,26 +43,37 @@ class ApprovalController extends Controller
         // apply), and never the caller's own request, which they cannot
         // approve. It used to list direct reports only, so HR and branch- or
         // department-scoped approvers saw a fraction of what they could decide.
-        $leaveRequests = $this->decidable(LeaveRequest::query(), $user, 'leave.approve')
-            ->where('status', LeaveStatus::PENDING)
-            ->with('employee:id,name,public_id', 'leaveType:id,name')
+        $leaveRequests = $this->approvals->leave($user)
+            ->with('employee:id,name,public_id', 'leaveType:id,name,name_am')
             ->orderByDesc('created_at')
             ->get();
 
+        // Summaries follow the request's language (SetLocale): they were
+        // English strings, shown as-is on the Amharic screen, and the leave
+        // type's own Amharic name went unused (audit N81).
+        $amharic = app()->getLocale() === 'am';
+
         foreach ($leaveRequests as $lr) {
+            $type = ($amharic ? $lr->leaveType?->name_am : null)
+                ?? $lr->leaveType?->name
+                ?? __('approval.leave');
+
             $items[] = [
                 'type' => 'leave',
                 'public_id' => $lr->public_id,
                 'employee_name' => $lr->employee?->name,
                 'employee_public_id' => $lr->employee?->public_id,
-                'summary' => ($lr->leaveType?->name ?? 'Leave').': '.$lr->start_date->format('M d').' - '.$lr->end_date->format('M d'),
+                'summary' => __('approval.leave_summary', [
+                    'type' => $type,
+                    'from' => $lr->start_date->translatedFormat('M d'),
+                    'to' => $lr->end_date->translatedFormat('M d'),
+                ]),
                 'submitted_at' => $lr->created_at,
             ];
         }
 
         if (class_exists(AttendanceCorrection::class)) {
-            $corrections = $this->decidable(AttendanceCorrection::query(), $user, 'correction.approve')
-                ->where('status', CorrectionStatus::PENDING)
+            $corrections = $this->approvals->corrections($user)
                 ->with('employee:id,name,public_id', 'attendanceRecord:id,date')
                 ->orderByDesc('created_at')
                 ->get();
@@ -80,7 +89,9 @@ class ApprovalController extends Controller
                     'public_id' => $c->public_id,
                     'employee_name' => $c->employee?->name,
                     'employee_public_id' => $c->employee?->public_id,
-                    'summary' => 'Attendance correction for '.($date?->format('M d') ?? '—'),
+                    'summary' => __('approval.correction_summary', [
+                        'date' => $date?->translatedFormat('M d') ?? '—',
+                    ]),
                     'submitted_at' => $c->created_at,
                 ];
             }
@@ -90,8 +101,7 @@ class ApprovalController extends Controller
         // submitter's supervisor, so they are not filtered by org scope — a
         // reviewer without that permission simply sees none.
         if ($user->hasPermission('employee.update')) {
-            $profileUpdates = ProfileUpdateRequest::query()
-                ->where('status', ProfileUpdateStatus::PENDING)
+            $profileUpdates = $this->approvals->profileUpdates($user)
                 ->with('employee:id,name,public_id')
                 ->orderByDesc('created_at')
                 ->get();
@@ -105,12 +115,11 @@ class ApprovalController extends Controller
                     // The delta, not just the field name — approving a bank-account
                     // change is a decision about the values, and a reviewer who has
                     // to open another screen to see them will approve blind.
-                    'summary' => sprintf(
-                        '%s: %s → %s',
-                        str_replace('_', ' ', $pu->field_name),
-                        $this->displayValue($pu, $pu->old_value, $user) ?? '—',
-                        $this->displayValue($pu, $pu->new_value, $user) ?? '—',
-                    ),
+                    'summary' => __('approval.profile_update_summary', [
+                        'field' => str_replace('_', ' ', $pu->field_name),
+                        'old' => $this->displayValue($pu, $pu->old_value, $user) ?? '—',
+                        'new' => $this->displayValue($pu, $pu->new_value, $user) ?? '—',
+                    ]),
                     'submitted_at' => $pu->created_at,
                 ];
             }
@@ -286,31 +295,5 @@ class ApprovalController extends Controller
         $this->profileUpdates->reject($profileUpdate, $user, $action['reason'] ?? 'Batch rejected');
 
         return ['status' => 'rejected'];
-    }
-
-    /**
-     * The list counterpart of the decide-side policies: nothing without the
-     * permission, the caller's org scope below ALL, never their own.
-     *
-     * @template TModel of LeaveRequest|AttendanceCorrection
-     *
-     * @param  Builder<TModel>  $query
-     * @return Builder<TModel>
-     */
-    private function decidable(Builder $query, User $user, string $permission): Builder
-    {
-        if (! $user->hasPermission($permission)) {
-            return $query->whereRaw('1 = 0');
-        }
-
-        if ($user->orgScope() !== OrgScope::ALL) {
-            $query->whereHas('employee', fn (Builder $q) => $user->scopeAccessibleEmployees($q));
-        }
-
-        if ($user->employee_id !== null) {
-            $query->where('employee_id', '!=', $user->employee_id);
-        }
-
-        return $query;
     }
 }

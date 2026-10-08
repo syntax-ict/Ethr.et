@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Employee\Concerns;
 
+use App\Models\Employee;
 use App\Support\EmployeeRelations;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -125,6 +126,16 @@ trait ValidatesRelationTenancy
                 $validator->errors()->add($field, __('validation.exists', [
                     'attribute' => str_replace('_', ' ', $field),
                 ]));
+            }
+
+            // No one supervises themselves: it would put a loop in the
+            // reporting tree. Reachable since supervisor became editable on
+            // screen (audit N73); only on update, where the employee exists.
+            $employee = $this->route('employee');
+            if ($employee instanceof Employee
+                && $this->input('supervisor_id') === $employee->public_id
+                && ! $validator->errors()->has('supervisor_id')) {
+                $validator->errors()->add('supervisor_id', __('employee.supervisor_self'));
             }
         });
     }

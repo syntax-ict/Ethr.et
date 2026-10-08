@@ -10,9 +10,20 @@ use App\Models\LeaveBalance;
 use App\Models\PayrollEntry;
 use App\Support\Csv;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 final class ReportEngine
 {
+    /**
+     * The most rows an attendance or payroll report returns. Those two sources
+     * grow without bound; the newest rows are kept, and `truncated` says so.
+     */
+    public const ROW_LIMIT = 1000;
+
+    /** Set by a query that hit ROW_LIMIT; reset by every generate(). */
+    private bool $truncated = false;
+
     private const SOURCES = [
         'employees' => [
             'label' => 'Employees',
@@ -42,7 +53,10 @@ final class ReportEngine
      * per-group row counts and, when any `*_cents` column is present, per-group
      * sums. Stated for the API contract, which cannot follow maps built by key.
      *
-     * @scramble-return array{source: string, total: int, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int>>}}
+     * `truncated` is true when the source had more rows than ROW_LIMIT and only
+     * the newest were returned.
+     *
+     * @scramble-return array{source: string, total: int, truncated: bool, data: list<array<string, mixed>>, summary: array{grouped_by?: string, groups?: array<string, int>, group_sums?: array<string, array<string, int>>}}
      */
     public function generate(int $tenantId, array $config): array
     {
@@ -52,6 +66,7 @@ final class ReportEngine
         $groupBy = $config['group_by'] ?? null;
         $sortBy = $config['sort_by'] ?? null;
         $sortDir = $config['sort_dir'] ?? 'asc';
+        $this->truncated = false;
 
         $data = match ($source) {
             'employees' => $this->queryEmployees($tenantId, $filters),
@@ -61,11 +76,13 @@ final class ReportEngine
             default => [],
         };
 
-        if (! empty($columns)) {
-            $data = array_map(function ($row) use ($columns) {
-                return array_intersect_key($row, array_flip($columns));
-            }, $data);
-        }
+        // Sort and group on the full rows, and only then cut them down to the
+        // selected columns. Cutting first meant grouping or sorting by a field
+        // that was not selected found it missing on every row: one "Unknown"
+        // group, and a sort that did nothing (audit N64).
+        $project = fn (array $row): array => empty($columns)
+            ? $row
+            : array_intersect_key($row, array_flip($columns));
 
         if ($sortBy && ! empty($data)) {
             usort($data, function ($a, $b) use ($sortBy, $sortDir) {
@@ -90,7 +107,8 @@ final class ReportEngine
                 $key = (string) ($row[$groupBy] ?? 'Unknown');
                 $grouped[$key] = ($grouped[$key] ?? 0) + 1;
 
-                foreach ($row as $field => $value) {
+                // Sums cover the selected columns, as before.
+                foreach ($project($row) as $field => $value) {
                     if (str_ends_with($field, '_cents') && is_numeric($value)) {
                         $sums[$key][$field] = ($sums[$key][$field] ?? 0) + (int) $value;
                     }
@@ -102,9 +120,12 @@ final class ReportEngine
             }
         }
 
+        $data = array_map($project, $data);
+
         return [
             'source' => $source,
             'total' => count($data),
+            'truncated' => $this->truncated,
             'data' => $data,
             'summary' => $summary,
         ];
@@ -177,7 +198,12 @@ final class ReportEngine
             $query->whereDate('date', '<=', $filters['to']);
         }
 
-        return $query->limit(1000)->get()->map(fn ($r) => [
+        // Newest first, so a limited report keeps the recent months. It took
+        // the first 1,000 in no order, which was the oldest, and said nothing
+        // about the cut (audit N65).
+        $rows = $this->limited($query->orderByDesc('date')->orderByDesc('id'));
+
+        return $rows->map(fn ($r) => [
             'employee_name' => $r->employee?->name,
             'date' => $r->date instanceof Carbon ? $r->date->format('Y-m-d') : $r->date,
             'check_in' => $r->check_in,
@@ -213,7 +239,9 @@ final class ReportEngine
             ->where('tenant_id', $tenantId)
             ->with(['employee:id,name', 'payrollRun:id,period_label']);
 
-        return $query->limit(1000)->get()->map(fn ($e) => [
+        $rows = $this->limited($query->orderByDesc('payroll_run_id')->orderByDesc('id'));
+
+        return $rows->map(fn ($e) => [
             'employee_name' => $e->employee?->name,
             'period' => $e->payrollRun?->period_label ?? '',
             'basic_salary_cents' => $e->basic_salary_cents,
@@ -222,5 +250,26 @@ final class ReportEngine
             'employee_pension_cents' => $e->employee_pension_cents,
             'net_cents' => $e->net_cents,
         ])->toArray();
+    }
+
+    /**
+     * At most ROW_LIMIT rows, noting in $truncated whether there were more.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Collection<int, TModel>
+     */
+    private function limited(Builder $query): Collection
+    {
+        $rows = $query->limit(self::ROW_LIMIT + 1)->get();
+
+        if ($rows->count() > self::ROW_LIMIT) {
+            $this->truncated = true;
+
+            return $rows->take(self::ROW_LIMIT)->values();
+        }
+
+        return $rows->values();
     }
 }

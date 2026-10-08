@@ -12,4 +12,7 @@ return [
     'geofence_location_required' => 'ጂኦፌንስ ሲነቃ GPS አካባቢ ያስፈልጋል።',
     'outside_geofence' => 'ከተፈቀደው ክልል ውጪ ነዎት። እባክዎ ወደ ቅርንጫፍ ቦታዎ ይቅረቡ።',
     'conflict_already_resolved' => 'ይህ ግጭት ቀድሞውኑ ተፈትቷል።',
+    // English placeholders until the native-speaker review (audit N50).
+    'offline_not_own' => 'You can only sync your own attendance.',
+    'offline_outside_window' => 'This punch was captured more than :days days ago, or in the future, so it cannot be synced. Ask HR to enter it.',
 ];

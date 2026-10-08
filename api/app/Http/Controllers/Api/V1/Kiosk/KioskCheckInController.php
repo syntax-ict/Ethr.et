@@ -35,9 +35,7 @@ class KioskCheckInController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
-        $session = KioskSession::where('token', $kioskToken)
-            ->where('status', 'active')
-            ->first();
+        $session = KioskSession::resolveActiveByToken((string) $kioskToken);
 
         if (! $session) {
             return response()->json([
@@ -48,10 +46,10 @@ class KioskCheckInController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
-        $employee = Employee::withoutGlobalScope('tenant')
-            ->where('tenant_id', $session->tenant_id)
-            ->where('employee_code', $request->validated('employee_code'))
-            ->first();
+        // Plain tenant-scoped queries from here on. These two lookups used to
+        // drop the scope and restate `tenant_id` from the session; the resolver
+        // has now made the session's tenant current, so the scope says it.
+        $employee = Employee::where('employee_code', $request->validated('employee_code'))->first();
 
         if (! $employee) {
             return response()->json([
@@ -62,9 +60,7 @@ class KioskCheckInController extends Controller
             ], 404)->header('Content-Type', 'application/problem+json');
         }
 
-        $settings = AttendanceSetting::withoutGlobalScope('tenant')
-            ->where('tenant_id', $session->tenant_id)
-            ->first();
+        $settings = AttendanceSetting::first();
 
         if ($settings?->kiosk_pin_required) {
             $pin = $request->validated('pin');
