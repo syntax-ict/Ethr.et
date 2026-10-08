@@ -192,7 +192,13 @@ export function useSettingsNavGroups(): SettingsNavGroup[] {
 
 /** Where "Settings" should lead the caller, or null when nothing is theirs. */
 export function useSettingsLanding(): string | null {
-  return useSettingsNavGroups()[0]?.items[0]?.href ?? null;
+  const items = useSettingsNavGroups().flatMap((g) => g.items);
+  // A page inside the hub first: only /settings/* renders this navigation.
+  // Attendance Rules lives at /attendance/settings, outside it, so an HR admin
+  // landing there had no way on to Leave Types, Holidays or Users — N91 left
+  // them as unreachable as before (found in the browser pass, audit N98).
+  const inHub = items.find((i) => i.href.startsWith("/settings"));
+  return (inHub ?? items[0])?.href ?? null;
 }
 
 export function SettingsNav() {

@@ -124,3 +124,18 @@ describe("the Settings entry", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+// Attendance Rules is the first entry an HR admin may open, but it lives at
+// /attendance/settings, outside the hub, where the settings navigation does
+// not render: landing there left every other settings page unreachable
+// (audit N98).
+describe("the Settings entry for HR", () => {
+  it("lands inside the settings hub, not on Attendance Rules", async () => {
+    asCustomRole(["attendance.manage", "leave.manageTypes", "users.viewAny"]);
+    renderWith(<SidebarNav />);
+
+    expect(
+      await screen.findByRole("link", { name: /^settings$/i }),
+    ).toHaveAttribute("href", "/settings/leave-types");
+  });
+});
