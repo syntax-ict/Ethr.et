@@ -40,6 +40,7 @@ class AnalyticsController extends Controller
         // an executive the branch they filtered to. It was executive-only and
         // branch-blind, so a regional user's click was a 403 and a filtered
         // executive saw every branch (audit N85).
+        abort_unless(Gate::any(['dashboard.executive', 'dashboard.regional']), 403);
         $branchId = ExecutiveBranchScope::resolve($request);
 
         [$from, $to] = $this->dateRange($request);
