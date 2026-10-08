@@ -19,6 +19,7 @@ import {
   HardDrive,
   Receipt,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,8 @@ import {
   useMarkTenantInvoicePaid,
   useImpersonateTenant,
   useUpdateTenantDomain,
+  useVerifyTenantDomain,
+  verifiedDomain,
   useTenantBackup,
 } from "@/features/admin/api";
 import { formatETB } from "@/lib/utils/currency";
@@ -102,6 +105,7 @@ function TenantDetail({ id }: { id: string }) {
   const impersonate = useImpersonateTenant();
   const backup = useTenantBackup();
   const updateDomain = useUpdateTenantDomain();
+  const verifyDomain = useVerifyTenantDomain();
 
   // Clock pinned at mount so the render stays pure (see trialDaysLeft below).
   const [mountedAt] = useState(() => Date.now());
@@ -111,6 +115,7 @@ function TenantDetail({ id }: { id: string }) {
   const [domainOpen, setDomainOpen] = useState(false);
   const [domainInput, setDomainInput] = useState("");
   const [domainError, setDomainError] = useState<string | null>(null);
+  const [verifyErrors, setVerifyErrors] = useState<string[]>([]);
   const [mfaDialogOpen, setMfaDialogOpen] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [pendingStatus, setPendingStatus] = useState<
@@ -179,6 +184,7 @@ function TenantDetail({ id }: { id: string }) {
               : t("admin_tenant_detail_page.custom_domain_saved"),
           );
           setDomainOpen(false);
+          setVerifyErrors([]);
         },
         // A field error belongs under the field. Anything else (chiefly the
         // 403 a super admin without MFA gets on every console write) carries
@@ -212,6 +218,38 @@ function TenantDetail({ id }: { id: string }) {
     e.preventDefault();
     const domain = domainInput.trim();
     saveDomain(domain === "" ? null : domain);
+  }
+
+  // The server looks the records up; a 422 names each one it did not find
+  // (`errors.txt`, `errors.cname`), and those are listed under the records
+  // so the admin can tell the organisation exactly what is missing.
+  function handleVerifyDomain() {
+    if (!tenant) return;
+    setVerifyErrors([]);
+    verifyDomain.mutate(tenant.public_id, {
+      onSuccess: () =>
+        toast.success(
+          t("admin_tenant_detail_page.custom_domain_verified_toast"),
+        ),
+      onError: (err: unknown) => {
+        const data = (
+          err as {
+            response?: {
+              data?: { detail?: string; errors?: Record<string, string[]> };
+            };
+          }
+        ).response?.data;
+        const messages = Object.values(data?.errors ?? {}).flat();
+        if (messages.length > 0) {
+          setVerifyErrors(messages);
+        } else {
+          toast.error(
+            data?.detail ||
+              t("admin_tenant_detail_page.custom_domain_verify_failed"),
+          );
+        }
+      },
+    });
   }
 
   function handleConfirmImpersonate(e: React.FormEvent) {
@@ -311,7 +349,7 @@ function TenantDetail({ id }: { id: string }) {
               {tenant.name}
             </h1>
             <p className="mt-0.5 font-mono text-sm text-muted-foreground">
-              {tenantAddress(tenant.subdomain, tenant.custom_domain)}
+              {tenantAddress(tenant.subdomain, verifiedDomain(tenant))}
             </p>
           </div>
           <StatusBadge status={tenant.status} />
@@ -493,9 +531,20 @@ function TenantDetail({ id }: { id: string }) {
               label={t("admin_tenant_detail_page.custom_domain")}
               value={
                 tenant.custom_domain ? (
-                  <code className="font-mono text-xs">
-                    {tenant.custom_domain}
-                  </code>
+                  <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                    <code className="font-mono text-xs">
+                      {tenant.custom_domain}
+                    </code>
+                    {tenant.custom_domain_status === "verified" ? (
+                      <Badge variant="success">
+                        {t("admin_tenant_detail_page.custom_domain_verified")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="warning">
+                        {t("admin_tenant_detail_page.custom_domain_pending")}
+                      </Badge>
+                    )}
+                  </span>
                 ) : (
                   t("admin_tenant_detail_page.custom_domain_none")
                 )
@@ -531,6 +580,68 @@ function TenantDetail({ id }: { id: string }) {
             />
           </CardContent>
         </Card>
+
+        {/* Custom domain verification: shown while the domain is pending */}
+        {tenant.custom_domain_status === "pending" &&
+          tenant.custom_domain_dns && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {t("admin_tenant_detail_page.custom_domain_verify_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("admin_tenant_detail_page.custom_domain_verify_intro")}
+                </p>
+                <dl className="space-y-3">
+                  <DnsRecord
+                    type="TXT"
+                    name={tenant.custom_domain_dns.txt_name}
+                    value={tenant.custom_domain_dns.txt_value}
+                    nameLabel={t(
+                      "admin_tenant_detail_page.custom_domain_record_name",
+                    )}
+                    valueLabel={t(
+                      "admin_tenant_detail_page.custom_domain_record_value",
+                    )}
+                  />
+                  <DnsRecord
+                    type="CNAME"
+                    name={tenant.custom_domain_dns.cname_name ?? ""}
+                    value={tenant.custom_domain_dns.cname_target ?? "—"}
+                    nameLabel={t(
+                      "admin_tenant_detail_page.custom_domain_record_name",
+                    )}
+                    valueLabel={t(
+                      "admin_tenant_detail_page.custom_domain_record_value",
+                    )}
+                  />
+                </dl>
+                {verifyErrors.length > 0 && (
+                  <ul
+                    role="alert"
+                    className="list-disc space-y-1 pl-5 text-sm text-destructive"
+                  >
+                    {verifyErrors.map((message) => (
+                      <li key={message} className="break-words">
+                        {message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Button
+                  onClick={handleVerifyDomain}
+                  disabled={verifyDomain.isPending}
+                >
+                  {verifyDomain.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("admin_tenant_detail_page.custom_domain_verify")}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
         {/* Usage + Subscription */}
         {(tenant.usage || tenant.subscription) && (
@@ -803,6 +914,14 @@ function TenantDetail({ id }: { id: string }) {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveDomain} className="space-y-4">
+              {!tenant.custom_domain_allowed && (
+                <p
+                  role="note"
+                  className="rounded-md border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+                >
+                  {t("admin_tenant_detail_page.custom_domain_not_in_plan")}
+                </p>
+              )}
               <div>
                 <Label htmlFor="custom-domain">
                   {t("admin_tenant_detail_page.custom_domain_field")}
@@ -855,7 +974,11 @@ function TenantDetail({ id }: { id: string }) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateDomain.isPending || domainInput.trim() === ""}
+                  disabled={
+                    updateDomain.isPending ||
+                    domainInput.trim() === "" ||
+                    !tenant.custom_domain_allowed
+                  }
                 >
                   {updateDomain.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -961,6 +1084,33 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** One DNS record to publish, laid out so each part can be copied whole. */
+function DnsRecord({
+  type,
+  name,
+  value,
+  nameLabel,
+  valueLabel,
+}: {
+  type: string;
+  name: string;
+  value: string;
+  nameLabel: string;
+  valueLabel: string;
+}) {
+  return (
+    <div className="rounded-md border p-3">
+      <dt className="text-xs font-semibold text-foreground">{type}</dt>
+      <dd className="mt-2 grid gap-1 text-xs sm:grid-cols-[6rem_1fr]">
+        <span className="text-muted-foreground">{nameLabel}</span>
+        <code className="break-all font-mono">{name}</code>
+        <span className="text-muted-foreground">{valueLabel}</span>
+        <code className="break-all font-mono">{value}</code>
+      </dd>
+    </div>
   );
 }
 

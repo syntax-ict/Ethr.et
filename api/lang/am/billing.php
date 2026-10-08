@@ -27,6 +27,7 @@ return [
         'webhooks' => 'ዌብሁክስ',
         'custom_reports' => 'ብጁ ሪፖርቶች',
         'audit_log' => 'የኦዲት መዝገብ',
+        'custom_domain' => 'የራስ ዶሜይን',
     ],
     'payment_received' => 'ክፍያ ተቀብለናል። አመሰግናለሁ።',
     'payment_failed' => 'ክፍያ ማስኬድ አልተሳካም። እባክዎ እንደገና ይሞክሩ።',

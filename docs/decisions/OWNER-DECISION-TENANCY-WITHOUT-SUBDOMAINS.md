@@ -9,6 +9,12 @@
 > Subdomains are **not withdrawn**. `acme.ethr.et` still resolves its tenant wherever the host
 > serves it, and one switch (`TENANCY_SUBDOMAINS=true`) makes ETHR hand those addresses out
 > again once **M3** passes.
+>
+> **AMENDED BY THE OWNER, 2026-10-08: one canonical address per organisation, in three tiers.**
+> Standard is the subdomain, Enterprise a *verified* custom domain sold as a paid add-on, and
+> `ethr.et/{slug}` is a fallback that only redirects. See
+> [*Amendment: one canonical address*](#amendment-2026-10-08-one-canonical-address-in-three-tiers)
+> below; where it and the 2026-10-06 text differ, the amendment wins.
 
 ## The instruction, as given
 
@@ -56,7 +62,9 @@ the account cannot choose a tenant with the header.
 
 - `OrganisationEntryController` redirects a real organisation to `/login?org={slug}`. Anything
   else gets `404.html` with a real 404. The answer is the same for an inactive organisation
-  as for an active one; the sign-in page explains the state.
+  as for an active one; the sign-in page explains the state. *(Since 2026-10-08 it redirects
+  to the organisation's canonical address first, and to `/login?org=` only when it has none —
+  see the amendment.)*
 - The login form prefills the organisation from `?org=` and **stores nothing until sign-in**.
   Then a crafted link cannot change the `X-Tenant` of a browser that is already signed in.
 - `.htaccess` group 2b sends one lower-case segment, with no dot and no file, directory or
@@ -88,12 +96,15 @@ the account cannot choose a tenant with the header.
   host under `APP_DOMAIN`: those never reach the custom-domain resolver, but `FrontendUrl`
   would still put them in every link. Each change is audited as `admin.tenant.domain_changed`
   with the old and new value. Like every console write, it needs MFA on the admin's account.
+  *(Since 2026-10-08 it also needs the `custom_domain` plan feature, and stores the domain
+  pending until it is verified — see the amendment.)*
 
 ### Links ETHR hands out
 
 `FrontendUrl::forTenant()` builds, in order of preference:
 
-1. the custom domain, when one is assigned;
+1. the custom domain, when one is assigned *(verified, since 2026-10-08: a pending domain
+   builds no link)*;
 2. the subdomain, when `TENANCY_SUBDOMAINS=true`;
 3. otherwise the shared host, where the sign-in link is the entry URL, `ethr.et/{slug}`.
 
@@ -132,6 +143,7 @@ bypass inventory. No `withoutGlobalScope` was added, and `Tenant` is on the Glob
 | Gap | What it needs |
 |---|---|
 | ~~No way to assign a custom domain except the database~~ | **Closed 2026-10-07**: the console field and endpoint described under *Custom domains* |
+| ~~Assignment alone made a domain resolve, with nothing to show the organisation held it or that it pointed here~~ | **Closed 2026-10-08**: TXT-token and CNAME verification, see the amendment |
 | **A custom domain needs host work** that has not been measured on this account: DNS at the organisation's registrar, the domain added in Plesk to the same site, and a certificate for it | Per organisation: host action, owner's |
 | ~~`TENANCY_SUBDOMAINS` appears in neither env example~~ | **Closed 2026-10-07**: `false` in both, documented, and in `deployment/shared-hosting/ENVIRONMENT.md`. `HostingRequirementsConsistencyTest` pins it in the shared-hosting template's key set |
 | The local production rehearsal (`scripts/local-production/up.sh`) has not been run over this change | Rehearse before deploying; `--no-build` reuses an old release tree and cannot test it |
@@ -171,3 +183,154 @@ built on `ethr.et/{slug}` is still in anyone's inbox.
     under the field, removal sending `null`, and no Remove button when nothing is assigned.
   - Driven in a browser against the local stack. The PUT reached the endpoint and, for a dev
     super admin without MFA, came back 403 with the server's reason shown in the dialog.
+
+## Amendment 2026-10-08: one canonical address, in three tiers
+
+### The instruction, as given
+
+> Owner decision: one canonical address per organisation in three tiers. Standard is the
+> subdomain `acme.ethr.et`. Enterprise is a verified custom domain (paid add-on). Fallback is
+> `ethr.et/acme`, which only redirects.
+
+It came with three things to build: the canonical redirect, custom-domain verification, and
+a `custom_domain` plan feature gating assignment. It also named one thing this does **not**
+do. Switching subdomains on as the default (`TENANCY_SUBDOMAINS=true` plus
+`NEXT_PUBLIC_ROOT_DOMAIN`) still waits on Ethio Telecom serving `*.ethr.et` (M3), and is a
+configuration change after that host work.
+
+### The canonical address
+
+`FrontendUrl::canonicalOrigin()` is the one place that decides it:
+
+| Tier | Address | When |
+|---|---|---|
+| Enterprise | `https://hr.acme.com` | A custom domain is assigned **and verified** |
+| Standard | `https://acme.ethr.et` (the frontend's scheme and port) | `TENANCY_SUBDOMAINS=true` and `APP_DOMAIN` set |
+| Fallback | none: the shared host | Neither of the above |
+
+Three things now send an organisation there:
+
+- **The entry URL.** `ethr.et/{slug}` redirects to `{canonical}/login`, and to
+  `/login?org={slug}` only when the organisation has no canonical address. It is still a
+  302 or a 404, with no session written.
+- **A sign-in on a host this deployment owns that is not the canonical one.** That means the
+  apex, `www`, or the organisation's own subdomain while a verified custom domain sits above
+  it. There `POST /auth/login` answers **409 `canonical-address`** with `canonical_url`,
+  *before the password is checked*, and the sign-in page follows it. The session cookie is
+  host-only, so a session started on the apex would not exist at the address every e-mailed
+  link points to. A host the deployment does not own (localhost behind a dev proxy, an IP)
+  never hands off: it cannot be the canonical address, so handing off from it would loop.
+- **Every link ETHR e-mails**, through `FrontendUrl::forTenant()`, as before.
+
+**What it does not do:** it does not refuse `X-Tenant` on the apex for an organisation that
+has a canonical address. Someone already signed in on `ethr.et` when the organisation's domain
+is verified keeps working until they sign out, and their next sign-in goes to the canonical
+address. Refusing the header would sign everyone out at the moment of verification, and would
+add nothing `EnsureUserBelongsToTenant` does not already enforce.
+
+### Verifying a custom domain
+
+- **Assignment stores the domain pending**, with a fresh 32-hex token in
+  `tenants.custom_domain_token`, which is hidden from serialisation. Tenant's `saving` hook
+  issues it, so *any* change of domain (console, tinker, a seeder) starts verification over,
+  and no domain can inherit another's. A save that sets `custom_domain_verified_at` in the
+  same write is left alone.
+- **A pending domain is no address.** `ResolveTenant` resolves only rows with
+  `custom_domain_verified_at` set, and `canonicalOrigin()` ignores a pending domain. No link,
+  redirect or sign-in hand-off uses it.
+- **Two records, both required.** `CustomDomainVerifier` checks them through a `DnsResolver`
+  contract; `SystemDnsResolver` wraps `dns_get_record()`.
+  - `TXT _ethr-verification.{domain}` = `ethr-verification={token}` proves the organisation
+    controls the zone. A record left from an earlier assignment carries an old token and
+    fails.
+  - `CNAME {domain}` → `TENANCY_CUSTOM_DOMAIN_TARGET`, or `APP_DOMAIN` when that is unset,
+    proves the domain reaches this platform. A CNAME cannot sit on a zone apex, so an
+    organisation brings a subdomain such as `hr.acme.com`, not `acme.com`. A DNS provider
+    that flattens CNAMEs, such as a proxied record, will not pass.
+- **The console's Verify button** calls `POST /admin/tenants/{publicId}/domain/verify`, which
+  needs MFA like every console write and checks both records. On success it sets
+  `custom_domain_verified_at` and audits `admin.tenant.domain_verified`. The domain resolves
+  on the very next request, because saving the tenant forgets the resolver's cache. On
+  failure it answers 422 with one message per missing record, under `errors.txt` and
+  `errors.cname`, and the console lists them under the records. While the domain is pending,
+  the tenant page shows the two records to send the organisation.
+- **Verify never revokes.** On a domain that is already verified it returns the current state
+  without looking anything up. A DNS hiccup at the moment someone presses a button must not
+  take an organisation's address away. Changing or clearing the domain is what ends a
+  verification.
+- **A domain assigned before this change is not grandfathered.** The migration gives it a
+  token and leaves it pending. Production had no organisations when this shipped.
+
+### The `custom_domain` plan feature
+
+- `PlanFeature::CustomDomain` is a **paid add-on**. `PlanFeatureService::allows()` grants it
+  only when the plan's feature list names it. Every other feature fails open (a trial gets
+  everything, and no plan or a plan with no list means unlimited) so that a tenant never
+  loses what it already uses. An add-on is granted, never already in use, so none of that
+  applies: a trial, a tenant with no subscription and a plan with no list all read *no*.
+- `PlanSeeder` puts it on **Enterprise only**. The seeder uses `firstOrCreate`, so a
+  deployment whose plans are already seeded does not gain it. A platform admin adds it to a
+  plan in the console's plan editor, which now lists it. Until then every assignment is
+  refused, visibly.
+- **It gates assignment and nothing else.** `PUT …/domain` with a domain needs it, and
+  answers 422 under `custom_domain` otherwise. Clearing never does. Resolution is not gated:
+  an organisation moved to a plan without the add-on keeps a domain it already has until an
+  admin clears it.
+- It is left out of `/auth/me`'s `plan_features`, which lists only what the tenant's own
+  screens gate on, so a trial still reads `null` there. The console's tenant detail reports
+  `custom_domain_allowed`; when it is false the dialog says so and disables Save.
+- The console reads the plan scope-free through one helper,
+  `AdminTenantController::latestSubscription()`, which `show()` already used. On the platform
+  host no tenant is resolved, so `$tenant->subscription` answers null through the fail-closed
+  scope, and every plan would read as absent. The tenant-scope bypass inventory is unchanged.
+
+### Still open
+
+| Gap | What it needs |
+|---|---|
+| **Subdomains as the default** | M3: Ethio Telecom serving `*.ethr.et` with a vhost. Then `TENANCY_SUBDOMAINS=true` and `NEXT_PUBLIC_ROOT_DOMAIN=ethr.et`. Host action, then configuration |
+| **Per-domain host work** for every Enterprise organisation: the domain added in Plesk to the same site, and a certificate for it. Verification proves DNS, not that Plesk answers for the name | Host action, owner's, per organisation |
+| **No periodic re-check.** A verified domain stays verified if the organisation later removes the records or repoints the name | A scheduled re-check with a grace period before anything is revoked. Not built: revoking on one failed lookup would be worse than the gap |
+| **`dns_get_record()` on the production host is unmeasured.** If the host blocks outbound DNS or the function, every Verify fails with both records reported missing | Press Verify once on a known-good domain after deploying |
+| The local production rehearsal has not been run over this change | `scripts/local-production/up.sh` without `--no-build` |
+
+### Verification of the amendment
+
+Each new case below was run against the code before this change, and **failed there**:
+
+- `CanonicalTenantAddressTest`, 13 cases. The entry URL goes to a verified custom domain and
+  to the subdomain, and to `/login?org=` only with neither. An apex sign-in is handed to the
+  custom domain and to the subdomain, with nothing authenticated, and the subdomain is handed
+  to the custom domain above it. Sign-in proceeds at the canonical host itself, on the apex
+  with no canonical address, and on a host the deployment does not own. A pending domain
+  resolves nothing and builds no link. The token resets on a change of domain and survives
+  any other save. With the new schema but the old application code, the cases fail on
+  assertions, not on missing columns.
+- `AdminTenantDomainTest`, 34 cases (was 19): pending storage with the DNS records; a dedicated
+  CNAME target; no resolution before Verify; the plan gate for a plan without the add-on, for
+  a trial and for no plan; clearing on any plan; Verify succeeding and resolving past a cached
+  miss, failing per record, refusing a stale token, leaving a verified domain alone, and with
+  nothing assigned; the new detail and list fields; the token never serialised; and a tenant
+  admin refused on both endpoints.
+- `PlanFeatureGateTest`, 5 new cases: the add-on allowed only when named, and refused to a
+  trial, to no subscription and to a null list; Enterprise the only seeded plan with it; and
+  `/auth/me` still `null` for a trial.
+- `PathAndCustomDomainTenancyTest`: its custom-domain fixtures are now verified domains.
+  Nothing else changed, and all 20 pass.
+- `admin-tenant-domain.test.tsx`, 6 new cases: the shared address printed rather than a pending
+  domain; the pending badge with both records; Verify posting; each failed record listed; no
+  Verify once verified; and the plan note with Save disabled.
+- `login-canonical-address.test.tsx`, 2 cases: the form follows `canonical_url`, and never one
+  that is not http(s).
+- Gates on 2026-10-08: `gates.sh quick` all green; `gates.sh backend` with PHPStan clean and
+  Pest 2683 passed, 236/236 classes collected; Vitest 975 passed in 175 files; the API
+  contract in sync. The one failure the first full run found was real:
+  `PricingSnapshotFreshnessTest`, because Enterprise gained `custom_domain` in `PlanSeeder`
+  and the committed `/pricing` snapshot had not. The snapshot is updated. Enterprise's written
+  marketing lines are unchanged, so `/pricing` does not advertise the add-on: that copy is the
+  owner's call.
+- Driven in a browser against the local stack, on a tenant given a pending domain. The header
+  printed `ethr.et/demo`, not the pending domain, beside a *Pending verification* badge, and
+  the card listed the TXT record with the live token. The CNAME target read "—", because the
+  dev install sets no `APP_DOMAIN`, where custom domains never resolve anyway. Verify reached
+  the endpoint and, for a dev super admin without MFA, showed the server's 403 reason.

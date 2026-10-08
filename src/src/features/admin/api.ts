@@ -24,11 +24,28 @@ export interface AdminTenant {
   name: string;
   subdomain: string;
   custom_domain: string | null;
+  /** `pending` until Verify finds its DNS records; only `verified` resolves. */
+  custom_domain_status: UpdateTenantDomainResult["custom_domain_status"];
   type: string | null;
   status: string;
   employee_count: number;
   trial_ends_at: string | null;
   created_at: string;
+}
+
+/**
+ * The custom domain an organisation is actually reached at, or null.
+ *
+ * A pending domain is no address: the server resolves nothing on it and builds
+ * no link with it, so printing it would send people somewhere that does not
+ * answer.
+ */
+export function verifiedDomain(
+  tenant: Pick<AdminTenant, "custom_domain" | "custom_domain_status">,
+): string | null {
+  return tenant.custom_domain_status === "verified"
+    ? tenant.custom_domain
+    : null;
 }
 
 /**
@@ -39,6 +56,10 @@ export interface AdminTenant {
  * Employees tile and profile row, with tsc none the wiser.
  */
 export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
+  /** The two records the organisation publishes; null with no domain. */
+  custom_domain_dns: UpdateTenantDomainResult["custom_domain_dns"];
+  /** Whether the plan includes the `custom_domain` add-on. */
+  custom_domain_allowed: boolean;
   updated_at: string;
   usage: { employees: number; devices: number } | null;
   subscription: {
@@ -131,6 +152,26 @@ export function useUpdateTenantDomain() {
       const { data } = await apiClient.put<UpdateTenantDomainResult>(
         `/admin/tenants/${publicId}/domain`,
         body,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
+export type VerifyTenantDomainResult =
+  operations["adminTenant.verifyDomain"]["responses"][200]["content"]["application/json"];
+
+/**
+ * Checks the pending domain's TXT token and CNAME. A 422 carries one message
+ * per check that failed, under `errors.txt` and `errors.cname`.
+ */
+export function useVerifyTenantDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (publicId: string) => {
+      const { data } = await apiClient.post<VerifyTenantDomainResult>(
+        `/admin/tenants/${publicId}/domain/verify`,
       );
       return data;
     },

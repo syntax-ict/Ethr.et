@@ -32,6 +32,37 @@ enum PlanFeature: string
     case AuditLog = 'audit_log';
 
     /**
+     * The organisation may be given its own domain (`hr.acme.com`), a paid
+     * add-on. It gates nothing a tenant does itself: it decides whether a
+     * platform admin may assign the domain.
+     */
+    case CustomDomain = 'custom_domain';
+
+    /**
+     * A paid add-on: allowed only when the plan names it.
+     *
+     * PlanFeatureService opens every other feature to a trial, to a tenant
+     * with no plan and to a plan with no feature list, because refusing them
+     * would lock a tenant out of something it already uses. An add-on is never
+     * already in use — it is granted, not taken away — so none of that applies,
+     * and "the plan does not say" means no.
+     */
+    public function isAddOn(): bool
+    {
+        return $this === self::CustomDomain;
+    }
+
+    /**
+     * Every feature a tenant uses itself, which is what the frontend gates on.
+     *
+     * @return list<self>
+     */
+    public static function tenantFacing(): array
+    {
+        return array_values(array_filter(self::cases(), fn (self $feature): bool => ! $feature->isAddOn()));
+    }
+
+    /**
      * The translation key describing what a tenant must upgrade to reach.
      */
     public function upgradeMessageKey(): string

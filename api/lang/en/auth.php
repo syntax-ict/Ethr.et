@@ -16,6 +16,7 @@ return [
     'account_inactive' => 'Your account is not active.',
     'tenant_inactive' => 'Your organization account is not active.',
     'account_suspended' => 'Your account has been suspended.',
+    'canonical_address' => 'Your organisation signs in at its own address. Taking you there.',
     'impersonation_restricted' => 'This action is not allowed while impersonating a tenant.',
     'not_impersonating' => 'No active impersonation session.',
     'impersonation_ended' => 'Impersonation session ended.',

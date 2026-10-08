@@ -142,7 +142,7 @@ it('names the organisation on the public sign-in context from the header on the 
 // ── Custom domains ──────────────────────────────────────────────────────────
 
 it('resolves an organisation by the custom domain the platform assigned it', function () {
-    [, $admin] = pathTenant('acme', ['name' => 'Acme Ltd', 'custom_domain' => 'hr.acme.com']);
+    [, $admin] = pathTenant('acme', ['name' => 'Acme Ltd', 'custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     $token = $admin->createToken('auth', ['*'])->plainTextToken;
     asProduction();
 
@@ -157,7 +157,7 @@ it('resolves an organisation by the custom domain the platform assigned it', fun
 });
 
 it('lets the custom domain win over a header naming someone else', function () {
-    pathTenant('acme', ['custom_domain' => 'hr.acme.com']);
+    pathTenant('acme', ['custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     pathTenant('habru', ['name' => 'Habru Textiles']);
     asProduction();
 
@@ -168,7 +168,7 @@ it('lets the custom domain win over a header naming someone else', function () {
 });
 
 it('refuses a member of another organisation on a custom domain', function () {
-    pathTenant('acme', ['custom_domain' => 'hr.acme.com']);
+    pathTenant('acme', ['custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     [, $habruAdmin] = pathTenant('habru');
     $token = $habruAdmin->createToken('auth', ['*'])->plainTextToken;
     asProduction();
@@ -180,7 +180,7 @@ it('refuses a member of another organisation on a custom domain', function () {
 });
 
 it('treats a custom domain as a first-party origin for the session cookie', function () {
-    pathTenant('acme', ['custom_domain' => 'hr.acme.com']);
+    pathTenant('acme', ['custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     asProduction();
 
     test()->getJson('http://hr.acme.com/api/v1/auth/tenant-context')->assertOk();
@@ -189,7 +189,7 @@ it('treats a custom domain as a first-party origin for the session cookie', func
 });
 
 it('matches a custom domain case-insensitively and ignores the port', function () {
-    pathTenant('acme', ['name' => 'Acme Ltd', 'custom_domain' => 'hr.acme.com']);
+    pathTenant('acme', ['name' => 'Acme Ltd', 'custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     asProduction();
 
     test()->getJson('http://HR.Acme.com:8443/api/v1/auth/tenant-context')
@@ -249,7 +249,7 @@ it('links an organisation to its own subdomain once subdomains are served', func
 });
 
 it('links an organisation to its custom domain above everything else', function () {
-    pathTenant('acme', ['custom_domain' => 'hr.acme.com']);
+    pathTenant('acme', ['custom_domain' => 'hr.acme.com', 'custom_domain_verified_at' => now()]);
     config(['app.domain' => 'ethr.et', 'app.frontend_url' => 'https://ethr.et', 'tenancy.subdomains' => true]);
 
     expect(FrontendUrl::forTenant('acme', '/login'))->toBe('https://hr.acme.com/login');

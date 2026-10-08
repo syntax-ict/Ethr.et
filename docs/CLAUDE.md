@@ -492,7 +492,7 @@ Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 > resolution ({tenant}.ethr.et)"*, and production cannot serve one: M3 has no vhost, so every
 > tenant host redirects to the Plesk login. `ResolveTenant` now tries, in order:
 >
-> 1. a **custom domain** assigned to one tenant;
+> 1. a **custom domain** assigned to one tenant, once **verified** (since 2026-10-08);
 > 2. the **subdomain**;
 > 3. **`X-Tenant`**, honoured on the apex, its `www` alias, and single-host installs only.
 >    It is never honoured on a tenant host, the platform host, or a host this deployment
@@ -504,15 +504,22 @@ Idempotency: Idempotency-Key: {uuid} (on all write endpoints)
 >
 > Two rules follow for new work:
 >
-> - **Never build a tenant link by hand.** Use `FrontendUrl::forTenant()`. It picks the custom
->   domain, the subdomain only when `TENANCY_SUBDOMAINS=true`, and otherwise `ethr.et/{slug}`.
->   A hand-built `{tenant}.ethr.et` link points at a host that does not answer.
+> - **Never build a tenant link by hand.** Use `FrontendUrl::forTenant()`, or
+>   `FrontendUrl::canonicalOrigin()` for the bare origin. It picks the verified custom domain,
+>   the subdomain only when `TENANCY_SUBDOMAINS=true`, and otherwise `ethr.et/{slug}`. A
+>   hand-built `{tenant}.ethr.et` link points at a host that does not answer, and a link on a
+>   pending custom domain points at one that may not reach ETHR yet.
 > - **A new top-level frontend route needs a reserved slug** in `Tenant::RESERVED_SUBDOMAINS`.
 >   The entry URL shares its namespace with the frontend's pages, and
 >   `PathAndCustomDomainTenancyTest` fails until the name is reserved.
 >
-> A platform admin assigns a custom domain on the tenant's page in the console
-> (`PUT /admin/tenants/{publicId}/domain`). The decision, its costs and its open gaps are in
+> **One canonical address per organisation** (owner amendment, 2026-10-08). The entry URL
+> `ethr.et/{slug}` redirects to it, and a sign-in elsewhere on ETHR's own hosts is answered
+> 409 `canonical-address` before the password is checked. A platform admin assigns a custom
+> domain on the tenant's page in the console (`PUT /admin/tenants/{publicId}/domain`). That
+> needs the `custom_domain` plan add-on and stores the domain pending; it resolves only after
+> `POST …/domain/verify` finds its TXT token and CNAME. The decision, its costs and its open
+> gaps are in
 > [`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 Response shapes:
