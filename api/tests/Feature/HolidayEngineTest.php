@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveDayCalculator;
 use Carbon\Carbon;
@@ -175,4 +176,32 @@ test('auto-detect is audit logged', function () {
     $this->assertDatabaseHas('audit_log', [
         'action' => 'holiday.auto_detected',
     ]);
+});
+
+test('a holiday naming another tenant\'s branch is refused', function () {
+    // An unscoped exists let it through, and it became a tenant-wide holiday
+    // (audit N75).
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $foreign = Branch::factory()->create(['tenant_id' => createTenant()->id]);
+    app(CurrentTenant::class)->set($tenant);
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/holidays", [
+        'name' => 'Regional day', 'date' => '2026-11-02', 'branch_public_id' => $foreign->public_id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('branch_public_id');
+});
+
+test('clearing a holiday\'s branch makes it tenant-wide', function () {
+    // isset() skipped a null branch_public_id, leaving an unknown column in the
+    // update: a 500 outside production, silently dropped in it (audit N76).
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $branch = Branch::factory()->create(['tenant_id' => $tenant->id]);
+    $holiday = Holiday::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/holidays/{$holiday->public_id}", [
+        'branch_public_id' => null,
+    ])->assertOk();
+
+    expect($holiday->fresh()->branch_id)->toBeNull();
 });

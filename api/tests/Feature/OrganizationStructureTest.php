@@ -528,6 +528,24 @@ describe('grades CRUD', function () {
             ->assertJsonValidationErrors(['max_salary_cents']);
     });
 
+    it('refuses an update that would put the maximum below the minimum', function () {
+        // Create checked gte:min_salary_cents; update did not, so an edit could
+        // save max below min, and every salary step then failed the band check
+        // (audit N74). Either side alone can break it.
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $grade = Grade::factory()->create([
+            'tenant_id' => $tenant->id, 'min_salary_cents' => 500000, 'max_salary_cents' => 900000,
+        ]);
+
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['max_salary_cents' => 100000])
+            ->assertUnprocessable()->assertJsonValidationErrors('max_salary_cents');
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['min_salary_cents' => 1000000])
+            ->assertUnprocessable()->assertJsonValidationErrors('max_salary_cents');
+        $this->putJson("/api/v1/organization/grades/{$grade->public_id}", ['min_salary_cents' => 600000])
+            ->assertOk();
+    });
+
     it('updates a grade', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
