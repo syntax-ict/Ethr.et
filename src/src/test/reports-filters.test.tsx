@@ -133,13 +133,17 @@ describe("Reports builder — filters", () => {
 
     await screen.findByText("11 available fields", { exact: false });
     await user.click(screen.getByRole("button", { name: "Add filter" }));
-    await user.type(screen.getByPlaceholderText("value"), "active");
+    // A status is chosen, not typed. This test used to type "active", which
+    // is not an employee status: the engine matched nothing and the report
+    // came back empty (audit N100).
+    await user.click(screen.getByRole("combobox", { name: /value: status/i }));
+    await user.click(await screen.findByRole("option", { name: "Confirmed" }));
     await user.click(screen.getByRole("button", { name: /Run Preview/ }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({
       source: "employees",
-      filters: { status: "active" },
+      filters: { status: "confirmed" },
     });
   });
 
@@ -159,6 +163,19 @@ describe("Reports builder — filters", () => {
         .getAllByRole("option")
         .map((o) => o.textContent),
     ).toEqual(["From", "To"]);
+  });
+
+  // A date typed as "1/10/2026" matched nothing (audit N100).
+  it("gives a date filter a date control, not a free-text box", async () => {
+    serve(() => {});
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await chooseSource(user, "Attendance");
+    await user.click(screen.getByRole("button", { name: "Add filter" }));
+
+    expect(screen.queryByPlaceholderText("value")).not.toBeInTheDocument();
   });
 
   it("cannot add a filter to the payroll source, which applies none", async () => {

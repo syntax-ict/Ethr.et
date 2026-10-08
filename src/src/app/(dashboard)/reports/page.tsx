@@ -80,6 +80,7 @@ import { buildCsv, saveCsv } from "@/lib/utils/csv-export";
 import { formatETB } from "@/lib/utils/currency";
 import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
 import { usePlanFeatures } from "@/features/auth/api";
+import { ReportFilterValue } from "@/features/reports/components/report-filter-value";
 
 const prebuilt: Array<{
   key: ReportSourceKey;
@@ -377,7 +378,9 @@ function BuilderTab() {
                 <div key={i} className="flex gap-1">
                   <Select
                     value={f.field}
-                    onValueChange={(v) => updateFilter(i, { field: v })}
+                    onValueChange={(v) =>
+                      updateFilter(i, { field: v, value: "" })
+                    }
                   >
                     <SelectTrigger
                       className="h-8 flex-1"
@@ -396,11 +399,11 @@ function BuilderTab() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
+                  <ReportFilterValue
+                    field={f.field}
                     value={f.value}
-                    onChange={(e) => updateFilter(i, { value: e.target.value })}
-                    placeholder={t("reports_page.value")}
-                    className="h-8 flex-1"
+                    onChange={(value) => updateFilter(i, { value })}
+                    label={`${t("reports_page.value")}: ${reportFieldLabel(t, f.field)}`}
                   />
                   <Button
                     size="sm"
