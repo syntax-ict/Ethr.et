@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Role;
 
+use App\Models\Permission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCustomRoleRequest extends FormRequest
 {
@@ -33,5 +35,24 @@ class UpdateCustomRoleRequest extends FormRequest
             'permissions' => ['sometimes', 'array', 'min:1'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];
+    }
+
+    /**
+     * A platform ability is refused like an unknown one. `exists` let
+     * `admin.manage` through, and a role holding it opened the platform API
+     * (audit N86). A hook rather than a rule, so `rules()` and the published
+     * contract stay as they are.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach ((array) $this->input('permissions', []) as $i => $name) {
+                if (in_array($name, Permission::PLATFORM_ONLY, true)) {
+                    $validator->errors()->add("permissions.{$i}", __('validation.exists', [
+                        'attribute' => "permissions.{$i}",
+                    ]));
+                }
+            }
+        });
     }
 }

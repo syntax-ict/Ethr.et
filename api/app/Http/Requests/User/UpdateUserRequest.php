@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\User;
 
 use App\Enums\UserRole;
+use App\Http\Requests\User\Concerns\ValidatesCustomRoleAssignment;
 use App\Models\User;
 use App\Services\CurrentTenant;
 use Illuminate\Contracts\Validation\Validator;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
+    use ValidatesCustomRoleAssignment;
+
     public function authorize(): bool
     {
         return $this->user()?->hasPermission('users.update') ?? false;
@@ -43,6 +46,8 @@ class UpdateUserRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
+            $this->validateCustomRoleAssignment($v);
+
             if (! $this->has('role')) {
                 return;
             }
