@@ -40,6 +40,7 @@ import {
   usePlans,
   useChangePlan,
   useMarkInvoicePaid,
+  downloadReceipt,
   type Plan,
   type BillingInvoice,
   type PaymentDetails,
@@ -354,9 +355,13 @@ function InvoiceHistory({ invoices }: { invoices: BillingInvoice[] }) {
                           "Download receipt",
                         )}
                         onClick={() =>
-                          window.open(
-                            `/api/v1/billing/invoices/${invoice.public_id}/receipt`,
-                            "_blank",
+                          downloadReceipt(invoice.public_id).catch(() =>
+                            toast.error(
+                              t(
+                                "billing.receipt_failed",
+                                "Couldn't download the receipt",
+                              ),
+                            ),
                           )
                         }
                       >

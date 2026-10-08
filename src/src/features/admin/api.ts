@@ -363,6 +363,21 @@ export interface AdminHealthService {
   note?: string;
 }
 
+/**
+ * The services the console should raise an alert for: `unhealthy` only.
+ *
+ * `disabled` is a service this deployment does not run on purpose (Reverb,
+ * with BROADCAST_CONNECTION=null on shared hosting), and SystemHealthService
+ * says it is the correct answer. Counting it raised a permanent "Attention
+ * Required" in production, which trains operators to ignore it (audit N52).
+ * `unknown` means not measured, which is not a fault either.
+ */
+export function servicesNeedingAttention(
+  services: Record<string, AdminHealthService>,
+): [string, AdminHealthService][] {
+  return Object.entries(services).filter(([, s]) => s.status === "unhealthy");
+}
+
 export interface AdminHealth {
   services: Record<string, AdminHealthService>;
   queue: Record<string, { depth: number | null; error?: string }>;

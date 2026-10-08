@@ -56,7 +56,11 @@ export function csvAmount(cents: number): string {
 export function saveCsv(filename: string, csv: string) {
   if (csv === "") return;
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  saveBlob(filename, new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+}
+
+/** Hand a file the API returned to the browser as a download. */
+export function saveBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

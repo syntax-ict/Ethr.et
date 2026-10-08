@@ -43,6 +43,7 @@ import {
   useRetryFailedJob,
   useRetryAllFailedJobs,
   useDismissFailedJob,
+  servicesNeedingAttention,
 } from "@/features/admin/api";
 import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
@@ -101,9 +102,7 @@ export default function AdminConsolePage() {
   const needsMfa = currentUser ? !currentUser.mfa_enabled : false;
 
   const unhealthyServices = health
-    ? Object.entries(health.services).filter(
-        ([, s]) => s.status !== "healthy" && s.status !== "unknown",
-      )
+    ? servicesNeedingAttention(health.services)
     : [];
   const failedJobCount = health?.failed_jobs ?? 0;
   const hasAlerts = unhealthyServices.length > 0 || failedJobCount > 0;
@@ -748,6 +747,7 @@ function HealthDot({ status }: { status: string }) {
     healthy: t("admin.status.healthy", "Healthy"),
     unhealthy: t("admin.status.unhealthy", "Unhealthy"),
     unknown: t("admin.status.unknown", "Unknown"),
+    disabled: t("admin.status.disabled", "Not in use"),
   };
   return (
     <div className="flex items-center gap-1.5">
@@ -756,7 +756,8 @@ function HealthDot({ status }: { status: string }) {
           "h-2 w-2 rounded-full",
           status === "healthy" && "bg-status-success",
           status === "unhealthy" && "bg-status-error",
-          status === "unknown" && "bg-muted-foreground/40",
+          (status === "unknown" || status === "disabled") &&
+            "bg-muted-foreground/40",
         )}
       />
       <span
@@ -764,7 +765,8 @@ function HealthDot({ status }: { status: string }) {
           "text-xs",
           status === "healthy" && "text-status-success",
           status === "unhealthy" && "text-status-error",
-          status === "unknown" && "text-muted-foreground",
+          (status === "unknown" || status === "disabled") &&
+            "text-muted-foreground",
         )}
       >
         {statusLabels[status] ?? status}
