@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -60,31 +60,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("My Payslips — printed payslip", () => {
+describe("My Payslips — download", () => {
   /**
-   * The printed payslip put the signed-in user's login email where the
-   * employee's name belongs, because the hand-written PayrollEntry type had no
-   * `employee` and the page reached for the only identity it had. The entry
-   * has always carried its employee.
+   * Download opened a bare HTML page built in the browser: no allowance or
+   * deduction lines, no organisation, and the server's PDF went unused. It now
+   * fetches that PDF for this entry and saves it (audit N79).
    */
-  it("names the employee on the printed payslip, not the login email", async () => {
+  it("saves the server's PDF for the entry", async () => {
+    let requested = "";
     server.use(
       http.get("*/api/v1/payroll/payslips/my", () =>
         HttpResponse.json(PAYSLIPS),
       ),
       http.get("*/api/v1/auth/me", () => HttpResponse.json(ME)),
+      http.get("*/api/v1/payroll/payslips/:entry/pdf", ({ params }) => {
+        requested = String(params.entry);
+        return new HttpResponse("%PDF-1.7", {
+          headers: { "Content-Type": "application/pdf" },
+        });
+      }),
     );
-
-    let html = "";
-    const fakeWindow = {
-      document: {
-        write: (chunk: string) => {
-          html += chunk;
-        },
-        close: () => {},
-      },
-    };
-    vi.spyOn(window, "open").mockReturnValue(fakeWindow as unknown as Window);
+    const createObjectURL = vi.fn(() => "blob:payslip");
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    const open = vi.spyOn(window, "open");
 
     const user = userEvent.setup();
     renderPage();
@@ -93,8 +94,10 @@ describe("My Payslips — printed payslip", () => {
       await screen.findByRole("button", { name: "Download payslip" }),
     );
 
-    expect(html).toContain("Abebe Kebede");
-    expect(html).not.toContain("abebe@acme.et");
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(requested).toBe("01HZENTRY00000000000000001");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
   });
 });
 

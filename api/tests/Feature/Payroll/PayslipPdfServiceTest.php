@@ -31,6 +31,7 @@ it('prints the employee name and position title on the payslip', function () {
     $captured = null;
     $pdf = Mockery::mock(Barryvdh\DomPDF\PDF::class);
     $pdf->shouldReceive('setPaper')->andReturnSelf();
+    $pdf->shouldReceive('setOption')->andReturnSelf();
     $pdf->shouldReceive('output')->andReturn('%PDF');
     Pdf::shouldReceive('loadView')->once()->andReturnUsing(function (string $view, array $data) use (&$captured, $pdf) {
         $captured = $data;
@@ -56,6 +57,7 @@ function payslipPdfCapture(PayrollEntry $entry): array
     $captured = [];
     $pdf = Mockery::mock(Barryvdh\DomPDF\PDF::class);
     $pdf->shouldReceive('setPaper')->with('a5', 'portrait')->andReturnSelf();
+    $pdf->shouldReceive('setOption')->andReturnSelf();
     $pdf->shouldReceive('output')->andReturn('%PDF');
     Pdf::shouldReceive('loadView')->once()->andReturnUsing(function (string $view, array $data) use (&$captured, $pdf) {
         expect($view)->toBe('payslip');
@@ -83,6 +85,25 @@ it('renders a real PDF from the payslip view', function () {
 
     expect(substr($bytes, 0, 5))->toBe('%PDF-')
         ->and(strlen($bytes))->toBeGreaterThan(1000);
+});
+
+// DejaVu Sans has no Ethiopic glyphs, so every Amharic name, department and
+// period printed as empty boxes (audit N79). The bundled Noto Sans Ethiopic
+// carries them; subsetting keeps the file small with both faces embedded.
+it('embeds an Ethiopic face for Amharic text, subset to a small file', function () {
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'አበበ ከበደ']);
+    $run = PayrollRun::factory()->create(['tenant_id' => $tenant->id, 'period_label' => 'መስከረም 2019']);
+    $entry = PayrollEntry::factory()->create([
+        'tenant_id' => $tenant->id,
+        'payroll_run_id' => $run->id,
+        'employee_id' => $employee->id,
+    ]);
+
+    $bytes = app(PayslipPdfService::class)->generate($entry);
+
+    expect($bytes)->toContain('NotoSansEthiopic')
+        ->and(strlen($bytes))->toBeLessThan(200_000);
 });
 
 it('hands the view the run, the amounts in cents and the tenant name', function () {

@@ -2443,6 +2443,7 @@
   "payroll_page.payslips_page.description": "View your salary breakdown by period",
   "payroll_page.payslips_page.description_col": "Description",
   "payroll_page.payslips_page.download": "Download payslip",
+  "payroll_page.payslips_page.download_failed": "Couldn't download the payslip",
   "payroll_page.payslips_page.employee_pension": "Employee Pension",
   "payroll_page.payslips_page.employee_pension_pct": "Employee Pension (7%)",
   "payroll_page.payslips_page.employer_pension_pct": "Employer Pension (11%)",

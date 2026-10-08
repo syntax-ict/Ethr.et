@@ -62,7 +62,8 @@ rm -rf "$OUT/api/tests" "$OUT/api/phpunit.xml" "$OUT/api/phpstan.neon" "$OUT/api
 composer install --working-dir="$OUT/api" --no-dev --optimize-autoloader \
   --no-interaction --no-progress --quiet
 mkdir -p "$OUT/api/storage/framework/"{cache/data,sessions,views} \
-         "$OUT/api/storage/logs" "$OUT/api/storage/app/private" "$OUT/api/bootstrap/cache"
+         "$OUT/api/storage/logs" "$OUT/api/storage/app/private" "$OUT/api/storage/fonts" \
+         "$OUT/api/bootstrap/cache"
 
 step "2. Frontend — static export (C-5), from committed settings only"
 # Next.js loads src/.env.local even for a production build, and process

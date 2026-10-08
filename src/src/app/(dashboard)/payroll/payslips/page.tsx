@@ -9,109 +9,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useMyPayslips, type PayrollEntry } from "@/features/payroll/api";
+import { downloadPayslip, useMyPayslips } from "@/features/payroll/api";
 import { useT } from "@/lib/i18n/useT";
-import { escapeHtml } from "@/lib/utils/escape-html";
-
-function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString("en-ET", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-interface PayslipLabels {
-  title: string;
-  description: string;
-  amount: string;
-  basicSalary: string;
-  grossPay: string;
-  incomeTax: string;
-  employeePension: string;
-  employerPension: string;
-  otherDeductions: string;
-  netPay: string;
-  generatedBy: string;
-  printSave: string;
-}
-
-function printPayslip(
-  entry: PayrollEntry,
-  rawEmployeeName: string,
-  rawLabels: PayslipLabels,
-) {
-  const w = window.open("", "_blank", "width=600,height=800");
-  if (!w) return;
-
-  // The window is written with document.write and inherits this origin, so
-  // every interpolated value is escaped: the employee name is editable by HR
-  // and the labels come from translation files.
-  const employeeName = escapeHtml(rawEmployeeName);
-  const labels = Object.fromEntries(
-    Object.entries(rawLabels).map(([key, value]) => [key, escapeHtml(value)]),
-  ) as unknown as PayslipLabels;
-
-  const html = `<!DOCTYPE html>
-<html><head><title>${labels.title}</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 2rem auto; color: #1a1a1a; }
-  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-  .meta { color: #666; font-size: 0.85rem; margin-bottom: 1.5rem; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; }
-  th { font-size: 0.75rem; text-transform: uppercase; color: #666; background: #f9f9f9; }
-  .amount { text-align: right; font-variant-numeric: tabular-nums; }
-  .deduction { color: #dc2626; }
-  .net-row { font-weight: 700; border-top: 2px solid #333; }
-  .footer { margin-top: 2rem; font-size: 0.75rem; color: #999; text-align: center; }
-  @media print { body { margin: 0; } .no-print { display: none; } }
-</style>
-</head><body>
-  <h1>${labels.title}</h1>
-  <div class="meta">${employeeName}</div>
-  <table>
-    <thead><tr><th>${labels.description}</th><th class="amount">${labels.amount}</th></tr></thead>
-    <tbody>
-      <tr><td>${labels.basicSalary}</td><td class="amount">${formatCents(entry.basic_salary_cents)}</td></tr>
-      <tr><td>${labels.grossPay}</td><td class="amount">${formatCents(entry.gross_cents)}</td></tr>
-      <tr><td>${labels.incomeTax}</td><td class="amount deduction">-${formatCents(entry.income_tax_cents)}</td></tr>
-      <tr><td>${labels.employeePension}</td><td class="amount deduction">-${formatCents(entry.employee_pension_cents)}</td></tr>
-      <tr><td>${labels.employerPension}</td><td class="amount">${formatCents(entry.employer_pension_cents)}</td></tr>
-      ${entry.other_deductions_cents > 0 ? `<tr><td>${labels.otherDeductions}</td><td class="amount deduction">-${formatCents(entry.other_deductions_cents)}</td></tr>` : ""}
-      <tr class="net-row"><td>${labels.netPay}</td><td class="amount">${formatCents(entry.net_cents)}</td></tr>
-    </tbody>
-  </table>
-  <div class="footer">${labels.generatedBy}</div>
-  <div class="no-print" style="text-align:center;margin-top:1rem">
-    <button onclick="window.print()" style="padding:0.5rem 1.5rem;font-size:0.9rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff">
-      ${labels.printSave}
-    </button>
-  </div>
-</body></html>`;
-
-  w.document.write(html);
-  w.document.close();
-}
+import { toast } from "sonner";
 
 export default function MyPayslipsPage() {
   const { t } = useT();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMyPayslips({ page });
-
-  const labels: PayslipLabels = {
-    title: t("payroll_page.payslips_page.payslip_title"),
-    description: t("payroll_page.payslips_page.description_col"),
-    amount: t("payroll_page.payslips_page.amount_etb"),
-    basicSalary: t("payroll_page.payslips_page.basic_salary"),
-    grossPay: t("payroll_page.payslips_page.gross_pay"),
-    incomeTax: t("payroll_page.payslips_page.income_tax"),
-    employeePension: t("payroll_page.payslips_page.employee_pension_pct"),
-    employerPension: t("payroll_page.payslips_page.employer_pension_pct"),
-    otherDeductions: t("payroll_page.payslips_page.other_deductions"),
-    netPay: t("payroll_page.payslips_page.net_pay"),
-    generatedBy: t("payroll_page.payslips_page.generated_by"),
-    printSave: t("payroll_page.payslips_page.print_save"),
-  };
 
   return (
     <div className="space-y-6">
@@ -145,11 +50,18 @@ export default function MyPayslipsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    // The server's PDF: allowance and deduction lines, the
+                    // organisation's name, and Amharic that prints. This
+                    // opened a bare HTML page built in the browser, and the
+                    // PDF endpoint went unused (audit N79).
                     onClick={() =>
-                      printPayslip(
-                        entry,
-                        entry.employee?.name ?? t("attendance.employee"),
-                        labels,
+                      downloadPayslip(entry.public_id).catch(() =>
+                        toast.error(
+                          t(
+                            "payroll_page.payslips_page.download_failed",
+                            "Couldn't download the payslip",
+                          ),
+                        ),
                       )
                     }
                     // Every payslip card renders this button, so a bare

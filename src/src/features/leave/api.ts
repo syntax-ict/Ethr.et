@@ -154,6 +154,8 @@ export function useApproveLeave() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave"] });
+      // The dashboard's Approvals badge counts pending requests.
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
@@ -176,6 +178,7 @@ export function useRejectLeave() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }

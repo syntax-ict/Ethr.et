@@ -2443,6 +2443,7 @@
   "payroll_page.payslips_page.description": "የደመወዝ ዝርዝርዎን በጊዜ ወቅት ይመልከቱ",
   "payroll_page.payslips_page.description_col": "መግለጫ",
   "payroll_page.payslips_page.download": "የደመወዝ ደረሰኝ አውርድ",
+  "payroll_page.payslips_page.download_failed": "Couldn't download the payslip",
   "payroll_page.payslips_page.employee_pension": "የሰራተኛ ጡረታ",
   "payroll_page.payslips_page.employee_pension_pct": "የሰራተኛ ጡረታ (7%)",
   "payroll_page.payslips_page.employer_pension_pct": "የአሰሪ ጡረታ (11%)",

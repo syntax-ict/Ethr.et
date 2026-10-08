@@ -113,6 +113,27 @@ test('supervisor can view pending approvals', function () {
     expect($response->json('items.0.type'))->toBe('leave');
 });
 
+// Summaries were English strings shown as-is on the Amharic screen, and the
+// leave type's Amharic name went unused (audit N81).
+test('pending approval summaries follow the request language', function () {
+    $tenant = createTenant();
+    $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $user = createUser(['role' => UserRole::SUPERVISOR, 'employee_id' => $supervisor->id], $tenant);
+    test()->actingAs($user);
+    $subordinate = Employee::factory()->create(['tenant_id' => $tenant->id, 'supervisor_id' => $supervisor->id]);
+    $leaveType = LeaveType::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Annual Leave', 'name_am' => 'ዓመታዊ ፈቃድ']);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $subordinate->id,
+        'leave_type_id' => $leaveType->id,
+        'status' => LeaveStatus::PENDING,
+    ]);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending";
+
+    expect(test()->getJson($url, ['Accept-Language' => 'am'])->json('items.0.summary'))->toStartWith('ዓመታዊ ፈቃድ: ')
+        ->and(test()->getJson($url, ['Accept-Language' => 'en'])->json('items.0.summary'))->toStartWith('Annual Leave: ');
+});
+
 test('pending approvals only shows team requests', function () {
     $tenant = createTenant();
     $supervisor = Employee::factory()->create(['tenant_id' => $tenant->id]);

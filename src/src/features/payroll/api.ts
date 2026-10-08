@@ -4,6 +4,7 @@ import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
 import { csvAmount, csvFromRows } from "@/lib/utils/csv-export";
+import { saveBlob } from "@/lib/utils/csv-export";
 
 type Schemas = components["schemas"];
 
@@ -468,4 +469,13 @@ export function bankTransferCsv(file: BankTransferExport): string {
       csvAmount(r.net_amount_cents),
     ]),
   );
+}
+
+/** The payslip PDF the server renders, saved under the entry's id. */
+export async function downloadPayslip(entryPublicId: string): Promise<void> {
+  const { data } = await apiClient.get<Blob>(
+    `/payroll/payslips/${entryPublicId}/pdf`,
+    { responseType: "blob" },
+  );
+  saveBlob(`payslip-${entryPublicId}.pdf`, data);
 }

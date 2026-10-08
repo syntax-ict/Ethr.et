@@ -44,17 +44,30 @@ class ApprovalController extends Controller
         // approve. It used to list direct reports only, so HR and branch- or
         // department-scoped approvers saw a fraction of what they could decide.
         $leaveRequests = $this->approvals->leave($user)
-            ->with('employee:id,name,public_id', 'leaveType:id,name')
+            ->with('employee:id,name,public_id', 'leaveType:id,name,name_am')
             ->orderByDesc('created_at')
             ->get();
 
+        // Summaries follow the request's language (SetLocale): they were
+        // English strings, shown as-is on the Amharic screen, and the leave
+        // type's own Amharic name went unused (audit N81).
+        $amharic = app()->getLocale() === 'am';
+
         foreach ($leaveRequests as $lr) {
+            $type = ($amharic ? $lr->leaveType?->name_am : null)
+                ?? $lr->leaveType?->name
+                ?? __('approval.leave');
+
             $items[] = [
                 'type' => 'leave',
                 'public_id' => $lr->public_id,
                 'employee_name' => $lr->employee?->name,
                 'employee_public_id' => $lr->employee?->public_id,
-                'summary' => ($lr->leaveType?->name ?? 'Leave').': '.$lr->start_date->format('M d').' - '.$lr->end_date->format('M d'),
+                'summary' => __('approval.leave_summary', [
+                    'type' => $type,
+                    'from' => $lr->start_date->translatedFormat('M d'),
+                    'to' => $lr->end_date->translatedFormat('M d'),
+                ]),
                 'submitted_at' => $lr->created_at,
             ];
         }
@@ -76,7 +89,9 @@ class ApprovalController extends Controller
                     'public_id' => $c->public_id,
                     'employee_name' => $c->employee?->name,
                     'employee_public_id' => $c->employee?->public_id,
-                    'summary' => 'Attendance correction for '.($date?->format('M d') ?? '—'),
+                    'summary' => __('approval.correction_summary', [
+                        'date' => $date?->translatedFormat('M d') ?? '—',
+                    ]),
                     'submitted_at' => $c->created_at,
                 ];
             }
@@ -100,12 +115,11 @@ class ApprovalController extends Controller
                     // The delta, not just the field name — approving a bank-account
                     // change is a decision about the values, and a reviewer who has
                     // to open another screen to see them will approve blind.
-                    'summary' => sprintf(
-                        '%s: %s → %s',
-                        str_replace('_', ' ', $pu->field_name),
-                        $this->displayValue($pu, $pu->old_value, $user) ?? '—',
-                        $this->displayValue($pu, $pu->new_value, $user) ?? '—',
-                    ),
+                    'summary' => __('approval.profile_update_summary', [
+                        'field' => str_replace('_', ' ', $pu->field_name),
+                        'old' => $this->displayValue($pu, $pu->old_value, $user) ?? '—',
+                        'new' => $this->displayValue($pu, $pu->new_value, $user) ?? '—',
+                    ]),
                     'submitted_at' => $pu->created_at,
                 ];
             }
