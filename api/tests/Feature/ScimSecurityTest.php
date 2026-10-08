@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /*
  * ScimProvisioningTest covers the SCIM happy paths and ScimAuth's refusals.
- * These cover what an identity provider â€” or someone holding its token â€” can
+ * These cover what an identity provider — or someone holding its token — can
  * reach beyond that: other tenants' ids, role escalation through the payload,
  * malformed bodies, and what "deprovisioned" actually takes away.
  */
@@ -60,7 +60,7 @@ function scimSecurityPerson(Tenant $tenant, string $email): array
     return ['employee' => $employee, 'user' => $user];
 }
 
-// â”€â”€ Tenant isolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tenant isolation ────────────────────────────────────────────────────────
 
 it('answers another tenant\'s user id exactly as it answers a nonexistent one, on every verb', function () {
     $tenant = createTenant();
@@ -127,7 +127,7 @@ it('answers another tenant\'s group id with 404 and leaves it alone', function (
         ->and((bool) $row->is_active)->toBeTrue();
 });
 
-// â”€â”€ What the payload can and cannot set â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── What the payload can and cannot set ─────────────────────────────────────
 
 it('ignores a role in the payload and provisions at the tenant\'s SSO default role', function () {
     $tenant = createTenant();
@@ -181,7 +181,7 @@ it('refuses a revoked key', function () {
     $this->getJson('/api/v1/scim/v2/Users', scimSecurityHeaders($token))->assertUnauthorized();
 });
 
-// â”€â”€ Malformed input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Malformed input ─────────────────────────────────────────────────────────
 
 it('answers a body with no identifier with a SCIM 400, not a 500', function () {
     $tenant = createTenant();
@@ -215,7 +215,7 @@ it('rejects a filter it does not understand instead of returning every user', fu
     // query for any expression it does not recognise. An IdP that checks
     // "does this user exist?" with, say, `name.familyName eq "X"` is told
     // every user matches, and typically links its identity to Resources[0].
-    // RFC 7644 Â§3.4.2.2 / Â§3.12: unsupported filters are a 400 invalidFilter.
+    // RFC 7644 §3.4.2.2 / §3.12: unsupported filters are a 400 invalidFilter.
     $tenant = createTenant();
     $token = scimSecurityToken($tenant);
     scimSecurityPerson($tenant, 'one@acme.test');
@@ -226,12 +226,12 @@ it('rejects a filter it does not understand instead of returning every user', fu
         ->assertJsonPath('scimType', 'invalidFilter');
 });
 
-// â”€â”€ Deprovisioning and seats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Deprovisioning and seats ────────────────────────────────────────────────
 
 it('ends the sessions of a user the IdP deprovisions', function () {
     // DELETE /Users/{id} sets users.status = inactive (lines 162-175) but
     // leaves every personal access token in place, and nothing on the
-    // authenticated routes checks users.status â€” only the login endpoints
+    // authenticated routes checks users.status — only the login endpoints
     // do. POST /auth/refresh issues a fresh token from a live one, so a
     // deprovisioned employee keeps API access indefinitely.
     // UserController::destroy() does revoke: `$user->tokens()->delete()`.
