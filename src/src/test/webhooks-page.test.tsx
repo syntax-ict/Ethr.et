@@ -142,3 +142,63 @@ describe("<WebhooksPage>", () => {
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
   });
 });
+
+describe("<WebhooksPage> — recovering a webhook", () => {
+  // The delivery job switches a webhook off after repeated failures. The page
+  // had no way to switch it back on or change it, so recovering meant delete
+  // and recreate, and a new signing secret for the integrator (audit N71).
+  it("switches a disabled webhook back on", async () => {
+    let body: unknown = null;
+    server.use(
+      me(["webhook.manage"]),
+      http.get("*/api/v1/webhooks", () =>
+        HttpResponse.json({
+          webhooks: [{ ...WEBHOOK, is_active: false, failure_count: 10 }],
+        }),
+      ),
+      http.put("*/api/v1/webhooks/WH1", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...WEBHOOK, is_active: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      await screen.findByRole("switch", { name: /deliver to this webhook/i }),
+    );
+
+    await waitFor(() => expect(body).toEqual({ is_active: true }));
+  });
+
+  it("edits the URL and events in place", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      me(["webhook.manage"]),
+      http.get("*/api/v1/webhooks", () =>
+        HttpResponse.json({ webhooks: [WEBHOOK] }),
+      ),
+      http.put("*/api/v1/webhooks/WH1", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(WEBHOOK);
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    const url = within(dialog).getByRole("textbox");
+    expect(url).toHaveValue(WEBHOOK.url);
+    await user.clear(url);
+    await user.type(url, "https://erp.example.et/hooks/v2");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(body).toEqual({
+        url: "https://erp.example.et/hooks/v2",
+        events: ["payroll.approved"],
+      }),
+    );
+  });
+});
