@@ -10,9 +10,11 @@ use App\Models\SsoSetting;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\SessionCookie;
 use App\Services\Sso\SsoProviderInterface;
 use App\Services\Sso\SsoUser;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 
 /*
  * SsoController ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â what happens AFTER an assertion has been verified: which
@@ -87,6 +89,23 @@ function ssoControllerTokenCount(User $user): int
         ->count();
 }
 
+/**
+ * Where the callback sent the browser: the app's /login/sso page and its
+ * query. The callback answered the identity provider's form POST with JSON
+ * until 2026-10-07, which left an SSO user on a raw JSON page (audit N60).
+ *
+ * @return array<string, string>
+ */
+function ssoLanding(TestResponse $response): array
+{
+    $response->assertStatus(303);
+    $location = (string) $response->headers->get('Location');
+    expect(parse_url($location, PHP_URL_PATH))->toBe('/login/sso');
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+    return $query;
+}
+
 // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Signing in ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 it('signs in the matching user of this tenant and records it', function () {
@@ -94,13 +113,14 @@ it('signs in the matching user of this tenant and records it', function () {
     $user = createUser(['email' => 'jane@acme.test', 'status' => 'active'], $tenant);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $response = $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x', 'RelayState' => '/leave'])
-        ->assertOk();
+    $response = $this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x', 'RelayState' => '/leave']);
 
-    expect($response->json('access_token'))->toBeString()->not->toBeEmpty()
-        ->and($response->json('mfa_required'))->toBeFalse()
-        ->and($response->json('relay_state'))->toBe('/leave')
+    expect(ssoLanding($response))->toBe(['org' => $tenant->subdomain, 'next' => '/leave'])
         ->and(ssoControllerTokenCount($user))->toBe(1);
+    // The session cookie travels on the redirect itself: Sanctum attaches
+    // queued cookies only to first-party requests, and this is a cross-site
+    // form POST from the identity provider.
+    $response->assertCookie(SessionCookie::NAME, null, false);
 
     $this->assertDatabaseHas('audit_log', ['action' => 'sso.login', 'tenant_id' => $tenant->id]);
 });
@@ -113,7 +133,7 @@ it('signs in this tenant\'s account when the same email exists in another tenant
     $mine = createUser(['email' => 'jane@acme.test', 'status' => 'active'], $tenant);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertOk();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])))->not->toHaveKey('error');
 
     expect(ssoControllerTokenCount($mine))->toBe(1)
         ->and(ssoControllerTokenCount($theirs))->toBe(0);
@@ -126,9 +146,7 @@ it('never signs in another tenant\'s user, and says only that there is no accoun
     $tenant = ssoControllerTenant(['auto_provision' => false]);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])
-        ->assertForbidden()
-        ->assertJsonPath('type', 'https://ethr.et/errors/sso-no-account');
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('no_account');
 
     expect(ssoControllerTokenCount($theirs))->toBe(0);
 });
@@ -138,9 +156,7 @@ it('still demands the second factor from a user who enabled MFA', function () {
     createUser(['email' => 'jane@acme.test', 'status' => 'active', 'mfa_enabled' => true], $tenant);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])
-        ->assertOk()
-        ->assertJsonPath('mfa_required', true);
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['mfa'])->toBe('1');
 });
 
 it('refuses an inactive user and records the attempt', function () {
@@ -148,9 +164,7 @@ it('refuses an inactive user and records the attempt', function () {
     $user = createUser(['email' => 'jane@acme.test', 'status' => 'inactive'], $tenant);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])
-        ->assertForbidden()
-        ->assertJsonPath('type', 'https://ethr.et/errors/account-inactive');
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('account_inactive');
 
     expect(ssoControllerTokenCount($user))->toBe(0);
     $this->assertDatabaseHas('audit_log', ['action' => 'sso.login_blocked']);
@@ -160,9 +174,7 @@ it('answers 401 and records why when the provider rejects the assertion', functi
     $tenant = ssoControllerTenant(['auto_provision' => true]);
     ssoControllerProvider(null);
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'forged'])
-        ->assertUnauthorized()
-        ->assertJsonPath('type', 'https://ethr.et/errors/sso-failed');
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'forged']))['error'])->toBe('failed');
 
     $this->assertDatabaseHas('audit_log', ['action' => 'sso.callback_failed']);
     expect(DB::table('users')->where('tenant_id', $tenant->id)->count())->toBe(0);
@@ -178,7 +190,7 @@ it('creates an employee and a login, in this tenant, when auto-provisioning is o
     $tenant = ssoControllerTenant(['auto_provision' => true, 'default_role' => 'supervisor']);
     ssoControllerProvider(ssoControllerIdentity('new.hire@acme.test'));
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertOk();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])))->not->toHaveKey('error');
 
     $user = User::where('email', 'new.hire@acme.test')->firstOrFail();
 
@@ -197,7 +209,7 @@ it('falls back to the employee role when the stored default role is not a role',
     $tenant = ssoControllerTenant(['auto_provision' => true, 'default_role' => 'overlord']);
     ssoControllerProvider(ssoControllerIdentity('new.hire@acme.test'));
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertOk();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])))->not->toHaveKey('error');
 
     expect(User::where('email', 'new.hire@acme.test')->firstOrFail()->role)->toBe(UserRole::EMPLOYEE);
 });
@@ -206,7 +218,7 @@ it('creates nothing when auto-provisioning is off', function () {
     $tenant = ssoControllerTenant(['auto_provision' => false]);
     ssoControllerProvider(ssoControllerIdentity('stranger@acme.test'));
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('no_account');
 
     expect(DB::table('users')->where('email', 'stranger@acme.test')->exists())->toBeFalse()
         ->and(DB::table('employees')->where('email', 'stranger@acme.test')->exists())->toBeFalse();
@@ -224,7 +236,7 @@ it('does not auto-provision past the tenant\'s plan employee limit', function ()
     Employee::factory()->create(['tenant_id' => $tenant->id]);
     ssoControllerProvider(ssoControllerIdentity('one.too.many@acme.test'));
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('seat_limit');
 
     expect(Employee::where('tenant_id', $tenant->id)->count())->toBe(1);
 });
@@ -240,15 +252,15 @@ it('refuses to sign anyone in to a suspended tenant, and provisions nothing ther
     $existing = createUser(['email' => 'jane@acme.test', 'status' => 'active'], $tenant);
     ssoControllerProvider(ssoControllerIdentity());
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('tenant_inactive');
     expect(ssoControllerTokenCount($existing))->toBe(0);
 
     ssoControllerProvider(ssoControllerIdentity('new.hire@acme.test'));
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])->assertForbidden();
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('tenant_inactive');
     expect(DB::table('users')->where('email', 'new.hire@acme.test')->exists())->toBeFalse();
 });
 
-it('answers 422 at both ends when SSO is not configured', function () {
+it('refuses at both ends when SSO is not configured', function () {
     $tenant = ssoControllerTenant();
     ssoControllerProvider(ssoControllerIdentity(), configured: false);
 
@@ -256,10 +268,27 @@ it('answers 422 at both ends when SSO is not configured', function () {
         ->assertStatus(422)
         ->assertJsonPath('type', 'https://ethr.et/errors/sso-not-configured');
 
-    $this->postJson(ssoControllerAcs($tenant), ['SAMLResponse' => 'x'])
-        ->assertStatus(422)
-        ->assertJsonPath('type', 'https://ethr.et/errors/sso-not-configured');
+    expect(ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x']))['error'])->toBe('not_configured');
 });
+
+it('sends the user only to a path on this site after sign-in', function (mixed $relayState, string $expected) {
+    // RelayState comes back in the request, so taking it as given would be
+    // an open redirect to wherever a crafted IdP response said.
+    $tenant = ssoControllerTenant();
+    createUser(['email' => 'jane@acme.test', 'status' => 'active'], $tenant);
+    ssoControllerProvider(ssoControllerIdentity());
+
+    $query = ssoLanding($this->post(ssoControllerAcs($tenant), ['SAMLResponse' => 'x', 'RelayState' => $relayState]));
+
+    expect($query['next'])->toBe($expected);
+})->with([
+    'a path' => ['/payroll/payslips', '/payroll/payslips'],
+    'another site' => ['https://evil.example/', '/dashboard'],
+    'protocol-relative' => ['//evil.example', '/dashboard'],
+    'backslash trick' => ['/\\evil.example', '/dashboard'],
+    'the API' => ['/api/v1/employees', '/dashboard'],
+    'nothing' => ['', '/dashboard'],
+]);
 
 it('answers 404 for a subdomain that is not a tenant, on every SSO route', function () {
     ssoControllerProvider(ssoControllerIdentity());

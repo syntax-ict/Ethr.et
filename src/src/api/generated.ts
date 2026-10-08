@@ -843,7 +843,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create ac */
+        /**
+         * The identity provider's form POST back after sign-in (SAML ACS)
+         * @description Every outcome is a 303 redirect to the app's `/login/sso` page with the
+         *     organisation (`org`) and either `next` (plus `mfa=1` while a second
+         *     factor is owed) or `error`: `failed`, `no_account`, `account_inactive`,
+         *     `tenant_inactive`, `not_configured` or `seat_limit`. On success the
+         *     session cookie is set on the redirect.
+         */
         post: operations["sso.callback"];
         delete?: never;
         options?: never;
@@ -10171,7 +10178,6 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    /** @default /dashboard */
                     RelayState?: string;
                 };
             };
@@ -10182,92 +10188,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        access_token: string;
-                        /** @constant */
-                        token_type: "Bearer";
-                        expires_in: string;
-                        mfa_required: string;
-                        /**
-                         * @description Advisory, not a block: the token is still issued so the user can
-                         *     reach the change-password endpoint. Refusing to authenticate would
-                         *     lock them out of the only screen that can clear the condition.
-                         *     Always present, so clients can branch without probing for the key.
-                         */
-                        password_expired: boolean;
-                        mfa_token: string;
-                        mfa_token_expires_in: string;
-                        relay_state: unknown;
-                    };
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-failed";
-                        /** @constant */
-                        title: "SSO Authentication Failed";
-                        /** @constant */
-                        status: 401;
-                        /** @constant */
-                        detail: "SSO authentication failed. Please try again or contact your administrator.";
-                    };
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/account-inactive";
-                        /** @constant */
-                        title: "Account Inactive";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "Your account has been suspended.";
-                    } | {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-no-account";
-                        /** @constant */
-                        title: "No Account Found";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "No account found for this SSO identity. Contact your administrator.";
-                    } | {
-                        /** @constant */
-                        type: "https://ethr.et/errors/tenant-inactive";
-                        /** @constant */
-                        title: "Organization Inactive";
-                        /** @constant */
-                        status: 403;
-                        /** @constant */
-                        detail: "Your organization account is not active.";
-                    };
-                };
-            };
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @constant */
-                        type: "https://ethr.et/errors/sso-not-configured";
-                        /** @constant */
-                        title: "SSO Not Configured";
-                        /** @constant */
-                        status: 422;
-                        /** @constant */
-                        detail: "Single sign-on is not configured for this organization.";
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
         };

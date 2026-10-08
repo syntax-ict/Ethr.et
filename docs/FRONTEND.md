@@ -160,15 +160,37 @@ drift apart independently.
 
 The tenant display name comes from `GET /auth/tenant-context` (public, name/logo
 only — never credentials-adjacent; resolved server-side by `ResolveTenant` from
-the hostname). Tenant identity is **never** trusted from a client parameter; the
-apex form only forwards the slug the user typed to that tenant's own host, where
-the session cookie will live. A `tenant-not-found` / `tenant-inactive` host shows
+the hostname). A `tenant-not-found` / `tenant-inactive` host shows
 a distinct `TenantLookupErrorState`, not an auth failure.
+
+*(Updated 2026-10-07.)* This said tenant identity was never taken from a client
+parameter, and that the main-site form forwarded the slug to the tenant's own host.
+That held while tenant subdomains were the production model. They are not served
+(M3), so on the single production host the organisation travels in `X-Tenant`, set
+from the slug the user signed in with. Membership is still decided server-side:
+`EnsureUserBelongsToTenant` refuses a signed-in user who names another
+organisation. See
+[`decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
 **Auth methods.** Password (email / phone / employee-ID per tenant setting),
 TOTP MFA, SAML SSO, and SMS OTP are all backed by real endpoints. There is **no
 Google OAuth backend** — a "Continue with Google" button was intentionally not
 added, since a live button with no provider would be fake auth.
+
+**SSO return.** The identity provider posts back to the API's SAML ACS endpoint,
+which redirects (303) to **`/login/sso`**. The redirect carries `org` and either
+`next` (plus `mfa=1` while a second factor is owed) or an `error` code. The
+session cookie is set on that redirect itself, because the provider's form POST
+is cross-site and Sanctum attaches queued cookies only to first-party requests.
+The page:
+
+- stores the organisation for `X-Tenant`;
+- sends a user who owes a second factor to `/login/mfa`;
+- otherwise confirms the session with `/auth/me` before continuing to `next`, which must be a path on this site;
+- clears the stored organisation if the session does not belong to it.
+
+*(Added 2026-10-07, audit N60. Until then the ACS endpoint answered the provider's
+POST with JSON, and an SSO user was left on a raw JSON page.)*
 
 **Localization.** One mechanism: `lib/i18n` + the reusable
 `components/shared/language-switcher.tsx` (compact dropdown reading
