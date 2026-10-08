@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceRequestFailed;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\AuthenticateFromCookie;
 use App\Http\Middleware\BlockImpersonatedActions;
 use App\Http\Middleware\CapPagination;
@@ -48,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AuthenticateFromCookie::class,
             SetLocale::class,
             ResolveTenant::class,
+            AuthenticateApiKey::class,
             CapPagination::class,
             RateLimitLoginAttempts::class,
             VerifyUploadedFiles::class,

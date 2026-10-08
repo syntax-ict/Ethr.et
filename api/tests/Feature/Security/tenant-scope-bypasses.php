@@ -117,6 +117,10 @@ return [
     // it one method: 5 -> 3, the same query at fewer call sites.
     'Http/Controllers/Api/V1/Device/DeviceController.php' => 3,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
+    // AuthenticateApiKey (2026-10-09): the key lookup is pre-authentication and
+    // keyed on the presented secret, as ScimAuth's is; the creator lookup
+    // states `tenant_id` from the key it belongs to.
+    'Http/Middleware/AuthenticateApiKey.php' => 2,
     'Http/Middleware/ScimAuth.php' => 1,
     'Http/Requests/Auth/LoginRequest.php' => 1,
     // Cross-tenant on purpose, and it states no `tenant_id` — the honest answer
