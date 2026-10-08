@@ -11,6 +11,7 @@ export type Employee = Pick<
   | "email"
   | "phone"
   | "employee_code"
+  | "has_kiosk_pin"
   | "gender"
   | "status"
   | "photo_url"

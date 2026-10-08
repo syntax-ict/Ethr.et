@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -59,6 +59,54 @@ describe("kiosk page translations", () => {
     expect(
       await screen.findByText("ልክ ያልሆነ ወይም የቦዘነ የኪዮስክ ቶከን"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("the kiosk keypad", () => {
+  afterEach(() => {
+    localStorage.removeItem("kiosk_token");
+  });
+
+  it("accepts an employee code with letters and a dash, like EMP-0001", async () => {
+    // The pad took digits only, at most eight. Employee codes are any string
+    // up to 30 characters, so most employees could not clock in (audit N61).
+    let sentCode: unknown = null;
+    server.use(
+      http.post("*/kiosk/authenticate", () =>
+        HttpResponse.json({
+          session: { public_id: "K1", name: "Front desk", branch: null },
+          tenant: { name: "Acme", subdomain: "acme", logo_path: null },
+          settings: { pin_required: false, auto_reset_seconds: 4 },
+        }),
+      ),
+      http.post("*/kiosk/check-in", async ({ request }) => {
+        sentCode = ((await request.json()) as { employee_code: string })
+          .employee_code;
+        return HttpResponse.json(
+          { employee_name: "Abebe Kebede", was_duplicate: false },
+          { status: 201 },
+        );
+      }),
+    );
+    localStorage.setItem("locale", "en");
+    render(<KioskPage />);
+
+    await userEvent.type(
+      await screen.findByPlaceholderText(/paste kiosk token/i),
+      "good-token",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Activate Kiosk/ }),
+    );
+
+    await userEvent.type(
+      await screen.findByRole("textbox", { name: /employee code/i }),
+      "EMP-0001",
+    );
+    const checkIn = screen.getAllByRole("button", { name: /check in/i });
+    await userEvent.click(checkIn[checkIn.length - 1]);
+
+    await vi.waitFor(() => expect(sentCode).toBe("EMP-0001"));
   });
 });
 

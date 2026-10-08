@@ -33,6 +33,21 @@ export function useEmployees(params?: {
   });
 }
 
+/** Set the employee's kiosk PIN, or remove it with `null` (audit N62). */
+export function useSetKioskPin(publicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pin: string | null) => {
+      const { data } = await apiClient.put<
+        operations["attendance.employeeKioskPin"]["responses"][200]["content"]["application/json"]
+      >(`/employees/${publicId}/kiosk-pin`, { pin });
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["employees", publicId] }),
+  });
+}
+
 export function useEmployee(publicId: string) {
   return useQuery<Employee>({
     queryKey: ["employees", publicId],

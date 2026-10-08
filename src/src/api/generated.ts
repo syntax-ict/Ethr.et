@@ -2200,6 +2200,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{employee}/kiosk-pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or remove the PIN an employee enters at a kiosk
+         * @description Needed whenever the organisation turns on "Require PIN" for kiosk
+         *     check-in. `null` removes it. The PIN is stored hashed and never
+         *     returned; the answer says only whether one is set.
+         */
+        put: operations["attendance.employeeKioskPin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{employee}/emergency-contacts": {
         parameters: {
             query?: never;
@@ -5916,6 +5938,7 @@ export interface components {
             email: string | null;
             phone: string | null;
             employee_code: string | null;
+            has_kiosk_pin: boolean;
             gender: string | null;
             date_of_birth: string | null;
             nationality: string | null;
@@ -7521,6 +7544,14 @@ export interface components {
             recurring?: boolean;
             is_estimated?: boolean;
             is_active?: boolean;
+        };
+        /**
+         * UpdateKioskPinRequest
+         * @description Four to six digits, or `null` to remove the employee's PIN. The field is
+         *     required, so an empty body cannot remove a PIN by accident.
+         */
+        UpdateKioskPinRequest: {
+            pin: string | null;
         };
         /** UpdateLeaveTypeRequest */
         UpdateLeaveTypeRequest: {
@@ -13322,6 +13353,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeContractResource"];
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "attendance.employeeKioskPin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The employee public id */
+                employee: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateKioskPinRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        has_kiosk_pin: boolean;
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

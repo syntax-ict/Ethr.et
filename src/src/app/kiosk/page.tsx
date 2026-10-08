@@ -35,6 +35,9 @@ interface KioskConfig {
   autoResetSeconds: number;
 }
 
+/** `employee_code` is `max:30` in StoreEmployeeRequest; the kiosk accepts the same. */
+const EMPLOYEE_CODE_MAX = 30;
+
 export default function KioskPage() {
   const { t } = useT();
   const [screen, setScreen] = useState<Screen>("setup");
@@ -124,7 +127,7 @@ export default function KioskPage() {
       if (pin.length >= 6) return;
       setPin((p) => p + d);
     } else {
-      if (code.length >= 8) return;
+      if (code.length >= EMPLOYEE_CODE_MAX) return;
       setCode((p) => p + d);
     }
   }
@@ -440,33 +443,41 @@ export default function KioskPage() {
                     : t("kiosk_page.employee_code")}
                 </Label>
                 <div className="mt-3 flex justify-center gap-2">
-                  {showPin
-                    ? Array.from({ length: 6 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
-                            pin[i]
-                              ? "border-primary bg-primary/5"
-                              : "border-muted",
-                          )}
-                        >
-                          {pin[i] ? "•" : ""}
-                        </div>
-                      ))
-                    : Array.from({ length: 8 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
-                            code[i]
-                              ? "border-primary bg-primary/5"
-                              : "border-muted",
-                          )}
-                        >
-                          {code[i] ?? ""}
-                        </div>
-                      ))}
+                  {showPin ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-12 w-8 rounded border-2 flex items-center justify-center text-2xl font-mono font-bold",
+                          pin[i]
+                            ? "border-primary bg-primary/5"
+                            : "border-muted",
+                        )}
+                      >
+                        {pin[i] ? "•" : ""}
+                      </div>
+                    ))
+                  ) : (
+                    // A text field, not eight digit boxes: employee codes
+                    // are any string up to 30 characters (the demo format
+                    // is EMP-0001), and a digits-only, 8-long keypad left
+                    // most employees unable to clock in (audit N61). The
+                    // pad below still appends digits; letters and dashes
+                    // come from the tablet's own keyboard.
+                    <Input
+                      aria-label={t("kiosk_page.employee_code")}
+                      value={code}
+                      onChange={(e) =>
+                        setCode(e.target.value.slice(0, EMPLOYEE_CODE_MAX))
+                      }
+                      maxLength={EMPLOYEE_CODE_MAX}
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      disabled={mode === "checking"}
+                      className="h-14 max-w-xs text-center text-2xl font-mono font-bold"
+                    />
+                  )}
                 </div>
                 {showPin && (
                   <button

@@ -37,11 +37,15 @@ import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export function EmployeeDetail({ routeId }: { routeId: string }) {
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
   const { data: employee, isLoading } = useEmployee(id);
+  const canManageAttendance =
+    usePermissions().hasPermission("attendance.manage");
   const updateEmployee = useUpdateEmployee(id);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -384,7 +388,8 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
           <RetirementTab employeeId={id} />
         </TabsContent>
 
-        <TabsContent value="attendance" className="mt-4">
+        <TabsContent value="attendance" className="mt-4 space-y-4">
+          {canManageAttendance && <KioskPinCard employee={employee} />}
           <AttendanceTimelineTab employeeId={id} />
         </TabsContent>
       </Tabs>
