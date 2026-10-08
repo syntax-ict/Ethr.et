@@ -148,7 +148,7 @@ class EmployeeController extends Controller
             ) !== null;
         }
 
-        $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter']);
+        $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
         AuditLog::record('employee.created', $employee, ['login_invited' => $loginInvited]);
         $this->webhook($employee->tenant_id, 'employee.created', ['public_id' => $employee->public_id, 'name' => $employee->name]);
@@ -216,7 +216,7 @@ class EmployeeController extends Controller
         ]);
         $this->webhook($employee->tenant_id, 'employee.updated', ['public_id' => $employee->public_id, 'name' => $employee->name]);
 
-        $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter']);
+        $employee->load(['department', 'branch', 'position', 'grade', 'team', 'costCenter', 'supervisor']);
 
         return new EmployeeResource($employee);
     }

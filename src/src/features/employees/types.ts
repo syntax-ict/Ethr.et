@@ -21,5 +21,8 @@ export type Employee = Pick<
   | "department"
   | "branch"
   | "position"
+  | "team"
+  | "cost_center"
+  | "supervisor"
   | "created_at"
 >;

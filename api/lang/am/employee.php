@@ -22,4 +22,6 @@ return [
     'emergency_contact_deleted' => 'የአደጋ ጊዜ አድራሻ ተወግዷል።',
     'bank_details_updated' => 'የባንክ መረጃ ተዘምኗል።',
     'salary_updated' => 'ደመወዝ በተሳካ ሁኔታ ተዘምኗል።',
+    // English placeholder until the native-speaker review (audit N73).
+    'supervisor_self' => 'An employee cannot be their own supervisor.',
 ];

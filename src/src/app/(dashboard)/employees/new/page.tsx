@@ -5,6 +5,8 @@ import {
   branchesApi,
   departmentsApi,
   positionsApi,
+  teamsApi,
+  costCentersApi,
 } from "@/features/organization/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -31,6 +33,8 @@ import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { FormField } from "@/components/patterns/FormField";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { toast } from "sonner";
+import { useEmployeeOptions } from "@/features/attendance/api";
+import { RelationPicker } from "@/features/employees/components/relation-picker";
 
 export default function NewEmployeePage() {
   const { t } = useT();
@@ -40,6 +44,9 @@ export default function NewEmployeePage() {
   const { data: depts } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
   const { data: positions } = positionsApi.useList();
+  const { data: teams } = teamsApi.useList();
+  const { data: costCenters } = costCentersApi.useList();
+  const { data: employeeOptions } = useEmployeeOptions();
 
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +66,11 @@ export default function NewEmployeePage() {
     department_id: "",
     branch_id: "",
     position_id: "",
+    // No screen set these three, so the reporting chart was flat and teams
+    // and cost centres were never assigned (audit N73).
+    supervisor_id: "",
+    team_id: "",
+    cost_center_id: "",
   });
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -102,6 +114,9 @@ export default function NewEmployeePage() {
       department_id: form.department_id || null,
       branch_id: form.branch_id || null,
       position_id: form.position_id || null,
+      supervisor_id: form.supervisor_id || null,
+      team_id: form.team_id || null,
+      cost_center_id: form.cost_center_id || null,
     };
 
     createEmployee.mutate(payload, {
@@ -426,6 +441,54 @@ export default function NewEmployeePage() {
                     )}
                   </SelectContent>
                 </Select>
+              </FormField>
+
+              <FormField
+                id="supervisor_id"
+                label={t("employee.supervisor", "Supervisor")}
+                error={errors.supervisor_id}
+              >
+                <RelationPicker
+                  id="supervisor_id"
+                  value={form.supervisor_id}
+                  options={(employeeOptions ?? []).map((e) => ({
+                    value: e.public_id,
+                    label: e.name,
+                  }))}
+                  onChange={(v) => updateField("supervisor_id", v)}
+                />
+              </FormField>
+
+              <FormField
+                id="team_id"
+                label={t("employee.team", "Team")}
+                error={errors.team_id}
+              >
+                <RelationPicker
+                  id="team_id"
+                  value={form.team_id}
+                  options={(teams?.data ?? []).map((x) => ({
+                    value: x.public_id,
+                    label: x.name,
+                  }))}
+                  onChange={(v) => updateField("team_id", v)}
+                />
+              </FormField>
+
+              <FormField
+                id="cost_center_id"
+                label={t("employee.cost_center", "Cost centre")}
+                error={errors.cost_center_id}
+              >
+                <RelationPicker
+                  id="cost_center_id"
+                  value={form.cost_center_id}
+                  options={(costCenters?.data ?? []).map((x) => ({
+                    value: x.public_id,
+                    label: x.name,
+                  }))}
+                  onChange={(v) => updateField("cost_center_id", v)}
+                />
               </FormField>
             </CardContent>
           </Card>
