@@ -32,16 +32,21 @@ final class FrontendUrl
      */
     public static function canonicalOrigin(Tenant $tenant): ?string
     {
+        // Both tiers take the scheme and port from the frontend URL, which is
+        // https in production and whatever the rehearsal serves locally. A
+        // custom domain hard-coded to https pointed every redirect at a port
+        // the local-production rehearsal does not listen on, which made the
+        // Enterprise tier the one that could not be exercised before go-live.
+        $frontend = parse_url((string) config('app.frontend_url'));
+        $scheme = $frontend['scheme'] ?? 'https';
+        $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
+
         if ($tenant->hasVerifiedCustomDomain()) {
-            return 'https://'.$tenant->custom_domain;
+            return "{$scheme}://{$tenant->custom_domain}{$port}";
         }
 
         $root = TenancyDomain::root();
         if ($root !== null && config('tenancy.subdomains')) {
-            $frontend = parse_url((string) config('app.frontend_url'));
-            $scheme = $frontend['scheme'] ?? 'https';
-            $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
-
             return "{$scheme}://{$tenant->subdomain}.{$root}{$port}";
         }
 

@@ -92,7 +92,15 @@ class AuditLog extends Model
         // tenant still wins, and an action with no auditable stays unowned
         // rather than having an owner invented for it.
         if ($tenantId === null && $auditable !== null) {
-            $ownerId = $auditable->getAttribute('tenant_id');
+            // A Tenant is its own owner. The console acts on tenants from the
+            // platform host, where nothing is resolved, and `tenants` has no
+            // `tenant_id` column, so every `admin.tenant.*` row (status, trial,
+            // domain) landed unowned: invisible in that organisation's own
+            // audit log and in the console's Recent activity for it. Found by
+            // the 2026-10-08 QA pass, docs/audit/QA-CANONICAL-ADDRESS-2026-10-08.md.
+            $ownerId = $auditable instanceof Tenant
+                ? $auditable->getKey()
+                : $auditable->getAttribute('tenant_id');
             $tenantId = is_int($ownerId) ? $ownerId : null;
         }
 
