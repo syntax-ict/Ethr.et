@@ -98,7 +98,7 @@ export default function HolidaysPage() {
   }
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageHolidays"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("holidays_page.title")}

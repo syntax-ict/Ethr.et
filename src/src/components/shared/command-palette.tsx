@@ -49,6 +49,7 @@ import { useDirectory } from "@/features/directory/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { useT } from "@/lib/i18n/useT";
+import { useSettingsLanding } from "@/components/layouts/settings-nav";
 
 /** Event any UI can fire to open the palette — cleaner than faking a ⌘K keypress. */
 const OPEN_EVENT = "command-palette:open";
@@ -81,6 +82,7 @@ export function CommandPalette() {
   const [search, setSearch] = useState("");
   const router = useRouter();
   const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
+  const settingsLanding = useSettingsLanding();
   const { t } = useT();
 
   // Open/close through one handler that also resets the query, so the palette
@@ -249,9 +251,9 @@ export function CommandPalette() {
           },
           {
             label: t("nav.settings", "Settings"),
-            href: "/settings",
+            href: settingsLanding ?? "/settings",
             icon: Settings,
-            show: can.manageSettings,
+            show: settingsLanding !== null,
           },
           {
             label: t("nav.billing", "Billing"),
@@ -354,7 +356,7 @@ export function CommandPalette() {
         ],
       },
     ],
-    [t, can, isSupervisor, isFinanceAdmin, isTenantAdmin],
+    [t, can, isSupervisor, isFinanceAdmin, isTenantAdmin, settingsLanding],
   );
 
   const showPeopleGroup =

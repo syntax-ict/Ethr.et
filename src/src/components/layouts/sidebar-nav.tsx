@@ -44,6 +44,7 @@ import { useT } from "@/lib/i18n/useT";
 import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
 import { useManagerDashboard } from "@/features/dashboard/api";
+import { useSettingsLanding } from "@/components/layouts/settings-nav";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,7 @@ function resolveActiveHref(sections: NavSection[], pathname: string): string {
 export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
   const pathname = usePathname();
   const { can, isSupervisor, isTenantAdmin, isSuperAdmin } = usePermissions();
+  const settingsLanding = useSettingsLanding();
   const { t } = useT();
   const {
     favorites,
@@ -420,9 +422,9 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
           {
             kind: "leaf",
             label: t("nav.settings", "Settings"),
-            href: "/settings",
+            href: settingsLanding ?? "/settings",
             icon: Settings,
-            show: can.manageSettings,
+            show: settingsLanding !== null,
           },
           {
             kind: "leaf",
@@ -478,7 +480,15 @@ export function SidebarNav({ onNavigate, collapsed = false }: SidebarNavProps) {
         ],
       },
     ];
-  }, [t, can, isSupervisor, isTenantAdmin, isSuperAdmin, approvalCount]);
+  }, [
+    t,
+    can,
+    isSupervisor,
+    isTenantAdmin,
+    isSuperAdmin,
+    approvalCount,
+    settingsLanding,
+  ]);
 
   // ── Visibility filtering ─────────────────────────────────────────────────
 

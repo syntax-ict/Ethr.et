@@ -100,3 +100,27 @@ describe("navigation follows the ability each screen's API checks", () => {
     }
   });
 });
+
+// Settings was offered to `settings.manage` alone, so an HR admin, holding
+// Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no way to
+// reach any of them (audit N91).
+describe("the Settings entry", () => {
+  it("leads a role without settings.manage to the first settings page it may open", async () => {
+    asCustomRole(["leave.manageTypes", "users.viewAny"]);
+    renderWith(<SidebarNav />);
+
+    expect(
+      await screen.findByRole("link", { name: /^settings$/i }),
+    ).toHaveAttribute("href", "/settings/leave-types");
+  });
+
+  it("is absent for a role with no settings page", async () => {
+    asCustomRole(["attendance.viewAll"]);
+    renderWith(<SidebarNav />);
+
+    await screen.findByRole("link", { name: /^overtime$/i });
+    expect(
+      screen.queryByRole("link", { name: /^settings$/i }),
+    ).not.toBeInTheDocument();
+  });
+});

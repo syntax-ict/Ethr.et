@@ -212,7 +212,7 @@ export default function ShiftsPage() {
   };
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageShifts"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("shifts_settings_page.title")}

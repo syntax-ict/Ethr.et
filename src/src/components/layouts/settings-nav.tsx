@@ -25,8 +25,8 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 // "Settings" and "Integrations" groups that used to live in the main sidebar:
 // configuration is a destination with its own left nav (the modern SaaS
 // standard — Stripe, Vercel, Linear), keeping the primary sidebar lean.
-// Per-item gates mirror the previous sidebar entries so no role gains or loses
-// access; in practice only tenant_admin+ ever reach this layout.
+// Each item is gated on the ability its page and API check, and the main
+// sidebar links here whenever any item is visible.
 
 interface SettingsNavItem {
   label: string;
@@ -60,8 +60,14 @@ function resolveActiveHref(
   return best;
 }
 
-export function SettingsNav() {
-  const pathname = usePathname();
+/**
+ * The settings pages the caller may open, grouped, each on the ability its API
+ * checks. Shared with the sidebar and command palette, which link to the first
+ * one: they offered Settings to `settings.manage` alone, so an HR admin, who
+ * holds Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no
+ * way to reach any of them (audit N91).
+ */
+export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
   const { can, isTenantAdmin } = usePermissions();
 
@@ -127,7 +133,7 @@ export function SettingsNav() {
           label: t("nav.roles", "Roles & Permissions"),
           href: "/settings/roles",
           icon: ShieldCheck,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
@@ -138,31 +144,31 @@ export function SettingsNav() {
           label: t("nav.api_keys", "API Keys"),
           href: "/settings/api-keys",
           icon: KeyRound,
-          show: isTenantAdmin,
+          show: can.manageApiKeys,
         },
         {
           label: t("nav.webhooks", "Webhooks"),
           href: "/settings/webhooks",
           icon: Webhook,
-          show: isTenantAdmin,
+          show: can.manageWebhooks,
         },
         {
           label: t("nav.accounting", "Accounting"),
           href: "/settings/accounting",
           icon: BookOpen,
-          show: can.manageSettings,
+          show: can.viewPayrollRuns,
         },
         {
           label: t("nav.notification_templates", "Notification Templates"),
           href: "/settings/notification-templates",
           icon: Mail,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
         {
           label: t("nav.scim", "SCIM Provisioning"),
           href: "/settings/scim",
           icon: UserCog,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
@@ -173,15 +179,26 @@ export function SettingsNav() {
           label: t("nav.audit_log", "Audit Log"),
           href: "/settings/audit-logs",
           icon: ScrollText,
-          show: isTenantAdmin,
+          show: can.manageSettings,
         },
       ],
     },
   ];
 
-  const visibleGroups = groups
+  return groups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
     .filter((g) => g.items.length > 0);
+}
+
+/** Where "Settings" should lead the caller, or null when nothing is theirs. */
+export function useSettingsLanding(): string | null {
+  return useSettingsNavGroups()[0]?.items[0]?.href ?? null;
+}
+
+export function SettingsNav() {
+  const pathname = usePathname();
+  const { t } = useT();
+  const visibleGroups = useSettingsNavGroups();
 
   const activeHref = resolveActiveHref(visibleGroups, pathname);
 

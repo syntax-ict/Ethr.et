@@ -127,7 +127,7 @@ export default function RolesPage() {
   }
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("roles_page.title")}

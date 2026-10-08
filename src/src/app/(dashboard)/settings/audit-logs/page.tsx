@@ -14,7 +14,7 @@ export default function AuditLogsPage() {
   const hasAuditLog = usePlanFeatures().has("audit_log");
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["manageSettings"]}>
       {hasAuditLog ? (
         <AuditLogExplorer
           endpoint="/audit-logs"
