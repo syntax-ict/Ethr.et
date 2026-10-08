@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Plus, Trash2, Wand2, Loader2 } from "lucide-react";
+import {
+  CalendarDays,
+  Plus,
+  Pencil,
+  Trash2,
+  Wand2,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +27,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
@@ -29,6 +37,8 @@ import {
   useCreateHoliday,
   useDeleteHoliday,
   useHolidays,
+  useUpdateHoliday,
+  type Holiday,
 } from "@/features/holidays/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -55,7 +65,13 @@ export default function HolidaysPage() {
   // HR admin's click always came back 403 as "delete failed".
   const canCreate = hasPermission("holiday.create");
   const canDelete = hasPermission("holiday.delete");
+  // Editing (`holiday.update`, HR) had an API and no screen, so a wrong date
+  // or name meant deleting the holiday — a tenant-admin action — and adding
+  // it again (audit N99).
+  const canUpdate = hasPermission("holiday.update");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Holiday | null>(null);
+  const [deleting, setDeleting] = useState<Holiday | null>(null);
 
   const {
     register,
@@ -71,22 +87,56 @@ export default function HolidaysPage() {
 
   const holidaysQuery = useHolidays();
   const createHoliday = useCreateHoliday();
+  const updateHoliday = useUpdateHoliday();
   const deleteHoliday = useDeleteHoliday();
   const autoDetect = useAutoDetectHolidays();
 
   // No `onError` toast — `submit` shows a duplicate date or a rejected name on
   // the field inside the still-open dialog, where it can be corrected.
-  async function addHoliday(values: HolidayValues) {
-    await createHoliday.mutateAsync(values);
-    toast.success(t("holidays_page.added"));
-    setDialogOpen(false);
-    reset();
+  async function saveHoliday(values: HolidayValues) {
+    if (editing) {
+      await updateHoliday.mutateAsync({
+        publicId: editing.public_id,
+        ...values,
+      });
+      toast.success(t("holidays_page.updated", "Holiday updated"));
+    } else {
+      await createHoliday.mutateAsync(values);
+      toast.success(t("holidays_page.added"));
+    }
+    closeDialog();
   }
 
-  function removeHoliday(publicId: string) {
-    deleteHoliday.mutate(publicId, {
+  function openAdd() {
+    setEditing(null);
+    reset({ name: "", date: "", recurring: false });
+    setDialogOpen(true);
+  }
+
+  function openEdit(holiday: Holiday) {
+    setEditing(holiday);
+    reset({
+      name: holiday.name,
+      date: holiday.date.slice(0, 10),
+      recurring: holiday.recurring,
+    });
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditing(null);
+    reset({ name: "", date: "", recurring: false });
+  }
+
+  // Deleted on one click before; an accidental click removed a holiday from
+  // every leave and attendance calculation (audit N99).
+  function confirmDelete() {
+    if (!deleting) return;
+    deleteHoliday.mutate(deleting.public_id, {
       onSuccess: () => toast.success(t("holidays_page.deleted")),
       onError: () => toast.error(t("holidays_page.delete_failed")),
+      onSettled: () => setDeleting(null),
     });
   }
 
@@ -118,7 +168,7 @@ export default function HolidaysPage() {
                   )}
                   {t("holidays_page.auto_detect")}
                 </Button>
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button onClick={openAdd}>
                   <Plus className="mr-2 h-4 w-4" />
                   {t("holidays_page.add_holiday")}
                 </Button>
@@ -186,20 +236,37 @@ export default function HolidaysPage() {
                         </Badge>
                       ),
                     ],
-                    actions: canDelete ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive-on-soft hover:bg-destructive-soft"
-                        onClick={() => removeHoliday(holiday.public_id)}
-                        disabled={deleteHoliday.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">
-                          {t("common.delete", "Delete")}
-                        </span>
-                      </Button>
-                    ) : undefined,
+                    actions:
+                      canUpdate || canDelete ? (
+                        <div className="flex justify-end gap-1">
+                          {canUpdate && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(holiday)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">
+                                {t("common.edit", "Edit")} {holiday.name}
+                              </span>
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive-on-soft hover:bg-destructive-soft"
+                              onClick={() => setDeleting(holiday)}
+                              disabled={deleteHoliday.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">
+                                {t("common.delete", "Delete")} {holiday.name}
+                              </span>
+                            </Button>
+                          )}
+                        </div>
+                      ) : undefined,
                   }))}
                 />
               </CardContent>
@@ -207,13 +274,28 @@ export default function HolidaysPage() {
           )}
         </QueryBoundary>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => (open ? setDialogOpen(true) : closeDialog())}
+        >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t("holidays_page.add_holiday")}</DialogTitle>
+              <DialogTitle>
+                {editing
+                  ? t("holidays_page.edit_holiday", "Edit holiday")
+                  : t("holidays_page.add_holiday")}
+              </DialogTitle>
             </DialogHeader>
             <form
-              onSubmit={submit(addHoliday, t("holidays_page.add_failed"))}
+              onSubmit={submit(
+                saveHoliday,
+                editing
+                  ? t(
+                      "holidays_page.update_failed",
+                      "Couldn't update the holiday",
+                    )
+                  : t("holidays_page.add_failed"),
+              )}
               className="space-y-4"
               noValidate
             >
@@ -271,23 +353,35 @@ export default function HolidaysPage() {
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={closeDialog}>
                   {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {t("holidays_page.add_holiday")}
+                  {editing
+                    ? t("common.save", "Save")
+                    : t("holidays_page.add_holiday")}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialog
+          open={deleting !== null}
+          onOpenChange={(open) => !open && setDeleting(null)}
+          title={t("holidays_page.delete_title", "Delete this holiday?")}
+          description={t(
+            "holidays_page.delete_desc",
+            "Leave and attendance stop treating this day as a holiday.",
+          )}
+          confirmLabel={t("common.delete", "Delete")}
+          variant="destructive"
+          loading={deleteHoliday.isPending}
+          onConfirm={confirmDelete}
+        />
       </div>
     </RoleGate>
   );

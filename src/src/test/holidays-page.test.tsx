@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import HolidaysPage from "@/app/(dashboard)/settings/holidays/page";
+import { CalendarProvider } from "@/lib/calendar/calendar-context";
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -81,7 +83,9 @@ function renderPage() {
     defaultOptions: { queries: { retry: false } },
   });
   const Wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <CalendarProvider>{children}</CalendarProvider>
+    </QueryClientProvider>
   );
   return render(<HolidaysPage />, { wrapper: Wrapper });
 }
@@ -114,7 +118,7 @@ describe("<HolidaysPage>", () => {
       screen.getByRole("button", { name: /Add Holiday/ }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Delete" }),
+      screen.queryByRole("button", { name: /^Delete/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -124,6 +128,73 @@ describe("<HolidaysPage>", () => {
     renderPage();
 
     await screen.findByText("Genna");
-    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Delete Genna/ }),
+    ).toBeInTheDocument();
+  });
+
+  // `PUT /holidays/{id}` had no screen: correcting a holiday meant deleting it
+  // (tenant admin only) and adding it again (audit N99).
+  it("lets HR correct a holiday's name and date in place", async () => {
+    let body: Record<string, unknown> | null = null;
+    let path = "";
+    serveHolidays([holiday(1, { name: "Genna", date: "2026-01-07" })]);
+    server.use(
+      me("hr_admin", HR_ADMIN),
+      http.put("*/api/v1/holidays/:id", async ({ request, params }) => {
+        path = String(params.id);
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(holiday(1, body));
+      }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /^Edit Genna/ }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const name = within(dialog).getByRole("textbox", { name: /name/i });
+    expect(name).toHaveValue("Genna");
+    await user.clear(name);
+    await user.type(name, "Ethiopian Christmas");
+    await user.click(within(dialog).getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(path).toBe("HOL1");
+    expect(body).toMatchObject({
+      name: "Ethiopian Christmas",
+      date: "2026-01-07",
+    });
+  });
+
+  // One click deleted a holiday from every leave and attendance calculation.
+  it("asks before deleting, and deletes nothing if cancelled", async () => {
+    let deletes = 0;
+    serveHolidays([holiday(1, { name: "Genna" })]);
+    server.use(
+      me("tenant_admin", [...HR_ADMIN, "holiday.delete"]),
+      http.delete("*/api/v1/holidays/:id", () => {
+        deletes += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /^Delete Genna/ }),
+    );
+    const confirm = await screen.findByRole("dialog");
+    await user.click(within(confirm).getByRole("button", { name: /cancel/i }));
+    expect(deletes).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: /^Delete Genna/ }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: /^Delete$/,
+      }),
+    );
+    await waitFor(() => expect(deletes).toBe(1));
   });
 });

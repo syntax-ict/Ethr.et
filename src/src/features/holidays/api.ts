@@ -42,6 +42,19 @@ export function useCreateHoliday() {
   );
 }
 
+export type HolidayUpdate = components["schemas"]["UpdateHolidayRequest"];
+
+/** `PUT /holidays/{id}` existed with no screen behind it (audit N99). */
+export function useUpdateHoliday() {
+  return useHolidayMutation(
+    async ({
+      publicId,
+      ...payload
+    }: HolidayUpdate & { publicId: string }): Promise<Holiday> =>
+      (await apiClient.put(`/holidays/${publicId}`, payload)).data,
+  );
+}
+
 export function useDeleteHoliday() {
   return useHolidayMutation(async (publicId: string): Promise<void> => {
     await apiClient.delete(`/holidays/${publicId}`);
