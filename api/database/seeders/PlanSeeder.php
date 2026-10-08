@@ -72,7 +72,7 @@ class PlanSeeder extends Seeder
                 'max_employees' => null,
                 'max_branches' => null,
                 'max_devices' => null,
-                'features' => ['attendance', 'leave', 'employee_management', 'payroll', 'reports', 'notifications', 'api_access', 'webhooks', 'custom_reports', 'audit_log'],
+                'features' => ['attendance', 'leave', 'employee_management', 'payroll', 'reports', 'notifications', 'api_access', 'webhooks', 'custom_reports', 'audit_log', 'custom_domain'],
                 'marketing_features' => [
                     'Everything in Professional',
                     'No employee, branch or device limit',

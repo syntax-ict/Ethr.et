@@ -17,24 +17,23 @@ final class FrontendUrl
     }
 
     /**
-     * Where an organisation's people should land, in order of preference:
+     * The one address an organisation lives at, as an origin with no path, or
+     * null when it has none of its own and lives on the shared host.
      *
-     *   1. its custom domain, when the platform assigned one (hr.acme.com/login);
-     *   2. its subdomain, when this deployment serves them (acme.ethr.et/login);
-     *   3. otherwise the shared host. Its sign-in page is the organisation's
-     *      entry URL, ethr.et/{slug}, which redirects to /login?org={slug}.
-     *      Every other path stays on the shared host as given; callers that need
-     *      the tenant there pass it in the query, as the reset link does.
+     * Three tiers, in order (owner decision 2026-10-08):
      *
-     * Until 2026-10-06 this always built (2). The production host cannot serve
-     * wildcard subdomains (M3), so every activation and "find my organisation"
-     * link pointed at a host that did not answer.
+     *   1. Enterprise: its custom domain, once VERIFIED (https://hr.acme.com).
+     *      A pending domain is not an address: it may not point here yet, and
+     *      nothing proves the organisation holds it.
+     *   2. Standard: its subdomain, when this deployment serves them
+     *      (TENANCY_SUBDOMAINS=true), at the frontend's scheme and port.
+     *   3. Fallback: null. The organisation is reached on the shared host, where
+     *      `ethr.et/{slug}` leads to `/login?org={slug}`.
      */
-    public static function forTenant(string $subdomain, string $path): string
+    public static function canonicalOrigin(Tenant $tenant): ?string
     {
-        $customDomain = Tenant::query()->where('subdomain', $subdomain)->value('custom_domain');
-        if (is_string($customDomain) && $customDomain !== '') {
-            return 'https://'.$customDomain.'/'.ltrim($path, '/');
+        if ($tenant->hasVerifiedCustomDomain()) {
+            return 'https://'.$tenant->custom_domain;
         }
 
         $root = TenancyDomain::root();
@@ -43,7 +42,34 @@ final class FrontendUrl
             $scheme = $frontend['scheme'] ?? 'https';
             $port = isset($frontend['port']) ? ':'.$frontend['port'] : '';
 
-            return "{$scheme}://{$subdomain}.{$root}{$port}/".ltrim($path, '/');
+            return "{$scheme}://{$tenant->subdomain}.{$root}{$port}";
+        }
+
+        return null;
+    }
+
+    /**
+     * Where an organisation's people should land: `$path` at its canonical
+     * origin, or on the shared host when it has none. There, the sign-in page
+     * is the organisation's entry URL, ethr.et/{slug}, which redirects to
+     * /login?org={slug}; every other path stays on the shared host as given,
+     * and callers that need the tenant there pass it in the query, as the reset
+     * link does.
+     *
+     * Until 2026-10-06 this always built a subdomain link. The production host
+     * cannot serve wildcard subdomains (M3), so every activation and "find my
+     * organisation" link pointed at a host that did not answer.
+     */
+    public static function forTenant(string $subdomain, string $path): string
+    {
+        // A slug with no row (yet) still gets its subdomain when those are
+        // served, as it always did; it simply has no custom domain.
+        $tenant = Tenant::query()->where('subdomain', $subdomain)->first()
+            ?? new Tenant(['subdomain' => $subdomain]);
+        $origin = self::canonicalOrigin($tenant);
+
+        if ($origin !== null) {
+            return $origin.'/'.ltrim($path, '/');
         }
 
         if (trim($path, '/') === 'login') {

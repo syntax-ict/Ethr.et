@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\DnsResolver;
 use App\Contracts\SmsSender;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
@@ -47,6 +48,7 @@ use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\RetirementCasePolicy;
 use App\Policies\ShiftRotationPolicy;
 use App\Services\Auth\SessionIdleTimeout;
+use App\Services\Dns\SystemDnsResolver;
 use App\Services\Sms\EthioTelecomSmsSender;
 use App\Services\Sms\LogSmsSender;
 use App\Services\Sso\SamlProvider;
@@ -82,6 +84,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->app->bind(SsoProviderInterface::class, SamlProvider::class);
+        $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
 
         $this->app->singleton(SmsSender::class, fn () => match (config('sms.driver')) {
             'ethiotelecom' => new EthioTelecomSmsSender,

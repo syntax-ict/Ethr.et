@@ -27,6 +27,7 @@ return [
         'webhooks' => 'webhooks',
         'custom_reports' => 'custom reports',
         'audit_log' => 'the audit log',
+        'custom_domain' => 'a custom domain',
     ],
     'payment_received' => 'Payment received. Thank you.',
     'payment_failed' => 'Payment processing failed. Please try again.',

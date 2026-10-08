@@ -16,6 +16,7 @@ return [
     'account_inactive' => 'መለያዎ ንቁ አይደለም።',
     'tenant_inactive' => 'የድርጅትዎ መለያ ንቁ አይደለም።',
     'account_suspended' => 'መለያዎ ታግዷል።',
+    'canonical_address' => 'ድርጅትዎ በራሱ አድራሻ ይገባል። ወደዚያ እየወሰድንዎ ነው።',
     'impersonation_restricted' => 'ተከራይን በመወከል ላይ ሳሉ ይህን ተግባር ማከናወን አይቻልም።',
     'not_impersonating' => 'ንቁ የመወከል ክፍለ ጊዜ የለም።',
     'impersonation_ended' => 'የመወከል ክፍለ ጊዜ ተጠናቅቋል።',
