@@ -71,7 +71,14 @@ admin reaching the console 403; a super admin without MFA: reads 200, writes 403
   gains *sends nothing until the approval is confirmed, then approves*, failing on the old
   page.
 
-### 3 · Console API keys have no consumer — S3, reported, not fixed
+### 3 · Console API keys have no consumer — S3, **fixed 2026-10-09** under delegation
+
+> **Closed:** `AuthenticateApiKey` accepts a console key on the tenant API as its creator, on
+> its own tenant; `EnforceApiKeyAbilities` lets it call only what its abilities cover.
+> `ApiKeyAuthenticationTest` (13 cases, 9 failing on the old code). Decision and the
+> alternatives it was chosen over: [`../decisions/DECISION-API-KEY-GUARD.md`](../decisions/DECISION-API-KEY-GUARD.md).
+> The text below is the finding as reported.
+
 
 - **Seen:** Settings → API keys mints keys with abilities (`read`, `write`, `employees`,
   `attendance`, `leave`, `payroll`, `reports`), behind the `api_access` plan feature. Used
