@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 import {
   useNotifications,
   useMarkAsRead,
@@ -21,7 +23,9 @@ import { cn } from "@/lib/utils";
 export default function NotificationsPage() {
   const { t } = useT();
   const { timeAgo } = useDateFormatters();
-  const { data, isLoading } = useNotifications();
+  // Paged: the page showed the first 25 and nothing past them (audit N83).
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useNotifications({ page });
   const markRead = useMarkAsRead();
   const markAllRead = useMarkAllAsRead();
 
@@ -77,45 +81,58 @@ export default function NotificationsPage() {
             <Card
               key={n.id}
               className={cn(
-                "cursor-pointer transition-colors hover:bg-muted/50",
+                "transition-colors hover:bg-muted/50",
                 !n.read_at && "border-l-4 border-l-primary",
               )}
-              onClick={() => {
-                if (!n.read_at) {
-                  markRead.mutate(n.id);
-                }
-              }}
             >
-              <CardContent className="flex items-start gap-3 p-4">
-                <div
-                  className={cn(
-                    "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                    n.read_at ? "bg-muted" : "bg-primary/10",
-                  )}
+              {/* A button, so marking one read works from the keyboard: the
+                  card was a clickable div that Tab never reached. */}
+              <CardContent className="p-0">
+                <button
+                  type="button"
+                  className="flex w-full items-start gap-3 p-4 text-left"
+                  onClick={() => {
+                    if (!n.read_at) {
+                      markRead.mutate(n.id);
+                    }
+                  }}
                 >
-                  <Bell
+                  <div
                     className={cn(
-                      "h-4 w-4",
-                      n.read_at ? "text-muted-foreground" : "text-primary",
+                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                      n.read_at ? "bg-muted" : "bg-primary/10",
                     )}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm", !n.read_at && "font-medium")}>
-                    {notificationText(n) ?? n.type}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {timeAgo(n.created_at)}
-                  </p>
-                </div>
-                {!n.read_at && (
-                  <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                )}
+                  >
+                    <Bell
+                      className={cn(
+                        "h-4 w-4",
+                        n.read_at ? "text-muted-foreground" : "text-primary",
+                      )}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm", !n.read_at && "font-medium")}>
+                      {notificationText(n) ?? n.type}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {timeAgo(n.created_at)}
+                    </p>
+                  </div>
+                  {!n.read_at && (
+                    <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                  )}
+                </button>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <PaginationControls
+        meta={data?.meta}
+        onPageChange={setPage}
+        disabled={isLoading}
+      />
     </div>
   );
 }

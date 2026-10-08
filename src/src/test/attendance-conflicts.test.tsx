@@ -181,6 +181,41 @@ describe("<AttendanceConflictsPage>", () => {
     ).not.toBeInTheDocument();
   });
 
+  // The API refuses a conflict on the caller's own attendance; the button
+  // only led to a 403 (audit N84).
+  it("offers no review on the caller's own conflict, and says why", async () => {
+    server.use(
+      http.get("*/attendance/conflicts", () =>
+        HttpResponse.json({
+          data: [
+            { ...conflict, employee_public_id: "01HZEMPSELF0000000000001" },
+          ],
+        }),
+      ),
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          user: {
+            public_id: "U1",
+            name: "Abebe Kebede",
+            role: "hr_admin",
+            employee_public_id: "01HZEMPSELF0000000000001",
+          },
+          tenant: { public_id: "T1", name: "Demo" },
+          permissions: [],
+        }),
+      ),
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/someone else reviews this/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /review/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reaches conflicts past the first page", async () => {
     // The endpoint pages by 25 and the page rendered only the first, so the
     // 26th pending conflict could not be reviewed at all.

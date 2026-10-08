@@ -317,6 +317,7 @@
   "attendance.conflicts.no_record": "No record on this side",
   "attendance.conflicts.notes": "Notes (optional)",
   "attendance.conflicts.notes_placeholder": "Why this decision was made",
+  "attendance.conflicts.own_hint": "Your own attendance — someone else reviews this.",
   "attendance.conflicts.record_a": "Record A",
   "attendance.conflicts.record_b": "Record B",
   "attendance.conflicts.resolve_desc": "Keeping one record voids the other. This is recorded in the audit log and cannot be undone from here.",

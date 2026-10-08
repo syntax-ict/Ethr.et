@@ -17,6 +17,7 @@ import {
 } from "@/features/attendance/api";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useCurrentUser } from "@/features/auth/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,6 +62,7 @@ type ResolutionValue = ConflictResolution;
 export default function AttendanceConflictsPage() {
   const { t } = useT();
   const { can } = usePermissions();
+  const { data: me } = useCurrentUser();
 
   const [status, setStatus] = useState<"pending" | "all">("pending");
   // The endpoint pages by 25 and this page read only the first: the 26th
@@ -187,6 +189,13 @@ export default function AttendanceConflictsPage() {
               key={conflict.public_id}
               conflict={conflict}
               canResolve={can.resolveAttendanceConflicts}
+              // The API refuses a conflict on the caller's own attendance
+              // (AttendanceConflictPolicy::resolve), so the button only led
+              // to a 403 (audit N84).
+              isOwn={
+                !!me?.employee_public_id &&
+                conflict.employee_public_id === me.employee_public_id
+              }
               onResolve={() => {
                 setResolving(conflict);
                 setResolution("");
@@ -296,10 +305,12 @@ export default function AttendanceConflictsPage() {
 function ConflictCard({
   conflict,
   canResolve,
+  isOwn,
   onResolve,
 }: {
   conflict: Conflict;
   canResolve: boolean;
+  isOwn: boolean;
   onResolve: () => void;
 }) {
   const { t } = useT();
@@ -348,7 +359,16 @@ function ConflictCard({
             )}
           </div>
 
-          {isPending && canResolve && (
+          {isPending && canResolve && isOwn && (
+            <p className="text-xs text-muted-foreground sm:max-w-40">
+              {t(
+                "attendance.conflicts.own_hint",
+                "Your own attendance — someone else reviews this.",
+              )}
+            </p>
+          )}
+
+          {isPending && canResolve && !isOwn && (
             <div className="flex gap-2 sm:flex-col">
               <Button size="sm" variant="outline" onClick={onResolve}>
                 <GitMerge className="mr-1 h-3 w-3" />

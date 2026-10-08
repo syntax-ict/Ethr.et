@@ -317,6 +317,7 @@
   "attendance.conflicts.no_record": "በዚህ በኩል መዝገብ የለም",
   "attendance.conflicts.notes": "ማስታወሻ (አማራጭ)",
   "attendance.conflicts.notes_placeholder": "ይህ ውሳኔ የተወሰነበት ምክንያት",
+  "attendance.conflicts.own_hint": "Your own attendance — someone else reviews this.",
   "attendance.conflicts.record_a": "መዝገብ A",
   "attendance.conflicts.record_b": "መዝገብ B",
   "attendance.conflicts.resolve_desc": "አንዱን መዝገብ ማቆየት ሌላውን ያሰርዛል። ይህ በኦዲት መዝገብ ውስጥ ይመዘገባል፤ ከዚህ መመለስ አይቻልም።",
