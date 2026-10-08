@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Role;
 
+use App\Enums\OrgScope;
 use App\Models\Permission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,7 @@ class StoreCustomRoleRequest extends FormRequest
             ],
             'description' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
+            'org_scope' => ['sometimes', 'string', Rule::enum(OrgScope::class)],
             'permissions' => ['required', 'array', 'min:1'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];

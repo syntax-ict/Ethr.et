@@ -6,6 +6,7 @@ use App\Enums\CorrectionStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\Tenant;
@@ -627,4 +628,38 @@ test('holidays require authentication', function () {
 
     test()->getJson('http://authtest.ethr.test/api/v1/holidays')
         ->assertUnauthorized();
+});
+
+// Approving wrote the proposed times over the record and the audit row named
+// only the approver, so the original punch was gone (audit N88).
+test('approving a correction keeps the original punches, through a second correction', function () {
+    $tenant = createTenant();
+    [, $employee] = intelligenceCorrectionSupervisorWithReport($tenant);
+    $record = AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'check_in' => Carbon::today()->setTime(9, 0),
+    ]);
+    $original = $record->check_in->toIso8601String();
+
+    foreach ([[8, 15], [8, 30]] as [$h, $m]) {
+        $correction = AttendanceCorrection::factory()->create([
+            'tenant_id' => $tenant->id,
+            'attendance_record_id' => $record->id,
+            'employee_id' => $employee->id,
+            'proposed_check_in' => Carbon::today()->setTime($h, $m),
+            'status' => CorrectionStatus::PENDING,
+        ]);
+        test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/corrections/{$correction->public_id}/approve")
+            ->assertOk();
+    }
+
+    $record->refresh();
+    expect($record->check_in->format('H:i'))->toBe('08:30')
+        ->and($record->metadata['original_check_in'])->toBe($original);
+
+    $audit = AuditLog::query()->withoutGlobalScopes()
+        ->where('action', 'correction.approved')->latest('id')->first();
+    expect($audit->payload['before']['check_in'])->toBe(Carbon::today()->setTime(8, 15)->toIso8601String())
+        ->and($audit->payload['after']['check_in'])->toBe(Carbon::today()->setTime(8, 30)->toIso8601String());
 });

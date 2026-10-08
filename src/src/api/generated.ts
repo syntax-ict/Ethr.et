@@ -5678,6 +5678,7 @@ export interface components {
             name: string;
             description: string;
             is_active: boolean;
+            org_scope: string;
             permissions?: string[];
             users_count?: number;
             /** Format: date-time */
@@ -6362,6 +6363,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string | null;
         };
+        /**
+         * OrgScope
+         * @enum {string}
+         */
+        OrgScope: "all" | "branch" | "department" | "team" | "direct_reports" | "self";
         /** OrganizationTemplate */
         OrganizationTemplate: {
             public_id: string;
@@ -6990,6 +6996,7 @@ export interface components {
             name: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions: string[];
         };
         /** StoreDepartmentRequest */
@@ -7465,6 +7472,7 @@ export interface components {
             name?: string;
             description?: string | null;
             is_active?: boolean;
+            org_scope?: components["schemas"]["OrgScope"];
             permissions?: string[];
         };
         /** UpdateDepartmentRequest */

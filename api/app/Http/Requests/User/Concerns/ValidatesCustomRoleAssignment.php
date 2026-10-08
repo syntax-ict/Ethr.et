@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\User\Concerns;
 
+use App\Enums\OrgScope;
 use App\Models\CustomRole;
 use App\Models\Permission;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * A custom role may be assigned only if it is this tenant's, and only by
@@ -50,7 +51,9 @@ trait ValidatesCustomRoleAssignment
         }
 
         $granted = Permission::permissionsForCustomRole($role->id);
-        if (array_diff($granted, $actor->permissionNames()) !== []) {
+        $reach = OrgScope::tryFrom((string) $role->org_scope) ?? OrgScope::SELF;
+        if (array_diff($granted, $actor->permissionNames()) !== []
+            || $reach->breadth() > $actor->orgScope()->breadth()) {
             $validator->errors()->add('custom_role_id', __('user.errors.role_above_your_level'));
         }
     }
