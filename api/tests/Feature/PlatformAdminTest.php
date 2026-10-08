@@ -304,22 +304,46 @@ test('tenant admin can view billing dashboard', function () {
         ->assertJsonStructure(['plan', 'invoices']);
 });
 
-test('tenant admin can mark invoice as paid', function () {
+// An organisation marked its own invoices paid, under its own
+// `billing.manage`: overdue suspension defeated and revenue overstated. Payment
+// is by bank transfer to the provider, so the provider confirms it (audit N94).
+test('an organisation cannot mark its own invoice paid', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    $invoice = Invoice::factory()->create(['tenant_id' => $tenant->id, 'status' => 'pending']);
 
-    $invoice = Invoice::factory()->create([
-        'tenant_id' => $tenant->id,
-        'status' => 'draft',
-    ]);
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/billing/invoices/{$invoice->public_id}/mark-paid")
+        ->assertNotFound();
 
-    $response = test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/billing/invoices/{$invoice->public_id}/mark-paid");
+    expect($invoice->fresh()->status)->toBe('pending');
+});
 
-    $response->assertOk()
+test('the platform console confirms an invoice paid', function () {
+    $home = createTenant();
+    $superAdmin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home);
+    test()->actingAs($superAdmin);
+    $target = Tenant::factory()->create();
+    $invoice = Invoice::factory()->create(['tenant_id' => $target->id, 'status' => 'pending']);
+
+    test()->putJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants/{$target->public_id}/invoices/{$invoice->public_id}/mark-paid")
+        ->assertOk()
         ->assertJsonPath('status', 'paid');
 
-    $invoice->refresh();
-    expect($invoice->paid_at)->not->toBeNull();
+    expect($invoice->fresh()->paid_at)->not->toBeNull();
+});
+
+test('the console will not mark an invoice through another organisation', function () {
+    $home = createTenant();
+    $superAdmin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], $home);
+    test()->actingAs($superAdmin);
+    $owner = Tenant::factory()->create();
+    $other = Tenant::factory()->create();
+    $invoice = Invoice::factory()->create(['tenant_id' => $owner->id, 'status' => 'pending']);
+
+    test()->putJson("http://{$home->subdomain}.ethr.test/api/v1/admin/tenants/{$other->public_id}/invoices/{$invoice->public_id}/mark-paid")
+        ->assertNotFound();
+
+    expect($invoice->fresh()->status)->toBe('pending');
 });
 
 // ── Settings ──

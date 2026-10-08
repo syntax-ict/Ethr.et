@@ -138,6 +138,20 @@ export function useUpdateTenantDomain() {
   });
 }
 
+/** Confirms an organisation's invoice paid; the provider receives the transfer. */
+export function useMarkTenantInvoicePaid(tenantPublicId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invoicePublicId: string) => {
+      const { data } = await apiClient.put(
+        `/admin/tenants/${tenantPublicId}/invoices/${invoicePublicId}/mark-paid`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "tenants"] }),
+  });
+}
+
 export function useExtendTrial() {
   const qc = useQueryClient();
   return useMutation({

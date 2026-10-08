@@ -1098,23 +1098,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/invoices/{invoice}/mark-paid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Mark paid invoices */
-        put: operations["billing.markPaid"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/billing/invoices/{invoice}/receipt": {
         parameters: {
             query?: never;
@@ -4201,6 +4184,29 @@ export interface paths {
         put?: never;
         /** Backup tenants */
         post: operations["adminTenant.backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record that an organisation's invoice has been paid
+         * @description Payment is by bank transfer to the provider, so it is the provider who
+         *     knows it arrived. This was a tenant endpoint behind the tenant's own
+         *     `billing.manage`, which let an organisation mark its own invoices paid,
+         *     defeat overdue suspension and count as revenue (audit N94).
+         */
+        put: operations["adminTenant.markInvoicePaid"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10703,37 +10709,6 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
-        };
-    };
-    "billing.markPaid": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The invoice public id */
-                invoice: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        public_id: string;
-                        /** @constant */
-                        status: "paid";
-                        /** Format: date-time */
-                        paid_at: string | null;
-                    };
-                };
-            };
-            401: components["responses"]["AuthenticationException"];
-            403: components["responses"]["AuthorizationException"];
-            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "billing.receipt": {
@@ -19336,6 +19311,35 @@ export interface operations {
                         /** @constant */
                         message: "Backup job queued. You will be notified when the export is ready.";
                         tenant_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "adminTenant.markInvoicePaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+                invoicePublicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        status: string;
+                        /** Format: date-time */
+                        paid_at: string | null;
                     };
                 };
             };

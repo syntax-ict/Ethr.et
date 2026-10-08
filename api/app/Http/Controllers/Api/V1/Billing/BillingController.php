@@ -63,24 +63,6 @@ class BillingController extends Controller
         return response()->json($result);
     }
 
-    public function markPaid(Request $request, Invoice $invoice): JsonResponse
-    {
-        Gate::authorize('billing.manage');
-
-        $invoice->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-        ]);
-
-        AuditLog::record('billing.invoice_paid', $invoice);
-
-        return response()->json([
-            'public_id' => $invoice->public_id,
-            'status' => 'paid',
-            'paid_at' => $invoice->paid_at,
-        ]);
-    }
-
     public function receipt(Invoice $invoice): Response
     {
         Gate::authorize('billing.manage');

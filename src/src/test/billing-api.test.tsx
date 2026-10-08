@@ -160,27 +160,42 @@ describe("useChangePlan", () => {
   });
 });
 
-describe("useMarkInvoicePaid", () => {
-  it("marks an invoice as paid", async () => {
+// An organisation marked its own invoices paid; the provider, who receives
+// the transfer, now confirms it from the platform console (audit N94).
+describe("useMarkTenantInvoicePaid", () => {
+  it("confirms the invoice through the platform console", async () => {
+    let path = "";
     server.use(
-      http.put("*/api/v1/billing/invoices/:id/mark-paid", () =>
-        HttpResponse.json({
-          public_id: "01HZINV002",
-          status: "paid",
-          paid_at: "2026-07-24T12:00:00Z",
-        }),
+      http.put(
+        "*/api/v1/admin/tenants/:tenant/invoices/:invoice/mark-paid",
+        ({ params }) => {
+          path = `${params.tenant}/${params.invoice}`;
+          return HttpResponse.json({
+            public_id: "01HZINV002",
+            status: "paid",
+            paid_at: "2026-07-24T12:00:00Z",
+          });
+        },
       ),
     );
 
-    const { useMarkInvoicePaid } = await import("@/features/billing/api");
-    const { result } = renderHook(() => useMarkInvoicePaid(), {
-      wrapper: createWrapper(),
-    });
+    const { useMarkTenantInvoicePaid } = await import("@/features/admin/api");
+    const { result } = renderHook(
+      () => useMarkTenantInvoicePaid("01HZTEN001"),
+      {
+        wrapper: createWrapper(),
+      },
+    );
 
     result.current.mutate("01HZINV002");
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(path).toBe("01HZTEN001/01HZINV002");
     expect(result.current.data.status).toBe("paid");
-    expect(result.current.data.paid_at).toBeTruthy();
+  });
+
+  it("is gone from the organisation's own billing API", async () => {
+    const billing = await import("@/features/billing/api");
+    expect("useMarkInvoicePaid" in billing).toBe(false);
   });
 });

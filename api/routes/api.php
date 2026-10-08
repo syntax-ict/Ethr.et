@@ -694,6 +694,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             Route::post('/tenants/{publicId}/extend-trial', [AdminTenantController::class, 'extendTrial']);
             Route::post('/tenants/{publicId}/impersonate', [AdminTenantController::class, 'impersonate']);
             Route::post('/tenants/{publicId}/backup', [AdminTenantController::class, 'backup']);
+            Route::put('/tenants/{publicId}/invoices/{invoicePublicId}/mark-paid', [AdminTenantController::class, 'markInvoicePaid']);
             Route::get('/revenue', [AdminDashboardController::class, 'revenue']);
             Route::get('/health', [AdminDashboardController::class, 'health']);
             Route::get('/audit', [AdminDashboardController::class, 'auditLog']);
@@ -730,7 +731,6 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('billing')->group(function () {
         Route::get('/dashboard', [BillingController::class, 'dashboard']);
         Route::post('/change-plan', [BillingController::class, 'changePlan']);
-        Route::put('/invoices/{invoice}/mark-paid', [BillingController::class, 'markPaid']);
         Route::get('/invoices/{invoice}/receipt', [BillingController::class, 'receipt']);
     });
 

@@ -73,19 +73,3 @@ export async function downloadReceipt(invoicePublicId: string): Promise<void> {
   );
   saveBlob(`receipt-${invoicePublicId}.pdf`, data);
 }
-
-export function useMarkInvoicePaid() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (invoicePublicId: string) => {
-      const { data } = await apiClient.put(
-        `/billing/invoices/${invoicePublicId}/mark-paid`,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["billing"] });
-    },
-  });
-}

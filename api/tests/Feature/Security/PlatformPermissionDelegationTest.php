@@ -3,9 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Middleware\EnsurePlatformContext;
 use App\Models\CustomRole;
 use App\Models\Permission;
+use App\Models\User;
 use App\Services\CurrentTenant;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -70,5 +74,30 @@ test('a custom role already holding a platform permission does not open the plat
     // The apex host with no tenant header: nothing resolves a tenant.
     app(CurrentTenant::class)->forget();
 
+    // Refused twice over: the middleware (N93) answers before the gate would.
     test()->getJson('http://ethr.test/api/v1/admin/tenants')->assertForbidden();
+});
+
+// The second wall on its own. Since N86 nobody but a super admin passes the
+// ability gate, so an HTTP test cannot tell the wall from the gate; this calls
+// the middleware with a handler that would answer 200 (audit N93).
+test('the platform middleware admits a super admin and nobody else', function () {
+    $tenant = createTenant();
+    app(CurrentTenant::class)->forget();
+    $middleware = app(EnsurePlatformContext::class);
+    $next = fn () => response()->json(['ok' => true]);
+
+    $asUser = function (User $user): Request {
+        $request = Request::create('http://ethr.test/api/v1/admin/tenants');
+        $request->setUserResolver(fn () => $user);
+
+        return $request;
+    };
+
+    $superAdmin = createUser(['role' => UserRole::SUPER_ADMIN], $tenant);
+    expect($middleware->handle($asUser($superAdmin), $next)->getStatusCode())->toBe(200);
+
+    $tenantAdmin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    expect(fn () => $middleware->handle($asUser($tenantAdmin), $next))
+        ->toThrow(AuthorizationException::class);
 });
