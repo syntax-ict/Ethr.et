@@ -25,6 +25,11 @@ Artisan::command('inspire', function () {
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
 
+// Re-check verified custom domains every Monday, 03:00 UTC (06:00 EAT). Reports
+// a domain whose TXT token or CNAME no longer checks out; never revokes one.
+Schedule::command('tenancy:recheck-custom-domains')
+    ->weeklyOn(1, '03:00')->name('recheck-custom-domains')->withoutOverlapping();
+
 // The per-tenant sweeps below select Tenant::operational(): active tenants and
 // unexpired trials, the same set Tenant::isActive() accepts. Not
 // where('status', 'active'), which skipped every tenant on its six-month trial.

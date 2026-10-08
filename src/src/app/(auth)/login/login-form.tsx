@@ -159,10 +159,28 @@ export function LoginForm() {
       const axiosError = err as {
         response?: {
           status?: number;
-          data?: { detail?: string; errors?: Record<string, string[]> };
+          data?: {
+            detail?: string;
+            errors?: Record<string, string[]>;
+            canonical_url?: string | null;
+          };
         };
         request?: unknown;
       };
+
+      // 409 canonical-address: this organisation signs in at its own address
+      // (its verified custom domain, or its subdomain), never here. The server
+      // answers before it checks the password, so nothing was signed in; the
+      // person signs in again there, where the host-only session cookie will
+      // live. Only an http(s) URL is followed.
+      const canonicalUrl =
+        axiosError.response?.status === 409
+          ? axiosError.response.data?.canonical_url
+          : null;
+      if (canonicalUrl && /^https?:\/\//i.test(canonicalUrl)) {
+        window.location.assign(canonicalUrl);
+        return;
+      }
 
       // RFC-7807 puts the useful text in `errors`, while `detail` stays generic
       // ("The given data was invalid."). The subdomain rule moved server-side,

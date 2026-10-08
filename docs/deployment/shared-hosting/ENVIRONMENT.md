@@ -180,6 +180,17 @@ e-mailed links go to the organisation's custom domain, or else to `ethr.et/{slug
 Resolution accepts a subdomain either way. See
 [`../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md`](../../decisions/OWNER-DECISION-TENANCY-WITHOUT-SUBDOMAINS.md).
 
+```
+# TENANCY_CUSTOM_DOMAIN_TARGET=
+```
+
+**Added 2026-10-08, optional, and absent from the template on purpose.** It is the host an
+organisation's custom domain must be a CNAME for before the console's Verify passes. Unset,
+it is `APP_DOMAIN` itself, which is right on shared hosting: the domain is added to the same
+Plesk site, so `hr.acme.com CNAME ethr.et` is the record. Set it only if the platform
+publishes a dedicated target host. Verification also needs PHP's `dns_get_record()` to reach
+DNS from the host, which has not been measured on this account.
+
 ---
 
 ## Storage sizing

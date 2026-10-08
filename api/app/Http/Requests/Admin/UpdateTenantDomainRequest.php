@@ -16,6 +16,10 @@ use Illuminate\Validation\Validator;
  * before it is checked. The domain must not already belong to another
  * organisation, nor sit under the platform's own domain. The field is
  * required: send `null` explicitly to clear it.
+ *
+ * Assigning a domain also needs the organisation's plan to include
+ * `custom_domain`, and is refused with a 422 on this field otherwise. A new
+ * domain is stored pending until the Verify action finds its DNS records.
  */
 class UpdateTenantDomainRequest extends FormRequest
 {

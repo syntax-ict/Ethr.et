@@ -13,11 +13,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 /**
  * @property TenantStatus $status
  * @property string|null $custom_domain
+ * @property string|null $custom_domain_token
+ * @property Carbon|null $custom_domain_verified_at
  */
 class Tenant extends Model
 {
@@ -92,6 +95,7 @@ class Tenant extends Model
 
     protected $hidden = [
         'id',
+        'custom_domain_token',
     ];
 
     protected function casts(): array
@@ -102,6 +106,7 @@ class Tenant extends Model
             'settings' => 'array',
             'ethiopian_calendar' => 'boolean',
             'trial_ends_at' => 'datetime',
+            'custom_domain_verified_at' => 'datetime',
         ];
     }
 
@@ -238,8 +243,32 @@ class Tenant extends Model
         });
     }
 
+    /**
+     * A custom domain is an address only once its owner has proved control of
+     * it (CustomDomainVerifier). Until then it is pending: it resolves nothing
+     * and no link is built on it.
+     */
+    public function hasVerifiedCustomDomain(): bool
+    {
+        return $this->custom_domain !== null && $this->custom_domain_verified_at !== null;
+    }
+
     protected static function booted(): void
     {
+        // Any change of domain starts verification over: a fresh token, and
+        // pending until the new name is checked. Here rather than in the
+        // controller so no path (console, tinker, a seeder) can carry one
+        // domain's verification over to another. A save that sets the
+        // verification itself, in the same write, is left alone.
+        static::saving(function (self $tenant): void {
+            if (! $tenant->isDirty('custom_domain') || $tenant->isDirty('custom_domain_verified_at')) {
+                return;
+            }
+
+            $tenant->custom_domain_verified_at = null;
+            $tenant->custom_domain_token = $tenant->custom_domain === null ? null : bin2hex(random_bytes(16));
+        });
+
         // ResolveTenant caches this model under `tenant:{subdomain}` for 5 minutes
         // to skip a DB hit per request. Without busting it here, a super admin
         // suspending a tenant (fraud, abuse, non-payment) leaves that tenant fully

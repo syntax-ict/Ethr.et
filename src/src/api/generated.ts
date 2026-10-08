@@ -4119,12 +4119,37 @@ export interface paths {
         get?: never;
         /**
          * Assign, change or clear the tenant's custom domain
-         * @description The organisation is then reachable at that host, and links ETHR e-mails
-         *     to its people use it. `null` clears it. The change applies from the next
-         *     request.
+         * @description A new domain is stored **pending**, with a fresh verification token: it
+         *     resolves nothing and no link uses it until the Verify action finds the
+         *     DNS records `custom_domain_dns` lists. `null` clears it at once.
          */
         put: operations["adminTenant.updateDomain"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tenants/{publicId}/domain/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the tenant's pending custom domain and, if both DNS records are in
+         *     place, make it its address
+         * @description Looks up the TXT record carrying the verification token and the CNAME to
+         *     the platform target. Both must pass; a 422 names each that did not. A
+         *     domain already verified is returned as it is: a DNS hiccup at the moment
+         *     someone presses Verify must not take an organisation's address away.
+         *     Changing the domain is what starts verification over.
+         */
+        post: operations["adminTenant.verifyDomain"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5322,6 +5347,8 @@ export interface components {
             name: string;
             subdomain: string;
             custom_domain: string | null;
+            /** @enum {string|null} */
+            custom_domain_status: "verified" | "pending" | null;
             type: string | null;
             status: string;
             employee_count: number;
@@ -6495,9 +6522,22 @@ export interface components {
         /**
          * PlanFeature
          * @description The feature keys stored in `Plan.features`. These strings already existed as free-form array entries in `PlanSeeder` and were read by nothing except the pricing page — so a Starter tenant could use payroll, webhooks and the audit log despite paying for none of them. Naming them here is what makes the gate checkable: a typo in a route middleware argument is now a fatal `ValueError` at boot rather than a silently permissive check.  The values are load-bearing and must match `PlanSeeder` exactly. They are also persisted in the `plans.features` JSON column of every existing deployment, so renaming one is a data migration, not a rename.
+         *     | |
+         *     |---|
+         *     | `attendance` <br/>  |
+         *     | `leave` <br/>  |
+         *     | `employee_management` <br/>  |
+         *     | `payroll` <br/>  |
+         *     | `reports` <br/>  |
+         *     | `notifications` <br/>  |
+         *     | `api_access` <br/>  |
+         *     | `webhooks` <br/>  |
+         *     | `custom_reports` <br/>  |
+         *     | `audit_log` <br/>  |
+         *     | `custom_domain` <br/> The organisation may be given its own domain (`hr.acme.com`), a paid add-on. It gates nothing a tenant does itself: it decides whether a platform admin may assign the domain. |
          * @enum {string}
          */
-        PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log";
+        PlanFeature: "attendance" | "leave" | "employee_management" | "payroll" | "reports" | "notifications" | "api_access" | "webhooks" | "custom_reports" | "audit_log" | "custom_domain";
         /** PlanResource */
         PlanResource: {
             public_id: string;
@@ -7816,6 +7856,10 @@ export interface components {
          *     before it is checked. The domain must not already belong to another
          *     organisation, nor sit under the platform's own domain. The field is
          *     required: send `null` explicitly to clear it.
+         *
+         *     Assigning a domain also needs the organisation's plan to include
+         *     `custom_domain`, and is refused with a 422 on this field otherwise. A new
+         *     domain is stored pending until the Verify action finds its DNS records.
          */
         UpdateTenantDomainRequest: {
             custom_domain: string | null;
@@ -10066,6 +10110,24 @@ export interface operations {
                         status: 403;
                         /** @constant */
                         detail: "Your account has been suspended.";
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        type: "https://ethr.et/errors/canonical-address";
+                        /** @constant */
+                        title: "Sign In At Your Organisation's Address";
+                        /** @constant */
+                        status: 409;
+                        /** @constant */
+                        detail: "Your organisation signs in at its own address. Taking you there.";
+                        canonical_url: string | null;
                     };
                 };
             };
@@ -19086,6 +19148,15 @@ export interface operations {
                         name: string;
                         subdomain: string;
                         custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
+                        custom_domain_allowed: boolean;
                         type: string | null;
                         status: string;
                         /** Format: date-time */
@@ -19178,12 +19249,54 @@ export interface operations {
                     "application/json": {
                         public_id: string;
                         custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
                     };
                 };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "adminTenant.verifyDomain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        public_id: string;
+                        custom_domain: string | null;
+                        /** @enum {string|null} */
+                        custom_domain_status: "verified" | "pending" | null;
+                        custom_domain_dns: {
+                            txt_name: string;
+                            txt_value: string;
+                            cname_name: string | null;
+                            cname_target: string | null;
+                        } | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "adminTenant.extendTrial": {

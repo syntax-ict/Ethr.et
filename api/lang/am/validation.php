@@ -20,4 +20,8 @@ return [
     'base64_image_too_large' => 'ምስሉ ከ:max ኪባ መብለጥ የለበትም።',
     // English placeholder until the native-speaker review.
     'custom_domain_reserved' => 'A custom domain must be the organisation\'s own domain, not one under :root.',
+    'custom_domain_not_in_plan' => 'This organisation\'s plan does not include a custom domain.',
+    'custom_domain_txt_missing' => 'No TXT record :name with the value :value was found.',
+    'custom_domain_cname_missing' => ':domain is not a CNAME for :target.',
+    'custom_domain_none' => 'This organisation has no custom domain to verify.',
 ];

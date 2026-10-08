@@ -100,6 +100,54 @@ describe('fail-open safeguards', function () {
     });
 });
 
+describe('a paid add-on: custom_domain', function () {
+    // The safeguards above stop a tenant losing something it already uses. A
+    // custom domain is granted by a platform admin, never already in use, so
+    // none of them apply: only a plan that names it allows it (owner decision
+    // 2026-10-08, the Enterprise tier of an organisation's address).
+    test('a plan that names it allows it', function () {
+        $tenant = createTenant();
+        subscribeTenant($tenant, planWithFeatures(['attendance', 'custom_domain']));
+
+        expect(app(PlanFeatureService::class)->allows($tenant, PlanFeature::CustomDomain))->toBeTrue();
+    });
+
+    test('a trial does not get it', function () {
+        $tenant = createTenant();
+        subscribeTenant($tenant, planWithFeatures(['attendance']));
+        $tenant->update(['status' => TenantStatus::TRIAL]);
+
+        expect(app(PlanFeatureService::class)->allows($tenant->refresh(), PlanFeature::CustomDomain))->toBeFalse();
+    });
+
+    test('no subscription and a null feature list do not get it', function () {
+        $tenant = createTenant();
+        $tenant->update(['status' => TenantStatus::ACTIVE]);
+        expect(app(PlanFeatureService::class)->allows($tenant->refresh(), PlanFeature::CustomDomain))->toBeFalse();
+
+        subscribeTenant($tenant, planWithFeatures(features: [], slug: 'legacy'));
+        $tenant->subscription->plan->update(['features' => null]);
+        expect(app(PlanFeatureService::class)->allows($tenant->refresh(), PlanFeature::CustomDomain))->toBeFalse();
+    });
+
+    test('Enterprise includes it, and no lower tier does', function () {
+        $this->seed(PlanSeeder::class);
+
+        $withDomain = Plan::query()->get()
+            ->filter(fn (Plan $plan): bool => in_array('custom_domain', (array) $plan->features, true))
+            ->pluck('slug')->values()->all();
+
+        expect($withDomain)->toBe(['enterprise']);
+    });
+
+    test('a trial still reads null on /auth/me, as an add-on is nothing the tenant gates on', function () {
+        $tenant = createTenant();
+        $tenant->update(['status' => TenantStatus::TRIAL]);
+
+        expect(app(PlanFeatureService::class)->enabledFor($tenant->refresh()))->toBeNull();
+    });
+});
+
 describe('route enforcement', function () {
     test('a Starter tenant is refused payroll processing', function () {
         $tenant = createTenant();

@@ -21,7 +21,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SimpleTable } from "@/components/shared/simple-table";
 import { RoleGate } from "@/components/shared/role-gate";
-import { useAdminTenants } from "@/features/admin/api";
+import { useAdminTenants, verifiedDomain } from "@/features/admin/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -200,7 +200,7 @@ export default function AdminTenantsPage() {
                         >
                           {tenantAddress(
                             tenant.subdomain,
-                            tenant.custom_domain,
+                            verifiedDomain(tenant),
                           )}
                         </span>,
                         <span

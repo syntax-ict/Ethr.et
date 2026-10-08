@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Enums\PlanFeature;
 use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -23,11 +24,14 @@ use App\Services\Auth\ImpersonationToken;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\SessionHandoff;
 use App\Services\AuthService;
+use App\Services\CustomDomainVerifier;
 use App\Services\MfaService;
+use App\Services\PlanFeatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class AdminTenantController extends Controller
 {
@@ -70,7 +74,7 @@ class AdminTenantController extends Controller
         );
     }
 
-    public function show(string $publicId): JsonResponse
+    public function show(string $publicId, PlanFeatureService $plans): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -80,11 +84,8 @@ class AdminTenantController extends Controller
             ->withCount(['employees' => fn ($q) => $q->withoutGlobalScopes()])
             ->firstOrFail();
 
-        $subscription = Subscription::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
-            ->with('plan')
-            ->latest()
-            ->first();
+        $subscription = $this->latestSubscription($tenant);
+        $tenant->setRelation('subscription', $subscription);
 
         $invoices = Invoice::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
@@ -118,6 +119,9 @@ class AdminTenantController extends Controller
             'name' => $tenant->name,
             'subdomain' => $tenant->subdomain,
             'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
+            'custom_domain_allowed' => $plans->allows($tenant, PlanFeature::CustomDomain),
             'type' => $tenant->type,
             'status' => $tenant->status->value,
             'trial_ends_at' => $tenant->trial_ends_at,
@@ -162,11 +166,11 @@ class AdminTenantController extends Controller
     /**
      * Assign, change or clear the tenant's custom domain.
      *
-     * The organisation is then reachable at that host, and links ETHR e-mails
-     * to its people use it. `null` clears it. The change applies from the next
-     * request.
+     * A new domain is stored **pending**, with a fresh verification token: it
+     * resolves nothing and no link uses it until the Verify action finds the
+     * DNS records `custom_domain_dns` lists. `null` clears it at once.
      */
-    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId): JsonResponse
+    public function updateDomain(UpdateTenantDomainRequest $request, string $publicId, PlanFeatureService $plans): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -179,8 +183,18 @@ class AdminTenantController extends Controller
             ->where('public_id', $publicId)
             ->firstOrFail();
 
-        $oldDomain = $tenant->custom_domain;
         $newDomain = $request->input('custom_domain');
+        $tenant->setRelation('subscription', $this->latestSubscription($tenant));
+
+        // A custom domain is a paid add-on: assigning one needs a plan that
+        // names `custom_domain`. Clearing one never does.
+        if ($newDomain !== null && ! $plans->allows($tenant, PlanFeature::CustomDomain)) {
+            throw ValidationException::withMessages([
+                'custom_domain' => [__('validation.custom_domain_not_in_plan')],
+            ]);
+        }
+
+        $oldDomain = $tenant->custom_domain;
         $tenant->update(['custom_domain' => $newDomain]);
 
         AuditLog::record('admin.tenant.domain_changed', $tenant, [
@@ -191,7 +205,129 @@ class AdminTenantController extends Controller
         return response()->json([
             'public_id' => $tenant->public_id,
             'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
         ]);
+    }
+
+    /**
+     * Check the tenant's pending custom domain and, if both DNS records are in
+     * place, make it its address.
+     *
+     * Looks up the TXT record carrying the verification token and the CNAME to
+     * the platform target. Both must pass; a 422 names each that did not. A
+     * domain already verified is returned as it is: a DNS hiccup at the moment
+     * someone presses Verify must not take an organisation's address away.
+     * Changing the domain is what starts verification over.
+     */
+    public function verifyDomain(string $publicId, CustomDomainVerifier $verifier): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        $tenant = Tenant::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+
+        if ($tenant->custom_domain === null) {
+            throw ValidationException::withMessages([
+                'custom_domain' => [__('validation.custom_domain_none')],
+            ]);
+        }
+
+        if (! $tenant->hasVerifiedCustomDomain()) {
+            $errors = $this->failedDnsChecks($tenant, $verifier->check($tenant));
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            $tenant->forceFill(['custom_domain_verified_at' => now()])->save();
+            AuditLog::record('admin.tenant.domain_verified', $tenant, [
+                'domain' => $tenant->custom_domain,
+            ]);
+        }
+
+        return response()->json([
+            'public_id' => $tenant->public_id,
+            'custom_domain' => $tenant->custom_domain,
+            'custom_domain_status' => $this->domainStatus($tenant),
+            'custom_domain_dns' => $this->domainDns($tenant),
+        ]);
+    }
+
+    /**
+     * One message per DNS check that did not pass, keyed `txt` and `cname`.
+     *
+     * @param  array{txt: bool, cname: bool}  $checks
+     * @return array<string, list<string>>
+     */
+    private function failedDnsChecks(Tenant $tenant, array $checks): array
+    {
+        $dns = $this->domainDns($tenant);
+        $errors = [];
+
+        if (! $checks['txt'] && $dns !== null) {
+            $errors['txt'] = [__('validation.custom_domain_txt_missing', [
+                'name' => $dns['txt_name'],
+                'value' => $dns['txt_value'],
+            ])];
+        }
+
+        if (! $checks['cname']) {
+            $errors['cname'] = [__('validation.custom_domain_cname_missing', [
+                'domain' => (string) $tenant->custom_domain,
+                'target' => CustomDomainVerifier::target() ?? '-',
+            ])];
+        }
+
+        return $errors;
+    }
+
+    /**
+     * The tenant's current subscription, with its plan.
+     *
+     * Scope-free and stating `tenant_id` itself: the console resolves no
+     * tenant, so `$tenant->subscription` would answer null through
+     * BelongsToTenant's fail-closed scope, and PlanFeatureService would then
+     * read every plan as absent. One site for show() and updateDomain(), so
+     * the plan the console displays is the plan it enforces.
+     */
+    private function latestSubscription(Tenant $tenant): ?Subscription
+    {
+        return Subscription::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->with('plan')
+            ->latest()
+            ->first();
+    }
+
+    /** `null` with no domain, `pending` until Verify passes, then `verified`. */
+    private function domainStatus(Tenant $tenant): ?string
+    {
+        if ($tenant->custom_domain === null) {
+            return null;
+        }
+
+        return $tenant->hasVerifiedCustomDomain() ? 'verified' : 'pending';
+    }
+
+    /**
+     * The two DNS records the organisation publishes, or null with no domain.
+     *
+     * @return array{txt_name: string, txt_value: string, cname_name: string, cname_target: string|null}|null
+     */
+    private function domainDns(Tenant $tenant): ?array
+    {
+        $domain = $tenant->custom_domain;
+        if ($domain === null) {
+            return null;
+        }
+
+        return [
+            'txt_name' => CustomDomainVerifier::txtName($domain),
+            'txt_value' => CustomDomainVerifier::txtValue((string) $tenant->custom_domain_token),
+            'cname_name' => $domain,
+            'cname_target' => CustomDomainVerifier::target(),
+        ];
     }
 
     public function extendTrial(ExtendTrialRequest $request, string $publicId): JsonResponse

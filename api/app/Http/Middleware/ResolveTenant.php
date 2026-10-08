@@ -22,7 +22,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Resolution order:
  *   0. Custom domain — a host the platform admin assigned to one tenant
- *      (`hr.acme.com`). Checked first: on that host it is the only answer.
+ *      (`hr.acme.com`), once verified. Checked first: on that host it is the
+ *      only answer.
  *   1. Subdomain — acme.ethr.et, wherever the host can serve it.
  *   2. X-Tenant header — on the APEX (ethr.et / www.ethr.et), in every
  *      environment since 2026-10-06, because the production host cannot serve
@@ -100,7 +101,10 @@ class ResolveTenant
     }
 
     /**
-     * A host the platform admin assigned to one tenant.
+     * A host the platform admin assigned to one tenant, and that tenant proved
+     * it controls (CustomDomainVerifier). A pending domain resolves nothing:
+     * until 2026-10-08 assignment alone made a domain resolve, with nothing to
+     * show the organisation held it or that it pointed here.
      *
      * Only consulted when APP_DOMAIN is set: without it there is no way to tell
      * a custom domain from the deployment's own single host. A resolved custom
@@ -127,7 +131,9 @@ class ResolveTenant
         $tenant = Cache::remember(
             "tenant-domain:{$host}",
             300,
-            fn () => Tenant::where('custom_domain', $host)->first() ?? false,
+            fn () => Tenant::where('custom_domain', $host)
+                ->whereNotNull('custom_domain_verified_at')
+                ->first() ?? false,
         );
 
         if (! $tenant instanceof Tenant) {

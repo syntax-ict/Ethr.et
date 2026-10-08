@@ -44,6 +44,7 @@ const PLAN_FEATURES: readonly PlanFeature[] = [
   "audit_log",
   "api_access",
   "webhooks",
+  "custom_domain",
 ];
 
 const FEATURE_FALLBACK: Record<PlanFeature, string> = {
@@ -57,6 +58,7 @@ const FEATURE_FALLBACK: Record<PlanFeature, string> = {
   audit_log: "Audit log",
   api_access: "API access",
   webhooks: "Webhooks",
+  custom_domain: "Custom domain (add-on)",
 };
 
 /**

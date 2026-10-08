@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Support\FrontendUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
 /**
- * ethr.et/{slug}: an organisation's own entry URL.
+ * ethr.et/{slug}: the fallback address of every organisation, which only
+ * redirects.
  *
- * The production host cannot serve wildcard subdomains (M3), so an
- * organisation is reached by path instead. This sends a real organisation to
- * its sign-in page with the organisation preset (`/login?org={slug}`), where
- * the frontend remembers it and names it in X-Tenant from then on. An unknown
- * or reserved name gets a real 404: the static site's own 404 page, with a 404
- * status, not a soft one.
+ * An organisation has one canonical address (owner decision 2026-10-08):
+ * its verified custom domain, else its subdomain when this deployment serves
+ * them, else the shared host. This sends a real organisation to the first of
+ * those it has (FrontendUrl::canonicalOrigin), at its sign-in page. Only an
+ * organisation with neither lands on `/login?org={slug}`, where the frontend
+ * prefills it and names it in X-Tenant after sign-in.
+ *
+ * An unknown or reserved name gets a real 404: the static site's own 404
+ * page, with a 404 status, not a soft one.
  *
  * Only single-segment paths with no file behind them reach this; .htaccess
  * serves every real page and asset before it. The answer is the same for an
@@ -29,12 +34,17 @@ final class OrganisationEntryController
     {
         $slug = strtolower($slug);
 
-        if (in_array($slug, Tenant::RESERVED_SUBDOMAINS, true)
-            || ! Tenant::query()->where('subdomain', $slug)->exists()) {
+        $tenant = in_array($slug, Tenant::RESERVED_SUBDOMAINS, true)
+            ? null
+            : Tenant::query()->where('subdomain', $slug)->first();
+
+        if ($tenant === null) {
             return $this->notFound();
         }
 
-        return redirect('/login?org='.rawurlencode($slug));
+        $origin = FrontendUrl::canonicalOrigin($tenant);
+
+        return redirect($origin !== null ? $origin.'/login' : '/login?org='.rawurlencode($slug));
     }
 
     private function notFound(): Response
