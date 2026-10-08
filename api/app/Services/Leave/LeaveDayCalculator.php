@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Leave;
 
 use App\Models\Holiday;
+use App\Models\Tenant;
+use App\Support\WorkingWeek;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 
@@ -30,11 +32,14 @@ final class LeaveDayCalculator
             ->map(fn ($d) => $d instanceof Carbon ? $d->format('Y-m-d') : (string) $d)
             ->toArray();
 
+        // `Tenant` is global (no tenant scope), so this needs no bypass.
+        $workingDays = WorkingWeek::of(Tenant::query()->find($tenantId));
+
         $days = 0;
         $period = CarbonPeriod::create($startDate, $endDate);
 
         foreach ($period as $date) {
-            if ($date->isWeekend()) {
+            if (! in_array($date->dayOfWeekIso, $workingDays, true)) {
                 continue;
             }
 

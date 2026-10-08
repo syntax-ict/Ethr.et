@@ -139,6 +139,15 @@ export function prevEthiopianMonth(
   return { year: year - 1, month: 13 };
 }
 
+/** The name of Ethiopian month 1-13 (Meskerem … Pagume). */
+export function ethiopianMonthName(
+  month: number,
+  locale: string = "en",
+): string {
+  const months = locale === "am" ? ETHIOPIAN_MONTHS_AM : ETHIOPIAN_MONTHS;
+  return months[month - 1] ?? `Month ${month}`;
+}
+
 export function formatEthiopian(
   date: EthiopianDate,
   locale: string = "en",

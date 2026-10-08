@@ -181,3 +181,19 @@ test('does not count holidays from other tenants', function () {
 
     expect($days)->toBe(5.0);
 });
+
+// The organisation's working week was returned by GET /settings and read by
+// nothing that counted days: Saturday and Sunday were skipped whatever it had
+// set (audit N82).
+test('counts the organisation working week, not a fixed Monday to Friday', function () {
+    $tenant = Tenant::factory()->create(['settings' => ['working_days' => [1, 2, 3, 4, 5, 6]]]);
+
+    // Mon 2025-01-06 to Sun 2025-01-12: six working days, Sunday off.
+    $days = (new LeaveDayCalculator)->calculateDays(
+        Carbon::parse('2025-01-06'),
+        Carbon::parse('2025-01-12'),
+        tenantId: $tenant->id,
+    );
+
+    expect($days)->toBe(6.0);
+});

@@ -17,6 +17,7 @@ use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Support\CalendarPreference;
 use App\Support\TenantSecurityPolicy;
+use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -239,12 +240,7 @@ class SettingsController extends Controller
      */
     private function workingDays(Tenant $tenant): array
     {
-        $days = [];
-        foreach ($tenant->settings['working_days'] ?? [1, 2, 3, 4, 5] as $day) {
-            $days[] = (int) $day;
-        }
-
-        return $days;
+        return WorkingWeek::of($tenant);
     }
 
     /**
