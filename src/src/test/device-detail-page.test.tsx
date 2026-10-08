@@ -7,7 +7,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { DeviceDetail } from "@/app/(dashboard)/devices/[id]/device-detail";
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is wrapped in <RoleGate anyPermission={["viewDevices"]}>; grant access directly.
 // `granted` decides hasPermission: everything by default, or a seeded role's set.
 const granted = vi.hoisted(() => ({ abilities: null as string[] | null }));
 vi.mock("@/lib/hooks/usePermissions", () => ({
@@ -16,7 +16,7 @@ vi.mock("@/lib/hooks/usePermissions", () => ({
     hasRole: () => true,
     hasPermission: (ability: string) =>
       granted.abilities === null || granted.abilities.includes(ability),
-    can: {},
+    can: { viewDevices: true },
     role: "hr_admin",
   }),
 }));

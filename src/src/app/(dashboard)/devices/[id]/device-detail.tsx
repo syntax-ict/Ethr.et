@@ -181,7 +181,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
 
   if (!id || isLoading) {
     return (
-      <RoleGate minRole="hr_admin">
+      <RoleGate anyPermission={["viewDevices"]}>
         <div className="space-y-6">
           <Skeleton className="h-8 w-48" />
           <div className="grid gap-4 sm:grid-cols-3">
@@ -210,7 +210,7 @@ export function DeviceDetail({ routeId }: { routeId: string }) {
   const eventPages = events?.last_page ?? 1;
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>

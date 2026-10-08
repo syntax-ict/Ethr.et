@@ -61,7 +61,7 @@ The Approval Center is a single queue for everything that needs your decision:
 - **Attendance corrections** (a request to fix a missed or wrong punch)
 - **Profile update requests** for approval-controlled fields (bank details,
   legal name, TIN) — these appear only for people who can update employee
-  records (HR Admin, Finance Admin, Tenant Admin)
+  records (HR Admin, Tenant Admin)
 
 All three types appear in one list; there are no sub-tabs. Each row shows the
 employee's name, a short summary of the request in your language, and when it

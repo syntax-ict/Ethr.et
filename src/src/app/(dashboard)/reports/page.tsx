@@ -126,7 +126,7 @@ export default function ReportsPage() {
   const plan = usePlanFeatures();
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewReports"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("reports_page.title")}

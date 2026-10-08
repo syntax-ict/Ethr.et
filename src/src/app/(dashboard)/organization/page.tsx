@@ -64,7 +64,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 export default function OrganizationPage() {
   const { t } = useT();
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["manageOrg"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("org.title", "Organization")}

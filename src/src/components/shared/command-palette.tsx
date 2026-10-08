@@ -81,7 +81,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const { can, isSupervisor, isFinanceAdmin, isTenantAdmin } = usePermissions();
+  const { can, isSupervisor, isTenantAdmin } = usePermissions();
   const settingsLanding = useSettingsLanding();
   const { t } = useT();
 
@@ -209,13 +209,13 @@ export function CommandPalette() {
             label: t("nav.loans", "Loans"),
             href: "/payroll/loans",
             icon: Banknote,
-            show: isFinanceAdmin,
+            show: can.viewPayrollRuns,
           },
           {
             label: t("nav.cost_sharing", "Cost Sharing"),
             href: "/payroll/cost-sharing",
             icon: GraduationCap,
-            show: isFinanceAdmin,
+            show: can.viewPayrollRuns,
           },
           {
             label: t("nav.reports", "Reports"),
@@ -356,7 +356,7 @@ export function CommandPalette() {
         ],
       },
     ],
-    [t, can, isSupervisor, isFinanceAdmin, isTenantAdmin, settingsLanding],
+    [t, can, isSupervisor, isTenantAdmin, settingsLanding],
   );
 
   const showPeopleGroup =

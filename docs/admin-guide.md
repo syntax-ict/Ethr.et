@@ -189,7 +189,7 @@ After processing, a **Tenant Admin** reviews the run → Approve. Only Tenant Ad
 
 Employees see their own payslips at **My Payslips** in the sidebar once the run is approved. **Download** gives a PDF with earnings (including each allowance), deductions, net pay, employer pension and the organization name. Amharic names print correctly; the payslip labels are in English only.
 
-HR Admins, Finance Admins and Tenant Admins can view any employee's payslips.
+Finance Admins and Tenant Admins can view any employee's payslips.
 
 ---
 
@@ -257,13 +257,13 @@ Each user has one role. The built-in roles and what they hold today:
 | Role | Access |
 |------|--------|
 | Tenant Admin | Everything in the organization. Only this role can approve, void and reprocess payroll; change payroll rules; change organization settings, roles, API keys, webhooks and billing; register, edit and remove devices; delete employees, shifts, holidays and organization units; deactivate logins |
-| HR Admin | All employees: create, update, status transitions, financial details, personnel actions, disciplinary and retirement cases. Organization structure, shifts and holidays (create and update). Attendance for everyone, attendance rules and conflicts, viewing devices. Leave types, all leave, balance adjustments. Leave and correction approval for everyone. Reports, announcements, the executive dashboard. Inviting users and changing their access. Running payroll, loans and cost sharing |
-| Finance Admin | The same permissions as HR Admin (see below) |
+| HR Admin | The people side. All employees: create, update, status transitions, bank and salary details, personnel actions, disciplinary and retirement cases. Organization structure, shifts and holidays (create and update). Attendance for everyone, attendance rules and conflicts, viewing devices. Leave types, all leave, balance adjustments. Leave and correction approval for everyone. Reports, announcements, the executive dashboard. Inviting users and changing their access. **No payroll** |
+| Finance Admin | The payroll side. Running payroll, loans and cost sharing; viewing payroll rules, every payroll run and payslip, and the accounting export. Reading every employee, their attendance, leave and pay details. Leave and correction approval for everyone. Reports and the executive dashboard. **Cannot add or change employees, or their bank details** |
 | Department Admin | Same permissions as Supervisor, reaching everyone in their own department |
 | Supervisor | Their direct reports: leave and correction approval, team attendance and leave, employee records (read), employment history, disciplinary and retirement cases (read); a dashboard limited to their own branch |
 | Employee | Own attendance, corrections, leave, payslips and profile |
 
-**HR Admin and Finance Admin currently hold identical permissions.** To separate them — for example, an HR role without payroll, or a finance role without employee management — create custom roles at **Settings → Roles & Permissions** and assign them. A custom role replaces the permissions of the user's built-in role. Each custom role also sets **whose records** its holders reach — their own, their direct reports, team, department, branch, or everyone — so an HR role for one branch is possible. A user can only be given a custom role by someone who already holds everything it grants. See [`PERMISSIONS.md`](PERMISSIONS.md).
+**Separation of duties.** The person who runs payroll (Finance Admin) cannot change the bank accounts it pays into (HR Admin), and nobody but the Tenant Admin approves a run. For any other split — an HR role for one branch, a payroll clerk without loans — create custom roles at **Settings → Roles & Permissions** and assign them. A custom role replaces the permissions of the user's built-in role. Each custom role also sets **whose records** its holders reach — their own, their direct reports, team, department, branch, or everyone — so an HR role for one branch is possible. A user can only be given a custom role by someone who already holds everything it grants. See [`PERMISSIONS.md`](PERMISSIONS.md).
 
 A custom role cannot be deleted while any user holds it; reassign those users first.
 

@@ -12,12 +12,12 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-// The page is wrapped in <RoleGate minRole="hr_admin">; grant access directly.
+// The page is wrapped in <RoleGate anyPermission={["viewReports"]}>; grant access directly.
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
-    can: {},
+    can: { viewReports: true },
     role: "hr_admin",
   }),
 }));

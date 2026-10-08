@@ -38,7 +38,7 @@ export default function DeviceDashboardPage() {
   const allDevices: Device[] = devices?.data ?? [];
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" asChild>

@@ -176,16 +176,16 @@ Permissions are cached through the Laravel cache for 1 hour — `role_permission
 
 ## Default Role Assignments
 
-Roles: `employee`, `supervisor`, `dept_admin`, `hr_admin`, `finance_admin`, `tenant_admin`, plus `super_admin` (implicit bypass, above). Grants are cumulative: each role holds everything in the rows above it.
+Roles: `employee`, `supervisor`, `dept_admin`, `hr_admin`, `finance_admin`, `tenant_admin`, plus `super_admin` (implicit bypass, above). Grants are built from the sets below. Since 2026-10-08 `hr_admin` and `finance_admin` hold **different** sets (audit N95): HR the people side, Finance the payroll side, and both the Director set.
 
 | Role | Holds |
 |---|---|
 | `employee` | **Everyone** set |
 | `supervisor` | Everyone + **Supervisor** set |
 | `dept_admin` | Everyone + Supervisor set — **identical to `supervisor`**; only the reach differs (see *Scope Rules*) |
-| `hr_admin` | Everyone + Supervisor + **HR** + **Finance** sets |
-| `finance_admin` | Everyone + Supervisor + HR + Finance sets — **identical to `hr_admin`** |
-| `tenant_admin` | Everyone + Supervisor + HR + Finance + **Tenant Admin** sets |
+| `hr_admin` | Everyone + Supervisor + **Director** + **HR** sets |
+| `finance_admin` | Everyone + Supervisor + **Director** + **Finance** sets |
+| `tenant_admin` | Everyone + Supervisor + Director + HR + Finance + **Tenant Admin** sets |
 
 ### Everyone
 
@@ -213,26 +213,33 @@ retirement_case.viewAny,
 dashboard.regional
 ```
 
+### Director set (HR and Finance Admin)
+
+```
+attendance.viewAll, leave.viewAll,
+employee.viewFinancial,
+report.generate,
+dashboard.executive
+```
+
 ### HR set
 
 ```
 org.create, org.update,
-attendance.viewAll, attendance.manage,
+attendance.manage,
 attendance.viewConflicts, attendance.resolveConflicts,
 shift.create, shift.update,
 device.viewAny, device.view,
 correction.viewAll,
 holiday.create, holiday.update,
-leave.manageTypes, leave.viewAll, leave.adjustBalance,
+leave.manageTypes, leave.adjustBalance,
 employee.create, employee.update, employee.transition,
-employee.viewFinancial, employee.updateFinancial,
+employee.updateFinancial,
 personnel_action.create,
 disciplinary_case.manage,
 retirement_case.manage,
 announcement.manage,
-report.generate,
-users.viewAny, users.invite, users.update,
-dashboard.executive
+users.viewAny, users.invite, users.update
 ```
 
 ### Finance set
@@ -262,7 +269,7 @@ settings.manage
 
 Consequences worth knowing:
 
-- **`hr_admin` and `finance_admin` hold the same permissions.** Separating them needs custom roles.
+- **Separation of duties, pinned by `PermissionSystemTest`:** below tenant admin, nobody both changes bank details (`employee.updateFinancial`, HR) and processes payroll (`payroll.process`, Finance), and nobody both processes and approves a run (`payroll.approve` is tenant admin's).
 - **Only `tenant_admin` can approve, void or reprocess payroll**, change payroll configuration, or register, edit and remove devices.
 - **`supervisor` and `dept_admin` do not hold `report.generate`**, so they have no reports.
 - No role is granted `admin.manage`, and none can be: it is a **platform-only** ability (`Permission::PLATFORM_ONLY`). The catalogue offered to tenants leaves it out, custom-role validation refuses it, and permission resolution never returns it for anyone but `super_admin`, whatever a role row says (audit N86).

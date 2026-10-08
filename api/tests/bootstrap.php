@@ -53,3 +53,16 @@ foreach ($phpunitControlledKeys as $key) {
 foreach (['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'] as $key) {
     unset($_SERVER[$key]);
 }
+
+/**
+ * Start every process in the application's timezone, UTC.
+ *
+ * A test that never boots Laravel runs in php.ini's `date.timezone`. On a
+ * Linux CI runner that is UTC; under XAMPP on Windows it is Europe/Berlin. So
+ * EthiopianCalendarTest's Pagume counts and EthiopianTimezoneTest passed only
+ * when some earlier test in the same process had booted Laravel, which sets
+ * UTC — and failed run alone, first, or under `--parallel` (measured
+ * 2026-10-08: four failures, each an off-by-one day). Laravel still sets
+ * config('app.timezone') on boot; this only fixes the process before it.
+ */
+date_default_timezone_set('UTC');

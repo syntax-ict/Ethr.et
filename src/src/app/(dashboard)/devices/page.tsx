@@ -212,7 +212,7 @@ export default function DevicesPage() {
   const isMockAdapter = form.adapter_type === "mock";
 
   return (
-    <RoleGate minRole="hr_admin">
+    <RoleGate anyPermission={["viewDevices"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("devices_page.title")}
