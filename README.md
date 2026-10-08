@@ -16,8 +16,10 @@ with the constraints Ethiopian deployments actually impose:
   IndexedDB and sync when the network returns.
 - **Amharic as a first-class language**, not an afterthought — `en` and `am` ship
   at full parity, with `om`/`ti`/`so`/`sid` supported architecturally.
-- **Self-hostable on an Ethiopian VPS.** No cloud-provider-specific services and
-  no paid API dependencies; everything is self-hosted or free-tier.
+- **Runs on Ethiopian shared hosting.** No cloud-provider-specific services, no
+  paid API dependencies, no long-running processes; everything is self-hosted or
+  free-tier. (It was "self-hostable on an Ethiopian VPS" until the VPS assets
+  were removed on 2026-09-26.)
 
 ## Stack
 
@@ -116,7 +118,7 @@ immutable audit log, RFC-7807 errors, and the rest) that every change is held to
 | [`ENTERPRISE_ROADMAP.md`](docs/ENTERPRISE_ROADMAP.md) | **Live status.** What is done, partial, or missing, grounded in the code |
 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design and data flow |
 | [`DATABASE.md`](docs/DATABASE.md) · [`PERMISSIONS.md`](docs/PERMISSIONS.md) | Schema and the permission model |
-| [`DEPLOYMENT.md`](docs/DEPLOYMENT.md) · [`SECURITY.md`](docs/SECURITY.md) | Production deployment and security posture |
+| [`PLESK-GO-LIVE.md`](docs/deployment/PLESK-GO-LIVE.md) · [`SECURITY.md`](docs/SECURITY.md) | Production deployment (Plesk Git + the Laravel Toolkit) and security posture |
 | [`LOCALIZATION.md`](docs/LOCALIZATION.md) · [`DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | i18n and the design system |
 | [`audit/BASELINE.md`](docs/audit/BASELINE.md) | **Measured state of the codebase** — what is verified vs merely documented |
 | [`deployment/GATE-0-RESULT.md`](docs/deployment/GATE-0-RESULT.md) | Plesk hosting verification — five capabilities `VERIFIED`, the rest outstanding (see its reconciliation section) |
