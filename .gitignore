@@ -80,8 +80,11 @@ src/lighthouse-reports/
 src/.lighthouseci/
 src/e2e/.auth/
 
-# Claude Code local dev-server wiring (machine-specific, not team config)
+# Claude Code local state (machine-specific, not team config): dev-server wiring,
+# per-user permission grants, and the worktrees the desktop app makes for subagents.
 .claude/launch.json
+.claude/settings.local.json
+.claude/worktrees/
 
 # A local production REHEARSAL: XAMPP Apache + MariaDB serving the Bronze layout
 # (docroot assembly, rendered .htaccess, static export) against an isolated copy of
