@@ -93,17 +93,33 @@ export function useDevices(
 ) {
   return useQuery<PaginatedResponse<Device>>({
     queryKey: keys.list(params),
+    // Every page, merged. Neither the device list nor the health dashboard
+    // has a pager, and the API pages at 25, so a 26th device could not be
+    // seen, edited or pulled, while the dashboard's Total counted it (audit
+    // N69). Looped here, not via fetchAllPages, so each request keeps the
+    // background flag a poll needs.
     queryFn: async ({ client, queryKey }) => {
-      const query: Record<string, string | number> = {};
+      const query: Record<string, string | number> = {
+        per_page: params?.per_page ?? 100,
+      };
       if (params?.search) query.search = params.search;
       if (params?.status) query["filter[status]"] = params.status;
-      if (params?.per_page) query.per_page = params.per_page;
-      return (
-        await apiClient.get("/devices", {
-          params: query,
-          ...backgroundRequest(isPoll(client, queryKey, options)),
-        })
-      ).data;
+
+      const background = backgroundRequest(isPoll(client, queryKey, options));
+      const rows: Device[] = [];
+      let last: PaginatedResponse<Device> | null = null;
+      for (let page = 1; page <= 50; page++) {
+        last = (
+          await apiClient.get<PaginatedResponse<Device>>("/devices", {
+            params: { ...query, page },
+            ...background,
+          })
+        ).data;
+        rows.push(...last.data);
+        if (page >= (last.meta?.last_page ?? 1)) break;
+      }
+
+      return { ...(last as PaginatedResponse<Device>), data: rows };
     },
     refetchInterval: options?.refetchInterval,
   });

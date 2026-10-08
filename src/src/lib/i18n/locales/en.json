@@ -240,6 +240,8 @@
   "analytics_page.used_days": "Used Days",
   "analytics_page.utilization": "Utilization",
   "analytics_page.workforce": "Workforce",
+  "announcements.confirm_delete_desc": "It is removed for everyone and cannot be recovered.",
+  "announcements.confirm_delete_title": "Delete announcement?",
   "announcements.content": "Content",
   "announcements.create_failed": "Failed to create announcement",
   "announcements.delete_failed": "Failed to delete announcement",

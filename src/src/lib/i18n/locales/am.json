@@ -240,6 +240,8 @@
   "analytics_page.used_days": "ጥቅም ላይ የዋሉ ቀናት",
   "analytics_page.utilization": "አጠቃቀም",
   "analytics_page.workforce": "የስራ ሃይል",
+  "announcements.confirm_delete_desc": "It is removed for everyone and cannot be recovered.",
+  "announcements.confirm_delete_title": "Delete announcement?",
   "announcements.content": "ይዘት",
   "announcements.create_failed": "ማስታወቂያ መፍጠር አልተሳካም",
   "announcements.delete_failed": "ማስታወቂያውን መሰረዝ አልተቻለም",

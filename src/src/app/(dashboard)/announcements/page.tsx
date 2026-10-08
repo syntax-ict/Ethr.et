@@ -29,7 +29,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
-  useAnnouncements,
+  useAllAnnouncements,
   useCreateAnnouncement,
   useDeleteAnnouncement,
   useUpdateAnnouncement,
@@ -37,6 +37,7 @@ import {
   type AnnouncementPriority,
 } from "@/features/announcements/api";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 const EMPTY_FORM: {
   title: string;
@@ -77,7 +78,7 @@ export default function AnnouncementsPage() {
     setDialogOpen(true);
   }
 
-  const { data, isLoading } = useAnnouncements();
+  const { data, isLoading } = useAllAnnouncements();
   const createAnnouncement = useCreateAnnouncement();
   const updateAnnouncement = useUpdateAnnouncement();
   const deleteAnnouncement = useDeleteAnnouncement();
@@ -120,10 +121,16 @@ export default function AnnouncementsPage() {
     );
   }
 
+  // Deleting is permanent (announcements are not soft-deleted) and was one
+  // click on a bare icon, so it is confirmed first (audit N70).
+  const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null);
+
   function remove(publicId: string) {
     deleteAnnouncement.mutate(publicId, {
-      onSuccess: () =>
-        toast.success(t("announcements.deleted", "Announcement deleted")),
+      onSuccess: () => {
+        setPendingDelete(null);
+        toast.success(t("announcements.deleted", "Announcement deleted"));
+      },
       onError: () =>
         toast.error(
           t("announcements.delete_failed", "Failed to delete announcement"),
@@ -131,7 +138,7 @@ export default function AnnouncementsPage() {
     });
   }
 
-  const announcements: Announcement[] = data?.data ?? [];
+  const announcements: Announcement[] = data ?? [];
 
   return (
     <div className="space-y-6">
@@ -207,7 +214,7 @@ export default function AnnouncementsPage() {
                         variant="ghost"
                         size="sm"
                         aria-label={t("common.delete", "Delete")}
-                        onClick={() => remove(a.public_id)}
+                        onClick={() => setPendingDelete(a)}
                       >
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -219,6 +226,22 @@ export default function AnnouncementsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title={t("announcements.confirm_delete_title", "Delete announcement?")}
+        description={t(
+          "announcements.confirm_delete_desc",
+          "It is removed for everyone and cannot be recovered.",
+        )}
+        confirmLabel={t("common.delete", "Delete")}
+        variant="destructive"
+        loading={deleteAnnouncement.isPending}
+        onConfirm={() => pendingDelete && remove(pendingDelete.public_id)}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
