@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SettingRow } from "@/components/patterns/SettingRow";
+import { apiErrorMessage } from "@/lib/api/error-message";
 
 const DAY_LABELS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_WORKING_DAYS = "1,2,3,4,5";
@@ -122,8 +123,7 @@ export default function ShiftsPage() {
     : shifts;
 
   function onSaveError(err: unknown) {
-    const e = err as { response?: { data?: { detail?: string } } };
-    toast.error(e.response?.data?.detail ?? t("shifts_page.save_failed"));
+    toast.error(apiErrorMessage(err, t("shifts_page.save_failed")));
   }
 
   function save() {
