@@ -269,9 +269,13 @@ add nothing `EnsureUserBelongsToTenant` does not already enforce.
   loses what it already uses. An add-on is granted, never already in use, so none of that
   applies: a trial, a tenant with no subscription and a plan with no list all read *no*.
 - `PlanSeeder` puts it on **Enterprise only**. The seeder uses `firstOrCreate`, so a
-  deployment whose plans are already seeded does not gain it. A platform admin adds it to a
-  plan in the console's plan editor, which now lists it. Until then every assignment is
-  refused, visibly.
+  deployment whose plans were already seeded would never gain it. The migration
+  `2026_10_08_000002_add_custom_domain_to_enterprise_plan` closes that gap. It adds the
+  feature to the plan with slug `enterprise` only, and only when that plan has a feature list:
+  a NULL list means *unlimited* to every other feature, and writing one entry into it would
+  take those away. It is idempotent, and `down()` removes it again. Any other plan gets the
+  add-on through the console's plan editor, which now lists it. *(Delegated to the agent by
+  the owner, "decide for me", 2026-10-08.)*
 - **It gates assignment and nothing else.** `PUT …/domain` with a domain needs it, and
   answers 422 under `custom_domain` otherwise. Clearing never does. Resolution is not gated:
   an organisation moved to a plan without the add-on keeps a domain it already has until an
@@ -283,6 +287,18 @@ add nothing `EnsureUserBelongsToTenant` does not already enforce.
   `AdminTenantController::latestSubscription()`, which `show()` already used. On the platform
   host no tenant is resolved, so `$tenant->subscription` answers null through the fail-closed
   scope, and every plan would read as absent. The tenant-scope bypass inventory is unchanged.
+
+### Not advertised yet
+
+`/pricing` does not mention the custom domain. Enterprise's written marketing lines are
+unchanged, and they are what the page shows. This was delegated to the agent by the owner
+("decide for me", 2026-10-08), and the call is to wait. Two things a sold custom domain
+depends on have never been seen working on this host: adding an organisation's domain to the
+Plesk site with a certificate, and `dns_get_record()` reaching DNS from PHP. Advertising a
+paid feature that might not work on the first try is worse than advertising it a release
+late. **Add it to the Enterprise lines once the first real domain verifies and serves in
+production.** The label `marketing.pricing_page.feature_custom_domain` already exists for
+when it does.
 
 ### Still open
 
@@ -312,6 +328,9 @@ Each new case below was run against the code before this change, and **failed th
   miss, failing per record, refusing a stale token, leaving a verified domain alone, and with
   nothing assigned; the new detail and list fields; the token never serialised; and a tenant
   admin refused on both endpoints.
+- `EnterpriseCustomDomainMigrationTest`, 5 cases, every one failing before the migration
+  existed: the add-on reaches an already-seeded Enterprise plan; a second run changes
+  nothing; no other plan is touched; a NULL list stays NULL; and `down()` removes it.
 - `PlanFeatureGateTest`, 5 new cases: the add-on allowed only when named, and refused to a
   trial, to no subscription and to a null list; Enterprise the only seeded plan with it; and
   `/auth/me` still `null` for a trial.
