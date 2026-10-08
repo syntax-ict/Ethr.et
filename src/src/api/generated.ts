@@ -13073,6 +13073,7 @@ export interface operations {
                         grade: components["schemas"]["GradeResource"] | null;
                         team: components["schemas"]["TeamResource"] | null;
                         cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };
@@ -13148,6 +13149,7 @@ export interface operations {
                         grade: components["schemas"]["GradeResource"] | null;
                         team: components["schemas"]["TeamResource"] | null;
                         cost_center: components["schemas"]["CostCenterResource"] | null;
+                        supervisor: components["schemas"]["EmployeeSummaryResource"] | null;
                     };
                 };
             };
