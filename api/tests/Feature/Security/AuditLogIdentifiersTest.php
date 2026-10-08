@@ -147,3 +147,23 @@ test('the user filter takes a public id', function () {
 
     expect($actions->all())->toBe(['test.theirs']);
 });
+
+// Both audit views share one explorer whose action box is free text. The
+// platform view matched exactly, so a partial search found nothing (audit N77).
+test('the platform audit log matches part of an action, as the tenant view does', function () {
+    $tenant = createTenant();
+    auditRow(['tenant_id' => $tenant->id, 'action' => 'payroll.run.approved']);
+    auditRow(['tenant_id' => $tenant->id, 'action' => 'leave.approved']);
+
+    $superAdmin = createUser(['role' => UserRole::SUPER_ADMIN, 'mfa_enabled' => true], createTenant());
+    test()->actingAs($superAdmin);
+    app(CurrentTenant::class)->forget();
+
+    $actions = collect(
+        test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/admin/audit?filter[action]=payroll")
+            ->assertOk()
+            ->json('data')
+    )->pluck('action');
+
+    expect($actions->all())->toBe(['payroll.run.approved']);
+});

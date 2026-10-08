@@ -237,13 +237,13 @@ export function CommandPalette() {
             label: t("nav.devices", "Devices"),
             href: "/devices",
             icon: Fingerprint,
-            show: can.manageEmployees,
+            show: can.viewDevices,
           },
           {
             label: t("nav.holidays", "Holidays"),
             href: "/settings/holidays",
             icon: Calendar,
-            show: can.manageEmployees,
+            show: can.manageHolidays,
           },
           {
             label: t("nav.settings", "Settings"),
