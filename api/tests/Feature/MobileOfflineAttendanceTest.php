@@ -342,6 +342,73 @@ test('offline sync reports errors for unknown employees', function () {
         ->assertJsonPath('summary.created', 0);
 });
 
+// ── N50: offline sync is the caller's own, inside a time window ──
+
+test('an employee cannot sync punches for a colleague', function () {
+    // Every role holds attendance.checkIn, and the route recorded any employee
+    // in the tenant: the gap N15 closed for the kiosk route, on another route.
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/sync", [
+        'records' => [[
+            'idempotency_key' => 'off-colleague',
+            'employee_public_id' => $colleague->public_id,
+            'type' => 'check_in',
+            'timestamp' => now()->subHour()->toIso8601String(),
+            'offline_token' => 'tok-colleague',
+        ]],
+    ])->assertOk()
+        ->assertJsonPath('summary.error', 1)
+        ->assertJsonPath('results.0.detail', __('attendance.offline_not_own'));
+
+    expect(AttendanceRecord::where('employee_id', $colleague->id)->exists())->toBeFalse();
+});
+
+test('someone who manages attendance can still sync for others', function () {
+    $tenant = createTenant();
+    $colleague = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN], $tenant));
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/sync", [
+        'records' => [[
+            'idempotency_key' => 'off-hr',
+            'employee_public_id' => $colleague->public_id,
+            'type' => 'check_in',
+            'timestamp' => now()->subHour()->toIso8601String(),
+            'offline_token' => 'tok-hr',
+        ]],
+    ])->assertOk()->assertJsonPath('summary.created', 1);
+});
+
+test('a punch outside the offline window is refused without losing the rest of the batch', function () {
+    // The device clock decided the punch time outright: months back, or ahead.
+    $tenant = createTenant();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant));
+
+    $record = fn (string $key, string $at): array => [
+        'idempotency_key' => $key,
+        'employee_public_id' => $employee->public_id,
+        'type' => 'check_in',
+        'timestamp' => $at,
+        'offline_token' => "tok-{$key}",
+    ];
+
+    test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/sync", [
+        'records' => [
+            $record('too-old', now()->subDays(8)->toIso8601String()),
+            $record('future', now()->addHour()->toIso8601String()),
+            $record('in-window', now()->subDays(6)->toIso8601String()),
+        ],
+    ])->assertOk()
+        ->assertJsonPath('summary.error', 2)
+        ->assertJsonPath('summary.created', 1)
+        ->assertJsonPath('results.2.status', 'created');
+});
+
 test('offline sync has confidence score 88', function () {
     $tenant = createTenant();
     $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);

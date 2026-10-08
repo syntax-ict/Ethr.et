@@ -39,6 +39,7 @@ class MeController extends Controller
                 'preferences' => ProfilePreferencesController::present($user),
                 'last_login_at' => $user->last_login_at,
                 'employee_code' => $employee?->employee_code,
+                'employee_public_id' => $employee?->public_id,
                 'photo_thumb_url' => $this->storage->thumbnailUrlOrNull($employee?->photo_path, 150),
             ],
             'permissions' => $user->permissionNames(),

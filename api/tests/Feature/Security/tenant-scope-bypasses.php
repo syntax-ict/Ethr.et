@@ -8,8 +8,14 @@ declare(strict_types=1);
  *
  * ## What this proves, and what it does not
  *
- * It does **not** claim these 159 bypasses are correct. Auditing each one is a
+ * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
+ *
+ * (2026-10-07: **158 across 58 files**. The kiosk token lookup moved into
+ * `KioskSession::resolveActiveByToken()` (audit N47): pre-authentication, the
+ * token is the credential and names its own tenant, and it then makes that
+ * tenant current. `KioskCheckInController`'s two bypasses, which restated
+ * `tenant_id` from the session, became plain scoped queries: 159 - 2 + 1.)
  *
  * (2026-10-04: **159 across 58 files**. `Services/Auth/OrganisationFinder` reads
  * which tenants an email address belongs to, for "find my organisation" on the
@@ -110,7 +116,6 @@ return [
     // out three times, once per vendor handler, until audit B9 (2026-10-01) made
     // it one method: 5 -> 3, the same query at fewer call sites.
     'Http/Controllers/Api/V1/Device/DeviceController.php' => 3,
-    'Http/Controllers/Api/V1/Kiosk/KioskCheckInController.php' => 2,
     'Http/Controllers/Api/V1/Payroll/TaxBracketController.php' => 1,
     'Http/Middleware/ScimAuth.php' => 1,
     'Http/Requests/Auth/LoginRequest.php' => 1,
@@ -136,6 +141,11 @@ return [
     'Listeners/NotifyDeviceSyncFailed.php' => 1,
     'Listeners/NotifyPayrollProcessed.php' => 1,
     'Listeners/NotifyPayrollRunFailed.php' => 1,
+    // Pre-authentication: the kiosk token (globally unique, 64 random hex)
+    // is the credential and selects its own tenant, which is refused if it
+    // differs from a tenant already resolved, or is not active. A shared
+    // kiosk terminal has no login to name the tenant otherwise (N47).
+    'Models/KioskSession.php' => 1,
     'Models/PersonalAccessToken.php' => 1,
     'Notifications/Concerns/RespectsNotificationPreferences.php' => 1,
     'Services/Accounting/AccountingExportService.php' => 1,

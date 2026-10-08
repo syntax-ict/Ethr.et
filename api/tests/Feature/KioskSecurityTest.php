@@ -96,10 +96,40 @@ it('refuses a kiosk token on another tenant\'s host', function () {
     expect(DB::table('attendance_records')->where('tenant_id', $other->id)->exists())->toBeFalse();
 });
 
-it('refuses every kiosk token on the apex host, where no tenant is resolved', function () {
-    // KioskSession is BelongsToTenant: with no tenant resolved the scope is
-    // fail-closed, so a token presented outside a tenant host finds nothing.
-    ['session' => $session] = kioskSecuritySetup();
+it('accepts a kiosk token on the shared host, where no tenant is resolved, and punches into its own tenant', function () {
+    // Until 2026-10-07 this test pinned the opposite: KioskSession is
+    // BelongsToTenant, so with no tenant resolved the scope failed closed and
+    // every token was refused. That was a side effect, not a requirement, and
+    // on the single production host (ethr.et, no tenant subdomains) it meant
+    // no kiosk terminal could ever authenticate (audit N47). The token is the
+    // credential and names its own tenant; another tenant's host still refuses
+    // it (the test above).
+    ['tenant' => $tenant, 'session' => $session] = kioskSecuritySetup();
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'employee_code' => 'EMP-APEX']);
+    $other = createTenant();
+    Employee::factory()->create(['tenant_id' => $other->id, 'employee_code' => 'EMP-APEX']);
+    app(CurrentTenant::class)->forget();
+
+    $this->postJson('/api/v1/kiosk/authenticate', ['token' => $session->token])
+        ->assertOk()
+        ->assertJsonPath('tenant.subdomain', $tenant->subdomain);
+
+    app(CurrentTenant::class)->forget();
+    $this->postJson('/api/v1/kiosk/check-in', [
+        'employee_code' => 'EMP-APEX',
+        'type' => 'check_in',
+        'idempotency_key' => 'kiosk-apex-1',
+    ], ['X-Kiosk-Token' => $session->token])->assertCreated();
+
+    expect(DB::table('attendance_records')->where('employee_id', $employee->id)->count())->toBe(1)
+        ->and(DB::table('attendance_records')->where('tenant_id', $other->id)->exists())->toBeFalse();
+});
+
+it('refuses the kiosk of an organisation that is not active', function () {
+    // ResolveTenant refuses a suspended tenant on its own host. A token that
+    // selects its tenant must not be a way around that.
+    ['tenant' => $tenant, 'session' => $session] = kioskSecuritySetup();
+    $tenant->update(['status' => TenantStatus::SUSPENDED]);
     app(CurrentTenant::class)->forget();
 
     $this->postJson('/api/v1/kiosk/authenticate', ['token' => $session->token])->assertUnauthorized();

@@ -102,10 +102,15 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // `skipAuthRefresh`: a 401 that is an answer, not an expired login. The
+    // kiosk terminal has no session at all; its 401s mean "invalid token" or
+    // "wrong PIN" and belong on the kiosk screen. Refreshing would fail and
+    // the redirect dropped the shared terminal onto the login page (N48).
     if (
       error.response?.status === 401 &&
       originalRequest &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !originalRequest.skipAuthRefresh
     ) {
       originalRequest._retry = true;
 
@@ -125,6 +130,10 @@ apiClient.interceptors.response.use(
 declare module "axios" {
   interface InternalAxiosRequestConfig {
     _retry?: boolean;
+  }
+  interface AxiosRequestConfig {
+    /** Hand a 401 to the caller instead of refreshing the session. */
+    skipAuthRefresh?: boolean;
   }
 }
 

@@ -8151,12 +8151,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        session: components["schemas"]["KioskSessionResource"] & {
-                            branch: {
-                                public_id: string;
-                                name: string;
-                            };
-                        };
+                        session: components["schemas"]["KioskSessionResource"];
                         tenant: {
                             name: string;
                             subdomain: string;
@@ -9017,17 +9012,23 @@ export interface operations {
                             /** @constant */
                             status: "error";
                             /** @constant */
+                            detail: "You can only sync your own attendance.";
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            detail: string;
+                        } | {
+                            idempotency_key: string;
+                            /** @constant */
+                            status: "error";
+                            /** @constant */
                             detail: "Employee not found";
                         } | {
                             idempotency_key: string;
                             /** @enum {string} */
                             status: "duplicate" | "created";
                             public_id: string;
-                        } | {
-                            idempotency_key: string;
-                            /** @constant */
-                            status: "error";
-                            detail: string;
                         })[];
                         summary: {
                             created: number;
@@ -10377,6 +10378,7 @@ export interface operations {
                             /** Format: date-time */
                             last_login_at: string | null;
                             employee_code: string | null;
+                            employee_public_id: string | null;
                             photo_thumb_url: string | null;
                         };
                         permissions: {

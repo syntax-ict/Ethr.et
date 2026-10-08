@@ -121,10 +121,7 @@ class KioskSessionController extends Controller
 
     public function authenticate(AuthenticateKioskRequest $request): JsonResponse
     {
-        $session = KioskSession::where('token', $request->input('token'))
-            ->where('status', 'active')
-            ->with('branch')
-            ->first();
+        $session = KioskSession::resolveActiveByToken((string) $request->input('token'));
 
         if (! $session) {
             return response()->json([
@@ -135,6 +132,10 @@ class KioskSessionController extends Controller
             ], 401)->header('Content-Type', 'application/problem+json');
         }
 
+        // Loaded after the resolver made the kiosk's tenant current: Branch is
+        // tenant-scoped, and an eager load in the lookup itself ran before any
+        // tenant was set.
+        $session->load('branch');
         $session->touchActivity();
 
         $tenant = $session->tenant;
