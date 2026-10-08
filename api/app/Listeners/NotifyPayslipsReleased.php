@@ -48,6 +48,14 @@ class NotifyPayslipsReleased implements ShouldQueue
                 continue;
             }
 
+            // The notification reads `$entry->payrollRun` for the period label.
+            // Lazy loading is disabled application-wide, so without the relation
+            // set that read threw inside Notification::send(), notify() logged
+            // the throw as a warning, and the run was still logged as released:
+            // no employee ever received a payslip notification on any channel
+            // (QA pass 2026-10-08). The run is in hand; hand it to each entry.
+            $entry->setRelation('payrollRun', $run);
+
             $user = $this->userOf($entry->employee);
             if ($user !== null) {
                 // Per entry: each notification carries that employee's net pay.
