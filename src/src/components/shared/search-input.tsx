@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/lib/i18n/useT";
@@ -21,10 +21,22 @@ export function SearchInput({
   const { t } = useT();
   const [local, setLocal] = useState(value);
 
+  // Emit only text the parent does not already have, and keep the latest
+  // handler in a ref. The timer was re-armed whenever `onChange` changed
+  // identity — every render, for the inline arrows every caller passes — and
+  // fired the unchanged text. Callers reset to page 1 on a search, so Next on
+  // the directory, employees, users and tenants lists bounced back to page 1
+  // 300 ms later (audit N92).
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    const timer = setTimeout(() => onChange(local), debounceMs);
+    onChangeRef.current = onChange;
+  });
+
+  useEffect(() => {
+    if (local === value) return;
+    const timer = setTimeout(() => onChangeRef.current(local), debounceMs);
     return () => clearTimeout(timer);
-  }, [local, debounceMs, onChange]);
+  }, [local, value, debounceMs]);
 
   // Resync local state when the parent resets `value` from outside (e.g. a
   // "clear filters" action). Adjusting state during render avoids an extra

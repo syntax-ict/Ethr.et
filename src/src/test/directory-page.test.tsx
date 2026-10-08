@@ -60,5 +60,12 @@ describe("Staff directory", () => {
 
     expect(await screen.findByText("Colleague 51")).toBeInTheDocument();
     expect(pagesAsked).toContain("2");
+
+    // And it stays there. SearchInput's debounce fired unchanged text on every
+    // render, the page reset to 1 on a search, and page 2 lasted 300 ms. Fast
+    // runs found "Colleague 51" inside that window; loaded ones did not
+    // (audit N92).
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(screen.getByText("Colleague 51")).toBeInTheDocument();
   });
 });
