@@ -46,6 +46,8 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { statusBadgeClass } from "@/lib/utils/status-colors";
 import { toast } from "sonner";
 import { z } from "zod";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
 
 const webhookSchema = z.object({
   url: rules.url(),
@@ -83,6 +85,8 @@ export default function WebhooksPage() {
 
   const webhooksQuery = useWebhooks();
   const createWebhook = useCreateWebhook();
+  // Creating and editing webhooks needs the plan's `webhooks` feature (N66).
+  const hasWebhooks = usePlanFeatures().has("webhooks");
   const deleteWebhook = useDeleteWebhook();
   const testWebhook = useTestWebhook();
 
@@ -142,11 +146,16 @@ export default function WebhooksPage() {
           title={t("webhooks_page.title")}
           description={t("webhooks_page.description")}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> {t("webhooks_page.add_webhook")}
-            </Button>
+            hasWebhooks && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />{" "}
+                {t("webhooks_page.add_webhook")}
+              </Button>
+            )
           }
         />
+
+        {!hasWebhooks && <PlanFeatureNotice />}
 
         {newSecret && (
           <Card className="border-2 border-status-warning/40 bg-status-warning/5">

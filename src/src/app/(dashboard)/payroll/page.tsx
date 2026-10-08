@@ -24,6 +24,8 @@ import { usePayrollRuns, useProcessPayroll } from "@/features/payroll/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
+import { PlanFeatureNotice } from "@/components/shared/plan-feature-notice";
+import { usePlanFeatures } from "@/features/auth/api";
 
 export default function PayrollPage() {
   const { t } = useT();
@@ -33,6 +35,9 @@ export default function PayrollPage() {
   const [periodEnd, setPeriodEnd] = useState("");
   const { data, isLoading } = usePayrollRuns({ page });
   const { can } = usePermissions();
+  // Running payroll needs the plan's `payroll` feature; the button was shown
+  // on every plan and the run refused with a 403 (audit N66).
+  const hasPayroll = usePlanFeatures().has("payroll");
   const processPayroll = useProcessPayroll();
 
   function handleRunPayroll(e: React.FormEvent) {
@@ -75,7 +80,8 @@ export default function PayrollPage() {
             "View payroll runs and processing history",
           )}
           actions={
-            can.processPayroll && (
+            can.processPayroll &&
+            hasPayroll && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 {t("payroll.run", "Run Payroll")}
@@ -83,6 +89,8 @@ export default function PayrollPage() {
             )
           }
         />
+
+        {!hasPayroll && <PlanFeatureNotice />}
 
         <div className="flex flex-wrap gap-1.5 border-b border-border/60 pb-3">
           <Button asChild variant="ghost" size="sm" className="h-8">

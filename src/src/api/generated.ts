@@ -10336,6 +10336,7 @@ export interface operations {
                         permissions: {
                             [key: string]: unknown;
                         };
+                        plan_features: unknown[] | null;
                         tenant: components["schemas"]["TenantResource"] | null;
                     };
                 };
@@ -11584,6 +11585,7 @@ export interface operations {
                     "application/json": {
                         source: string;
                         total: number;
+                        truncated: boolean;
                         data: {
                             [key: string]: unknown;
                         }[];

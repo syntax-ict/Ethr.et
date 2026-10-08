@@ -197,3 +197,39 @@ test('every feature key in PlanSeeder maps to a PlanFeature case', function () {
         );
     }
 });
+
+describe('what /auth/me tells the screen', function () {
+    // The UI had no idea of the plan, so a Starter tenant saw Payroll, Reports,
+    // Webhooks and the Audit Log and was refused on every action (audit N66).
+    test('lists exactly the features the plan allows', function () {
+        $tenant = createTenant();
+        subscribeTenant($tenant, planWithFeatures(['attendance', 'leave', 'employee_management']));
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/me")
+            ->assertOk()
+            ->assertJsonPath('plan_features', ['attendance', 'leave', 'employee_management']);
+    });
+
+    test('says null, nothing restricted, while the tenant is on trial', function () {
+        $tenant = createTenant();
+        subscribeTenant($tenant, planWithFeatures(['attendance']));
+        $tenant->update(['status' => TenantStatus::TRIAL]);
+        actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+
+        $this->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/auth/me")
+            ->assertOk()
+            ->assertJsonPath('plan_features', null);
+    });
+
+    test('agrees with the gate for every feature', function () {
+        $tenant = createTenant();
+        subscribeTenant($tenant, planWithFeatures(['attendance', 'payroll', 'reports']));
+        $listed = app(PlanFeatureService::class)->enabledFor($tenant);
+
+        foreach (PlanFeature::cases() as $feature) {
+            expect(in_array($feature->value, $listed, true))
+                ->toBe(app(PlanFeatureService::class)->allows($tenant, $feature));
+        }
+    });
+});
