@@ -417,6 +417,33 @@ function BranchesTab() {
 
 // ── DEPARTMENTS ────────────────────────────────────────────────
 
+/**
+ * The public ids of every department below `rootId`, from a flat list whose
+ * rows carry their parent.
+ */
+function descendantIds(
+  items: { public_id: string; parent?: { public_id: string } | null }[],
+  rootId: string,
+): Set<string> {
+  const childrenOf = new Map<string, string[]>();
+  for (const d of items) {
+    const parent = d.parent?.public_id;
+    if (parent)
+      childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), d.public_id]);
+  }
+  const found = new Set<string>();
+  const queue = [rootId];
+  while (queue.length > 0) {
+    for (const child of childrenOf.get(queue.pop() as string) ?? []) {
+      if (!found.has(child)) {
+        found.add(child);
+        queue.push(child);
+      }
+    }
+  }
+  return found;
+}
+
 function DepartmentsTab() {
   const canDelete = useCanDeleteOrg();
   const { t } = useT();
@@ -490,6 +517,12 @@ function DepartmentsTab() {
   }
 
   const items = data?.data ?? [];
+  // Its own sub-departments cannot be its parent: the API refuses that
+  // cycle (N72), and offering them only to refuse is no help.
+  const descendantsOfEditing = editing
+    ? descendantIds(items, editing.public_id)
+    : new Set<string>();
+
   return (
     <ResourceLayout
       title={t("org.tab.departments", "Departments")}
@@ -617,7 +650,11 @@ function DepartmentsTab() {
                       {t("org.field.none_top_level", "None (top-level)")}
                     </SelectItem>
                     {items
-                      .filter((d) => d.public_id !== editing?.public_id)
+                      .filter(
+                        (d) =>
+                          d.public_id !== editing?.public_id &&
+                          !descendantsOfEditing.has(d.public_id),
+                      )
                       .map((d) => (
                         <SelectItem key={d.public_id} value={d.public_id}>
                           {d.name}

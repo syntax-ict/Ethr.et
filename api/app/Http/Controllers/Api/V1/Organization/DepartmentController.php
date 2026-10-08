@@ -149,7 +149,12 @@ class DepartmentController extends Controller
     {
         Gate::authorize('org.viewAny');
 
-        $departments = Department::whereNull('parent_id')
+        // Roots are departments with no parent, and those whose parent was
+        // deleted: destroy() soft-deletes, the children keep pointing at it,
+        // and a bare whereNull('parent_id') dropped the whole live subtree
+        // from the chart (audit N72). The reporting tree already does this
+        // for employees.
+        $departments = Department::where(fn ($q) => $q->whereNull('parent_id')->orWhereDoesntHave('parent'))
             ->with(['childrenRecursive', 'branch'])
             ->withCount('employees')
             ->orderBy('name')
