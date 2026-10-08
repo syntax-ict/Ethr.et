@@ -157,7 +157,9 @@ test('groups and sorts by a field that is not among the selected columns', funct
         'group_by' => 'gender',
     ])->assertOk();
 
-    expect($response->json('summary.groups'))->toBe(['male' => 3, 'female' => 2])
+    // Same pairs in any order: group order follows row order, which the
+    // database does not promise.
+    expect($response->json('summary.groups'))->toEqual(['male' => 3, 'female' => 2])
         ->and(array_keys($response->json('data.0')))->toBe(['name']);
 });
 
