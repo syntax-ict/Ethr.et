@@ -100,14 +100,15 @@ return in `middleware.ts`, which is taken on every development machine.
 
 ## Onboarding
 
-The current onboarding wizard is `features/onboarding/components/setup-wizard.tsx`
-— a streamlined 6-step flow. Its template step now reports the **real** number of
-records provisioned (Slices 0–1).
+The onboarding wizard is the v2 guided flow at `/setup/guided`, composed by
+`features/onboarding/v2/components/guided-onboarding.tsx` — a 4-step stepper
+(configure, workforce, access, go live). The old 6-step `setup-wizard.tsx` no
+longer exists; `/setup` redirects to `/setup/guided`.
 
-### Onboarding v2 — backend contract (frontend slice pending)
+### Onboarding v2 — backend contract (frontend shipped)
 
-The backend for the industry-aware onboarding v2 is complete and contract-stable;
-the interactive UI for the steps below is a dedicated frontend slice. Endpoints:
+The backend for the industry-aware onboarding v2 is complete and contract-stable,
+and the steps below are consumed by `features/onboarding/v2/`. Endpoints:
 
 | step | endpoints |
 |---|---|

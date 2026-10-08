@@ -6,7 +6,7 @@
 
 ## Logging In
 
-1. Open `https://yourcompany.ethr.et` in your browser (or use the installed app)
+1. Open `https://ethr.et/yourcompany` in your browser (or use the installed app) — `yourcompany` is your organization's name in ETHR; your HR team can give you the exact link. If your organization has its own ETHR domain, use that instead
 2. Enter your **email** and **password**
 3. If required by your organization, enter the **6-digit code** from your authenticator app
 
@@ -20,7 +20,7 @@ After logging in you see your personal dashboard:
 
 - **Today's attendance** — check-in/out status and hours worked
 - **Leave balance** — days remaining for each leave type
-- **Pending approvals** — items waiting for your action
+- **Pending approvals** — items waiting for your action (if you approve requests for others)
 - **Recent notifications** — leave decisions, payslip availability, announcements
 
 ---
@@ -51,14 +51,15 @@ Use the fingerprint reader or face scanner at your workplace entrance. Records s
 
 If your attendance record is wrong (forgotten clock-out, device failure, etc.):
 
-1. Go to **Attendance → Corrections**
+1. Go to **My Attendance → Corrections**
 2. Click **Request Correction**
 3. Find the attendance record and enter the correct times
 4. Provide a reason (required)
-5. Attach supporting evidence if needed
-6. Submit
+5. Submit
 
-Your request goes through the approval chain (supervisor → HR). You'll be notified at each step.
+There is no way to attach a document to a correction; put what the approver needs to know in the reason.
+
+One approval decides your request — usually your supervisor, or HR. You'll be notified when it is approved or rejected. Once approved, the corrected times replace the ones on your attendance record; the original times are kept for the record.
 
 ---
 
@@ -66,39 +67,38 @@ Your request goes through the approval chain (supervisor → HR). You'll be noti
 
 1. Go to **Leave**
 2. Click **Apply for Leave**
-3. Select the **leave type** (your available balance is shown)
-4. Choose your **start and end dates** — the calendar highlights weekends and public holidays, which are automatically excluded from the count
-5. Enter a reason
-6. Upload an attachment if required by the leave type (e.g. sick note for medical leave)
-7. Submit
+3. Select the **leave type**
+4. Choose your **start and end dates** — whole days only. Days outside your organization's working week and public holidays are not counted against your balance
+5. Enter a reason (optional)
+6. Submit
 
-You'll receive a notification when your request is approved or rejected. You can cancel a **pending** request anytime.
+Check your balance on the cards on the Leave page before you apply; the form does not show it. There is no way to attach a document (such as a sick note) to a leave request — give it to HR directly if they need one.
+
+One approval decides your request. You'll receive a notification when your request is approved or rejected. You can cancel a **pending** request anytime.
 
 ---
 
 ## Checking Your Leave Balance
 
-Your balance cards show:
+The Leave page shows one card per leave type:
 
 | | |
 |---|---|
-| **Entitled** | Total days you have for the year |
-| **Used** | Days taken so far |
-| **Pending** | Days in a submitted but not yet approved request |
-| **Remaining** | Entitled − Used − Pending |
+| **Remaining** (the large number) | Days you can still request. Days in requests that are submitted but not yet approved are already subtracted |
+| **Used of entitled** (the line beneath) | Days taken so far, out of the total you have for the year |
 
 ---
 
 ## Viewing Your Payslips
 
-Go to **Payslips** (or **Payroll → My Payslips**):
+Go to **My Payslips** in the sidebar:
 
-- Monthly payslips appear after your HR team approves the payroll run
+- Monthly payslips appear after the payroll run is approved
 - Click a payslip to view the breakdown:
   - Basic salary, overtime, allowances (earnings)
   - Income tax, pension, loan deductions
   - Net pay
-- Click **Download** to save as PDF
+- Click **Download** to save as PDF. The PDF also shows your employer's pension contribution; its labels are in English, and Amharic names print correctly
 
 ---
 
@@ -106,9 +106,9 @@ Go to **Payslips** (or **Payroll → My Payslips**):
 
 Go to **Profile** to view your personal information.
 
-Some fields you can update yourself immediately (phone number, emergency contacts, address, profile photo).
+Some fields you can update yourself immediately (phone number, marital status, nationality, emergency contacts, profile photo).
 
-**Sensitive changes** (name, bank details) are held for HR approval — you'll see a "Pending approval" notice after submitting.
+**Sensitive changes** (name, TIN, date of birth, bank details) are held for HR approval — you'll see a "Pending approval" notice after submitting.
 
 ---
 
@@ -117,7 +117,6 @@ Some fields you can update yourself immediately (phone number, emergency contact
 Go to **Directory** to find colleagues:
 
 - Search by name, email, or phone
-- Filter by department
 - Click a card to see department, position, and contact info
 
 ---
@@ -135,11 +134,11 @@ You can control which notifications you receive (and on which channels — in-ap
 ETHR works as a full mobile app without needing an app store:
 
 **Android (Chrome):**
-1. Open `https://yourcompany.ethr.et` in Chrome
+1. Open `https://ethr.et/yourcompany` in Chrome
 2. Tap the three-dot menu → **Add to Home screen**
 
 **iPhone (Safari):**
-1. Open `https://yourcompany.ethr.et` in Safari
+1. Open `https://ethr.et/yourcompany` in Safari
 2. Tap the **Share** icon → **Add to Home Screen**
 
 After installing, the app works offline for attendance recording. Records sync automatically when you reconnect.
@@ -164,10 +163,8 @@ Click the **globe icon** in the top bar to switch between:
 
 - English
 - አማርኛ (Amharic)
-- Afaan Oromoo
-- ትግርኛ (Tigrinya)
 
-Your preference is saved.
+Your preference is saved. Afaan Oromoo, Tigrinya, Somali and Sidama are listed on the preferences page as coming soon and cannot be selected yet.
 
 ---
 

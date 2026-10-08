@@ -90,24 +90,28 @@ payroll.calculation.basic_salary → "መሰረታዊ ደመወዝ" (am)
 
 ### Frontend i18n
 
-Using `next-intl` or `react-i18next`:
+ETHR uses its own hook, `useT` (`src/src/lib/i18n/useT.ts`), not `next-intl` or `react-i18next`. It returns `{ t, locale }`; `t` takes the full dot-notation key, an English fallback, and optional `:name` replacements:
 
 ```tsx
 // Usage in components
-const t = useTranslations('employee');
-<h1>{t('profile.title')}</h1>
+const { t } = useT();
+<h1>{t('employee.detail.tab.lifecycle', 'Lifecycle')}</h1>
 
 // With variables
-t('welcome', { name: employee.first_name })
-// en: "Welcome, {name}"
-// am: "እንኳን ደህና መጡ, {name}"
+t('approvals.reject_description', 'This will be recorded and shown to :name.', { name: employee.name })
 ```
 
-Frontend translation files mirror backend structure:
+The language switcher offers only locales marked `available` in `src/src/lib/i18n/config.ts` — today `en` and `am`. The others are listed as `coming_soon` and cannot be selected.
+
+Frontend translation files are one JSON dictionary per locale:
 ```
-/src/lib/i18n/
-  /en.json
-  /am.json
+/src/src/lib/i18n/locales/
+  en.json
+  am.json
+  om.json   (stub, coming soon)
+  ti.json   (stub, coming soon)
+  so.json   (stub, coming soon)
+  sid.json  (stub, coming soon)
 ```
 
 ---
@@ -143,14 +147,9 @@ Ethiopia uses the Ge'ez calendar (Ethiopian calendar) alongside the Gregorian ca
 
 ### Dual Calendar Display
 
-When tenant enables Ethiopian calendar (`settings.ethiopian_calendar = true`):
+The organization's calendar is `settings.calendar` — `ethiopian` (the default) or `gregorian` — set at Settings → General → Calendar System. Each user can choose their own on Profile → Preferences, which overrides the organization's choice for them.
 
-- All date pickers show both Gregorian and Ethiopian dates
-- Date display format: `July 15, 2026 / ሐምሌ 8, 2018`
-- Calendar components show both month/year headers
-- User can toggle primary calendar in date pickers
-
-When disabled: only Gregorian dates shown.
+- Date inputs show the chosen calendar and the other calendar's date beneath (see *Date Picker Behavior*)
 
 ### CalendarService API
 
@@ -323,7 +322,9 @@ Ethiopian addresses follow this hierarchy:
 
 ### AddressForm Component
 
-The `AddressForm` component renders these fields in the correct hierarchy:
+> **Not built.** There is no `AddressForm` component in the frontend. A branch's address is a single free-text field, and employee records have no address field. The list below is the intended design.
+
+The `AddressForm` component would render these fields in the correct hierarchy:
 - Region dropdown (Ethiopian regions + Addis Ababa + Dire Dawa)
 - City/Zone text input
 - Subcity text input
@@ -367,7 +368,7 @@ Ethiopian organizations use different fiscal year starts:
 | Government | Hamle 1 (July 8 Gregorian) | Ethiopian |
 | Private sector | Meskerem 1 (Sep 11 Gregorian) or Jan 1 | Varies |
 
-Configurable per tenant: `settings.fiscal_year_start_month` (1-13, where 13 = Pagumen).
+Configurable per tenant: `settings.fiscal_year_start_month` (1-13, where 13 = Pagumen), set by a Tenant Admin on the Payroll Schedule card at Settings → Payroll Rules.
 
 Fiscal year affects:
 - Leave balance accrual and carry-forward
@@ -389,32 +390,29 @@ Fiscal year affects:
 
 ### Date Picker Behavior
 
-When `settings.ethiopian_calendar = true`:
-- `DualCalendarPicker` shows both calendars side by side
-- User can click on either calendar to select a date
-- Selected date syncs between both calendars
-- Month navigation works independently on each calendar
-- Today is highlighted on both calendars
+Date inputs use `DualCalendarDateInput` (`src/src/components/shared/dual-calendar-date-input.tsx`), a single input — not two calendars side by side. Its value is always an ISO Gregorian `YYYY-MM-DD` string, whichever calendar is shown.
 
-When `settings.ethiopian_calendar = false`:
-- Standard single Gregorian date picker
-- No Ethiopian dates shown
+When the calendar system (Settings → General) is **Ethiopian**:
+- The input is three parts: Ethiopian year, month (Meskerem … Pagume) and day
+- The day list follows the month's length, so Pagume offers 5 or 6 days
+- The Gregorian equivalent is shown beneath the input
+
+When it is **Gregorian**:
+- The browser's native date input
+- The Ethiopian equivalent is shown beneath the input
 
 ---
 
 ## Working Days
 
-Default Ethiopian working week: **Monday through Saturday** (6 days).
+Many Ethiopian organizations work **Monday through Saturday** (6 days); others (particularly banks and NGOs) work Monday through Friday (5 days). ETHR's default, until an organization sets its own, is **Monday through Friday**.
 
-Some organizations (particularly banks and NGOs) work Monday through Friday (5 days).
-
-Configurable per tenant: `settings.working_days` — array of day numbers (0=Sunday, 6=Saturday).
+Configurable per tenant: `settings.working_days` — array of ISO day numbers, **1 = Monday … 7 = Sunday** (`api/app/Support/WorkingWeek.php`). An organization admin sets it on the **Working week** card at Settings → Leave Types.
 
 Working days affect:
-- Leave day counting (skip non-working days)
-- Attendance expectations (no absent flag on non-working days)
-- Shift scheduling
-- Payroll working day calculations
+- Leave day counting (skip non-working days and holidays)
+
+Attendance expectations come from each shift's own `working_days`, which use the same ISO 1–7 numbering.
 
 ---
 

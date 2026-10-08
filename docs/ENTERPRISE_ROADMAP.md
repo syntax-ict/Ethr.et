@@ -210,6 +210,23 @@ that only appear once you actually sign in as that user.
 
 ---
 
+## Phase 10 — Promised by the user guides, not built (2026-10-08)
+
+A docs-against-code audit of `user-guide.md`, `manager-guide.md` and `admin-guide.md` found
+features the guides described that the code does not have. The guides now describe the
+product as it is; the gaps are recorded here instead. `PRD.md` is unchanged.
+
+| # | Item | Status | Evidence | Size |
+|---|---|---|---|---|
+| 10.1 | **Multi-step approval chains** (e.g. supervisor → department head → HR, configurable per organization). Today every leave request and attendance correction is decided by **one** approval from anyone holding `leave.approve` / `correction.approve` whose org scope covers the employee, never their own request. There is no department-head field to route a step to. | **Missing — owner decision pending** | `Services/Leave/LeaveDecisionService.php`, `Services/Attendance/CorrectionDecisionService.php`, `Models/Department.php` | L |
+| 10.2 | **Leave and correction attachments.** No upload exists. `leave_types.requires_attachment` is stored and returned by the API but never enforced; `leave_requests.attachment_path` is a free string with no upload behind it. Corrections have no attachment field at all. | **Missing** | `Http/Requests/Leave/StoreLeaveRequestRequest.php`, `Services/Onboarding/LeaveTypeCatalog.php`, `Http/Requests/Attendance/StoreCorrectionRequest.php` | M |
+| 10.3 | **Tenant self-service data export** (the whole organization's data). Only per-screen exports exist — employee CSV, reports, payroll bank file — and a full backup is a platform-admin action. | **Missing** | `routes/api.php` (`/employees/export`, `/admin/tenants/{publicId}/backup`) | M |
+| 10.4 | **Excel (.xlsx) report export.** Reports export as CSV and PDF only. | **Missing** | `Http/Requests/Report/GenerateReportRequest.php` (`format` in `csv,pdf`) | S |
+| 10.5 | **Statutory report templates** — income-tax declaration and pension-contribution returns. Quick reports are one per data source (employees, attendance, leave, payroll); grouped payroll reports give per-group totals, but there is no filing-ready template. | **Missing** | `src/src/app/(dashboard)/reports/page.tsx` | M |
+| 10.6 | **Headquarters branch flag and department head.** Neither column exists. | **Missing** | `Models/Branch.php`, `Models/Department.php` | S |
+
+---
+
 ## Standing verification checklist (every item)
 
 > **2026-10-01:** the first two items name `scripts/pest-isolated.sh` and `scripts/phpstan-isolated.sh`, removed with the Docker stack on 2026-09-30. Run `./scripts/gates.sh backend` instead — native, with the collection guard.

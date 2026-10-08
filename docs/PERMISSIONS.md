@@ -1,275 +1,302 @@
 # ETHR — Permission Matrix (v2.0)
 
+> Generated from `api/database/seeders/PermissionSeeder.php` (permissions and `roleGrants()`),
+> `api/app/Models/User.php` (`hasPermission()`, `permissionNames()`), `api/app/Enums/OrgScope.php`
+> and `api/app/Traits/ScopesEmployeeAccess.php`. When this file and the seeder disagree, the
+> seeder is what runs.
+
 ## Permission Architecture
 
-Permissions are **additive**: a user has the union of all permissions from all assigned roles. There are no "deny" permissions.
+Each user has **one role** (`users.role`) and, optionally, **one custom role** (`users.custom_role_id`). There are no "deny" permissions.
 
-Permissions are checked via `$user->hasPermission('module.action')` — never by comparing role strings.
+- Without a custom role, the user holds the permissions granted to their role in `role_permissions`.
+- With a custom role, the user holds **only** the custom role's permissions. The custom role **replaces** the role's set; it is not added to it.
+- `super_admin` is a platform role, not a tenant role. It has no `role_permissions` rows: `hasPermission()` returns true for every ability.
 
-Permissions are cached per role through the Laravel cache (`role_permissions:{role}`, 1 h; the `database` store on the target) and invalidated on role/permission changes.
+Permissions are checked via `$user->hasPermission('module.action')` — never by comparing role strings. A `Gate::before` hook routes every known permission name through `hasPermission()`, so `Gate::authorize('leave.approve')` and `$user->hasPermission('leave.approve')` give the same answer.
+
+Permissions are cached through the Laravel cache for 1 hour — `role_permissions:{role}` per role and `custom_role_permissions:{id}` per custom role — and the cache is cleared when the seeder runs or a custom role is created, changed or deleted.
 
 ---
 
 ## Permission Modules & Actions
 
-### employees
+79 permissions in 22 modules.
+
+### org
 
 | Permission | Description |
 |---|---|
-| `employees.view` | View any employee profile |
-| `employees.create` | Create new employees |
-| `employees.edit` | Edit any employee profile |
-| `employees.delete` | Soft-delete employees |
-| `employees.transition` | Change employee lifecycle status |
-| `employees.import` | Import employees from CSV |
-| `employees.export` | Export employee data to CSV |
-
-### self
-
-| Permission | Description |
-|---|---|
-| `self.view` | View own employee profile |
-| `self.edit_basic` | Edit own allowed fields (phone, address, emergency contacts, photo) |
-
-### team
-
-| Permission | Description |
-|---|---|
-| `team.view` | View direct/indirect report profiles |
-| `team.attendance` | View team attendance |
-| `team.overtime` | View team overtime |
+| `org.viewAny` | View organization structure |
+| `org.view` | View organization unit details |
+| `org.create` | Create organization units |
+| `org.update` | Update organization units |
+| `org.delete` | Delete organization units |
 
 ### attendance
 
 | Permission | Description |
 |---|---|
-| `attendance.own` | View and record own attendance |
-| `attendance.team` | View team attendance |
-| `attendance.all` | View all attendance (HR view) |
-| `attendance.correct` | Request attendance corrections |
-| `attendance.import` | Import attendance from CSV |
-| `attendance.settings` | Configure attendance methods and settings |
+| `attendance.checkIn` | Check in/out attendance |
+| `attendance.viewOwn` | View own attendance records |
+| `attendance.viewTeam` | View team attendance records |
+| `attendance.viewAll` | View all attendance records |
+| `attendance.view` | View attendance records |
+| `attendance.manage` | Manage attendance settings and imports |
+| `attendance.viewConflicts` | View attendance conflicts for HR review |
+| `attendance.resolveConflicts` | Resolve attendance conflicts |
 
-### corrections
-
-| Permission | Description |
-|---|---|
-| `corrections.request` | Submit correction requests |
-| `corrections.approve` | Approve/reject corrections in chain |
-
-### shifts
+### shift
 
 | Permission | Description |
 |---|---|
-| `shifts.view` | View shifts and assignments |
-| `shifts.manage` | Create, edit, delete, assign shifts |
+| `shift.viewAny` | View shifts list |
+| `shift.view` | View shift details |
+| `shift.create` | Create shifts |
+| `shift.update` | Update shifts |
+| `shift.delete` | Delete shifts |
 
-### devices
-
-| Permission | Description |
-|---|---|
-| `devices.view` | View devices and sync status |
-| `devices.manage` | CRUD devices, trigger sync |
-
-### leave
+### device
 
 | Permission | Description |
 |---|---|
-| `leave.request` | Submit leave requests |
-| `leave.approve` | Approve/reject leave in chain |
-| `leave.manage_types` | CRUD leave types |
-| `leave.manage_balances` | View/adjust any employee balance |
+| `device.viewAny` | View devices list |
+| `device.view` | View device details |
+| `device.create` | Register devices |
+| `device.update` | Update device configuration |
+| `device.delete` | Remove devices |
+
+### correction
+
+| Permission | Description |
+|---|---|
+| `correction.create` | Submit attendance corrections |
+| `correction.viewOwn` | View own correction requests |
+| `correction.viewPending` | View pending corrections for approval |
+| `correction.viewAll` | View all correction requests |
+| `correction.approve` | Approve or reject corrections |
+
+### holiday
+
+| Permission | Description |
+|---|---|
+| `holiday.viewAny` | View holidays list |
+| `holiday.view` | View holiday details |
+| `holiday.create` | Create holidays |
+| `holiday.update` | Update holidays |
+| `holiday.delete` | Delete holidays |
 
 ### payroll
 
 | Permission | Description |
 |---|---|
-| `payroll.view` | View payroll runs and entries |
-| `payroll.process` | Run payroll |
+| `payroll.viewAll` | View all payroll data |
+| `payroll.process` | Process payroll runs |
 | `payroll.approve` | Approve payroll runs |
-| `payroll.void` | Void approved payroll runs |
-| `payroll.configure` | Edit tax brackets, pension, OT rates, allowances |
-| `payroll.export` | Export bank/tax/pension files |
+| `payroll.void` | Void an approved payroll run |
+| `payroll.reprocess` | Reprocess a voided payroll run |
+| `payroll.manageLoan` | Manage employee loans |
+| `payroll.manageCostSharing` | Manage employee cost-sharing obligations |
+| `payroll.viewOwnPayslip` | View own payslip |
+| `payroll.viewConfig` | View payroll configuration (allowances, tax brackets, overtime rates) |
+| `payroll.manageConfig` | Manage payroll configuration (allowances, tax brackets, overtime rates) |
 
-### payslips
-
-| Permission | Description |
-|---|---|
-| `payslips.own` | View own payslips |
-| `payslips.all` | View any employee's payslips |
-
-### organization
+### leave
 
 | Permission | Description |
 |---|---|
-| `organization.view` | View org structure |
-| `organization.manage_branches` | CRUD branches |
-| `organization.manage_departments` | CRUD departments |
-| `organization.manage_positions` | CRUD positions, grades, cost centers, teams |
+| `leave.viewTypes` | View leave types |
+| `leave.manageTypes` | Manage leave types |
+| `leave.request` | Submit leave requests |
+| `leave.viewTeam` | View team leave requests |
+| `leave.viewAll` | View all leave requests |
+| `leave.approve` | Approve or reject leave requests |
+| `leave.adjustBalance` | Manually adjust leave balances |
 
-### reports
+### employee
 
 | Permission | Description |
 |---|---|
-| `reports.view` | Run pre-built reports |
-| `reports.build` | Create custom reports |
-| `reports.schedule` | Schedule recurring reports |
-| `reports.department` | Reports scoped to own department only |
+| `employee.viewAny` | View employees list |
+| `employee.view` | View employee details |
+| `employee.create` | Create employees |
+| `employee.update` | Update employee records |
+| `employee.delete` | Delete employees |
+| `employee.transition` | Transition employee status |
+| `employee.viewFinancial` | View employee financial data |
+| `employee.updateFinancial` | Update employee financial data |
+
+### personnel_action, disciplinary_case, retirement_case
+
+| Permission | Description |
+|---|---|
+| `personnel_action.viewAny` | View employment history / personnel actions |
+| `personnel_action.create` | Record personnel actions |
+| `disciplinary_case.viewAny` | View disciplinary cases |
+| `disciplinary_case.manage` | Open, investigate, decide, sanction and resolve disciplinary cases |
+| `retirement_case.viewAny` | View retirement cases |
+| `retirement_case.manage` | Initiate, review, decide and finalize retirement cases |
+
+### profile
+
+| Permission | Description |
+|---|---|
+| `profile.view` | View own profile |
+| `profile.update` | Update own profile |
+
+### users
+
+| Permission | Description |
+|---|---|
+| `users.viewAny` | View login accounts |
+| `users.invite` | Invite and provision login accounts |
+| `users.update` | Update user roles, status and access |
+| `users.delete` | Deactivate login accounts |
 
 ### dashboard
 
 | Permission | Description |
 |---|---|
-| `dashboard.employee` | View employee dashboard |
-| `dashboard.manager` | View manager dashboard |
-| `dashboard.executive` | View executive dashboard |
+| `dashboard.executive` | View executive dashboard (any branch) |
+| `dashboard.regional` | View executive dashboard scoped to own branch |
 
-### notifications
-
-| Permission | Description |
-|---|---|
-| `notifications.manage_templates` | Edit notification email templates |
-| `notifications.manage_announcements` | Create and publish announcements |
-
-### settings
+### Single-permission modules
 
 | Permission | Description |
 |---|---|
-| `settings.view` | View tenant settings |
-| `settings.edit` | Edit settings, manage roles, manage holidays, branding |
-| `settings.billing` | View and manage billing/subscription |
-
-### audit
-
-| Permission | Description |
-|---|---|
-| `audit.view` | View audit logs |
-| `audit.export` | Export audit logs |
-
-### admin (Super Admin Only)
-
-| Permission | Description |
-|---|---|
-| `admin.tenants` | View and manage all tenants |
-| `admin.revenue` | View platform revenue metrics |
-| `admin.impersonate` | Impersonate tenant admins |
-| `admin.health` | View system health |
-| `admin.plans` | Manage subscription plans |
-| `admin.billing` | Manage invoices across tenants |
+| `announcement.manage` | Manage announcements |
+| `report.generate` | Generate reports (also saving and scheduling them) |
+| `apikey.manage` | Manage API keys |
+| `webhook.manage` | Manage webhooks |
+| `billing.manage` | Manage billing and subscriptions |
+| `settings.manage` | Manage tenant settings — also custom roles and the tenant audit log |
+| `admin.manage` | Platform administration — granted to no tenant role; `super_admin` holds it through the bypass |
 
 ---
 
 ## Default Role Assignments
 
-### tenant_admin — Full Control
+Roles: `employee`, `supervisor`, `dept_admin`, `hr_admin`, `finance_admin`, `tenant_admin`, plus `super_admin` (implicit bypass, above). Grants are cumulative: each role holds everything in the rows above it.
 
-All permissions except `admin.*`.
+| Role | Holds |
+|---|---|
+| `employee` | **Everyone** set |
+| `supervisor` | Everyone + **Supervisor** set |
+| `dept_admin` | Everyone + Supervisor set — **identical to `supervisor`**; only the reach differs (see *Scope Rules*) |
+| `hr_admin` | Everyone + Supervisor + **HR** + **Finance** sets |
+| `finance_admin` | Everyone + Supervisor + HR + Finance sets — **identical to `hr_admin`** |
+| `tenant_admin` | Everyone + Supervisor + HR + Finance + **Tenant Admin** sets |
 
-### hr_admin
-
-```
-employees.view, employees.create, employees.edit, employees.delete,
-employees.transition, employees.import, employees.export,
-self.view, self.edit_basic,
-team.view, team.attendance, team.overtime,
-attendance.own, attendance.all, attendance.correct, attendance.import, attendance.settings,
-corrections.request, corrections.approve,
-shifts.view, shifts.manage,
-devices.view, devices.manage,
-leave.request, leave.approve, leave.manage_types, leave.manage_balances,
-payslips.own,
-organization.view, organization.manage_branches, organization.manage_departments, organization.manage_positions,
-reports.view, reports.build,
-dashboard.employee, dashboard.manager,
-notifications.manage_announcements,
-settings.view,
-audit.view
-```
-
-### finance_admin
+### Everyone
 
 ```
-employees.view,
-self.view, self.edit_basic,
-attendance.own, attendance.all,
-corrections.request,
-leave.request,
-payroll.view, payroll.process, payroll.approve, payroll.configure, payroll.export,
-payslips.own, payslips.all,
-reports.view, reports.build, reports.schedule,
-dashboard.employee, dashboard.executive,
-settings.view,
-audit.view
+org.viewAny, org.view,
+attendance.checkIn, attendance.viewOwn, attendance.view,
+shift.viewAny, shift.view,
+correction.create, correction.viewOwn,
+holiday.viewAny, holiday.view,
+payroll.viewOwnPayslip,
+leave.viewTypes, leave.request,
+profile.view, profile.update
 ```
 
-### department_head
+### Supervisor set
 
 ```
-employees.view,
-self.view, self.edit_basic,
-team.view, team.attendance, team.overtime,
-attendance.own, attendance.team, attendance.correct,
-corrections.request, corrections.approve,
-shifts.view,
-leave.request, leave.approve,
-payslips.own,
-reports.view, reports.department,
-dashboard.employee, dashboard.manager,
-audit.view
+attendance.viewTeam,
+correction.viewPending, correction.approve,
+leave.viewTeam, leave.approve,
+employee.viewAny, employee.view,
+personnel_action.viewAny,
+disciplinary_case.viewAny,
+retirement_case.viewAny,
+dashboard.regional
 ```
 
-### supervisor
+### HR set
 
 ```
-self.view, self.edit_basic,
-team.view, team.attendance,
-attendance.own, attendance.team, attendance.correct,
-corrections.request, corrections.approve,
-leave.request, leave.approve,
-payslips.own,
-dashboard.employee, dashboard.manager
+org.create, org.update,
+attendance.viewAll, attendance.manage,
+attendance.viewConflicts, attendance.resolveConflicts,
+shift.create, shift.update,
+device.viewAny, device.view,
+correction.viewAll,
+holiday.create, holiday.update,
+leave.manageTypes, leave.viewAll, leave.adjustBalance,
+employee.create, employee.update, employee.transition,
+employee.viewFinancial, employee.updateFinancial,
+personnel_action.create,
+disciplinary_case.manage,
+retirement_case.manage,
+announcement.manage,
+report.generate,
+users.viewAny, users.invite, users.update,
+dashboard.executive
 ```
 
-### employee
+### Finance set
 
 ```
-self.view, self.edit_basic,
-attendance.own, attendance.correct,
-corrections.request,
-leave.request,
-payslips.own,
-dashboard.employee
+payroll.viewAll, payroll.process, payroll.manageLoan,
+payroll.manageCostSharing,
+payroll.viewConfig
 ```
+
+### Tenant Admin set
+
+```
+org.delete,
+shift.delete,
+device.create, device.update, device.delete,
+holiday.delete,
+payroll.approve, payroll.void, payroll.reprocess,
+payroll.manageConfig,
+employee.delete,
+users.delete,
+apikey.manage,
+webhook.manage,
+billing.manage,
+settings.manage
+```
+
+Consequences worth knowing:
+
+- **`hr_admin` and `finance_admin` hold the same permissions.** Separating them needs custom roles.
+- **Only `tenant_admin` can approve, void or reprocess payroll**, change payroll configuration, or register, edit and remove devices.
+- **`supervisor` and `dept_admin` do not hold `report.generate`**, so they have no reports.
+- No role is granted `admin.manage`, and none can be: it is a **platform-only** ability (`Permission::PLATFORM_ONLY`). The catalogue offered to tenants leaves it out, custom-role validation refuses it, and permission resolution never returns it for anyone but `super_admin`, whatever a role row says (audit N86).
 
 ---
 
 ## Custom Role Rules
 
-1. Tenant admins can create custom roles via the role editor UI.
-2. Custom roles are assigned any subset of available permissions.
-3. System roles (`is_system = true`) cannot be deleted or have permissions removed.
-4. System role permissions are viewable but not editable in the UI.
-5. Custom roles can be duplicated (as a starting point), edited, and deleted.
-6. Deleting a custom role: users with only that role are reassigned to `employee` role.
-7. A user can have multiple roles — permissions are the union of all assigned roles.
-8. Permission changes take effect within 15 minutes (cache TTL) or immediately if cache is flushed.
+1. Custom roles are managed at **Settings → Roles & Permissions** (`/settings/roles`). Every custom-role endpoint requires `settings.manage`, which only `tenant_admin` holds by default.
+2. A custom role has a name (unique within the tenant), an optional description, an active flag, a reach (rule 8) and at least one permission from the catalogue above, platform-only abilities excepted.
+3. A user is assigned at most one custom role (`custom_role_id` on the user). The custom role **replaces** the permissions of the user's role; the two are never combined.
+4. The built-in roles are not rows in `custom_roles` and are not edited from this screen. Their grants come from `PermissionSeeder`.
+5. Custom roles can be created, edited and deleted. There is no "duplicate role" action.
+6. **Deleting a custom role is refused (422) while any user holds it.** Reassign those users first; nobody is reassigned automatically.
+7. Changing or deleting a custom role clears its permission cache, so the change applies on the next request.
+8. **Reach:** a custom role carries its own organisation scope (`org_scope`: `self`, `direct_reports`, `team`, `department`, `branch` or `all`), chosen on the roles screen as "Whose records" and replacing the built-in role's scope. New roles default to `self`.
+9. **Assigning a custom role** (Settings → Users) is refused unless the role belongs to your organisation, you already hold every permission it grants, and its reach is no wider than yours. A tenant admin can therefore assign any role; an HR admin cannot give anyone, themselves included, a role carrying `settings.manage` or `payroll.approve` (audit N87, N89).
 
 ---
 
 ## Scope Rules
 
-| Scope | Rule |
-|---|---|
-| `employees.view` | Can view any employee in the tenant |
-| `team.view` | Can view only direct/indirect reports (supervisor chain) |
-| `self.view` | Can view only own profile |
-| `reports.department` | Reports filtered to own department only |
-| `attendance.team` | Attendance filtered to direct/indirect reports |
-| `attendance.all` | Attendance for all employees in tenant |
-| `payslips.own` | Only own payslips |
-| `payslips.all` | Any employee's payslips |
+A permission says *what* a user may do; the organisation scope says *to whom*. Policies check both: `hasPermission()` first, then `canAccessEmployee()` for actions on a specific employee.
 
-Scoping is enforced in Policies, not in permission checks. `hasPermission()` checks if the user has the permission; Policies check if the user can perform the action on the specific resource.
+| Role | Scope | Reaches |
+|---|---|---|
+| `super_admin`, `tenant_admin`, `hr_admin`, `finance_admin` | `all` | Every employee in the tenant |
+| `dept_admin` | `department` | Employees in the user's own department |
+| `supervisor` | `direct_reports` | Employees whose supervisor is the user, and the user themselves |
+| `employee` | `self` | Only the user's own employee record |
+
+The scope is anchored on the user's linked employee record; a user with no employee record and a scope other than `all` reaches no one. Scoped checks include viewing, updating and transitioning employees, approving leave and corrections, team attendance, attendance conflicts and disciplinary cases.
+
+Two further rules sit on top of scope for approvals: a user cannot approve their own leave request or their own attendance correction, and every approval is a single step — one approval finalises the request.
 
 ---
 
@@ -277,21 +304,26 @@ Scoping is enforced in Policies, not in permission checks. `hasPermission()` che
 
 | Module | Permissions |
 |---|---|
-| employees | 7 |
-| self | 2 |
-| team | 3 |
-| attendance | 5 |
-| corrections | 2 |
-| shifts | 2 |
-| devices | 2 |
-| leave | 4 |
-| payroll | 6 |
-| payslips | 2 |
-| organization | 4 |
-| reports | 4 |
-| dashboard | 3 |
-| notifications | 2 |
-| settings | 3 |
-| audit | 2 |
-| admin | 6 |
-| **Total** | **59** |
+| org | 5 |
+| attendance | 8 |
+| shift | 5 |
+| device | 5 |
+| correction | 5 |
+| holiday | 5 |
+| payroll | 10 |
+| leave | 7 |
+| employee | 8 |
+| personnel_action | 2 |
+| disciplinary_case | 2 |
+| retirement_case | 2 |
+| profile | 2 |
+| users | 4 |
+| announcement | 1 |
+| dashboard | 2 |
+| report | 1 |
+| apikey | 1 |
+| webhook | 1 |
+| admin | 1 |
+| billing | 1 |
+| settings | 1 |
+| **Total** | **79** |
