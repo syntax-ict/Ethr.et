@@ -220,15 +220,31 @@ Tenant setting: `pagumen_proration_strategy` — `full_month` (default for gover
 | Calendar | Holiday columns highlighted in team calendar |
 | Dashboard | Upcoming holidays shown on employee dashboard |
 
+### Which year an auto-detect run covers
+
+A run for a year produces the holidays **dated in that Gregorian year**, January to December. The fixed Ethiopian dates are placed in whichever of the two overlapping Ethiopian years falls inside it. So a 2026 run gives Genna on 7 January 2026, Adwa on 2 March 2026 and Enkutatash on 11 September 2026.
+
+*(Corrected 2026-10-07, audit N57. A run used to cover the Ethiopian year beginning in September. Genna, Timkat and Adwa then landed in the next Gregorian year while Labour Day and Easter stayed in this one, so a tenant created in 2026 never had 2026's Genna, Timkat or Adwa. Attendance and payroll treated those days as working days.)*
+
+Onboarding runs auto-detect for the current year and the next, so an organisation set up in October already has next January's holidays. After that, `RollForwardHolidaysJob` keeps the next year filled in (below).
+
 ### Branch-Specific Holidays
 
-Some holidays apply only to certain branches (e.g., regional holidays). The `branch_scope` JSON field on `holidays` table controls this:
+Some holidays apply only to one branch (e.g. a regional holiday). Each holiday row has a nullable `branch_id`:
 - `null` = applies to all branches
-- `[branch_id_1, branch_id_2]` = applies only to listed branches
+- a branch = applies to that branch only, alongside the tenant-wide holidays
+
+*(Corrected 2026-10-07: this described a `branch_scope` JSON list of branches, which does not exist. A regional holiday for several branches is one row per branch.)*
 
 ### Recurring Holidays
 
-Holidays flagged as `is_recurring = true` are auto-created for new years by the yearly holiday generation job.
+A holiday marked **Recurring every year** (`recurring = true`) is created for the next year by `RollForwardHolidaysJob`. The job runs on the 1st of every month for every tenant, and the run is idempotent.
+
+- **Statutory holidays** for the next year come from auto-detect, so movable feasts (Easter, the Islamic holidays) get that year's computed date.
+- **A tenant's own recurring holiday** is copied to the same month and day, if it is a Gregorian, non-estimated holiday. An Ethiopian-calendar or estimated holiday moves between Gregorian years by a rule a copy cannot know, so it is not copied by date. 29 February is skipped in a year without it.
+- **Only the next year is touched, never the current one.** A holiday a tenant removed this year stays removed.
+
+*(Corrected 2026-10-07, audit N58. This said "auto-created for new years by the yearly holiday generation job". There was no such job, and the flag was saved and read by nothing.)*
 
 ---
 
