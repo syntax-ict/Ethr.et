@@ -38,6 +38,7 @@ const CAN_ABILITIES = {
   viewReports: "report.generate",
   viewExecutiveDashboard: "dashboard.executive",
   manageSettings: "settings.manage",
+  viewUsers: "users.viewAny",
   manageApiKeys: "apikey.manage",
   manageWebhooks: "webhook.manage",
   viewAdminConsole: "admin.manage",

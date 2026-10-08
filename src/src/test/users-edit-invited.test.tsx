@@ -11,12 +11,13 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-// The page is wrapped in <RoleGate minRole="tenant_admin">; grant access directly.
+// The page is gated on `users.viewAny`; grant access directly.
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
     hasRole: () => true,
-    can: {},
+    hasPermission: () => true,
+    can: new Proxy({} as Record<string, boolean>, { get: () => true }),
     role: "tenant_admin",
   }),
 }));
@@ -109,5 +110,44 @@ describe("Users — editing an invited account", () => {
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ status: "suspended" });
+  });
+});
+
+describe("Users — the whole list", () => {
+  /**
+   * The API pages at 25, ordered by email, and the screen read only page 1
+   * with no pager or search, so accounts past the 25th could not be reached
+   * (audit N68).
+   */
+  it("pages and searches through the API", async () => {
+    const asked: string[] = [];
+    server.use(
+      http.get("*/api/v1/users", ({ request }) => {
+        asked.push(new URL(request.url).search);
+        const page = Number(new URL(request.url).searchParams.get("page") ?? 1);
+        return HttpResponse.json({
+          data: [{ ...user("active"), email: `page${page}@acme.et` }],
+          meta: { current_page: page, last_page: 2, per_page: 25, total: 26 },
+          links: { first: null, last: null, prev: null, next: null },
+        });
+      }),
+    );
+    renderPage();
+
+    expect(
+      (await screen.findAllByText("page1@acme.et"))[0],
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /next/i }));
+    expect(
+      (await screen.findAllByText("page2@acme.et"))[0],
+    ).toBeInTheDocument();
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/search by name or email/i),
+      "selam",
+    );
+    await waitFor(() =>
+      expect(asked.some((q) => q.includes("search=selam"))).toBe(true),
+    );
   });
 });

@@ -3481,6 +3481,7 @@
   "users_page.load_failed": "Could not load users",
   "users_page.resend": "Resend invite",
   "users_page.resent": "Invitation resent",
+  "users_page.search": "Search by name or email",
   "users_page.send_invite": "Send invitation",
   "users_page.title": "Users & Access",
   "users_page.update_failed": "Could not update user",

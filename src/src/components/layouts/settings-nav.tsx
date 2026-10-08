@@ -119,7 +119,9 @@ export function SettingsNav() {
           label: t("nav.users", "Users & Access"),
           href: "/settings/users",
           icon: UserCog,
-          show: isTenantAdmin,
+          // users.viewAny, which HR admins hold too; the API guards which
+          // accounts each may change (N68).
+          show: can.viewUsers,
         },
         {
           label: t("nav.roles", "Roles & Permissions"),

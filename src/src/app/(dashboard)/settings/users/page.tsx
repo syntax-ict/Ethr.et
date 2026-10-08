@@ -41,6 +41,8 @@ import {
   type UserRole,
   type UserStatus,
 } from "@/features/users/api";
+import { SearchInput } from "@/components/shared/search-input";
+import { PaginationControls } from "@/components/shared/pagination-controls";
 
 const ROLES = [
   "tenant_admin",
@@ -71,7 +73,12 @@ function statusTone(status: UserStatus | string): string {
 
 export default function UsersSettingsPage() {
   const { t } = useT();
-  const usersQuery = useUsers();
+  // Every page, and the API's search: it pages at 25 ordered by email, and the
+  // screen read only the first page, so accounts past the 25th could not be
+  // edited, re-invited or removed (audit N68).
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const usersQuery = useUsers({ page, search: search || undefined });
   const invite = useInviteUser();
   const update = useUpdateUser();
   const remove = useDeleteUser();
@@ -142,7 +149,7 @@ export default function UsersSettingsPage() {
   const users = usersQuery.data?.data ?? [];
 
   return (
-    <RoleGate minRole="tenant_admin">
+    <RoleGate anyPermission={["viewUsers"]}>
       <div className="space-y-6">
         <PageHeader
           title={t("users_page.title", "Users & Access")}
@@ -157,6 +164,17 @@ export default function UsersSettingsPage() {
             </Button>
           }
         />
+
+        <div className="max-w-sm">
+          <SearchInput
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder={t("users_page.search", "Search by name or email")}
+          />
+        </div>
 
         {usersQuery.isLoading ? (
           <div className="space-y-2">
@@ -269,6 +287,12 @@ export default function UsersSettingsPage() {
             </CardContent>
           </Card>
         )}
+
+        <PaginationControls
+          meta={usersQuery.data?.meta}
+          onPageChange={setPage}
+          disabled={usersQuery.isFetching}
+        />
 
         {/* Invite */}
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
