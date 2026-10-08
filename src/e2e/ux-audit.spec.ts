@@ -18,14 +18,14 @@
  * assertions — there is no baseline to drift, so this never fails on a
  * legitimate design change. The assertions above are what gate the phase.
  */
-import fs from 'fs';
-import { test, expect, type Page } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import fs from "fs";
+import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import {
   ensureFreshSuperAdminSession,
   PLATFORM_BASE,
   SUPER_ADMIN_STATE,
-} from './helpers';
+} from "./helpers";
 
 /**
  * `superadmin` is a host as much as a role. The `/admin*` routes are served
@@ -33,7 +33,7 @@ import {
  * tenant `admin` against the tenant origin — which is what this harness did —
  * audited a redirect and an Access Denied screen, not the console.
  */
-type Role = 'admin' | 'hr' | 'employee' | 'superadmin';
+type Role = "admin" | "hr" | "employee" | "superadmin";
 
 /** Written by global-setup only if the super admin could actually sign in. */
 const superAdminAvailable = fs.existsSync(SUPER_ADMIN_STATE);
@@ -57,162 +57,196 @@ interface Route {
 /** Navigate to the list page and return the first matching detail href. */
 async function resolveDynamicPath(
   page: Page,
-  dynamic: NonNullable<Route['dynamic']>,
+  dynamic: NonNullable<Route["dynamic"]>,
 ): Promise<string | null> {
   await page.goto(dynamic.listPath);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState("networkidle");
 
-  const hrefs = await page.$$eval('a[href]', (as) =>
-    as.map((a) => a.getAttribute('href') ?? ''),
+  const hrefs = await page.$$eval("a[href]", (as) =>
+    as.map((a) => a.getAttribute("href") ?? ""),
   );
   return hrefs.find((h) => dynamic.linkPattern.test(h)) ?? null;
 }
 
 /** Route map mirrors the phase table in the production-readiness plan. */
 const PHASES: Record<string, Route[]> = {
-  '0': [
-    { path: '/login', name: 'login', role: 'admin' },
-    { path: '/dashboard', name: 'dashboard-shell', role: 'admin' },
-    { path: '/profile', name: 'profile', role: 'employee' },
+  "0": [
+    { path: "/login", name: "login", role: "admin" },
+    { path: "/dashboard", name: "dashboard-shell", role: "admin" },
+    { path: "/profile", name: "profile", role: "employee" },
   ],
-  '1': [
+  "1": [
     // Locale-prefixed, because the unprefixed URLs are now redirectors that
     // negotiate a language and render nothing of their own — screenshotting one
     // captures a blank page. This suite pins `en` before first paint (see
     // `pinPreferences` below), so `/en/*` is the page it was always auditing.
-    { path: '/en', name: 'landing', role: 'admin' },
-    { path: '/en/pricing', name: 'pricing', role: 'admin' },
-    { path: '/en/features', name: 'features', role: 'admin' },
-    { path: '/en/faq', name: 'faq', role: 'admin' },
-    { path: '/en/contact', name: 'contact', role: 'admin' },
-    { path: '/register', name: 'register', role: 'admin' },
-    { path: '/setup', name: 'setup', role: 'admin' },
-    { path: '/setup/guided', name: 'setup-guided', role: 'admin' },
+    { path: "/en", name: "landing", role: "admin" },
+    { path: "/en/pricing", name: "pricing", role: "admin" },
+    { path: "/en/features", name: "features", role: "admin" },
+    { path: "/en/faq", name: "faq", role: "admin" },
+    { path: "/en/contact", name: "contact", role: "admin" },
+    { path: "/register", name: "register", role: "admin" },
+    { path: "/setup", name: "setup", role: "admin" },
+    { path: "/setup/guided", name: "setup-guided", role: "admin" },
   ],
-  '2': [
-    { path: '/employees', name: 'employees-list', role: 'admin' },
-    { path: '/employees/new', name: 'employees-new', role: 'admin' },
-    { path: '/employees/import', name: 'employees-import', role: 'admin' },
+  "2": [
+    { path: "/employees", name: "employees-list", role: "admin" },
+    { path: "/employees/new", name: "employees-new", role: "admin" },
+    { path: "/employees/import", name: "employees-import", role: "admin" },
     {
-      path: '/employees',
-      name: 'employee-detail',
-      role: 'admin',
+      path: "/employees",
+      name: "employee-detail",
+      role: "admin",
       dynamic: {
-        listPath: '/employees',
+        listPath: "/employees",
         linkPattern: /^\/employees\/[A-Za-z0-9]{10,}$/,
       },
     },
-    { path: '/organization', name: 'organization', role: 'admin' },
-    { path: '/directory', name: 'directory', role: 'employee' },
+    { path: "/organization", name: "organization", role: "admin" },
+    { path: "/directory", name: "directory", role: "employee" },
   ],
-  '3': [
-    { path: '/attendance', name: 'attendance', role: 'admin' },
-    { path: '/attendance/team', name: 'attendance-team', role: 'hr' },
-    { path: '/attendance/corrections', name: 'attendance-corrections', role: 'admin' },
-    { path: '/attendance/intelligence', name: 'attendance-intelligence', role: 'admin' },
-    { path: '/attendance/overtime', name: 'attendance-overtime', role: 'admin' },
-    { path: '/attendance/settings', name: 'attendance-settings', role: 'admin' },
-    { path: '/attendance/import', name: 'attendance-import', role: 'admin' },
-    { path: '/attendance/kiosks', name: 'attendance-kiosks', role: 'admin' },
-    { path: '/attendance/mobile', name: 'attendance-mobile', role: 'employee' },
-    { path: '/attendance/qr', name: 'attendance-qr', role: 'admin' },
-    { path: '/attendance/scan', name: 'attendance-scan', role: 'employee' },
-    { path: '/shifts', name: 'shifts', role: 'admin' },
-    { path: '/shifts/roster', name: 'shifts-roster', role: 'admin' },
-    { path: '/shifts/rotations', name: 'shifts-rotations', role: 'admin' },
-    { path: '/shifts/assignments', name: 'shifts-assignments', role: 'admin' },
-    { path: '/devices', name: 'devices', role: 'admin' },
-    { path: '/devices/dashboard', name: 'devices-dashboard', role: 'admin' },
+  "3": [
+    { path: "/attendance", name: "attendance", role: "admin" },
+    { path: "/attendance/team", name: "attendance-team", role: "hr" },
     {
-      path: '/devices',
-      name: 'device-detail',
-      role: 'admin',
+      path: "/attendance/corrections",
+      name: "attendance-corrections",
+      role: "admin",
+    },
+    {
+      path: "/attendance/intelligence",
+      name: "attendance-intelligence",
+      role: "admin",
+    },
+    {
+      path: "/attendance/overtime",
+      name: "attendance-overtime",
+      role: "admin",
+    },
+    {
+      path: "/attendance/settings",
+      name: "attendance-settings",
+      role: "admin",
+    },
+    { path: "/attendance/import", name: "attendance-import", role: "admin" },
+    { path: "/attendance/kiosks", name: "attendance-kiosks", role: "admin" },
+    { path: "/attendance/mobile", name: "attendance-mobile", role: "employee" },
+    { path: "/attendance/qr", name: "attendance-qr", role: "admin" },
+    { path: "/attendance/scan", name: "attendance-scan", role: "employee" },
+    { path: "/shifts", name: "shifts", role: "admin" },
+    { path: "/shifts/roster", name: "shifts-roster", role: "admin" },
+    { path: "/shifts/rotations", name: "shifts-rotations", role: "admin" },
+    { path: "/shifts/assignments", name: "shifts-assignments", role: "admin" },
+    { path: "/devices", name: "devices", role: "admin" },
+    { path: "/devices/dashboard", name: "devices-dashboard", role: "admin" },
+    {
+      path: "/devices",
+      name: "device-detail",
+      role: "admin",
       dynamic: {
-        listPath: '/devices',
+        listPath: "/devices",
         linkPattern: /^\/devices\/[A-Za-z0-9]{10,}$/,
       },
     },
   ],
-  '4': [
-    { path: '/leave', name: 'leave', role: 'employee' },
-    { path: '/payroll', name: 'payroll', role: 'admin' },
-    { path: '/payroll/payslips', name: 'payslips', role: 'employee' },
-    { path: '/payroll/loans', name: 'loans', role: 'admin' },
+  "4": [
+    { path: "/leave", name: "leave", role: "employee" },
+    { path: "/payroll", name: "payroll", role: "admin" },
+    { path: "/payroll/payslips", name: "payslips", role: "employee" },
+    { path: "/payroll/loans", name: "loans", role: "admin" },
     {
-      path: '/payroll',
-      name: 'payroll-run-detail',
-      role: 'admin',
+      path: "/payroll",
+      name: "payroll-run-detail",
+      role: "admin",
       dynamic: {
-        listPath: '/payroll',
+        listPath: "/payroll",
         linkPattern: /^\/payroll\/[A-Za-z0-9]{10,}$/,
       },
     },
   ],
-  '5': [
-    { path: '/approvals', name: 'approvals', role: 'hr' },
-    { path: '/notifications', name: 'notifications', role: 'employee' },
-    { path: '/notifications/preferences', name: 'notification-prefs', role: 'employee' },
-    { path: '/announcements', name: 'announcements', role: 'admin' },
-    { path: '/profile/security', name: 'profile-security', role: 'employee' },
-    { path: '/profile/personal', name: 'profile-personal', role: 'employee' },
-    { path: '/profile/preferences', name: 'profile-preferences', role: 'employee' },
-    { path: '/profile/requests', name: 'profile-requests', role: 'employee' },
-  ],
-  '6': [
-    { path: '/dashboard', name: 'dashboard', role: 'admin' },
-    { path: '/analytics', name: 'analytics', role: 'admin' },
-    { path: '/reports', name: 'reports', role: 'admin' },
-  ],
-  '7': [
-    { path: '/settings/api-keys', name: 'api-keys', role: 'admin' },
-    { path: '/settings/webhooks', name: 'webhooks', role: 'admin' },
-    { path: '/settings/scim', name: 'scim', role: 'admin' },
-    { path: '/settings/accounting', name: 'accounting', role: 'admin' },
+  "5": [
+    { path: "/approvals", name: "approvals", role: "hr" },
+    { path: "/notifications", name: "notifications", role: "employee" },
     {
-      path: '/settings/notification-templates',
-      name: 'notification-templates',
-      role: 'admin',
+      path: "/notifications/preferences",
+      name: "notification-prefs",
+      role: "employee",
     },
-    { path: '/settings', name: 'settings-index', role: 'admin' },
-  ],
-  '8': [
-    { path: '/admin', name: 'admin-console', role: 'superadmin' },
-    { path: '/admin/tenants', name: 'admin-tenants', role: 'superadmin' },
-    { path: '/admin/audit', name: 'admin-audit', role: 'superadmin' },
+    { path: "/announcements", name: "announcements", role: "admin" },
+    { path: "/profile/security", name: "profile-security", role: "employee" },
+    { path: "/profile/personal", name: "profile-personal", role: "employee" },
     {
-      path: '/admin/platform-settings',
-      name: 'admin-platform-settings',
-      role: 'superadmin',
+      path: "/profile/preferences",
+      name: "profile-preferences",
+      role: "employee",
     },
-    { path: '/billing', name: 'billing', role: 'admin' },
-    { path: '/settings/users', name: 'settings-users', role: 'admin' },
-    { path: '/settings/roles', name: 'settings-roles', role: 'admin' },
-    { path: '/settings/shifts', name: 'settings-shifts', role: 'admin' },
-    { path: '/settings/holidays', name: 'settings-holidays', role: 'admin' },
-    { path: '/settings/leave-types', name: 'settings-leave-types', role: 'admin' },
-    { path: '/settings/payroll', name: 'settings-payroll', role: 'admin' },
-    { path: '/settings/audit-logs', name: 'settings-audit-logs', role: 'admin' },
+    { path: "/profile/requests", name: "profile-requests", role: "employee" },
+  ],
+  "6": [
+    { path: "/dashboard", name: "dashboard", role: "admin" },
+    { path: "/analytics", name: "analytics", role: "admin" },
+    { path: "/reports", name: "reports", role: "admin" },
+  ],
+  "7": [
+    { path: "/settings/api-keys", name: "api-keys", role: "admin" },
+    { path: "/settings/webhooks", name: "webhooks", role: "admin" },
+    { path: "/settings/scim", name: "scim", role: "admin" },
+    { path: "/settings/accounting", name: "accounting", role: "admin" },
+    {
+      path: "/settings/notification-templates",
+      name: "notification-templates",
+      role: "admin",
+    },
+    { path: "/settings", name: "settings-index", role: "admin" },
+  ],
+  "8": [
+    { path: "/admin", name: "admin-console", role: "superadmin" },
+    { path: "/admin/tenants", name: "admin-tenants", role: "superadmin" },
+    { path: "/admin/audit", name: "admin-audit", role: "superadmin" },
+    {
+      path: "/admin/platform-settings",
+      name: "admin-platform-settings",
+      role: "superadmin",
+    },
+    { path: "/billing", name: "billing", role: "admin" },
+    { path: "/settings/users", name: "settings-users", role: "admin" },
+    { path: "/settings/roles", name: "settings-roles", role: "admin" },
+    { path: "/settings/shifts", name: "settings-shifts", role: "admin" },
+    { path: "/settings/holidays", name: "settings-holidays", role: "admin" },
+    {
+      path: "/settings/leave-types",
+      name: "settings-leave-types",
+      role: "admin",
+    },
+    { path: "/settings/payroll", name: "settings-payroll", role: "admin" },
+    {
+      path: "/settings/audit-logs",
+      name: "settings-audit-logs",
+      role: "admin",
+    },
   ],
 };
 
 const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 812 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'desktop', width: 1280, height: 900 },
+  { name: "mobile", width: 375, height: 812 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "desktop", width: 1280, height: 900 },
 ] as const;
 
-const THEMES = ['light', 'dark', 'high-contrast'] as const;
+const THEMES = ["light", "dark", "high-contrast"] as const;
 
-const selected = process.env.UX_PHASE ?? 'all';
+const selected = process.env.UX_PHASE ?? "all";
 const phases =
-  selected === 'all' ? Object.keys(PHASES) : selected.split(',').map((s) => s.trim());
+  selected === "all"
+    ? Object.keys(PHASES)
+    : selected.split(",").map((s) => s.trim());
 
 /** Pin theme and locale before first paint so no frame renders in the wrong one. */
 async function applyPreferences(page: Page, theme: string) {
   await page.addInitScript(
     ([t]) => {
-      localStorage.setItem('theme', t);
-      localStorage.setItem('locale', 'en');
+      localStorage.setItem("theme", t);
+      localStorage.setItem("locale", "en");
     },
     [theme],
   );
@@ -220,16 +254,16 @@ async function applyPreferences(page: Page, theme: string) {
 
 async function runAxe(page: Page) {
   const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     // `color-contrast` is deliberately NOT disabled here. The older
     // accessibility.spec.ts turned it off with a "verified manually" comment,
     // which made the suite silent on the single most common AA failure. Real
     // rendering is exactly what Playwright provides, so the rule can run.
-    .disableRules(['scrollable-region-focusable'])
+    .disableRules(["scrollable-region-focusable"])
     .analyze();
 
   return results.violations.filter(
-    (v) => v.impact === 'critical' || v.impact === 'serious',
+    (v) => v.impact === "critical" || v.impact === "serious",
   );
 }
 
@@ -249,7 +283,9 @@ async function runAxe(page: Page) {
  * once 500'd every browser login and only a console assertion noticed.
  */
 function isCancelledPrefetchMessage(text: string): boolean {
-  return text.includes('due to access control checks') && text.includes('_rsc=');
+  return (
+    text.includes("due to access control checks") && text.includes("_rsc=")
+  );
 }
 
 /**
@@ -269,16 +305,16 @@ function formatViolations(
         .slice(0, 5)
         .map(
           (n) =>
-            `    • ${n.target.join(' ')}\n` +
+            `    • ${n.target.join(" ")}\n` +
             `      ${n.html.slice(0, 160)}\n` +
-            `      ${(n.failureSummary ?? '').replace(/\n/g, '\n      ')}`,
+            `      ${(n.failureSummary ?? "").replace(/\n/g, "\n      ")}`,
         )
-        .join('\n');
+        .join("\n");
       const more =
-        v.nodes.length > 5 ? `\n    …and ${v.nodes.length - 5} more` : '';
+        v.nodes.length > 5 ? `\n    …and ${v.nodes.length - 5} more` : "";
       return `[${v.impact}] ${v.id}: ${v.help}\n${nodes}${more}`;
     })
-    .join('\n\n');
+    .join("\n\n");
 }
 
 for (const phase of phases) {
@@ -292,7 +328,7 @@ for (const phase of phases) {
           // Platform routes need both the super-admin session and the console's
           // own origin; a tenant-role route keeps the project baseURL.
           test.use(
-            route.role === 'superadmin'
+            route.role === "superadmin"
               ? { storageState: SUPER_ADMIN_STATE, baseURL: PLATFORM_BASE }
               : { storageState: `e2e/.auth/${route.role}.json` },
           );
@@ -300,8 +336,8 @@ for (const phase of phases) {
           // Skip rather than fail when there is no super-admin session — but
           // never quietly pass, for the same reason as admin.spec.ts.
           test.skip(
-            route.role === 'superadmin' && !superAdminAvailable,
-            'no super-admin session — see the global-setup warning',
+            route.role === "superadmin" && !superAdminAvailable,
+            "no super-admin session — see the global-setup warning",
           );
 
           // Access tokens live 15 minutes and phase 8 runs ~36 minutes into a
@@ -310,7 +346,7 @@ for (const phase of phases) {
           // run on 401s while passing standalone. Re-minted only when actually
           // stale, so 11 of these 12 describes do no login at all and the
           // 5/min/IP login limit is never approached.
-          if (route.role === 'superadmin') {
+          if (route.role === "superadmin") {
             test.beforeAll(async () => {
               await ensureFreshSuperAdminSession();
             });
@@ -338,7 +374,7 @@ for (const phase of phases) {
             // "Failed to load resource: 404" on its own names nothing. Capture
             // the request that actually failed so the report says which asset
             // or endpoint is missing.
-            page.on('response', (res) => {
+            page.on("response", (res) => {
               if (res.status() < 400) return;
 
               // The audit is a far more aggressive client than any human: it
@@ -352,40 +388,43 @@ for (const phase of phases) {
               // dashboard endpoints. A 429 anywhere else, or any other 4xx/5xx
               // here, still fails the phase.
               const isSelfInflictedThrottle =
-                res.status() === 429 && /\/api\/v1\/dashboard\//.test(res.url());
+                res.status() === 429 &&
+                /\/api\/v1\/dashboard\//.test(res.url());
               if (isSelfInflictedThrottle) return;
 
               consoleErrors.push(`HTTP ${res.status()} — ${res.url()}`);
             });
-            page.on('requestfailed', (req) => {
-              const errorText = req.failure()?.errorText ?? '';
+            page.on("requestfailed", (req) => {
+              const errorText = req.failure()?.errorText ?? "";
               // Each engine spells "the client cancelled this" differently, and
               // matching only Chromium's string is why this filter did nothing on
               // WebKit: 13 mobile pages failed on cancelled RSC prefetches that
               // the two rules below were already written to forgive.
               const isCancellation =
-                errorText === 'net::ERR_ABORTED' || // Chromium
-                errorText === 'Load request cancelled'; // WebKit
+                errorText === "net::ERR_ABORTED" || // Chromium
+                errorText === "Load request cancelled"; // WebKit
 
               // Next.js cancels in-flight RSC prefetches when the router
               // navigates away; an aborted `?_rsc=` request is the framework
               // working correctly, not a defect. Everything else is reported.
-              if (isCancellation && req.url().includes('_rsc=')) return;
+              if (isCancellation && req.url().includes("_rsc=")) return;
 
               // TanStack Query cancels an in-flight fetch when the same query
               // is refetched or the component unmounts during the viewport
               // loop. An aborted API call is that cancellation, not a failure.
-              if (isCancellation && req.url().includes('/api/v1/')) return;
+              if (isCancellation && req.url().includes("/api/v1/")) return;
 
-              consoleErrors.push(`REQUEST FAILED — ${req.url()} (${errorText})`);
+              consoleErrors.push(
+                `REQUEST FAILED — ${req.url()} (${errorText})`,
+              );
             });
-            page.on('console', (msg) => {
+            page.on("console", (msg) => {
               const text = msg.text();
               // Skip the generic companion line to the response events above,
               // which carries no URL and would only duplicate them.
               if (
-                msg.type() === 'error' &&
-                !text.startsWith('Failed to load resource')
+                msg.type() === "error" &&
+                !text.startsWith("Failed to load resource")
               ) {
                 if (isCancelledPrefetchMessage(text)) return;
 
@@ -396,7 +435,7 @@ for (const phase of phases) {
             // fetch — so the same filter has to sit on both sinks. Filtering only
             // the console left 7 pages red with messages that read identically to
             // the ones already being forgiven a few lines up.
-            page.on('pageerror', (err) => {
+            page.on("pageerror", (err) => {
               const text = String(err);
               if (isCancelledPrefetchMessage(text)) return;
 
@@ -419,10 +458,20 @@ for (const phase of phases) {
               targetPath = resolved!;
             }
 
+            // Reduced motion snaps every animation to its last keyframe
+            // (globals.css honours it). Without it axe sampled the landing
+            // page's product-flow mid-fade and reported the half-faded pill
+            // and copy as a contrast violation in light and dark, while the
+            // settled page passes. The audit measures the page, not a frame.
+            await page.emulateMedia({ reducedMotion: "reduce" });
+
             for (const vp of VIEWPORTS) {
-              await page.setViewportSize({ width: vp.width, height: vp.height });
+              await page.setViewportSize({
+                width: vp.width,
+                height: vp.height,
+              });
               await page.goto(targetPath);
-              await page.waitForLoadState('networkidle');
+              await page.waitForLoadState("networkidle");
 
               await page.screenshot({
                 path: testInfo.outputPath(
@@ -457,7 +506,7 @@ for (const phase of phases) {
             // role for this route) rather than the absence of violations on a
             // screen nobody meant to test.
             await expect(
-              page.getByTestId('role-gate-denied'),
+              page.getByTestId("role-gate-denied"),
               `${targetPath} rendered RoleGate's "Access Denied" for role "${route.role}" — this audit would be measuring the denial screen, not the page. Fix the route's role in PHASES.`,
             ).toHaveCount(0);
 
@@ -467,14 +516,14 @@ for (const phase of phases) {
             expect(
               formatViolations(violations),
               `${targetPath} has WCAG AA violations (${theme})`,
-            ).toBe('');
+            ).toBe("");
 
             // De-duplicate: the same asset is requested once per viewport pass,
             // so a single missing file would otherwise be reported three times.
             expect(
-              [...new Set(consoleErrors)].join('\n'),
+              [...new Set(consoleErrors)].join("\n"),
               `${targetPath} logged console/network errors (${theme})`,
-            ).toBe('');
+            ).toBe("");
           });
         });
       }

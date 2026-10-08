@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -184,5 +184,36 @@ describe("<PayrollRunDetail> exports", () => {
       "PAYROLL-RUN1,Meskerem 2019,2026-10-10,5100,Salary Expense,15000.00,",
       ",TOTALS,,,,15000.00,15000.00",
     ]);
+  });
+});
+
+// Approving releases every payslip in the run and cannot be undone from this
+// screen, yet one click did it (found in the browser, 2026-10-08). Void already
+// asked; approve and reprocess now ask through the same ConfirmDialog.
+describe("<PayrollRunDetail> confirmation before approving", () => {
+  it("sends nothing until the approval is confirmed, then approves", async () => {
+    const approvals: string[] = [];
+    server.use(
+      me("finance_admin", ["payroll.viewAll", "payroll.approve"]),
+      http.put("*/api/v1/payroll/runs/RUN1/approve", () => {
+        approvals.push("approve");
+        return HttpResponse.json({ ...RUN, status: "approved" });
+      }),
+    );
+    renderDetail();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Approve Payroll/ }),
+    );
+
+    // The click opened a question, not a request.
+    const dialog = await screen.findByRole("dialog");
+    expect(approvals).toEqual([]);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: /Approve|Confirm/ }),
+    );
+
+    await waitFor(() => expect(approvals).toEqual(["approve"]));
   });
 });

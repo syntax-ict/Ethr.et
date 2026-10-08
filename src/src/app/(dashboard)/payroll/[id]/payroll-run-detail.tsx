@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CurrencyDisplay } from "@/components/shared/currency-display";
 import { SimpleTable } from "@/components/shared/simple-table";
 import {
@@ -74,6 +75,24 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const reprocessPayroll = useReprocessPayroll();
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
   const [voidReason, setVoidReason] = useState("");
+  // Approving releases every payslip in the run to its employee and cannot be
+  // taken back from this screen; reprocessing creates a whole new run. Both
+  // went through on one click (approve) or a native confirm() (reprocess),
+  // found in the 2026-10-08 browser pass. Void already used a dialog.
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
+
+  function approve() {
+    approvePayroll.mutate(id, {
+      onSuccess: () => toast.success(t("payroll_detail_page.approved_success")),
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { detail?: string } } };
+        toast.error(
+          e.response?.data?.detail || t("payroll_detail_page.approve_failed"),
+        );
+      },
+    });
+  }
 
   function handleVoid(e: React.FormEvent) {
     e.preventDefault();
@@ -96,7 +115,6 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   }
 
   function handleReprocess() {
-    if (!confirm(t("payroll_detail_page.reprocess_confirm"))) return;
     reprocessPayroll.mutate(
       { publicId: id, idempotency_key: crypto.randomUUID() },
       {
@@ -231,21 +249,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           {run.status === "completed" && canApprove && (
             <Button
               size="sm"
-              onClick={() =>
-                approvePayroll.mutate(id, {
-                  onSuccess: () =>
-                    toast.success(t("payroll_detail_page.approved_success")),
-                  onError: (err: unknown) => {
-                    const e = err as {
-                      response?: { data?: { detail?: string } };
-                    };
-                    toast.error(
-                      e.response?.data?.detail ||
-                        t("payroll_detail_page.approve_failed"),
-                    );
-                  },
-                })
-              }
+              onClick={() => setApproveDialogOpen(true)}
               disabled={approvePayroll.isPending}
             >
               {approvePayroll.isPending ? (
@@ -271,7 +275,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleReprocess}
+              onClick={() => setReprocessDialogOpen(true)}
               disabled={reprocessPayroll.isPending}
             >
               {reprocessPayroll.isPending ? (
@@ -420,6 +424,30 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={approveDialogOpen}
+        onOpenChange={setApproveDialogOpen}
+        title={t("payroll_detail_page.approve_confirm_title")}
+        description={t("payroll_detail_page.approve_confirm_description")}
+        confirmLabel={t("payroll_detail_page.approve_payroll")}
+        onConfirm={() => {
+          setApproveDialogOpen(false);
+          approve();
+        }}
+      />
+
+      <ConfirmDialog
+        open={reprocessDialogOpen}
+        onOpenChange={setReprocessDialogOpen}
+        title={t("payroll_detail_page.reprocess_confirm_title")}
+        description={t("payroll_detail_page.reprocess_confirm")}
+        confirmLabel={t("payroll_detail_page.reprocess_payroll")}
+        onConfirm={() => {
+          setReprocessDialogOpen(false);
+          handleReprocess();
+        }}
+      />
 
       <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
         <DialogContent>
