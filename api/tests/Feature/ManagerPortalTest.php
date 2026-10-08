@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CorrectionStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\ProfileUpdateStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
@@ -11,6 +12,7 @@ use App\Models\Employee;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\ProfileUpdateRequest;
 
 // ── Manager Dashboard ──
 
@@ -45,6 +47,41 @@ test('employee cannot access manager dashboard', function () {
 
     test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/manager")
         ->assertForbidden();
+});
+
+test('the dashboard counts exactly what the approvals queue lists', function () {
+    // It counted pending leave from direct reports only: an HR admin with no
+    // reports saw "All caught up!" while the queue had items, and pending
+    // corrections and profile changes were never counted (audit N63).
+    $tenant = createTenant();
+    $hr = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    test()->actingAs(createUser(['role' => UserRole::HR_ADMIN, 'employee_id' => $hr->id], $tenant));
+
+    $someone = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    LeaveRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $someone->id,
+        'leave_type_id' => LeaveType::factory()->create(['tenant_id' => $tenant->id])->id,
+        'status' => LeaveStatus::PENDING,
+    ]);
+    ProfileUpdateRequest::create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $someone->id,
+        'field_name' => 'phone',
+        'old_value' => '+251911000000',
+        'new_value' => '+251911111111',
+        'status' => ProfileUpdateStatus::PENDING,
+    ]);
+
+    $queue = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/approvals/pending")->assertOk();
+    $counts = test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/dashboard/manager")
+        ->assertOk()
+        ->json('pending_approvals');
+
+    expect($queue->json('total'))->toBe(2)
+        ->and($counts['total'])->toBe($queue->json('total'))
+        ->and($counts['leave'])->toBe(1)
+        ->and($counts['profile_update'])->toBe(1);
 });
 
 // ── Approval Center ──

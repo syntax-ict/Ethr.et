@@ -10983,6 +10983,8 @@ export interface operations {
                         };
                         pending_approvals: {
                             leave: number;
+                            correction: number;
+                            profile_update: number;
                             total: number;
                         };
                         team_on_leave: {
