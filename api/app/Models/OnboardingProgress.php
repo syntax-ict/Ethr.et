@@ -53,9 +53,4 @@ class OnboardingProgress extends Model
             'current_step' => min($step + 1, OnboardingStep::last()->value),
         ]);
     }
-
-    public function isComplete(): bool
-    {
-        return $this->completed_at !== null;
-    }
 }

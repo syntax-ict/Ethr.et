@@ -124,11 +124,6 @@ class User extends Authenticatable
         return $this->belongsTo(self::class, 'invited_by');
     }
 
-    public function isInvited(): bool
-    {
-        return $this->status === 'invited';
-    }
-
     public function isAtLeast(UserRole $role): bool
     {
         return $this->role->isAtLeast($role);
