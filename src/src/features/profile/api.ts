@@ -17,9 +17,6 @@ export type EmergencyContact = Schemas["EmergencyContactResource"];
 type ProfileContract =
   operations["profile.show"]["responses"][200]["content"]["application/json"];
 
-/** `account_number_masked` is the tail four characters only. */
-export type ProfileBankDetail = ProfileContract["bank_details"][number];
-
 /**
  * `present()` returns stored strings; only values UpdateProfilePreferencesRequest
  * admitted are ever stored, so the calendar is that request's enum.

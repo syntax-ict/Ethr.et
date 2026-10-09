@@ -17,8 +17,6 @@ export type CustomRole =
 export type PermissionsByModule =
   operations["customRole.permissions"]["responses"][200]["content"]["application/json"];
 
-export type PermissionEntry = PermissionsByModule[string][number];
-
 export function useCustomRoles(params?: {
   page?: number;
   per_page?: number;

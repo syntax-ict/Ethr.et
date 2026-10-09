@@ -70,7 +70,6 @@ export type AttendanceSettings = Omit<
  */
 export type ImportPreview =
   operations["attendanceImport.preview"]["responses"][200]["content"]["application/json"];
-export type ImportPreviewRow = ImportPreview["rows"][number];
 
 /** A punch endpoint's record, plus whether the request was a replay. */
 export type PunchResult = components["schemas"]["AttendancePunchResource"];

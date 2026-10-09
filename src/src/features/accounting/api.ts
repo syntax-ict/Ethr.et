@@ -17,7 +17,6 @@ export type ChartAccountKey = ChartOfAccountsUpdate["accounts"][number]["key"];
 /** `GET /accounting/journal/{run}` (`AccountingExportService::journalEntries`). */
 export type PayrollJournal =
   operations["accounting.journal"]["responses"][200]["content"]["application/json"];
-export type JournalEntry = PayrollJournal["entries"][number];
 
 const keys = {
   chartOfAccounts: ["accounting", "chart-of-accounts"] as const,

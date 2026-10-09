@@ -112,8 +112,6 @@ export function useExecutiveCompliance(branchPublicId?: string) {
 export type ExecutiveForecast =
   operations["executiveDashboard.forecast"]["responses"][200]["content"]["application/json"];
 
-export type ForecastPoint = ExecutiveForecast["headcount"]["projected"][number];
-
 export function useExecutiveForecast(branchPublicId?: string) {
   return useQuery<ExecutiveForecast>({
     queryKey: ["dashboard", "executive", "forecast", branchPublicId],
@@ -128,9 +126,6 @@ export function useExecutiveForecast(branchPublicId?: string) {
 
 type BranchComparison =
   operations["analytics.branches"]["responses"][200]["content"]["application/json"];
-
-/** One row of `GET /analytics/branches` (BranchAnalyticsService::compare). */
-export type BranchSummary = BranchComparison["branches"][number];
 
 /** Powers the branch selector — reuses the existing branch-comparison endpoint. */
 export function useBranchList(enabled: boolean) {
