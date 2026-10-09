@@ -29,6 +29,7 @@ import {
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { saveCsv } from "@/lib/utils/csv-export";
 
 type Step = "upload" | "preview" | "importing" | "done";
 
@@ -105,15 +106,8 @@ export default function AttendanceImportPage() {
 
   function downloadTemplate() {
     template.mutate(undefined, {
-      onSuccess: (data) => {
-        const blob = new Blob([data.template], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "attendance_import_template.csv";
-        a.click();
-        URL.revokeObjectURL(url);
-      },
+      onSuccess: (data) =>
+        saveCsv("attendance_import_template.csv", data.template),
       onError: () =>
         toast.error(t("attendance.import_page.template_download_failed")),
     });
