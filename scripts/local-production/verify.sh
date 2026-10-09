@@ -80,6 +80,7 @@ check "segment: /dashboard"                   "200" "$BASE/dashboard/__next.$SEG
 check "segment: /payroll/payslips (was 500)"  "200" "$BASE/payroll/payslips/__next.$SEG.payroll.payslips.__PAGE__.txt"
 check "segment: /employees/new (was 500)"     "200" "$BASE/employees/new/__next.$SEG.employees.new.__PAGE__.txt"
 check "segment: /employees/<ULID>"            "200" "$BASE/employees/01HQZX3NDJKMNP4RSTVWXY5Z6A/__next.$SEG.employees.\$d\$id.__PAGE__.txt"
+check "segment: layout /en (\$d\$locale)"    "200" "$BASE/en/__next.!KG1hcmtldGluZyk.\$d\$locale.txt"
 check "segment: unknown stays a real 404"     "404" "$BASE/dashboard/__next.$SEG.nothere.__PAGE__.txt"
 
 printf '\n\033[1m3 · static siblings under a dynamic prefix — the §22b defect\033[0m\n'
