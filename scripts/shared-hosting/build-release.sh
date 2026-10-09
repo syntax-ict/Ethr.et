@@ -7,6 +7,8 @@
 #     api/          Laravel, with vendor/ (--no-dev), without tests/ or any .env
 #       public/     THE DOCUMENT ROOT: Laravel's own index.php, the static export,
 #                   the rendered .htaccess and .user.ini
+#         release.json  the same commit, served publicly, so a running site
+#                   says which release it is (scripts/release-status.sh)
 #     RELEASE       which commit this tree was built from
 #
 # THE LAYOUT (owner decision 2026-10-06). The site's document root is
@@ -120,6 +122,16 @@ built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 admin_host=$ADMIN_HOST
 EOF
 
+# The live answer to "which release is deployed?". RELEASE above sits outside
+# the document root and can't be fetched. This copy is served as a plain file
+# (the rules serve any existing file before rewriting), so
+# scripts/release-status.sh can compare the running site with the
+# `production` branch. It holds the commit and build time only. Both are already
+# public: the repository and its `production` branch are public. The admin host
+# stays out of it, because nothing needs it.
+BUILT_AT="$(sed -n 's/^built_at=//p' "$OUT/RELEASE")"
+printf '{"commit":"%s","built_at":"%s"}\n' "$SHA" "$BUILT_AT" > "$PUBLIC/release.json"
+
 step "4. Verify the tree rather than trusting the steps"
 # A credential file in a release is published: the production branch is in a
 # public repository. Same check deploy.sh makes on its tarball.
@@ -140,6 +152,7 @@ grep -qF '\.user\.ini' "$PUBLIC/.htaccess" || die "api/public/.htaccess does not
 grep -q '^memory_limit = 256M' "$PUBLIC/.user.ini" 2>/dev/null || die "api/public/.user.ini is missing or lacks the memory_limit floor"
 # Nothing above the document root may be reachable from it.
 [ ! -e "$PUBLIC/.env.shared-hosting.example" ] || die "an env template landed in the document root"
+grep -qF "\"commit\":\"$SHA\"" "$PUBLIC/release.json" 2>/dev/null || die "api/public/release.json is missing or names a different commit"
 # No developer-only frontend value may have been baked in (see step 2).
 for v in ${LEAK_VALUES[@]+"${LEAK_VALUES[@]}"}; do
   if grep -rqF -- "$v" "$PUBLIC/_next" 2>/dev/null; then

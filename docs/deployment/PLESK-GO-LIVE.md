@@ -28,7 +28,9 @@ value.**
 |---|---|---|
 | `production` branch | published by [`release.yml`](../../.github/workflows/release.yml) | The finished release: `api/` with `vendor/` (no dev packages, no tests, **no `.env`**). `api/public/` holds Laravel's own `index.php`, the static export, the rendered `.htaccess` and `.user.ini` |
 | Build | [`scripts/shared-hosting/build-release.sh`](../../scripts/shared-hosting/build-release.sh) | Builds from **committed** files only, then refuses a tree holding an `.env`, a config cache, dev packages or a modified `index.php` |
-| Rehearsal | [`scripts/shared-hosting/rehearse-release.sh`](../../scripts/shared-hosting/rehearse-release.sh) | Runs the Toolkit sequence on a throwaway copy, serves `api/public` and calls `/api/v1/ping`, then redeploys and checks `.env` and `APP_KEY` survive |
+| Rehearsal | [`scripts/shared-hosting/rehearse-release.sh`](../../scripts/shared-hosting/rehearse-release.sh) | Runs the Toolkit sequence on a throwaway copy, serves `api/public` and calls `/api/v1/ping`, checks `release.json` names the release, then redeploys and checks `.env` and `APP_KEY` survive |
+| Release tags | `release.yml` | Every published release commit is tagged `vYYYY.MM.DD.N`; the `release-tags` ruleset keeps tags from moving |
+| Status | [`scripts/release-status.sh`](../../scripts/release-status.sh) | Local vs GitHub `main` vs `production` vs the live site's `/release.json`, with the next action for anything out of step |
 | PHP limits | [`scripts/shared-hosting/user.ini`](../../scripts/shared-hosting/user.ini) → `api/public/.user.ini` | 256M / 120 / 10M / 12M. The panel shows these read-only on this account; `.htaccess` refuses to serve the file |
 | Scheduler | [`cron.yml`](../../.github/workflows/cron.yml) | Drives `/cron/schedule` and `/cron/queue` every 5 minutes once its two secrets exist; dormant until then |
 
@@ -165,7 +167,14 @@ ignores the file until it is rebuilt. Set `MAINTENANCE_TOKEN` for that, and empt
 ```bash
 curl -s https://<APP_DOMAIN>/api/v1/ping
 curl -s https://<APP_DOMAIN>/api/v1/health
+scripts/release-status.sh https://<APP_DOMAIN>    # from a local checkout
 ```
+
+The last command reads `https://<APP_DOMAIN>/release.json`, which every release
+carries, and compares it with the `production` branch and its `vYYYY.MM.DD.N` tag. It
+ends *"…in step"* when the site runs the latest release. If it reports an older one
+instead, Plesk Git did not deploy the newest `production` commit. Press **Deploy**
+again.
 
 Then open `https://<APP_DOMAIN>/login`, sign in, and run
 [`shared-hosting/deploy-checklist.md`](shared-hosting/deploy-checklist.md). Now do Part 1
