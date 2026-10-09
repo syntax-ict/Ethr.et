@@ -67,9 +67,13 @@ class ResetMfaCommand extends Command
             return self::SUCCESS;
         }
 
-        $mfa->reset($user, by: 'console');
+        $emailed = $mfa->reset($user, by: 'console');
 
-        $this->info("Two-factor authentication is off for {$user->email}. They have been emailed, and can sign in with their password and set it up again.");
+        $this->info("Two-factor authentication is off for {$user->email}. They can sign in with their password and set it up again.");
+
+        if (! $emailed) {
+            $this->warn('The email telling them could not be sent; tell them yourself. The mail error is in the log.');
+        }
 
         return self::SUCCESS;
     }

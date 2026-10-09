@@ -8,6 +8,8 @@ use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\MfaResetNotification;
 use App\Services\CurrentTenant;
+use Illuminate\Contracts\Notifications\Dispatcher as NotificationDispatcher;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 /*
@@ -127,4 +129,22 @@ it('never reaches a tenant user without --tenant, and refuses an unknown slug', 
     $this->artisan('ethr:reset-mfa', ['email' => 'same@acme.test', '--tenant' => 'no-such-org'])->assertFailed();
 
     expect($user->refresh()->mfa_enabled)->toBeTrue();
+});
+
+it('still resets when the email cannot be sent, and says so in the log', function () {
+    // The rehearsal has no SMTP host. The reset happened, and then the request
+    // answered 500 after a ten-second connection timeout.
+    $this->mock(NotificationDispatcher::class)
+        ->shouldReceive('send')
+        ->andThrow(new RuntimeException('Connection could not be established with host ":587"'));
+    Log::spy();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN]);
+    $target = mfaResetTarget();
+
+    $this->postJson("/api/v1/users/{$target->public_id}/mfa/reset")
+        ->assertOk()
+        ->assertJsonPath('mfa_enabled', false);
+
+    expect($target->refresh()->mfa_enabled)->toBeFalse();
+    Log::shouldHaveReceived('warning')->withArgs(fn ($message) => $message === 'MFA reset email failed')->once();
 });

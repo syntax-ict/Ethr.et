@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\MfaResetNotification;
+use Illuminate\Support\Facades\Log;
 use PragmaRX\Google2FA\Google2FA;
 
 class MfaService
@@ -76,8 +77,13 @@ class MfaService
      * the way back that did not exist until 2026-10-09. Their trusted browsers
      * are forgotten too, and they are emailed, because whoever can do this can
      * also use it to get around MFA. `$by` names who did it in the audit row.
+     *
+     * Returns whether the email went. A mail failure does not undo the reset or
+     * fail the request: the rehearsal, which has no SMTP host, answered 500
+     * after ten seconds although the reset had happened. Activation emails are
+     * handled the same way (UserProvisioningService::sendActivationLink).
      */
-    public function reset(User $user, string $by): void
+    public function reset(User $user, string $by): bool
     {
         $user->update([
             'mfa_enabled' => false,
@@ -88,6 +94,17 @@ class MfaService
 
         AuditLog::record('user.mfa_reset', $user, ['by' => $by]);
 
-        $user->notify(new MfaResetNotification);
+        try {
+            $user->notify(new MfaResetNotification);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('MFA reset email failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 }
