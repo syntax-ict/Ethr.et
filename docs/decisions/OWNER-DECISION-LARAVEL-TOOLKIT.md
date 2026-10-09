@@ -1,5 +1,10 @@
 # Install route on the host: **Laravel Toolkit**, document root `<APP_ROOT>/api/public`
 
+> **The artisan half is SUPERSEDED, 2026-10-09** —
+> [`OWNER-DECISION-MAINTENANCE-ENDPOINT.md`](OWNER-DECISION-MAINTENANCE-ENDPOINT.md). The Toolkit's
+> Scan attached no application on this account, so the release steps run through a
+> token-guarded endpoint. The document root `<APP_ROOT>/api/public` stands.
+
 > **OWNER DECIDED, 2026-10-06.** Artisan (`key:generate`, `migrate`, `ethr:create-admin`)
 > runs from Plesk's **Laravel Toolkit**. The site's document root is **`<APP_ROOT>/api/public`**.
 > This **overrides** [`SHARED-HOSTING-CONTRACT.md`](../deployment/SHARED-HOSTING-CONTRACT.md)'s

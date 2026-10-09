@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Middleware\VerifyMaintenanceToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -15,15 +16,28 @@ use Illuminate\Support\Facades\Route;
  * endpoint all returned 200.
  */
 test('every api route passes through the global limiter', function () {
-    $unthrottled = collect(Route::getRoutes()->getRoutes())
+    $outsideGlobal = collect(Route::getRoutes()->getRoutes())
         ->filter(fn ($route) => str_starts_with($route->uri(), 'api/v1/'))
         ->reject(fn ($route) => collect(app('router')->gatherRouteMiddleware($route))
-            ->contains(fn ($m) => is_string($m) && str_ends_with($m, ':api-global')))
+            ->contains(fn ($m) => is_string($m) && str_ends_with($m, ':api-global')));
+
+    // The one exception, and its own brake: the maintenance routes sit outside
+    // the api group because `api-global` counts in the database cache, whose
+    // table does not exist before `migrate` — one of their steps.
+    // VerifyMaintenanceToken limits them instead, in the file cache, before
+    // the token is compared (MaintenanceEndpointTest pins the 429).
+    $unthrottled = $outsideGlobal
+        ->reject(fn ($route) => in_array(VerifyMaintenanceToken::class, app('router')->gatherRouteMiddleware($route), true))
         ->map(fn ($route) => $route->uri())
         ->values()
         ->all();
 
-    expect($unthrottled)->toBe([]);
+    expect($unthrottled)->toBe([])
+        ->and($outsideGlobal->map(fn ($route) => $route->uri())->values()->all())->toBe([
+            'api/v1/maintenance/key',
+            'api/v1/maintenance/create-admin',
+            'api/v1/maintenance/{task}',
+        ]);
 });
 
 test('a signed-in user is limited to 300 requests a minute', function () {

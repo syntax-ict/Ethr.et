@@ -938,7 +938,7 @@ External probing on 2026-08-29 (`docs/B1-B5_GATE_REPORT.md`) closed these withou
 | Wildcard **DNS** | **PASS** | A wildcard `A` record resolves for names never configured |
 | App outside the document root | **PASS** | Home sits a level above `httpdocs`, so `.env` and `storage/` are unreachable over HTTP by construction |
 | Plesk panel | **CONFIRMED** | Port 8443 open, `X-Powered-By: PleskLin` |
-| MySQL not internet-exposed | **CONFIRMED** | Port 3306 refused — connections must use `DB_HOST=localhost` |
+| MySQL not internet-exposed | **CONFIRMED** | Port 3306 refused. *(The conclusion drawn here, `DB_HOST=localhost`, was **wrong** — corrected 2026-10-09: the database is on a separate server on the provider's internal network, `<DB_HOST>` on Plesk's Databases page, and `localhost` is refused. See `shared-hosting/ENVIRONMENT.md` D-7.)* |
 | Let's Encrypt via HTTP-01 | **PROVEN on this account** | A valid per-hostname certificate is already live; `httpdocs/.well-known/` corroborates the challenge path |
 | Wildcard TLS | **BLOCKED, understood** | Needs DNS-01, and the zone is on `ns2.telecom.net.et`, not Plesk. Per-hostname issuance is the fallback — budget for Let's Encrypt's 50-certs-per-week ceiling |
 | Composer | **CONFIRMED** | Present as a Plesk extension (2026-09-17) |

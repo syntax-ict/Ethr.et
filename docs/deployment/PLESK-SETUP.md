@@ -92,7 +92,7 @@ with every conversion marked `# [shared-hosting]` and its reason.
 | `SESSION_DRIVER` | `redis` | `database` |
 | `BROADCAST_CONNECTION` | `reverb` | `null` |
 | `FILESYSTEM_DISK` | `minio` | `local` |
-| `DB_HOST` | `mariadb` | `localhost` |
+| `DB_HOST` | `mariadb` | `<DB_HOST>` from Plesk's Databases page — **not** `localhost` (corrected 2026-10-09) |
 | `DB_ROOT_PASSWORD`, `DB_READ_*`, `MINIO_*`, `REVERB_*`, `HORIZON_PREFIX` | set | empty |
 
 `BROADCAST_CONNECTION=null` rather than `reverb` is deliberate: with `reverb` set and

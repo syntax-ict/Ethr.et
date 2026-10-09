@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
 use App\Http\Middleware\AcceptIdempotencyKeyHeader;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\AuthenticateFromCookie;
@@ -16,6 +17,7 @@ use App\Http\Middleware\RequireTenantMfaEnrolment;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -25,6 +27,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -37,6 +40,21 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         apiPrefix: 'api/v1',
+        // The install and release steps, OUTSIDE the api group on purpose: that
+        // group's `api-global` throttle keeps its counters in the database
+        // cache, whose table does not exist until `migrate` — one of these
+        // steps — has run. Only VerifyMaintenanceToken guards them. The path
+        // stays under /api because that is all .htaccess hands to Laravel.
+        then: function (): void {
+            Route::prefix('api/v1/maintenance')
+                ->middleware(VerifyMaintenanceToken::class)
+                ->group(function (): void {
+                    Route::post('/key', [MaintenanceController::class, 'key']);
+                    Route::post('/create-admin', [MaintenanceController::class, 'createAdmin']);
+                    Route::post('/{task}', [MaintenanceController::class, 'run'])
+                        ->where('task', 'migrate|seed|optimize|clear');
+                });
+        },
     )
     // Listeners are registered once, explicitly, in AppServiceProvider::boot.
     // Laravel's automatic discovery registered every one of them a second time

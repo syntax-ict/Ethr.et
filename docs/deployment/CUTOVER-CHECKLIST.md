@@ -77,6 +77,21 @@ mandatory gate below reads `PASS`.**
 >
 > PR #133 still merges only once M1 *and* M2 are answered (decided 2026-09-28); M1 is.
 
+> ### 2026-10-09 — the Toolkit attached nothing; the release steps run over HTTP
+>
+> The Laravel Toolkit's Scan answered *"Attached 0 application(s)"* with the document root
+> at `ethr/api/public`. **Owner decision**
+> ([`OWNER-DECISION-MAINTENANCE-ENDPOINT.md`](../decisions/OWNER-DECISION-MAINTENANCE-ENDPOINT.md)):
+> `key`, `migrate`, `seed`, `create-admin` and the caches run through
+> `POST /api/v1/maintenance/*`, guarded by `MAINTENANCE_TOKEN` and switched off when it is
+> empty. Measured the same day:
+>
+> - Plesk Git's deployment path had drifted to `/ethr/api/public`. It was corrected to `/ethr`.
+> - The database is MySQL 8.0.32 on its own server.
+> - The panel cannot create mailboxes; the domain's mail is Ethio Telecom's mail system.
+>
+> **No gate status moved.**
+>
 > ### 2026-10-06 — the first host deploy closed one route; the install moves to the Laravel Toolkit
 >
 > Plesk Git's deployment action **executed** on the host for the first time. It runs in a
