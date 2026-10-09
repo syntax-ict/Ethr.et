@@ -118,6 +118,18 @@ it('treats 409 as benign rather than an error', function () {
     );
 });
 
+it('sends a Content-Length, which the production host requires on a POST', function () {
+    // Measured 2026-10-09: the host's web firewall answers a POST without a
+    // Content-Length with its own static 403 page, and the application never
+    // sees the request. A burst of those got the caller's address banned from
+    // ports 80/443. `--data ''` sends `Content-Length: 0`.
+    expect(ethrCronWorkflowLive())->toMatch(
+        "/-X POST\\s*\\\\\\s*--data ''/",
+        "the curl call must send --data '' with its POST. Without a Content-Length the "
+        .'production host refuses it with an HTML 403 before ETHR sees it, every five minutes.'
+    );
+});
+
 it('sends the token as a header and never in the URL', function () {
     $live = ethrCronWorkflowLive();
 
