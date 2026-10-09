@@ -20,6 +20,11 @@
 /storage/pail
 /storage/probe.txt
 /vendor
+# Transient copies made by scripts/composer-install-sandbox.sh. The script
+# deletes them on exit; these entries are what keeps an interrupted run from
+# leaving a patched lock behind for someone to commit.
+/composer.sandbox.json
+/composer.sandbox.lock
 Homestead.json
 Homestead.yaml
 Thumbs.db

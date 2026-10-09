@@ -248,7 +248,9 @@ gitignored, and `CONTRIBUTING.md` carries the longer version of this.
 **In an agent sandbox the token must be set in the environment's own settings**, not on the
 operator's machine and not as a shell export — each command starts a fresh shell, so an
 export does not survive, and the container is a different machine from the operator's.
-Until it is, `Pint`, `PHPStan` and `Pest` cannot run there and **CI is the only gate**.
+Until it is, `Pint`, `PHPStan` and `Pest` cannot run there and CI is the only gate — *except* in a Claude Code cloud sandbox, where no token can help and
+`./scripts/composer-install-sandbox.sh` gets you a native toolchain anyway. The next
+section is that case.
 
 #### In a Claude Code cloud sandbox, a token does not help — measured 2026-09-25
 
@@ -279,14 +281,40 @@ $ python3 -c "import json;d=json.load(open('api/composer.lock'));
 None
 ```
 
-`phpstan/phpstan` ships with **`"source": null` in `composer.lock`** — there is no source
-install path at all, so it can only arrive as an API zipball, and one blocked package fails
-the whole install. That is why `vendor/bin/` stays empty even after every other package has
-synced.
+`phpstan/phpstan` ships with **`"source": null` in `composer.lock`**, so `--prefer-source`
+has no git route for it and one blocked package fails the whole install. That is why
+`vendor/bin/` stays empty even after every other package has synced.
 
-**So in this sandbox `CI is the only gate` still holds, but for a different reason,** and
-the distinction matters when deciding whether to keep trying: the rate-limit case is fixed
-by a credential the operator can supply, and this one is not.
+**Both of the conclusions this section used to draw from that were wrong — corrected
+2026-09-27, and `./scripts/composer-install-sandbox.sh` is the result.** It said there is
+"no source install path at all" and that "CI is the only gate" in this sandbox. Neither
+holds:
+
+- **The source exists; the lock just omits it.** `github.com/phpstan/phpstan` is public and
+  clonable, and tag `2.2.2` is the same commit (`e5cc34d4`) the blocked zipball names —
+  verified by cloning the tag and comparing against `dist.reference`. Writing that
+  `source` into a copy of the lock is enough, and composer then checks the reference out
+  itself.
+- **There is a second blocker, and it is the one that misleads.** A full
+  `git clone --mirror` of that repository takes longer than composer's **300-second default
+  process timeout**. Composer gives up, falls back to dist, 403s, and reports
+  `Could not authenticate against github.com` at the same `AuthHelper.php:132` the
+  rate-limit case reaches. So the authentication error is a third-order symptom of a slow
+  clone, `COMPOSER_PROCESS_TIMEOUT=0` removes it, and an agent reading only that message
+  will chase a credential twice over. The other 162 mirrors each clone well inside the
+  timeout.
+
+Measured after both: **163 of 163 installed**, and `Pint`, `PHPStan` and `Pest` all run
+natively. The distinction still worth keeping is about *fixes*, not about whether a gate
+exists: the rate-limit case is fixed by a credential the operator can supply, and this one
+is fixed by that script.
+
+Two traps in the script itself, because both cost a cycle here. It never touches
+`composer.json` or `composer.lock` — it patches gitignored `composer.sandbox.*` copies, so a
+working-tree mutation cannot reach a commit. And it does **not** simply drop `phpstan/phpstan`
+from the lock to skip it: composer validates locked dependencies, so
+`larastan v3.10.0 requires phpstan/phpstan ^2.2.0 -> could not be found` kills the install
+before anything is written.
 
 ---
 
