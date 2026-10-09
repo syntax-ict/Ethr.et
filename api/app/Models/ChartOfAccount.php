@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use Illuminate\Database\Eloquent\Model;
 
 class ChartOfAccount extends Model
 {
-    use BelongsToTenant, HasAuditLog;
+    use BelongsToTenant;
 
     protected $table = 'chart_of_accounts';
 

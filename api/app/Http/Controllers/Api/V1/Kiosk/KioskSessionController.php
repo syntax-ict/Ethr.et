@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Kiosk;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kiosk\AuthenticateKioskRequest;
+use App\Http\Requests\Kiosk\ExitKioskRequest;
 use App\Http\Requests\Kiosk\RegisterKioskRequest;
 use App\Http\Resources\KioskSessionResource;
 use App\Models\AuditLog;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class KioskSessionController extends Controller
 {
@@ -153,5 +155,36 @@ class KioskSessionController extends Controller
                 'auto_reset_seconds' => $settings?->kiosk_auto_reset_seconds ?? 4,
             ],
         ]);
+    }
+
+    /**
+     * Leave kiosk mode on the terminal. The admin PIN set when the kiosk was
+     * registered must match; five attempts a minute per kiosk.
+     */
+    public function exitKiosk(ExitKioskRequest $request): JsonResponse
+    {
+        $session = KioskSession::resolveActiveByToken((string) $request->validated('token'));
+
+        if (! $session) {
+            return response()->json([
+                'type' => 'https://ethr.et/errors/unauthorized',
+                'title' => 'Unauthorized',
+                'status' => 401,
+                'detail' => __('kiosk.invalid_token'),
+            ], 401)->header('Content-Type', 'application/problem+json');
+        }
+
+        // Until 2026-10-09 the lock screen accepted any four digits: the PIN
+        // was hashed and stored and never compared, so anyone at a shared
+        // terminal could take it out of service (redundancy audit R1).
+        if (! $session->verifyAdminPin((string) $request->validated('admin_pin'))) {
+            throw ValidationException::withMessages([
+                'admin_pin' => __('kiosk.invalid_admin_pin'),
+            ]);
+        }
+
+        AuditLog::record('kiosk.exited', $session);
+
+        return response()->json(null, 204);
     }
 }

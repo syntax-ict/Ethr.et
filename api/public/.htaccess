@@ -237,28 +237,32 @@
     # Nothing mapped one to the other, so EVERY page prefetch 404'd
     # (measured 2026-10-08 in the rehearsal; the note at the end of
     # this file believed only entity routes did). These rules turn the
-    # dots between the route-group token and __PAGE__ into slashes —
-    # for up to three route segments, the deepest the export writes —
+    # dots after the route-group token into slashes — for up to four
+    # parts, the deepest the export writes. Generalised 2026-10-09 from
+    # `….__PAGE__.txt` only: a layout segment such as
+    # /en/__next.!KG1hcmtldGluZyk.$d$locale.txt (exported as
+    # en/__next.!KG1hcmtldGluZyk/$d$locale.txt) still 404'd on every public
+    # page —
     # and only when the resulting file exists, so a genuine 404 stays
     # one. No route is named: the shape is Next's, not ours. An entity
     # route reaches these on its second pass, after group 1 has moved
     # it under __id__.
     #
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/__PAGE__.txt -f
-    RewriteRule ^(.*)__next\.([^./]+)\.__PAGE__\.txt$ /$1__next.$2/__PAGE__.txt [L]
+    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3.txt -f
+    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.txt$ /$1__next.$2/$3.txt [L]
     #
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/__PAGE__.txt -f
-    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.__PAGE__\.txt$ /$1__next.$2/$3/__PAGE__.txt [L]
+    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4.txt -f
+    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.txt$ /$1__next.$2/$3/$4.txt [L]
     #
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4/__PAGE__.txt -f
-    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.__PAGE__\.txt$ /$1__next.$2/$3/$4/__PAGE__.txt [L]
+    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4/$5.txt -f
+    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.txt$ /$1__next.$2/$3/$4/$5.txt [L]
     #
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4/$5/__PAGE__.txt -f
-    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.__PAGE__\.txt$ /$1__next.$2/$3/$4/$5/__PAGE__.txt [L]
+    RewriteCond %{DOCUMENT_ROOT}/$1__next.$2/$3/$4/$5/$6.txt -f
+    RewriteRule ^(.*)__next\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.([^./]+)\.txt$ /$1__next.$2/$3/$4/$5/$6.txt [L]
     #
     # ── 1. Entity routes: /employees/<ULID> and the other three ──
     #

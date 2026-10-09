@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use Database\Factories\PayrollRuleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,7 +33,7 @@ use Illuminate\Support\Carbon;
  */
 class PayrollRule extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasPublicId;
+    use BelongsToTenant, HasPublicId;
 
     /** @use HasFactory<PayrollRuleFactory> */
     use HasFactory;

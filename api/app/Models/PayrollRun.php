@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
-use App\Traits\HasAuditLog;
 use App\Traits\HasPublicId;
 use App\Traits\NeverDelete;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,7 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class PayrollRun extends Model
 {
-    use BelongsToTenant, HasAuditLog, HasFactory, HasPublicId, NeverDelete;
+    use BelongsToTenant, HasFactory, HasPublicId, NeverDelete;
 
     protected $fillable = [
         'public_id',

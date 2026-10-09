@@ -9,7 +9,6 @@ return [
     'no_working_days' => 'በተመረጡ ቀናቶች ውስጥ የሥራ ቀናቶች የሉም።',
     'gender_restricted' => 'ይህ ዓይነቱ ፈቃድ ለጾታዎ አይገኝም።',
     'insufficient_balance' => 'ለዚህ ጥያቄ በቂ የፈቃድ ቀናቶች የሉዎትም።',
-    'submitted' => 'የፈቃድ ጥያቄ በተሳካ ሁኔታ ተልኳል።',
     'approved' => 'የፈቃድ ጥያቄ ተፈቅዷል።',
     'rejected' => 'የፈቃድ ጥያቄ ውድቅ ተደርጓል።',
     'cancelled' => 'የፈቃድ ጥያቄ ተሰርዟል።',

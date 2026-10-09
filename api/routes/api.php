@@ -226,6 +226,7 @@ Route::prefix('devices/webhook')->middleware('throttle:api')->group(function () 
 Route::prefix('kiosk')->middleware('throttle:api')->group(function () {
     Route::post('/authenticate', [KioskSessionController::class, 'authenticate']);
     Route::post('/check-in', KioskCheckInController::class);
+    Route::post('/exit', [KioskSessionController::class, 'exitKiosk'])->middleware('throttle:kiosk-exit');
 });
 
 // Authenticated routes
