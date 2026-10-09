@@ -106,7 +106,7 @@ class DispatchWebhookJob implements ShouldQueue
         // let it encode the payload a second time; the signature held only
         // because both encodings happened to use the same flags.
         $payloadJson = (string) json_encode($this->payload);
-        $signature = 'sha256='.hash_hmac('sha256', $payloadJson, $webhook->secret);
+        $signature = 'sha256='.$webhook->sign($payloadJson);
         $attempt = $this->attempts();
 
         try {
