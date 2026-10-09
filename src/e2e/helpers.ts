@@ -204,6 +204,7 @@ export async function logout(page: Page) {
  * UI under test then acts on. Navigate to an app page first, so the cookies
  * and localStorage it reads exist and the session has been refreshed.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- specs read whatever shape the endpoint returns
 export async function api<T = any>(
   page: Page,
   method: string,

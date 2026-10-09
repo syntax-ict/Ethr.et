@@ -43,7 +43,20 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const SKIP = new Set(["node_modules", "vendor", ".git", ".next", "dist", "coverage"]);
+// `.local-production` and `.deploy-artifacts` are git-ignored build output: the
+// rehearsal's assembled release copies the repo's markdown without the `docs/`
+// tree its relative links point at, so checking it fails a clean checkout's
+// gate on a machine that has run the rehearsal (2026-10-09). CI has neither.
+const SKIP = new Set([
+  "node_modules",
+  "vendor",
+  ".git",
+  ".next",
+  "dist",
+  "coverage",
+  ".local-production",
+  ".deploy-artifacts",
+]);
 
 // [text](target)  — ignore the #anchor, we only check the file exists.
 const LINK = /\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)/g;
