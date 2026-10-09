@@ -139,6 +139,8 @@ describe("<ClaimSession> on the tenant host", () => {
     server.use(
       http.get("*/sanctum/csrf-cookie", () => {
         calls.push("csrf");
+        // As Sanctum does; the client fetches it again before a write if not.
+        document.cookie = "XSRF-TOKEN=test; path=/";
         return new HttpResponse(null, { status: 204 });
       }),
       http.post("*/auth/session/claim", async ({ request }) => {
