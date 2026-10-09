@@ -1,4 +1,5 @@
 import { chromium, Page } from '@playwright/test';
+import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
@@ -194,4 +195,65 @@ export async function logout(page: Page) {
     await page.keyboard.press('Escape');
   }
   throw new Error('No header menu offers a Log Out item');
+}
+
+/**
+ * Call the API from inside the app page, as its own client does: same origin,
+ * the session cookie, the XSRF header Sanctum checks on a stateful request,
+ * and X-Tenant when the session names one. Specs use it to set up data the
+ * UI under test then acts on. Navigate to an app page first, so the cookies
+ * and localStorage it reads exist and the session has been refreshed.
+ */
+export async function api<T = any>(
+  page: Page,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; data: T }> {
+  return page.evaluate(
+    async ({ method, path, body }) => {
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      };
+      const xsrf = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+      if (xsrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
+      const tenant = localStorage.getItem('tenant');
+      if (tenant) headers['X-Tenant'] = tenant;
+
+      const res = await fetch(`/api/v1${path}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const text = await res.text();
+      return { status: res.status, data: text ? JSON.parse(text) : null };
+    },
+    { method, path, body },
+  );
+}
+
+/**
+ * The current RFC 6238 code for a base32 secret — SHA-1, six digits, 30-second
+ * steps, which is what Google2FA issues. Lets a spec enrol and sign in with
+ * MFA for real instead of stopping at the code screen.
+ */
+export function totp(secretBase32: string, at = Date.now()): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bits = secretBase32
+    .replace(/=+$/, '')
+    .toUpperCase()
+    .split('')
+    .map((ch) => alphabet.indexOf(ch).toString(2).padStart(5, '0'))
+    .join('');
+  const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
+  const hmac = crypto.createHmac('sha1', key).update(counter).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  return ((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
 }
