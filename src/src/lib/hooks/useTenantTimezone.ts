@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useCurrentTenant } from "@/features/auth/api";
+import { useT } from "@/lib/i18n/useT";
 import {
   DEFAULT_TIMEZONE,
   resolveTimeZone,
@@ -41,6 +42,7 @@ export function useTenantTimezone(): string {
  * correct for the common case rather than falling back to the browser.
  */
 export function useDateFormatters() {
+  const { t } = useT();
   const timeZone = useTenantTimezone();
 
   return {
@@ -58,8 +60,8 @@ export function useDateFormatters() {
       [timeZone],
     ),
     timeAgo: useCallback(
-      (dateStr: string) => timeAgo(dateStr, timeZone),
-      [timeZone],
+      (dateStr: string) => timeAgo(dateStr, timeZone, t),
+      [timeZone, t],
     ),
   };
 }

@@ -57,17 +57,6 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
 /**
  * The gate is the outer component so it also covers the loading, error and
  * not-found branches below — when it wrapped only the success branch, anyone
@@ -89,7 +78,7 @@ function TenantDetail({ id }: { id: string }) {
   // Same choice as the tenant list: the operator's own zone, so every date on
   // this page sits on one clock. `due_date` below is the exception -- it is a
   // calendar date, not an instant, and must not be converted at all.
-  const { formatDate, formatDateTime } = useDateFormatters();
+  const { formatDate, formatDateTime, timeAgo } = useDateFormatters();
 
   const statusActionLabel = (status: string | null) =>
     status === "active"

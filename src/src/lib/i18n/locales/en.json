@@ -3536,6 +3536,7 @@
   "time.hour_short": "h",
   "time.just_now": "just now",
   "time.min_short": "m",
+  "time.week_short": "w",
   "users_page.delete": "Remove user",
   "users_page.delete_desc": "This revokes their access. Employee records are not deleted.",
   "users_page.deleted": "User removed",

@@ -24,9 +24,11 @@ import {
   type Device,
 } from "@/features/devices/api";
 import { useT } from "@/lib/i18n/useT";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 export default function DeviceDashboardPage() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const { data: stats, isLoading: statsLoading } = useDeviceDashboard({
     refetchInterval: 30000,
   });
@@ -144,7 +146,7 @@ export default function DeviceDashboardPage() {
                 {stats.last_sync_at && (
                   <p className="mt-3 text-xs text-muted-foreground">
                     {t("devices_dashboard_page.last_sync_across")}:{" "}
-                    {timeAgo(stats.last_sync_at, t)}
+                    {timeAgo(stats.last_sync_at)}
                   </p>
                 )}
               </CardContent>
@@ -236,7 +238,7 @@ export default function DeviceDashboardPage() {
                       {d.last_sync_at ? (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />{" "}
-                          {timeAgo(d.last_sync_at, t)}
+                          {timeAgo(d.last_sync_at)}
                         </span>
                       ) : (
                         t("devices_page.never")
@@ -327,17 +329,4 @@ function statusLabel(
     pending: t("devices_page.pending"),
   };
   return map[status] ?? status;
-}
-
-function timeAgo(
-  iso: string,
-  t: (key: string, fallback?: string) => string,
-): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diffMs / 60000);
-  if (m < 1) return t("devices_dashboard_page.just_now");
-  if (m < 60) return `${m}${t("devices_dashboard_page.m_ago")}`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}${t("devices_dashboard_page.h_ago")}`;
-  return `${Math.floor(h / 24)}${t("devices_dashboard_page.d_ago")}`;
 }

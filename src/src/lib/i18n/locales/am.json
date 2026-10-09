@@ -3536,6 +3536,7 @@
   "time.hour_short": "ሰ",
   "time.just_now": "አሁን",
   "time.min_short": "ደ",
+  "time.week_short": "w",
   "users_page.delete": "ተጠቃሚ አስወግድ",
   "users_page.delete_desc": "ይህ መዳረሻቸውን ይሰርዛል። የሠራተኛ መዝገቦች አይሰረዙም።",
   "users_page.deleted": "ተጠቃሚ ተወግዷል",

@@ -49,22 +49,7 @@ import { formatETB } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-function timeAgo(
-  dateStr: string,
-  t: (key: string, fallback: string) => string,
-): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return t("time.just_now", "just now");
-  if (mins < 60)
-    return `${mins}${t("time.min_short", "m")} ${t("time.ago", "ago")}`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)
-    return `${hrs}${t("time.hour_short", "h")} ${t("time.ago", "ago")}`;
-  const days = Math.floor(hrs / 24);
-  return `${days}${t("time.day_short", "d")} ${t("time.ago", "ago")}`;
-}
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 
 function formatAction(action: string): string {
   return action.replace(/\./g, " › ").replace(/_/g, " ");
@@ -72,6 +57,7 @@ function formatAction(action: string): string {
 
 export default function AdminConsolePage() {
   const { t } = useT();
+  const { timeAgo } = useDateFormatters();
   const queryClient = useQueryClient();
 
   const {
@@ -322,7 +308,7 @@ export default function AdminConsolePage() {
               <div className="flex items-center gap-2">
                 {healthUpdatedAt > 0 && (
                   <span className="text-[10px] tabular-nums text-muted-foreground">
-                    {timeAgo(new Date(healthUpdatedAt).toISOString(), t)}
+                    {timeAgo(new Date(healthUpdatedAt).toISOString())}
                   </span>
                 )}
                 <Button
@@ -558,7 +544,7 @@ export default function AdminConsolePage() {
                           >
                             {job.queue}
                           </Badge>
-                          {timeAgo(job.failed_at, t)}
+                          {timeAgo(job.failed_at)}
                         </p>
                       </div>
                       <Button
@@ -697,7 +683,7 @@ export default function AdminConsolePage() {
                       )}
                     </div>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {timeAgo(log.created_at, t)}
+                      {timeAgo(log.created_at)}
                     </span>
                   </div>
                 ))}
