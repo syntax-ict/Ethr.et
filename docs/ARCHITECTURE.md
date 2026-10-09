@@ -758,11 +758,18 @@ this convention and don't need to be migrated on sight.
     GET    /current
 
   /onboarding/
-    GET    /progress
-    PUT    /progress/{step}
-    POST   /apply-template
-    POST   /employees/preview
-    POST   /employees/commit
+    GET    /progress                 the sidebar's setup progress
+    GET    /industries
+    POST   /configuration/preview
+    POST   /configuration/apply
+    GET    /access
+    PUT    /access
+    POST   /migration/rows            (and /migration/devices/{device},
+    POST   /migration/batches/{batch}/commit    /batches/{batch}, /rows/{row})
+    GET    /readiness
+    POST   /go-live
+    (PUT /progress/{step}, POST /apply-template, /invite and /complete were
+    removed on 2026-10-09: superseded by the guided setup, and uncalled)
 
   /organization/
     GET    /tree

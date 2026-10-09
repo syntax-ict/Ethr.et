@@ -187,6 +187,7 @@ Wizard sub-items that live in those modules rather than in the wizard are marked
   - `GET /api/v1/onboarding/progress` — current step + all saved data
   - `PUT /api/v1/onboarding/progress/{step}` — step-keyed save; `{step}` validated against the `OnboardingStep` enum
   - `POST /api/v1/onboarding/apply-template`, `POST /api/v1/onboarding/invite`, `POST /api/v1/onboarding/complete`
+  - *(Removed 2026-10-09 — all four bullets above but `GET /progress`. The guided setup ([ONBOARDING_V2.md](../ONBOARDING_V2.md)) replaced them and nothing called them: `configuration/apply` provisions, Settings → Users invites, and `go-live` completes, with a readiness score that `/complete` never recorded.)*
   - `[~]` The named per-step deep-config routes (`org_structure`, `work_schedule`, `leave_policies`, `payroll_config`, `employee_import`, `review_launch`) were spec-only and never existed as distinct endpoints; that configuration lives in the `Organization`, `Settings`, and `Employees → Import` modules as noted in the Phase 1 completion status
 - [x] `OnboardingStep` enum: 7 canonical steps (`App\Enums\OnboardingStep`; see [ONBOARDING_V2.md](../ONBOARDING_V2.md) D1 for the eleven→seven mapping)
 - [x] Progress auto-saved on each step (resume on refresh/return)
