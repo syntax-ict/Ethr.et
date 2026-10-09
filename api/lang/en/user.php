@@ -15,6 +15,12 @@ return [
     'invite_resent' => 'Activation link resent.',
     'updated' => 'User updated.',
     'deactivated' => 'User deactivated.',
+    'mfa_reset' => [
+        'subject' => 'Two-factor authentication was turned off',
+        'intro' => 'An administrator turned off two-factor authentication for your ETHR account, so you can sign in with your password alone.',
+        'next' => 'Sign in and set it up again from your security settings. If your organisation requires it, you will be asked to straight away.',
+        'not_you' => 'If you did not ask for this, tell your administrator at once.',
+    ],
     'errors' => [
         'role_not_assignable' => 'This role cannot be assigned.',
         'role_above_your_level' => 'You cannot assign a role higher than your own.',
@@ -22,5 +28,7 @@ return [
         'cannot_delete_self' => 'You cannot deactivate your own account.',
         'not_pending' => 'This user is not pending activation.',
         'already_exists' => 'A user with this email already exists.',
+        'cannot_reset_own_mfa' => 'Turn off your own two-factor authentication from your security settings.',
+        'mfa_not_enabled' => 'This user does not have two-factor authentication turned on.',
     ],
 ];
